@@ -1,0 +1,59 @@
+﻿{
+  "seo": {
+    "title": "Membresías | {{siteName}} - Zanahoria, Bronce, Plata, Oro y Diamante",
+    "description": "Descubre los niveles de membresía del club privado {{siteName}}. Desde Zanahoria (gratis) hasta Diamante con descuentos exclusivos, entregas gratis, muestras de regalo y acceso a beneficios premium. Únete al club de magia verde más completo de Colombia.",
+    "keywords": "membresía club privado, niveles membresía {{siteName}}, descuentos exclusivos, beneficios premium, membresía Zanahoria, membresía Bronce, membresía Plata, membresía Oro, membresía Diamante, suscripción club, {{siteName}} membresías",
+    "schemaName": "Membresías y Beneficios - {{siteName}}",
+    "schemaDescription": "Sistema de membresías del club privado {{siteName}} con 6 niveles y beneficios exclusivos.",
+    "breadcrumbHome": "Inicio",
+    "breadcrumbMemberships": "Membresías",
+    "schemaListName": "Niveles de Membresía",
+    "schemaLevel1": "Zanahoria - Nivel Gratuito",
+    "schemaLevel2": "Bronce - Membresía Básica",
+    "schemaLevel3": "Plata - Membresía Intermedia",
+    "schemaLevel4": "Oro - Membresía Premium",
+    "schemaLevel5": "Diamante - Membresía VIP",
+    "schemaLevel6": "Platino - Membresía Elite"
+  },
+  "pageTitle": "Membresías",
+  "pageSubtitle": "Beneficios exclusivos para ti",
+  "faqButton": "¿Cómo funcionan?",
+  "myMembership": "Mi Membresía",
+  "active": "Activa",
+  "viewDetails": "Ver detalles",
+  "alerts": {
+    "loginRequired": "Debes iniciar sesión para adquirir una membresía",
+    "alreadyBasic": "Ya tienes acceso al nivel básico",
+    "purchaseSuccess": "¡Tu membresía ha sido actualizada exitosamente!"
+  },
+  "unauthenticated": {
+    "bannerTitle": "Únete a nuestra comunidad",
+    "bannerDescription": "Accede a beneficios exclusivos según tu nivel de membresía. Desde descuentos especiales hasta variedades exclusivas y Virtual Coins para canjear.",
+    "tagCoins": "Virtual Coins",
+    "tagDiscounts": "Descuentos exclusivos",
+    "tagVIP": "Variedades VIP"
+  },
+  "benefits": {
+    "title": "Mis Beneficios Activos",
+    "subtitle": "Beneficios incluidos en tu membresía {{name}}",
+    "loading": "Cargando beneficios...",
+    "empty": "No hay beneficios activos para tu nivel de membresía.",
+    "upcomingLabel": "Beneficios que desbloquearás al subir de nivel:"
+  },
+  "levels": {
+    "title": "Niveles de Membresía",
+    "subtitle": "Explora los beneficios de cada nivel"
+  },
+  "levelsGrid": {
+    "loading": "Cargando niveles...",
+    "error": "Error al cargar los niveles de membresía",
+    "empty": "No hay niveles de membresía disponibles"
+  },
+  "cta": {
+    "title": "¿Listo para unirte?",
+    "description": "Crea tu cuenta gratis y comienza a disfrutar de los beneficios exclusivos",
+    "footerPrefix": "Comienza con membresía Zanahoria",
+    "footerFree": "gratis",
+    "footerSuffix": "y sube de nivel cuando quieras"
+  }
+}

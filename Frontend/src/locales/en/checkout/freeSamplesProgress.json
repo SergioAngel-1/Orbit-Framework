@@ -1,0 +1,32 @@
+{
+  "completed": {
+    "title": "🎉 You have received all your free samples",
+    "summary": "{{delivered}}g of {{total}}g ({{count}} deliveries). They renew with your club membership."
+  },
+  "justDelivered": {
+    "title": "🎉 Sample delivered!",
+    "received": "You received {{grams}}g with your last contribution.",
+    "newCycle": "New cycle started"
+  },
+  "progress": {
+    "title": "Free samples progress",
+    "contributions": "contributions"
+  },
+  "messages": {
+    "pendingWillEarn": "🎁 You have a contribution in process that will earn {{grams}}g of sample when completed.",
+    "pendingWillEarnExcited": "🎁 You have a contribution in process that will earn {{grams}}g of sample when completed!",
+    "pendingCompleteCycle": "🎁 Your contribution in process will complete the cycle! The next one will earn {{grams}}g of sample.",
+    "cycleComplete": "🎁 Cycle complete! Your next contribution will earn {{grams}}g of sample.",
+    "pendingInProcess": "⏳ {{count}} contributions in process. When completed, your next contribution will earn {{grams}}g of sample.",
+    "pendingSimple_one": "⏳ {{count}} contribution in process",
+    "pendingSimple_other": "⏳ {{count}} contributions in process",
+    "completeMore_one": "Complete <strong>{{count}}</strong> more contribution to complete the cycle and earn {{grams}}g of sample on the next one.",
+    "completeMore_other": "Complete <strong>{{count}}</strong> more contributions to complete the cycle and earn {{grams}}g of sample on the next one."
+  },
+  "summary": {
+    "deliveries": "Deliveries: {{earned}}/{{max}}",
+    "delivered": "Delivered: {{grams}}g",
+    "remaining": "Remaining: {{grams}}g",
+    "lastSample": "Last sample: {{grams}}g on {{date}}"
+  }
+}

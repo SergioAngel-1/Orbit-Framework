@@ -1,0 +1,60 @@
+# robots.txt para Flores Inc
+# Club Cannábico Legal en Colombia
+# Indexación habilitada para motores de búsqueda
+
+User-agent: *
+Allow: /
+
+# Sitemap para mejor indexación
+Sitemap: https://floresinc.co/sitemap-index.xml
+
+# Rutas privadas que no deben indexarse (ES)
+Disallow: /reserva
+Disallow: /finalizar-retiro
+Disallow: /fondo-de-aportes
+Disallow: /invitados
+Disallow: /referidos
+Disallow: /reset-password
+Disallow: /iniciar-sesion
+Disallow: /login
+Disallow: /catalogo/buscar
+
+# Rutas privadas que no deben indexarse (EN - slugs traducidos)
+Disallow: /en/cart
+Disallow: /en/checkout
+Disallow: /en/wallet
+Disallow: /en/referrals
+Disallow: /en/reset-password
+Disallow: /en/login
+Disallow: /en/catalog/buscar
+
+# URLs de membresía privadas — red de seguridad estática (ES)
+# NOTA: Los slugs de membresía son editables desde WP Admin > Productos > Membresía.
+#       Si cambias un slug, actualiza estas líneas. La defensa principal es el meta
+#       <meta name="robots" content="noindex, nofollow"> inyectado dinámicamente por
+#       ShopPage y ProductDetailPage cuando la categoría/producto requiere membresía.
+Disallow: /catalogo/membresia-bronce*
+Disallow: /catalogo/membresia-plata*
+Disallow: /catalogo/membresia-oro*
+Disallow: /catalogo/membresia-diamante*
+Disallow: /catalogo/membresia-antiguedad*
+
+# URLs de membresía privadas (EN)
+Disallow: /en/catalog/bronze-membership*
+Disallow: /en/catalog/silver-membership*
+Disallow: /en/catalog/gold-membership*
+Disallow: /en/catalog/diamond-membership*
+Disallow: /en/catalog/legacy-membership*
+
+# Rutas de API y assets internos
+Disallow: /api/
+
+# Permitir recursos estáticos
+Allow: /assets/
+Allow: /favicon/
+Allow: /*.js$
+Allow: /*.css$
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.webp$
+Allow: /*.svg$

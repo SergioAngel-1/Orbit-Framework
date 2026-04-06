@@ -1,0 +1,55 @@
+﻿{
+  "addToCart": {
+    "defaultButton": "Agregar a selección",
+    "adding": "Agregando...",
+    "added": "Agregado",
+    "quantity": "Cantidad:",
+    "viewCart": "Ver reserva",
+    "reserveButton": "Reservar para aprovisionamiento"
+  },
+  "animatedModal": {
+    "close": "Cerrar"
+  },
+  "loading": {
+    "loadingBenefits": "Cargando beneficios...",
+    "loadingBenefit": "Cargando beneficio...",
+    "loadingApp": "Cargando Club {{siteName}}..."
+  },
+  "errorMessage": {
+    "retry": "Intentar de nuevo"
+  },
+  "pwa": {
+    "newVersionAvailable": "Nueva versión disponible. ¿Actualizar ahora?"
+  },
+  "confirmModal": {
+    "title": "Confirmación",
+    "confirm": "Aceptar",
+    "cancel": "Cancelar"
+  },
+  "pullToRefresh": {
+    "pull": "Tira para actualizar",
+    "release": "¡Suelta para actualizar!",
+    "refreshing": "Actualizando..."
+  },
+  "select": {
+    "placeholder": "Selecciona una opción"
+  },
+  "breadcrumbs": {
+    "ariaLabel": "Navegación de migas de pan"
+  },
+  "collapsibleSection": {
+    "expandButton": "Ver más →",
+    "collapse": "Colapsar",
+    "expand": "Expandir"
+  },
+  "optimizedGrid": {
+    "loadError": "Error al cargar beneficios",
+    "retry": "Reintentar",
+    "noProducts": "No se encontraron beneficios.",
+    "sale": "Oferta",
+    "outOfStock": "Agotado",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "pageOf": "Página {{current}} de {{total}}"
+  }
+}

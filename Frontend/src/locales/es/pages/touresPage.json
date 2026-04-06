@@ -1,0 +1,16 @@
+﻿{
+  "seo": {
+    "title": "Toures Recreativos por Colombia | {{siteName}} - Experiencia Inmersiva 360°",
+    "description": "Descubre Colombia con toures de actividades recreativas, aventura, gastronomía y naturaleza. Experiencias guiadas con la posibilidad de un consumo controlado y opcional. Reserva con {{siteName}}.",
+    "keywords": "toures recreativos Colombia, tour aventura Colombia, turismo experiencial, actividades recreativas, experiencia 360, tour exclusivo Colombia, {{siteName}} tours, turismo de bienestar",
+    "url": "https://example.com/toures",
+    "schemaName": "Toures Recreativos por Colombia - {{siteName}}",
+    "schemaDescription": "Experiencias recreativas inmersivas 360° por los destinos más exclusivos de Colombia."
+  },
+  "schema": {
+    "breadcrumbHome": "Inicio",
+    "breadcrumbTours": "Toures Recreativos",
+    "tourName": "Toures Recreativos {{siteName}}",
+    "tourDescription": "Experiencias recreativas y de aventura por los destinos más exclusivos de Colombia"
+  }
+}

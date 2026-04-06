@@ -1,0 +1,41 @@
+﻿{
+  "countrySelector": {
+    "title": "Select Country",
+    "searchPlaceholder": "Search country or code...",
+    "noResults": "No countries found",
+    "tryAnother": "Try a different search term"
+  },
+  "pagination": {
+    "ariaLabel": "Pagination",
+    "pageOf": "Page {{current}} of {{total}}",
+    "previousPage": "Go to previous page",
+    "nextPage": "Go to next page",
+    "goToPage": "Go to page {{page}}",
+    "mobileNav": "Page navigation (mobile)",
+    "desktopNav": "Page navigation (desktop)"
+  },
+  "fallbacks": {
+    "productName": "Benefit"
+  },
+  "transactionHistory": {
+    "defaultTitle": "Recent Activity",
+    "referralCommission": "Guest commission",
+    "referralSignup": "Guest accepted",
+    "referralPurchase": "Guest contribution",
+    "referralBonus": "Extra bonus",
+    "reviewReward": "Order review",
+    "membershipActivation": "Membership activation",
+    "expires": "Expires: {{date}}",
+    "systemUnavailable": "The Virtual Coins system is not available for your user role or is disabled.",
+    "viewFullHistory": "View full history",
+    "viewAll": "View all",
+    "loadingMovements": "Loading activity...",
+    "noReferralEarnings": "You don't have any guest earnings yet.",
+    "modalTitle": "Guest Earnings History",
+    "loadingHistory": "Loading history...",
+    "noTransactions": "No transactions to show.",
+    "pageOf": "Page {{current}} of {{total}}",
+    "previous": "Previous",
+    "next": "Next"
+  }
+}

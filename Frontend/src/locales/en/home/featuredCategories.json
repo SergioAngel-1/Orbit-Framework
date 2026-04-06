@@ -1,0 +1,15 @@
+{
+  "title": "Featured Strains",
+  "loading": "Loading featured strains...",
+  "error": "We couldn't load the featured strains. Please try again.",
+  "card": {
+    "viewBenefits": "View benefits for {{name}}",
+    "exploreCategory": "Explore {{name}}",
+    "viewAllTooltip": "See all available strains",
+    "exploreAllTooltip": "Browse every category of benefits",
+    "viewAll": "View all",
+    "fullCatalog": "Full catalog",
+    "fullCatalogTooltip": "Go to the complete benefits catalog",
+    "fullCatalogTitle": "Full catalog - See every available benefit"
+  }
+}

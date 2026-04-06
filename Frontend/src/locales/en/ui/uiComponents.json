@@ -1,0 +1,55 @@
+﻿{
+  "addToCart": {
+    "defaultButton": "Add to selection",
+    "adding": "Adding...",
+    "added": "Added",
+    "quantity": "Quantity:",
+    "viewCart": "View reservation",
+    "reserveButton": "Reserve for provisioning"
+  },
+  "animatedModal": {
+    "close": "Close"
+  },
+  "loading": {
+    "loadingBenefits": "Loading benefits...",
+    "loadingBenefit": "Loading benefit...",
+    "loadingApp": "Loading Club {{siteName}}..."
+  },
+  "errorMessage": {
+    "retry": "Try again"
+  },
+  "pwa": {
+    "newVersionAvailable": "New version available. Update now?"
+  },
+  "confirmModal": {
+    "title": "Confirmation",
+    "confirm": "Accept",
+    "cancel": "Cancel"
+  },
+  "pullToRefresh": {
+    "pull": "Pull to refresh",
+    "release": "Release to refresh!",
+    "refreshing": "Refreshing..."
+  },
+  "select": {
+    "placeholder": "Select an option"
+  },
+  "breadcrumbs": {
+    "ariaLabel": "Breadcrumb navigation"
+  },
+  "collapsibleSection": {
+    "expandButton": "See more →",
+    "collapse": "Collapse",
+    "expand": "Expand"
+  },
+  "optimizedGrid": {
+    "loadError": "Error loading benefits",
+    "retry": "Retry",
+    "noProducts": "No benefits found.",
+    "sale": "Sale",
+    "outOfStock": "Out of stock",
+    "previous": "Previous",
+    "next": "Next",
+    "pageOf": "Page {{current}} of {{total}}"
+  }
+}

@@ -1,0 +1,23 @@
+﻿{
+  "title": "Virtual Coins",
+  "description": "Acumula puntos en cada retiro y canjéalos por beneficios de la membresía",
+  "imageAlt": "Virtual Coins",
+  "chips": {
+    "participation": {
+      "label": "Méritos por participación",
+      "tooltip": "Méritos de participación"
+    },
+    "membership": {
+      "label": "Beneficios de membresía",
+      "tooltip": "Beneficios de membresía"
+    },
+    "guests": {
+      "label": "Programa de invitados",
+      "tooltip": "Programa de invitados"
+    }
+  },
+  "buttons": {
+    "desktop": "¿Cómo ganar Virtual Coins?",
+    "mobile": "¿Cómo funcionan las Virtual Coins?"
+  }
+}

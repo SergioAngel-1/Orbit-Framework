@@ -1,0 +1,113 @@
+﻿{
+  "title": "Centro de Ayuda",
+  "tabs": {
+    "help": "Preguntas Frecuentes",
+    "howToRequest": "¿Cómo solicitar beneficios?",
+    "coinsSystem": "Sistema Virtual Coins"
+  },
+  "nav": {
+    "prevAria": "Pestaña anterior",
+    "nextAria": "Pestaña siguiente"
+  },
+  "faq": {
+    "title": "Preguntas Frecuentes",
+    "q1": {
+      "title": "¿Cuánto tiempo de anticipación necesito para solicitar un retiro?",
+      "answer": "Las solicitudes de retiro de beneficios deben realizarse con un mínimo de 5 horas de anticipación para garantizar su procesamiento adecuado. Esto nos permite organizar las rutas de entrega asociativa de manera eficiente."
+    },
+    "q2": {
+      "title": "¿Cómo funcionan las entregas asociativas?",
+      "answer": "Las entregas se realizan a través de nuestros mensajeros de confianza. No se garantiza una hora de entrega fija, ya que las rutas se organizan según los retiros del día y la ubicación de los mismos. Si deseas una hora específica, deberás realizar el aporte de gestión por vía digital."
+    },
+    "q3": {
+      "title": "¿Cómo funciona el sistema de invitados?",
+      "answer": "Cada miembro registrado recibe un enlace único de invitación que puede compartir. Por cada nuevo socio que realice un retiro usando tu enlace, recibes un 5% de cashback en forma de Flores Coin. Puedes usar estas monedas para futuros retiros o transferirlas a otros socios. Consulta nuestra <a href=\"/politica-invitados\" class=\"text-primario hover:underline\">Política del Programa de Invitados</a> para más detalles."
+    },
+    "q4": {
+      "title": "¿Cómo funciona el proceso de aprobación?",
+      "answer": "Todas las solicitudes de membresía requieren aprobación administrativa. Después de registrarte, tu cuenta quedará en estado pendiente hasta que sea aprobada por nuestro equipo. Te notificaremos por correo electrónico cuando tu cuenta sea activada. Si fuiste invitado por otro socio, asegúrate de informarle para que nos contacte y agilice tu proceso de aprobación."
+    },
+    "viewAllCta": "Ver todas las preguntas frecuentes",
+    "contact": {
+      "title": "Contacto para PQRS",
+      "description": "Si tienes alguna petición, queja, reclamo o sugerencia, puedes utilizar cualquiera de los siguientes canales:",
+      "email": "Correo electrónico: <a href=\"mailto:pqrs@example.com\" class=\"text-primario hover:underline\">info@example.com</a>",
+      "phone": "Teléfono: <a href=\"tel:+573223237785\" class=\"text-primario hover:underline\">+57 322 323 7785</a>",
+      "form": "Formulario web: Completa nuestro <a href=\"/contacto\" class=\"text-primario hover:underline\">formulario de PQRS</a>"
+    }
+  },
+  "howToRequest": {
+    "title": "¿Cómo solicitar retiro de beneficios?",
+    "step1": {
+      "title": "Regístrate en el club",
+      "description": "Solicita tu membresía en nuestro club. Si fuiste invitado por otro socio, asegúrate de usar su código de invitación durante el registro. Después de registrarte, deberás esperar la aprobación de tu cuenta."
+    },
+    "step2": {
+      "title": "Explora nuestro catálogo de beneficios",
+      "description": "Una vez que tu cuenta esté aprobada, podrás acceder a nuestro catálogo completo de beneficios. Navega por las diferentes categorías o utiliza la barra de búsqueda para encontrar los beneficios que te interesan."
+    },
+    "step3": {
+      "title": "Selecciona beneficios con anticipación",
+      "description": "Selecciona los beneficios que deseas y añádelos a tu selección. Recuerda que debes realizar tu solicitud de retiro con al menos 5 horas de anticipación para garantizar su procesamiento adecuado."
+    },
+    "step4": {
+      "title": "Elige tu método de entrega asociativa",
+      "description": "Proporciona tu dirección de entrega asociativa. Si necesitas una hora específica de entrega, deberás realizar el aporte de gestión por vía digital y el envío se realizará a través de una aplicación de mensajería externa."
+    },
+    "step5": {
+      "title": "Completa tu aporte y espera tu retiro",
+      "description": "Selecciona tu método de aporte de gestión preferido y completa tu solicitud. Recibirás una confirmación por correo electrónico y podrás seguir el estado de tu retiro desde tu cuenta de socio."
+    },
+    "important": {
+      "title": "Información importante sobre entregas asociativas",
+      "intro": "Ten en cuenta estos detalles importantes sobre nuestro servicio de entrega asociativa:",
+      "items": [
+        "Los retiros requieren mínimo 5 horas de anticipación para su procesamiento.",
+        "No garantizamos una hora de entrega fija, ya que las rutas se organizan según los retiros del día.",
+        "Para entregas en horario específico, es necesario realizar el aporte de gestión por vía digital.",
+        "En caso de pérdida durante el envío con nuestros mensajeros, nos hacemos responsables al 100%.",
+        "Si el envío se realiza por aplicación externa (para horarios específicos), el riesgo corre por cuenta del socio."
+      ]
+    }
+  },
+  "coinsSystem": {
+    "title": "Sistema de Virtual Coins",
+    "howToEarn": {
+      "title": "¿Cómo gano Virtual Coins?",
+      "referrals": {
+        "title": "Por invitados",
+        "description": "Gana un porcentaje del valor de cada retiro que realicen tus invitados. Comparte tu código de invitado con amigos y familiares. Cada vez que realicen un retiro de beneficios, recibirás Virtual Coins equivalentes a un porcentaje del valor de su aporte.",
+        "cta": "Invitar ahora"
+      },
+      "welcome": {
+        "title": "Por bienvenida como socio",
+        "description": "Al registrarte y ser aprobado como miembro, recibirás puntos de bienvenida. Estos puntos son nuestro regalo para que puedas empezar a disfrutar de los beneficios del club."
+      },
+      "reviews": {
+        "title": "Por escribir reseñas",
+        "description": "Comparte tu experiencia con otros socios. Por cada reseña que escribas sobre los beneficios que has retirado, recibirás Virtual Coins como agradecimiento por tu opinión."
+      },
+      "birthday": {
+        "title": "En tu cumpleaños",
+        "description": "¡Celebramos contigo! En tu día especial, recibirás Virtual Coins de regalo. Asegúrate de tener tu fecha de nacimiento actualizada en tu perfil para no perderte este beneficio."
+      },
+      "promotions": {
+        "title": "Promociones especiales",
+        "description": "Mantente atento a nuestras comunicaciones. Periódicamente realizamos promociones especiales donde puedes ganar Virtual Coins adicionales por retiros en categorías específicas o durante eventos especiales del club."
+      }
+    },
+    "whatFor": {
+      "title": "¿Para qué sirven?",
+      "intro": "Tus Virtual Coins se pueden usar de las siguientes formas:",
+      "items": [
+        "<strong>Como descuento directo en tus aportes de gestión:</strong> cada Flores Coin tiene un valor específico en pesos que se descuenta automáticamente de tu aporte.",
+        "<strong>Acumúlalos para obtener mayores descuentos:</strong> mientras más Virtual Coins tengas, mayores serán los descuentos en futuros retiros de beneficios.",
+        "<strong>Revisa tu saldo disponible:</strong> consulta tu balance actual en la sección \"Virtual Coins\" o en tu perfil de socio.",
+        "<strong>Atención a la fecha de expiración:</strong> los puntos tienen fecha de vencimiento, así que úsalos antes de perderlos.",
+        "<strong>Transferibles entre socios:</strong> en algunos casos podrás transferir tus Virtual Coins a otros miembros del club."
+      ]
+    },
+    "disclaimer": "El programa de Virtual Coins está sujeto a términos y condiciones.",
+    "policyLink": "Ver política completa"
+  }
+}

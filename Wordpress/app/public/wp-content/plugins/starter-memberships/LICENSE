@@ -1,0 +1,209 @@
+﻿===============================================================================
+                        LICENCIA DE USO PROPIETARIA
+                    PLUGIN WORDPRESS - SOFTWARE PERSONALIZADO
+===============================================================================
+
+Nombre del Plugin: Starter Memberships
+Version: 1.0.0
+Fecha de creacion: 31 de Mayo de 2025
+Fecha de ultima actualizacion: 16 de Marzo de 2026
+
+AUTOR Y TITULAR DE LOS DERECHOS:
+Sergio Gustavo Jauregui Angel
+Cedula de Ciudadania: 1.072.638.239 de Bogota D.C.
+Correo electronico: sergiojauregui239@gmail.com
+Telefono de contacto: +57 320 3795827
+
+CLIENTE Y LICENCIATARIO:
+E-Commerce Template / Byron Ramirez
+Dominio autorizado: https://example.com
+
+===============================================================================
+
+1. OBJETO DEL PLUGIN
+
+Este plugin de WordPress es un componente del sistema "E-Commerce Template E-Commerce
+Platform" y proporciona funcionalidad para la gestion de membresias en
+WooCommerce, incluyendo niveles, beneficios y flujos de activacion/renovacion.
+
+Este plugin es una creacion original e intelectual de Sergio Gustavo Jauregui
+Angel (en adelante, "el DESARROLLADOR") y se entrega bajo una licencia de uso
+EXCLUSIVAMENTE LIMITADA al cliente contratante (en adelante, "el CLIENTE").
+
+===============================================================================
+
+2. DERECHOS DE AUTOR Y PROPIEDAD INTELECTUAL
+
+Todo el codigo fuente, logica de negocio, algoritmos y cualquier otro elemento
+que componga este plugin son PROPIEDAD INTELECTUAL EXCLUSIVA del DESARROLLADOR.
+
+Esta propiedad intelectual esta protegida por:
+- Ley 23 de 1982 (Derechos de Autor - Colombia)
+- Ley 44 de 1993 (Derechos de Autor - Colombia)
+- Decision Andina 351 de 1993 (Regimen Comun sobre Derecho de Autor)
+- Convenio de Berna para la Proteccion de Obras Literarias y Artisticas
+- Tratado de la OMPI sobre Derecho de Autor (WCT)
+- Codigo Penal Colombiano (Articulos 270 y siguientes)
+
+El CLIENTE NO adquiere en ningun momento:
+- Derechos de propiedad sobre el codigo fuente
+- Derechos de autoria o coautoria
+- Derechos de distribucion o comercializacion
+- Derechos de modificacion no autorizada
+
+===============================================================================
+
+3. LICENCIA DE USO LIMITADA
+
+Se concede al CLIENTE una licencia NO EXCLUSIVA, NO TRANSFERIBLE, REVOCABLE y
+ESTRICTAMENTE LIMITADA para el uso del plugin unicamente en:
+
+- Dominio principal: https://example.com
+- Subdominios autorizados del mismo dominio
+- Entorno de desarrollo/staging previamente acordado
+
+Esta licencia EXPRESAMENTE PROHIBE:
+- Modificacion del codigo fuente por terceros no autorizados
+- Reventa, sublicenciamiento o redistribucion del plugin
+- Uso del plugin en proyectos diferentes al original
+- Copia, reproduccion o duplicacion del codigo
+- Ingenieria inversa, descompilacion o desensamblado
+- Extraccion de componentes para uso independiente
+- Transferencia de la licencia a terceros
+- Remocion de avisos de copyright o autoria
+
+===============================================================================
+
+4. EXONERACION DE RESPONSABILIDAD
+
+El DESARROLLADOR actua exclusivamente como proveedor de servicios tecnologicos.
+El plugin se proporciona "TAL CUAL" (AS IS), sin garantias de ningun tipo,
+expresas o implicitas.
+
+4.1 NEUTRALIDAD DEL CATALOGO Y NO INTERMEDIACION
+
+El DESARROLLADOR provee una herramienta tecnica de proposito general para la
+administracion de membresias. El DESARROLLADOR:
+- NO define, selecciona, valida ni aprueba los productos, servicios o contenidos
+  del CLIENTE
+- NO intermedia, comercializa, publicita ni promueve los productos del CLIENTE
+- NO presta asesoramiento legal, regulatorio ni de cumplimiento
+
+4.2 CATEGORIAS REGULADAS Y PRODUCTOS PROHIBIDOS
+
+Si el CLIENTE decide comercializar productos o servicios sujetos a regulacion
+o restriccion (por ejemplo: cannabis medicinal o industrial, sustancias
+psicoactivas, sustancias controladas, farmaceuticos, dispositivos medicos,
+alcohol, tabaco u otros), el CUMPLIMIENTO INTEGRAL de la normativa aplicable es
+exclusiva responsabilidad del CLIENTE. En Colombia resultan aplicables, entre
+otras, la Ley 30 de 1986 (Estatuto Nacional de Estupefacientes), la Ley 1787 de
+2016 (cannabis con fines medicinales y cientificos), el Decreto 613 de 2017
+modificado por el Decreto 811 de 2021 y sus normas reglamentarias, el Codigo
+Nacional de Seguridad y Convivencia Ciudadana - Ley 1801 de 2016, el Codigo
+Penal, el Estatuto del Consumidor (Ley 1480 de 2011) y demas disposiciones
+vigentes.
+
+Queda PROHIBIDO el uso del plugin para fines ilicitos. Cualquier uso contrario
+a la ley constituira causal de terminacion inmediata conforme a esta licencia.
+
+4.3 NO MONITOREO NI ANALISIS PERIODICO DE DATOS
+
+El DESARROLLADOR no realiza monitoreo continuo, auditorias proactivas ni
+analisis periodicos de datos o actividades del CLIENTE o sus usuarios. El
+DESARROLLADOR unicamente ejecuta correcciones, mejoras o ajustes tecnicos
+cuando son solicitados por el area de gerencia del CLIENTE. El DESARROLLADOR no
+asume rol de responsable del tratamiento de datos mas alla de la implementacion
+tecnica indicada por el CLIENTE.
+
+===============================================================================
+
+5. LIMITACION DE RESPONSABILIDAD
+
+En ningun caso el DESARROLLADOR sera responsable por danos directos, indirectos,
+incidentales, especiales o consecuentes, incluyendo perdida de beneficios,
+perdida de datos, interrupcion del negocio o reclamaciones de terceros.
+
+===============================================================================
+
+6. INDEMNIZACION
+
+El CLIENTE se compromete a INDEMNIZAR, DEFENDER y MANTENER INDEMNE al
+DESARROLLADOR de y contra cualquier reclamacion, demanda o accion legal que
+surja de o este relacionada con el uso del plugin, la violacion de esta licencia
+por parte del CLIENTE o la violacion de derechos de terceros por parte del
+CLIENTE.
+
+===============================================================================
+
+7. MODIFICACIONES Y MANTENIMIENTO
+
+Cualquier modificacion, actualizacion o trabajo de mantenimiento sobre el codigo
+fuente debe ser realizado EXCLUSIVAMENTE por:
+
+- El DESARROLLADOR (Sergio Gustavo Jauregui Angel)
+- Personal tecnico expresamente autorizado por escrito por el DESARROLLADOR
+
+===============================================================================
+
+8. TERMINACION
+
+Esta licencia se terminara AUTOMATICA E INMEDIATAMENTE en caso de:
+- Violacion de cualquier termino de esta licencia
+- Uso no autorizado del plugin
+- Modificacion no autorizada del codigo
+- Sublicenciamiento o redistribucion no autorizada
+- Uso del plugin para fines ilicitos
+
+Al terminar esta licencia, el CLIENTE debera cesar el uso y eliminar todas las
+copias del plugin.
+
+===============================================================================
+
+9. JURISDICCION Y LEY APLICABLE
+
+Esta licencia se rige por las leyes de la Republica de Colombia. Cualquier
+controversia sera sometida a la jurisdiccion EXCLUSIVA de los tribunales
+competentes de Bogota D.C., Colombia.
+
+===============================================================================
+
+10. ACEPTACION
+
+El uso del plugin constituye ACEPTACION PLENA, IRREVOCABLE E INCONDICIONAL de
+todos los terminos y condiciones aqui expresados.
+
+11. DOCUMENTOS LEGALES DEL SITIO
+
+Para claridad frente a usuarios finales, autoridades y terceros, el CLIENTE
+mantiene disponibles los siguientes documentos legales del sitio:
+- Terminos y Condiciones: https://example.com/terminos
+- Politica de Privacidad: https://example.com/privacidad
+- Marco Legal y Normativo: https://example.com/marco-legal
+
+===============================================================================
+
+CONSTANCIA DE AUTORIA
+
+Este plugin es una obra original, creada integramente por:
+
+Sergio Gustavo Jauregui Angel
+C.C. 1.072.638.239 de Bogota D.C.
+
+Quien ostenta la totalidad de los derechos patrimoniales y morales sobre la
+obra, conforme a la legislacion colombiana e internacional vigente en materia de
+propiedad intelectual y derechos de autor.
+
+===============================================================================
+
+Firmado electronicamente por:
+
+SERGIO GUSTAVO JAUREGUI ANGEL
+C.C. 1.072.638.239 de Bogota D.C.
+Desarrollador y Titular Exclusivo de la Propiedad Intelectual
+
+Fecha de emision original: 31 de Mayo de 2025
+Fecha de ultima actualizacion: 16 de Marzo de 2026
+
+===============================================================================
+                              FIN DEL DOCUMENTO
+===============================================================================

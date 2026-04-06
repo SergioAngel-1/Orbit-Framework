@@ -1,0 +1,23 @@
+﻿{
+  "title": "Digital Card",
+  "card": {
+    "clubLabel": "Members Club",
+    "active": "Active",
+    "memberType": "Adherent Member",
+    "memberId": "Member Nº",
+    "documentId": "ID Number",
+    "since": "Member since",
+    "validity": "Validity",
+    "validityActive": "Valid",
+    "validityInactive": "Inactive",
+    "addPhoto": "Add photo"
+  },
+  "info": {
+    "qrHint": "Tap to enlarge",
+    "qrModalTitle": "Verification QR Code",
+    "qrModalDesc": "Present this code to verify your active membership at {{siteName}}.",
+    "qrInactive": "The QR verification code will be available when your membership is active.",
+    "note": "This digital card identifies your active membership at {{siteName}}. Present it as proof of adherent membership.",
+    "legalDisclaimer": "Your membership is subject to our terms, conditions, and privacy policies."
+  }
+}

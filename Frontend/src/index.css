@@ -1,0 +1,598 @@
+/* Importar directivas de Tailwind desde un archivo separado */
+@import './tailwind-directives.css';
+
+:root {
+  /* Colores base — sobrescritos dinámicamente por SiteConfigContext */
+  --color-primary: #16a34a;
+  --color-secondary: #FF6B35;
+  --color-primary-dark: #0d7a32;
+  --color-primary-light: #4aba6f;
+  --color-hover: #128a3c;
+  --primario: var(--color-primary);
+  --secundario: var(--color-secondary);
+  --acento: #8FD8B9;
+  --oscuro: #0a5c26;
+  --claro: #e8f5ec;
+  --texto: #062e14;
+  --hover: var(--color-hover);
+  --border: #ffc9a3;
+  --font-family: 'Poppins', system-ui, sans-serif;
+  
+  font-family: var(--font-family);
+  line-height: 1.5;
+  font-weight: 400;
+
+  color: var(--texto);
+  background-color: #ffffff;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: var(--primario);
+  text-decoration: inherit;
+}
+a:hover {
+  color: var(--hover);
+}
+
+body {
+  margin: 0;
+  display: block;
+  min-width: 320px;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Quitar outline de focus en botones del SearchBar */
+.search-icon-btn:focus,
+.search-icon-btn:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Estilos personalizados para la barra de desplazamiento */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--primario);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--hover);
+}
+
+/* Para Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--primario) #f1f1f1;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: var(--claro);
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: var(--primario);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}
+
+/* Estilo personalizado para scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primario);
+  opacity: 0.6;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--oscuro);
+}
+
+/* Efecto push para elementos interactivos */
+.tab-push-effect:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+/* Efecto push para iconos del header */
+.icon-push-effect:hover {
+  transform: scale(1.08);
+  transition: transform 0.2s ease;
+}
+
+/* Efecto para pestañas */
+.tab-push {
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 700;
+  position: relative;
+  padding: 0 0.5rem 0.25rem 0.5rem;
+  padding-top: 0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+  border-right-width: 2px;
+  border-color: var(--primario);
+  border-bottom-left-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+  background-color: var(--primario);
+  transition: all 150ms ease;
+  overflow: hidden;
+  cursor: pointer;
+  border-top: none;
+  outline: none;
+}
+
+.tab-push:hover,
+.tab-push:focus,
+.tab-push:active {
+  transform: scale(1.05);
+  color: white !important;
+  text-decoration: none;
+  outline: none;
+}
+
+/* Animación para el icono de reloj */
+.clock-icon {
+  transition: transform 300ms ease;
+}
+
+.tab-push:hover .clock-icon {
+  transform: rotate(15deg) scale(1.2);
+}
+
+/* Variables CSS para alertify */
+:root {
+  --success-color: var(--primario);
+  --error-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: var(--secundario);
+}
+
+/* Asegurar que las transiciones funcionen correctamente */
+.transition-all,
+.transition-opacity,
+.transition-transform,
+.transition-colors {
+  will-change: transform, opacity;
+}
+
+/* Animación de pulse-grow para ofertas */
+@keyframes pulse-grow {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-pulse-grow {
+  animation: pulse-grow 2s ease-in-out infinite;
+}
+
+/* Animación de rotación suave para iconos */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+/* Mejora de rendimiento para elementos con transición */
+.translate-y-0,
+.scale-100,
+.opacity-100,
+.opacity-0 {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+/* ========================================
+   ESTILOS PARA CONTENIDO LEGAL
+   ======================================== */
+
+.legal-content {
+  color: var(--texto);
+  line-height: 1.75;
+}
+
+/* Títulos principales (h2) */
+.legal-content h2 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--primario);
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  line-height: 1.3;
+  border-bottom: 2px solid var(--secundario);
+  padding-bottom: 0.5rem;
+}
+
+/* Subtítulos (h3) */
+.legal-content h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--oscuro);
+  margin-top: 1.75rem;
+  margin-bottom: 0.875rem;
+  line-height: 1.4;
+}
+
+/* Subtítulos secundarios (h4) */
+.legal-content h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--primario);
+  margin-top: 1.25rem;
+  margin-bottom: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* Párrafos */
+.legal-content p {
+  margin-bottom: 1rem;
+  color: #4a5568;
+  font-size: 1rem;
+}
+
+/* Texto en cursiva */
+.legal-content em {
+  font-style: italic;
+  color: #718096;
+}
+
+/* Texto en negrita */
+.legal-content strong {
+  font-weight: 600;
+  color: var(--oscuro);
+}
+
+/* Listas desordenadas */
+.legal-content ul {
+  list-style: none;
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+  padding-left: 0;
+}
+
+.legal-content ul li {
+  margin-bottom: 0.5rem;
+  color: #4a5568;
+  line-height: 1.6;
+  position: relative;
+  padding-left: 1.25rem;
+}
+
+.legal-content ul li::before {
+  content: "•";
+  color: var(--primario);
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+  font-size: 1.2em;
+}
+
+/* Listas anidadas */
+.legal-content ul ul {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.legal-content ul ul li {
+  margin-bottom: 0.375rem;
+  font-size: 0.9375rem;
+}
+
+.legal-content ul ul li::before {
+  content: "◦";
+  font-size: 1em;
+}
+
+/* Listas ordenadas */
+.legal-content > ol,
+.legal-content > * > ol {
+  list-style: none;
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+  padding-left: 0;
+  counter-reset: legal-counter;
+}
+
+.legal-content > ol > li,
+.legal-content > * > ol > li {
+  margin-bottom: 0.5rem;
+  color: #4a5568;
+  line-height: 1.6;
+  position: relative;
+  padding-left: 1.75rem;
+  counter-increment: legal-counter;
+}
+
+.legal-content > ol > li::before,
+.legal-content > * > ol > li::before {
+  content: counter(legal-counter) ".";
+  color: var(--primario);
+  font-weight: 600;
+  position: absolute;
+  left: 0;
+}
+
+/* Listas anidadas dentro de ol (ul o ol) - usar bullets */
+.legal-content ol li ul,
+.legal-content ol li ol {
+  list-style: none;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.legal-content ol li ul li,
+.legal-content ol li ol li {
+  font-size: 0.9375rem;
+  margin-bottom: 0.375rem;
+  padding-left: 1.25rem;
+  counter-increment: none;
+}
+
+.legal-content ol li ul li::before,
+.legal-content ol li ol li::before {
+  content: "•";
+  color: var(--primario);
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+  font-size: 1em;
+}
+
+/* Separadores horizontales */
+.legal-content hr {
+  border: 0;
+  border-top: 2px solid var(--secundario);
+  margin: 2rem 0;
+}
+
+/* Enlaces */
+.legal-content a {
+  color: var(--primario);
+  text-decoration: underline;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.legal-content a:hover {
+  color: var(--hover);
+  text-decoration: none;
+}
+
+/* Bloques de código o citas (si se usan) */
+.legal-content blockquote {
+  border-left: 4px solid var(--primario);
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: 1rem;
+  font-style: italic;
+  color: #718096;
+  background-color: #f7fafc;
+  padding: 1rem;
+  border-radius: 0.375rem;
+}
+
+/* Tablas */
+.legal-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  font-size: 0.9375rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.legal-content table thead {
+  background: linear-gradient(135deg, var(--primario) 0%, var(--oscuro) 100%);
+}
+
+.legal-content table th {
+  padding: 0.875rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: white;
+  border-bottom: 2px solid var(--oscuro);
+}
+
+.legal-content table tbody tr {
+  border-bottom: 1px solid var(--secundario);
+  transition: background-color 0.2s ease;
+}
+
+.legal-content table tbody tr:nth-child(even) {
+  background-color: rgba(235, 199, 225, 0.15);
+}
+
+.legal-content table tbody tr:hover {
+  background-color: rgba(235, 199, 225, 0.3);
+}
+
+.legal-content table td {
+  padding: 0.75rem 1rem;
+  color: #4a5568;
+  vertical-align: top;
+}
+
+.legal-content table td:first-child {
+  font-weight: 600;
+  color: var(--primario);
+}
+
+.legal-content table tbody td:first-child {
+  font-weight: 600;
+  color: var(--primario);
+}
+
+/* Responsive para tablas */
+@media (max-width: 640px) {
+  .legal-content table {
+    display: block;
+    font-size: 0.8125rem;
+    border: none;
+    box-shadow: none;
+  }
+  
+  .legal-content table thead {
+    display: none;
+  }
+  
+  .legal-content table tbody {
+    display: block;
+  }
+  
+  .legal-content table tr {
+    display: block;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--secundario);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+  
+  .legal-content table td {
+    display: block;
+    padding: 0.625rem 0.75rem;
+    text-align: left;
+    border: none;
+    border-bottom: 1px solid var(--secundario);
+  }
+  
+  .legal-content table td:last-child {
+    border-bottom: none;
+  }
+  
+  .legal-content table td:first-child {
+    background: linear-gradient(135deg, var(--primario) 0%, var(--oscuro) 100%) !important;
+  }
+  
+  .legal-content table td:first-child,
+  .legal-content table td:first-child *,
+  .legal-content table td:first-child strong,
+  .legal-content table td:first-child a,
+  .legal-content table td:first-child span,
+  .legal-content table td:first-child p,
+  .legal-content table td:first-child em,
+  .legal-content table td:first-child b {
+    color: white !important;
+    font-weight: 600;
+  }
+  
+  .legal-content table td::before {
+    content: none;
+  }
+}
+
+/* Espaciado entre secciones */
+.legal-content > *:first-child {
+  margin-top: 0;
+}
+
+.legal-content > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive: Ajustes para móvil */
+@media (max-width: 768px) {
+  .legal-content {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+  }
+  
+  .legal-content h2 {
+    font-size: 1.375rem;
+  }
+  
+  .legal-content h3 {
+    font-size: 1.125rem;
+  }
+  
+  .legal-content h4 {
+    font-size: 1rem;
+  }
+  
+  .legal-content p,
+  .legal-content li {
+    font-size: 0.875rem;
+  }
+  
+  .legal-content ul,
+  .legal-content ol {
+    margin-left: 0.5rem;
+  }
+}

@@ -1,0 +1,87 @@
+﻿{
+  "membershipDiscount": {
+    "appliesToEvents": "Aplica a categorías de eventos",
+    "appliesToAll": "Aplica a todas las categorías",
+    "appliesToSelected": "Aplica a categorías seleccionadas",
+    "viewCategories": "Ver categorías con descuento",
+    "categoriesWithDiscount": "Categorías con descuento:",
+    "totalDiscountEvents": "Total descuento eventos",
+    "totalDiscountMembership": "Total descuento membresía",
+    "discountTitle": "Descuento {{name}}",
+    "eventsTitle": "Descuento en Eventos",
+    "product": "beneficio",
+    "products": "beneficios"
+  },
+  "shippingOption": {
+    "toBeDefine": "Precio por definir"
+  },
+  "freeDeliveries": {
+    "title": "Entregas Gratis por {{name}}",
+    "subtitle": "{{used}} de {{total}} usadas este período",
+    "membershipBenefit": "Beneficio de tu membresía",
+    "useFreeDelivery": "Usar entrega gratis en este pedido",
+    "willDeduct": "Se descontará 1 de tus {{total}} entregas disponibles"
+  },
+  "cardPayment": {
+    "defaultButton": "Pagar con tarjeta",
+    "systemUnavailable": "El sistema de pagos no está disponible en este momento",
+    "amountInvalid": "El monto a pagar debe ser mayor a 0",
+    "paymentApproved": "¡Pago exitoso! Tu transacción ha sido aprobada.",
+    "paymentDeclined": "El pago fue rechazado. Por favor, intenta con otra tarjeta.",
+    "paymentPending": "Tu pago está siendo procesado. Te notificaremos cuando se complete.",
+    "paymentFailed": "El pago no pudo ser procesado. Por favor, intenta nuevamente.",
+    "genericError": "Error al procesar el pago",
+    "successMessage": "Pago procesado correctamente",
+    "processing": "Procesando...",
+    "securePayment": "Pago seguro procesado por Wompi",
+    "scriptLoadError": "Error al cargar el sistema de pagos",
+    "systemNotAvailable": "El sistema de pagos no está disponible",
+    "paymentSuccess": "¡Pago exitoso!",
+    "paymentRejected": "Pago rechazado",
+    "paymentInProcess": "Pago en proceso",
+    "opening": "Abriendo...",
+    "openFormError": "Error al abrir el formulario de pago"
+  },
+  "priorityShipping": {
+    "title": "Envíos Prioritarios",
+    "delaysDisclaimer": "Sujeto a posibles demoras por tráfico, actividades de protesta, condiciones climáticas u otras circunstancias fuera de nuestro control.",
+    "thirdPartyDisclaimer": "Los envíos prioritarios se realizan a través de plataformas de terceros. Al ser un servicio externo, no nos responsabilizamos por pérdidas o daños durante el transporte."
+  },
+  "orderData": {
+    "paymentCash": "Efectivo",
+    "paymentVirtualCoins": "Pagado con Virtual Coins",
+    "paymentCard": "Wompi - Tarjeta",
+    "paymentBankTransfer": "Transferencia bancaria",
+    "giftNote": "Este retiro es un regalo",
+    "feeVirtualCoinsDiscount": "Descuento por {{amount}} Virtual Coins",
+    "feeMembershipDiscount": "Descuento {{percentage}}% Membresía {{name}}",
+    "feeCardPayment": "Cargo por pago con tarjeta ({{percentage}}%)"
+  },
+  "validation": {
+    "selectPaymentMethod": "Por favor, selecciona un método de pago válido",
+    "selectShippingAddress": "Por favor, selecciona una dirección de envío",
+    "completeContactFields": "Por favor, completa todos los campos de contacto obligatorios",
+    "completeRequiredFields": "Por favor, completa todos los campos obligatorios",
+    "completeRecipientFields": "Por favor, completa todos los campos del destinatario"
+  },
+  "shipping": {
+    "expressName": "Envío Express",
+    "expressTime": "0-1 hora",
+    "expressDescription": "Entrega en menos de 1 hora hábil*",
+    "fastName": "Envío Rápido",
+    "fastTime": "1-2 horas",
+    "fastDescription": "Entrega entre 1 y 2 horas hábiles*",
+    "standardName": "Envío Estándar",
+    "standardTime": "1-6 horas",
+    "standardDescription": "Entrega en 1-6 horas hábiles*",
+    "standardRouteBadge": "Los retiros se organizan por ruta de entrega",
+    "standardBadge": "100% de garantía. Nos responsabilizamos completamente por tu retiro con envío estandar",
+    "freeByMembership": "Envío Gratis por Membresía"
+  },
+  "errors": {
+    "couponNotExist": "Error en el sistema de descuentos. Por favor, intenta nuevamente.",
+    "invalidCoupon": "Error al aplicar el descuento de Virtual Coins. Por favor, intenta nuevamente.",
+    "orderProcessingError": "Hubo un problema al procesar tu retiro. Por favor, intenta nuevamente.",
+    "loadMembershipDiscount": "Error al cargar descuento de membresía"
+  }
+}

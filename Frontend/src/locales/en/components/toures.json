@@ -1,0 +1,181 @@
+﻿{
+  "experience": {
+    "label": "What awaits you?",
+    "title": "The 360° Experience",
+    "description": "Our tours are much more than a visit. They are a full immersion in the best of Colombia: adventure, nature, local gastronomy, and wellness, with the option of controlled, completely optional recreational consumption.",
+    "features": [
+      {
+        "title": "Outdoor Adventure",
+        "description": "Hiking, adventure sports, and tours through Colombia's most breathtaking landscapes."
+      },
+      {
+        "title": "Local Gastronomy",
+        "description": "Savor Colombian cuisine crafted by local chefs with fresh ingredients from each region."
+      },
+      {
+        "title": "Nature & Landscapes",
+        "description": "Explore nature reserves, farms, and exclusive destinations surrounded by biodiversity."
+      },
+      {
+        "title": "Exclusive Community",
+        "description": "Connect with other club members in a safe, private, and vibrant environment."
+      },
+      {
+        "title": "Sensory Experience",
+        "description": "Spaces designed to stimulate all your senses in harmony with Colombia's natural beauty."
+      },
+      {
+        "title": "Integral Wellness",
+        "description": "Relaxation sessions, guided meditation, and wellness activities in natural settings."
+      }
+    ]
+  },
+  "packages": {
+    "label": "Book your experience",
+    "title": "Packages and Tours",
+    "subtitle": "Choose the package that fits you best. Every tour includes transportation, meals, and an unforgettable guided experience across Colombia.",
+    "loader": "Loading packages...",
+    "error": "We couldn't load the tour packages.",
+    "emptyTitle": "Coming soon",
+    "emptyDescription": "We're preparing incredible experiences for you. Soon you'll be able to book your recreational tour across Colombia.",
+    "cta": "View all packages"
+  },
+  "security": {
+    "label": "Security & Trust",
+    "title": "100% Legal and Safe Operation",
+    "subtitle": "Your peace of mind is our priority. We operate with the highest standards of legal compliance, safety, and quality to guarantee an exceptional, worry-free experience.",
+    "primaryCta": "View Legal Framework",
+    "secondaryCta": "Privacy Policies",
+    "primaryUrl": "/marco-legal",
+    "secondaryUrl": "/privacidad",
+    "features": [
+      {
+        "title": "Legal Framework & Transparency",
+        "description": "We operate under the Colombian legal framework with all required licenses. Transparent contracts, clear terms, and complete documentation available.",
+        "badge": "Certified"
+      },
+      {
+        "title": "Privacy & Quality",
+        "description": "Your data is secure with bank-level encryption. Rigorous quality and safety processes at every stage of our experiences."
+      },
+      {
+        "title": "Expert Guides",
+        "description": "Trained and certified staff guaranteeing a safe, fun, and memorable experience on every tour.",
+        "badge": "Professional"
+      },
+      {
+        "title": "Comprehensive Insurance",
+        "description": "Insurance coverage for every participant throughout the entire tour experience, from start to finish.",
+        "badge": "Insured"
+      }
+    ]
+  },
+  "testimonials": {
+    "label": "Voices of the Experience",
+    "title": "What our travelers say",
+    "subtitle": "Discover the stories of those who have lived the {{siteName}} experience. Every testimonial reflects our commitment to quality, safety, and fun.",
+    "cta": "Join the experience",
+    "ctaUrl": "/catalogo",
+    "items": [
+      {
+        "name": "María González",
+        "role": "Entrepreneur",
+        "avatar": "MG",
+        "content": "A transformative experience. The tour allowed me to discover incredible Colombian landscapes and connect with wonderful people in a safe and professional environment. I'll be back for sure.",
+        "rating": 5,
+        "tourType": "Premium Tour",
+        "featured": true
+      },
+      {
+        "name": "Carlos Rodríguez",
+        "role": "Nature Photographer",
+        "avatar": "CR",
+        "content": "As a nature lover, I was impressed by the destinations and the flawless organization. Every detail was carefully planned. Definitely a top-tier experience.",
+        "rating": 5,
+        "tourType": "Adventure Tour"
+      },
+      {
+        "name": "Ana Sofía Martínez",
+        "role": "Visual Artist",
+        "avatar": "AM",
+        "content": "The local gastronomy was a revelation. Every dish told a story from the region and the presentation was flawless. A complete sensory experience.",
+        "rating": 5,
+        "tourType": "Gastronomic Tour"
+      },
+      {
+        "name": "Diego Herrera",
+        "role": "Doctor",
+        "avatar": "DH",
+        "content": "Excellent balance between adventure and relaxation. The guides are experts and know how to adapt activities to each group's pace. Highly recommended.",
+        "rating": 4,
+        "tourType": "Full Tour"
+      },
+      {
+        "name": "Laura Valencia",
+        "role": "Journalist",
+        "avatar": "LV",
+        "content": "Professionalism and passion in every detail. The tour gave me a completely new perspective on recreational tourism in Colombia. A must-do.",
+        "rating": 5,
+        "tourType": "Premium Tour"
+      },
+      {
+        "name": "Sebastián Mora",
+        "role": "Executive Chef",
+        "avatar": "SM",
+        "content": "The fusion of regional gastronomy and outdoor activities is fascinating. I discovered flavors and ingredients I'm already incorporating into my kitchen. A unique experience.",
+        "rating": 5,
+        "tourType": "Gastronomic Tour"
+      }
+    ]
+  },
+  "faq": {
+    "label": "Frequently Asked Questions",
+    "title": "Get your answers",
+    "subtitle": "Everything you need to know about our recreational tours across Colombia. If you have any additional questions, don't hesitate to contact us.",
+    "showLess": "← Show less",
+    "showMore": "View {{count}} more questions →",
+    "imageAlt": "Frequently asked questions about recreational tours",
+    "items": [
+      {
+        "question": "What kind of activities do the tours include?",
+        "answer": "Our tours include recreational activities such as hiking, scenic nature walks, local gastronomy experiences, wellness and relaxation activities. We also offer the option of controlled, completely optional recreational consumption for those who wish.",
+        "category": "Activities"
+      },
+      {
+        "question": "What does the tour include?",
+        "answer": "Our tours include transportation from designated meeting points, guided tours, recreational activities, local gastronomy tastings, informational materials, and a participation certificate. Premium packages include a full lunch and exclusive benefits.",
+        "category": "Includes"
+      },
+      {
+        "question": "Is recreational consumption mandatory?",
+        "answer": "No, not at all. Recreational consumption is completely optional and never mandatory. Our tours are designed to be fully enjoyed without any consumption. It's simply an additional option available in a controlled, safe environment.",
+        "category": "Consumption"
+      },
+      {
+        "question": "How long is the tour?",
+        "answer": "Duration depends on the selected package: Express Tours (3-4 hours), Standard Tours (5-6 hours), and Premium Tours (full day, 8 hours). All include time for transport, tours, activities, and breaks.",
+        "category": "Duration"
+      },
+      {
+        "question": "Can I take photos during the tour?",
+        "answer": "Yes, you can take photos in designated areas. For participant safety and privacy, there are restricted zones where cameras aren't permitted. Our guides will show you when and where you can take photos.",
+        "category": "Policies"
+      },
+      {
+        "question": "What should I bring?",
+        "answer": "We recommend comfortable clothing, closed hiking-appropriate shoes, sunscreen, camera, and a water bottle. For full-day tours, we suggest bringing extra snacks.",
+        "category": "Preparation"
+      },
+      {
+        "question": "Are there age restrictions?",
+        "answer": "Yes, our tours are exclusively for participants 18+. ID will be required at the start of the tour. This restriction applies to everyone with no exceptions.",
+        "category": "Requirements"
+      },
+      {
+        "question": "How do I book?",
+        "answer": "You can book directly on our website by selecting the desired package and available date. You can also contact us via WhatsApp or phone for personalized assistance. Reservations are confirmed with a 30% upfront payment.",
+        "category": "Booking"
+      }
+    ]
+  }
+}

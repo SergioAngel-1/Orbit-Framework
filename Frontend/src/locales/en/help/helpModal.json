@@ -1,0 +1,113 @@
+﻿{
+  "title": "Help Center",
+  "tabs": {
+    "help": "Frequently Asked Questions",
+    "howToRequest": "How to request benefits?",
+    "coinsSystem": "Virtual Coins System"
+  },
+  "nav": {
+    "prevAria": "Previous tab",
+    "nextAria": "Next tab"
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "q1": {
+      "title": "How much advance notice do I need to request a withdrawal?",
+      "answer": "Benefit withdrawal requests must be made at least 5 hours in advance to ensure proper processing. This allows us to organize associative delivery routes efficiently."
+    },
+    "q2": {
+      "title": "How do associative deliveries work?",
+      "answer": "Deliveries are made through our trusted couriers. A fixed delivery time is not guaranteed, as routes are organized based on the day's withdrawals and their locations. If you need a specific time, you must make the management contribution digitally."
+    },
+    "q3": {
+      "title": "How does the guest system work?",
+      "answer": "Each registered member receives a unique invitation link to share. For every new member who makes a withdrawal using your link, you receive 5% cashback in Virtual Coins. You can use these coins for future withdrawals or transfer them to other members. Check our <a href=\"/politica-invitados\" class=\"text-primario hover:underline\">Guest Program Policy</a> for more details."
+    },
+    "q4": {
+      "title": "How does the approval process work?",
+      "answer": "All membership applications require administrative approval. After registering, your account will remain pending until approved by our team. We will notify you by email when your account is activated. If you were referred by another member, make sure to let them know so they can contact us and speed up your approval process."
+    },
+    "viewAllCta": "View all frequently asked questions",
+    "contact": {
+      "title": "Contact for PQRS",
+      "description": "If you have any petition, complaint, claim or suggestion, you can use any of the following channels:",
+      "email": "Email: <a href=\"mailto:pqrs@example.com\" class=\"text-primario hover:underline\">info@example.com</a>",
+      "phone": "Phone: <a href=\"tel:+573223237785\" class=\"text-primario hover:underline\">+57 322 323 7785</a>",
+      "form": "Web form: Complete our <a href=\"/contacto\" class=\"text-primario hover:underline\">PQRS form</a>"
+    }
+  },
+  "howToRequest": {
+    "title": "How to request benefit withdrawals?",
+    "step1": {
+      "title": "Register at the club",
+      "description": "Apply for membership in our club. If you were invited by another member, make sure to use their invitation code during registration. After registering, you will need to wait for your account to be approved."
+    },
+    "step2": {
+      "title": "Explore our benefits catalog",
+      "description": "Once your account is approved, you will have access to our full benefits catalog. Browse through different categories or use the search bar to find the benefits that interest you."
+    },
+    "step3": {
+      "title": "Select benefits in advance",
+      "description": "Select the benefits you want and add them to your selection. Remember that you must submit your withdrawal request at least 5 hours in advance to ensure proper processing."
+    },
+    "step4": {
+      "title": "Choose your associative delivery method",
+      "description": "Provide your associative delivery address. If you need a specific delivery time, you must make the management contribution digitally and the shipment will be made through an external courier app."
+    },
+    "step5": {
+      "title": "Complete your contribution and wait for your withdrawal",
+      "description": "Select your preferred management contribution method and complete your request. You will receive a confirmation email and can track the status of your withdrawal from your member account."
+    },
+    "important": {
+      "title": "Important information about associative deliveries",
+      "intro": "Keep in mind these important details about our associative delivery service:",
+      "items": [
+        "Withdrawals require a minimum of 5 hours advance notice for processing.",
+        "We do not guarantee a fixed delivery time, as routes are organized based on the day's withdrawals.",
+        "For deliveries at a specific time, a digital management contribution is required.",
+        "In case of loss during shipping with our couriers, we take 100% responsibility.",
+        "If shipping is done through an external app (for specific times), the risk is borne by the member."
+      ]
+    }
+  },
+  "coinsSystem": {
+    "title": "Virtual Coins System",
+    "howToEarn": {
+      "title": "How do I earn Virtual Coins?",
+      "referrals": {
+        "title": "Through guests",
+        "description": "Earn a percentage of the value of each withdrawal made by your guests. Share your invitation code with friends and family. Every time they make a benefit withdrawal, you will receive Virtual Coins equivalent to a percentage of their contribution value.",
+        "cta": "Invite now"
+      },
+      "welcome": {
+        "title": "Welcome bonus",
+        "description": "When you register and are approved as a member, you will receive welcome points. These points are our gift so you can start enjoying the club's benefits."
+      },
+      "reviews": {
+        "title": "Writing reviews",
+        "description": "Share your experience with other members. For every review you write about the benefits you've withdrawn, you will receive Virtual Coins as a thank you for your feedback."
+      },
+      "birthday": {
+        "title": "On your birthday",
+        "description": "We celebrate with you! On your special day, you will receive Virtual Coins as a gift. Make sure to keep your birth date updated in your profile so you don't miss this benefit."
+      },
+      "promotions": {
+        "title": "Special promotions",
+        "description": "Stay tuned to our communications. We periodically run special promotions where you can earn additional Virtual Coins for withdrawals in specific categories or during special club events."
+      }
+    },
+    "whatFor": {
+      "title": "What are they for?",
+      "intro": "Your Virtual Coins can be used in the following ways:",
+      "items": [
+        "<strong>As a direct discount on your management contributions:</strong> each Flores Coin has a specific value in pesos that is automatically deducted from your contribution.",
+        "<strong>Accumulate them for bigger discounts:</strong> the more Virtual Coins you have, the bigger the discounts on future benefit withdrawals.",
+        "<strong>Check your available balance:</strong> check your current balance in the \"Virtual Coins\" section or in your member profile.",
+        "<strong>Watch the expiration date:</strong> points have an expiration date, so use them before you lose them.",
+        "<strong>Transferable between members:</strong> in some cases you can transfer your Virtual Coins to other club members."
+      ]
+    },
+    "disclaimer": "The Virtual Coins program is subject to terms and conditions.",
+    "policyLink": "View full policy"
+  }
+}

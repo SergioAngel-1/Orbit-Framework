@@ -1,0 +1,26 @@
+{
+  "title": "Tu Reserva",
+  "closeAria": "Cerrar reserva",
+  "empty": {
+    "message": "Tu reserva está vacía",
+    "continue": "Continuar reservando"
+  },
+  "item": {
+    "viewAria": "Ver detalles de {{name}}",
+    "viewBenefit": "Ver beneficio",
+    "defaultName": "Beneficio",
+    "variation": "Variación: {{values}}",
+    "removeAria": "Eliminar {{name}} de la reserva"
+  },
+  "footer": {
+    "subtotal": "Subtotal",
+    "minimumReached": "¡Aporte mínimo alcanzado!",
+    "minimumReachedDesc": "Tu retiro cumple con el aporte mínimo de mantenimiento de",
+    "minimumLabel": "Aporte mínimo de mantenimiento:",
+    "missingPrefix": "Te faltan",
+    "missingSuffix": "para poder realizar el aporte.",
+    "checkout": "Realizar aporte",
+    "checkoutDisabledTitle": "Necesitas agregar {{amount}} FC más para alcanzar el aporte mínimo de mantenimiento",
+    "viewCart": "Ver reserva"
+  }
+}

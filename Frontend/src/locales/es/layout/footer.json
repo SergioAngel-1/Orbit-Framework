@@ -1,0 +1,61 @@
+﻿{
+  "contact": {
+    "title": "Contacto",
+    "compactMessage": "¿Tienes dudas o necesitas ayuda? Estamos para ti.",
+    "compactEmail": "info@example.com",
+    "compactCta": "Contáctanos",
+    "message": "¿Tienes dudas o necesitas ayuda? Estamos para ti.",
+    "items": {
+      "online": "Únicamente retiros asociativos online.",
+      "phone": "+57 322 323 7785",
+      "email": "info@example.com",
+      "scheduleWeek": "Lun - Vie: 24/7",
+      "scheduleWeekend": "Sáb - Dom: 10:00 - 15:00",
+      "message": "Déjanos un mensaje"
+    }
+  },
+  "benefits": {
+    "title": "Beneficios de {{siteName}}",
+    "items": [
+      "Cultivo exclusivo",
+      "Club privado",
+      "Comunidad"
+    ]
+  },
+  "legal": {
+    "title": "Legal",
+    "terms": "Términos y condiciones",
+    "privacy": "Política de privacidad",
+    "guests": "Política de invitados",
+    "guide": "Guía ante requisa",
+    "framework": "Marco legal protector"
+  },
+  "newsletter": {
+    "title": "Newsletter",
+    "cta": "Suscríbete para recibir nuestras últimas novedades y ofertas especiales.",
+    "placeholder": "Tu correo electrónico",
+    "button": "Suscribirse",
+    "sending": "Enviando...",
+    "loginNotice": "Inicia sesión para suscribirte al newsletter.",
+    "subscribedTitle": "¡Gracias por pertenecer a nuestro Newsletter!",
+    "subscribedMessage": "Pronto recibirás noticias y ofertas exclusivas",
+    "emailRequired": "Por favor, ingresa tu correo electrónico",
+    "subscribeSuccess": "¡Gracias por suscribirte a nuestro newsletter!",
+    "subscribeError": "Ocurrió un error al procesar tu suscripción",
+    "subscribeNetworkError": "Error al suscribirse al newsletter"
+  },
+  "legalAdvice": {
+    "title": "Emergencia Legal",
+    "badge": "Abogado 24/7",
+    "warning": "Solo para emergencias legales. El uso indebido puede resultar en la pérdida o suspensión de tu membresía.",
+    "whatsappMessage": "Hola, soy {{name}}{{userInfo}} y necesito asesoría jurídica de emergencia en {{siteName}}.",
+    "anonymous": "Anónimo"
+  },
+  "bottom": {
+    "copyright": "{{siteName}}. Todos los derechos reservados.",
+    "developedBy": "Desarrollado por",
+    "developerName": "SergioJA",
+    "compactTerms": "Términos",
+    "compactPrivacy": "Políticas"
+  }
+}

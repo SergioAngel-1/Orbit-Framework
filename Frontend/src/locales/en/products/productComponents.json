@@ -1,0 +1,31 @@
+{
+  "productPoints": {
+    "pointsOnPurchase": "points per contribution",
+    "loadError": "Error loading benefit points"
+  },
+  "productSimple": {
+    "unitPrice": "Unit price:",
+    "discount": "DISCOUNT",
+    "quantity": "Quantity"
+  },
+  "promotionalGrid": {
+    "emptyState": "No promotional benefits available at this time."
+  },
+  "productDescription": {
+    "viewImage": "View image",
+    "imageAlt": "Image {{count}}"
+  },
+  "attributeSelector": {
+    "selectAttribute": "Select {{name}}",
+    "clearSelection": "Clear selection"
+  },
+  "variationSubtotal": {
+    "subtotal": "Subtotal:",
+    "regularPrice": "Regular price:"
+  },
+  "variationQuantity": {
+    "quantityLabel": "Quantity",
+    "quantityInfoAria": "Quantity information",
+    "quantityTooltip": "Variation quantity"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "code": "404",
+  "badge": "Oops!",
+  "title": "Page not found",
+  "description": "Sorry, the page you're looking for doesn't exist or has been moved. Why not explore another section of our catalog?",
+  "home": "Go to home",
+  "catalog": "Explore benefits",
+  "login": "Log in / Create account"
+}

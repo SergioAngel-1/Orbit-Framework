@@ -1,0 +1,55 @@
+{
+  "page": {
+    "loading": "Loading benefit...",
+    "accessDenied": "This benefit requires {{level}} membership",
+    "recommendedBenefits": "Recommended benefits"
+  },
+  "gallery": {
+    "imageAlt": "{{name}} - image {{index}}"
+  },
+  "content": {
+    "maxInCart": "You already have the maximum available ({{stock}}) in your reservation",
+    "limitedStock": "You can only add {{available}} more unit(s). Available stock: {{stock}}"
+  },
+  "description": {
+    "title": "Description",
+    "showMore": "Show more",
+    "showLess": "Show less",
+    "empty": "We haven't added the description for this benefit yet. Come back soon for all the details!"
+  },
+  "actions": {
+    "unitPrice": "Unit price:",
+    "quantity": "Quantity"
+  },
+  "cart": {
+    "outOfStock": "Out of stock",
+    "selectOptions": "Select options",
+    "addToCart": "Reserve for provisioning",
+    "adding": "Reserving...",
+    "from": "From",
+    "subtotal": "Subtotal:",
+    "regularPrice": "Regular price:"
+  },
+  "variations": {
+    "loading": "Loading options...",
+    "noMatch": "No variation available with that attribute combination"
+  },
+  "promotional": {
+    "defaultTitle": "Recommended benefits",
+    "error": "Could not load promotional benefits.",
+    "empty": "No promotional benefits available.",
+    "noDescription": "This benefit doesn't have a description yet, come back soon for more info!",
+    "addAria": "Add {{name}} to reservation",
+    "viewOptionsAria": "View options for {{name}}"
+  },
+  "related": {
+    "title": "Related benefits"
+  },
+  "backButton": {
+    "label": "Back"
+  },
+  "breadcrumbs": {
+    "home": "Home",
+    "catalog": "Catalog"
+  }
+}

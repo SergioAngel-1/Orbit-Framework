@@ -1,0 +1,92 @@
+{
+  "greeting": "Hello, {{name}}!",
+  "editButton": "Edit",
+  "alerts": {
+    "emailChangePending": "Email change pending",
+    "emailChangeConfirm": "Confirm your new email:",
+    "usernameNotEditable": "The username <strong>{{name}}</strong> cannot be modified."
+  },
+  "fields": {
+    "avatar": {
+      "label": "Profile photo",
+      "change": "Change photo",
+      "remove": "Remove",
+      "uploading": "Uploading...",
+      "maxSize": "JPG, PNG or WebP. Max 2MB.",
+      "uploadError": "Error uploading image. Please try again.",
+      "removeError": "Error removing image.",
+      "formatError": "Format not allowed. Use JPG, PNG or WebP.",
+      "sizeError": "Image is too large. Maximum 2MB.",
+      "notSpecified": "No photo",
+      "addPhoto": "Add photo"
+    },
+    "realName": {
+      "label": "Real Name",
+      "placeholder": "Your full name (optional)",
+      "hint": "Different from your username",
+      "notSpecified": "Not specified"
+    },
+    "email": {
+      "label": "Email Address",
+      "hint": "Only editable by an administrator",
+      "notSpecified": "Not specified"
+    },
+    "phone": {
+      "label": "Phone",
+      "notSpecified": "Not specified"
+    },
+    "birthDate": {
+      "label": "Date of Birth",
+      "hint": "Only editable by an administrator",
+      "notSpecified": "Not specified"
+    },
+    "gender": {
+      "label": "Gender",
+      "placeholder": "Select",
+      "options": {
+        "male": "Male",
+        "female": "Female",
+        "other": "Other",
+        "preferNotToSay": "Prefer not to say"
+      },
+      "notSpecified": "Not specified"
+    },
+    "documentId": {
+      "label": "ID / Document",
+      "hint": "Only editable by an administrator",
+      "notSpecified": "Not specified"
+    },
+    "newsletter": {
+      "label": "Newsletter",
+      "subscribe": "Receive offers and news by email",
+      "subscribed": "Subscribed",
+      "notSubscribed": "Not subscribed"
+    },
+    "dataVeracity": {
+      "label": "Data veracity declaration",
+      "declare": "I declare that my data is truthful",
+      "accepted": "Accepted",
+      "notAccepted": "Not accepted",
+      "acceptedDate": "Acceptance date: {{date}}",
+      "notEditable": "Cannot be modified once accepted"
+    },
+    "terms": {
+      "label": "Terms and Conditions",
+      "accept": "I accept the terms and conditions",
+      "accepted": "Accepted",
+      "notAccepted": "Not accepted",
+      "acceptedDate": "Acceptance date: {{date}}",
+      "notEditable": "Cannot be modified once accepted"
+    }
+  },
+  "buttons": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "changePassword": "Change password"
+  },
+  "messages": {
+    "profileUpdated": "Your profile has been updated successfully.",
+    "emailInUse": "This email address is already in use by another user.",
+    "updateError": "Could not update profile. Please try again."
+  }
+}

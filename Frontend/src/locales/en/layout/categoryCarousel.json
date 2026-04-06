@@ -1,0 +1,9 @@
+{
+  "allLabel": "Catalog",
+  "menuButton": "Menu",
+  "aria": {
+    "openMenu": "Open menu",
+    "previous": "Previous",
+    "next": "Next"
+  }
+}

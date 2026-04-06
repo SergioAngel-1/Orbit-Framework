@@ -1,0 +1,72 @@
+﻿{
+  "stats": {
+    "title": "Estadísticas de Invitados",
+    "unavailable": "El programa de invitados no está disponible para su rol de usuario o está deshabilitado.",
+    "totalReferrals": "Total Invitados",
+    "allLevels": "Todos los niveles",
+    "direct": "Directos",
+    "firstLevel": "Primer nivel",
+    "indirect": "Indirectos",
+    "otherLevels": "Otros niveles",
+    "pending": "Pendientes",
+    "inApproval": "En aprobación",
+    "coinsGenerated": "Virtual Coins Generados",
+    "byReferrals": "Por invitados"
+  },
+  "code": {
+    "title": "Mi Código de Invitación",
+    "unavailable": "El programa de invitados no está disponible para su rol de usuario o está deshabilitado.",
+    "yourCode": "Tu código único:",
+    "codeCopied": "Código copiado al portapapeles",
+    "copyCode": "Copiar código",
+    "yourLink": "Tu enlace de invitación:",
+    "linkCopied": "Enlace copiado al portapapeles",
+    "copyLink": "Copiar enlace",
+    "copyError": "No se pudo copiar al portapapeles",
+    "shareWith": "Compartir con amigos:",
+    "loadingSocial": "Cargando redes sociales...",
+    "errorLoadingSocial": "Error al cargar redes: {{error}}",
+    "noSocialNetworks": "No hay redes sociales disponibles",
+    "shareOn": "Compartir en {{network}}",
+    "invitedBy": "Fuiste invitado por:",
+    "viewPolicy": "Ver política completa del programa de invitados",
+    "shareMessage": "Hola, este es el link que te permitirá conocer el mundo de {{siteName}} 🌸, ahora sigue estos pequeños pasos: 1. Toca el botón que dice: Registrarse 2. Llena tus datos y crea una contraseña Media o Segura. 3. Después de recibir el mensaje de Pendiente de Aprobación o que tus datos fueron enviados al correo, debes enviar tu correo a la persona que te compartió el link de Inscripción para que esta persona nos informe y de esta manera puedas ser aprobada.",
+    "shareOnNetwork": "Compartir en {{network}}"
+  },
+  "coinsHistory": {
+    "recentTitle": "Últimos movimientos",
+    "unavailable": "El sistema de Virtual Coins no está disponible para su rol de socio o está deshabilitado.",
+    "viewFullHistory": "Ver historial completo",
+    "viewAll": "Ver todo",
+    "noTransactions": "No tienes transacciones de Virtual Coins.",
+    "noExpiry": "No expira",
+    "tableDate": "Fecha",
+    "tableType": "Tipo",
+    "tableCoins": "Virtual Coins",
+    "tableDescription": "Descripción",
+    "tableExpiry": "Expiración",
+    "types": {
+      "earned": "Ganado por aporte",
+      "used": "Usado en aporte",
+      "expired": "Expirado",
+      "admin_add": "Añadido por administrador",
+      "admin_deduct": "Deducido por administrador",
+      "referral": "Comisión por invitado",
+      "referral_signup": "Invitado aceptado",
+      "referral_purchase": "Aporte de invitado",
+      "referral_product_bonus": "Bonificación extra",
+      "registration": "Bienvenida al club",
+      "review": "Por reseña de beneficio",
+      "birthday": "Regalo de cumpleaños"
+    }
+  },
+  "coinsHistoryModal": {
+    "title": "Historial Completo de Virtual Coins",
+    "loading": "Cargando historial...",
+    "noTransactions": "No tienes transacciones de Virtual Coins.",
+    "noExpiry": "No expira",
+    "pageInfo": "Pág. {{current}}/{{total}}",
+    "previous": "Anterior",
+    "next": "Siguiente"
+  }
+}

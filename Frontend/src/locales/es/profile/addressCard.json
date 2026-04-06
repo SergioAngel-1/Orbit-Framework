@@ -1,0 +1,12 @@
+{
+  "addressLabel": "Dirección: {{name}}",
+  "badge": "Principal",
+  "buttons": {
+    "setDefault": "Principal",
+    "setDefaultAria": "Establecer {{name}} como dirección predeterminada",
+    "edit": "Editar",
+    "editAria": "Editar dirección {{name}}",
+    "delete": "Eliminar",
+    "deleteAria": "Eliminar dirección {{name}}"
+  }
+}

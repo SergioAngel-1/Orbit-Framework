@@ -1,0 +1,57 @@
+﻿{
+  "seo": {
+    "title": "My Reservation | {{siteName}}",
+    "description": "Review the benefits in your reservation before completing your contribution at the {{siteName}} private club."
+  },
+  "pageTitle": "Your Reservation",
+  "loading": "Loading reservation...",
+  "empty": {
+    "title": "Your reservation is empty",
+    "subtitle": "It looks like you haven't reserved any benefits yet",
+    "exploreButton": "Explore benefits",
+    "popularCategories": "Popular categories"
+  },
+  "summary": {
+    "title": "Contribution summary",
+    "subtotal": "Subtotal",
+    "discount": "Discount ({{code}})",
+    "removeCouponAria": "Remove coupon",
+    "shipping": "Shipping",
+    "shippingTbd": "To be defined",
+    "total": "Total",
+    "couponPrompt": "Have a coupon?",
+    "couponPlaceholder": "Coupon code",
+    "couponApply": "Apply",
+    "couponErrorEmpty": "Enter a coupon code",
+    "couponErrorInvalid": "Invalid or expired coupon",
+    "checkoutButton": "Make contribution",
+    "checkoutDisabledTitle": "Add {{amount}} FC more to continue"
+  },
+  "minimumOrder": {
+    "reached": "Minimum contribution reached!",
+    "title": "Minimum maintenance contribution",
+    "minimumLabel": "Minimum maintenance contribution:",
+    "minimumIs": "The minimum maintenance contribution is",
+    "missing": "You need",
+    "missingEnd": "more to complete your withdrawal.",
+    "progress": "{{percent}}% completed"
+  },
+  "itemList": {
+    "title": "Your Reservation",
+    "colProduct": "Benefit",
+    "colPrice": "Price",
+    "colQuantity": "Quantity",
+    "noName": "Unnamed benefit",
+    "noCategory": "No category",
+    "removeAria": "Remove benefit",
+    "clearCart": "Clear reservation",
+    "continueShopping": "Continue reserving"
+  },
+  "policies": {
+    "title": "Club policies",
+    "shipping": "Protected, discreet, and secure nationwide shipping",
+    "quality": "Quality guarantee on all benefits",
+    "security": "Secure contribution with SSL encryption",
+    "support": "24/7 support for all your inquiries"
+  }
+}

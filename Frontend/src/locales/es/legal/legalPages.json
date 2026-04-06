@@ -1,0 +1,44 @@
+{
+  "nav": {
+    "title": "Nuestros documentos legales",
+    "terms": "Términos y condiciones",
+    "privacy": "Política de privacidad",
+    "referral": "Política de invitados",
+    "police": "Guía ante requisa policial",
+    "protective": "Marco legal protector"
+  },
+  "common": {
+    "retry": "Reintentar",
+    "lastValidation": "Última validación: {{date}}"
+  },
+  "terms": {
+    "title": "Términos y Condiciones",
+    "loading": "Cargando términos y condiciones...",
+    "notFound": "No se encontró el documento de Términos y Condiciones.",
+    "loadError": "Error al cargar los Términos y Condiciones. Por favor, intenta nuevamente."
+  },
+  "privacy": {
+    "title": "Política de Privacidad",
+    "loading": "Cargando política de privacidad...",
+    "notFound": "No se encontró el documento de Política de Privacidad.",
+    "loadError": "Error al cargar la Política de Privacidad. Por favor, intenta nuevamente."
+  },
+  "referral": {
+    "title": "Política del Programa de Invitados",
+    "loading": "Cargando política de invitados...",
+    "notFound": "No se encontró el documento de Política de Invitados.",
+    "loadError": "Error al cargar la Política de Invitados. Por favor, intenta nuevamente."
+  },
+  "police": {
+    "title": "Guía ante Requisa Policial",
+    "loading": "Cargando guía...",
+    "notFound": "No se encontró el documento de Guía ante Requisa.",
+    "loadError": "Error al cargar la Guía ante Requisa. Por favor, intenta nuevamente."
+  },
+  "protective": {
+    "title": "Marco Legal Protector",
+    "loading": "Cargando marco legal protector...",
+    "notFound": "No se encontró el documento de Marco Legal Protector.",
+    "loadError": "Error al cargar el Marco Legal Protector. Por favor, intenta nuevamente."
+  }
+}

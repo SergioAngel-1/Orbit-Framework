@@ -1,0 +1,23 @@
+﻿{
+  "title": "Virtual Coins",
+  "description": "Earn points on every pickup and redeem them for membership benefits",
+  "imageAlt": "Virtual Coins",
+  "chips": {
+    "participation": {
+      "label": "Participation merits",
+      "tooltip": "Participation merits"
+    },
+    "membership": {
+      "label": "Membership benefits",
+      "tooltip": "Membership benefits"
+    },
+    "guests": {
+      "label": "Guest program",
+      "tooltip": "Guest program"
+    }
+  },
+  "buttons": {
+    "desktop": "How can I earn Virtual Coins?",
+    "mobile": "How do Virtual Coins work?"
+  }
+}

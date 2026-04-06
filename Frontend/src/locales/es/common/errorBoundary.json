@@ -1,0 +1,8 @@
+{
+  "title": "¡Oops! Algo salió mal",
+  "description": "Lo sentimos, ha ocurrido un error inesperado. Por favor, intenta recargar la página.",
+  "errorDetails": "Detalles del error (solo en desarrollo)",
+  "tryAgain": "Intentar de nuevo",
+  "goHome": "Ir al inicio",
+  "persistMessage": "Si el problema persiste, por favor contacta con soporte."
+}

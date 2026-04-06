@@ -1,0 +1,19 @@
+{
+  "label": "Phone",
+  "placeholder": "Phone number",
+  "validation": {
+    "validColombia": "Valid number for Colombia",
+    "invalidColombia": "Must be 10 digits for Colombia",
+    "validMexico": "Valid number for Mexico",
+    "invalidMexico": "Must be 10 digits for Mexico",
+    "validSpain": "Valid number for Spain",
+    "invalidSpain": "Must be 9 digits for Spain",
+    "validUSA": "Valid number for United States",
+    "invalidUSA": "Must be 10 digits for United States",
+    "validGeneric": "Valid number",
+    "invalidGeneric": "Incomplete number",
+    "checking": "Checking availability...",
+    "available": "Phone valid and available",
+    "alreadyRegistered": "This phone is already registered"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "addressLabel": "Address: {{name}}",
+  "badge": "Default",
+  "buttons": {
+    "setDefault": "Default",
+    "setDefaultAria": "Set {{name}} as default address",
+    "edit": "Edit",
+    "editAria": "Edit address {{name}}",
+    "delete": "Delete",
+    "deleteAria": "Delete address {{name}}"
+  }
+}

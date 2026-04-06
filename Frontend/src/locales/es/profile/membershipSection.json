@@ -1,0 +1,34 @@
+{
+  "title": "Mi Membresía",
+  "status": {
+    "active": "Activa",
+    "basic": "Nivel básico",
+    "daysRemaining": "{{count}} días"
+  },
+  "stats": {
+    "level": "Nivel",
+    "fcPer": "FC / {{period}}"
+  },
+  "renewalPeriod": {
+    "monthly": "mes",
+    "bimonthly": "bimestre",
+    "quarterly": "trimestre",
+    "biannual": "semestre",
+    "annual": "año",
+    "default": "periodo"
+  },
+  "freeDeliveries": {
+    "title": "Envíos Gratis",
+    "remaining": "{{remaining}} de {{total}} restantes",
+    "inProcess": "{{count}} en proceso",
+    "lastUsed": "Último: {{date}}"
+  },
+  "benefits": {
+    "title": "Beneficios activos ({{count}})",
+    "more": "+{{count}} más"
+  },
+  "buttons": {
+    "upgrade": "Mejorar nivel",
+    "viewMemberships": "Ver membresías"
+  }
+}

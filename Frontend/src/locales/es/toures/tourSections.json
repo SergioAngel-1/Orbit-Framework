@@ -1,0 +1,146 @@
+﻿{
+  "hero": {
+    "discoverMore": "Descubre más",
+    "imageAlt": "Toures Recreativos por Colombia - {{siteName}}",
+    "title": "Toures Recreativos",
+    "subtitle": "Descubre Colombia con actividades de aventura, gastronomía local y naturaleza. Experiencias guiadas con la posibilidad de un consumo controlado y opcional.",
+    "badgeText": "Experiencia Exclusiva",
+    "primaryCta": "Ver Paquetes",
+    "secondaryCta": "Conoce la Experiencia"
+  },
+  "faq": {
+    "label": "Preguntas Frecuentes",
+    "title": "Resuelve tus dudas",
+    "subtitle": "Todo lo que necesitas saber sobre nuestros tours recreativos por Colombia. Si tienes alguna pregunta adicional, no dudes en contactarnos.",
+    "showLess": "← Mostrar menos",
+    "showMore": "Ver {{count}} preguntas más →",
+    "imageAlt": "Preguntas frecuentes sobre tours recreativos",
+    "defaultFaqs": [
+      {
+        "question": "¿Qué tipo de actividades incluyen los tours?",
+        "answer": "Nuestros tours incluyen actividades recreativas como senderismo, recorridos por paisajes naturales, experiencias gastronómicas con cocina local, actividades de bienestar y relajación. Además, ofrecemos la posibilidad de un consumo recreativo controlado y completamente opcional para quienes lo deseen.",
+        "category": "Actividades"
+      },
+      {
+        "question": "¿Qué incluye el tour?",
+        "answer": "Nuestros tours incluyen transporte desde puntos de encuentro designados, recorridos guiados, actividades recreativas, degustación de gastronomía local, materiales informativos y certificado de participación. Los paquetes premium incluyen almuerzo completo y beneficios exclusivos.",
+        "category": "Incluye"
+      },
+      {
+        "question": "¿El consumo recreativo es obligatorio?",
+        "answer": "No, en absoluto. El consumo recreativo es completamente opcional y nunca obligatorio. Nuestros tours están diseñados para disfrutarse plenamente sin necesidad de consumir. Es simplemente una opción adicional disponible en un entorno controlado y seguro.",
+        "category": "Consumo"
+      },
+      {
+        "question": "¿Cuál es la duración del tour?",
+        "answer": "La duración varía según el paquete elegido: Tours Express (3-4 horas), Tours Estándar (5-6 horas) y Tours Premium (jornada completa de 8 horas). Todos incluyen tiempo para transporte, recorridos, actividades y descansos.",
+        "category": "Duración"
+      },
+      {
+        "question": "¿Puedo tomar fotos durante el tour?",
+        "answer": "Sí, puedes tomar fotos en las áreas designadas. Sin embargo, por seguridad y privacidad de los participantes, hay zonas restringidas donde no está permitido el uso de cámaras. Nuestros guías te indicarán cuándo y dónde puedes fotografiar.",
+        "category": "Políticas"
+      },
+      {
+        "question": "¿Qué debo llevar al tour?",
+        "answer": "Recomendamos llevar ropa cómoda, calzado cerrado apto para caminatas, protector solar, cámara y botella de agua. Para tours de jornada completa, sugerimos llevar snacks adicionales.",
+        "category": "Preparación"
+      },
+      {
+        "question": "¿Hay restricciones de edad?",
+        "answer": "Sí, nuestros tours son exclusivamente para mayores de 18 años. Se requerirá presentación de documento de identidad al inicio del tour. Esta restricción aplica a todos los participantes sin excepción.",
+        "category": "Requisitos"
+      },
+      {
+        "question": "¿Cómo hago la reserva?",
+        "answer": "Puedes reservar directamente en nuestra plataforma web seleccionando el paquete deseado y fecha disponible. También puedes contactarnos por WhatsApp o teléfono para asistencia personalizada. Las reservas se confirman con pago anticipado del 30%.",
+        "category": "Reservas"
+      }
+    ]
+  },
+  "security": {
+    "label": "Seguridad y Confianza",
+    "title": "Operación 100% Legal y Segura",
+    "subtitle": "Tu tranquilidad es nuestra prioridad. Operamos con los más altos estándares de cumplimiento legal, seguridad y calidad para garantizar una experiencia excepcional y sin preocupaciones.",
+    "primaryCta": "Ver Marco Legal",
+    "secondaryCta": "Políticas de Privacidad",
+    "defaultFeatures": [
+      {
+        "title": "Marco Legal y Transparencia",
+        "description": "Operamos bajo el marco legal colombiano con todas las licencias requeridas. Contratos transparentes, términos claros y documentación completa disponible.",
+        "badge": "Certificado"
+      },
+      {
+        "title": "Privacidad y Calidad",
+        "description": "Tus datos están seguros con encriptación de nivel bancario. Procesos rigurosos de calidad y seguridad en cada etapa de nuestras experiencias."
+      },
+      {
+        "title": "Guías Expertos",
+        "description": "Personal capacitado y certificado para garantizar una experiencia segura, divertida y memorable en cada recorrido.",
+        "badge": "Profesional"
+      },
+      {
+        "title": "Seguro Integral",
+        "description": "Cobertura de seguro para todos los participantes durante toda la experiencia del tour, desde el inicio hasta el regreso.",
+        "badge": "Asegurado"
+      }
+    ]
+  },
+  "testimonials": {
+    "label": "Voces de la Experiencia",
+    "title": "Lo que dicen nuestros viajeros",
+    "subtitle": "Descubre las historias de quienes han vivido la experiencia {{siteName}}. Cada testimonio refleja el compromiso con la calidad, seguridad y diversión que nos caracteriza.",
+    "ctaText": "Únete a la experiencia",
+    "defaultTestimonials": [
+      {
+        "name": "María González",
+        "role": "Emprendedora",
+        "avatar": "MG",
+        "content": "Una experiencia transformadora. El tour me permitió descubrir paisajes increíbles de Colombia y conectar con personas maravillosas en un ambiente seguro y profesional. Volveré sin duda.",
+        "rating": 5,
+        "tourType": "Tour Premium",
+        "featured": true
+      },
+      {
+        "name": "Carlos Rodríguez",
+        "role": "Fotógrafo de Naturaleza",
+        "avatar": "CR",
+        "content": "Como amante de la naturaleza, quedé impresionado por los destinos y la organización impecable. Cada detalle estaba cuidado. Definitivamente una experiencia de primer nivel.",
+        "rating": 5,
+        "tourType": "Tour Aventura"
+      },
+      {
+        "name": "Ana Sofía Martínez",
+        "role": "Artista Visual",
+        "avatar": "AM",
+        "content": "La gastronomía local fue una revelación. Cada plato contaba una historia de la región y la presentación fue impecable. Una experiencia sensorial completa.",
+        "rating": 5,
+        "tourType": "Tour Gastronómico"
+      },
+      {
+        "name": "Diego Herrera",
+        "role": "Médico",
+        "avatar": "DH",
+        "content": "Excelente balance entre aventura y relajación. Los guías son expertos y saben adaptar las actividades al ritmo de cada grupo. Muy recomendado.",
+        "rating": 4,
+        "tourType": "Tour Completo"
+      },
+      {
+        "name": "Laura Valencia",
+        "role": "Periodista",
+        "avatar": "LV",
+        "content": "Profesionalismo y pasión en cada detalle. El tour me dio una perspectiva completamente nueva sobre el turismo recreativo en Colombia. Imperdible.",
+        "rating": 5,
+        "tourType": "Tour Premium"
+      },
+      {
+        "name": "Sebastián Mora",
+        "role": "Chef Ejecutivo",
+        "avatar": "SM",
+        "content": "La fusión entre gastronomía regional y actividades al aire libre es fascinante. Descubrí sabores e ingredientes que ya estoy incorporando en mi cocina. Una experiencia única.",
+        "rating": 5,
+        "tourType": "Tour Gastronómico"
+      }
+    ]
+  }
+}

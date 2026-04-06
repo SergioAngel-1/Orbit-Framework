@@ -1,0 +1,16 @@
+﻿{
+  "seo": {
+    "title": "Recreational Tours in Colombia | {{siteName}} - Immersive 360° Experience",
+    "description": "Discover Colombia through recreational adventure tours, gastronomy, and nature. Guided experiences with the option of controlled, optional consumption. Book with {{siteName}}.",
+    "keywords": "recreational tours Colombia, adventure tour Colombia, experiential tourism, recreational activities, 360 experience, exclusive tour Colombia, {{siteName}} tours, wellness tourism",
+    "url": "https://example.com/toures",
+    "schemaName": "Recreational Tours in Colombia - {{siteName}}",
+    "schemaDescription": "Immersive 360° recreational experiences across Colombia's most exclusive destinations."
+  },
+  "schema": {
+    "breadcrumbHome": "Home",
+    "breadcrumbTours": "Recreational Tours",
+    "tourName": "{{siteName}} Recreational Tours",
+    "tourDescription": "Recreational and adventure experiences across Colombia's most exclusive destinations"
+  }
+}

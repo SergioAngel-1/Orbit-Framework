@@ -1,0 +1,63 @@
+﻿{
+  "seo": {
+    "title": "Catálogo de Beneficios | {{siteName}} - Flores, Extractos y Más",
+    "description": "Explora el catálogo completo de beneficios premium de {{siteName}}. Flores, extractos, comestibles, aceites y accesorios. Beneficios de alta calidad exclusivos para miembros del club privado de magia verde en Colombia.",
+    "keywords": "catálogo {{siteName}}, flores premium, extractos, aceites, comestibles, beneficios exclusivos, tienda club privado, {{siteName}} catálogo, beneficios premium Colombia",
+    "schemaName": "Catálogo de Beneficios {{siteName}}",
+    "schemaDescription": "Catálogo completo de beneficios premium de alta calidad en {{siteName}}.",
+    "breadcrumbHome": "Inicio",
+    "breadcrumbCatalog": "Catálogo"
+  },
+  "filters": {
+    "srTitle": "Filtros de búsqueda",
+    "searchLabel": "Buscar beneficios",
+    "searchPlaceholder": "¿Qué estás buscando?",
+    "searchAria": "Buscar beneficios",
+    "clearSearchAria": "Limpiar búsqueda",
+    "sortLabel": "Ordenar por",
+    "sortPlaceholder": "Ordenar por",
+    "sortNameAZ": "Nombre (A-Z)",
+    "sortPriceAsc": "Precio: menor a mayor",
+    "sortPriceDesc": "Precio: mayor a menor",
+    "sortDate": "Más recientes",
+    "sortPopularity": "Popularidad",
+    "categoryLabel": "Variedad",
+    "allCategories": "Todas las variedades",
+    "filterButton": "Filtrar"
+  },
+  "categoryHeader": {
+    "backToAll": "Ver todas las variedades",
+    "loadingCategory": "Cargando variedad..."
+  },
+  "categoryNotFound": {
+    "title": "Variedad no encontrada",
+    "description": "La variedad que estás buscando no existe o ha sido eliminada.",
+    "backLink": "Ver todas las variedades"
+  },
+  "productGrid": {
+    "loading": "Cargando beneficios...",
+    "emptyTitle": "No se encontraron beneficios",
+    "emptySearch": "No hay beneficios que coincidan con tu búsqueda.",
+    "emptyCategory": "No hay beneficios disponibles en esta variedad actualmente.",
+    "emptyCatalog": "No hay beneficios disponibles en el catálogo actualmente.",
+    "hintSearch": "Intenta con otros términos de búsqueda o selecciona otra variedad.",
+    "hintCategory": "Prueba seleccionando otra variedad o vuelve más tarde.",
+    "hintCatalog": "Por favor, vuelve más tarde cuando tengamos beneficios disponibles."
+  },
+  "popularCategories": {
+    "title": "Explora variedades populares",
+    "categoryAria": "Ver beneficios de la variedad {{name}}"
+  },
+  "defaults": {
+    "allProducts": "Todos los beneficios"
+  },
+  "resultCounter": {
+    "found_one": "{{count}} beneficio encontrado",
+    "found_other": "{{count}} beneficios encontrados",
+    "page": "Página {{current}} de {{total}}",
+    "showing_one": "Mostrando {{showing}} de {{count}} beneficio",
+    "showing_other": "Mostrando {{showing}} de {{count}} beneficios",
+    "searchResults_one": "{{count}} resultado para \"{{term}}\"",
+    "searchResults_other": "{{count}} resultados para \"{{term}}\""
+  }
+}

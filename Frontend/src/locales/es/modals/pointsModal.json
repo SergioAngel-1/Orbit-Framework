@@ -1,0 +1,27 @@
+﻿{
+  "title": "Mis Virtual Coins",
+  "accessDenied": {
+    "title": "Inicia sesión para ver tus Virtual Coins",
+    "reason": "Necesitas una cuenta para acumular y ver tus Virtual Coins.",
+    "description": "Crea tu cuenta gratis y comienza a ganar puntos con cada aporte e invitado.",
+    "buttonText": "Crear cuenta / Iniciar sesión"
+  },
+  "loading": "Cargando...",
+  "error": "No se pudieron cargar los datos de Virtual Coins.",
+  "retry": "Reintentar",
+  "balance": {
+    "label": "Virtual Coins Disponibles",
+    "usage": "Para usar en tus aportes"
+  },
+  "stats": {
+    "earned": "Ganados",
+    "used": "Usados",
+    "value": "Valor"
+  },
+  "tip": "Gana Virtual Coins invitando amigos y úsalos como descuento en tus aportes de mantenimiento.",
+  "buttons": {
+    "viewReferrals": "Ver mis invitados",
+    "howItWorks": "¿Cómo funcionan las Virtual Coins?"
+  },
+  "noData": "No hay información de Virtual Coins disponible."
+}

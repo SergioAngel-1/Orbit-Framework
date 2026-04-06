@@ -1,0 +1,25 @@
+{
+  "title": "My account",
+  "accessDenied": {
+    "title": "Log in to view your profile",
+    "reason": "You need an account to access your profile, addresses, orders and referrals.",
+    "description": "Create your free account and start enjoying all the benefits.",
+    "loginButton": "Log in / Create account"
+  },
+  "tabs": {
+    "profile": "Profile",
+    "addresses": "Addresses",
+    "orders": "Orders",
+    "referrals": "Referrals",
+    "membership": "Membership",
+    "digitalCard": "Digital Card",
+    "logout": "Log out"
+  },
+  "logout": {
+    "confirmTitle": "Log out",
+    "confirmMessage": "Are you sure you want to log out?",
+    "confirmButton": "Log out",
+    "cancelButton": "Cancel",
+    "successMessage": "Logged out successfully"
+  }
+}

@@ -1,0 +1,130 @@
+/* TourLanding.css - Estilos generales para la landing de Toures que no están en Tailwind */
+
+/* Partículas decorativas con gradientes */
+.tour-hero__particles {
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(255, 255, 255, 0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 30% 70%, rgba(235, 199, 225, 0.25) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 60% 15%, rgba(255, 255, 255, 0.2) 0%, transparent 100%),
+    radial-gradient(1px 1px at 80% 50%, rgba(143, 216, 185, 0.2) 0%, transparent 100%),
+    radial-gradient(1px 1px at 50% 85%, rgba(255, 255, 255, 0.15) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 90% 30%, rgba(235, 199, 225, 0.2) 0%, transparent 100%);
+}
+
+.tour-experience__bg-accent--top,
+.tour-experience__bg-accent--bottom {
+  background: radial-gradient(circle, rgba(185, 30, 89, 0.06) 0%, transparent 70%);
+}
+
+.tour-experience__bg-accent--bottom {
+  background: radial-gradient(circle, rgba(143, 216, 185, 0.06) 0%, transparent 70%);
+}
+
+.tour-security__bg-pattern,
+.tour-testimonials__bg-particles {
+  background-image:
+    radial-gradient(2px 2px at 15% 25%, rgba(185, 30, 89, 0.08) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 85% 75%, rgba(143, 216, 185, 0.06) 0%, transparent 100%),
+    radial-gradient(1px 1px at 45% 15%, rgba(185, 30, 89, 0.05) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 65% 85%, rgba(143, 216, 185, 0.04) 0%, transparent 100%);
+}
+
+/* Fallback gradient para imágenes */
+.tour-hero--fallback .tour-hero__overlay {
+  background: linear-gradient(
+    135deg,
+    #6A0F49 0%,
+    #B91E59 35%,
+    #8A1443 60%,
+    #3A2A2F 100%
+  );
+}
+
+.tour-experience__image-fallback {
+  background: linear-gradient(135deg, #6A0F49 0%, #B91E59 40%, #8A1443 70%, #3A2A2F 100%);
+}
+
+.tour-experience__image-fallback::before {
+  background-image:
+    radial-gradient(1.5px 1.5px at 20% 30%, rgba(255, 255, 255, 0.15) 0%, transparent 100%),
+    radial-gradient(1px 1px at 60% 20%, rgba(235, 199, 225, 0.12) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 40% 70%, rgba(143, 216, 185, 0.1) 0%, transparent 100%),
+    radial-gradient(1px 1px at 80% 60%, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+}
+
+/* Animaciones */
+@keyframes tour-hero-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tour-hero-bounce {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(6px);
+  }
+}
+
+.tour-hero__badge {
+  animation: tour-hero-fade-in 0.8s ease-out;
+}
+
+.tour-hero__title {
+  animation: tour-hero-fade-in 0.8s ease-out 0.15s both;
+}
+
+.tour-hero__subtitle {
+  animation: tour-hero-fade-in 0.8s ease-out 0.3s both;
+}
+
+.tour-hero__actions {
+  animation: tour-hero-fade-in 0.8s ease-out 0.45s both;
+}
+
+.tour-hero__scroll-hint {
+  animation: tour-hero-bounce 2s ease-in-out infinite;
+}
+
+/* Animaciones de entrada */
+.tour-section-animate {
+  opacity: 0;
+  transform: translateY(25px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.tour-section-animate--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tour-section-animate--delay-1 {
+  transition-delay: 0.15s;
+}
+
+.tour-section-animate--delay-2 {
+  transition-delay: 0.3s;
+}
+
+/* Carousel scroll-snap */
+.tour-testimonials__carousel {
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tour-testimonials__carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.tour-testimonials__card {
+  scroll-snap-align: start;
+}
+

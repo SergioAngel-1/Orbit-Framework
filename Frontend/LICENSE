@@ -1,0 +1,141 @@
+═══════════════════════════════════════════════════════════════════════════════
+                         AVISO LEGAL Y LICENCIA DE USO
+                                FRONTEND WEB
+═══════════════════════════════════════════════════════════════════════════════
+
+Nombre del Software: Flores Inc Frontend Web
+Versión: 1.0.0
+Fecha de creación: 31 de Mayo de 2025
+Fecha de última actualización: 16 de Marzo de 2026
+
+Dominio autorizado: https://floresinc.co y subdominios asociados
+
+Este documento está orientado a dar claridad a autoridades, entes de control y
+terceros sobre el alcance técnico, responsabilidades y limitaciones relacionadas
+con el componente frontend del sistema Flores Inc.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+1. ALCANCE Y NATURALEZA
+
+El frontend es una INTERFAZ DE USUARIO de propósito general que consume APIs
+provistas por el backend. Es una herramienta tecnológica que permite visualizar
+catálogos, gestionar sesiones de usuario y cursar operaciones iniciadas por los
+usuarios finales. El DESARROLLADOR actúa exclusivamente como proveedor de
+servicios tecnológicos.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+2. NEUTRALIDAD DEL CATÁLOGO Y NO INTERMEDIACIÓN
+
+El frontend es una PLANTILLA NEUTRA. El DESARROLLADOR:
+- NO define, selecciona, valida ni aprueba contenidos, productos o servicios.
+- NO intermedia, comercializa, publicita ni promueve productos o servicios.
+- NO fija políticas comerciales, de precios, promociones o marketing.
+- NO presta asesoría legal, regulatoria ni de cumplimiento.
+
+Toda la responsabilidad sobre el catálogo, descripciones, imágenes, precios,
+políticas y contenidos corresponde EXCLUSIVAMENTE al USUARIO/OPERADOR del sitio.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+3. CATEGORÍAS REGULADAS Y PRODUCTOS PROHIBIDOS
+
+Si el USUARIO decide comercializar productos o servicios sujetos a regulación o
+restricción —enunciativamente mas no limitativamente: cannabis medicinal o
+industrial, sustancias psicoactivas o controladas, farmacéuticos, dispositivos
+médicos, alcohol, tabaco y análogos— el CUMPLIMIENTO INTEGRAL de la normativa
+aplicable es EXCLUSIVA responsabilidad del USUARIO.
+
+Referencias normativas de Colombia (no exhaustivas):
+- Ley 30 de 1986 (Estatuto Nacional de Estupefacientes).
+- Ley 1787 de 2016 (uso de cannabis con fines medicinales y científicos).
+- Decreto 613 de 2017, modificado por el Decreto 811 de 2021, y su reglamentación.
+- Ley 1801 de 2016 (Código Nacional de Seguridad y Convivencia Ciudadana).
+- Ley 1480 de 2011 (Estatuto del Consumidor) y sus decretos reglamentarios.
+- Ley 9 de 1979 (Normas Sanitarias) y disposiciones complementarias.
+- Código Penal y demás normas que resulten aplicables.
+- Resoluciones y lineamientos vigentes de MinJusticia, MinSalud y autoridades
+  competentes.
+
+Queda PROHIBIDO todo uso contrario a la ley. El uso ilícito constituye causal de
+terminación inmediata de la licencia.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+4. PROTECCIÓN DE DATOS Y NO MONITOREO
+
+- El USUARIO es el responsable del tratamiento de datos personales frente a los
+  titulares y autoridades. El DESARROLLADOR no asume dicho rol más allá de la
+  implementación técnica indicada por el USUARIO.
+- El DESARROLLADOR NO realiza monitoreo continuo, auditorías proactivas ni
+  análisis periódicos de datos o actividades. Atiende únicamente correcciones y
+  mejoras técnicas solicitadas por el USUARIO.
+- Referencias normativas: Ley 1581 de 2012, Decreto 1377 de 2013 y demás
+  disposiciones de protección de datos personales aplicables en Colombia, así
+  como lineamientos de la Superintendencia de Industria y Comercio.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+5. DEPENDENCIAS DE TERCEROS
+
+El frontend utiliza bibliotecas y paquetes de terceros (por ejemplo, React,
+TypeScript y otros) que se distribuyen bajo sus PROPIAS LICENCIAS de código
+abierto. Dichas licencias permanecen vigentes y prevalecen respecto de sus
+respectivos componentes. El presente documento no altera esas licencias.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+6. GARANTÍA LIMITADA Y LIMITACIÓN DE RESPONSABILIDAD
+
+El software se proporciona "TAL CUAL" (AS IS), sin garantías de ningún tipo,
+expresas o implícitas. En ningún caso el DESARROLLADOR será responsable por
+daños directos, indirectos, incidentales, especiales o consecuentes, pérdida de
+datos, interrupción del negocio, lucro cesante o reclamaciones de terceros.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+7. JURISDICCIÓN Y LEY APLICABLE
+
+Este documento se rige por las leyes de la República de Colombia. Cualquier
+controversia se someterá a la jurisdicción EXCLUSIVA de los tribunales
+competentes de Bogotá D.C., Colombia.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+8. ACEPTACIÓN Y TERMINACIÓN
+
+El acceso o uso del frontend constituye ACEPTACIÓN PLENA, IRREVOCABLE e
+INCONDICIONAL de los términos aquí contenidos. La licencia podrá darse por
+terminada de forma inmediata ante incumplimiento legal o uso ilícito.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+9. TITULARIDAD Y LICENCIA LIMITADA (RESUMEN)
+
+El código fuente del frontend constituye una obra protegida por derechos de
+autor. Se otorga una licencia de uso NO EXCLUSIVA, NO TRANSFERIBLE y REVOCABLE
+limitada al dominio autorizado y sus subdominios. Para términos detallados,
+consulte la LICENSE ubicada en la raíz del proyecto.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+10. CONTACTO
+
+Sergio Gustavo Jáuregui Ángel
+Email: sergiojauregui239@gmail.com | Tel: +57 320 3795827
+
+═══════════════════════════════════════════════════════════════════════════════
+
+11. DOCUMENTOS LEGALES DEL SITIO
+
+Para claridad frente a usuarios finales, autoridades y terceros, el OPERADOR
+mantiene disponibles los siguientes documentos legales del sitio:
+- Términos y Condiciones: https://floresinc.co/terminos
+- Política de Privacidad: https://floresinc.co/privacidad
+- Marco Legal y Normativo: https://floresinc.co/marco-legal
+ - Política de Invitados/Referidos: https://floresinc.co/politica-invitados
+
+═══════════════════════════════════════════════════════════════════════════════
+                                 FIN DEL DOCUMENTO
+═══════════════════════════════════════════════════════════════════════════════

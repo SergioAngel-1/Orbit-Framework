@@ -1,0 +1,26 @@
+{
+  "title": "Your Reservation",
+  "closeAria": "Close reservation",
+  "empty": {
+    "message": "Your reservation is empty",
+    "continue": "Continue browsing"
+  },
+  "item": {
+    "viewAria": "View details of {{name}}",
+    "viewBenefit": "View benefit",
+    "defaultName": "Benefit",
+    "variation": "Variation: {{values}}",
+    "removeAria": "Remove {{name}} from reservation"
+  },
+  "footer": {
+    "subtotal": "Subtotal",
+    "minimumReached": "Minimum contribution reached!",
+    "minimumReachedDesc": "Your order meets the minimum maintenance contribution of",
+    "minimumLabel": "Minimum maintenance contribution:",
+    "missingPrefix": "You need",
+    "missingSuffix": "more to make the contribution.",
+    "checkout": "Make contribution",
+    "checkoutDisabledTitle": "You need to add {{amount}} FC more to reach the minimum maintenance contribution",
+    "viewCart": "View reservation"
+  }
+}

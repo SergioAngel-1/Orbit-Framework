@@ -1,0 +1,84 @@
+﻿{
+  "intro": {
+    "title": "Tu espacio seguro",
+    "subtitle": "En {{siteName}} cultivamos libertad. Nuestra comunidad opera bajo la ley colombiana:"
+  },
+  "items": [
+    {
+      "id": "ley-30-1986",
+      "title": "Ley 30/1986",
+      "description": "Hasta 20 plantas para consumo personal"
+    },
+    {
+      "id": "sentencia-c-221-94",
+      "title": "Sentencia C-221/94",
+      "description": "Libre desarrollo de la personalidad"
+    },
+    {
+      "id": "acto-legislativo-02-2009",
+      "title": "Acto Legislativo 02/2009",
+      "description": "Base constitucional: el porte y consumo de sustancias en dosis personal no será punible, priorizando tratamiento sobre sanción"
+    },
+    {
+      "id": "sentencia-c-491-2012",
+      "title": "Sentencia C-491/2012",
+      "description": "Dosis de aprovisionamiento: protege a quien lleva más de 20g si demuestra que es para consumo propio proyectado en el tiempo"
+    },
+    {
+      "id": "ley-1787-2016",
+      "title": "Ley 1787/2016",
+      "description": "Marco Médico y Científico: el uso de cannabis con fines medicinales es un derecho"
+    },
+    {
+      "id": "sentencia-c-127-2023",
+      "title": "Sentencia C-127/2023",
+      "description": "Consumo Responsable: protege el consumo en espacio público como parte del libre desarrollo de la personalidad"
+    },
+    {
+      "id": "sentencia-su-226-2024",
+      "title": "Sentencia SU-226/2024",
+      "description": "Clubes asociativos: el consumo compartido en entornos privados no es microtráfico si no hay ánimo de lucro comercial"
+    },
+    {
+      "id": "entrega-protegida",
+      "title": "Entrega protegida",
+      "description": "Nuestras entregas respetan los límites de dosis personal (20g marihuana / 5g hachís) establecidos por la Ley 30/1986, garantizando que cada socio reciba únicamente lo permitido por ley"
+    },
+    {
+      "id": "restricciones",
+      "title": "Restricciones de Convivencia",
+      "description": "El derecho al consumo tiene límites claros: no debe realizarse en parques ni en perímetros de centros educativos (colegios o jardines) para proteger a los menores",
+      "fullWidth": true
+    }
+  ],
+  "withdrawal": {
+    "title": "Declaración de Retiro Asociativo",
+    "items": [
+      {
+        "id": "no-compra",
+        "title": "No es una compra",
+        "description": "Al realizar mi aporte, adquiero Virtual Coins que utilizo como contribución voluntaria al fondo común del club. Este aporte permite enviarme los beneficios como miembro del cultivo colectivo."
+      },
+      {
+        "id": "mandato-cuidado",
+        "title": "Mandato de cuidado",
+        "description": "Delego en el club la administración y el cuidado de mis plantas permitidas por la Ley 30/1986."
+      },
+      {
+        "id": "uso-personal",
+        "title": "Uso Personal",
+        "description": "Declaro que este retiro es para mi consumo exclusivo, amparado en la Sentencia C-221/94 (Libre desarrollo de la personalidad)."
+      },
+      {
+        "id": "aprovisionamiento",
+        "title": "Aprovisionamiento",
+        "description": "El volumen retirado corresponde a mi dosis de aprovisionamiento para consumo futuro (Sentencia C-491/12)."
+      },
+      {
+        "id": "responsabilidad",
+        "title": "Responsabilidad",
+        "description": "Me comprometo a no comercializar ni distribuir lo recibido, asumiendo total responsabilidad sobre su destino final."
+      }
+    ]
+  }
+}

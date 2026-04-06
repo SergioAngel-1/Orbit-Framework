@@ -1,0 +1,27 @@
+﻿{
+  "title": "My Virtual Coins",
+  "accessDenied": {
+    "title": "Sign in to see your Virtual Coins",
+    "reason": "You need an account to earn and view your Virtual Coins.",
+    "description": "Create your free account and start earning points with every contribution and guest.",
+    "buttonText": "Create account / Sign in"
+  },
+  "loading": "Loading...",
+  "error": "Could not load Virtual Coins data.",
+  "retry": "Retry",
+  "balance": {
+    "label": "Available Virtual Coins",
+    "usage": "To use in your contributions"
+  },
+  "stats": {
+    "earned": "Earned",
+    "used": "Used",
+    "value": "Value"
+  },
+  "tip": "Earn Virtual Coins by inviting friends and use them as a discount on your maintenance contributions.",
+  "buttons": {
+    "viewReferrals": "View my guests",
+    "howItWorks": "How do Virtual Coins work?"
+  },
+  "noData": "No Virtual Coins information available."
+}

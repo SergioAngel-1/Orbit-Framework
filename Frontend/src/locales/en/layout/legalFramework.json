@@ -1,0 +1,84 @@
+﻿{
+  "intro": {
+    "title": "Your safe space",
+    "subtitle": "At {{siteName}} we cultivate freedom. Our community operates under Colombian law:"
+  },
+  "items": [
+    {
+      "id": "ley-30-1986",
+      "title": "Law 30/1986",
+      "description": "Up to 20 plants for personal use"
+    },
+    {
+      "id": "sentencia-c-221-94",
+      "title": "Ruling C-221/94",
+      "description": "Free development of personality"
+    },
+    {
+      "id": "acto-legislativo-02-2009",
+      "title": "Legislative Act 02/2009",
+      "description": "Constitutional basis: possession and use of substances in personal doses shall not be punishable, prioritizing treatment over punishment"
+    },
+    {
+      "id": "sentencia-c-491-2012",
+      "title": "Ruling C-491/2012",
+      "description": "Supply dose: protects anyone carrying more than 20g if they prove it is for their own projected consumption over time"
+    },
+    {
+      "id": "ley-1787-2016",
+      "title": "Law 1787/2016",
+      "description": "Medical and Scientific Framework: the use of cannabis for medicinal purposes is a right"
+    },
+    {
+      "id": "sentencia-c-127-2023",
+      "title": "Ruling C-127/2023",
+      "description": "Responsible Use: protects public consumption as part of the free development of personality"
+    },
+    {
+      "id": "sentencia-su-226-2024",
+      "title": "Ruling SU-226/2024",
+      "description": "Associative clubs: shared consumption in private settings is not micro-trafficking if there is no commercial profit motive"
+    },
+    {
+      "id": "entrega-protegida",
+      "title": "Protected delivery",
+      "description": "Our deliveries comply with personal dose limits (20g marijuana / 5g hashish) established by Law 30/1986, ensuring each member receives only what is legally permitted"
+    },
+    {
+      "id": "restricciones",
+      "title": "Coexistence Restrictions",
+      "description": "The right to consume has clear limits: it must not take place in parks or within the perimeter of educational centers (schools or kindergartens) to protect minors",
+      "fullWidth": true
+    }
+  ],
+  "withdrawal": {
+    "title": "Associative Withdrawal Declaration",
+    "items": [
+      {
+        "id": "no-compra",
+        "title": "Not a purchase",
+        "description": "By making my contribution, I acquire Virtual Coins that I use as a voluntary contribution to the club's common fund. This contribution allows the club to send me benefits as a member of the collective cultivation."
+      },
+      {
+        "id": "mandato-cuidado",
+        "title": "Care mandate",
+        "description": "I delegate to the club the administration and care of my plants permitted by Law 30/1986."
+      },
+      {
+        "id": "uso-personal",
+        "title": "Personal Use",
+        "description": "I declare that this withdrawal is for my exclusive consumption, protected by Ruling C-221/94 (Free development of personality)."
+      },
+      {
+        "id": "aprovisionamiento",
+        "title": "Supply",
+        "description": "The volume withdrawn corresponds to my supply dose for future consumption (Ruling C-491/12)."
+      },
+      {
+        "id": "responsabilidad",
+        "title": "Responsibility",
+        "description": "I commit not to commercialize or distribute what I receive, assuming full responsibility for its final destination."
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "identifierLabel": "Usuario o Email",
+  "identifierPlaceholder": "Ingresa tu usuario o email",
+  "passwordLabel": "Contraseña",
+  "passwordPlaceholder": "Ingresa tu contraseña",
+  "forgotPassword": "¿Olvidaste tu contraseña?",
+  "submitAria": "Iniciar sesión",
+  "submitText": "Iniciar Sesión",
+  "validation": {
+    "identifierTooLong": "Usuario o email demasiado largo (máximo 100 caracteres)",
+    "identifierMinLength": "Mínimo 3 caracteres",
+    "passwordTooLong": "Contraseña demasiado larga (máximo 100 caracteres)"
+  }
+}

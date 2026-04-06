@@ -1,0 +1,93 @@
+﻿{
+  "header": {
+    "statusTitle": "Retiro {{status}}",
+    "receivedTitle": "¡Retiro recibido!",
+    "waitingTitle": "Retiro en espera",
+    "statusSubtitle": "Este es el estado más reciente registrado",
+    "defaultSubtitle": "Estamos preparando tu retiro"
+  },
+  "details": {
+    "title": "Detalles del retiro",
+    "subtitle": "Retiro #{{id}}",
+    "confirmed": "Retiro confirmado",
+    "confirmedDesc": "Hemos recibido tu solicitud y está siendo procesada",
+    "emailSent": "Confirmación enviada",
+    "emailSentDesc": "Recibirás un correo con los detalles de tu retiro",
+    "preparing": "Preparación iniciada",
+    "preparingDesc": "Comenzaremos a preparar tus beneficios pronto"
+  },
+  "history": {
+    "placedAt": "Fecha y hora de solicitud",
+    "deliveryDate": "Fecha de entrega estimada",
+    "status": "Estado",
+    "paymentMethod": "Método de aporte",
+    "shippingMethod": "Método de envío",
+    "shippingAddress": "Dirección de entrega",
+    "total": "Aporte total en Virtual Coins",
+    "notAvailable": "No disponible",
+    "pendingSchedule": "Pendiente de programación",
+    "tracking": "En seguimiento",
+    "noHistory": "Información histórica no disponible."
+  },
+  "nextSteps": {
+    "title": "¿Qué sigue?",
+    "step1": "Te contactaremos para coordinar la entrega de tus beneficios",
+    "step2": "Puedes seguir el estado de tu retiro en tu perfil",
+    "step3": "Cualquier duda, contáctanos por WhatsApp"
+  },
+  "buttons": {
+    "viewOrders": "Ver mis retiros",
+    "whatsappHelp": "Ayuda con mi retiro",
+    "goHome": "Ir a inicio",
+    "backToOrders": "Volver a mis retiros",
+    "repeatOrder": "Repetir retiro"
+  },
+  "whatsapp": {
+    "message": "Hola, necesito ayuda con mi retiro #{{id}} en {{siteName}}."
+  },
+  "wompiVerifying": {
+    "title": "Verificando tu pago",
+    "subtitle": "Tu retiro fue creado. Estamos esperando la confirmaci\u00f3n del pago por parte de la entidad financiera.",
+    "confirmedTitle": "\u00a1Pago confirmado!",
+    "confirmedSubtitle": "Tu pago fue verificado exitosamente. Tu retiro est\u00e1 siendo procesado.",
+    "confirmed": "\u00a1Tu pago con tarjeta ha sido confirmado!",
+    "step1": "Verificando pago",
+    "step1Desc": "Tu pago est\u00e1 siendo verificado por la entidad financiera. Esto puede tardar unos minutos.",
+    "step2": "Retiro creado",
+    "step2Desc": "Tu retiro fue registrado y ser\u00e1 procesado una vez se confirme el pago.",
+    "step3": "Actualizaci\u00f3n autom\u00e1tica",
+    "step3Desc": "No necesitas hacer nada m\u00e1s. El estado se actualizar\u00e1 autom\u00e1ticamente cuando se confirme.",
+    "confirmedStep1": "Pago confirmado",
+    "confirmedStep1Desc": "Tu pago fue verificado exitosamente por Wompi.",
+    "pollingExhausted": "La verificaci\u00f3n autom\u00e1tica ha finalizado. Si completaste el pago, se confirmar\u00e1 autom\u00e1ticamente y te notificaremos por correo.",
+    "nextStepsTitle": "\u00bfQu\u00e9 est\u00e1 pasando?",
+    "nextStep1": "Tu entidad financiera est\u00e1 procesando la transacci\u00f3n",
+    "nextStep2": "Esta p\u00e1gina se actualizar\u00e1 autom\u00e1ticamente cuando se confirme",
+    "nextStep3": "Tambi\u00e9n puedes cerrar esta p\u00e1gina, te notificaremos por correo",
+    "declinedTitle": "Pago rechazado",
+    "declinedSubtitle": "Tu pago no fue aprobado por la entidad financiera. El retiro ha sido cancelado.",
+    "declinedAlert": "Tu pago fue rechazado por la entidad financiera.",
+    "declinedStep1": "Pago no aprobado",
+    "declinedStep1Desc": "La entidad financiera rechazó la transacción. No se realizó ningún cargo.",
+    "declinedStep2": "Retiro cancelado",
+    "declinedStep2Desc": "El retiro asociado fue cancelado automáticamente. Puedes intentarlo de nuevo.",
+    "declinedNextStepsTitle": "¿Qué puedes hacer?",
+    "declinedNextStep1": "Verifica que los datos de tu tarjeta sean correctos",
+    "declinedNextStep2": "Contacta a tu banco si el problema persiste",
+    "declinedNextStep3": "Intenta realizar el retiro nuevamente",
+    "orderFailedTitle": "Error al procesar tu retiro",
+    "orderFailedSubtitle": "Tu pago fue procesado correctamente, pero hubo un problema al crear el retiro. No te preocupes, nuestro equipo lo resolverá.",
+    "orderFailedStep1": "Pago procesado",
+    "orderFailedStep1Desc": "Tu pago fue cobrado exitosamente por la entidad financiera.",
+    "orderFailedStep2": "Error al crear retiro",
+    "orderFailedStep2Desc": "Hubo un problema técnico al registrar tu retiro. Nuestro equipo será notificado automáticamente.",
+    "orderFailedNextStepsTitle": "¿Qué debes hacer?",
+    "orderFailedNextStep1": "No realices otro pago — tu dinero está seguro",
+    "orderFailedNextStep2": "Contáctanos por WhatsApp para resolver tu caso rápidamente",
+    "orderFailedNextStep3": "Nuestro equipo puede verificar tu pago y crear tu retiro manualmente"
+  },
+  "footer": {
+    "thanks": "¡Gracias por ser parte de nuestro club!",
+    "message": "En {{siteName}} valoramos tu confianza y esperamos que disfrutes tus beneficios."
+  }
+}

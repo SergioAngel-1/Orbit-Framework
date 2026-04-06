@@ -1,0 +1,12 @@
+{
+  "title": "Niveles de Membresía",
+  "subtitle": {
+    "authenticated": "Desbloquea beneficios exclusivos con cada nivel",
+    "guest": "Regístrate y accede a descuentos exclusivos en cada nivel"
+  },
+  "badgeCurrent": "Tu nivel",
+  "buttons": {
+    "viewBenefits": "Ver todos los beneficios",
+    "login": "Iniciar sesión"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "title": "Follow us on social media",
+  "subtitle": "Connect with us and stay up to date with our news",
+  "loading": "Loading social networks...",
+  "card": {
+    "cta": "Visit"
+  },
+  "carousel": {
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "aria": {
+    "follow": "Follow us on {{name}}"
+  }
+}

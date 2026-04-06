@@ -1,0 +1,14 @@
+{
+  "identifierLabel": "Username or Email",
+  "identifierPlaceholder": "Enter your username or email",
+  "passwordLabel": "Password",
+  "passwordPlaceholder": "Enter your password",
+  "forgotPassword": "Forgot your password?",
+  "submitAria": "Log in",
+  "submitText": "Log In",
+  "validation": {
+    "identifierTooLong": "Username or email too long (100 characters max)",
+    "identifierMinLength": "Minimum 3 characters",
+    "passwordTooLong": "Password too long (100 characters max)"
+  }
+}

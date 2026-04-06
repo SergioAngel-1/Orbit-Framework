@@ -1,0 +1,204 @@
+﻿{
+  "confirm": {
+    "title": "Confirmación",
+    "ok": "Aceptar",
+    "cancel": "Cancelar"
+  },
+  "prompt": {
+    "title": "Ingresa información",
+    "ok": "Aceptar",
+    "cancel": "Cancelar"
+  },
+  "server": {
+    "errorProduction": "Error de conexión con el servidor. Por favor, intenta nuevamente en unos momentos.",
+    "errorDevelopment": "Error de conexión con el servidor de WooCommerce. Intenta reiniciar el servidor Local."
+  },
+  "auth": {
+    "incorrectPassword": "La contraseña ingresada es incorrecta.",
+    "pendingApproval": "Tu cuenta está pendiente de aprobación por un administrador.",
+    "invalidUsername": "El usuario o correo ingresado no está registrado.",
+    "emptyPassword": "Por favor ingresa tu contraseña.",
+    "emailNotRegistered": "Correo no registrado en {{siteName}}",
+    "accountRejected": "Tu solicitud de cuenta ha sido rechazada. Por favor, contacta con el administrador para más información.",
+    "usernameExists": "Este nombre de usuario ya está registrado. Por favor, utiliza otro nombre de usuario.",
+    "emailExists": "Este correo electrónico ya está registrado. Por favor, utiliza otro correo o inicia sesión.",
+    "invalidReferralCode": "El código de invitación ingresado no es válido. Por favor, verifica el código o déjalo en blanco.",
+    "loginError": "Error al iniciar sesión. Por favor, intenta de nuevo más tarde.",
+    "sessionExpired": "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+    "noValidToken": "No se recibió un token válido del servidor",
+    "noActiveSession": "No hay sesión activa",
+    "userDataError": "No se pudieron obtener los datos del usuario",
+    "loginRequired": "Debes iniciar sesión para guardar direcciones",
+    "connectionError": "Error de conexión. Por favor, intenta más tarde.",
+    "logoutForDifferentAccount": "Cierra tu sesión para iniciar con una cuenta diferente",
+    "logoutSuccess": "Sesión cerrada correctamente"
+  },
+  "registration": {
+    "accountCreated": "Registro exitoso. Tu cuenta está pendiente de aprobación.",
+    "autoApproved": "¡Registro exitoso! Ya puedes iniciar sesión con tu cuenta.",
+    "createError": "Error al crear la cuenta. Por favor, intenta de nuevo.",
+    "fieldsRequired": "Por favor completa todos los campos obligatorios.",
+    "dataVeracityRequired": "Debes confirmar que tus datos son verídicos y legítimos.",
+    "termsRequired": "Debes aceptar los términos y condiciones para continuar."
+  },
+  "passwordReset": {
+    "emailNotRegistered": "El correo electrónico no está registrado en el sistema.",
+    "tooManyRequests": "Has realizado demasiadas solicitudes de restablecimiento. Por favor, espera unos minutos antes de intentarlo de nuevo."
+  },
+  "rateLimit": {
+    "withMinutes": "Excediste el número de intentos, espera {{minutes}} {{minuteWord}}.",
+    "generic": "Excediste el número de intentos, espera un momento.",
+    "minute": "minuto",
+    "minutes": "minutos"
+  },
+  "cart": {
+    "addedToCart": "{{name}} agregado a la reserva",
+    "addedMultipleToCart": "{{quantity}} unidades de {{name}} agregadas a la reserva",
+    "cartCleared": "Reserva vaciada",
+    "stockRemoved": "Actualizamos tu reserva y removimos {{count}} beneficio{{plural}} sin stock",
+    "membershipRemoved": "Removimos {{count}} beneficio{{plural}} de tu reserva por cambio en tu nivel de membresía",
+    "reorderSuccess": "Beneficios del pedido agregados a la reserva",
+    "itemRemoved": "{{name}} eliminado de la reserva",
+    "quantityAdded": "+{{diff}} {{name}} añadido a la reserva",
+    "quantityRemoved": "{{diff}} {{name}} eliminado de la reserva",
+    "couponApplied": "Cupón aplicado: {{discount}}% de descuento",
+    "couponRemoved": "Cupón eliminado",
+    "couponError": "Error al aplicar el cupón",
+    "maxQuantity": "Has alcanzado la cantidad máxima disponible para este beneficio",
+    "minQuantity": "La cantidad mínima es 1",
+    "outOfStock": "Este beneficio no está disponible actualmente",
+    "cartRecovered": "Reserva recuperada exitosamente"
+  },
+  "address": {
+    "saved": "Dirección guardada exitosamente",
+    "deleted": "Dirección eliminada exitosamente",
+    "defaultSet": "Dirección predeterminada actualizada",
+    "saveError": "Error al guardar la dirección",
+    "deleteError": "Error al eliminar la dirección",
+    "defaultError": "Error al establecer la dirección predeterminada",
+    "maxReached": "Has alcanzado el límite máximo de 3 direcciones",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar esta dirección?"
+  },
+  "profile": {
+    "updated": "Perfil actualizado exitosamente",
+    "updateError": "Error al actualizar el perfil",
+    "photoUpdated": "Foto de perfil actualizada",
+    "photoError": "Error al actualizar la foto de perfil"
+  },
+  "orders": {
+    "reorderSuccess": "Beneficios agregados a la reserva",
+    "reorderError": "Error al agregar beneficios a la reserva",
+    "emailSent": "Correo de confirmación enviado exitosamente",
+    "emailError": "Error al enviar el correo de confirmación",
+    "certificateError": "Error al generar el certificado"
+  },
+  "catalog": {
+    "nameRequired": "Por favor, ingresa un nombre para el catálogo.",
+    "productsRequired": "Por favor, selecciona al menos un beneficio para el catálogo.",
+    "created": "Catálogo creado exitosamente",
+    "updated": "Catálogo actualizado exitosamente",
+    "deleted": "Catálogo eliminado exitosamente",
+    "createError": "Error al crear el catálogo",
+    "updateError": "Error al actualizar el catálogo",
+    "deleteError": "Error al eliminar el catálogo",
+    "pdfGenerated": "PDF del catálogo generado exitosamente",
+    "pdfError": "Error al generar el PDF del catálogo",
+    "customProductError": "Error al crear beneficio personalizado",
+    "loadError": "No se pudieron cargar los beneficios del catálogo",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar este catálogo?"
+  },
+  "checkout": {
+    "orderCreated": "Pedido creado exitosamente",
+    "orderError": "Error al crear el pedido",
+    "paymentError": "Error al procesar el pago",
+    "insufficientFC": "No tienes suficientes Virtual Coins para completar este pedido",
+    "pointsApplied": "Virtual Coins aplicados exitosamente",
+    "pointsRemoved": "Virtual Coins removidos del pedido",
+    "pointsError": "Error al aplicar Virtual Coins",
+    "cardPaymentProcessing": "Procesando pago con tarjeta...",
+    "cardPaymentSuccess": "Pago con tarjeta procesado exitosamente",
+    "cardPaymentError": "Error al procesar el pago con tarjeta"
+  },
+  "membership": {
+    "purchaseSuccess": "Membresía activada exitosamente",
+    "purchaseError": "Error al activar la membresía",
+    "legacyAccepted": "Membresía por antigüedad activada exitosamente",
+    "legacyError": "Error al activar la membresía por antigüedad",
+    "loadError": "Error al cargar niveles de membresía",
+    "networkError": "Error de conexión. Reintentando..."
+  },
+  "wallet": {
+    "purchaseSuccess": "Virtual Coins acreditados exitosamente",
+    "purchaseError": "Error al adquirir Virtual Coins",
+    "transferSuccess": "Transferencia realizada exitosamente",
+    "transferError": "Error al realizar la transferencia",
+    "loadError": "No se pudieron cargar los datos. Por favor, inténtalo de nuevo más tarde.",
+    "invalidRecipient": "El código de destinatario no es válido",
+    "insufficientBalance": "No tienes suficientes Virtual Coins para esta transferencia",
+    "selfTransfer": "No puedes transferir Virtual Coins a ti mismo",
+    "confirmTransfer": "¿Confirmas la transferencia de {{amount}} FC a {{recipient}}?",
+    "recipientValid": "Código de invitación válido",
+    "recipientCleared": "Código de destinatario eliminado"
+  },
+  "referral": {
+    "codeCopied": "Código de invitación copiado al portapapeles",
+    "linkCopied": "Enlace de invitación copiado al portapapeles",
+    "copyError": "Error al copiar. Por favor, copia manualmente.",
+    "codeInvalid": "Código de invitación inválido",
+    "codeNotFound": "Código no encontrado",
+    "formatError": "Formato incorrecto. Debe tener al menos 1 carácter seguido de 4 números.",
+    "codeRequired": "El código de invitación es requerido",
+    "invalidCodeMessage": "El código de invitación no es válido. Por favor, verifica e intenta nuevamente.",
+    "ownCode": "No puedes usar tu propio código de invitación.",
+    "serverError": "Error de conexión con el servidor. Por favor, intenta más tarde.",
+    "validationError": "Error al validar el código de invitación."
+  },
+  "contact": {
+    "messageSent": "Mensaje enviado exitosamente. Te responderemos pronto.",
+    "messageError": "Error al enviar el mensaje. Por favor, intenta de nuevo."
+  },
+  "wompi": {
+    "notConfigured": "Wompi no está configurado",
+    "widgetUnavailable": "El widget de Wompi no está disponible",
+    "widgetNotLoaded": "El widget de Wompi no está cargado. Recarga la página.",
+    "configError": "Error al obtener configuración de Wompi",
+    "signatureError": "Error al generar firma de integridad",
+    "transactionError": "Error al consultar transacción",
+    "purchaseError": "Error al registrar la compra pendiente",
+    "statusError": "Error al consultar estado de la compra",
+    "confirmError": "Error al confirmar la compra",
+    "cardError": "Error al procesar el pago con tarjeta",
+    "linkOrderError": "Error al vincular la orden"
+  },
+  "products": {
+    "loadError": "No se pudo cargar el beneficio. Por favor, inténtalo de nuevo más tarde.",
+    "notFound": "Beneficio no encontrado",
+    "sectionLoadError": "No se pudieron cargar los beneficios para esta sección.",
+    "homeSectionsError": "No se pudieron cargar las secciones de beneficios.",
+    "benefitsLoadError": "Error al cargar beneficios"
+  },
+  "menu": {
+    "loadError": "No se pudo cargar el menú. Por favor, intenta de nuevo más tarde."
+  },
+  "toures": {
+    "loadError": "No se pudieron cargar los paquetes de tours."
+  },
+  "category": {
+    "notFound": "Categoría no encontrada"
+  },
+  "network": {
+    "timeout": "La conexión tardó demasiado. Por favor, intenta de nuevo.",
+    "noConnection": "No se pudo conectar con el servidor. Verifica tu conexión a internet.",
+    "serverError": "Error interno del servidor. Por favor, intenta más tarde.",
+    "gatewayError": "Error de comunicación con el servidor. Por favor, intenta más tarde.",
+    "serviceUnavailable": "Servicio temporalmente no disponible. Por favor, intenta más tarde.",
+    "genericError": "Error al procesar la solicitud. Por favor, intenta nuevamente.",
+    "csrfError": "No se recibió token CSRF",
+    "authError": "Error de autenticación. Por favor, intenta de nuevo más tarde.",
+    "registerError": "Error al registrar. Por favor, intenta de nuevo más tarde.",
+    "passwordResetError": "Error al solicitar el restablecimiento de contraseña."
+  },
+  "phoneInput": {
+    "selectCountry": "Seleccionar país"
+  }
+}

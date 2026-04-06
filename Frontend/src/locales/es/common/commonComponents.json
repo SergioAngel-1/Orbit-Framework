@@ -1,0 +1,41 @@
+﻿{
+  "countrySelector": {
+    "title": "Seleccionar País",
+    "searchPlaceholder": "Buscar país o código...",
+    "noResults": "No se encontraron países",
+    "tryAnother": "Intenta con otro término de búsqueda"
+  },
+  "pagination": {
+    "ariaLabel": "Paginación",
+    "pageOf": "Página {{current}} de {{total}}",
+    "previousPage": "Ir a la página anterior",
+    "nextPage": "Ir a la página siguiente",
+    "goToPage": "Ir a la página {{page}}",
+    "mobileNav": "Páginas de navegación (móvil)",
+    "desktopNav": "Páginas de navegación (desktop)"
+  },
+  "fallbacks": {
+    "productName": "Beneficio"
+  },
+  "transactionHistory": {
+    "defaultTitle": "Últimos Movimientos",
+    "referralCommission": "Comisión por invitado",
+    "referralSignup": "Invitado aceptado",
+    "referralPurchase": "Aporte de invitado",
+    "referralBonus": "Bonificación extra",
+    "reviewReward": "Reseña de pedido",
+    "membershipActivation": "Activación de membresía",
+    "expires": "Expira: {{date}}",
+    "systemUnavailable": "El sistema de Virtual Coins no está disponible para su rol de usuario o está deshabilitado.",
+    "viewFullHistory": "Ver historial completo",
+    "viewAll": "Ver todo",
+    "loadingMovements": "Cargando movimientos...",
+    "noReferralEarnings": "No tienes ganancias por invitados aún.",
+    "modalTitle": "Historial de Ganancias por Invitados",
+    "loadingHistory": "Cargando historial...",
+    "noTransactions": "No hay transacciones para mostrar.",
+    "pageOf": "Página {{current}} de {{total}}",
+    "previous": "Anterior",
+    "next": "Siguiente"
+  }
+}

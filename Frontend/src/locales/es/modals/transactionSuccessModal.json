@@ -1,0 +1,11 @@
+{
+  "title": "Transacción Exitosa",
+  "transferCompleted": "¡Transferencia Completada!",
+  "details": "Detalles de la Transacción",
+  "amountSent": "Monto enviado",
+  "commission": "Comisión",
+  "receivedByRecipient": "Recibido por destinatario",
+  "directTransfer": "Transferencia directa",
+  "recipient": "Destinatario:",
+  "close": "Cerrar"
+}

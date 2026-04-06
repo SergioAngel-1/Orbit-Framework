@@ -1,0 +1,16 @@
+﻿{
+  "title": "Share and earn",
+  "description": "Invite new members and earn Virtual Coins for each guest who joins the club.",
+  "code": {
+    "label": "Your invitation code",
+    "copied": "Code copied!"
+  },
+  "stats": {
+    "referrals": "Guests",
+    "fcEarned": "FC earned"
+  },
+  "referrer": {
+    "label": "You were invited by"
+  },
+  "viewProgram": "View full program"
+}

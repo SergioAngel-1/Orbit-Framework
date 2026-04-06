@@ -1,0 +1,9 @@
+﻿{
+  "title": "Search results for:",
+  "backToCatalog": "Go to Catalog",
+  "error": "Error loading results. Please try again later.",
+  "noResults": "No benefits found",
+  "noResultsDesc": "We couldn't find benefits matching \"{{query}}\". Try a different search.",
+  "itemName": "benefit",
+  "documentTitle": "Search: {{query}} - {{siteName}}"
+}

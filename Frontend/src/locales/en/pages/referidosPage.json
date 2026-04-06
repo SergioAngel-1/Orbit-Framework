@@ -1,0 +1,44 @@
+﻿{
+  "seo": {
+    "title": "Guest Program | {{siteName}} - Earn Virtual Coins by Inviting Friends",
+    "description": "Invite your friends to the {{siteName}} private club and earn Virtual Coins for every contribution they make. Guest program with commissions, unique personalized code, and earnings tracking. Share and earn rewards.",
+    "keywords": "{{siteName}} guest program, earn points, Virtual Coins, invite friends private club, guest commissions, invitation code, rewards, guest system, earnings, private club, {{siteName}}, points for contributions",
+    "schemaName": "Guest Program - {{siteName}}",
+    "schemaDescription": "Guest program of the {{siteName}} private club. Earn Virtual Coins by inviting friends.",
+    "schemaServiceName": "{{siteName}} Guest Program",
+    "schemaServiceDescription": "Earn Virtual Coins for every friend you invite to the private club",
+    "breadcrumbHome": "Home",
+    "breadcrumbReferrals": "Guests"
+  },
+  "pageTitle": "My Guests & Virtual Coins",
+  "helpButton": "How do Virtual Coins work?",
+  "loading": "Loading information...",
+  "error": "Could not load data. Please try again later.",
+  "retryButton": "Try again",
+  "unauthenticated": {
+    "bannerTitle": "Guest Program",
+    "bannerDescription": "Invite your friends to the club and earn Virtual Coins for every guest who signs up. The more friends you invite, the more points you earn to use on your contributions.",
+    "tagShare": "Share your code",
+    "tagEarn": "Earn FC per guest",
+    "tagUse": "Use your points",
+    "accessTitle": "Sign in to view your guests",
+    "accessReason": "You need an account to access your guests panel and Virtual Coins.",
+    "accessDescription": "Create your free account and start earning points by inviting your friends.",
+    "accessButton": "Create account / Sign in"
+  },
+  "balance": {
+    "title": "My Virtual Coins Balance",
+    "available": "Available Virtual Coins",
+    "availableHint": "To use on orders",
+    "totalEarned": "Total Earned",
+    "totalEarnedHint": "All time",
+    "used": "Used",
+    "usedHint": "On orders",
+    "conversionRate": "Exchange Rate",
+    "conversionRateHint": "Per Flores Coin",
+    "unavailable": "The Virtual Coins system is not available for your user role or is currently disabled."
+  },
+  "history": {
+    "title": "Recent Activity"
+  }
+}

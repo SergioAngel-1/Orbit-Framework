@@ -1,0 +1,125 @@
+/* HeroSection - Estilos específicos para mantener alturas sincronizadas */
+
+.hero-section-container {
+  /* Asegurar que el contenedor principal tenga la altura correcta */
+  min-height: 320px;
+}
+
+/* Breakpoints específicos para alturas sincronizadas */
+@media (max-width: 639px) {
+  .hero-banner-height {
+    height: 280px !important;
+    min-height: 280px;
+  }
+  
+  .hero-categories-height {
+    min-height: 280px;
+    height: 280px;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 767px) {
+  .hero-banner-height {
+    height: 350px !important;
+    min-height: 350px;
+  }
+  
+  .hero-categories-height {
+    min-height: 350px;
+    height: 350px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .hero-banner-height {
+    height: 500px !important;
+    min-height: 500px;
+  }
+  
+  .hero-categories-height {
+    min-height: 500px;
+    height: 500px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-banner-height {
+    height: 550px !important;
+    min-height: 550px;
+  }
+  
+  .hero-categories-height {
+    min-height: 550px;
+    height: 550px;
+  }
+}
+
+/* Asegurar que el Swiper use toda la altura disponible */
+.hero-banner-height .swiper {
+  height: 100% !important;
+}
+
+.hero-banner-height .swiper-slide {
+  height: 100% !important;
+}
+
+.hero-banner-height .swiper-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Overlay mejorado para mejor legibilidad del texto */
+.hero-banner-height .banner-info-box {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Responsividad del grid de categorías para mantener proporciones */
+.hero-categories-height .grid {
+  height: 100%;
+  align-content: start;
+}
+
+/* Loading states con altura correcta */
+.hero-loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 639px) {
+  .hero-loading-state {
+    height: 280px;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 767px) {
+  .hero-loading-state {
+    height: 350px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .hero-loading-state {
+    height: 500px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-loading-state {
+    height: 550px;
+  }
+}
+
+/* Asegurar que no haya scroll horizontal en el banner */
+.hero-banner-height {
+  overflow: hidden;
+}
+
+/* Smooth transitions para cambios de altura */
+.hero-banner-height,
+.hero-categories-height {
+  transition: height 0.3s ease-in-out;
+}

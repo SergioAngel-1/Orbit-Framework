@@ -1,0 +1,72 @@
+﻿{
+  "stats": {
+    "title": "Guest Statistics",
+    "unavailable": "The guest program is not available for your user role or is disabled.",
+    "totalReferrals": "Total Guests",
+    "allLevels": "All levels",
+    "direct": "Direct",
+    "firstLevel": "First level",
+    "indirect": "Indirect",
+    "otherLevels": "Other levels",
+    "pending": "Pending",
+    "inApproval": "In approval",
+    "coinsGenerated": "Virtual Coins Generated",
+    "byReferrals": "From guests"
+  },
+  "code": {
+    "title": "My Invitation Code",
+    "unavailable": "The guest program is not available for your user role or is disabled.",
+    "yourCode": "Your unique code:",
+    "codeCopied": "Code copied to clipboard",
+    "copyCode": "Copy code",
+    "yourLink": "Your invitation link:",
+    "linkCopied": "Link copied to clipboard",
+    "copyLink": "Copy link",
+    "copyError": "Could not copy to clipboard",
+    "shareWith": "Share with friends:",
+    "loadingSocial": "Loading social networks...",
+    "errorLoadingSocial": "Error loading networks: {{error}}",
+    "noSocialNetworks": "No social networks available",
+    "shareOn": "Share on {{network}}",
+    "invitedBy": "You were invited by:",
+    "viewPolicy": "View full guest program policy",
+    "shareMessage": "Hi, this is the link that will allow you to discover the world of {{siteName}} 🌸, now follow these simple steps: 1. Tap the button that says: Register 2. Fill in your details and create a Medium or Strong password. 3. After receiving the Pending Approval message or that your data was sent to the email, you must send your email to the person who shared the registration link so they can inform us and you can be approved.",
+    "shareOnNetwork": "Share on {{network}}"
+  },
+  "coinsHistory": {
+    "recentTitle": "Recent activity",
+    "unavailable": "The Virtual Coins system is not available for your member role or is disabled.",
+    "viewFullHistory": "View full history",
+    "viewAll": "View all",
+    "noTransactions": "You have no Virtual Coins transactions.",
+    "noExpiry": "No expiry",
+    "tableDate": "Date",
+    "tableType": "Type",
+    "tableCoins": "Virtual Coins",
+    "tableDescription": "Description",
+    "tableExpiry": "Expiry",
+    "types": {
+      "earned": "Earned from contribution",
+      "used": "Used in contribution",
+      "expired": "Expired",
+      "admin_add": "Added by admin",
+      "admin_deduct": "Deducted by admin",
+      "referral": "Guest commission",
+      "referral_signup": "Guest accepted",
+      "referral_purchase": "Guest contribution",
+      "referral_product_bonus": "Extra bonus",
+      "registration": "Welcome to the club",
+      "review": "For benefit review",
+      "birthday": "Birthday gift"
+    }
+  },
+  "coinsHistoryModal": {
+    "title": "Full Virtual Coins History",
+    "loading": "Loading history...",
+    "noTransactions": "You have no Virtual Coins transactions.",
+    "noExpiry": "No expiry",
+    "pageInfo": "Page {{current}}/{{total}}",
+    "previous": "Previous",
+    "next": "Next"
+  }
+}

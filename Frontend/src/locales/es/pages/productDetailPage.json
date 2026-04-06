@@ -1,0 +1,55 @@
+{
+  "page": {
+    "loading": "Cargando beneficio...",
+    "accessDenied": "Este beneficio requiere membresía {{level}}",
+    "recommendedBenefits": "Beneficios recomendados"
+  },
+  "gallery": {
+    "imageAlt": "{{name}} - imagen {{index}}"
+  },
+  "content": {
+    "maxInCart": "Ya tienes el máximo disponible ({{stock}}) en tu reserva",
+    "limitedStock": "Solo puedes agregar {{available}} unidad(es) más. Stock disponible: {{stock}}"
+  },
+  "description": {
+    "title": "Descripción",
+    "showMore": "Ver más",
+    "showLess": "Ver menos",
+    "empty": "Aún no hemos agregado la descripción de este beneficio. ¡Vuelve pronto para conocer todos los detalles!"
+  },
+  "actions": {
+    "unitPrice": "Precio unitario:",
+    "quantity": "Cantidad"
+  },
+  "cart": {
+    "outOfStock": "Beneficio agotado",
+    "selectOptions": "Selecciona las opciones",
+    "addToCart": "Reservar para aprovisionamiento",
+    "adding": "Reservando...",
+    "from": "Desde",
+    "subtotal": "Subtotal:",
+    "regularPrice": "Precio regular:"
+  },
+  "variations": {
+    "loading": "Cargando opciones...",
+    "noMatch": "No hay variación disponible con esa combinación de atributos"
+  },
+  "promotional": {
+    "defaultTitle": "Beneficios recomendados",
+    "error": "No se pudieron cargar los beneficios promocionales.",
+    "empty": "No hay beneficios promocionales disponibles.",
+    "noDescription": "Este beneficio no tiene descripción aún, vuelve pronto por más información!",
+    "addAria": "Agregar {{name}} a la reserva",
+    "viewOptionsAria": "Ver opciones de {{name}}"
+  },
+  "related": {
+    "title": "Beneficios relacionados"
+  },
+  "backButton": {
+    "label": "Volver"
+  },
+  "breadcrumbs": {
+    "home": "Inicio",
+    "catalog": "Catálogo"
+  }
+}

@@ -1,0 +1,132 @@
+﻿{
+  "auth": {
+    "pendingApproval": "Your account is pending approval by an administrator",
+    "tokenNotAvailable": "Authentication error: Token not available",
+    "getUserDataError": "Error getting user data",
+    "accountRejected": "Your account request has been rejected. Please contact the administrator for more information.",
+    "unknownLoginError": "Unknown error while logging in",
+    "registerError": "Error creating the account. Please try again.",
+    "connectionError": "Connection error. Please try again later.",
+    "loginRequired": "You must log in to save addresses",
+    "saveAddressError": "Error saving the address",
+    "deleteAddressError": "Error deleting the address",
+    "setDefaultAddressError": "Error setting the default address",
+    "updateProfileError": "Error updating the profile",
+    "maxAddressesReached": "You have reached the maximum limit of 3 addresses",
+    "accountRejectedShort": "Your account request has been rejected",
+    "incorrectPassword": "The password entered is incorrect.",
+    "emailNotRegistered": "Email not registered in {{siteName}}",
+    "noValidToken": "No valid token received from the server",
+    "noActiveSession": "No active session",
+    "couldNotGetUserData": "Could not retrieve user data",
+    "passwordResetGenericSuccess": "If the email is registered, you will receive instructions to reset your password.",
+    "passwordResetRequestError": "We could not process the request. Please try again later."
+  },
+  "membership": {
+    "connectionRetrying": "Connection error. Retrying...",
+    "loadError": "Error loading membership",
+    "loadLevelsError": "Error loading membership levels"
+  },
+  "cart": {
+    "loadError": "Error loading the reservation",
+    "loadMinimumOrder": "Error loading minimum order"
+  },
+  "products": {
+    "loadSectionsError": "Could not load benefit sections.",
+    "invalidProductCache": "Invalid ID (from cache)",
+    "benefitNotFound": "Benefit not found",
+    "loadBenefitError": "Could not load the benefit. Please try again later.",
+    "loadBenefitsError": "Error loading benefits",
+    "loadToursError": "Could not load tour packages.",
+    "apiResponseEmpty": "The API response is empty",
+    "categoryNotFound": "Category not found",
+    "unknownLoadError": "Unknown error loading benefits",
+    "unknownLoadBenefitError": "Unknown error loading the benefit",
+    "unknownLoadCategoriesError": "Unknown error loading categories",
+    "searchError": "Error searching benefits"
+  },
+  "wallet": {
+    "loadError": "Could not load the data. Please try again later."
+  },
+  "menu": {
+    "loadError": "Could not load the menu. Please try again later."
+  },
+  "referral": {
+    "invalidCode": "Invalid code",
+    "invalidReferralCode": "Invalid invitation code",
+    "codeRequired": "Invitation code is required",
+    "codeInvalidOrNotFound": "Invalid or not found invitation code",
+    "recipientCodeRequired": "Recipient invitation code is required",
+    "amountMustBePositive": "Virtual Coins amount must be greater than 0"
+  },
+  "wompi": {
+    "notConfigured": "Wompi is not configured",
+    "widgetNotAvailable": "The Wompi widget is not available",
+    "widgetNotLoaded": "The Wompi widget is not loaded. Reload the page.",
+    "loadScriptError": "Error loading the Wompi script",
+    "loadConfigError": "Error loading Wompi configuration",
+    "signatureError": "Error generating signature",
+    "paymentError": "Error processing the payment",
+    "transactionQueryError": "Error querying transaction",
+    "getConfigError": "Error getting Wompi configuration",
+    "generateSignatureError": "Error generating integrity signature",
+    "getTransactionError": "Error querying transaction",
+    "getPackagesError": "Error getting Virtual Coins packages",
+    "registerPendingError": "Error registering the pending purchase",
+    "getPurchaseStatusError": "Error checking purchase status",
+    "confirmPurchaseError": "Error confirming the purchase",
+    "registerPendingPaymentError": "Error registering the pending payment",
+    "getPaymentStatusError": "Error checking payment status",
+    "linkOrderError": "Error linking the order",
+    "cardPaymentError": "Error processing the card payment"
+  },
+  "socialNetworks": {
+    "loadError": "Error loading social networks"
+  },
+  "api": {
+    "csrfTokenMissing": "CSRF token not received",
+    "csrfTokenMissingResponse": "CSRF token not received in the response",
+    "timeout": "The connection took too long. Check your internet connection and try again.",
+    "networkError": "Could not connect to the server. Check your internet connection.",
+    "sessionExpired": "Your session has expired. Please log in again.",
+    "rateLimited": "You have exceeded the allowed number of attempts. Please wait a moment before trying again.",
+    "rateLimitedWithMinutes": "You have exceeded the number of attempts, please wait {{minutes}} {{minuteLabel}}.",
+    "rateLimitedGeneric": "You have exceeded the number of attempts, please wait a moment.",
+    "minuteSingular": "minute",
+    "minutePlural": "minutes"
+  },
+  "order": {
+    "bankTransferTitle": "Bank transfer",
+    "bankTransferDescription": "Make your payment directly to our bank account.",
+    "cashOnDeliveryTitle": "Cash on delivery",
+    "cashOnDeliveryDescription": "Pay in cash at the time of delivery.",
+    "flatRateTitle": "Flat rate",
+    "freeShippingTitle": "Free shipping"
+  },
+  "generic": {
+    "connectionError": "Could not connect to the server. Check your internet connection.",
+    "requestError": "Error processing the request. Please try again.",
+    "loadBannersError": "Could not load banners. Please try again later.",
+    "loadCategoriesError": "Could not load featured categories. Please try again later.",
+    "loadPromotionalError": "Could not load promotional benefits.",
+    "loadSectionError": "Could not load benefits for this section.",
+    "loadingProducts": "Loading benefits...",
+    "popupResponseError": "Error processing the response",
+    "userNotExist": "The entered user does not exist in our system.",
+    "incorrectPassword": "The entered password is incorrect.",
+    "serverCriticalError": "WordPress server error. Please contact the administrator.",
+    "invalidUsername": "The entered username is not valid.",
+    "invalidEmail": "The entered email is not valid.",
+    "badRequest": "Bad request. Check the entered data.",
+    "unauthorized": "Unauthorized. Check your access credentials.",
+    "forbidden": "Incorrect username or password.",
+    "notFound": "The requested resource does not exist on the server.",
+    "serverError": "Internal server error. Please try again later.",
+    "badGateway": "Server communication error. Please try again later.",
+    "serviceUnavailable": "Service temporarily unavailable. Please try again later.",
+    "requestErrorWithCode": "Request error ({{code}}). Please try again."
+  },
+  "storage": {
+    "decryptionFailed": "Decryption failed - empty result"
+  }
+}

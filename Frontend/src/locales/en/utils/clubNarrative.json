@@ -1,0 +1,19 @@
+{
+  "transformations": {
+    "Exclusive Products": "Exclusive Benefits",
+    "exclusive products": "exclusive benefits",
+    "Access to exclusive products": "Access to exclusive benefits",
+    "Selected products": "Selected benefits",
+    "selected products": "selected benefits",
+    "All products": "All benefits",
+    "No products found": "No benefits found",
+    "Loading products": "Loading benefits",
+    "All products are already selected": "All benefits are already selected",
+    "Error loading products": "Error loading benefits",
+    "Category Discount": "Variety Discount",
+    "category discount": "variety discount",
+    "Remove product": "Remove benefit",
+    "Edit product": "Edit benefit",
+    "This product requires": "This benefit requires"
+  }
+}

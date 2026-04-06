@@ -1,0 +1,7 @@
+{
+  "loading": "Loading banners...",
+  "errorTitle": "We couldn't load the banners. Please try again.",
+  "emptyMessage": "No banners available.",
+  "defaultCta": "Learn more",
+  "externalLinkTitle": "Go to: {{url}}"
+}

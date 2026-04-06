@@ -1,0 +1,15 @@
+﻿{
+  "cartEmptyAlert": "Your reservation is empty. Add items before continuing.",
+  "logoAlt": "{{siteName}}.",
+  "menuAriaLabel": "Menu",
+  "createAccount": "Create account",
+  "signIn": "Sign in",
+  "exclusiveContent": "Exclusive Content",
+  "exclusiveContentReason": "This content requires a higher membership to access.",
+  "exclusiveContentDescription": "Upgrade your membership to unlock this content and many more exclusive benefits.",
+  "viewCatalog": "View available catalog",
+  "viewMemberships": "View memberships",
+  "instagramAria": "Follow us on Instagram",
+  "instagramTooltip1": "Follow us on Instagram",
+  "instagramTooltip2": "And claim 500 Virtual Coins!"
+}

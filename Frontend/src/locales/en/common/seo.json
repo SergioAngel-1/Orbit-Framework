@@ -1,0 +1,82 @@
+﻿{
+  "pages": {
+    "home": {
+      "title": "{{siteName}} | Private Green Magic Club in Colombia",
+      "description": "Welcome to Colombia's greenest private club. {{siteName}} is an exclusive community with memberships, unique benefits, guest program and the highest quality benefits. Join the magic.",
+      "keywords": "private club, green magic, {{siteName}}, exclusive membership, Colombia club, green community, premium flowers, flower club, exclusive benefits"
+    },
+    "catalogo": {
+      "title": "Benefits Catalog | {{siteName}} - Private Club",
+      "description": "Explore our exclusive catalog of premium benefits. Flowers, extracts, edibles and more. Only for members of the green magic club.",
+      "keywords": "premium benefits, exclusive flowers, extracts, edibles, private club catalog"
+    },
+    "membresias": {
+      "title": "Memberships | {{siteName}} - Carrot, Bronze, Silver, Gold & Diamond",
+      "description": "Discover the membership levels of the {{siteName}} private club. From Carrot (free) to Diamond with exclusive discounts, free deliveries, gift samples and access to premium benefits.",
+      "keywords": "private club membership, membership levels, exclusive benefits, premium discounts"
+    },
+    "referidos": {
+      "title": "Guest Program | {{siteName}} - Earn Virtual Coins",
+      "description": "Invite your friends to the private club and earn Virtual Coins. Guest program with commissions for every contribution your friends make.",
+      "keywords": "private club guest program, invite friends, earn points, Virtual Coins, {{siteName}} guests"
+    },
+    "contacto": {
+      "title": "Contact | {{siteName}} - Private Club",
+      "description": "Contact us to resolve your questions about the green magic private club. We are here to help you.",
+      "keywords": "contact {{siteName}}, private club support, {{siteName}} help"
+    },
+    "catalogos": {
+      "title": "PDF Catalogs | {{siteName}}",
+      "description": "Download our PDF catalogs with detailed benefit information and prices.",
+      "keywords": "PDF catalog, download catalog, premium benefits PDF"
+    },
+    "privacidad": {
+      "title": "Privacy Policy | {{siteName}}",
+      "description": "Learn how we protect your personal information at {{siteName}}."
+    },
+    "terminos": {
+      "title": "Terms and Conditions | {{siteName}}",
+      "description": "Read the terms and conditions of use of the {{siteName}} private club."
+    },
+    "login": {
+      "title": "Log In | {{siteName}}",
+      "description": "Access your {{siteName}} private club account."
+    },
+    "guia-requisa": {
+      "title": "Police Search Guide | {{siteName}}",
+      "description": "Know your rights and the correct procedure during a police search in Colombia."
+    },
+    "marco-legal": {
+      "title": "Protective Legal Framework | {{siteName}}",
+      "description": "Information about the laws and regulations that protect members of the {{siteName}} private club."
+    },
+    "politica-invitados": {
+      "title": "Guest Policy | {{siteName}}",
+      "description": "Learn the rules and benefits of the {{siteName}} private club guest program."
+    },
+    "toures": {
+      "title": "Recreational Tours in Colombia | {{siteName}}",
+      "description": "Discover our recreational cannabis tours in Colombia. Unique, safe and legal experiences with {{siteName}}.",
+      "keywords": "cannabis tours Colombia, recreational experiences, {{siteName}} tours, cannabis tourism"
+    },
+    "register": {
+      "title": "Join the Private Club | {{siteName}} - Register",
+      "description": "Register at the {{siteName}} green magic private club. Access exclusive high-quality benefits, memberships and unique perks in Colombia.",
+      "keywords": "private club registration, create {{siteName}} account, join green magic club, Colombia registration, online private club"
+    },
+    "faq": {
+      "title": "Frequently Asked Questions | {{siteName}} - Private Club",
+      "description": "Get answers to your questions about the {{siteName}} private club. FAQs about memberships, deliveries, Virtual Coins, guest program and more.",
+      "keywords": "frequently asked questions, FAQ, {{siteName}} help, private club questions, memberships, Virtual Coins, associative deliveries"
+    }
+  },
+  "product": {
+    "titleSuffix": "| {{siteName}}",
+    "defaultDescription": "{{name}} - Benefit available at the {{siteName}} private club."
+  },
+  "category": {
+    "titleSuffix": "| {{siteName}} Catalog",
+    "defaultDescription": "Explore our selection of {{name}} at the {{siteName}} private club."
+  },
+  "ogLocale": "en_US"
+}

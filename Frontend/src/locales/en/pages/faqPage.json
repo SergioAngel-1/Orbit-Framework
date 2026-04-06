@@ -1,0 +1,72 @@
+﻿{
+  "seo": {
+    "title": "Frequently Asked Questions | {{siteName}} - Private Club",
+    "description": "Get answers to your questions about the {{siteName}} private club. FAQs about memberships, deliveries, Virtual Coins, guest program and more.",
+    "keywords": "frequently asked questions, FAQ, {{siteName}} help, private club questions, memberships, Virtual Coins, associative deliveries"
+  },
+  "pageTitle": "Frequently Asked Questions",
+  "pageSubtitle": "Everything you need to know about the {{siteName}} private club",
+  "categories": {
+    "general": "General",
+    "memberships": "Memberships",
+    "orders": "Withdrawals & Deliveries",
+    "coins": "Virtual Coins",
+    "referrals": "Guests"
+  },
+  "faqs": [
+    {
+      "question": "What is {{siteName}}?",
+      "answer": "{{siteName}} is a private green magic club in Colombia. We are an exclusive community offering memberships with unique benefits, a guest program, rewards system (Virtual Coins) and access to the highest quality products. Access is by invitation or approved registration only.",
+      "category": "General"
+    },
+    {
+      "question": "How do I register at the club?",
+      "answer": "To join the club, go to our registration page and complete the form with your details. If you were invited by another member, make sure to use their invitation code during registration. After registering, your account will remain pending until approved by our team. We will notify you by email when your account is activated.",
+      "category": "General"
+    },
+    {
+      "question": "How does the approval process work?",
+      "answer": "All membership applications require administrative approval. After registering, your account will remain pending until approved by our team. We will notify you by email when your account is activated. If you were referred by another member, make sure to let them know so they can contact us and speed up your approval process.",
+      "category": "General"
+    },
+    {
+      "question": "What membership levels are available?",
+      "answer": "We offer several membership levels: Carrot (free, base level), Bronze, Silver, Gold and Diamond. Each level unlocks additional benefits such as exclusive discounts, free deliveries, gift samples and access to premium categories. You can check all the details on our memberships page.",
+      "category": "Memberships"
+    },
+    {
+      "question": "How can I upgrade my membership?",
+      "answer": "You can upgrade your membership from the memberships page by selecting the desired level and completing the corresponding contribution. The benefits of the new level are activated immediately after payment confirmation.",
+      "category": "Memberships"
+    },
+    {
+      "question": "How much advance notice do I need to request a withdrawal?",
+      "answer": "Benefit withdrawal requests must be made at least 5 hours in advance to ensure proper processing. This allows us to organize associative delivery routes efficiently.",
+      "category": "Withdrawals & Deliveries"
+    },
+    {
+      "question": "How do associative deliveries work?",
+      "answer": "Deliveries are made through our trusted couriers. A fixed delivery time is not guaranteed, as routes are organized based on the day's withdrawals and their locations. If you need a specific time, you must make the management contribution digitally. In case of loss during shipping with our couriers, we take 100% responsibility.",
+      "category": "Withdrawals & Deliveries"
+    },
+    {
+      "question": "How does the Virtual Coins system work?",
+      "answer": "Virtual Coins is our rewards system. You can earn coins by inviting friends (cashback on each withdrawal from your guests), when registering as a member (welcome bonus), writing reviews, on your birthday and during special promotions. Coins can be used as a direct discount on your management contributions.",
+      "category": "Virtual Coins"
+    },
+    {
+      "question": "How does the guest program work?",
+      "answer": "Each registered member receives a unique invitation link to share. For every new member who makes a withdrawal using your link, you receive a percentage of cashback in Virtual Coins. You can use these coins for future withdrawals or accumulate them for bigger discounts.",
+      "category": "Guests"
+    }
+  ],
+  "cta": {
+    "title": "Didn't find what you were looking for?",
+    "description": "Our team is available to answer any additional questions you may have about the club.",
+    "button": "Contact Us"
+  },
+  "schema": {
+    "breadcrumbHome": "Home",
+    "breadcrumbFaq": "FAQ"
+  }
+}

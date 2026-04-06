@@ -1,0 +1,208 @@
+RewriteEngine On
+
+# ============================================
+# Permitir crawlers de redes sociales (Facebook, Twitter, LinkedIn, WhatsApp)
+# Necesario para que las imágenes OG se muestren correctamente
+# ============================================
+<IfModule mod_setenvif.c>
+    SetEnvIfNoCase User-Agent "facebookexternalhit" SOCIAL_CRAWLER
+    SetEnvIfNoCase User-Agent "Facebot" SOCIAL_CRAWLER
+    SetEnvIfNoCase User-Agent "Twitterbot" SOCIAL_CRAWLER
+    SetEnvIfNoCase User-Agent "LinkedInBot" SOCIAL_CRAWLER
+    SetEnvIfNoCase User-Agent "WhatsApp" SOCIAL_CRAWLER
+    SetEnvIfNoCase User-Agent "Slackbot" SOCIAL_CRAWLER
+    SetEnvIfNoCase User-Agent "TelegramBot" SOCIAL_CRAWLER
+</IfModule>
+
+# Redireccionar de www a no-www
+RewriteCond %{HTTP_HOST} ^www\.floresinc\.co [NC]
+RewriteRule ^(.*)$ https://floresinc.co/$1 [L,R=301]
+
+# ============================================
+# SEO: Club Cannábico Legal en Colombia
+# Indexación habilitada para motores de búsqueda
+# ============================================
+
+# Headers de seguridad y SEO
+<IfModule mod_headers.c>
+    # CORS restrictivo - Solo dominios autorizados
+    # El backend (admin.floresinc.co) maneja CORS para API requests
+    # Este .htaccess es para el frontend estático (floresinc.co)
+    SetEnvIf Origin "^https://floresinc\.co$" CORS_ALLOW_ORIGIN=$0
+    SetEnvIf Origin "^https://admin\.floresinc\.co$" CORS_ALLOW_ORIGIN=$0
+    SetEnvIf Origin "^https://portfolio\.sergioja\.com$" CORS_ALLOW_ORIGIN=$0
+    Header set Access-Control-Allow-Origin "%{CORS_ALLOW_ORIGIN}e" env=CORS_ALLOW_ORIGIN
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    Header set Vary "Origin"
+    
+    # SEO: Permitir indexación (páginas públicas)
+    # Las páginas privadas se controlan via meta tags dinámicos
+    Header set X-Robots-Tag "index, follow"
+    
+    # Cache para assets estáticos (mejora SEO y rendimiento)
+    <FilesMatch "\.(ico|pdf|jpg|jpeg|png|gif|webp|svg|js|css|woff|woff2)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    
+    # HTML: cache corto para og/*.html (social crawlers)
+    <FilesMatch "\.html$">
+        Header set Cache-Control "public, max-age=600, must-revalidate"
+    </FilesMatch>
+    
+    # index.html: Excluir del Dynamic Cache de SiteGround
+    # "private" es la directiva que SiteGround reconoce para excluir del SuperCacher
+    # Ref: https://es.siteground.com/kb/deshabilitar-cache-dinamica/
+    # Si se cachea una versión rota del SPA entry point, toda la app se cae
+    <Files "index.html">
+        Header set Cache-Control "private, no-cache, no-store, must-revalidate, max-age=0"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </Files>
+
+    # Cabeceras de seguridad (no disruptivas)
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=(), fullscreen=(self)"
+
+    # CSP en modo enforcement completo - HARDENED
+    # React usa Vite que genera hashes para scripts, pero permite inline styles para styled-components
+    # NOTA: Si Vite genera scripts inline, agregar nonces o hashes específicos
+    # Wompi: checkout.wompi.co para widget de pagos, sandbox.wompi.co para pruebas, production.wompi.co para producción
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://checkout.wompi.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' https://admin.floresinc.co https://floresinc.co https://checkout.wompi.co data: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://admin.floresinc.co https://sandbox.wompi.co https://production.wompi.co; frame-src 'self' https://checkout.wompi.co; frame-ancestors https://portfolio.sergioja.com; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests"
+
+    # HSTS solo sobre HTTPS
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" env=HTTPS
+</IfModule>
+
+# ============================================
+# OG Meta Tags: Servir páginas pre-renderizadas a bots sociales
+# Generadas por: node scripts/generate-og-pages.js
+# ============================================
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^$ /og/index.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/?$ /og/index.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^catalogo/?$ /og/catalogo.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/catalog/?$ /og/catalogo.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^membresias/?$ /og/membresias.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/memberships/?$ /og/membresias.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^toures/?$ /og/toures.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/tours/?$ /og/toures.html [L]
+
+# Redirects antiguos (ES + EN)
+RewriteRule ^register/?$ /registrarse [R=301,L]
+RewriteRule ^login/?$ /iniciar-sesion [R=301,L]
+RewriteRule ^referidos/?$ /invitados [R=301,L]
+RewriteRule ^referidos-politica/?$ /politica-invitados [R=301,L]
+RewriteRule ^en/referidos/?$ /en/referrals [R=301,L]
+RewriteRule ^en/referidos-politica/?$ /en/referral-policy [R=301,L]
+# Redirects de URLs EN antiguas (sin traducir) a las nuevas traducidas
+RewriteRule ^en/catalogo/?$ /en/catalog [R=301,L]
+RewriteRule ^en/membresias/?$ /en/memberships [R=301,L]
+RewriteRule ^en/contacto/?$ /en/contact [R=301,L]
+RewriteRule ^en/toures/?$ /en/tours [R=301,L]
+RewriteRule ^en/reserva/?$ /en/cart [R=301,L]
+RewriteRule ^en/finalizar-retiro/?$ /en/checkout [R=301,L]
+RewriteRule ^en/invitados/?$ /en/referrals [R=301,L]
+RewriteRule ^en/fondo-de-aportes/?$ /en/wallet [R=301,L]
+RewriteRule ^en/privacidad/?$ /en/privacy [R=301,L]
+RewriteRule ^en/terminos/?$ /en/terms [R=301,L]
+RewriteRule ^en/guia-requisa/?$ /en/search-guide [R=301,L]
+RewriteRule ^en/marco-legal/?$ /en/legal-framework [R=301,L]
+RewriteRule ^en/politica-invitados/?$ /en/referral-policy [R=301,L]
+RewriteRule ^en/registrarse/?$ /en/register [R=301,L]
+RewriteRule ^en/iniciar-sesion/?$ /en/login [R=301,L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^contacto/?$ /og/contacto.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/contact/?$ /og/contacto.html [L]
+
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^registrarse/?$ /og/register.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^register/?$ /og/register.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/register/?$ /og/register.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^faq/?$ /og/faq.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/faq/?$ /og/faq.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^privacidad/?$ /og/privacidad.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/privacy/?$ /og/privacidad.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^terminos/?$ /og/terminos.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/terms/?$ /og/terminos.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^guia-requisa/?$ /og/guia-requisa.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/search-guide/?$ /og/guia-requisa.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^marco-legal/?$ /og/marco-legal.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/legal-framework/?$ /og/marco-legal.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^politica-invitados/?$ /og/politica-invitados.html [L]
+
+RewriteCond %{HTTP_USER_AGENT} facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot|Pinterest|Googlebot [NC]
+RewriteRule ^en/referral-policy/?$ /og/politica-invitados.html [L]
+
+# ============================================
+# Reglas SPA para React (usuarios normales)
+# ============================================
+
+# Redirigir URLs con prefijo /en/ de los sitemaps al path canónico (sin prefijo)
+# Los sitemaps se sirven siempre desde /sitemaps/*.xml y /sitemap-index.xml
+# Nota: NO usar rewrite interno aquí — crea bucle con la regla de /sitemaps/ de abajo.
+RewriteRule ^en/sitemap-index\.xml$ /sitemap-index.xml [R=301,L]
+RewriteRule ^en/sitemaps/(.+\.xml)$ /sitemaps/$1 [R=301,L]
+
+RewriteBase /
+
+# No reescribir archivos estáticos reales ni index.html
+RewriteRule ^index\.html$ - [L]
+
+# Rutas con prefijo /en/ (idioma inglés) → SPA
+RewriteRule ^en(/.*)?$ /index.html [L]
+
+# Rutas de catálogo y búsqueda → SPA
+RewriteRule ^catalogo(/.*)?$ /index.html [L]
+RewriteRule ^catalog(/.*)?$ /index.html [L]
+
+# Fallback general: cualquier ruta que no sea archivo/directorio real → SPA
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]

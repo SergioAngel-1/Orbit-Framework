@@ -1,0 +1,27 @@
+{
+  "title": "Menú",
+  "nav": {
+    "myAccount": "Mi cuenta",
+    "contributions": "Aportes FC",
+    "members": "Socios",
+    "memberships": "Membresías",
+    "login": "Iniciar sesión",
+    "home": "Inicio",
+    "tours": "Toures",
+    "toursNew": "¡Nuevo!",
+    "catalog": "Catálogo",
+    "myOrders": "Mis retiros",
+    "digitalCard": "Carné digital",
+    "helpCenter": "Centro de ayuda",
+    "contact": "Contacto"
+  },
+  "submenuAria": "Desplegar submenú",
+  "logout": {
+    "button": "Cerrar sesión",
+    "title": "Cerrar sesión",
+    "message": "¿Estás seguro de que deseas cerrar sesión?",
+    "confirm": "Cerrar sesión",
+    "cancel": "Cancelar",
+    "success": "Sesión cerrada correctamente"
+  }
+}

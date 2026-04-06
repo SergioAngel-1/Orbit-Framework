@@ -1,0 +1,231 @@
+﻿/**
+ * Estilos para el panel administrativo
+ * Plugin: Starter Referrals & Points
+ */
+
+/* Estilos generales */
+.starter-rp-dashboard,
+.starter-rp-settings,
+.starter-rp-network {
+    margin: 20px 0;
+}
+
+/* Pestañas de navegación */
+.starter-rp-tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ccc;
+}
+
+.starter-rp-tabs .tab {
+    padding: 10px 15px;
+    margin-right: 5px;
+    background-color: #f1f1f1;
+    text-decoration: none;
+    color: #555;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    transition: background-color 0.2s ease;
+}
+
+.starter-rp-tabs .tab:hover {
+    background-color: #e8e8e8;
+}
+
+.starter-rp-tabs .tab.active {
+    background-color: #fff;
+    border-bottom: 1px solid #fff;
+    position: relative;
+    bottom: -1px;
+    font-weight: bold;
+    color: #0073aa;
+}
+
+/* Tarjetas de estadísticas */
+.starter-rp-stats-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.starter-rp-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    flex: 1;
+    min-width: 200px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.starter-rp-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.card-icon {
+    margin-right: 15px;
+}
+
+.card-icon .dashicons {
+    font-size: 36px;
+    width: 36px;
+    height: 36px;
+    color: #0073aa;
+}
+
+.card-content h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #23282d;
+}
+
+.card-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #0073aa;
+}
+
+/* Dashboard widgets */
+.starter-rp-dashboard-widgets {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+    gap: 20px;
+}
+
+.starter-rp-widget {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.starter-rp-widget h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 16px;
+    color: #23282d;
+}
+
+.starter-rp-view-all {
+    margin-top: 15px;
+    text-align: right;
+}
+
+/* Contenedores de configuración */
+.starter-rp-settings-container {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* Tabs de configuración */
+.nav-tab-wrapper {
+    margin-bottom: 20px;
+}
+
+.tab-content {
+    display: none;
+    padding: 15px 0;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Tablas */
+.wp-list-table .column-points,
+.wp-list-table .column-referral_code,
+.wp-list-table .column-referrals_count {
+    width: 120px;
+}
+
+.wp-list-table .column-user,
+.wp-list-table .column-referrer {
+    width: 25%;
+}
+
+.wp-list-table .points-positive {
+    color: #46b450;
+    font-weight: bold;
+}
+
+.wp-list-table .points-negative {
+    color: #dc3232;
+    font-weight: bold;
+}
+
+/* Formularios */
+.form-table th {
+    width: 250px;
+}
+
+/* Búsqueda */
+.search-box {
+    margin-bottom: 15px;
+}
+
+/* Notificaciones */
+.starter-rp-notice {
+    background: #fff;
+    border-left: 4px solid #0073aa;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+    margin: 5px 15px 2px 0;
+    padding: 1px 12px;
+}
+
+.starter-rp-notice p {
+    margin: 0.5em 0;
+    padding: 2px;
+}
+
+.starter-rp-notice.info {
+    border-left-color: #0073aa;
+}
+
+.starter-rp-notice.warning {
+    border-left-color: #ffb900;
+}
+
+.starter-rp-notice.error {
+    border-left-color: #dc3232;
+}
+
+.starter-rp-notice.success {
+    border-left-color: #46b450;
+}
+
+/* Responsividad */
+@media screen and (max-width: 782px) {
+    .starter-rp-dashboard-widgets {
+        grid-template-columns: 1fr;
+    }
+    
+    .starter-rp-stats-cards {
+        flex-direction: column;
+    }
+    
+    .starter-rp-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .search-box {
+        float: none;
+        margin-bottom: 20px;
+    }
+    
+    .form-table th {
+        width: auto;
+    }
+}

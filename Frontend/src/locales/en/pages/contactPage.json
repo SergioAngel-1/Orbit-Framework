@@ -1,0 +1,53 @@
+﻿{
+  "seo": {
+    "title": "Contact | {{siteName}} - Private Club Customer Support",
+    "description": "Contact us to resolve your questions about the {{siteName}} green magic private club. Support for memberships, orders, returns, and suggestions. Personalized attention for members in Colombia.",
+    "keywords": "contact {{siteName}}, private club support, {{siteName}} customer service, membership help, Colombia inquiries, order support, contact {{siteName}}, customer service",
+    "schemaName": "Contact - {{siteName}}",
+    "schemaDescription": "Contact page for the {{siteName}} private club.",
+    "breadcrumbHome": "Home",
+    "breadcrumbContact": "Contact"
+  },
+  "pageTitle": "Contact Us",
+  "form": {
+    "sectionTitle": "Send us a message",
+    "myProfile": "My profile",
+    "nameLabel": "Name",
+    "emailLabel": "Email",
+    "subjectLabel": "Subject",
+    "subjectPlaceholder": "Select a subject",
+    "messageLabel": "Message",
+    "submitButton": "Send message",
+    "submitting": "Sending...",
+    "subjects": {
+      "productQuery": "Benefit inquiry",
+      "orderProblem": "Order issue",
+      "return": "Return or exchange",
+      "suggestion": "Suggestion",
+      "other": "Other"
+    }
+  },
+  "alerts": {
+    "success": "Message sent successfully",
+    "error": "Error sending message"
+  },
+  "contactInfo": {
+    "sectionTitle": "Contact information",
+    "address": "Online associative pickups only",
+    "phone": "+57 322 323 7785",
+    "email": "info@example.com",
+    "hoursTitle": "Business hours:",
+    "hoursWeekdays": "Monday to Friday: 24/7.",
+    "hoursWeekends": "Saturdays and Sundays: 10:00 a.m. - 8:00 p.m."
+  },
+  "privacy": {
+    "sectionTitle": "Privacy commitment",
+    "dataProtectedTitle": "Protected data",
+    "dataProtectedDesc": "All information you share with us is protected and encrypted.",
+    "noShareTitle": "We don't share your information",
+    "noShareDesc": "We will never share your data with third parties without your explicit consent.",
+    "dataControlTitle": "Control over your data",
+    "dataControlDesc": "You have the right to access, modify, or delete your personal data at any time.",
+    "policyLink": "View full privacy policy"
+  }
+}

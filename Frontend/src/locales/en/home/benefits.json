@@ -1,0 +1,22 @@
+{
+  "title": "Our Benefits",
+  "subtitle": "What makes us different",
+  "items": {
+    "shipping": {
+      "title": "Protected Delivery",
+      "description": "Discreet and secure nationwide"
+    },
+    "secure": {
+      "title": "Secure Contribution",
+      "description": "100% safe transactions"
+    },
+    "support": {
+      "title": "24/7 Support",
+      "description": "Always-on customer service"
+    },
+    "quality": {
+      "title": "Quality Guarantee",
+      "description": "Top-tier membership benefits"
+    }
+  }
+}

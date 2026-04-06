@@ -1,0 +1,13 @@
+{
+  "aria": {
+    "removeProduct": "Remove benefit",
+    "decrease": "Decrease quantity",
+    "increase": "Increase quantity"
+  },
+  "buttons": {
+    "remove": "Remove"
+  },
+  "messages": {
+    "maxStock": "Max stock"
+  }
+}

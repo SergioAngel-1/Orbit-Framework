@@ -1,0 +1,44 @@
+﻿{
+  "seo": {
+    "title": "Programa de Invitados | {{siteName}} - Gana Virtual Coins Invitando Amigos",
+    "description": "Invita a tus amigos al club privado {{siteName}} y gana Virtual Coins por cada aporte que realicen. Programa de invitados con comisiones, código único personalizado y seguimiento de ganancias. Comparte y gana recompensas.",
+    "keywords": "programa invitados {{siteName}}, ganar puntos, Virtual Coins, invitar amigos club privado, comisiones invitados, código invitación, recompensas, sistema invitados, ganancias, club privado, {{siteName}}, puntos por aportes",
+    "schemaName": "Programa de Invitados - {{siteName}}",
+    "schemaDescription": "Programa de invitados del club privado {{siteName}}. Gana Virtual Coins invitando amigos.",
+    "schemaServiceName": "Programa de Invitados {{siteName}}",
+    "schemaServiceDescription": "Gana Virtual Coins por cada amigo que invites al club privado",
+    "breadcrumbHome": "Inicio",
+    "breadcrumbReferrals": "Invitados"
+  },
+  "pageTitle": "Mis Invitados y Virtual Coins",
+  "helpButton": "¿Cómo funcionan las Virtual Coins?",
+  "loading": "Cargando información...",
+  "error": "No se pudieron cargar los datos. Por favor, inténtalo de nuevo más tarde.",
+  "retryButton": "Intentar de nuevo",
+  "unauthenticated": {
+    "bannerTitle": "Programa de Invitados",
+    "bannerDescription": "Invita a tus amigos al club y gana Virtual Coins por cada invitado que se registre. Mientras más amigos invites, más puntos acumulas para usar en tus aportes.",
+    "tagShare": "Comparte tu código",
+    "tagEarn": "Gana FC por invitado",
+    "tagUse": "Usa tus puntos",
+    "accessTitle": "Inicia sesión para ver tus invitados",
+    "accessReason": "Necesitas una cuenta para acceder a tu panel de invitados y Virtual Coins.",
+    "accessDescription": "Crea tu cuenta gratis y comienza a ganar puntos invitando a tus amigos.",
+    "accessButton": "Crear cuenta / Iniciar sesión"
+  },
+  "balance": {
+    "title": "Mi Saldo de Virtual Coins",
+    "available": "Virtual Coins Disponibles",
+    "availableHint": "Para usar en retiros",
+    "totalEarned": "Total Ganados",
+    "totalEarnedHint": "Histórico",
+    "used": "Utilizados",
+    "usedHint": "En retiros",
+    "conversionRate": "Tipo de Cambio",
+    "conversionRateHint": "Por Flores Coin",
+    "unavailable": "El sistema de Virtual Coins no está disponible para su rol de usuario o está deshabilitado."
+  },
+  "history": {
+    "title": "Últimos Movimientos"
+  }
+}

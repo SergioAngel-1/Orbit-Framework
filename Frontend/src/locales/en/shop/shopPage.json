@@ -1,0 +1,63 @@
+﻿{
+  "seo": {
+    "title": "Benefits Catalog | {{siteName}} - Flowers, Extracts & More",
+    "description": "Explore the full catalog of premium benefits from {{siteName}}. Flowers, extracts, edibles, oils, and accessories. High-quality benefits exclusively for members of the green magic private club in Colombia.",
+    "keywords": "{{siteName}} catalog, premium flowers, extracts, oils, edibles, exclusive benefits, private club store, {{siteName}} catalogue, premium benefits Colombia",
+    "schemaName": "{{siteName}} Benefits Catalog",
+    "schemaDescription": "Complete catalog of high-quality premium benefits at {{siteName}}.",
+    "breadcrumbHome": "Home",
+    "breadcrumbCatalog": "Catalog"
+  },
+  "filters": {
+    "srTitle": "Search filters",
+    "searchLabel": "Search benefits",
+    "searchPlaceholder": "What are you looking for?",
+    "searchAria": "Search benefits",
+    "clearSearchAria": "Clear search",
+    "sortLabel": "Sort by",
+    "sortPlaceholder": "Sort by",
+    "sortNameAZ": "Name (A-Z)",
+    "sortPriceAsc": "Price: low to high",
+    "sortPriceDesc": "Price: high to low",
+    "sortDate": "Newest",
+    "sortPopularity": "Popularity",
+    "categoryLabel": "Category",
+    "allCategories": "All categories",
+    "filterButton": "Filter"
+  },
+  "categoryHeader": {
+    "backToAll": "View all categories",
+    "loadingCategory": "Loading category..."
+  },
+  "categoryNotFound": {
+    "title": "Category not found",
+    "description": "The category you are looking for does not exist or has been removed.",
+    "backLink": "View all categories"
+  },
+  "productGrid": {
+    "loading": "Loading benefits...",
+    "emptyTitle": "No benefits found",
+    "emptySearch": "No benefits match your search.",
+    "emptyCategory": "No benefits available in this category at the moment.",
+    "emptyCatalog": "No benefits available in the catalog at the moment.",
+    "hintSearch": "Try different search terms or select another category.",
+    "hintCategory": "Try selecting another category or check back later.",
+    "hintCatalog": "Please check back later when we have benefits available."
+  },
+  "popularCategories": {
+    "title": "Explore popular categories",
+    "categoryAria": "View benefits in the {{name}} category"
+  },
+  "defaults": {
+    "allProducts": "All benefits"
+  },
+  "resultCounter": {
+    "found_one": "{{count}} benefit found",
+    "found_other": "{{count}} benefits found",
+    "page": "Page {{current}} of {{total}}",
+    "showing_one": "Showing {{showing}} of {{count}} benefit",
+    "showing_other": "Showing {{showing}} of {{count}} benefits",
+    "searchResults_one": "{{count}} result for \"{{term}}\"",
+    "searchResults_other": "{{count}} results for \"{{term}}\""
+  }
+}

@@ -1,0 +1,39 @@
+﻿/**
+ * VirtualCoin - Estilos para la moneda giratoria animada
+ */
+
+@keyframes coinRotateLogo {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
+}
+
+.coin-container-logo {
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.coin-container-logo .coin-front-logo,
+.coin-container-logo .coin-back-logo {
+  animation: coinRotateLogo 3s linear infinite;
+  transition: opacity 0.3s ease;
+  will-change: transform;
+}
+
+.coin-container-logo .coin-front-logo {
+  opacity: 1;
+}
+
+.coin-container-logo .coin-back-logo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+}
+
+.coin-container-logo:hover .coin-front-logo {
+  opacity: 0;
+}
+
+.coin-container-logo:hover .coin-back-logo {
+  opacity: 1;
+}

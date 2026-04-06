@@ -1,0 +1,15 @@
+{
+  "title": "Variedades Destacadas",
+  "loading": "Cargando variedades destacadas...",
+  "error": "Error al cargar las variedades destacadas. Por favor, intenta nuevamente.",
+  "card": {
+    "viewBenefits": "Ver beneficios de {{name}}",
+    "exploreCategory": "Explorar {{name}}",
+    "viewAllTooltip": "Ver todas las variedades disponibles",
+    "exploreAllTooltip": "Explorar todas las variedades de beneficios",
+    "viewAll": "Ver todas",
+    "fullCatalog": "Catálogo completo",
+    "fullCatalogTooltip": "Ir al catálogo completo de beneficios",
+    "fullCatalogTitle": "Catálogo completo - Ver todos los beneficios disponibles"
+  }
+}

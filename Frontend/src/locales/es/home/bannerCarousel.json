@@ -1,0 +1,7 @@
+{
+  "loading": "Cargando banners...",
+  "errorTitle": "Error al cargar los banners. Por favor, intenta nuevamente.",
+  "emptyMessage": "No hay banners disponibles.",
+  "defaultCta": "Ver más",
+  "externalLinkTitle": "Ir a: {{url}}"
+}

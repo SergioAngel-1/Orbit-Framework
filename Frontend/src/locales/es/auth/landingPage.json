@@ -1,0 +1,49 @@
+﻿{
+  "seo": {
+    "title": "Únete al Club Privado | {{siteName}} - Registro",
+    "description": "Regístrate en el club privado de magia verde {{siteName}}. Accede a beneficios exclusivos de alta calidad, membresías y ventajas únicas en Colombia.",
+    "keywords": "registro club privado, crear cuenta {{siteName}}, unirse club magia verde, registro Colombia, club privado online"
+  },
+  "alerts": {
+    "invalidReferralCode": "El código de invitación en la URL no es válido. Verifica que sea correcto."
+  },
+  "backButton": "Volver a {{siteName}}",
+  "toggleLogin": "¿Ya eres socio? Inicia sesión",
+  "toggleRegister": "¿Quieres ser socio? Regístrate",
+  "desktop": {
+    "loginTitle": "Acceso al Club",
+    "registerTitle": "Club Privado Exclusivo",
+    "loginSubtitle": "Acceso restringido solo para socios aprobados",
+    "registerSubtitle": "Necesitas una invitación o aprobación de un miembro para unirte",
+    "loginToggle": "¿Quieres ser socio?",
+    "registerToggle": "¿Ya eres socio?"
+  },
+  "mobile": {
+    "backButton": "Volver",
+    "logoAlt": "{{siteName}}.",
+    "heroText": "Club privado de cultivo colectivo. Solo miembros aprobados.",
+    "membershipLabel": "Sistema de Membresías",
+    "loginTitle": "Acceso al Club",
+    "registerTitle": "Únete al Club",
+    "loginSubtitle": "Solo para socios aprobados",
+    "registerSubtitle": "Solicita tu membresía"
+  },
+  "hero": {
+    "title": "{{siteName}}.",
+    "description": "Club privado de cultivo colectivo. Solo miembros aprobados pueden acceder a los beneficios exclusivos de nuestra comunidad.",
+    "features": [
+      "Acceso exclusivo a cultivo colectivo",
+      "Beneficios únicos para socios",
+      "Comunidad privada y segura"
+    ],
+    "membershipTitle": "Sistema de Membresías",
+    "membershipDescription": "Sube de nivel y desbloquea beneficios exclusivos. Cada membresía te da acceso a más variedades y ventajas."
+  },
+  "authContainer": {
+    "logoAlt": "{{siteName}}. Logo",
+    "noAccount": "¿No tienes una cuenta?",
+    "hasAccount": "¿Ya tienes una cuenta?",
+    "requestAccount": "Solicitar una cuenta",
+    "loginButton": "Iniciar sesión"
+  }
+}

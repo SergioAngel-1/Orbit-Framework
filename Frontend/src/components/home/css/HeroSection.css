@@ -1,0 +1,124 @@
+/* HeroSection - Estilos específicos para mantener alturas sincronizadas */
+
+.hero-section-container {
+  /* Asegurar que el contenedor principal tenga la altura correcta */
+  min-height: 320px;
+}
+
+/* Breakpoints específicos para alturas sincronizadas */
+@media (max-width: 639px) {
+  .hero-banner-height {
+    height: auto !important;
+    min-height: 200px; /* Altura mínima de seguridad */
+  }
+  
+  .hero-categories-height {
+    min-height: 260px; /* Sincronizar con la altura mínima de FeaturedCategories */
+    height: auto; /* Permitir que se ajuste al contenido del banner */
+  }
+}
+
+/* Desktop y Tablet: Usar aspect-ratio 16:9 para mantener proporciones sin recortes */
+@media (min-width: 640px) {
+  .hero-banner-height {
+    aspect-ratio: 16 / 9;
+    width: 100%;
+  }
+  
+  .hero-categories-height {
+    height: auto; /* Se ajusta por JS en desktop >= 1024px */
+    min-height: 380px; /* Altura mínima de seguridad - suficiente para 3 filas de imágenes */
+  }
+}
+
+/* Asegurar que el Swiper use toda la altura disponible */
+.hero-banner-height .swiper {
+  height: 100% !important;
+}
+
+.hero-banner-height .swiper-slide {
+  height: 100% !important;
+}
+
+.hero-banner-height .swiper-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Llenar completamente el contenedor */
+}
+
+/* Ajustes específicos para mobile - permitir altura natural de imagen */
+@media (max-width: 639px) {
+  .hero-banner-height .swiper {
+    height: 100% !important; /* Usar toda la altura del contenedor dinámico */
+  }
+
+  .hero-banner-height .swiper-slide {
+    height: 100% !important; /* Usar toda la altura del contenedor dinámico */
+  }
+
+  .hero-banner-height .swiper-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Mantener proporción en mobile */
+  }
+
+  /* Asegurar que el contenedor del banner tenga la transición suave */
+  .hero-banner-height {
+    transition: height 0.3s ease-in-out;
+  }
+}
+
+/* Overlay mejorado para mejor legibilidad del texto */
+.hero-banner-height .banner-info-box {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Responsividad del grid de categorías para mantener proporciones */
+.hero-categories-height .grid {
+  height: 100%;
+  align-content: start;
+}
+
+/* Loading states con altura correcta */
+.hero-loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 639px) {
+  .hero-loading-state {
+    height: 280px;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 767px) {
+  .hero-loading-state {
+    height: 350px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .hero-loading-state {
+    height: 500px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-loading-state {
+    height: 550px;
+  }
+}
+
+/* Asegurar que no haya scroll horizontal en el banner */
+.hero-banner-height {
+  overflow: hidden;
+}
+
+/* Smooth transitions para cambios de altura */
+.hero-banner-height,
+.hero-categories-height {
+  transition: height 0.3s ease-in-out;
+}
