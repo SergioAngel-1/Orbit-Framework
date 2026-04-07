@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Página de administración mejorada con interfaz para gestionar secciones por membresía
  * Sistema de herencia en cascada: niveles inferiores heredan secciones de niveles superiores

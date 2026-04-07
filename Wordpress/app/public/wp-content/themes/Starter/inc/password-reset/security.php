@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones de seguridad para el restablecimiento de contraseña
  */

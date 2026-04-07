@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Renderizador de la página de administración para membresías por antigüedad
  * 

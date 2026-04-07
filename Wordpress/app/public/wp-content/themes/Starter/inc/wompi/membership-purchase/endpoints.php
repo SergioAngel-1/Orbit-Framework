@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Membership Purchase Endpoints — Registro de rutas REST y handlers
  * 

@@ -19,6 +19,18 @@ const SiteConfigContext = createContext<SiteConfigContextType>({
 });
 
 /**
+ * Convierte un color hex a formato RGB space-separated (ej: '#16a34a' → '22 163 74')
+ * Tailwind v3 requiere este formato para que los modificadores de opacidad (/10, /50) funcionen.
+ */
+function hexToRgb(hex: string): string {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = (num >> 16) & 0xFF;
+  const g = (num >> 8) & 0xFF;
+  const b = num & 0xFF;
+  return `${r} ${g} ${b}`;
+}
+
+/**
  * Oscurece un color hex por un porcentaje dado (para hover states)
  */
 function darkenColor(hex: string, percent: number): string {
@@ -64,27 +76,50 @@ function injectCSSVariables(branding: SiteConfig['branding']): void {
       : darkenColor(base, clampedAmount);
   };
 
-  // Colores principales
+  // Variaciones derivadas
+  const primaryDark = darkenColor(primary, 15);
+  const primaryLight = lightenColor(primary, 0.15);
+  const colorHover = resolveVariation(branding.branding_hover_source, branding.branding_hover_mode, branding.branding_hover_amount);
+  const oscuro = resolveVariation(branding.branding_dark_source, branding.branding_dark_mode, branding.branding_dark_amount);
+  const claro = resolveVariation(branding.branding_light_source, branding.branding_light_mode, branding.branding_light_amount);
+  const texto = resolveVariation(branding.branding_text_source, branding.branding_text_mode, branding.branding_text_amount);
+  const hover = resolveVariation(branding.branding_hover_source, branding.branding_hover_mode, branding.branding_hover_amount);
+  const border = resolveVariation(branding.branding_border_source, branding.branding_border_mode, branding.branding_border_amount);
+
+  // Colores principales (hex)
   root.style.setProperty('--color-primary', primary);
   root.style.setProperty('--color-secondary', secondary);
   root.style.setProperty('--color-accent', accent);
 
-  // Variaciones derivadas fijas (primary-dark, primary-light, color-hover)
-  root.style.setProperty('--color-primary-dark', darkenColor(primary, 15));
-  root.style.setProperty('--color-primary-light', lightenColor(primary, 0.15));
-  root.style.setProperty('--color-hover', resolveVariation(branding.branding_hover_source, branding.branding_hover_mode, branding.branding_hover_amount));
+  // Colores principales (RGB space-separated para Tailwind opacity modifiers: bg-primario/10)
+  root.style.setProperty('--color-primary-rgb', hexToRgb(primary));
+  root.style.setProperty('--color-secondary-rgb', hexToRgb(secondary));
+  root.style.setProperty('--color-accent-rgb', hexToRgb(accent));
 
-  // Alias directos
+  // Variaciones derivadas fijas
+  root.style.setProperty('--color-primary-dark', primaryDark);
+  root.style.setProperty('--color-primary-light', primaryLight);
+  root.style.setProperty('--color-hover', colorHover);
+  root.style.setProperty('--color-primary-dark-rgb', hexToRgb(primaryDark));
+
+  // Alias directos (hex)
   root.style.setProperty('--primario', primary);
   root.style.setProperty('--secundario', secondary);
   root.style.setProperty('--acento', accent);
 
-  // Variaciones configurables desde el admin
-  root.style.setProperty('--oscuro', resolveVariation(branding.branding_dark_source, branding.branding_dark_mode, branding.branding_dark_amount));
-  root.style.setProperty('--claro', resolveVariation(branding.branding_light_source, branding.branding_light_mode, branding.branding_light_amount));
-  root.style.setProperty('--texto', resolveVariation(branding.branding_text_source, branding.branding_text_mode, branding.branding_text_amount));
-  root.style.setProperty('--hover', resolveVariation(branding.branding_hover_source, branding.branding_hover_mode, branding.branding_hover_amount));
-  root.style.setProperty('--border', resolveVariation(branding.branding_border_source, branding.branding_border_mode, branding.branding_border_amount));
+  // Variaciones configurables desde el admin (hex)
+  root.style.setProperty('--oscuro', oscuro);
+  root.style.setProperty('--claro', claro);
+  root.style.setProperty('--texto', texto);
+  root.style.setProperty('--hover', hover);
+  root.style.setProperty('--border', border);
+
+  // Variaciones configurables (RGB space-separated para Tailwind opacity modifiers)
+  root.style.setProperty('--oscuro-rgb', hexToRgb(oscuro));
+  root.style.setProperty('--claro-rgb', hexToRgb(claro));
+  root.style.setProperty('--texto-rgb', hexToRgb(texto));
+  root.style.setProperty('--hover-rgb', hexToRgb(hover));
+  root.style.setProperty('--border-rgb', hexToRgb(border));
 
   // Fuente
   root.style.setProperty('--font-family', `'${font}', system-ui, sans-serif`);

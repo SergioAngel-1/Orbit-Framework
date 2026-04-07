@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones de renderizado para Ventas Especiales
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Correos de notificación para nuevos usuarios registrados
  * 

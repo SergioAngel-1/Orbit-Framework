@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Personalizaciones de la tabla de pedidos de WooCommerce
  * 

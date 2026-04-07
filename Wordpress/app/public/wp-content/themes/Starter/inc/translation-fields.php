@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Translation Meta Fields for WooCommerce Products & Categories
  * 

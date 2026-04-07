@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Registro del menú de administración para Membresías
  * 

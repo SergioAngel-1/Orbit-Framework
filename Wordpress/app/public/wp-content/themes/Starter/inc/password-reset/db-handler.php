@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Manejador de base de datos para tokens de restablecimiento
  */

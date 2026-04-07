@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Panel de administración para Starter Memberships
  */

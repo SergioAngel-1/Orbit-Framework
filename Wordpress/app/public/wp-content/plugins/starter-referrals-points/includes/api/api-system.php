@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * API endpoints para estado del sistema
  * 

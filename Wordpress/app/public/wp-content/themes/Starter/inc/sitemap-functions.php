@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Sitemap Functions — wrapper de carga.
  * Sigue el patrón de banner-functions.php: carga el módulo completo desde su carpeta.

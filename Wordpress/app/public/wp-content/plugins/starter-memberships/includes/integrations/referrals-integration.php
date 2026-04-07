@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Integración con el sistema de referidos
  * 

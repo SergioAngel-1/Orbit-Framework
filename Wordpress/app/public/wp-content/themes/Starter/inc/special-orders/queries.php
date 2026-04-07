@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Consultas de datos para Ventas Especiales
  * 

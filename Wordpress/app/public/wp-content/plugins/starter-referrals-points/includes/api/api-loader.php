@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Cargador de API REST
  * 

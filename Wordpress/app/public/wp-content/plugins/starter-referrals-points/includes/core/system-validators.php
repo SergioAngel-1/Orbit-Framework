@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Validadores del sistema de referidos y puntos
  * 

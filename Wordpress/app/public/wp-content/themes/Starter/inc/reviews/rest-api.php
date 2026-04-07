@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Reviews - REST API Endpoints (Reseñas de Producto)
  * 

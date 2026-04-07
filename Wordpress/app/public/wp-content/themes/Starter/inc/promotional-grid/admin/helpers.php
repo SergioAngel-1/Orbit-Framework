@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones helper para la página de administración de grillas por membresía
  */

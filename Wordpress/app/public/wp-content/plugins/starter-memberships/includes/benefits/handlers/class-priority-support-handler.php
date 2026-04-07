@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Handler: Soporte Prioritario
  * 

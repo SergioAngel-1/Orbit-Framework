@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Página de Configuración de Membresías
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Página de Niveles de Membresía
  * 

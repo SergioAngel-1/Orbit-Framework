@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Limpieza y consolidación del perfil de usuario
  * 

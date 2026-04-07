@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Endpoints de administración para Home Sections
  */

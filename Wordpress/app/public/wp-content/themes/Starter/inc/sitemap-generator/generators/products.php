@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Sitemap Generator — Generador de productos públicos.
  *

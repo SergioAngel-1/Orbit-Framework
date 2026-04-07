@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Servicio de beneficios de membresía
  * 

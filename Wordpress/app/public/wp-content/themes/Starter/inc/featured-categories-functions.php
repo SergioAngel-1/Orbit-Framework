@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones para gestionar categorías destacadas desde WordPress
  * Sistema de slots/posiciones con categorías por nivel de membresía

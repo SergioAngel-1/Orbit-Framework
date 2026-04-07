@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Plugin Name: Starter Memberships
  * Description: Sistema de membresías para WooCommerce con niveles Zanahoria

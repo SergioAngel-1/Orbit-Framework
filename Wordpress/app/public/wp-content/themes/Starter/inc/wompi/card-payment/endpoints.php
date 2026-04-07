@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Card Payment Endpoints — Registro de rutas REST y handlers
  * 

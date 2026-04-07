@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Servicio de lógica de negocio para membresías por antigüedad
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Archivo de inicialización para cargar todas las funcionalidades del tema
  * Este archivo se incluye desde functions.php

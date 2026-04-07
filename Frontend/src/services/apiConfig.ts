@@ -325,7 +325,12 @@ wooCommerceApi.interceptors.response.use(
     }
     
     if (error.response) {
-      logger.error('API', `Error ${error.response.status}:`, error.response.data);
+      // 404 no es error crítico en WC API (endpoint opcional o recurso inexistente)
+      if (error.response.status === 404) {
+        logger.warn('API', `WC endpoint no encontrado (404): ${url}`);
+      } else {
+        logger.error('API', `Error ${error.response.status}:`, error.response.data);
+      }
       
       if (error.response.status >= 500 && error.response.status < 600) {
         const currentTime = Date.now();
@@ -536,7 +541,12 @@ api.interceptors.response.use(
         : i18n.t('errors:api.rateLimitedGeneric');
     }
     
-    logger.error('API', 'Error en respuesta:', error);
+    // 404 en endpoints opcionales no es un error crítico (plugin no activo)
+    if (status === 404) {
+      logger.warn('API', `Endpoint no encontrado (404): ${url}`);
+    } else {
+      logger.error('API', 'Error en respuesta:', error);
+    }
     return Promise.reject(error);
   }
 );

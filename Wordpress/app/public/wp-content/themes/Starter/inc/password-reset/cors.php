@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Manejo de CORS para los endpoints de restablecimiento de contraseña
  */

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Sitemap Generator — Constantes y helpers de ruta.
  *

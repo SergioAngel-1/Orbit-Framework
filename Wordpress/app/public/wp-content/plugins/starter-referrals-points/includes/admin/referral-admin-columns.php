@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Columnas personalizadas para la tabla de usuarios en el admin
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Tabla de red de referidos para el panel de administración
  */

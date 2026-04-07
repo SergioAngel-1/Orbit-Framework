@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Roles y Permisos - Punto de entrada
  * 

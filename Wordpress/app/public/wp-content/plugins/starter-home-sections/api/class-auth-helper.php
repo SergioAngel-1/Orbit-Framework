@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Helper de autenticación JWT para Home Sections
  */

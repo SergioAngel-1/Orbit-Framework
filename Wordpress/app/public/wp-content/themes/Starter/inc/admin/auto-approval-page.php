@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Página de Administración: Aprobación Automática de Usuarios
  * 

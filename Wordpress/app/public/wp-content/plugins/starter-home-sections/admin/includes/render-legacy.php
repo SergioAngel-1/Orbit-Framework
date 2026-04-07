@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Renderizado del panel de secciones legacy
  */

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * API REST para el sistema de puntos
  * 

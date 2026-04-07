@@ -7,6 +7,7 @@
 
 import { createContext, useContext, useMemo, ReactNode } from 'react';
 import { useHomeSections, Section } from '../hooks/useProductSection';
+import { useSiteFeatures } from './SiteConfigContext';
 
 interface HomeSectionsContextType {
   sections: { [key: string]: Section };
@@ -41,7 +42,10 @@ interface HomeSectionsProviderProps {
  * Provider que carga las secciones una sola vez y las comparte
  */
 export const HomeSectionsProvider = ({ children }: HomeSectionsProviderProps) => {
-  // Una sola llamada al hook
+  const features = useSiteFeatures();
+  
+  // Si el plugin home_sections no está activo, bypass completo sin fetch
+  const hookResult = useHomeSections(!features.home_sections);
   const { 
     sections, 
     loading, 
@@ -49,7 +53,7 @@ export const HomeSectionsProvider = ({ children }: HomeSectionsProviderProps) =>
     hasTopSections, 
     hasMiddleSections, 
     hasBottomSections 
-  } = useHomeSections();
+  } = hookResult;
 
   // Pre-calcular las secciones filtradas y ordenadas (memoizado para evitar re-renders innecesarios)
   const { topSections, middleSections, bottomSections } = useMemo(() => {

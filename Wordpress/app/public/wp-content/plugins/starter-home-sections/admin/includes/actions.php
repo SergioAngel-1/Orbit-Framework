@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Manejador de acciones POST para la administración de secciones
  * Sistema de herencia en cascada: niveles inferiores heredan secciones de niveles superiores

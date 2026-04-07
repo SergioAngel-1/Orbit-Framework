@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Template de correo para restablecimiento de contraseña
  * 

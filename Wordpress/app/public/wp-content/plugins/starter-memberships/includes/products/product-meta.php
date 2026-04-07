@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Meta boxes para productos de membresía en WooCommerce
  */

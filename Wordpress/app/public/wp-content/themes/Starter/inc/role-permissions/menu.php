@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Menú de Roles y Permisos
  * 

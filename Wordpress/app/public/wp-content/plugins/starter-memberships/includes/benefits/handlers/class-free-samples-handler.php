@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Handler: Muestras Gratis (v2.0 - Refactorizado)
  * 

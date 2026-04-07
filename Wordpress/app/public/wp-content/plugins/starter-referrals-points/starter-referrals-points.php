@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Plugin Name: Starter Referrals & Points
  * Description: Sistema integral de referidos y puntos para WooCommerce

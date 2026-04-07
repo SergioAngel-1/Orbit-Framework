@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Reviews - Menú de administración
  * 

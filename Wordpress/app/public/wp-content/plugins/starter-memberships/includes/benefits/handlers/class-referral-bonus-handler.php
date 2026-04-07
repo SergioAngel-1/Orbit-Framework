@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Handler: Bonus en Referidos
  * 

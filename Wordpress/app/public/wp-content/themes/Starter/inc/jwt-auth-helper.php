@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Helper para autenticación JWT en endpoints REST
  * 

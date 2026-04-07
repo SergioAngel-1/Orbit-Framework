@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funcionalidad para configurar permisos del Gestor de la tienda
  */

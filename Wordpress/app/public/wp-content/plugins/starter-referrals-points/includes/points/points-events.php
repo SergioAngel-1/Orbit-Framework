@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Eventos que otorgan puntos
  * 

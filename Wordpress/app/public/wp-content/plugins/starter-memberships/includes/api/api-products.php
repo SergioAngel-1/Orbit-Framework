@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Endpoints de API para productos de membresía
  */

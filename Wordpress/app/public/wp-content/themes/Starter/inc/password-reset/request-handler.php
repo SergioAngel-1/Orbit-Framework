@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Manejador para solicitar el restablecimiento de contraseña
  */

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Membership Purchase Processor — Lógica central y hooks de webhook
  * 

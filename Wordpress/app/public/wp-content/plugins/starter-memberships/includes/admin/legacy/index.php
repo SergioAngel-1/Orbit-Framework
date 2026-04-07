@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Módulo de Membresías por Antigüedad (Legacy)
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Plugin Name: Starter Home Sections
  * Description: Plugin para gestionar las secciones de productos en la página de inicio

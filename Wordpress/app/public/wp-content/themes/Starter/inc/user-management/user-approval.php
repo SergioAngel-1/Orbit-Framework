@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Aprobación de usuarios
  * 

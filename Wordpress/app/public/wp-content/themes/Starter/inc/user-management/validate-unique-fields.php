@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Validación de campos únicos para registro
  * 

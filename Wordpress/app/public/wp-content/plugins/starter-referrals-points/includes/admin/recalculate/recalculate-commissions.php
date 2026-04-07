@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Recálculo: Comisiones de Referidos
  * 

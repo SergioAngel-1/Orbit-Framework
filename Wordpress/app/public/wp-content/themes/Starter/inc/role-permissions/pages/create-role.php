@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Página: Crear Nuevo Rol
  * 

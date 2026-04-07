@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Campos personalizados para items de menú
  * Agrega campo de membresía mínima requerida a cada item del menú

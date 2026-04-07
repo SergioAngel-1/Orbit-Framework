@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones helper para la administración de secciones
  */

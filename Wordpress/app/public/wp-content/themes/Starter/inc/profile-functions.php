@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones relacionadas con el perfil de usuario
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Inicialización de API REST
  * 

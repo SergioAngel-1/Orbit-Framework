@@ -526,8 +526,13 @@ class Site_Settings_Page {
 
     /**
      * Sanitizar valores de campos
+     * También invalida el transient como seguridad extra: si WordPress detecta que
+     * el valor no cambió, no dispara update_option y el transient podría quedar stale.
      */
     public function sanitize_field($value) {
+        // Invalidar transient en cada save del formulario (belt-and-suspenders)
+        delete_transient(SITE_SETTINGS_TRANSIENT_KEY);
+
         if (is_string($value)) {
             return sanitize_text_field($value);
         }

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * REST API Access Control
  * 

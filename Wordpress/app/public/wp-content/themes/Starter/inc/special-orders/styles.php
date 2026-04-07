@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Estilos CSS para la página de Ventas Especiales
  * 

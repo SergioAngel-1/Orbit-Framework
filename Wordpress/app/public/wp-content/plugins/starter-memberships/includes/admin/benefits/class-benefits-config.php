@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Configuración de tipos de beneficios de membresía
  * 

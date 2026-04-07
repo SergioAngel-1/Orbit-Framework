@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Rechazo de usuarios
  * 

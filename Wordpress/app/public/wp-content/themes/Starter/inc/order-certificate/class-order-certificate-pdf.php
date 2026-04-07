@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Generador de Certificado PDF de Retribución de Cosecha Colectiva
  * 

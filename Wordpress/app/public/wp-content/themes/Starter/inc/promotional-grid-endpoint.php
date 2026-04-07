@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones para la grilla publicitaria de productos
  * 

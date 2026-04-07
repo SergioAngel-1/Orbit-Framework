@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Membership Purchase DB — Tabla y helpers de base de datos
  * 

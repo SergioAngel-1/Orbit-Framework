@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Clase para migrar datos del formato antiguo al nuevo
  */

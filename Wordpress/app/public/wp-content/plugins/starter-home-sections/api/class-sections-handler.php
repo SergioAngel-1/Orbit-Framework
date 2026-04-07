@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Handler para obtener secciones del home
  */

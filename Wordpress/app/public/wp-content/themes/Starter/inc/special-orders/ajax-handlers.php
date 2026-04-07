@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Manejadores AJAX para Ventas Especiales
  * 

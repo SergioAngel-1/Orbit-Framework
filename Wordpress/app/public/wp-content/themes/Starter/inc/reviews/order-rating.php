@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Reviews - Confirmación y Calificación de Pedido
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Meta campos para categorías de productos (nivel mínimo de membresía)
  */

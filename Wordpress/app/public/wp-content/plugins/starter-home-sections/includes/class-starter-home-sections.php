@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Clase principal del plugin Starter Home Sections
  */

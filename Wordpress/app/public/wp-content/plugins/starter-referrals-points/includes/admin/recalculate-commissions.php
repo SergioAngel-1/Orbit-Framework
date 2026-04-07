@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Herramientas de Recálculo — Archivo legacy de compatibilidad
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Página de administración centralizada para grillas promocionales por membresía
  * 

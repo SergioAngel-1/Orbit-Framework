@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Compras de Membresías con Wompi — Orquestador
  * 

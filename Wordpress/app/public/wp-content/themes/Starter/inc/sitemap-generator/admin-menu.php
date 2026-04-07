@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Sitemap Generator — Menú y página de administración.
  *

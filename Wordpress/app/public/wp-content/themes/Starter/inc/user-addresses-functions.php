@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones para gestionar direcciones de usuarios en WordPress
  * Añadir este código en el archivo functions.php del tema activo

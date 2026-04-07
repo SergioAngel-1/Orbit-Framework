@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Personalizaciones del panel de administración de WooCommerce
  * 

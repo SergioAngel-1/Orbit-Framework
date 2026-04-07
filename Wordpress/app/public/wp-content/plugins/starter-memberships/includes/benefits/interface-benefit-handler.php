@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Interfaz para handlers de beneficios de membresía
  * 

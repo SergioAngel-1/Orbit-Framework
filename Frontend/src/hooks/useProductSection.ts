@@ -187,12 +187,12 @@ export const useProductSection = (sectionId: string) => {
  * IMPORTANTE: Este hook sigue el mismo patrón que useCategories para asegurar
  * que los datos se recargan correctamente al cambiar la autenticación/membresía
  */
-export const useHomeSections = () => {
+export const useHomeSections = (skip: boolean = false) => {
   const { currentLevel, membershipVersion } = useMembership();
   const { isAuthenticated } = useAuth();
   const { currentLang } = useLanguage();
   const [sections, setSections] = useState<{[key: string]: Section}>({});
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(!skip);
   const [error, setError] = useState<string | null>(null);
   const controller = useRef<AbortController | null>(null);
 
@@ -200,6 +200,12 @@ export const useHomeSections = () => {
   // actual (0 si aún no se resuelve) y recargamos cuando membershipVersion cambie.
   // El backend filtra por JWT del usuario, así que siempre retorna datos correctos.
   useEffect(() => {
+    // Si skip=true (feature no activa), no hacer fetch
+    if (skip) {
+      setSections({});
+      setLoading(false);
+      return;
+    }
     // Cancelar petición anterior si existe
     if (controller.current) {
       controller.current.abort();
@@ -257,6 +263,15 @@ export const useHomeSections = () => {
         // Verificar si la solicitud fue abortada intencionalmente
         if (isCancelled || err.name === 'AbortError' || err.name === 'CanceledError') {
           logger.info('useHomeSections', 'Solicitud cancelada');
+          return;
+        }
+        
+        // 404 = plugin starter-home-sections no está activo, no es un error real
+        const status = err?.response?.status;
+        if (status === 404) {
+          logger.info('useHomeSections', 'Endpoint no disponible (plugin no activo), usando secciones vacías');
+          setSections({});
+          setError(null);
           return;
         }
         
@@ -324,7 +339,7 @@ export const useHomeSections = () => {
         controller.current = null;
       }
     };
-  }, [currentLevel, membershipVersion, isAuthenticated, currentLang]);
+  }, [skip, currentLevel, membershipVersion, isAuthenticated, currentLang]);
   
   // Calcular qué zonas tienen secciones
   const hasTopSections = Object.values(sections).some(s => s.zone === 'top');

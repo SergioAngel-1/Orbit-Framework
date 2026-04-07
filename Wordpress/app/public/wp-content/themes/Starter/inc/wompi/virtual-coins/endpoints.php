@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Virtual Coins Purchase Endpoints — Registro de rutas REST y handlers
  * 

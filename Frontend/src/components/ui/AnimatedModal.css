@@ -89,7 +89,7 @@
   /* Fluid padding: 12px en móvil, 24px en desktop */
   padding: clamp(0.75rem, 1.5vw, 1.5rem);
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  background-color: rgba(var(--primario), 0.05);
+  background-color: rgb(var(--color-primary-rgb) / 0.05);
 }
 
 .animated-modal-title {
@@ -121,7 +121,7 @@
 }
 
 .animated-modal-close-btn:hover {
-  background-color: rgba(var(--primario), 0.15);
+  background-color: rgb(var(--color-primary-rgb) / 0.15);
   transform: rotate(90deg);
 }
 

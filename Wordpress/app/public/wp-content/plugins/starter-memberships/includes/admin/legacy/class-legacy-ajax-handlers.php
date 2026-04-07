@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Handlers AJAX para membresías por antigüedad
  * 

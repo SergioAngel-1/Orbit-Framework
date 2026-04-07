@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Virtual Coins Purchase DB — Tabla y helpers de base de datos
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Wompi History Page — Página de administración
  * 

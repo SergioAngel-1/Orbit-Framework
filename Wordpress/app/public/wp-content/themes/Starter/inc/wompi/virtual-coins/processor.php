@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Virtual Coins Purchase Processor — Lógica central y hooks de webhook
  * 

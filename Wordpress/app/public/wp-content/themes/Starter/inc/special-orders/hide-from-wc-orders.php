@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Ocultar pedidos especiales de la lista principal de WooCommerce
  * 

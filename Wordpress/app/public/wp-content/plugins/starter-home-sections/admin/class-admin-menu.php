@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Clase para gestionar el menú de administración
  */

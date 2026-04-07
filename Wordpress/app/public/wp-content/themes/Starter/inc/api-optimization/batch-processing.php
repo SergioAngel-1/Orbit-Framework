@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * API Optimization - Procesamiento por lotes (Batch Processing)
  * 

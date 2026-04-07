@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Popups - Registro del Custom Post Type
  * 

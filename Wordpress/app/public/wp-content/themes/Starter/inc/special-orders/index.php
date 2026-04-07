@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Ventas Especiales - Punto de entrada
  * 

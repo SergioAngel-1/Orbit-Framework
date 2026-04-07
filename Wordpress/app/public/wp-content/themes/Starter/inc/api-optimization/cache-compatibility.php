@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * API Optimization - Compatibilidad con sistema de caché
  * 

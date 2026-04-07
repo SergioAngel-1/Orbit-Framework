@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * WooCommerce Proxy Cache Manager
  * 

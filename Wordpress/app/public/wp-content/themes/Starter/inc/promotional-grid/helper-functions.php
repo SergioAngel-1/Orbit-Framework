@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones auxiliares para grillas publicitarias
  * 

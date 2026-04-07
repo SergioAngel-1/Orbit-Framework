@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Endpoint personalizado para gestión del carrito del usuario
  * 

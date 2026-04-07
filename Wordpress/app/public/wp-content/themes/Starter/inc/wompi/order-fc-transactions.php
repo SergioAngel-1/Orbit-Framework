@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Transacciones Invisibles de Virtual Coins para Pedidos
  * 

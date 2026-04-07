@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * WooCommerce REST Proxy Endpoints - Refactored
  * 

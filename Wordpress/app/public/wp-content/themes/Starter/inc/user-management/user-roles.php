@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Roles de usuario
  * 

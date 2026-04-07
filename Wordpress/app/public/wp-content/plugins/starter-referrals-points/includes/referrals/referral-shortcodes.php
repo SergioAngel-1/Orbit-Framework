@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Shortcodes para el sistema de referidos
  * 

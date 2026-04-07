@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getMembershipLevels } from '../services/membership/membershipApiService';
 import { MembershipLevel } from '../services/membership/membershipTypes';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useSiteFeatures } from '../contexts/SiteConfigContext';
 import logger from '../utils/logger';
 import i18n from '../config/i18n';
 
@@ -55,6 +56,7 @@ interface UseMembershipLevelsReturn {
  */
 const useMembershipLevels = (): UseMembershipLevelsReturn => {
   const { currentLang } = useLanguage();
+  const features = useSiteFeatures();
   
   // Verificar si el caché es válido (tiene elementos, no ha expirado Y coincide el idioma)
   const isCacheValid = (lang: string) => {
@@ -70,6 +72,13 @@ const useMembershipLevels = (): UseMembershipLevelsReturn => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchLevels = useCallback(async (forceRefresh = false) => {
+    // Si el feature de memberships no está activo, no hacer fetch
+    if (!features.memberships) {
+      setLevels([]);
+      setLoading(false);
+      return;
+    }
+
     // Si ya tenemos cache válido (con elementos, no expirado, mismo idioma) y no es refresh forzado, usar cache
     if (isCacheValid(currentLang) && !forceRefresh) {
       setLevels(cachedLevels!);
@@ -128,7 +137,7 @@ const useMembershipLevels = (): UseMembershipLevelsReturn => {
       setLoading(false);
       cachePromise = null;
     }
-  }, [currentLang]);
+  }, [currentLang, features.memberships]);
 
   useEffect(() => {
     fetchLevels();

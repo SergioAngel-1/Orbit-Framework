@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Wompi History API — Consultas a la API de Wompi
  * 

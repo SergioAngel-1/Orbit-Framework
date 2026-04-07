@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones de puntos relacionadas con referidos
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Wompi Payment Gateway Module
  * 

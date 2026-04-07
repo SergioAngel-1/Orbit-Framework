@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Clase para gestionar la configuración del plugin
  */

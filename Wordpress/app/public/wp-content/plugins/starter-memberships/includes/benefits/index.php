@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Módulo de Aplicación de Beneficios de Membresías
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * CORS Control Functions - CONFIGURACIÓN UNIFICADA
  * 

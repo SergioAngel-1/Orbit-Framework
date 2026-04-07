@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Reviews Module - Punto de entrada
  * 

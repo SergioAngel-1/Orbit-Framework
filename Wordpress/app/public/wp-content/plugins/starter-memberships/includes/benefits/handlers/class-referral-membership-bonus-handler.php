@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Handler: Membresía Gratis para Referidos
  * 

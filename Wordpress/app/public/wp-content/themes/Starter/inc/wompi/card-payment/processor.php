@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Card Payment Processor — Lógica central de transacciones FC y hooks de webhook
  * 

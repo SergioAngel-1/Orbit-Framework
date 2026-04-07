@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Gestión de caché para el sistema de referidos y puntos
  *

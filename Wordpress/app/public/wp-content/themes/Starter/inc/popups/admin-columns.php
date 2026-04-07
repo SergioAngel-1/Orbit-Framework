@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Popups - Columnas de Administración
  * 

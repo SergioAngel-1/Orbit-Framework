@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Pago con Tarjeta en Checkout — Orquestador
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Campos personalizados del perfil de usuario
  * 

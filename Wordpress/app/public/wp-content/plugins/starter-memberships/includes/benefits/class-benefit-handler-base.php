@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Clase base abstracta para handlers de beneficios
  * 

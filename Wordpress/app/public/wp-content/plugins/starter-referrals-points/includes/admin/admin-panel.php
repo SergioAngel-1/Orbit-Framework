@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Panel administrativo para el sistema de referidos y puntos
  */

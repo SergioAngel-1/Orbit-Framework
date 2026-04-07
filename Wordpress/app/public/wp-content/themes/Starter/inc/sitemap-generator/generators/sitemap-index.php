@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Sitemap Generator — Actualizador del sitemap-index.xml.
  *

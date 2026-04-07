@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Tipo de Producto "Virtual Coins" para WooCommerce — Orquestador
  * 

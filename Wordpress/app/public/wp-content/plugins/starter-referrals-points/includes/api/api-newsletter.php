@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * API para gestionar suscripciones al newsletter
  */

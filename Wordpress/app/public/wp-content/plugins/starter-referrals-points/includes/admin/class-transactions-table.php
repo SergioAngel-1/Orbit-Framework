@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Tabla de transacciones para el panel de administración
  */

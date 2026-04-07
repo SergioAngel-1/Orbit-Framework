@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Redondeo de moneda configurable en pedidos WooCommerce
  * 

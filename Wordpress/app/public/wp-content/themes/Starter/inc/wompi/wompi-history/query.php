@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Wompi History Query — Consultas de datos unificadas
  * 

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Cargador principal del plugin Starter Referrals & Points
  * 

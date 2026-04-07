@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Personalización de correos electrónicos
  * 

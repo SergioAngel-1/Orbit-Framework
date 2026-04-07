@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Inicialización del sistema de puntos
  * 

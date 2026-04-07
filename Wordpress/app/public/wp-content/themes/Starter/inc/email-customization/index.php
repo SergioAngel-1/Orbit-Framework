@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Módulo de personalización de correos electrónicos para E-Commerce Template
  * 

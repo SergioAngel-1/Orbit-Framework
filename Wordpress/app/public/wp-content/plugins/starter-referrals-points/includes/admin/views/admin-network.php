@@ -1,4 +1,4 @@
-﻿<div class="wrap starter-rp-network">
+<div class="wrap starter-rp-network">
     <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
     
     <div class="starter-rp-tabs">

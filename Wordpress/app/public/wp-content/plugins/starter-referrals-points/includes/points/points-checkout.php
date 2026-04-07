@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Procesamiento de puntos en checkout
  * 

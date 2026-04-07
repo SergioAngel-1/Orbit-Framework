@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Procesamiento de acciones del formulario de administración de grillas
  */

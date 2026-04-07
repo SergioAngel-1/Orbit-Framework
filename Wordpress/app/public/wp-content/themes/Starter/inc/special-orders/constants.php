@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Constantes del módulo de Ventas Especiales
  * 

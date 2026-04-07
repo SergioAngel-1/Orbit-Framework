@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Handler: Descuentos en Marcas Aliadas
  * 

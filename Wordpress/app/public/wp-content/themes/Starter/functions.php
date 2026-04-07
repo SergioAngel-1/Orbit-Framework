@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 /**
  * Funciones principales del tema Starter

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Reviews - Listado general de reseñas
  * 

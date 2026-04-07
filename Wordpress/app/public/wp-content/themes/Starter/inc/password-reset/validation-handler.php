@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Manejador para validar el token de restablecimiento de contraseña
  */

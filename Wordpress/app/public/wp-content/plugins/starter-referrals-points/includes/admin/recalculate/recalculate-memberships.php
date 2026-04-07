@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Recálculo: FC por Membresía
  * 

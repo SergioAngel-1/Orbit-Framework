@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * API Optimization - Helpers para rutas
  * 

@@ -2,21 +2,34 @@
 @import './tailwind-directives.css';
 
 :root {
-  /* Colores base — sobrescritos dinámicamente por SiteConfigContext */
+  /* Colores base (hex) — sobrescritos dinámicamente por SiteConfigContext */
   --color-primary: #16a34a;
   --color-secondary: #FF6B35;
   --color-accent: #8FD8B9;
   --color-primary-dark: #0d7a32;
   --color-primary-light: #4aba6f;
   --color-hover: #128a3c;
-  --primario: var(--color-primary);
-  --secundario: var(--color-secondary);
-  --acento: var(--color-accent);
+  --primario: #16a34a;
+  --secundario: #FF6B35;
+  --acento: #8FD8B9;
   --oscuro: #0a5c26;
   --claro: #e8f5ec;
   --texto: #062e14;
-  --hover: var(--color-hover);
+  --hover: #128a3c;
   --border: #ffc9a3;
+
+  /* Colores base (RGB space-separated) — requeridos por Tailwind para opacity modifiers (/10, /50) */
+  /* SiteConfigContext los sobrescribe dinámicamente con los colores del admin */
+  --color-primary-rgb: 22 163 74;
+  --color-secondary-rgb: 255 107 53;
+  --color-accent-rgb: 143 216 185;
+  --color-primary-dark-rgb: 13 122 50;
+  --oscuro-rgb: 10 92 38;
+  --claro-rgb: 232 245 236;
+  --texto-rgb: 6 46 20;
+  --hover-rgb: 18 138 60;
+  --border-rgb: 255 201 163;
+
   --font-family: 'Poppins', system-ui, sans-serif;
   
   font-family: var(--font-family);

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Card Payment DB — Tabla y helpers de base de datos
  * 

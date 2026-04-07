@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Avatar de perfil de usuario
  * 

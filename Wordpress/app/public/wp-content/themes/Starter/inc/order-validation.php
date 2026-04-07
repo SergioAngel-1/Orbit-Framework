@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Validación server-side de órdenes antes de crear en WooCommerce
  * 

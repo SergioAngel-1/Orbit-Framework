@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Order Certificate Module
  * 

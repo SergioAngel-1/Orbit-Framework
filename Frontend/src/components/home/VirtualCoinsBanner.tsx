@@ -38,14 +38,17 @@ const VirtualCoinsBannerNew: React.FC = memo(() => {
 
   // Usar useGSAP para manejar la animación de rotación
   useGSAP(() => {
-    // Crear la animación de rotación con GSAP en lugar de CSS
-    gsap.to('.coin-image', {
-      rotateZ: 360,
-      repeat: -1, // Repetir infinitamente
-      duration: 5,
-      ease: 'linear',
-      transformOrigin: 'center center'
-    });
+    // Buscar el elemento real dentro del scope antes de animar
+    const target = containerRef.current?.querySelector('.coin-container-logo');
+    if (target) {
+      gsap.to(target, {
+        rotateZ: 360,
+        repeat: -1,
+        duration: 5,
+        ease: 'linear',
+        transformOrigin: 'center center'
+      });
+    }
   }, { scope: containerRef });
 
   return (

@@ -125,7 +125,7 @@ export const useCategoryAccess = (): UseCategoryAccessReturn => {
    * Filtra categorías accesibles según el nivel de membresía del usuario
    */
   const filterAccessibleCategories = useCallback((categories: Category[]): Category[] => {
-    if (!categories || categories.length === 0) {
+    if (!Array.isArray(categories) || categories.length === 0) {
       return [];
     }
 

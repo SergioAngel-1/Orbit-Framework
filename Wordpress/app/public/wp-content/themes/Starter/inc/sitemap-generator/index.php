@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Sitemap Generator — Orquestador del módulo.
  * Carga los subarchivos en el orden correcto para respetar dependencias.

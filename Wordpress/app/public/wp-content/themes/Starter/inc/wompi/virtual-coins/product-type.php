@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Virtual Coins Product Type — Definición del tipo de producto en WooCommerce
  * 

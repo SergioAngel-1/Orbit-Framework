@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Rate Limiting para Endpoints de Autenticación
  * 

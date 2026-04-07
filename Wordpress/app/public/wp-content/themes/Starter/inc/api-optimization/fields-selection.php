@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * API Optimization - Selección de campos (Fields Selection)
  * 

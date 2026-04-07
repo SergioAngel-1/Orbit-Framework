@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Utilidad para desbloquear IPs del Rate Limiting
  * 

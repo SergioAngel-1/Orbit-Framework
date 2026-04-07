@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * CSRF Protection for Starter API
  * 

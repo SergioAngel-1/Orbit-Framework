@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 if (!defined('ABSPATH')) { exit; }
 
 add_filter('rest_endpoints', function($endpoints) {

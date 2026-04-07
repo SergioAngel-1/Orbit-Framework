@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Módulo Core de Administración de Membresías
  * 

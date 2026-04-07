@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Popups - REST API
  * 

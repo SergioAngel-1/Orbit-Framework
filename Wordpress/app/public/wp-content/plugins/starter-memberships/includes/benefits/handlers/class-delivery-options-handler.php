@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Handler: Opciones de Entrega
  * 

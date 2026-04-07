@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Banners - Campos para Redes Sociales
  * 

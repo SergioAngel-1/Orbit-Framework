@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Historial de Transacciones Wompi — Orquestador
  * 

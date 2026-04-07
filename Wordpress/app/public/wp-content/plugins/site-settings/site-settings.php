@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Plugin Name: Site Settings
  * Description: Configuración central del sitio — identidad, branding, contacto, moneda, SEO y más. Panel de admin + REST API para frontend headless.
@@ -52,7 +52,10 @@ class Site_Settings {
         Site_Settings_REST_API::get_instance();
 
         // Invalidar caché al guardar opciones
+        // update_option: se dispara cuando una opción existente cambia de valor
+        // added_option: se dispara la primera vez que se crea una opción (Settings API primera escritura)
         add_action('update_option', [$this, 'maybe_invalidate_cache'], 10, 1);
+        add_action('added_option', [$this, 'maybe_invalidate_cache'], 10, 1);
 
         // Permitir subida de archivos SVG (necesario para loader/iconos)
         add_filter('upload_mimes', [$this, 'allow_svg_uploads']);

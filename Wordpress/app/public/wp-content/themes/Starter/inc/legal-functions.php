@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones para gestionar documentos legales
  * 

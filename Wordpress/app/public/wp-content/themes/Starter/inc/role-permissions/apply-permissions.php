@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Aplicar Permisos de Sidebar
  * 

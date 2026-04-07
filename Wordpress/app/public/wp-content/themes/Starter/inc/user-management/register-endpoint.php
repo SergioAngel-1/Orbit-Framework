@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Registro de usuarios - Endpoint personalizado
  * 

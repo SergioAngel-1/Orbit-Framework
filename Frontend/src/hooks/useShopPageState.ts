@@ -83,7 +83,7 @@ export const useShopPageState = (categorySlug?: string, membershipSlug?: string)
   // No se recalcula aquí porque solo tenemos los productos paginados (ej: 24 de 100),
   // lo cual corrompería el count real.
   const accessibleCategories = useMemo(() => {
-    if (!categories) return null;
+    if (!Array.isArray(categories)) return null;
     return filterAccessibleCategories(categories);
   }, [categories, filterAccessibleCategories]);
   

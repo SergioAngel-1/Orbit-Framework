@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Integración del sistema de puntos con WooCommerce
  * 

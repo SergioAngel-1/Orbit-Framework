@@ -71,51 +71,11 @@ const transformMenuItems = (menuItems: any[]): MenuCategory[] => {
 };
 
 /**
- * Datos de respaldo del menú en caso de que la API falle
+ * Retorna menú vacío cuando no hay menú configurado en WordPress
  */
-const getFallbackMenu = (): MenuCategory[] => {
-  return [
-    {
-      id: 1,
-      name: 'FLORES',
-      slug: 'flores',
-      subcategories: [
-        { id: 101, name: 'Flores Super Premium', slug: 'flores-super-premium', parentId: 1 },
-        { id: 102, name: 'Flores Alta Gama', slug: 'flores-alta-gama', parentId: 1 },
-        { id: 103, name: 'Flores Funcionales', slug: 'flores-funcionales', parentId: 1 },
-        { id: 104, name: 'Porros', slug: 'porros', parentId: 1 }
-      ]
-    },
-    {
-      id: 2,
-      name: 'HONGOS MÁGICOS',
-      slug: 'hongos-magicos',
-      subcategories: [
-        { id: 201, name: 'Comestibles', slug: 'hongos-comestibles', parentId: 2 },
-        { id: 202, name: 'Extracciones', slug: 'hongos-extracciones', parentId: 2 }
-      ]
-    },
-    {
-      id: 3,
-      name: 'MEDICINALES',
-      slug: 'medicinales',
-      subcategories: [
-        { id: 301, name: 'CBD', slug: 'cbd', parentId: 3 },
-        { id: 302, name: 'Aceites', slug: 'aceites', parentId: 3 },
-        { id: 303, name: 'Tinturas', slug: 'tinturas', parentId: 3 }
-      ]
-    },
-    {
-      id: 4,
-      name: 'MÁS',
-      slug: 'mas',
-      subcategories: [
-        { id: 401, name: 'Accesorios', slug: 'accesorios', parentId: 4 },
-        { id: 402, name: 'Parafernalia', slug: 'parafernalia', parentId: 4 },
-        { id: 403, name: 'Merchandising', slug: 'merchandising', parentId: 4 }
-      ]
-    }
-  ];
+const getEmptyMenu = (): MenuCategory[] => {
+  logger.warn('menuService', 'No hay menú activo. Configura uno en WP Admin → Apariencia → Menús');
+  return [];
 };
 
 /**
@@ -160,12 +120,11 @@ const menuService = {
           logger.info('menuService', `Menú cargado exitosamente con ${transformedMenu.length} categorías`);
           return transformedMenu;
         } else {
-          logger.warn('menuService', 'Menú transformado está vacío, usando fallback');
-          return getFallbackMenu();
+          return getEmptyMenu();
         }
       } else {
-        logger.warn('menuService', 'Estructura de respuesta inválida, usando fallback:', response.data);
-        return getFallbackMenu();
+        logger.warn('menuService', 'Estructura de respuesta inválida:', response.data);
+        return getEmptyMenu();
       }
     } catch (error: any) {
       logger.error('menuService', 'Error al obtener el menú:', error);
@@ -178,9 +137,7 @@ const menuService = {
         });
       }
       
-      // En caso de error, devolver el menú de respaldo
-      logger.info('menuService', 'Usando menú de respaldo debido a error en API');
-      return getFallbackMenu();
+      return getEmptyMenu();
     }
   }
 };

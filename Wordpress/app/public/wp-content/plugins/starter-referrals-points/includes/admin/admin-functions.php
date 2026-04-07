@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones administrativas para el plugin de Referidos y Puntos
  */

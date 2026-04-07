@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Endpoint y funciones para enviar correos personalizados de confirmación de pedido
  *

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones para gestionar categorías de productos en menús
  */

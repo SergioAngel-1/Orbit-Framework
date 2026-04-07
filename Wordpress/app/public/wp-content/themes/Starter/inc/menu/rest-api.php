@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Endpoints REST API para menús
  * 

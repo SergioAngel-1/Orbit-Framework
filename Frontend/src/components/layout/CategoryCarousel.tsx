@@ -507,7 +507,7 @@ const CategoryCarousel: FC<CategoryCarouselProps> = ({ onMenuToggle }) => {
 
   // Filtrar categorías accesibles, separar padres e hijos, y pre-calcular niveles
   const { parentCategories, duplicatedParentCategories, allAccessibleCategories, categoryLevels, subcategoriesMap } = useMemo(() => {
-    if (!categories || categories.length === 0) {
+    if (!Array.isArray(categories) || categories.length === 0) {
       return { 
         parentCategories: [], 
         duplicatedParentCategories: [],

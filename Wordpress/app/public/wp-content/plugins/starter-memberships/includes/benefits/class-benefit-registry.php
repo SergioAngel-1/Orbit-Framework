@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Registro central de handlers de beneficios
  * 

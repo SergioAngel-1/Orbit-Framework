@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Limpieza automática de registros pendientes abandonados
  * 

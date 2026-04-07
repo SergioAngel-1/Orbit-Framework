@@ -261,7 +261,13 @@ export const getMembershipLevels = async (): Promise<MembershipLevel[]> => {
     
     return [];
   } catch (error: any) {
-    logger.error('membershipApiService', 'Error al obtener niveles de membresía', error);
+    // 404 = plugin starter-memberships no está activo, no es un error real
+    const status = error?.response?.status;
+    if (status === 404) {
+      logger.info('membershipApiService', 'Endpoint de niveles no disponible (plugin no activo)');
+    } else {
+      logger.error('membershipApiService', 'Error al obtener niveles de membresía', error);
+    }
     return [];
   }
 };

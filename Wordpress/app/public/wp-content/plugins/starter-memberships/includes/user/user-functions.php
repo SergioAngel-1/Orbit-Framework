@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Funciones adicionales de usuario para membresías
  */

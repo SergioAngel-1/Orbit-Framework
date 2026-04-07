@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Gestión del estado de usuarios - CONSOLIDADO
  * 

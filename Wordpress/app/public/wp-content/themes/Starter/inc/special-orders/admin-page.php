@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Página de administración: Ventas Especiales
  * 

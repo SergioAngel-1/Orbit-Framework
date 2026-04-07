@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Endpoint para formularios de contacto
  * 
