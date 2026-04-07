@@ -99,7 +99,7 @@ const TouresPage = () => {
     <div className="min-h-screen -mt-4 bg-gradient-to-b from-claro via-white to-claro">
       {/* Fase 1: Hero Section — BannerCarousel autónomo con fallback estático */}
       <TourHeroSection
-        imageUrl="/assets/images/Landings/Landing Toures.webp"
+        imageUrl="https://placehold.co/1920x600/16a34a/ffffff?text=Tours"
         onPrimaryClick={scrollToPackages}
         onSecondaryClick={scrollToExperience}
       />

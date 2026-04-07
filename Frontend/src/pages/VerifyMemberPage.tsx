@@ -6,6 +6,7 @@ import { fluidSizing } from '../utils/fluidSizing';
 import { FiShield, FiAlertTriangle, FiClock, FiUser, FiHash, FiFileText, FiCalendar } from 'react-icons/fi';
 import Loader from '../components/ui/Loader';
 import { useLanguage } from '../contexts/LanguageContext';
+import SiteLogo from '../components/common/SiteLogo';
 
 interface VerificationData {
   verified: boolean;
@@ -239,11 +240,9 @@ const VerifyMemberPage = () => {
                 className="text-center bg-gray-50 rounded-lg"
                 style={{ padding: fluidSizing.space.md, marginBottom: fluidSizing.space.md }}
               >
-                <img
-                  src="/assets/images/logo-flores.png"
-                  alt="Logo"
-                  style={{ height: '28px', margin: '0 auto', marginBottom: fluidSizing.space.sm, opacity: 0.7 }}
-                />
+                <div style={{ height: '28px', margin: '0 auto', marginBottom: fluidSizing.space.sm, opacity: 0.7 }}>
+                  <SiteLogo maxHeight={28} maxWidth={120} />
+                </div>
                 <p className="text-texto/50" style={{ fontSize: fluidSizing.text['2xs'] }}>
                   {t('footer.brand')}
                 </p>

@@ -7,6 +7,7 @@ import logger from '../utils/logger';
 import passwordResetService from '../services/passwordResetService';
 import { useAuth } from '../contexts/AuthContext';
 import { useSEO } from '../hooks/useSEO';
+import SiteLogo from '../components/common/SiteLogo';
 
 // Componentes
 import PasswordResetForm from '../components/auth/PasswordResetForm';
@@ -254,15 +255,7 @@ const ResetPasswordPage = () => {
         <div className="text-center mb-10">
           {/* Logo del sitio */}
           <div className="mb-6">
-            <img
-              src="/assets/images/logo-flores.png"
-              alt="Logo"
-              className="h-28 md:h-32 mx-auto object-contain"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-              }}
-            />
+            <SiteLogo maxHeight={128} maxWidth={200} />
           </div>
           
           <h2 className="text-3xl font-bold text-gray-800">

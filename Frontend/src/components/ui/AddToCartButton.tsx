@@ -65,11 +65,13 @@ const AddToCartButton = ({
       // Animar el botón con GSAP
       const button = document.querySelector(`.add-to-cart-btn-${product.id}`);
       if (button) {
+        const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim() || '#8FD8B9';
+        const primaryDark = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-dark').trim() || '#B91E59';
         gsap.fromTo(
           button,
-          { backgroundColor: '#8FD8B9' },
+          { backgroundColor: accentColor },
           { 
-            backgroundColor: '#B91E59', 
+            backgroundColor: primaryDark, 
             duration: 1,
             ease: 'power2.out'
           }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import logger from '../../utils/logger';
 import { fluidSizing } from '../../utils/fluidSizing';
+import SiteLogo from '../common/SiteLogo';
 
 interface AuthFormContainerProps {
   title: string;
@@ -29,20 +29,7 @@ const AuthFormContainer: React.FC<AuthFormContainerProps> = ({
           style={{ marginBottom: fluidSizing.space['2xl'] }}
         >
           <div style={{ marginBottom: fluidSizing.space.xl }}>
-            <img
-              src="/assets/images/logo-flores.png"
-              alt="Logo"
-              className="mx-auto object-contain"
-              style={{ 
-                height: 'clamp(5rem, 5rem + 4 * ((100vw - 20rem) / 100), 9rem)',
-                maxWidth: '100%'
-              }}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                logger.error('AuthFormContainer', 'Error al cargar el logo del sitio.');
-              }}
-            />
+            <SiteLogo maxHeight={144} maxWidth={200} />
           </div>
           
           <h2 

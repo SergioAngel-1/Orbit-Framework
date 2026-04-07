@@ -16,7 +16,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getPaymentGateway } from '../services/payments';
-import { useSiteConfig } from '../contexts/SiteConfigContext';
+import { useSiteConfig, useIdentity } from '../contexts/SiteConfigContext';
 import logger from '../utils/logger';
 import i18n from '../config/i18n';
 import type {
@@ -29,6 +29,7 @@ import type {
 
 export const usePaymentGateway = (): UsePaymentGatewayReturn => {
   const { config: siteConfig } = useSiteConfig();
+  const identity = useIdentity();
   const [isLoading, setIsLoading] = useState(true);
   const [isWidgetLoading, setIsWidgetLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -165,9 +166,14 @@ export const usePaymentGateway = (): UsePaymentGatewayReturn => {
   /**
    * Generar referencia única
    */
-  const generateReference = useCallback((prefix: string = 'FI'): string => {
-    return gateway.generateReference(prefix);
-  }, [gateway]);
+  const defaultPrefix = useMemo(() => {
+    const name = identity.site_short_name || identity.site_name || 'TX';
+    return name.replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase() || 'TX';
+  }, [identity.site_short_name, identity.site_name]);
+
+  const generateReference = useCallback((prefix?: string): string => {
+    return gateway.generateReference(prefix || defaultPrefix);
+  }, [gateway, defaultPrefix]);
 
   return {
     isLoading,

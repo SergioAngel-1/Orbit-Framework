@@ -12,16 +12,36 @@ const getLocale = (): string => {
 /**
  * Obtiene la configuración de moneda desde el caché de SiteConfig.
  * Se lee de localStorage para que funcione fuera de componentes React.
+ * Cache a nivel de módulo para evitar JSON.parse en cada llamada.
  */
-function getCurrencyConfig() {
+interface CurrencyConfig {
+  currency_code: string;
+  currency_symbol: string;
+  currency_decimals: number;
+  currency_locale: string;
+  currency_rounding_multiple: number;
+}
+
+const CURRENCY_DEFAULTS: CurrencyConfig = { currency_code: 'USD', currency_symbol: '$', currency_decimals: 2, currency_locale: 'en-US', currency_rounding_multiple: 1 };
+let _currencyCache: CurrencyConfig = CURRENCY_DEFAULTS;
+let _currencyCacheRaw: string | null = null;
+
+function getCurrencyConfig(): CurrencyConfig {
   try {
-    const cached = localStorage.getItem('site_config_cache');
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (parsed?.data?.currency) return parsed.data.currency;
+    const raw = localStorage.getItem('site_config_cache');
+    // Solo re-parsear si el contenido de localStorage cambió
+    if (raw === _currencyCacheRaw) return _currencyCache;
+    _currencyCacheRaw = raw;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.data?.currency) {
+        _currencyCache = parsed.data.currency;
+        return _currencyCache;
+      }
     }
   } catch { /* fallback below */ }
-  return { currency_code: 'USD', currency_symbol: '$', currency_decimals: 2, currency_locale: 'en-US', currency_rounding_multiple: 1 };
+  _currencyCache = CURRENCY_DEFAULTS;
+  return CURRENCY_DEFAULTS;
 }
 
 /**
@@ -273,17 +293,24 @@ export const getValidImageUrl = (url: string | null | undefined): string | null 
  * @param imageUrl URL de la imagen que puede contener comillas o ser parte de un array
  * @returns URL limpia y válida o imagen por defecto
  */
-export const processSecondaryImage = (imageUrl: string | undefined | null | boolean): string => {
+// URLs placeholder para imágenes sin disponibilidad
+const PLACEHOLDER_IMAGES = {
+  product: 'https://placehold.co/400x400/e2e8f0/64748b?text=No+Image',
+  avatar: 'https://placehold.co/200x200/e2e8f0/64748b?text=User',
+  default: 'https://placehold.co/400x400/e2e8f0/64748b?text=Image',
+};
+
+export const processSecondaryImage = (imageUrl: string | undefined | null | boolean, type: 'product' | 'avatar' | 'default' = 'default'): string => {
   // Si la imagen es false, undefined o null, devolver imagen por defecto
   if (imageUrl === false || imageUrl === undefined || imageUrl === null) {
     logger.debug('formatters', 'processSecondaryImage: URL es false, undefined o null');
-    return '/wp-content/themes/Starter/assets/img/no-image.svg';
+    return PLACEHOLDER_IMAGES[type];
   }
   
   // Si la imagen es 'false' (string), devolver imagen por defecto
   if (imageUrl === 'false') {
     logger.debug('formatters', 'processSecondaryImage: URL es string "false"');
-    return '/wp-content/themes/Starter/assets/img/no-image.svg';
+    return PLACEHOLDER_IMAGES[type];
   }
   
   try {
@@ -299,10 +326,10 @@ export const processSecondaryImage = (imageUrl: string | undefined | null | bool
     }
     
     // Obtener una URL válida o usar la imagen por defecto
-    return '/wp-content/themes/Starter/assets/img/no-image.svg';
+    return PLACEHOLDER_IMAGES[type];
   } catch (error) {
     logger.error('formatters', `processSecondaryImage: Error al procesar imagen secundaria:`, error);
-    return '/wp-content/themes/Starter/assets/img/no-image.svg';
+    return PLACEHOLDER_IMAGES[type];
   }
 };
 

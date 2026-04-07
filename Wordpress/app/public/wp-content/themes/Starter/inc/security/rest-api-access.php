@@ -108,40 +108,56 @@ add_filter('wp_is_application_passwords_available_for_user', function($available
 
 /**
  * Enable two-factor authentication for REST API login endpoints to ensure 2FA validation on authentication requests
+ * 
+ * NOTA: Solo registrar este filtro si el plugin Two Factor está activo.
+ * Esto evita errores fatales al activar el plugin por primera vez.
  */
-add_filter('two_factor_user_api_login_enable', function($enabled, $user_id) {
-    if ($enabled) {
-        return $enabled;
+add_action('init', function() {
+    // Verificar si el plugin Two Factor está activo de múltiples formas
+    $two_factor_active = (
+        class_exists('Two_Factor_Core') ||
+        (function_exists('is_plugin_active') && is_plugin_active('two-factor/two-factor.php')) ||
+        has_filter('two_factor_user_api_login_enable') // Otro plugin ya lo registró
+    );
+
+    if (!$two_factor_active) {
+        return;
     }
 
-    if (!defined('REST_REQUEST') || !REST_REQUEST) {
-        return $enabled;
-    }
-
-    $is_login_endpoint = false;
-
-    if (!empty($_GET['rest_route']) && is_string($_GET['rest_route'])) {
-        $rest_route = (string) $_GET['rest_route'];
-        if (strpos($rest_route, '/starter/v1/auth') === 0 || strpos($rest_route, '/jwt-auth/v1/token') === 0) {
-            $is_login_endpoint = true;
-        }
-    }
-
-    if (!$is_login_endpoint) {
-        $request_uri = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
-        $path = parse_url($request_uri, PHP_URL_PATH);
-        if (!is_string($path)) {
-            $path = $request_uri;
+    add_filter('two_factor_user_api_login_enable', function($enabled, $user_id) {
+        if ($enabled) {
+            return $enabled;
         }
 
-        if (strpos($path, '/wp-json/starter/v1/auth') !== false || strpos($path, '/wp-json/jwt-auth/v1/token') !== false) {
-            $is_login_endpoint = true;
+        if (!defined('REST_REQUEST') || !REST_REQUEST) {
+            return $enabled;
         }
-    }
 
-    if (!$is_login_endpoint) {
-        return $enabled;
-    }
+        $is_login_endpoint = false;
 
-    return true;
-}, 10, 2);
+        if (!empty($_GET['rest_route']) && is_string($_GET['rest_route'])) {
+            $rest_route = (string) $_GET['rest_route'];
+            if (strpos($rest_route, '/starter/v1/auth') === 0 || strpos($rest_route, '/jwt-auth/v1/token') === 0) {
+                $is_login_endpoint = true;
+            }
+        }
+
+        if (!$is_login_endpoint) {
+            $request_uri = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
+            $path = parse_url($request_uri, PHP_URL_PATH);
+            if (!is_string($path)) {
+                $path = $request_uri;
+            }
+
+            if (strpos($path, '/wp-json/starter/v1/auth') !== false || strpos($path, '/wp-json/jwt-auth/v1/token') !== false) {
+                $is_login_endpoint = true;
+            }
+        }
+
+        if (!$is_login_endpoint) {
+            return $enabled;
+        }
+
+        return true;
+    }, 10, 2);
+}, 20); // Ejecutar después de que los plugins se carguen

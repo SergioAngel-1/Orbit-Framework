@@ -2,6 +2,10 @@
 /**
  * Helper para autenticación JWT en endpoints REST
  * 
+ * NOTA: Este archivo define las funciones starter_get_jwt_user_id() y starter_decode_jwt_user_id()
+ * como stubs vacíos si el plugin JWT Authentication for WP REST API no está activo.
+ * Así se evitan errores fatales al activar el plugin por primera vez.
+ * 
  * PROBLEMA RESUELTO:
  * WordPress mantiene cookies de sesión que persisten incluso después de que el frontend
  * elimina el token JWT. Esto causaba que usuarios "deslogueados" en el frontend siguieran
@@ -18,6 +22,21 @@
 // Evitar acceso directo
 if (!defined('ABSPATH')) {
     exit;
+}
+
+/**
+ * Verifica si el plugin JWT Authentication está activo y configurado
+ * @return bool
+ */
+function starter_is_jwt_active() {
+    // Verificar si el plugin está activo
+    if (!function_exists('is_plugin_active') && !class_exists('Tmeister\Firebase\JWT\JWT')) {
+        if (function_exists('is_plugin_active')) {
+            return is_plugin_active('jwt-authentication-for-wp-rest-api/jwt-auth.php');
+        }
+        return false;
+    }
+    return class_exists('Tmeister\Firebase\JWT\JWT') && defined('JWT_AUTH_SECRET_KEY') && JWT_AUTH_SECRET_KEY;
 }
 
 /**

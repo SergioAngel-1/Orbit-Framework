@@ -80,8 +80,16 @@ require_once __DIR__ . '/inc/cart-endpoint.php';
  * 
  * Productos, páginas y archivos de WP no deben renderizarse en el dominio admin.
  * Se redirigen al dominio del frontend.
+ * 
+ * NOTA: Si el plugin "Headless Mode" está activo, desactivamos esta redirección
+ * para evitar conflictos de doble redirección.
  */
 add_action('template_redirect', function () {
+    // Si Headless Mode plugin está activo, no aplicar redirección (ya lo maneja el plugin)
+    if (function_exists('headless_mode_redirect') || function_exists('headless_mode_init')) {
+        return;
+    }
+
     // No redirigir en el admin, REST API, AJAX, cron ni wp-login
     if (is_admin() || defined('REST_REQUEST') || defined('DOING_AJAX') || defined('DOING_CRON') || wp_doing_ajax()) {
         return;
@@ -109,4 +117,4 @@ add_action('template_redirect', function () {
         wp_redirect($frontend_url, 301);
         exit;
     }
-});
+}, 5); // Prioridad baja para que Headless Mode (prioridad 1) pueda desactivar esto

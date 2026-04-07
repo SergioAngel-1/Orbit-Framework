@@ -15,8 +15,9 @@
  * @see usePaymentGateway
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import wompiService from '../services/wompiService';
+import { useIdentity } from '../contexts/SiteConfigContext';
 import logger from '../utils/logger';
 import i18n from '../config/i18n';
 import type {
@@ -326,11 +327,17 @@ export const useWompi = (): UseWompiReturn => {
   }, []);
 
   /**
-   * Generar referencia única
+   * Generar referencia única — prefijo derivado de site_short_name
    */
-  const generateReference = useCallback((prefix: string = 'FI'): string => {
-    return wompiService.generateReference(prefix);
-  }, []);
+  const identity = useIdentity();
+  const defaultPrefix = useMemo(() => {
+    const name = identity.site_short_name || identity.site_name || 'TX';
+    return name.replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase() || 'TX';
+  }, [identity.site_short_name, identity.site_name]);
+
+  const generateReference = useCallback((prefix?: string): string => {
+    return wompiService.generateReference(prefix || defaultPrefix);
+  }, [defaultPrefix]);
 
   return {
     isLoading,

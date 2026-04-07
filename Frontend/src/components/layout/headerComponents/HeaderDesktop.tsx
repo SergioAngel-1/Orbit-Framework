@@ -3,10 +3,9 @@
  * Se vuelve fijo al hacer scroll, con top bar y carousel que se ocultan al bajar
  */
 import { FC } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../../contexts/LanguageContext';
-import floresLogo from '../../../assets/images/flores-logo.png';
 import ScrollToTopLink from '../../common/ScrollToTopLink';
+import SiteLogo from '../../common/SiteLogo';
 import SearchBar from '../SearchBar';
 import HeaderIcons from '../HeaderIcons';
 import CategoryCarousel from '../CategoryCarousel';
@@ -49,7 +48,6 @@ const HeaderDesktop: FC<HeaderDesktopProps> = ({
   toggleMobileMenu,
   searchRef
 }) => {
-  const { t } = useTranslation('header');
   const { localizedPath } = useLanguage();
   const openAddressSection = () => openProfileModal('addresses');
 
@@ -77,7 +75,7 @@ const HeaderDesktop: FC<HeaderDesktopProps> = ({
               {/* Logo + Moneda */}
               <div className="flex items-center gap-4">
                 <ScrollToTopLink to={localizedPath('/')} className="flex items-center logo">
-                  <img src={floresLogo} alt={t('logoAlt')} className="h-12" />
+                  <SiteLogo maxHeight={48} maxWidth={160} />
                 </ScrollToTopLink>
                 
                 <VirtualCoin onClick={openVirtualCoinsModal} size="lg" />

@@ -29,7 +29,7 @@ function starter_security_headers() {
         $csp .= "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; ";
         $csp .= "img-src 'self' https: data: blob:; ";
         $csp .= "font-src 'self' https://fonts.gstatic.com data:; ";
-        $csp .= "connect-src 'self' https://admin.example.com; ";
+        $csp .= "connect-src 'self' https: data: blob:; "; // Permitir cualquier conexión HTTPS en admin (APIs de WordPress.org, AJAX local, etc.)
         $csp .= "frame-ancestors https://portfolio.sergioja.com; ";
         $csp .= "base-uri 'self'; ";
         $csp .= "form-action 'self'; ";
@@ -60,11 +60,25 @@ function starter_security_headers() {
     }
 }
 
-add_action('send_headers', 'starter_security_headers', 1);
+// NO aplicar headers de seguridad en AJAX admin (instalación de plugins, updates, etc.)
+// Las operaciones AJAX del admin necesitan fluir sin interferencia de headers
+if (defined('DOING_AJAX') && DOING_AJAX) {
+    // Excluir completamente el hook de seguridad durante AJAX admin
+    // para evitar que headers de CSP bloqueen la instalación/activación de plugins
+    return;
+}
+
+// NO aplicar headers de seguridad durante la descarga/instalación de plugins
+// WordPress usa headers HTTP para el download, no interferir
+if (did_action('wp_ajax_install-plugin') || defined('IFRAME_REQUEST')) {
+    return;
+}
+
+add_action('send_headers', 'starter_security_headers', 10);
 add_filter('rest_pre_serve_request', function($served, $result, $request) {
     starter_security_headers();
     return $served;
-}, 1, 3);
+}, 10, 3);
 
 /**
  * Prevenir que SiteGround Dynamic Cache (y cualquier proxy/CDN) cachee respuestas REST API.

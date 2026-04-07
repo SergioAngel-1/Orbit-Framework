@@ -6,8 +6,8 @@ import { FC, useState } from 'react';
 import { FiShoppingCart, FiSearch, FiX } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '../../../contexts/LanguageContext';
-import floresLogo from '../../../assets/images/flores-logo.png';
 import ScrollToTopLink from '../../common/ScrollToTopLink';
+import SiteLogo from '../../common/SiteLogo';
 import SearchBar from '../SearchBar';
 import CategoryCarousel from '../CategoryCarousel';
 import VirtualCoin from './VirtualCoin';
@@ -70,7 +70,7 @@ const HeaderMobile: FC<HeaderMobileProps> = ({
 
             {/* Centro: Logo */}
             <ScrollToTopLink to={localizedPath('/')} className="flex items-center logo flex-shrink-0">
-              <img src={floresLogo} alt={t('logoAlt')} className="h-8" />
+              <SiteLogo maxHeight={32} maxWidth={120} />
             </ScrollToTopLink>
 
             {/* Derecha: Buscar + Carrito */}

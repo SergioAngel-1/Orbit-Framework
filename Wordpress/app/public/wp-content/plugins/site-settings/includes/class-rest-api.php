@@ -136,8 +136,19 @@ class Site_Settings_REST_API {
             return sanitize_hex_color($value) ?: $value;
         }
 
-        // Números
-        $number_keys = ['currency_decimals', 'currency_rounding_multiple', 'limits_max_addresses', 'limits_min_age', 'limits_items_per_page'];
+        // Variaciones de color — selects (source y mode)
+        $source_keys = ['branding_dark_source', 'branding_light_source', 'branding_text_source', 'branding_hover_source', 'branding_border_source'];
+        if (in_array($key, $source_keys)) {
+            return in_array($value, ['primary', 'secondary', 'accent']) ? $value : 'primary';
+        }
+        $mode_keys = ['branding_dark_mode', 'branding_light_mode', 'branding_text_mode', 'branding_hover_mode', 'branding_border_mode'];
+        if (in_array($key, $mode_keys)) {
+            return in_array($value, ['darken', 'lighten']) ? $value : 'darken';
+        }
+
+        // Números (incluyendo variaciones de color _amount)
+        $number_keys = ['currency_decimals', 'currency_rounding_multiple', 'limits_max_addresses', 'limits_min_age', 'limits_items_per_page',
+                        'branding_dark_amount', 'branding_light_amount', 'branding_text_amount', 'branding_hover_amount', 'branding_border_amount'];
         if (in_array($key, $number_keys)) {
             return is_numeric($value) ? $value + 0 : $value;
         }
@@ -147,9 +158,14 @@ class Site_Settings_REST_API {
             return is_numeric($value) ? (float)$value : $value;
         }
 
-        // Imágenes (attachment ID)
-        if (strpos($key, 'logo') !== false || strpos($key, 'favicon') !== false || strpos($key, 'og_image') !== false) {
-            return absint($value);
+        // Imágenes (attachment ID) — detectar todos los campos tipo image
+        // Cubre: branding_logo, branding_favicon, branding_og_image, branding_loader,
+        //        virtual_currency_image_front, virtual_currency_image_back
+        $image_patterns = ['logo', 'favicon', 'og_image', 'loader', '_image_'];
+        foreach ($image_patterns as $pattern) {
+            if (strpos($key, $pattern) !== false) {
+                return absint($value);
+            }
         }
 
         // Textareas

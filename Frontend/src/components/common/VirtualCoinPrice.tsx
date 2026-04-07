@@ -2,10 +2,7 @@
 import { fluidSizing } from '../../utils/fluidSizing';
 import { roundCurrency } from '../../utils/formatters';
 import { useVirtualCurrency, useSiteCurrency } from '../../contexts/SiteConfigContext';
-
-// Fallback a imágenes locales si no hay configuración
-const DEFAULT_COIN_FRONT = '/assets/images/moneda/coin-front.webp';
-const DEFAULT_COIN_BACK = '/assets/images/moneda/coin-back.webp';
+import { FiDollarSign } from 'react-icons/fi';
 
 // Inyectar CSS (solo una vez)
 let initialized = false;
@@ -67,8 +64,10 @@ const VirtualCoinPrice: React.FC<VirtualCoinPriceProps> = ({
   const { currency_locale } = useSiteCurrency();
   const vcShort = vc.virtual_currency_short || 'VC';
   const vcName = vc.virtual_currency_name || 'Virtual Coins';
-  const coinFrontSrc = vc.virtual_currency_image_front || DEFAULT_COIN_FRONT;
-  const coinBackSrc = vc.virtual_currency_image_back || DEFAULT_COIN_BACK;
+  const coinFrontSrc = vc.virtual_currency_image_front || '';
+  const coinBackSrc = vc.virtual_currency_image_back || '';
+  const vcIcon = vc.virtual_currency_icon || '⭐';
+  const hasImages = !!coinFrontSrc;
 
   // Inicializar (precargar imágenes + CSS) en el primer render
   useEffect(() => {
@@ -118,26 +117,42 @@ const VirtualCoinPrice: React.FC<VirtualCoinPriceProps> = ({
 
   return (
       <div className={`flex items-center ${className}`}>
-        {/* Contenedor de la moneda con efecto flip */}
-        <div 
-          className="relative flex-shrink-0 coin-flip-container"
-          style={{
-            width: config.coin,
-            height: config.coin
-          }}
-          title={vcName}
-        >
-          <img 
-            src={coinFrontSrc} 
-            alt={vcName} 
-            className="w-full h-full object-contain coin-front"
-          />
-          <img 
-            src={coinBackSrc} 
-            alt={vcName} 
-            className="w-full h-full object-contain coin-back hidden md:block"
-          />
-        </div>
+        {/* Contenedor de la moneda con efecto flip o icono fallback */}
+        {hasImages ? (
+          <div 
+            className="relative flex-shrink-0 coin-flip-container"
+            style={{
+              width: config.coin,
+              height: config.coin
+            }}
+            title={vcName}
+          >
+            <img 
+              src={coinFrontSrc} 
+              alt={vcName} 
+              className="w-full h-full object-contain coin-front"
+            />
+            {coinBackSrc && (
+              <img 
+                src={coinBackSrc} 
+                alt={vcName} 
+                className="w-full h-full object-contain coin-back hidden md:block"
+              />
+            )}
+          </div>
+        ) : (
+          <div
+            className="flex-shrink-0 rounded-full bg-primario/10 border border-primario/30 flex items-center justify-center"
+            style={{ width: config.coin, height: config.coin }}
+            title={vcName}
+          >
+            {vcIcon !== '⭐' ? (
+              <span style={{ fontSize: config.text }}>{vcIcon}</span>
+            ) : (
+              <FiDollarSign className="w-1/2 h-1/2 text-primario" />
+            )}
+          </div>
+        )}
         {showLabel && (
           <span 
             className={`font-medium ${inheritColor ? '' : 'text-gray-700'}`}

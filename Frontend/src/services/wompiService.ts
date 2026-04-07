@@ -100,7 +100,7 @@ const wompiService = {
   /**
    * Generar una referencia única para la transacción
    */
-  generateReference(prefix: string = 'FI'): string {
+  generateReference(prefix: string = 'TX'): string {
     const timestamp = Date.now().toString(36).toUpperCase();
     const random = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(36)).join('').substring(0, 8).toUpperCase();
     return `${prefix}-${timestamp}-${random}`;

@@ -5,12 +5,13 @@
   /* Colores base — sobrescritos dinámicamente por SiteConfigContext */
   --color-primary: #16a34a;
   --color-secondary: #FF6B35;
+  --color-accent: #8FD8B9;
   --color-primary-dark: #0d7a32;
   --color-primary-light: #4aba6f;
   --color-hover: #128a3c;
   --primario: var(--color-primary);
   --secundario: var(--color-secondary);
-  --acento: #8FD8B9;
+  --acento: var(--color-accent);
   --oscuro: #0a5c26;
   --claro: #e8f5ec;
   --texto: #062e14;

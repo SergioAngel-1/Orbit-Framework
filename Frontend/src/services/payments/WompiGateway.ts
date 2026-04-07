@@ -135,7 +135,7 @@ export const wompiGateway: PaymentGateway = {
     }
   },
 
-  generateReference(prefix: string = 'FI'): string {
+  generateReference(prefix: string = 'TX'): string {
     const timestamp = Date.now().toString(36).toUpperCase();
     const random = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(36))
       .join('')

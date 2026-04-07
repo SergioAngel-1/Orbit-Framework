@@ -19,7 +19,7 @@ export default {
         primario: 'var(--color-primary)',
         'primario-dark': 'var(--color-primary-dark)',
         secundario: 'var(--color-secondary)',
-        acento: '#8FD8B9',
+        acento: 'var(--color-accent)',
         oscuro: 'var(--oscuro)',
         claro: 'var(--claro)',
         texto: 'var(--texto)',

@@ -295,12 +295,15 @@ const ProfileSection = ({ onChangePassword }: ProfileSectionProps) => {
                 style={{ width: '5.5rem', height: '5.5rem' }}
                 onClick={() => isEditing && !avatarUploading && avatarInputRef.current?.click()}
               >
-                <img 
-                  src={avatarUrl || '/assets/images/Reviews/Flores-Inc-Fallback-Member.webp'} 
-                  alt={formData.firstName} 
-                  className="w-full h-full object-cover"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/assets/images/Reviews/Flores-Inc-Fallback-Member.webp'; }}
-                />
+                {avatarUrl ? (
+                  <img 
+                    src={avatarUrl} 
+                    alt={formData.firstName} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+                  />
+                ) : null}
+                <FiUser className={`w-1/2 h-1/2 text-gray-400 ${avatarUrl ? 'hidden' : ''}`} />
                 {isEditing && !avatarUploading && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity">
                     <FaCamera className="text-white" style={{ width: '24px', height: '24px' }} />

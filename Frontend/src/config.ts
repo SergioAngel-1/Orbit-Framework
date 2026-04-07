@@ -28,8 +28,8 @@ export const MAP_API_KEY = import.meta.env.VITE_MAP_API_KEY || '';
 export const MAX_ADDRESSES = 3;
 export const MIN_AGE = 18;
 
-// Configuración de imágenes
-export const DEFAULT_IMAGE = '/images/placeholder.jpg';
+// Configuración de imágenes — URL placeholder para productos/banners sin imagen
+export const DEFAULT_IMAGE = 'https://placehold.co/400x400/e2e8f0/64748b?text=No+Image';
 export const BANNER_SIZES = {
   desktop: { width: 1920, height: 500 },
   mobile: { width: 768, height: 400 }

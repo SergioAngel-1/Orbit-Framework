@@ -27,13 +27,36 @@ export interface SiteSocial {
   social_twitter: string;
 }
 
+export type ColorSource = 'primary' | 'secondary' | 'accent';
+export type ColorMode = 'darken' | 'lighten';
+
 export interface SiteBranding {
   branding_primary_color: string;
   branding_secondary_color: string;
+  branding_accent_color: string;
+
+  // Variaciones de color derivadas
+  branding_dark_source: ColorSource;
+  branding_dark_mode: ColorMode;
+  branding_dark_amount: number;
+  branding_light_source: ColorSource;
+  branding_light_mode: ColorMode;
+  branding_light_amount: number;
+  branding_text_source: ColorSource;
+  branding_text_mode: ColorMode;
+  branding_text_amount: number;
+  branding_hover_source: ColorSource;
+  branding_hover_mode: ColorMode;
+  branding_hover_amount: number;
+  branding_border_source: ColorSource;
+  branding_border_mode: ColorMode;
+  branding_border_amount: number;
+
   branding_font: string;
   branding_logo: string;
   branding_favicon: string;
   branding_og_image: string;
+  branding_loader: string;
 }
 
 export interface SiteCurrency {
@@ -124,10 +147,29 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   branding: {
     branding_primary_color: '#16a34a',
     branding_secondary_color: '#FF6B35',
+    branding_accent_color: '#8FD8B9',
+
+    branding_dark_source: 'primary',
+    branding_dark_mode: 'darken',
+    branding_dark_amount: 25,
+    branding_light_source: 'primary',
+    branding_light_mode: 'lighten',
+    branding_light_amount: 8,
+    branding_text_source: 'primary',
+    branding_text_mode: 'darken',
+    branding_text_amount: 35,
+    branding_hover_source: 'primary',
+    branding_hover_mode: 'darken',
+    branding_hover_amount: 10,
+    branding_border_source: 'secondary',
+    branding_border_mode: 'lighten',
+    branding_border_amount: 30,
+
     branding_font: 'Poppins',
     branding_logo: '',
     branding_favicon: '',
     branding_og_image: '',
+    branding_loader: '',
   },
   currency: {
     currency_code: 'USD',

@@ -8,6 +8,7 @@ import { fluidSizing } from '../../../utils/fluidSizing';
 import { FiUser, FiShield, FiCreditCard, FiCamera } from 'react-icons/fi';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import MembershipQRCode from '../MembershipQRCode';
+import SiteLogo from '../../common/SiteLogo';
 
 interface DigitalCardSectionProps {
   onNavigateToProfile?: () => void;
@@ -82,11 +83,7 @@ const DigitalCardSection = ({ onNavigateToProfile }: DigitalCardSectionProps) =>
               className="flex items-center justify-between bg-white"
               style={{ padding: `${fluidSizing.space.sm} ${fluidSizing.space.lg}` }}
             >
-              <img
-                src="/assets/images/logo-flores.png"
-                alt="Logo"
-                style={{ height: fluidSizing.size.iconLg }}
-              />
+              <SiteLogo maxHeight={32} maxWidth={120} />
               <p
                 className="text-primario/60 uppercase tracking-widest font-medium"
                 style={{ fontSize: fluidSizing.text['2xs'] }}

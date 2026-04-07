@@ -12,6 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import AccessDeniedMessage from '../membership/AccessDeniedMessage';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { fluidSizing } from '../../utils/fluidSizing';
+import VirtualCoin from '../layout/headerComponents/VirtualCoin';
 
 interface VirtualCoinsModalProps {
   isOpen: boolean;
@@ -70,12 +71,9 @@ const VirtualCoinsModal: FC<VirtualCoinsModalProps> = ({ isOpen, onClose, onOpen
       className="max-w-md"
       title={
         <div className="flex items-center text-primario">
-          <img 
-            src="/assets/images/flores_loader.svg" 
-            alt="Virtual Coins" 
-            className="animate-spin-slow" 
-            style={{ width: fluidSizing.size.iconMd, height: fluidSizing.size.iconMd, marginRight: fluidSizing.space.xs }}
-          />
+          <span style={{ marginRight: fluidSizing.space.xs }}>
+            <VirtualCoin onClick={() => {}} size="sm" />
+          </span>
           <span>{t('title')}</span>
         </div>
       }

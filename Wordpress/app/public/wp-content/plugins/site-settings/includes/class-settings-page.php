@@ -369,13 +369,25 @@ class Site_Settings_Page {
         // Separar por tipo
         $custom_plugins = array_filter($plugins, fn($p) => $p['type'] === 'custom');
         $commercial_plugins = array_filter($plugins, fn($p) => $p['type'] === 'commercial');
+        
+        // Obtener información del tema requerido
+        $required_theme = Site_Settings::get_required_theme();
         ?>
 
         <p class="description" style="margin-bottom:16px;">
-            <?php _e('Lista de plugins que utiliza este template. Los marcados como <strong>requerido</strong> son necesarios para el funcionamiento base.', 'site-settings'); ?>
+            <?php _e('Lista de plugins y tema requerido por este template. Los marcados como <strong>requerido</strong> son necesarios para el funcionamiento base.', 'site-settings'); ?>
         </p>
 
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- SECCIÓN: TEMA REQUERIDO -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
         <h3 style="margin-top:24px;margin-bottom:8px;">
+            <span class="dashicons dashicons-admin-appearance" style="color:#2271b1;"></span>
+            <?php _e('Tema Requerido', 'site-settings'); ?>
+        </h3>
+        <?php $this->render_theme_status($required_theme); ?>
+
+        <h3 style="margin-top:28px;margin-bottom:8px;">
             <span class="dashicons dashicons-admin-tools" style="color:#2271b1;"></span>
             <?php _e('Plugins del Template (personalizados)', 'site-settings'); ?>
         </h3>
@@ -443,6 +455,70 @@ class Site_Settings_Page {
                         </td>
                     </tr>
                 <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php
+    }
+
+    /**
+     * Renderizar estado del tema requerido
+     */
+    private function render_theme_status($theme) {
+        if (!function_exists('is_plugin_active')) {
+            include_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        // Verificar estado del tema
+        $is_active = site_is_required_theme_active();
+        $theme_info = wp_get_theme();
+        
+        if ($is_active) {
+            $status_label = __('Activo', 'site-settings');
+            $status_class = 'site-settings-status-active';
+            $status_icon = 'dashicons-yes-alt';
+        } else {
+            $status_label = __('No activo', 'site-settings');
+            $status_class = 'site-settings-status-missing';
+            $status_icon = 'dashicons-dismiss';
+        }
+
+        // Obtener tema activo actual para mostrar si no es el correcto
+        $current_theme_name = $theme_info->get('Name');
+        $current_theme_version = $theme_info->get('Version');
+        ?>
+        <table class="widefat striped site-settings-plugins-table">
+            <thead>
+                <tr>
+                    <th style="width:24px;"></th>
+                    <th><?php _e('Tema', 'site-settings'); ?></th>
+                    <th><?php _e('Descripci&oacute;n', 'site-settings'); ?></th>
+                    <th style="width:100px;text-align:center;"><?php _e('Requerido', 'site-settings'); ?></th>
+                    <th style="width:120px;text-align:center;"><?php _e('Estado', 'site-settings'); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="text-align:center;">
+                        <span class="dashicons <?php echo esc_attr($status_icon); ?> <?php echo esc_attr($status_class); ?>"></span>
+                    </td>
+                    <td>
+                        <strong><?php echo esc_html($theme['name']); ?></strong>
+                        <?php if (!$is_active) : ?>
+                            <br><small style="color:#d63638;">
+                                <?php printf(__('Tema activo actual: %s (v%s)', 'site-settings'), esc_html($current_theme_name), esc_html($current_theme_version)); ?>
+                            </small>
+                        <?php endif; ?>
+                    </td>
+                    <td><?php echo esc_html($theme['description']); ?></td>
+                    <td style="text-align:center;">
+                        <span class="site-settings-badge-required"><?php _e('Requerido', 'site-settings'); ?></span>
+                    </td>
+                    <td style="text-align:center;">
+                        <span class="site-settings-status-label <?php echo esc_attr($status_class); ?>">
+                            <?php echo esc_html($status_label); ?>
+                        </span>
+                    </td>
+                </tr>
             </tbody>
         </table>
         <?php

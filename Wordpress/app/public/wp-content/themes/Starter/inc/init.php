@@ -69,16 +69,29 @@ add_action('rest_api_init', function() {
     }
 }, 20);
 
+// Verificar si WooCommerce y JWT están activos antes de cargar módulos dependientes
+// Nota: is_plugin_active() solo está disponible en wp-admin, así que también verificamos class_exists
+function starter_check_plugin_active($plugin_file) {
+    if (function_exists('is_plugin_active')) {
+        return is_plugin_active($plugin_file);
+    }
+    return false;
+}
+
+$woocommerce_active = class_exists('WooCommerce') || starter_check_plugin_active('woocommerce/woocommerce.php');
+$jwt_active = class_exists('Tmeister\Firebase\JWT\JWT') || starter_check_plugin_active('jwt-authentication-for-wp-rest-api/jwt-auth.php');
+
 // Cargar funciones en un orden específico para evitar dependencias rotas
 $required_files = array(
     'cors-functions.php',
     'email-customization/email-customization.php', // Funciones de email y logo
-    'woocommerce-functions.php',
-    'translation-fields.php', // Translation meta fields for products & categories (i18n)
-    'woocommerce-orders-customization.php', // Nueva implementación para la tabla de pedidos
-    'woocommerce-order-details.php', // Personalizaciones de la página de detalles del pedido
-    'woocommerce/rest-api.php',
-    'minimum-order-settings.php', // Configuración de pedido mínimo
+    // Módulos de WooCommerce — solo si está activo
+    $woocommerce_active ? 'woocommerce-functions.php' : null,
+    $woocommerce_active ? 'translation-fields.php' : null, // Translation meta fields for products & categories (i18n)
+    $woocommerce_active ? 'woocommerce-orders-customization.php' : null, // Nueva implementación para la tabla de pedidos
+    $woocommerce_active ? 'woocommerce-order-details.php' : null, // Personalizaciones de la página de detalles del pedido
+    $woocommerce_active ? 'woocommerce/rest-api.php' : null,
+    $woocommerce_active ? 'minimum-order-settings.php' : null, // Configuración de pedido mínimo
     'featured-categories-functions.php',
     'banner-functions.php',
     'user-addresses-functions.php',
@@ -88,12 +101,12 @@ $required_files = array(
     'promotional-grid-endpoint.php',
     'menu-functions.php',
     'contact-endpoint.php', // Endpoint para formularios de contacto
-    'order-email-endpoint.php', // Envío de correos de confirmación de pedido
-    'payments/index.php', // Capa de abstracción de pasarelas de pago (interfaz + factory)
-    'wompi/index.php', // Integración con pasarela de pago Wompi
+    $woocommerce_active ? 'order-email-endpoint.php' : null, // Envío de correos de confirmación de pedido
+    $woocommerce_active ? 'payments/index.php' : null, // Capa de abstracción de pasarelas de pago (interfaz + factory)
+    $woocommerce_active ? 'wompi/index.php' : null, // Integración con pasarela de pago Wompi
     'popup-functions.php', // Sistema de popups dinámicos
-    'special-orders/index.php', // Ventas Especiales: oculta membresías/FC de wc-orders + página dedicada
-    'order-validation.php', // Validación server-side de fee_lines, set_paid y shipping_lines
+    $woocommerce_active ? 'special-orders/index.php' : null, // Ventas Especiales: oculta membresías/FC de wc-orders + página dedicada
+    $woocommerce_active ? 'order-validation.php' : null, // Validación server-side de fee_lines, set_paid y shipping_lines
     'order-cop-rounding.php', // Redondeo configurable de moneda en totales de pedidos
     'log-rotation.php', // Rotación diaria de debug.log
     'sitemap-functions.php', // Generador de sitemaps SEO (categorías + productos públicos)
@@ -102,6 +115,11 @@ $required_files = array(
 
 // Verificar y cargar cada archivo solo si existe
 foreach ($required_files as $file) {
+    // Omitir entradas nulas (WooCommerce deshabilitado)
+    if (empty($file)) {
+        continue;
+    }
+
     $filepath = STARTER_INC_DIR . $file;
     if (file_exists($filepath)) {
         require_once $filepath;

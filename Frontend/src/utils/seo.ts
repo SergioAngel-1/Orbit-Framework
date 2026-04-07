@@ -48,21 +48,26 @@ function getCurrencyCode(): string {
   return getSiteConfig()?.currency?.currency_code || 'USD';
 }
 
+// Imagen placeholder por defecto (se puede sobrescribir desde SiteConfig → branding_og_image)
+const PLACEHOLDER_IMG = 'https://placehold.co/1200x630/16a34a/ffffff?text=My+Store';
+
 // Accesores que se evalúan cada vez (no constantes) para reflejar config dinámica
 function getDefaultImage(): string {
-  return `${getBaseUrl()}/assets/images/og/OG-Home.webp`;
+  const config = getSiteConfig();
+  return config?.branding?.branding_og_image || PLACEHOLDER_IMG;
 }
 
-// Imágenes OG específicas por página (evaluadas dinámicamente)
+// Imágenes OG específicas por página (evaluadas dinámicamente con placeholders)
 export function getOgImages() {
-  const base = getBaseUrl();
+  const config = getSiteConfig();
+  const fallbackOg = config?.branding?.branding_og_image || PLACEHOLDER_IMG;
   return {
-    home: `${base}/assets/images/og/OG-Home.webp`,
-    catalogo: `${base}/assets/images/og/OG-Catalogo.webp`,
-    membresias: `${base}/assets/images/og/OG-Membresias.webp`,
-    referidos: `${base}/assets/images/og/OG-Referidos.webp`,
-    contacto: `${base}/assets/images/og/OG-Contacto.webp`,
-    wallet: `${base}/assets/images/og/OG-Wallet.webp`,
+    home: fallbackOg,
+    catalogo: fallbackOg,
+    membresias: fallbackOg,
+    referidos: fallbackOg,
+    contacto: fallbackOg,
+    wallet: fallbackOg,
   };
 }
 // Alias retrocompatible (evaluación lazy via Proxy)

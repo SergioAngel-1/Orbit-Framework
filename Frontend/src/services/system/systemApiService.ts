@@ -1,5 +1,5 @@
 import logger from '../../utils/logger';
-import { api } from '../api';
+import { api } from '../apiConfig';
 
 export interface SystemStatus {
   systems: {

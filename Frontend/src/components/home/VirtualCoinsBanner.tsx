@@ -1,5 +1,5 @@
 ﻿import React, { useRef, useCallback, memo } from 'react';
-import VirtualCoinsImage from '../../assets/images/virtual-coins.png';
+import VirtualCoin from '../layout/headerComponents/VirtualCoin';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useTranslation } from 'react-i18next';
@@ -62,17 +62,13 @@ const VirtualCoinsBannerNew: React.FC = memo(() => {
           <div className="relative px-4 py-4 sm:px-6 sm:py-5">
             {/* Layout Mobile */}
             <div className="flex flex-col items-center sm:hidden gap-4">
-              {/* Imagen */}
-              <div className="flex-shrink-0">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-white/20 rounded-full blur-md"></div>
-                  <img 
-                    src={VirtualCoinsImage} 
-                    alt={t('imageAlt')}
-                    className="relative w-14 h-14 coin-image drop-shadow-lg" 
-                  />
-                </div>
-              </div>
+               {/* Moneda giratoria */}
+               <div className="flex-shrink-0">
+                 <div className="relative">
+                   <div className="absolute inset-0 bg-white/20 rounded-full blur-md"></div>
+                   <VirtualCoin onClick={() => {}} size="lg" className="coin-spinner" />
+                 </div>
+               </div>
               
               {/* Texto */}
               <div className="text-center max-w-[280px]">
@@ -90,17 +86,13 @@ const VirtualCoinsBannerNew: React.FC = memo(() => {
               
               {/* Grupo izquierdo: Imagen + Texto */}
               <div className="flex items-center gap-3 md:gap-4 flex-shrink-0">
-                {/* Imagen */}
-                <div className="flex-shrink-0">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-white/20 rounded-full blur-md"></div>
-                    <img 
-                      src={VirtualCoinsImage} 
-                      alt={t('imageAlt')}
-                      className="relative w-12 h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 coin-image drop-shadow-lg" 
-                    />
-                  </div>
-                </div>
+                 {/* Moneda giratoria */}
+                 <div className="flex-shrink-0">
+                   <div className="relative">
+                     <div className="absolute inset-0 bg-white/20 rounded-full blur-md"></div>
+                     <VirtualCoin onClick={() => {}} size="lg" className="coin-spinner" />
+                   </div>
+                 </div>
                 
                 {/* Texto */}
                 <div className="text-left max-w-[200px] md:max-w-[240px] lg:max-w-[280px]">

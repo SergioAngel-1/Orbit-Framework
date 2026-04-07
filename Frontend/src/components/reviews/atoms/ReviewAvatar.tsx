@@ -1,11 +1,10 @@
 /**
  * ReviewAvatar - Componente átomo para mostrar avatar del autor de una reseña
- * Avatar custom → fallback imagen genérica de miembro
+ * Avatar custom → fallback icono genérico de usuario
  */
 
 import { useState } from 'react';
-
-const FALLBACK_AVATAR = '/assets/images/Reviews/Flores-Inc-Fallback-Member.webp';
+import { FiUser } from 'react-icons/fi';
 
 interface ReviewAvatarProps {
   /** URL del avatar */
@@ -19,7 +18,8 @@ interface ReviewAvatarProps {
 }
 
 const ReviewAvatar = ({ avatarUrl, name, size = '2.25rem', isAdmin = false }: ReviewAvatarProps) => {
-  const [imgSrc, setImgSrc] = useState(avatarUrl || FALLBACK_AVATAR);
+  const [imgError, setImgError] = useState(false);
+  const showIcon = !avatarUrl || imgError;
 
   return (
     <div
@@ -32,13 +32,17 @@ const ReviewAvatar = ({ avatarUrl, name, size = '2.25rem', isAdmin = false }: Re
         background: '#f3f4f6',
       }}
     >
-      <img
-        src={imgSrc}
-        alt={name}
-        className="w-full h-full object-cover"
-        loading="lazy"
-        onError={() => setImgSrc(FALLBACK_AVATAR)}
-      />
+      {showIcon ? (
+        <FiUser className="w-1/2 h-1/2 text-gray-400" />
+      ) : (
+        <img
+          src={avatarUrl}
+          alt={name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          onError={() => setImgError(true)}
+        />
+      )}
     </div>
   );
 };

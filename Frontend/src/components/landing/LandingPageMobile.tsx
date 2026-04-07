@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { fluidSizing } from '../../utils/fluidSizing';
 import useMembershipLevels from '../../hooks/useMembershipLevels';
 import LanguageSwitch from '../common/LanguageSwitch';
+import SiteLogo from '../common/SiteLogo';
 
 interface LandingPageMobileProps {
   children: React.ReactNode;
@@ -63,12 +64,7 @@ const LandingPageMobile: React.FC<LandingPageMobileProps> = memo(({
         style={{ padding: fluidSizing.space.sm, paddingTop: fluidSizing.space.xl }}
       >
         <div className="max-w-sm mx-auto text-center">
-          <img
-            src="/assets/images/logo-flores.png"
-            alt={t('mobile.logoAlt')}
-            className="mx-auto object-contain"
-            style={{ height: fluidSizing.size.floatingButton }}
-          />
+          <SiteLogo maxHeight={48} maxWidth={180} className="mx-auto" />
         </div>
       </div>
 

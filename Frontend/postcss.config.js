@@ -1,8 +1,13 @@
+import nesting from 'tailwindcss/nesting/index.js';
+import postcssNesting from 'postcss-nesting';
+import tailwindcss from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
+
 export default {
-  plugins: {
-    // postcss-nesting MUST come before tailwindcss to process nested CSS from swiper
-    'postcss-nesting': {},
-    tailwindcss: {},
-    autoprefixer: {},
-  },
+  plugins: [
+    // tailwindcss/nesting wraps postcss-nesting so Tailwind processes nested CSS (e.g. Swiper) correctly
+    nesting(postcssNesting),
+    tailwindcss,
+    autoprefixer,
+  ],
 }

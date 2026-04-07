@@ -65,6 +65,8 @@ function site_get_all_config($force_refresh = false) {
     if (!$force_refresh) {
         $cached = get_transient(SITE_SETTINGS_TRANSIENT_KEY);
         if ($cached !== false) {
+            // Inyectar features en tiempo real (no están en el transient)
+            $cached['features'] = function_exists('site_get_active_features') ? site_get_active_features() : [];
             return $cached;
         }
     }
@@ -90,11 +92,11 @@ function site_get_all_config($force_refresh = false) {
         $config[$section_key] = $section_data;
     }
 
-    // Agregar feature flags (no se cachean para reflejar cambios inmediatos)
-    $config['features'] = function_exists('site_get_active_features') ? site_get_active_features() : [];
-
-    // Cachear por 5 minutos
+    // Cachear configuración estática por 5 minutos (sin features)
     set_transient(SITE_SETTINGS_TRANSIENT_KEY, $config, 5 * MINUTE_IN_SECONDS);
+
+    // Agregar feature flags DESPUÉS del cacheo para que se evalúen siempre en tiempo real
+    $config['features'] = function_exists('site_get_active_features') ? site_get_active_features() : [];
 
     return $config;
 }
@@ -453,4 +455,117 @@ function site_get_active_features() {
 function site_is_feature_active($feature_key) {
     $features = site_get_active_features();
     return isset($features[$feature_key]) ? $features[$feature_key] : false;
+}
+
+// ──────────────────────────────────────────────
+// Helpers de detección del tema activo
+// ──────────────────────────────────────────────
+
+/**
+ * Slug del tema requerido por el sistema
+ * Este es el tema que debe estar activo para que la plantilla funcione correctamente
+ *
+ * @return string
+ */
+function site_get_required_theme_slug() {
+    return 'Starter';
+}
+
+/**
+ * Verifica si el tema activo es el tema requerido (Starter)
+ *
+ * @return bool True si el tema activo es el requerido
+ */
+function site_is_required_theme_active() {
+    $required_slug = site_get_required_theme_slug();
+    $theme = wp_get_theme();
+    $theme_slug = $theme->get_stylesheet();
+
+    // Verificar por slug exacto (case-insensitive)
+    if (strtolower($theme_slug) === strtolower($required_slug)) {
+        return true;
+    }
+
+    // Verificar por nombre del tema (case-insensitive)
+    if (strcasecmp($theme->get('Name'), $required_slug) === 0) {
+        return true;
+    }
+
+    // Verificar si es un tema hijo del tema Starter
+    if ($theme->parent() && strcasecmp($theme->parent()->get_stylesheet(), $required_slug) === 0) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Obtiene información del tema actualmente activo
+ *
+ * @return array
+ */
+function site_get_active_theme_info() {
+    $theme = wp_get_theme();
+
+    return [
+        'name'        => $theme->get('Name'),
+        'version'     => $theme->get('Version'),
+        'slug'        => $theme->get_stylesheet(),
+        'author'      => $theme->get('Author'),
+        'author_uri'  => $theme->get('AuthorURI'),
+        'template'    => $theme->get_template(),
+        'is_child'    => $theme->parent() ? true : false,
+        'parent_name' => $theme->parent() ? $theme->parent()->get('Name') : '',
+        'parent_slug' => $theme->parent() ? $theme->parent()->get_stylesheet() : '',
+        'is_required' => site_is_required_theme_active(),
+    ];
+}
+
+/**
+ * Verifica si el tema activo es compatible con el sistema
+ * Es compatible si es el tema Starter o un tema hijo del Starter
+ *
+ * @return bool
+ */
+function site_is_theme_compatible() {
+    $theme = wp_get_theme();
+    $required_slug = strtolower(site_get_required_theme_slug());
+
+    // Tema Starter directo
+    if (strtolower($theme->get_stylesheet()) === $required_slug) {
+        return true;
+    }
+
+    // Tema hijo de Starter
+    if ($theme->parent() && strtolower($theme->parent()->get_stylesheet()) === $required_slug) {
+        return true;
+    }
+
+    // Verificar por nombre (fallback)
+    if (strcasecmp($theme->get('Name'), $required_slug) === 0) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Obtiene un mensaje de error si el tema no es el requerido
+ *
+ * @return string|false Mensaje de error o false si el tema es correcto
+ */
+function site_get_theme_error_message() {
+    if (site_is_required_theme_active()) {
+        return false;
+    }
+
+    $info = site_get_active_theme_info();
+    $required = site_get_required_theme_slug();
+
+    return sprintf(
+        __('El tema activo actualmente es "%1$s" (slug: %2$s), pero el sistema requiere el tema "%3$s". Por favor activa el tema correcto para que todas las funcionalidades del sistema operen correctamente.', 'site-settings'),
+        esc_html($info['name']),
+        esc_html($info['slug']),
+        esc_html($required)
+    );
 }

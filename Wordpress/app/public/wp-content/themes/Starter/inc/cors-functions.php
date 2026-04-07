@@ -84,6 +84,12 @@ function starter_get_allowed_origins() {
  * Aplica a todas las solicitudes a /wp-json/
  */
 function starter_unified_cors_headers() {
+    // EXCLUIR solicitudes del admin de WordPress (instalación/activación de plugins, etc.)
+    // Estas solicitudes NO deben pasar por CORS ya que son del mismo dominio
+    if (is_admin() || (defined('DOING_AJAX') && DOING_AJAX)) {
+        return;
+    }
+    
     // Solo procesar solicitudes a la API REST
     // Verificar tanto /wp-json/ como ?rest_route= (URL alternativa de WP REST API)
     $request_uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '';

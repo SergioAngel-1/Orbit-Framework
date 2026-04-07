@@ -53,6 +53,35 @@ class Site_Settings {
 
         // Invalidar caché al guardar opciones
         add_action('update_option', [$this, 'maybe_invalidate_cache'], 10, 1);
+
+        // Permitir subida de archivos SVG (necesario para loader/iconos)
+        add_filter('upload_mimes', [$this, 'allow_svg_uploads']);
+        add_filter('wp_check_filetype_and_ext', [$this, 'fix_svg_mime_type'], 10, 5);
+    }
+
+    /**
+     * Agregar SVG a los MIME types permitidos en uploads
+     */
+    public function allow_svg_uploads($mimes) {
+        $mimes['svg']  = 'image/svg+xml';
+        $mimes['svgz'] = 'image/svg+xml';
+        return $mimes;
+    }
+
+    /**
+     * Fix para que WordPress detecte correctamente el tipo MIME de SVG
+     * (wp_check_filetype_and_ext a veces falla con SVG)
+     */
+    public function fix_svg_mime_type($data, $file, $filename, $mimes, $real_mime = '') {
+        if (!empty($data['ext']) && !empty($data['type'])) {
+            return $data;
+        }
+        $filetype = wp_check_filetype($filename, $mimes);
+        if ($filetype['ext'] === 'svg' || $filetype['ext'] === 'svgz') {
+            $data['ext']  = $filetype['ext'];
+            $data['type'] = 'image/svg+xml';
+        }
+        return $data;
     }
 
     /**
@@ -105,10 +134,30 @@ class Site_Settings {
             // Branding
             'branding_primary_color'   => '#16a34a',
             'branding_secondary_color' => '#FF6B35',
+            'branding_accent_color'    => '#8FD8B9',
+
+            // Variaciones de color derivadas (source: primary|secondary|accent, mode: darken|lighten, amount: 0-100)
+            'branding_dark_source'     => 'primary',
+            'branding_dark_mode'       => 'darken',
+            'branding_dark_amount'     => 25,
+            'branding_light_source'    => 'primary',
+            'branding_light_mode'      => 'lighten',
+            'branding_light_amount'    => 8,
+            'branding_text_source'     => 'primary',
+            'branding_text_mode'       => 'darken',
+            'branding_text_amount'     => 35,
+            'branding_hover_source'    => 'primary',
+            'branding_hover_mode'      => 'darken',
+            'branding_hover_amount'    => 10,
+            'branding_border_source'   => 'secondary',
+            'branding_border_mode'     => 'lighten',
+            'branding_border_amount'   => 30,
+
             'branding_font'            => 'Poppins',
             'branding_logo'            => '',
             'branding_favicon'         => '',
             'branding_og_image'        => '',
+            'branding_loader'          => '',
 
             // Moneda
             'currency_code'             => 'USD',
@@ -192,10 +241,33 @@ class Site_Settings {
                 'fields' => [
                     'branding_primary_color'   => ['label' => 'Color primario',   'type' => 'color'],
                     'branding_secondary_color' => ['label' => 'Color secundario', 'type' => 'color'],
+                    'branding_accent_color'    => ['label' => 'Color acento (éxito/positivo)', 'type' => 'color', 'description' => 'Color para estados de éxito, confirmaciones y elementos positivos.'],
+
+                    'branding_dark_source'     => ['label' => 'Oscuro — color base',   'type' => 'select', 'options' => ['primary' => 'Primario', 'secondary' => 'Secundario', 'accent' => 'Acento']],
+                    'branding_dark_mode'       => ['label' => 'Oscuro — modo',          'type' => 'select', 'options' => ['darken' => 'Oscurecer', 'lighten' => 'Aclarar']],
+                    'branding_dark_amount'     => ['label' => 'Oscuro — intensidad (%)', 'type' => 'number', 'description' => '0-100. Ej: 25 = 25% de oscurecimiento/aclarado.'],
+
+                    'branding_light_source'    => ['label' => 'Claro — color base',     'type' => 'select', 'options' => ['primary' => 'Primario', 'secondary' => 'Secundario', 'accent' => 'Acento']],
+                    'branding_light_mode'      => ['label' => 'Claro — modo',            'type' => 'select', 'options' => ['darken' => 'Oscurecer', 'lighten' => 'Aclarar']],
+                    'branding_light_amount'    => ['label' => 'Claro — intensidad (%)',   'type' => 'number', 'description' => '0-100. Ej: 8 = 8% de aclarado.'],
+
+                    'branding_text_source'     => ['label' => 'Texto — color base',      'type' => 'select', 'options' => ['primary' => 'Primario', 'secondary' => 'Secundario', 'accent' => 'Acento']],
+                    'branding_text_mode'       => ['label' => 'Texto — modo',             'type' => 'select', 'options' => ['darken' => 'Oscurecer', 'lighten' => 'Aclarar']],
+                    'branding_text_amount'     => ['label' => 'Texto — intensidad (%)',    'type' => 'number', 'description' => '0-100. Ej: 35 = 35% de oscurecimiento.'],
+
+                    'branding_hover_source'    => ['label' => 'Hover — color base',      'type' => 'select', 'options' => ['primary' => 'Primario', 'secondary' => 'Secundario', 'accent' => 'Acento']],
+                    'branding_hover_mode'      => ['label' => 'Hover — modo',             'type' => 'select', 'options' => ['darken' => 'Oscurecer', 'lighten' => 'Aclarar']],
+                    'branding_hover_amount'    => ['label' => 'Hover — intensidad (%)',    'type' => 'number', 'description' => '0-100. Ej: 10 = 10% de oscurecimiento.'],
+
+                    'branding_border_source'   => ['label' => 'Borde — color base',      'type' => 'select', 'options' => ['primary' => 'Primario', 'secondary' => 'Secundario', 'accent' => 'Acento']],
+                    'branding_border_mode'     => ['label' => 'Borde — modo',             'type' => 'select', 'options' => ['darken' => 'Oscurecer', 'lighten' => 'Aclarar']],
+                    'branding_border_amount'   => ['label' => 'Borde — intensidad (%)',    'type' => 'number', 'description' => '0-100. Ej: 30 = 30% de aclarado.'],
+
                     'branding_font'            => ['label' => 'Fuente (Google Fonts)', 'type' => 'text', 'description' => 'Nombre exacto de Google Fonts (ej: Poppins, Inter, Roboto)'],
                     'branding_logo'            => ['label' => 'Logo',             'type' => 'image'],
                     'branding_favicon'         => ['label' => 'Favicon',          'type' => 'image'],
                     'branding_og_image'        => ['label' => 'Imagen OG (compartir)', 'type' => 'image'],
+                    'branding_loader'          => ['label' => 'Loader / Spinner',      'type' => 'image', 'description' => 'Imagen animada de carga (soporta SVG, GIF, PNG, WEBP). Se usa como spinner en toda la app.'],
                 ],
             ],
             'currency' => [
@@ -261,6 +333,18 @@ class Site_Settings {
                 'type'   => 'plugin_list',
                 'fields' => [],
             ],
+        ];
+    }
+
+    /**
+     * Información del tema requerido por el template.
+     */
+    public static function get_required_theme() {
+        return [
+            'slug'        => 'Starter',
+            'name'        => 'Starter',
+            'description' => 'Tema principal del template E-Commerce. Gestiona la integración con WooCommerce, pagos, membresías y REST API.',
+            'required'    => true,
         ];
     }
 

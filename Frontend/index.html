@@ -4,32 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     
-    <!-- PWA Meta Tags -->
+    <!-- PWA Meta Tags — theme-color y application-name se sobrescriben dinámicamente por SiteConfigContext -->
     <meta name="theme-color" content="#16a34a" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="My Store" />
-    <meta name="application-name" content="My Store" />
+    <meta name="apple-mobile-web-app-title" content="Mi Tienda" />
+    <meta name="application-name" content="Mi Tienda" />
     <meta name="msapplication-TileColor" content="#16a34a" />
-    <meta name="msapplication-config" content="/favicon/browserconfig.xml" />
     
-    <!-- Favicons -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="icon" type="image/x-icon" href="/favicon/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Favicons — se sobrescriben dinámicamente por SiteConfigContext (branding_favicon) -->
+    <link rel="icon" type="image/png" href="https://placehold.co/32x32/16a34a/ffffff?text=F" />
+    <link rel="apple-touch-icon" href="https://placehold.co/180x180/16a34a/ffffff?text=F" />
     
     <!-- SEO: Meta tags dinámicos gestionados por applySEO() en seo.ts -->
-    <!-- Para bots sociales, .htaccess sirve páginas pre-renderizadas en /og/ -->
-    <!-- SEO: Estos meta tags se sobrescriben dinámicamente por applySEO() -->
-    <meta name="author" content="My Store" />
-    <meta name="description" content="Welcome to our online store. Browse our catalog of products and enjoy exclusive benefits." />
-    <meta name="keywords" content="online store, e-commerce, products, catalog" />
+    <meta name="author" content="Mi Tienda" />
+    <meta name="description" content="Tienda online con membresías y beneficios exclusivos." />
     
     <!-- Geo Tags — sobrescritos dinámicamente por SiteConfigContext -->
     <meta name="geo.region" content="US" />
@@ -39,9 +29,9 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Font se inyecta dinámicamente por SiteConfigContext (branding_font) -->
     <!-- Title dinámico — sobrescrito por applySEO() en cada navegación -->
-    <title>My Store</title>
+    <title>Mi Tienda</title>
   </head>
   <body>
     <div id="root"></div>
