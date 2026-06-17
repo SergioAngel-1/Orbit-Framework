@@ -169,6 +169,39 @@ estática y se regenera, como máximo, cada 60 segundos.
 
 ---
 
+## 🔐 Autenticación (JWT — Fase 2)
+
+Flujo **BFF**: el navegador habla con los Route Handlers de Next.js, que guardan
+los tokens en cookies `httpOnly` (inaccesibles desde JS → mitiga XSS). El JWT
+nunca llega al cliente.
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/auth/login` | POST | `{ username, password }` → fija cookies de sesión |
+| `/api/auth/register` | POST | `{ username, email, password }` → crea usuario + auto-login |
+| `/api/auth/refresh` | POST | Renueva el `authToken` desde el refresh token |
+| `/api/auth/logout` | POST | Borra las cookies de sesión |
+| `/api/auth/me` | GET | Devuelve el usuario autenticado (o 401) |
+
+```bash
+# Ejemplo: iniciar sesión (las cookies se guardan en cookies.txt)
+curl -i -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -H "Origin: http://localhost:3000" \
+  -c cookies.txt \
+  -d '{"username":"admin","password":"admin"}'
+
+# Usuario actual reutilizando la cookie
+curl http://localhost:3000/api/auth/me -b cookies.txt
+```
+
+- El **middleware** refresca el `authToken` caducado de forma transparente.
+- En **Server Components** usa `getSession()` / `fetchGraphQLAsViewer()` de
+  `src/lib/auth/session.ts` para datos del usuario autenticado.
+- Todos los endpoints de escritura validan el `Origin` (CSRF completo en Fase 4).
+
+---
+
 ## 🛠️ Comandos Docker frecuentes
 
 ```bash

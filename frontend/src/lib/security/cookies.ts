@@ -49,17 +49,15 @@ export function sessionCookieOptions(maxAgeSeconds: number): CookieOptions {
 }
 
 /**
- * Cookie del refresh token. Restringida por `path` para que solo se envíe al
- * endpoint de refresco, reduciendo su exposición.
+ * Cookie del refresh token. `httpOnly` (inaccesible desde JS) y disponible en
+ * todo el sitio (`path: "/"`) para que el middleware pueda auto-refrescar el
+ * JWT de acceso en cualquier ruta. `SameSite=Lax` evita su envío en peticiones
+ * cross-site de terceros.
  *
  * @param maxAgeSeconds Vida de la cookie en segundos.
  */
 export function refreshCookieOptions(maxAgeSeconds: number): CookieOptions {
-  return {
-    ...baseOptions(),
-    path: "/api/auth/refresh",
-    maxAge: maxAgeSeconds,
-  };
+  return { ...baseOptions(), maxAge: maxAgeSeconds };
 }
 
 /**

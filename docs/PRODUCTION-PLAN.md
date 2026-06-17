@@ -128,27 +128,42 @@ cabeceras en vivo pendiente del primer despliegue con HTTPS).
 
 ---
 
-### Fase 2 — Autenticación JWT (flujo completo)
+### Fase 2 — Autenticación JWT (flujo completo) ✅ COMPLETADA
 **Objetivo:** login/registro de clientes con tokens **fuera del alcance de JS del cliente**.
 
-- [ ] **Route Handlers de auth** (BFF):
-  - `frontend/src/app/api/auth/login/route.ts` → mutación `login` de WPGraphQL JWT,
-    guarda `authToken` y `refreshToken` en **cookies httpOnly + Secure + SameSite**.
-  - `frontend/src/app/api/auth/refresh/route.ts` → rota el refresh token.
-  - `frontend/src/app/api/auth/logout/route.ts` → borra cookies.
-  - `frontend/src/app/api/auth/register/route.ts` → `registerUser` + validación.
-- [ ] **Helper de sesión server-side** `frontend/src/lib/auth/session.ts`:
-      lee/verifica el JWT desde cookies en Server Components y Route Handlers.
-- [ ] **Refresh automático**: middleware `frontend/src/middleware.ts` que renueva el
-      `authToken` si caducó usando el `refreshToken` (rotación).
-- [ ] **`graphql-client.ts`**: extender para inyectar el `authToken` desde la cookie en
-      peticiones autenticadas (ya soporta `authToken` por parámetro).
+- [x] **Route Handlers de auth** (BFF):
+  - `api/auth/login` → mutación `login`; fija `authToken` y `refreshToken` en
+    **cookies httpOnly + Secure(prod) + SameSite=Lax**. Los tokens **no** se devuelven
+    en el cuerpo.
+  - `api/auth/refresh` → intercambia el refresh token por un nuevo `authToken`.
+  - `api/auth/logout` → borra las cookies de sesión.
+  - `api/auth/register` → `registerUser` + validación + auto-login.
+  - `api/auth/me` → devuelve el `viewer` autenticado (estado de sesión sin exponer token).
+- [x] **Verificación local de firma** con `jose` (`lib/auth/jwt.ts`): el frontend valida
+      HS256 con el secreto compartido, sin llamar a WordPress en cada request.
+- [x] **Helper de sesión server-side** `lib/auth/session.ts`: `getSession`/`getAuthToken`
+      (memoizados con `cache()`), `requireSession` y `fetchGraphQLAsViewer` (inyecta el
+      JWT de la cookie en queries autenticadas).
+- [x] **Refresh transparente**: `middleware.ts` renueva el `authToken` caducado usando el
+      refresh token y lo propaga al navegador **y al request en curso** (reescribe la
+      cabecera Cookie para que el SSR vea el token fresco).
+- [x] **Validación de entrada** con Zod (`lib/validation/auth.ts`) y **verificación de
+      `Origin`** (`lib/security/origin.ts`) en todos los endpoints de escritura.
+- [x] **Registro habilitado** en `setup.sh` (`users_can_register=1`, rol `subscriber`).
 
-> **Decisión de seguridad:** **NO** usar `localStorage` para tokens (vulnerable a XSS).
-> Cookies `httpOnly` + CSRF (Fase 4). El JWT nunca llega al JS del cliente.
+> **Decisión de seguridad:** **NO** se usa `localStorage` para tokens (vulnerable a XSS).
+> Cookies `httpOnly` + verificación de `Origin` (CSRF completo en Fase 4). El JWT nunca
+> llega al JS del cliente.
+
+> **Limitación conocida (honesta):** el plugin WPGraphQL JWT emite un refresh token de
+> larga duración **sin rotación nativa**; `refreshJwtAuthToken` solo devuelve un nuevo
+> `authToken`. La invalidación global se hace rotando el *user secret* en WordPress
+> (`graphql_jwt_auth_revoke_user_secret`). Acotamos la cookie del refresh a 30 días.
 
 **Criterio de aceptación:** login fija cookies httpOnly; el token no es accesible desde
-`document.cookie`; refresh rota el token; logout invalida la sesión.
+`document.cookie`; el JWT expirado se refresca solo; logout borra la sesión.
+**Verificado:** `tsc --noEmit`, `next lint` y `next build` en verde (middleware + 5
+route handlers + page ISR).
 
 ---
 

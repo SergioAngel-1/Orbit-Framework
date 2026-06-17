@@ -50,6 +50,13 @@ $WP rewrite structure '/%postname%/' --hard
 $WP rewrite flush --hard
 
 # ----------------------------------------------------------------------------
+# 2b) Habilitar el registro de usuarios (necesario para registerUser de GraphQL)
+# ----------------------------------------------------------------------------
+echo "==> Habilitando el registro de usuarios (rol por defecto: subscriber)..."
+$WP option update users_can_register 1
+$WP option update default_role subscriber
+
+# ----------------------------------------------------------------------------
 # 3) Plugins esenciales para el ecosistema headless
 # ----------------------------------------------------------------------------
 echo "==> Instalando WPGraphQL (desde el repositorio oficial de WordPress.org)..."
