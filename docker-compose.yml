@@ -4,6 +4,7 @@
 #    - db        : MariaDB 11 (persistencia en volumen nombrado)
 #    - wordpress : WordPress (PHP 8.3 + Apache) como Headless CMS -> :8080
 #    - wpcli     : WP-CLI para automatizar la instalación/configuración
+#    - redis     : Cache / rate-limit / idempotencia (BFF del frontend)
 #    - frontend  : Next.js (App Router) en modo desarrollo            -> :3000
 # ============================================================================
 
@@ -53,6 +54,7 @@ services:
         define( 'GRAPHQL_JWT_AUTH_SECRET_KEY', '${GRAPHQL_JWT_AUTH_SECRET_KEY:-changeme-super-secret-jwt-key}' );
         define( 'WP_ENVIRONMENT_TYPE', '${WP_ENVIRONMENT_TYPE:-local}' );
         define( 'HEADLESS_FRONTEND_URL', '${HEADLESS_FRONTEND_URL:-http://localhost:3000}' );
+        define( 'HEADLESS_ALLOWED_ORIGINS', '${HEADLESS_ALLOWED_ORIGINS:-http://localhost:3000}' );
         if ( ! defined( 'WP_DEBUG_LOG' ) ) { define( 'WP_DEBUG_LOG', true ); }
     volumes:
       # Persistencia local de TODO wp-content (plugins, themes, uploads, mu-plugins)
@@ -97,6 +99,24 @@ services:
       - hwe_net
 
   # --------------------------------------------------------------------------
+  # Redis (cache / rate-limit / idempotencia para el BFF del frontend)
+  # --------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: hwe_redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks:
+      - hwe_net
+
+  # --------------------------------------------------------------------------
   # Frontend (Next.js — App Router — desarrollo)
   # --------------------------------------------------------------------------
   frontend:
@@ -106,7 +126,10 @@ services:
     container_name: hwe_frontend
     restart: unless-stopped
     depends_on:
-      - wordpress
+      wordpress:
+        condition: service_started
+      redis:
+        condition: service_healthy
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
@@ -114,6 +137,10 @@ services:
       NEXT_PUBLIC_WORDPRESS_API_URL: "${NEXT_PUBLIC_WORDPRESS_API_URL:-http://localhost:8080/graphql}"
       # ...pero el servidor Next (SSR/ISR) lo resuelve por la red interna de Docker.
       WORDPRESS_INTERNAL_API_URL: "${WORDPRESS_INTERNAL_API_URL:-http://wordpress:80/graphql}"
+      # Origen autorizado para CSRF / verificación de Origin (Fases 1 y 4).
+      ALLOWED_ORIGIN: "${ALLOWED_ORIGIN:-http://localhost:3000}"
+      # Conexión a Redis por la red interna de Docker.
+      REDIS_URL: "${REDIS_URL:-redis://redis:6379}"
       WATCHPACK_POLLING: "true" # hot-reload fiable en volúmenes montados (Windows/WSL)
     volumes:
       - ./frontend:/app
@@ -127,6 +154,8 @@ services:
 # ----------------------------------------------------------------------------
 volumes:
   db_data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:

@@ -16,13 +16,47 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Devuelve el origen permitido para CORS (la URL del frontend).
+ * Devuelve la lista de orígenes autorizados para CORS.
+ *
+ * Prioridad:
+ *   1. Constante HEADLESS_ALLOWED_ORIGINS (lista separada por comas) -> producción.
+ *   2. Constante HEADLESS_FRONTEND_URL (origen único)               -> desarrollo.
+ *   3. http://localhost:3000                                        -> fallback.
+ *
+ * @return string[] Orígenes normalizados (sin barra final).
  */
-function hwe_frontend_origin(): string {
-	if ( defined( 'HEADLESS_FRONTEND_URL' ) && HEADLESS_FRONTEND_URL ) {
-		return rtrim( HEADLESS_FRONTEND_URL, '/' );
+function hwe_allowed_origins(): array {
+	$origins = array();
+
+	if ( defined( 'HEADLESS_ALLOWED_ORIGINS' ) && HEADLESS_ALLOWED_ORIGINS ) {
+		$origins = array_map( 'trim', explode( ',', HEADLESS_ALLOWED_ORIGINS ) );
+	} elseif ( defined( 'HEADLESS_FRONTEND_URL' ) && HEADLESS_FRONTEND_URL ) {
+		$origins = array( HEADLESS_FRONTEND_URL );
+	} else {
+		$origins = array( 'http://localhost:3000' );
 	}
-	return 'http://localhost:3000';
+
+	// Normaliza (sin barra final) y descarta vacíos.
+	$origins = array_filter( array_map(
+		static function ( $o ) {
+			return rtrim( (string) $o, '/' );
+		},
+		$origins
+	) );
+
+	return array_values( array_unique( $origins ) );
+}
+
+/**
+ * Comprueba si un origen está en la allowlist. Devuelve el origen normalizado
+ * (apto para la cabecera Access-Control-Allow-Origin) o null si no está permitido.
+ */
+function hwe_match_origin( string $request_origin ): ?string {
+	$request_origin = rtrim( $request_origin, '/' );
+	if ( '' === $request_origin ) {
+		return null;
+	}
+	return in_array( $request_origin, hwe_allowed_origins(), true ) ? $request_origin : null;
 }
 
 /**
@@ -93,39 +127,55 @@ add_action(
 add_filter(
 	'graphql_response_headers_to_send',
 	function ( $headers ) {
-		$origin  = hwe_frontend_origin();
 		$request = isset( $_SERVER['HTTP_ORIGIN'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
+		$allowed = hwe_match_origin( $request );
 
-		// Refleja el origen solo si coincide con el frontend autorizado.
-		$headers['Access-Control-Allow-Origin']      = ( $request === $origin ) ? $request : $origin;
-		$headers['Access-Control-Allow-Credentials'] = 'true';
-		$headers['Access-Control-Allow-Headers']     = 'Authorization, Content-Type, X-JWT-Auth, X-JWT-Refresh';
-		$headers['Access-Control-Allow-Methods']     = 'GET, POST, OPTIONS';
-		$headers['Vary']                             = 'Origin';
+		// Solo emitimos cabeceras CORS si el origen está en la allowlist.
+		// Un origen no autorizado NO recibe Access-Control-Allow-Origin (denegado).
+		if ( null !== $allowed ) {
+			$headers['Access-Control-Allow-Origin']      = $allowed;
+			$headers['Access-Control-Allow-Credentials'] = 'true';
+			$headers['Access-Control-Allow-Headers']     = 'Authorization, Content-Type, X-JWT-Auth, X-JWT-Refresh, X-CSRF-Token';
+			$headers['Access-Control-Allow-Methods']     = 'GET, POST, OPTIONS';
+		}
+
+		// Siempre variamos por Origin para no envenenar cachés intermedias.
+		$headers['Vary'] = 'Origin';
 
 		return $headers;
 	}
 );
 
 /**
- * Responde de inmediato a las peticiones preflight (OPTIONS) del endpoint GraphQL.
+ * Responde de inmediato a las peticiones preflight (OPTIONS) del endpoint GraphQL,
+ * pero únicamente si el origen está autorizado.
  */
 add_action(
 	'init',
 	function () {
 		$method = isset( $_SERVER['REQUEST_METHOD'] ) ? wp_unslash( $_SERVER['REQUEST_METHOD'] ) : '';
-		if ( 'OPTIONS' === $method && hwe_is_graphql_request() ) {
-			$origin  = hwe_frontend_origin();
-			$request = isset( $_SERVER['HTTP_ORIGIN'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
+		if ( 'OPTIONS' !== $method || ! hwe_is_graphql_request() ) {
+			return;
+		}
 
-			header( 'Access-Control-Allow-Origin: ' . ( $request === $origin ? $request : $origin ) );
-			header( 'Access-Control-Allow-Credentials: true' );
-			header( 'Access-Control-Allow-Headers: Authorization, Content-Type, X-JWT-Auth, X-JWT-Refresh' );
-			header( 'Access-Control-Allow-Methods: GET, POST, OPTIONS' );
-			header( 'Access-Control-Max-Age: 600' );
-			status_header( 204 );
+		$request = isset( $_SERVER['HTTP_ORIGIN'] ) ? esc_url_raw( wp_unslash( $_SERVER['HTTP_ORIGIN'] ) ) : '';
+		$allowed = hwe_match_origin( $request );
+
+		header( 'Vary: Origin' );
+
+		if ( null === $allowed ) {
+			// Preflight desde un origen no permitido -> rechazado.
+			status_header( 403 );
 			exit;
 		}
+
+		header( 'Access-Control-Allow-Origin: ' . $allowed );
+		header( 'Access-Control-Allow-Credentials: true' );
+		header( 'Access-Control-Allow-Headers: Authorization, Content-Type, X-JWT-Auth, X-JWT-Refresh, X-CSRF-Token' );
+		header( 'Access-Control-Allow-Methods: GET, POST, OPTIONS' );
+		header( 'Access-Control-Max-Age: 600' );
+		status_header( 204 );
+		exit;
 	},
 	1
 );

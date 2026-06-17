@@ -188,10 +188,28 @@ docker compose run --rm wpcli wp --path=/var/www/html --allow-root plugin list
 
 ---
 
-## 🔒 Notas de seguridad para producción
+## 🔒 Seguridad
 
-- Cambia **todas** las contraseñas y la clave JWT en `.env`.
-- Usa **HTTPS** y dominios reales; añade el dominio del CMS a
-  `next.config.mjs → images.remotePatterns` y ajusta `HEADLESS_FRONTEND_URL`.
+> El plan completo de seguridad y comercialización está en
+> [`docs/PRODUCTION-PLAN.md`](docs/PRODUCTION-PLAN.md). **La Fase 1 (endurecimiento
+> base) ya está implementada.**
+
+**Ya incluido (Fase 1):**
+
+- **Cabeceras de seguridad** en todas las rutas del frontend (`next.config.mjs`):
+  CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy`,
+  `Permissions-Policy`, COOP/CORP y HSTS (en producción). Sin `X-Powered-By`.
+- **CORS con allowlist estricta** en WPGraphQL: solo responden los orígenes de
+  `HEADLESS_ALLOWED_ORIGINS`; el resto se deniega.
+- **Hardening de WordPress** (`mu-plugins/security.php`): sin enumeración de
+  usuarios (REST y `?author=N`), sin pingbacks, errores de login genéricos.
+- **Redis** disponible para rate-limit/idempotencia de fases siguientes.
+
+**A configurar en producción:**
+
+- Cambia **todas** las contraseñas y la clave JWT en `.env`; genera secretos con
+  `openssl rand -base64 64`.
+- Ajusta `HEADLESS_ALLOWED_ORIGINS` y `ALLOWED_ORIGIN` a tus dominios reales (HTTPS).
+- Termina TLS y redirige HTTP→HTTPS en el proxy inverso / plataforma (HSTS ya se envía).
 - Compila el frontend con la fase `prod` del `Dockerfile` (build standalone).
 - Restringe el acceso a `/wp-admin` (IP allowlist / WAF) según tu infraestructura.
