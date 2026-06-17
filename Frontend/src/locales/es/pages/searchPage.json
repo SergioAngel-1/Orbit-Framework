@@ -1,9 +1,0 @@
-﻿{
-  "title": "Resultados de búsqueda para:",
-  "backToCatalog": "Ir al Catálogo",
-  "error": "Error al cargar los resultados. Por favor, intenta de nuevo más tarde.",
-  "noResults": "No se encontraron beneficios",
-  "noResultsDesc": "No encontramos beneficios que coincidan con \"{{query}}\". Intenta con otra búsqueda.",
-  "itemName": "beneficio",
-  "documentTitle": "Búsqueda: {{query}} - {{siteName}}"
-}

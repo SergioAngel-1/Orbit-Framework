@@ -1,3 +1,0 @@
-email;username;first_name;last_name;role;points;referral_code;referred_by;status
-usuario1@ejemplo.com;usuario1;Nombre1;Apellido1;customer;100;;;active
-usuario2@ejemplo.com;usuario2;Nombre2;Apellido2;customer;50;;codigo_referido_usuario1;pending
