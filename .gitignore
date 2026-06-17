@@ -1,251 +1,110 @@
-# ============================================
-# Starter - Headless E-commerce Template
-# WordPress Backend + React Frontend
-# ============================================
+# ============================================================================
+#  Headless Web Ecosystem — .gitignore
+#  Estructura: /backend (WordPress) + /frontend (Next.js) + Docker
+# ============================================================================
 
-# ============================================
-# WORDPRESS BACKEND
-# ============================================
-
-# WordPress Core Files
-Wordpress/app/public/wp-admin/
-Wordpress/app/public/wp-includes/
-Wordpress/app/public/wp-content/index.php
-Wordpress/app/public/wp-content/plugins/index.php
-Wordpress/app/public/wp-content/themes/index.php
-Wordpress/app/public/index.php
-Wordpress/app/public/readme.html
-Wordpress/app/public/wp-*.php
-Wordpress/app/public/xmlrpc.php
-
-# WordPress Configuration
-Wordpress/app/public/wp-config.php
-!Wordpress/app/public/wp-config.example.php
-Wordpress/app/public/.htaccess
-
-# WordPress Uploads & Cache (DATOS PROPIOS - NO VERSIONAR)
-Wordpress/app/public/wp-content/uploads/
-Wordpress/app/public/wp-content/cache/
-Wordpress/app/public/wp-content/backup*/
-Wordpress/app/public/wp-content/backups/
-Wordpress/app/public/wp-content/upgrade/
-Wordpress/app/public/wp-content/w3tc-config/
-
-# Imágenes y Media de Productos (DATOS PROPIOS)
-Wordpress/app/public/wp-content/uploads/**/*.jpg
-Wordpress/app/public/wp-content/uploads/**/*.jpeg
-Wordpress/app/public/wp-content/uploads/**/*.png
-Wordpress/app/public/wp-content/uploads/**/*.gif
-Wordpress/app/public/wp-content/uploads/**/*.webp
-Wordpress/app/public/wp-content/uploads/**/*.svg
-Wordpress/app/public/wp-content/uploads/**/*.ico
-Wordpress/app/public/wp-content/uploads/**/*.pdf
-Wordpress/app/public/wp-content/uploads/**/*.mp4
-Wordpress/app/public/wp-content/uploads/**/*.mov
-
-# WordPress Languages (auto-generated)
-Wordpress/app/public/wp-content/languages/
-
-# WordPress Example Themes
-Wordpress/app/public/wp-content/themes/twenty*/
-
-# WordPress Example Plugins
-Wordpress/app/public/wp-content/plugins/hello.php
-Wordpress/app/public/wp-content/plugins/akismet/
-
-# WooCommerce Logs & Temp Files
-Wordpress/app/public/wp-content/woocommerce-logs/
-Wordpress/app/public/wp-content/wc-logs/
-
-# W3 Total Cache
-Wordpress/app/public/wp-content/w3tc/
-Wordpress/app/public/wp-content/cache/
-Wordpress/app/public/wp-content/advanced-cache.php
-Wordpress/app/public/wp-content/db.php
-Wordpress/app/public/wp-content/object-cache.php
-
-# Apache Configuration
-Wordpress/conf/apache/
-
-# PHP Configuration
-Wordpress/conf/php/
-
-# MySQL Configuration
-Wordpress/conf/mysql/
-
-#Claves ppk
-SitegroundAccess/
-
-# ============================================
-# REACT FRONTEND
-# ============================================
-
-# Dependencies
-frontend/node_modules/
-frontend/.pnp
-frontend/.pnp.js
-
-# Production Build
-frontend/build/
-frontend/dist/
-
-# Testing
-frontend/coverage/
-
-# Environment Variables
-frontend/.env
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
-
-# Vite Cache
-frontend/.vite/
-frontend/vite.config.js.timestamp-*
-
-# Frontend Assets Propios (DATOS PROPIOS - NO VERSIONAR)
-# Descomentar si tienes imágenes de productos en el frontend
-# frontend/public/uploads/
-# frontend/public/products/
-# frontend/public/banners/
-# frontend/src/assets/uploads/
-
-# ============================================
-# LOGS & DEBUGGING
-# ============================================
-
-# Log Files
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-error_log
-debug.log
-
-# ============================================
-# OPERATING SYSTEM FILES
-# ============================================
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
-.Spotlight-V100
-.Trashes
-
-# Windows
-Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
-ehthumbs_vista.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# Linux
-*~
-.directory
-.Trash-*
-
-# ============================================
-# IDE & EDITOR FILES
-# ============================================
-
-# Visual Studio Code
-.vscode/
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.code-workspace
-
-# Claude Code CLI
-.claude/
-*.claude-session
-
-# JetBrains IDEs (PhpStorm, WebStorm, etc.)
-.idea/
-*.iml
-*.iws
-*.ipr
-
-# Sublime Text
-*.sublime-project
-*.sublime-workspace
-
-# Vim
-[._]*.s[a-v][a-z]
-[._]*.sw[a-p]
-[._]s[a-rt-v][a-z]
-[._]ss[a-gi-z]
-[._]sw[a-p]
-
-# ============================================
-# TEMPORARY & MISC FILES
-# ============================================
-
-# Temporary Files
-*.tmp
-*.temp
-*.swp
-*.swo
-*.bak
-*.cache
-
-# Package Manager Locks (optional - uncomment if needed)
-# frontend/package-lock.json
-# frontend/yarn.lock
-# frontend/pnpm-lock.yaml
-
-# ============================================
-# SECURITY & SENSITIVE DATA
-# ============================================
-
-# Environment & Config Files
+# ---------- Entornos ----------
 .env
 .env.local
 .env.*.local
+backend/.env
+frontend/.env
+frontend/.env.local
+!**/.env.example
+
+# ---------- Secretos / claves ----------
 *.pem
 *.key
 *.cert
+*.ppk
+SitegroundAccess/
 
-# Database Backups (DATOS PROPIOS - NO VERSIONAR)
+# ============================================================================
+#  BACKEND — WordPress
+# ============================================================================
+# Solo versionamos nuestro código propio (mu-plugins, config, scripts).
+# Todo lo que WordPress descarga/genera se ignora.
+backend/wp-content/plugins/*
+backend/wp-content/themes/*
+backend/wp-content/upgrade/
+backend/wp-content/uploads/*
+!backend/wp-content/uploads/.gitkeep
+backend/wp-content/cache/
+backend/wp-content/languages/
+backend/wp-content/advanced-cache.php
+backend/wp-content/object-cache.php
+backend/wp-content/db.php
+
+# Mantén nuestro mu-plugin headless versionado
+!backend/wp-content/mu-plugins/
+!backend/wp-content/mu-plugins/**
+
+# ============================================================================
+#  FRONTEND — Next.js
+# ============================================================================
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+frontend/.vercel
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# ============================================================================
+#  Bases de datos / dumps
+# ============================================================================
 *.sql
 *.sql.gz
 *.sqlite
 *.db
 *.dump
 
-# Datos de WooCommerce (DATOS PROPIOS)
-Wordpress/app/public/wp-content/woocommerce_uploads/
-Wordpress/app/public/wp-content/et-cache/
+# ============================================================================
+#  Logs
+# ============================================================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+debug.log
+error_log
 
-# Datos de Clientes y Pedidos (DATOS SENSIBLES)
-**/customer-data/
-**/order-exports/
-**/invoices/
-**/receipts/
+# ============================================================================
+#  Sistema operativo
+# ============================================================================
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 
-# ============================================
-# PROJECT SPECIFIC
-# ============================================
+# ============================================================================
+#  IDE / Editores
+# ============================================================================
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
 
-# Custom Theme Development (keep Starter theme)
-# Uncomment to ignore all themes except custom
-# Wordpress/app/public/wp-content/themes/*
-# !Wordpress/app/public/wp-content/themes/Starter/
+# ============================================================================
+#  Claude Code
+# ============================================================================
+.claude/
+*.claude-session
 
-# Custom Plugins (keep only custom plugins)
-# Uncomment to ignore all plugins except custom
-# Wordpress/app/public/wp-content/plugins/*
-# !Wordpress/app/public/wp-content/plugins/custom-plugin/
-
-# Documentation Drafts
-docs/drafts/
-*.draft.md
-
-# Test Files
-*.test.local.*
-test-results/
+# ============================================================================
+#  Temporales
+# ============================================================================
+*.tmp
+*.temp
+*.swp
+*.bak
+*.cache

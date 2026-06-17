@@ -1,0 +1,134 @@
+# ============================================================================
+#  Headless Web Ecosystem — Docker Compose
+#  Servicios:
+#    - db        : MariaDB 11 (persistencia en volumen nombrado)
+#    - wordpress : WordPress (PHP 8.3 + Apache) como Headless CMS -> :8080
+#    - wpcli     : WP-CLI para automatizar la instalación/configuración
+#    - frontend  : Next.js (App Router) en modo desarrollo            -> :3000
+# ============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # Base de datos
+  # --------------------------------------------------------------------------
+  db:
+    image: mariadb:11.4
+    container_name: hwe_db
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: "${MYSQL_DATABASE:-wordpress}"
+      MARIADB_USER: "${MYSQL_USER:-wordpress}"
+      MARIADB_PASSWORD: "${MYSQL_PASSWORD:-wordpress}"
+      MARIADB_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root}"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hwe_net
+
+  # --------------------------------------------------------------------------
+  # WordPress (Headless CMS)
+  # --------------------------------------------------------------------------
+  wordpress:
+    image: wordpress:6.7-php8.3-apache
+    container_name: hwe_wordpress
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${WORDPRESS_PORT:-8080}:80"
+    environment:
+      WORDPRESS_DB_HOST: "db:3306"
+      WORDPRESS_DB_USER: "${MYSQL_USER:-wordpress}"
+      WORDPRESS_DB_PASSWORD: "${MYSQL_PASSWORD:-wordpress}"
+      WORDPRESS_DB_NAME: "${MYSQL_DATABASE:-wordpress}"
+      WORDPRESS_DEBUG: "${WORDPRESS_DEBUG:-1}"
+      # Inyecta PHP directamente en wp-config.php (clave JWT, entorno, etc.)
+      WORDPRESS_CONFIG_EXTRA: |
+        define( 'GRAPHQL_JWT_AUTH_SECRET_KEY', '${GRAPHQL_JWT_AUTH_SECRET_KEY:-changeme-super-secret-jwt-key}' );
+        define( 'WP_ENVIRONMENT_TYPE', '${WP_ENVIRONMENT_TYPE:-local}' );
+        define( 'HEADLESS_FRONTEND_URL', '${HEADLESS_FRONTEND_URL:-http://localhost:3000}' );
+        if ( ! defined( 'WP_DEBUG_LOG' ) ) { define( 'WP_DEBUG_LOG', true ); }
+    volumes:
+      # Persistencia local de TODO wp-content (plugins, themes, uploads, mu-plugins)
+      - ./backend/wp-content:/var/www/html/wp-content
+      # Límites de subida ampliados
+      - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
+    networks:
+      - hwe_net
+
+  # --------------------------------------------------------------------------
+  # WP-CLI (automatización: instala WP + plugins + configuración headless)
+  # --------------------------------------------------------------------------
+  wpcli:
+    image: wordpress:cli-php8.3
+    container_name: hwe_wpcli
+    # No arranca solo; se invoca bajo demanda:
+    #   docker compose run --rm wpcli
+    profiles: ["cli"]
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
+    user: "33:33" # www-data, mismo UID que el contenedor de WordPress
+    environment:
+      WORDPRESS_DB_HOST: "db:3306"
+      WORDPRESS_DB_USER: "${MYSQL_USER:-wordpress}"
+      WORDPRESS_DB_PASSWORD: "${MYSQL_PASSWORD:-wordpress}"
+      WORDPRESS_DB_NAME: "${MYSQL_DATABASE:-wordpress}"
+      # Variables consumidas por setup.sh
+      WP_URL: "${WORDPRESS_PUBLIC_URL:-http://localhost:8080}"
+      WP_TITLE: "${WP_TITLE:-Headless Web Ecosystem}"
+      WP_ADMIN_USER: "${WP_ADMIN_USER:-admin}"
+      WP_ADMIN_PASSWORD: "${WP_ADMIN_PASSWORD:-admin}"
+      WP_ADMIN_EMAIL: "${WP_ADMIN_EMAIL:-admin@example.com}"
+    volumes:
+      - ./backend/wp-content:/var/www/html/wp-content
+      - ./backend/scripts:/scripts:ro
+    entrypoint: ["/bin/sh"]
+    command: ["/scripts/setup.sh"]
+    networks:
+      - hwe_net
+
+  # --------------------------------------------------------------------------
+  # Frontend (Next.js — App Router — desarrollo)
+  # --------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hwe_frontend
+    restart: unless-stopped
+    depends_on:
+      - wordpress
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      # El navegador del usuario llama a WP por su URL pública...
+      NEXT_PUBLIC_WORDPRESS_API_URL: "${NEXT_PUBLIC_WORDPRESS_API_URL:-http://localhost:8080/graphql}"
+      # ...pero el servidor Next (SSR/ISR) lo resuelve por la red interna de Docker.
+      WORDPRESS_INTERNAL_API_URL: "${WORDPRESS_INTERNAL_API_URL:-http://wordpress:80/graphql}"
+      WATCHPACK_POLLING: "true" # hot-reload fiable en volúmenes montados (Windows/WSL)
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # node_modules aislado del host
+      - /app/.next
+    networks:
+      - hwe_net
+
+# ----------------------------------------------------------------------------
+# Volúmenes y red
+# ----------------------------------------------------------------------------
+volumes:
+  db_data:
+    driver: local
+
+networks:
+  hwe_net:
+    driver: bridge
