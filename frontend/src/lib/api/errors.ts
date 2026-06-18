@@ -1,6 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { WooCommerceError } from "@/lib/woocommerce/client";
+import { PaymentError } from "@/lib/payments/types";
 
 // ============================================================================
 //  Mapeo centralizado de errores a respuestas HTTP de los Route Handlers.
@@ -11,6 +12,20 @@ export function handleApiError(error: unknown): NextResponse {
   // Sesión requerida ausente (lanzado por requireSession()).
   if (error instanceof Error && error.message === "UNAUTHENTICATED") {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
+  }
+
+  // Errores de la capa de pagos (pasarela no registrada, sin implementar…).
+  if (error instanceof PaymentError) {
+    if (error.status >= 500 && error.status !== 501) {
+      return NextResponse.json(
+        { error: "El servicio de pago no está disponible." },
+        { status: 502 },
+      );
+    }
+    return NextResponse.json(
+      { error: error.message, code: error.code },
+      { status: error.status },
+    );
   }
 
   if (error instanceof WooCommerceError) {

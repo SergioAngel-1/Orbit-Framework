@@ -111,7 +111,7 @@ Estado actual:
 | 4 | CSRF + rate-limit + idempotencia | ✅ hecha |
 | 5 | E-commerce (catálogo, carrito, checkout, cuenta) | ✅ hecha |
 | 6 | SEO + i18n (next-intl, sitemap, hreflang, JSON-LD) | ✅ hecha |
-| 7 | **Pagos** — capa de pasarelas enchufable (Wompi/PayU/Bold…) | ⏳ diseñada, sin implementar |
+| 7 | **Pagos** — capa de pasarelas enchufable (Wompi/PayU/Bold…) | ✅ hecha (abstracción + `noop`) |
 | 8 | Calidad / CI/CD / observabilidad | ⏳ pendiente |
 | 9 | Empaquetado comercial (licencia, docs, white-label) | ⏳ pendiente |
 
@@ -186,13 +186,22 @@ escribir código: ahí están las decisiones de arquitectura y los criterios de 
 - **Analítica/consentimiento**: `components/analytics/` (banner opt-in; el script real de
   GA4/Plausible aún es un stub por cablear).
 
-### 6.8 Pagos (Fase 7 — aún NO implementada)
-- Diseño completo en `docs/PRODUCTION-PLAN.md` (Fase 7): **capa de pasarelas agnóstica**
-  (no Stripe, no pasarela WooCommerce). Cuando se implemente, vivirá en
-  `lib/payments/` (contrato `PaymentProvider`, `registry.ts`, `providers/`) y
-  `app/api/payments/` (`create`, `webhook/[provider]`, `return`).
-- Añadir una pasarela (Wompi/PayU/Bold…) = implementar la interfaz + registrarla, **sin
-  tocar el checkout**. El cobro se confirma por **webhook firmado**.
+### 6.8 Pagos (Fase 7 — capa de pasarelas agnóstica)
+- **Contrato e implementación** en `lib/payments/`: `types.ts` (`PaymentProvider`,
+  `PaymentError`), `registry.ts` (registro + selección por `PAYMENT_PROVIDER`),
+  `signature.ts` (HMAC/SHA + `safeEqual`), `orders.ts` (máquina de estados del pedido vía
+  wc/v3) y `providers/` (`noop` funcional + stubs `wompi`/`payu`/`bold`).
+- **Endpoints BFF** en `app/api/payments/`: `create` (POST, sesión + guard + propiedad →
+  `createCheckout`), `webhook/[provider]` (server-to-server, **sin CSRF/Origin**, valida
+  firma + importe + moneda → marca pagado, idempotente) y `return` (GET, solo estado). La
+  página UX de retorno está en `app/[locale]/checkout/return`.
+- **Regla de oro:** la prueba de pago es **el webhook verificado**, nunca el redirect. El
+  pedido se crea en WooCommerce *antes* del pago (estado `pending`) y solo pasa a
+  `processing` desde el webhook. El `CheckoutForm` consume `createCheckout` sin saber qué
+  pasarela hay detrás.
+- **Añadir una pasarela** (Wompi/PayU/Bold…) = implementar `PaymentProvider` en
+  `providers/<nombre>.ts`, registrarlo en `providers/index.ts`, poner sus credenciales
+  server-only y `PAYMENT_PROVIDER=<nombre>`. **Sin tocar el checkout.**
 
 ---
 

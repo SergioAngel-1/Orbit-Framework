@@ -29,6 +29,31 @@ export function CheckoutForm() {
       { name: "phone", label: tForm("phone") },
     ];
 
+  /**
+   * Inicia el cobro del pedido con la pasarela activa (capa agnóstica).
+   * @returns true si redirige al checkout alojado (la página se abandona).
+   */
+  async function startPayment(orderId: number): Promise<boolean> {
+    try {
+      const res = await csrfFetch("/api/payments/create", {
+        method: "POST",
+        body: { reference: orderId },
+      });
+      if (!res.ok) return false; // sin sesión / pasarela no aplicable → fallback
+      const data = (await res.json().catch(() => ({}))) as {
+        mode?: string;
+        redirectUrl?: string;
+      };
+      if (data.mode === "redirect" && data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPending(true);
@@ -57,8 +82,17 @@ export function CheckoutForm() {
           ("error" in data && data.error) || tCheckout("emptyCart"),
         );
       }
-      setResult(data as CheckoutResult);
+
+      const order = data as CheckoutResult;
       await refresh();
+
+      // Capa de pagos agnóstica: inicia el cobro con la pasarela activa. Si
+      // devuelve un checkout alojado, redirige; si no hay pasarela online
+      // (o sin sesión), se queda con el pedido creado (flujo contra reembolso).
+      const redirected = await startPayment(order.order_id);
+      if (!redirected) {
+        setResult(order);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error.");
     } finally {

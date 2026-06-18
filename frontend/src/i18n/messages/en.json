@@ -48,7 +48,17 @@
     "status": "status",
     "emptyCart": "Your cart is empty. Add products before checking out.",
     "processing": "Processing…",
-    "submit": "Confirm order (cash on delivery)"
+    "redirecting": "Redirecting to the payment gateway…",
+    "submit": "Confirm order (cash on delivery)",
+    "return": {
+      "title": "Payment status",
+      "paid": "Payment confirmed!",
+      "pending": "Payment pending confirmation",
+      "pendingHint": "We're waiting for the gateway to confirm. Reload this page in a few moments.",
+      "notFound": "We couldn't find that order, or it doesn't belong to you.",
+      "viewOrders": "View my orders",
+      "continueShopping": "Continue shopping"
+    }
   },
   "form": {
     "firstName": "First name",

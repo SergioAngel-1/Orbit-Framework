@@ -316,7 +316,7 @@ pero aún **no inyecta** el script real de GA4/Plausible (es un stub listo para 
 
 ---
 
-### Fase 7 — Pagos: capa de pasarelas enchufable (provider-agnostic)
+### Fase 7 — Pagos: capa de pasarelas enchufable (provider-agnostic) ✅ COMPLETADA
 **Objetivo:** dejar el sistema **preparado** para integrar cualquier pasarela
 (Wompi, PayU, Bold, ePayco, Mercado Pago…) **sin acoplar el código a ninguna**. No se
 integra ninguna pasarela en esta fase: se construye la **abstracción** y un proveedor de
@@ -380,34 +380,41 @@ export function getProvider(id = process.env.PAYMENT_PROVIDER): PaymentProvider 
 export function listProviders(): string[] { return [...registry.keys()]; }
 ```
 
-- [ ] **Estructura de archivos** (scaffolding, sin integrar pasarela):
-  - `lib/payments/types.ts` — contrato anterior.
-  - `lib/payments/registry.ts` — registro + selección por `PAYMENT_PROVIDER`.
-  - `lib/payments/signature.ts` — helpers HMAC/SHA compartidos (firmas de integridad).
+- [x] **Estructura de archivos** (scaffolding, sin integrar pasarela):
+  - `lib/payments/types.ts` — contrato anterior (+ `PaymentError`).
+  - `lib/payments/registry.ts` — registro + selección por `PAYMENT_PROVIDER`
+    (`registerProvider`/`getProvider`/`listProviders`/`activeProviderId`).
+  - `lib/payments/signature.ts` — helpers HMAC/SHA compartidos (`hmacSha256`, `sha256`,
+    `safeEqual` en tiempo constante).
+  - `lib/payments/orders.ts` — máquina de estados del pedido (wc/v3): `getOrder`,
+    `isOrderPaid`, `paymentMatchesOrder`, `markOrderPaid`, `markOrderCancelled`, `toMinorUnits`.
   - `lib/payments/providers/index.ts` — registra los proveedores disponibles.
   - `lib/payments/providers/noop.ts` — proveedor de ejemplo (sandbox) que implementa el
-    contrato y permite probar el flujo de punta a punta sin cobrar.
+    contrato y permite probar el flujo de punta a punta sin cobrar (webhook firmado HMAC).
   - `lib/payments/providers/{wompi,payu,bold}.ts` — **plantillas-stub** documentadas con
-    el TODO de cada API (sin credenciales ni llamadas reales).
-- [ ] **Endpoints BFF agnósticos** bajo `frontend/src/app/api/payments/`:
-  - `create/route.ts` (POST) — exige sesión + guard (CSRF/rate-limit/idempotencia, Fase 4);
-    obtiene el pedido `pending`, llama `getProvider().createCheckout(...)` y devuelve
-    `redirectUrl`/`widget`.
+    el TODO de cada API (sin credenciales ni llamadas reales; lanzan `501`).
+- [x] **Endpoints BFF agnósticos** bajo `frontend/src/app/api/payments/`:
+  - `create/route.ts` (POST) — exige sesión + guard (CSRF/rate-limit) + propiedad del
+    pedido (anti-IDOR); obtiene el pedido, llama `getProvider().createCheckout(...)` y
+    devuelve `redirectUrl`/`widget`. Si el pedido ya está pagado → `mode: "none"`.
   - `webhook/[provider]/route.ts` — **ruta recursiva**: un único handler atiende a
     cualquier proveedor registrado; resuelve `getProvider(params.provider)`,
     `verifyWebhook(rawBody, headers)` y, si `approved` **y** el importe/moneda coinciden con
-    el pedido, marca el pedido WC como pagado (wc/v3 ck/cs). Idempotente.
-  - `return/route.ts` — URL de retorno del usuario; solo muestra estado, **nunca** confirma
-    el pago.
-- [ ] **Máquina de estados del pedido**: `pending` → (`approved` por webhook) `processing`/
-      `completed`; `declined`/`voided` → `failed`/`cancelled`. La transición a pagado **solo**
-      ocurre desde el webhook verificado.
-- [ ] **Conciliación y anti-fraude**: el pedido se crea en WooCommerce **antes** del pago;
+    el pedido, marca el pedido WC como pagado (wc/v3 ck/cs). Idempotente. Sin CSRF/Origin
+    (server-to-server, autenticado por firma).
+  - `return/route.ts` (GET) — URL de retorno del usuario; solo muestra estado (sesión +
+    propiedad), **nunca** confirma el pago. Página UX en `app/[locale]/checkout/return`.
+- [x] **Máquina de estados del pedido** (`lib/payments/orders.ts`): `pending` →
+      (`approved` por webhook) `processing` (`set_paid`); `declined`/`voided` → `cancelled`.
+      La transición a pagado **solo** ocurre desde el webhook verificado e idempotente.
+- [x] **Conciliación y anti-fraude**: el pedido se crea en WooCommerce **antes** del pago;
       el webhook valida **firma + importe + moneda + referencia** contra el pedido; el
-      redirect del cliente nunca es prueba de pago; reintentos usan idempotencia (Fase 4).
-- [ ] **Config de proveedor activo** (`config/site.ts` / env): `PAYMENT_PROVIDER`,
-      `PAYMENT_CURRENCY`, y credenciales **server-only** por proveedor (ver Fase 7.3). La UI
-      de checkout consume `createCheckout` sin saber qué pasarela hay detrás.
+      redirect del cliente nunca es prueba de pago; el webhook no revierte un pedido ya pagado.
+- [x] **Config de proveedor activo** (env): `PAYMENT_PROVIDER`, `PAYMENT_CURRENCY`,
+      `NEXT_PUBLIC_PAYMENT_RETURN_URL` y credenciales **server-only** por proveedor (ver
+      Fase 7.3). El `CheckoutForm` llama a `createCheckout` (vía `/api/payments/create`) y
+      redirige sin saber qué pasarela hay detrás; si no hay pasarela online aplicable, cae al
+      flujo de pedido creado (contra reembolso).
 
 #### 7.3 Variables de entorno (placeholders, sin valores)
 ```bash
@@ -437,6 +444,19 @@ funcionando de punta a punta en sandbox (crear pedido `pending` → `createCheck
 webhook simulado verificado → pedido pagado, idempotente); cambiar `PAYMENT_PROVIDER` no
 requiere cambios de código; ninguna credencial real ni SDK de pasarela en el repo; `tsc`,
 `next lint` y `next build` en verde.
+
+**Estado: implementado.** `tsc`, `next lint` y `next build` en verde (aparecen las rutas
+`/api/payments/create`, `/api/payments/webhook/[provider]`, `/api/payments/return` y la
+página `/[locale]/checkout/return`). La abstracción no acopla el checkout a ninguna pasarela
+y los stubs Wompi/PayU/Bold devuelven `501` hasta implementarse.
+
+> **Pendiente de verificación en vivo (honesto):** el ciclo completo (pedido real
+> `pending` → `createCheckout` → POST firmado a `/api/payments/webhook/noop` → pedido
+> `processing`) requiere la pila Docker con WooCommerce y claves `ck/cs`. Para probarlo:
+> firmar el cuerpo del evento con `hmacSha256(rawBody, NOOP_INTEGRITY_SECRET)` y enviarlo en
+> la cabecera `x-noop-signature`. Sin la pila, lo verificado es tipos + lint + build.
+> Además, asociar el pedido de la Store API al `customer_id` del usuario autenticado (para
+> que `create`/`return` autoricen por propietario) depende de la configuración de WP.
 
 ---
 

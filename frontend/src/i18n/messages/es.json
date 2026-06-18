@@ -48,7 +48,17 @@
     "status": "estado",
     "emptyCart": "Tu carrito está vacío. Añade productos antes de finalizar.",
     "processing": "Procesando…",
-    "submit": "Confirmar pedido (contra reembolso)"
+    "redirecting": "Redirigiendo a la pasarela de pago…",
+    "submit": "Confirmar pedido (contra reembolso)",
+    "return": {
+      "title": "Estado del pago",
+      "paid": "¡Pago confirmado!",
+      "pending": "Pago pendiente de confirmación",
+      "pendingHint": "Estamos esperando la confirmación de la pasarela. Recarga esta página en unos instantes.",
+      "notFound": "No encontramos ese pedido o no te pertenece.",
+      "viewOrders": "Ver mis pedidos",
+      "continueShopping": "Seguir comprando"
+    }
   },
   "form": {
     "firstName": "Nombre",
