@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
-import { siteConfig } from "@/config/site";
 import { routing } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import "../globals.css";
@@ -11,6 +10,8 @@ import { CartProvider } from "@/components/cart/cart-context";
 import { CartIndicator } from "@/components/cart/cart-indicator";
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
 import { LocaleSwitcher } from "@/components/i18n/locale-switcher";
+import { ThemeTokens } from "@/components/ui/theme-tokens";
+import { getSiteConfig } from "@/lib/config";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -18,7 +19,6 @@ const inter = Inter({
   display: "swap",
 });
 
-/** Pre-genera una variante estática por idioma. */
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
@@ -29,7 +29,10 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "site" });
+  const [t, config] = await Promise.all([
+    getTranslations({ locale, namespace: "site" }),
+    getSiteConfig(),
+  ]);
 
   return {
     title: {
@@ -37,14 +40,10 @@ export async function generateMetadata({
       template: `%s · ${t("name")}`,
     },
     description: t("description"),
-    metadataBase: new URL(siteConfig.url),
+    metadataBase: new URL(config.brand.url || "http://localhost:3000"),
     alternates: {
       canonical: locale === routing.defaultLocale ? "/" : `/${locale}`,
-      languages: {
-        es: "/",
-        en: "/en",
-        "x-default": "/",
-      },
+      languages: { es: "/", en: "/en", "x-default": "/" },
     },
     openGraph: {
       title: t("name"),
@@ -57,20 +56,23 @@ export async function generateMetadata({
       card: "summary_large_image",
       title: t("name"),
       description: t("description"),
-      creator: siteConfig.social.twitter,
+      creator: config.social.twitter || undefined,
     },
+    ...(config.seo.google_site_verification && {
+      verification: { google: config.seo.google_site_verification },
+    }),
   };
 }
 
-function JsonLd() {
+async function JsonLd() {
+  const config = await getSiteConfig();
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: siteConfig.name,
-    description: siteConfig.description,
-    url: siteConfig.url,
+    name: config.brand.name,
+    description: config.brand.description,
+    url: config.brand.url,
   };
-
   return (
     <script
       type="application/ld+json"
@@ -90,7 +92,6 @@ export default async function LocaleLayout({
   if (!routing.locales.includes(locale as (typeof routing.locales)[number])) {
     notFound();
   }
-  // Habilita el renderizado estático para este locale.
   setRequestLocale(locale);
 
   const messages = await getMessages();
@@ -100,6 +101,8 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={inter.variable}>
       <body className="min-h-screen font-sans antialiased">
+        {/* Design tokens desde el panel de configuración (React 19 lo eleva a <head>). */}
+        <ThemeTokens />
         <NextIntlClientProvider messages={messages}>
           <AnalyticsProvider>
             <CartProvider>
@@ -119,16 +122,10 @@ export default async function LocaleLayout({
                     {tSite("name")}
                   </Link>
                   <nav className="flex items-center gap-5 text-sm font-medium text-gray-600 dark:text-gray-300">
-                    <Link
-                      href="/products"
-                      className="transition-colors hover:text-brand"
-                    >
+                    <Link href="/products" className="transition-colors hover:text-brand">
                       {tNav("store")}
                     </Link>
-                    <Link
-                      href="/account"
-                      className="transition-colors hover:text-brand"
-                    >
+                    <Link href="/account" className="transition-colors hover:text-brand">
                       {tNav("account")}
                     </Link>
                     <CartIndicator />
@@ -137,10 +134,7 @@ export default async function LocaleLayout({
                 </div>
               </header>
 
-              <main
-                id="main-content"
-                className="mx-auto max-w-5xl px-6 py-12"
-              >
+              <main id="main-content" className="mx-auto max-w-5xl px-6 py-12">
                 {children}
               </main>
 
@@ -150,18 +144,10 @@ export default async function LocaleLayout({
                     aria-label={tNav("legal")}
                     className="flex flex-wrap justify-center gap-x-5 gap-y-2"
                   >
-                    <Link href="/legal/privacy" className="hover:text-brand">
-                      {tNav("privacy")}
-                    </Link>
-                    <Link href="/legal/cookies" className="hover:text-brand">
-                      {tNav("cookies")}
-                    </Link>
-                    <Link href="/legal/terms" className="hover:text-brand">
-                      {tNav("terms")}
-                    </Link>
-                    <Link href="/legal/returns" className="hover:text-brand">
-                      {tNav("returns")}
-                    </Link>
+                    <Link href="/legal/privacy" className="hover:text-brand">{tNav("privacy")}</Link>
+                    <Link href="/legal/cookies" className="hover:text-brand">{tNav("cookies")}</Link>
+                    <Link href="/legal/terms"   className="hover:text-brand">{tNav("terms")}</Link>
+                    <Link href="/legal/returns" className="hover:text-brand">{tNav("returns")}</Link>
                   </nav>
                   <p>{tSite("footer")}</p>
                 </div>

@@ -1,24 +1,25 @@
+import { CONFIG_DEFAULTS } from "@/lib/config/defaults";
+
+/**
+ * Adaptador de compatibilidad. Los valores viven en CONFIG_DEFAULTS y se
+ * actualizan dinámicamente desde el panel via getSiteConfig().
+ * Para leer la config en Server Components usa getSiteConfig() de @/lib/config.
+ */
 export const siteConfig = {
-  name: "HeadlessWP",
-  tagline: "Headless WooCommerce Template",
-  description:
-    "Frontend Next.js (App Router) connected to WordPress via WPGraphQL and WooCommerce.",
-
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-  locale: "es",
-
+  name:         CONFIG_DEFAULTS.brand.name,
+  tagline:      CONFIG_DEFAULTS.brand.tagline,
+  description:  CONFIG_DEFAULTS.brand.description,
+  url:          CONFIG_DEFAULTS.brand.url,
+  locale:       CONFIG_DEFAULTS.brand.locale,
   brand: {
-    primary: "#2563eb",
+    primary: CONFIG_DEFAULTS.design.colors.brand,
   },
-
   social: {
-    twitter: "@headlesswp",
+    twitter: CONFIG_DEFAULTS.social.twitter,
   },
-
   legal: {
-    email: "hello@headlesswp.com",
-    company: "Headless Web Ecosystem Inc.",
+    email:   CONFIG_DEFAULTS.legal.email,
+    company: CONFIG_DEFAULTS.legal.company,
   },
-
-  defaultOgImage: "/og-default.jpg",
+  defaultOgImage: CONFIG_DEFAULTS.brand.og_image,
 };

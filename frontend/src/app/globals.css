@@ -5,6 +5,11 @@
  *  Cada variable --color-* / --font-* genera automáticamente sus utilidades
  *  (p. ej. --color-brand -> bg-brand, text-brand, from-brand, ...).
  * ------------------------------------------------------------------------- */
+/*
+ * @theme: define qué clases Tailwind se generan (bg-brand, text-brand-dark, etc.)
+ * Los valores aquí son el FALLBACK de build; el componente <ThemeTokens> los
+ * sobreescribe en :root con los valores reales del panel de configuración.
+ */
 @theme {
   --color-brand: #2563eb;
   --color-brand-dark: #1e40af;

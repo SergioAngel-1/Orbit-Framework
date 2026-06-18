@@ -55,6 +55,7 @@ services:
         define( 'WP_ENVIRONMENT_TYPE', '${WP_ENVIRONMENT_TYPE:-local}' );
         define( 'HEADLESS_FRONTEND_URL', '${HEADLESS_FRONTEND_URL:-http://localhost:3000}' );
         define( 'HEADLESS_ALLOWED_ORIGINS', '${HEADLESS_ALLOWED_ORIGINS:-http://localhost:3000}' );
+        define( 'HWE_REVALIDATION_SECRET', '${HWE_REVALIDATION_SECRET:-changeme-hwe-revalidation-secret}' );
         if ( ! defined( 'WP_DEBUG_LOG' ) ) { define( 'WP_DEBUG_LOG', true ); }
     volumes:
       # Persistencia local de TODO wp-content (plugins, themes, uploads, mu-plugins)
@@ -166,6 +167,8 @@ services:
       WC_CONSUMER_SECRET: "${WC_CONSUMER_SECRET:-}"
       # Secreto del webhook de WooCommerce (revalidación on-demand del catálogo).
       WC_WEBHOOK_SECRET: "${WC_WEBHOOK_SECRET:-changeme-super-secret-webhook-key}"
+      # Secreto para que el plugin HWE Control Center dispare revalidación de site-config.
+      HWE_REVALIDATION_SECRET: "${HWE_REVALIDATION_SECRET:-changeme-hwe-revalidation-secret}"
       # Conexión a Redis por la red interna de Docker.
       REDIS_URL: "${REDIS_URL:-redis://redis:6379}"
       WATCHPACK_POLLING: "true" # hot-reload fiable en volúmenes montados (Windows/WSL)
