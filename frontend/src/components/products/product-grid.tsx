@@ -1,11 +1,13 @@
+import { getTranslations } from "next-intl/server";
 import { ProductCard } from "./product-card";
 import type { CatalogProduct } from "@/types/catalog";
 
-export function ProductGrid({ products }: { products: CatalogProduct[] }) {
+export async function ProductGrid({ products }: { products: CatalogProduct[] }) {
+  const t = await getTranslations("products");
   if (products.length === 0) {
     return (
       <p className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
-        No se encontraron productos.
+        {t("notFound")}
       </p>
     );
   }

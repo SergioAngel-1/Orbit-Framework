@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useCart } from "./cart-context";
 
 export function AddToCartButton({
@@ -10,6 +11,7 @@ export function AddToCartButton({
   disabled?: boolean;
 }) {
   const { addItem } = useCart();
+  const t = useTranslations("addToCart");
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -32,7 +34,7 @@ export function AddToCartButton({
       disabled={disabled || pending}
       className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
     >
-      {pending ? "Añadiendo…" : done ? "✓ Añadido" : "Añadir al carrito"}
+      {pending ? t("adding") : done ? t("added") : t("add")}
     </button>
   );
 }

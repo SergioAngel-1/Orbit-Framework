@@ -1,7 +1,8 @@
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getProductBySlug, getProductSlugs } from "@/lib/catalog/products";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 import { sanitizeHtml } from "@/lib/security/sanitize";
@@ -17,12 +18,13 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  const t = await getTranslations({ locale, namespace: "products" });
   try {
     const product = await getProductBySlug(slug);
-    if (!product) return { title: "Producto no encontrado" };
+    if (!product) return { title: t("notFound") };
     const description = stripHtml(product.shortDescription).slice(0, 160);
     return {
       title: product.name,
@@ -34,16 +36,18 @@ export async function generateMetadata({
       },
     };
   } catch {
-    return { title: "Producto" };
+    return { title: t("title") };
   }
 }
 
 export default async function ProductPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }) {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations("products");
 
   let product: Awaited<ReturnType<typeof getProductBySlug>>;
   try {
@@ -58,7 +62,6 @@ export default async function ProductPage({
     : "";
   const outOfStock = product.stockStatus === "OUT_OF_STOCK";
 
-  // Datos estructurados (SEO / rich results).
   const jsonLd = {
     "@context": "https://schema.org/",
     "@type": "Product",
@@ -83,7 +86,7 @@ export default async function ProductPage({
 
       <nav className="mb-6 text-sm text-gray-500">
         <Link href="/products" className="hover:text-brand">
-          ← Volver a la tienda
+          {t("backToStore")}
         </Link>
       </nav>
 
@@ -119,7 +122,7 @@ export default async function ProductPage({
 
           <div className="mt-6">
             {outOfStock ? (
-              <span className="font-medium text-gray-400">Agotado</span>
+              <span className="font-medium text-gray-400">{t("outOfStock")}</span>
             ) : (
               <AddToCartButton productId={product.databaseId} />
             )}

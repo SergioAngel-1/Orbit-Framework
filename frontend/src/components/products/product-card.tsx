@@ -1,10 +1,12 @@
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { getTranslations } from "next-intl/server";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 import { formatPrice } from "@/lib/format";
 import type { CatalogProduct } from "@/types/catalog";
 
-export function ProductCard({ product }: { product: CatalogProduct }) {
+export async function ProductCard({ product }: { product: CatalogProduct }) {
+  const t = await getTranslations("products");
   const outOfStock = product.stockStatus === "OUT_OF_STOCK";
 
   return (
@@ -28,7 +30,7 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
         )}
         {product.onSale && (
           <span className="absolute left-2 top-2 rounded-full bg-brand px-2 py-0.5 text-xs font-bold text-white">
-            Oferta
+            {t("onSale")}
           </span>
         )}
       </Link>
@@ -50,7 +52,7 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
 
         <div className="mt-4">
           {outOfStock ? (
-            <span className="text-sm font-medium text-gray-400">Agotado</span>
+            <span className="text-sm font-medium text-gray-400">{t("outOfStock")}</span>
           ) : (
             <AddToCartButton productId={product.databaseId} />
           )}

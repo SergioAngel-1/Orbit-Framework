@@ -1,8 +1,3 @@
-// ============================================================================
-//  Helpers de formato (cliente + servidor; sin dependencias pesadas).
-// ============================================================================
-
-/** Limpia el precio que devuelve WooGraphQL (entidades HTML + etiquetas). */
 export function formatPrice(price?: string | null): string {
   if (!price) return "";
   return price
@@ -15,10 +10,6 @@ export function formatPrice(price?: string | null): string {
     .trim();
 }
 
-/**
- * Formatea un importe de la Store API (entero en unidades menores, p. ej.
- * "1000" con minorUnit 2 -> "10.00 EUR").
- */
 export function formatStoreAmount(
   amount?: string | null,
   minorUnit = 2,
@@ -31,7 +22,6 @@ export function formatStoreAmount(
   return currencyCode ? `${value} ${currencyCode}` : value;
 }
 
-/** Convierte un fragmento HTML simple en texto plano (para tarjetas/excerpts). */
 export function stripHtml(html?: string | null): string {
   if (!html) return "";
   return html
@@ -42,10 +32,9 @@ export function stripHtml(html?: string | null): string {
     .trim();
 }
 
-/** Formatea una fecha ISO en español. */
-export function formatDate(iso: string): string {
+export function formatDate(iso: string, locale = "es"): string {
   try {
-    return new Intl.DateTimeFormat("es-ES", {
+    return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-ES", {
       day: "numeric",
       month: "long",
       year: "numeric",

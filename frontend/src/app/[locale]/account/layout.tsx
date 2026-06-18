@@ -1,31 +1,35 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import { Link, redirect } from "@/i18n/navigation";
+import { getTranslations } from "next-intl/server";
 import { getSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function AccountLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ locale: string }>;
 }) {
+  const { locale } = await params;
+  const t = await getTranslations("account");
   const session = await getSession();
   if (!session) {
-    redirect("/login");
+    redirect({ href: "/login", locale });
   }
 
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-[200px_1fr]">
       <aside>
         <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-gray-400">
-          Mi cuenta
+          {t("myAccount")}
         </h2>
         <nav className="flex flex-col gap-2 text-sm">
           <Link href="/account" className="hover:text-brand">
-            Perfil
+            {t("profile")}
           </Link>
           <Link href="/account/orders" className="hover:text-brand">
-            Pedidos
+            {t("orders")}
           </Link>
         </nav>
       </aside>

@@ -1,20 +1,16 @@
-import Link from "next/link";
-import type { Metadata } from "next";
+import { Link } from "@/i18n/navigation";
+import { getTranslations } from "next-intl/server";
 import { getProducts } from "@/lib/catalog/products";
 import { ProductGrid } from "@/components/products/product-grid";
 
 export const revalidate = 300;
-
-export const metadata: Metadata = {
-  title: "Tienda",
-  description: "Catálogo de productos.",
-};
 
 export default async function ProductsPage({
   searchParams,
 }: {
   searchParams: Promise<{ search?: string; after?: string }>;
 }) {
+  const t = await getTranslations("products");
   const { search, after } = await searchParams;
 
   let products: Awaited<ReturnType<typeof getProducts>>["products"] = [];
@@ -27,7 +23,7 @@ export default async function ProductsPage({
     pageInfo = result.pageInfo;
   } catch (e) {
     errorMessage =
-      e instanceof Error ? e.message : "No se pudo cargar el catálogo.";
+      e instanceof Error ? e.message : t("error");
   }
 
   const nextHref = pageInfo.endCursor
@@ -39,30 +35,30 @@ export default async function ProductsPage({
 
   return (
     <div>
-      <h1 className="mb-6 text-3xl font-extrabold tracking-tight">Tienda</h1>
+      <h1 className="mb-6 text-3xl font-extrabold tracking-tight">{t("title")}</h1>
 
       <form action="/products" method="get" className="mb-8 flex gap-2">
         <input
           type="search"
           name="search"
           defaultValue={search ?? ""}
-          placeholder="Buscar productos…"
+          placeholder={t("searchPlaceholder")}
           className="w-full max-w-sm rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
         />
         <button
           type="submit"
           className="rounded-lg bg-brand px-4 py-2 font-semibold text-white hover:bg-brand-dark"
         >
-          Buscar
+          {t("searchButton")}
         </button>
       </form>
 
       {errorMessage ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-          <p className="font-semibold">No se pudo cargar el catálogo.</p>
+          <p className="font-semibold">{t("error")}</p>
           <p className="mt-1 text-sm opacity-80">{errorMessage}</p>
           <p className="mt-2 text-sm">
-            Comprueba que WooCommerce y WooGraphQL están activos.
+            {t("errorHint")}
           </p>
         </div>
       ) : (
@@ -74,7 +70,7 @@ export default async function ProductsPage({
                 href={nextHref}
                 className="inline-block rounded-lg border border-gray-300 px-6 py-2 font-medium transition-colors hover:border-brand hover:text-brand dark:border-gray-700"
               >
-                Cargar más →
+                {t("loadMore")}
               </Link>
             </div>
           )}

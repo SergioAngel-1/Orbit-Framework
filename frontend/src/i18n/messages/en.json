@@ -1,0 +1,122 @@
+{
+  "site": {
+    "name": "HeadlessWP",
+    "tagline": "Headless WooCommerce Template",
+    "description": "Next.js (App Router) frontend connected to WordPress via WPGraphQL and WooCommerce.",
+    "footer": "Next.js + WordPress (WPGraphQL) · Headless Web Ecosystem"
+  },
+  "nav": {
+    "store": "Store",
+    "account": "Account",
+    "cart": "Cart"
+  },
+  "home": {
+    "title": "Latest posts",
+    "description": "Content served from WordPress via WPGraphQL and statically rendered with Incremental Static Regeneration (ISR every 60s).",
+    "readMore": "Read more →",
+    "errorTitle": "Could not load posts.",
+    "errorDescription": "Check that WordPress is running and WPGraphQL responds at /graphql.",
+    "empty": "No posts yet. Create content in the WordPress admin panel."
+  },
+  "products": {
+    "title": "Store",
+    "searchPlaceholder": "Search products…",
+    "searchButton": "Search",
+    "loadMore": "Load more →",
+    "error": "Could not load catalog.",
+    "errorHint": "Check that WooCommerce and WooGraphQL are active.",
+    "notFound": "No products found.",
+    "backToStore": "← Back to store",
+    "outOfStock": "Out of stock",
+    "onSale": "Sale"
+  },
+  "cart": {
+    "title": "Your cart",
+    "loading": "Loading cart…",
+    "empty": "Empty cart.",
+    "emptyDetailed": "Your cart is empty.",
+    "viewProducts": "View products →",
+    "quantity": "Qty",
+    "remove": "Remove",
+    "total": "Total",
+    "checkout": "Proceed to checkout"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "success": "Order placed!",
+    "orderNumber": "Order",
+    "status": "status",
+    "emptyCart": "Your cart is empty. Add products before checking out.",
+    "processing": "Processing…",
+    "submit": "Confirm order (cash on delivery)"
+  },
+  "form": {
+    "firstName": "First name",
+    "lastName": "Last name",
+    "address": "Address",
+    "city": "City",
+    "postcode": "Postcode",
+    "country": "Country (ISO 2, e.g. US)",
+    "email": "Email",
+    "phone": "Phone",
+    "username": "Username",
+    "usernameOrEmail": "Username or email",
+    "password": "Password",
+    "passwordMin": "Minimum 8 characters."
+  },
+  "login": {
+    "title": "Sign in",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "error": "Could not sign in.",
+    "noAccount": "Don't have an account?",
+    "register": "Register"
+  },
+  "register": {
+    "title": "Create account",
+    "submit": "Create account",
+    "submitting": "Creating account…",
+    "error": "Could not complete registration.",
+    "hasAccount": "Already have an account?",
+    "login": "Sign in"
+  },
+  "account": {
+    "myAccount": "My account",
+    "profile": "Profile",
+    "orders": "Orders",
+    "ordersTitle": "My orders",
+    "sessionAs": "Signed in as",
+    "saveSuccess": "Data saved.",
+    "saveError": "Could not save.",
+    "ordersEmpty": "No orders yet.",
+    "articles": "item(s)",
+    "logout": "Sign out",
+    "loggingOut": "Signing out…",
+    "dataError": "Could not load your data.",
+    "dataErrorHint": "Verify that WooCommerce and the ck/cs credentials are configured."
+  },
+  "addToCart": {
+    "add": "Add to cart",
+    "adding": "Adding…",
+    "added": "✓ Added"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Error.",
+    "save": "Save",
+    "saving": "Saving…",
+    "back": "Back"
+  },
+  "notFound": {
+    "message": "The page you are looking for does not exist.",
+    "backHome": "← Back home"
+  },
+  "consent": {
+    "message": "This site uses necessary technical cookies and, if you accept, analytics cookies to improve the service.",
+    "necessaryOnly": "Necessary only",
+    "acceptAll": "Accept all"
+  },
+  "meta": {
+    "titleTemplate": "%s · HeadlessWP"
+  }
+}

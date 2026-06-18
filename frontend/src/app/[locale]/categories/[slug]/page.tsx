@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { getCategory } from "@/lib/catalog/products";
 import { ProductGrid } from "@/components/products/product-grid";
 import { stripHtml } from "@/lib/format";
@@ -11,16 +12,17 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  const t = await getTranslations("products");
   const { slug } = await params;
   try {
     const result = await getCategory(slug);
-    if (!result) return { title: "Categoría no encontrada" };
+    if (!result) return { title: t("notFound") };
     return {
       title: result.category.name,
       description: stripHtml(result.category.description).slice(0, 160),
     };
   } catch {
-    return { title: "Categoría" };
+    return { title: t("title") };
   }
 }
 

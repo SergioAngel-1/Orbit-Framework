@@ -1,11 +1,14 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useRouter } from "@/i18n/navigation";
+import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 
 export function RegisterForm() {
   const router = useRouter();
+  const tRegister = useTranslations("register");
+  const tForm = useTranslations("form");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -25,7 +28,7 @@ export function RegisterForm() {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || "No se pudo completar el registro.");
+        throw new Error(data.error || tRegister("error"));
       }
       router.push("/account");
       router.refresh();
@@ -44,7 +47,7 @@ export function RegisterForm() {
         </p>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">Usuario</label>
+        <label className="mb-1 block text-sm font-medium">{tForm("username")}</label>
         <input
           name="username"
           required
@@ -54,7 +57,7 @@ export function RegisterForm() {
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Email</label>
+        <label className="mb-1 block text-sm font-medium">{tForm("email")}</label>
         <input
           name="email"
           type="email"
@@ -64,7 +67,7 @@ export function RegisterForm() {
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Contraseña</label>
+        <label className="mb-1 block text-sm font-medium">{tForm("password")}</label>
         <input
           name="password"
           type="password"
@@ -73,19 +76,19 @@ export function RegisterForm() {
           autoComplete="new-password"
           className="w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
         />
-        <p className="mt-1 text-xs text-gray-500">Mínimo 8 caracteres.</p>
+        <p className="mt-1 text-xs text-gray-500">{tForm("passwordMin")}</p>
       </div>
       <button
         type="submit"
         disabled={pending}
         className="w-full rounded-lg bg-brand py-2.5 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
       >
-        {pending ? "Creando cuenta…" : "Crear cuenta"}
+        {pending ? tRegister("submitting") : tRegister("submit")}
       </button>
       <p className="text-center text-sm text-gray-500">
-        ¿Ya tienes cuenta?{" "}
+        {tRegister("hasAccount")}{" "}
         <Link href="/login" className="font-medium text-brand hover:underline">
-          Inicia sesión
+          {tRegister("login")}
         </Link>
       </p>
     </form>

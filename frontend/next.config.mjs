@@ -1,3 +1,9 @@
+import createNextIntlPlugin from "next-intl/plugin";
+import path from "path";
+import fs from "fs";
+
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+
 /** @type {import('next').NextConfig} */
 
 const isProd = process.env.NODE_ENV === "production";
@@ -96,7 +102,7 @@ const securityHeaders = [
     : []),
 ];
 
-const nextConfig = {
+const nextConfig = withNextIntl({
   reactStrictMode: true,
   poweredByHeader: false, // No revelar "X-Powered-By: Next.js".
 
@@ -128,6 +134,6 @@ const nextConfig = {
       ...wordpressImagePattern(),
     ],
   },
-};
+});
 
 export default nextConfig;

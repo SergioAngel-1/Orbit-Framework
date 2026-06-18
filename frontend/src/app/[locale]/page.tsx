@@ -1,36 +1,11 @@
 import Image from "next/image";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { LATEST_POSTS_QUERY } from "@/lib/queries";
+import { formatDate, stripHtml } from "@/lib/format";
 import type { PostsQueryResponse, WPPost } from "@/types/wordpress";
 
-// ----------------------------------------------------------------------------
-//  INCREMENTAL STATIC REGENERATION (ISR)
-//  La página se genera estáticamente y se regenera, como máximo, cada 60s.
-//  Esto se combina con `next: { revalidate }` del cliente GraphQL.
-// ----------------------------------------------------------------------------
 export const revalidate = 60;
-
-/** Convierte una fecha ISO de WordPress en formato legible en español. */
-function formatDate(iso: string): string {
-  try {
-    return new Intl.DateTimeFormat("es-ES", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-/** Elimina las etiquetas HTML del excerpt que devuelve WordPress. */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, "")
-    .replace(/&hellip;/g, "…")
-    .replace(/&nbsp;/g, " ")
-    .trim();
-}
 
 async function getLatestPosts(): Promise<WPPost[]> {
   const data = await fetchGraphQL<PostsQueryResponse>(LATEST_POSTS_QUERY, {
@@ -41,7 +16,15 @@ async function getLatestPosts(): Promise<WPPost[]> {
   return data.posts.nodes;
 }
 
-function PostCard({ post }: { post: WPPost }) {
+function PostCard({
+  post,
+  locale,
+  readMore,
+}: {
+  post: WPPost;
+  locale: string;
+  readMore: string;
+}) {
   const image = post.featuredImage?.node;
 
   return (
@@ -64,7 +47,7 @@ function PostCard({ post }: { post: WPPost }) {
 
       <div className="flex flex-1 flex-col p-6">
         <div className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-          <time dateTime={post.date}>{formatDate(post.date)}</time>
+          <time dateTime={post.date}>{formatDate(post.date, locale)}</time>
           {post.author?.node?.name && (
             <>
               <span aria-hidden>·</span>
@@ -84,14 +67,22 @@ function PostCard({ post }: { post: WPPost }) {
         )}
 
         <span className="mt-4 inline-flex items-center text-sm font-medium text-brand">
-          Leer más →
+          {readMore}
         </span>
       </div>
     </article>
   );
 }
 
-export default async function HomePage() {
+export default async function HomePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations("home");
+
   let posts: WPPost[] = [];
   let errorMessage: string | null = null;
 
@@ -106,34 +97,34 @@ export default async function HomePage() {
     <div>
       <section className="mb-12">
         <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-          Últimas publicaciones
+          {t("title")}
         </h1>
         <p className="mt-3 max-w-2xl text-lg text-gray-600 dark:text-gray-300">
-          Contenido servido desde WordPress a través de WPGraphQL y renderizado
-          de forma estática con regeneración incremental (ISR cada 60s).
+          {t("description")}
         </p>
       </section>
 
       {errorMessage ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
-          <p className="font-semibold">No se pudieron cargar los posts.</p>
+          <p className="font-semibold">{t("errorTitle")}</p>
           <p className="mt-1 text-sm opacity-80">{errorMessage}</p>
           <p className="mt-3 text-sm">
-            Comprueba que WordPress está levantado y que WPGraphQL responde en{" "}
-            <code className="rounded bg-red-100 px-1 dark:bg-red-900">
-              /graphql
-            </code>
-            .
+            {t("errorDescription")}
           </p>
         </div>
       ) : posts.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
-          Todavía no hay publicaciones. Crea contenido en el panel de WordPress.
+          {t("empty")}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard
+              key={post.id}
+              post={post}
+              locale={locale}
+              readMore={t("readMore")}
+            />
           ))}
         </div>
       )}

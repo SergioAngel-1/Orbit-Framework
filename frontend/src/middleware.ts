@@ -1,5 +1,7 @@
+import createMiddleware from "next-intl/middleware";
 import { NextRequest, NextResponse } from "next/server";
 import { decodeJwt } from "jose";
+import { routing } from "@/i18n/routing";
 import {
   AUTH_COOKIE,
   REFRESH_COOKIE,
@@ -9,17 +11,18 @@ import {
 import { REFRESH_TOKEN_MUTATION } from "@/lib/auth/mutations";
 
 // ============================================================================
-//  Middleware de refresh transparente del JWT de acceso.
+//  Middleware compuesto:
+//   1. Barrera de Origin para escrituras en /api  (edge-compatible).
+//   2. next-intl: detección/redirect/rewrite de locale (solo páginas).
+//   3. Refresh transparente del JWT: si caducó, lo renueva y lo propaga al
+//      navegador y al request en curso (para que el SSR vea el token fresco).
 //
-//  Si el JWT está ausente/expirado pero existe un refresh token, lo renueva
-//  contra WordPress y propaga el nuevo token:
-//    - al NAVEGADOR (cookie Set-Cookie en la respuesta), y
-//    - al REQUEST en curso (reescribiendo la cabecera Cookie) para que los
-//      Server Components de esta misma petición ya vean el token fresco.
-//
-//  Solo decodifica el `exp` (no verifica firma): la verificación real ocurre en
-//  el servidor vía `lib/auth/session.ts`. El middleware es UX, no la barrera.
+//  next-intl NO debe tocar /api ni archivos (sitemap.xml, *.png…): el matcher
+//  excluye rutas con punto, y /api se gestiona en su propia rama.
 // ============================================================================
+
+const intlMiddleware = createMiddleware(routing);
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function isExpired(token: string): boolean {
   try {
@@ -69,17 +72,8 @@ async function refreshAuthToken(refreshToken: string): Promise<string | null> {
   }
 }
 
-const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-
-/**
- * Verificación de Origin centralizada (edge-compatible) para escrituras en
- * `/api/*`. Es una primera barrera barata; los handlers repiten la comprobación
- * (defensa en profundidad) y añaden CSRF + rate-limit. El rate-limit/idempotencia
- * con Redis vive en los handlers porque el edge runtime no admite TCP a Redis.
- */
 function originBlocked(request: NextRequest): boolean {
-  const { pathname } = request.nextUrl;
-  if (!pathname.startsWith("/api/")) return false;
+  if (!request.nextUrl.pathname.startsWith("/api/")) return false;
   if (!UNSAFE_METHODS.has(request.method)) return false;
 
   const allowed = process.env.ALLOWED_ORIGIN;
@@ -96,73 +90,86 @@ function originBlocked(request: NextRequest): boolean {
       return true;
     }
   }
-  // Escritura sin Origin ni Referer -> no fiable.
   return true;
 }
 
+/** Reconstruye el cookie header del request con el authToken renovado. */
+function cookieHeaderWithAuth(request: NextRequest, token: string): string {
+  return request.cookies
+    .getAll()
+    .filter((c) => c.name !== AUTH_COOKIE)
+    .map((c) => `${c.name}=${c.value}`)
+    .concat(`${AUTH_COOKIE}=${token}`)
+    .join("; ");
+}
+
+function authCookie(token: string) {
+  return {
+    name: AUTH_COOKIE,
+    value: token,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: maxAgeFromToken(token),
+  };
+}
+
 export async function middleware(request: NextRequest) {
-  // 1) Barrera de origen para escrituras en la API (incluye /api/auth).
+  const { pathname } = request.nextUrl;
+
+  // 1) Barrera de Origin para escrituras en la API.
   if (originBlocked(request)) {
     return NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
   }
 
-  // 2) Refresh transparente del JWT (no aplica a los endpoints de auth, que
-  //    gestionan las cookies por sí mismos).
-  if (request.nextUrl.pathname.startsWith("/api/auth/")) {
-    return NextResponse.next();
-  }
-
   const authToken = request.cookies.get(AUTH_COOKIE)?.value;
   const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
+  const needsRefresh = !!refreshToken && (!authToken || isExpired(authToken));
 
-  // Sin refresh token no hay nada que hacer.
-  if (!refreshToken) {
-    return NextResponse.next();
-  }
-
-  // El token de acceso sigue siendo válido: continuar sin tocar nada.
-  if (authToken && !isExpired(authToken)) {
-    return NextResponse.next();
-  }
-
-  const newToken = await refreshAuthToken(refreshToken);
-
-  // Refresh fallido: limpiamos el JWT obsoleto y dejamos pasar como anónimo.
-  if (!newToken) {
-    const response = NextResponse.next();
-    if (authToken) {
-      response.cookies.delete(AUTH_COOKIE);
+  // 2) Rutas /api: sin locale. Refresh JWT salvo en /api/auth/*.
+  if (pathname.startsWith("/api")) {
+    if (pathname.startsWith("/api/auth/") || !needsRefresh) {
+      return NextResponse.next();
     }
-    return response;
+    const newToken = await refreshAuthToken(refreshToken!);
+    if (!newToken) {
+      const res = NextResponse.next();
+      if (authToken) res.cookies.delete(AUTH_COOKIE);
+      return res;
+    }
+    const headers = new Headers(request.headers);
+    headers.set("cookie", cookieHeaderWithAuth(request, newToken));
+    const res = NextResponse.next({ request: { headers } });
+    res.cookies.set(authCookie(newToken));
+    return res;
   }
 
-  // Propaga el token fresco al request actual (para el SSR de esta petición).
-  const requestHeaders = new Headers(request.headers);
-  const forwardedCookies = request.cookies
-    .getAll()
-    .filter((c) => c.name !== AUTH_COOKIE)
-    .map((c) => `${c.name}=${c.value}`);
-  forwardedCookies.push(`${AUTH_COOKIE}=${newToken}`);
-  requestHeaders.set("cookie", forwardedCookies.join("; "));
+  // 3) Páginas: refresca (reconstruyendo el request) y deja que next-intl
+  //    construya la respuesta de locale sobre el request ya actualizado.
+  let workingRequest = request;
+  let newToken: string | null = null;
+  let clearAuth = false;
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  if (needsRefresh) {
+    newToken = await refreshAuthToken(refreshToken!);
+    if (newToken) {
+      const headers = new Headers(request.headers);
+      headers.set("cookie", cookieHeaderWithAuth(request, newToken));
+      workingRequest = new NextRequest(request.url, { headers });
+    } else if (authToken) {
+      clearAuth = true;
+    }
+  }
 
-  // ...y al navegador (cookie httpOnly).
-  response.cookies.set({
-    name: AUTH_COOKIE,
-    value: newToken,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: maxAgeFromToken(newToken),
-  });
-
+  const response = intlMiddleware(workingRequest);
+  if (newToken) response.cookies.set(authCookie(newToken));
+  if (clearAuth) response.cookies.delete(AUTH_COOKIE);
   return response;
 }
 
 export const config = {
-  // Aplica a todo salvo estáticos. Incluye /api/auth para la barrera de Origin;
-  // el refresh de JWT se omite internamente para esas rutas.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Excluye internos de Next y cualquier ruta con punto (sitemap.xml, *.png…).
+  // /api/* sí entra (para la barrera de Origin y el refresh).
+  matcher: ["/((?!_next|.*\\..*).*)"],
 };

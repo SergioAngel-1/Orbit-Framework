@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 
 export function LogoutButton() {
   const router = useRouter();
+  const t = useTranslations("account");
   const [pending, setPending] = useState(false);
 
   async function onClick() {
@@ -25,7 +27,7 @@ export function LogoutButton() {
       disabled={pending}
       className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium transition-colors hover:border-red-400 hover:text-red-600 disabled:opacity-50 dark:border-gray-700"
     >
-      {pending ? "Cerrando…" : "Cerrar sesión"}
+      {pending ? t("loggingOut") : t("logout")}
     </button>
   );
 }

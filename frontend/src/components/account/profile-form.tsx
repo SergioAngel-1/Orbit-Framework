@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 
 export function ProfileForm({
@@ -7,6 +8,9 @@ export function ProfileForm({
 }: {
   initial: { first_name: string; last_name: string };
 }) {
+  const tAccount = useTranslations("account");
+  const tForm = useTranslations("form");
+  const tCommon = useTranslations("common");
   const [status, setStatus] = useState<"idle" | "saving" | "ok" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -25,13 +29,13 @@ export function ProfileForm({
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || "No se pudo guardar.");
+        throw new Error(data.error || tAccount("saveError"));
       }
       setStatus("ok");
-      setMessage("Datos guardados.");
+      setMessage(tAccount("saveSuccess"));
     } catch (err) {
       setStatus("error");
-      setMessage(err instanceof Error ? err.message : "Error.");
+      setMessage(err instanceof Error ? err.message : tCommon("error"));
     }
   }
 
@@ -50,7 +54,7 @@ export function ProfileForm({
       )}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="mb-1 block text-sm font-medium">Nombre</label>
+          <label className="mb-1 block text-sm font-medium">{tForm("firstName")}</label>
           <input
             name="first_name"
             defaultValue={initial.first_name}
@@ -58,7 +62,7 @@ export function ProfileForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Apellidos</label>
+          <label className="mb-1 block text-sm font-medium">{tForm("lastName")}</label>
           <input
             name="last_name"
             defaultValue={initial.last_name}
@@ -71,7 +75,7 @@ export function ProfileForm({
         disabled={status === "saving"}
         className="rounded-lg bg-brand px-5 py-2 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
       >
-        {status === "saving" ? "Guardando…" : "Guardar"}
+        {status === "saving" ? tCommon("saving") : tCommon("save")}
       </button>
     </form>
   );

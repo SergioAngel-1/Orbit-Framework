@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 import { useCart } from "@/components/cart/cart-context";
 
@@ -8,23 +9,25 @@ interface CheckoutResult {
   status: string;
 }
 
-const FIELDS: { name: string; label: string; type?: string; required?: boolean }[] =
-  [
-    { name: "first_name", label: "Nombre", required: true },
-    { name: "last_name", label: "Apellidos", required: true },
-    { name: "address_1", label: "Dirección", required: true },
-    { name: "city", label: "Ciudad", required: true },
-    { name: "postcode", label: "Código postal", required: true },
-    { name: "country", label: "País (ISO 2, ej. ES)", required: true },
-    { name: "email", label: "Email", type: "email", required: true },
-    { name: "phone", label: "Teléfono" },
-  ];
-
 export function CheckoutForm() {
   const { cart, refresh } = useCart();
+  const tCheckout = useTranslations("checkout");
+  const tForm = useTranslations("form");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CheckoutResult | null>(null);
+
+  const FIELDS: { name: string; label: string; type?: string; required?: boolean }[] =
+    [
+      { name: "first_name", label: tForm("firstName"), required: true },
+      { name: "last_name", label: tForm("lastName"), required: true },
+      { name: "address_1", label: tForm("address"), required: true },
+      { name: "city", label: tForm("city"), required: true },
+      { name: "postcode", label: tForm("postcode"), required: true },
+      { name: "country", label: tForm("country"), required: true },
+      { name: "email", label: tForm("email"), type: "email", required: true },
+      { name: "phone", label: tForm("phone") },
+    ];
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,11 +42,10 @@ export function CheckoutForm() {
     try {
       const res = await csrfFetch("/api/store/checkout", {
         method: "POST",
-        // Clave de idempotencia: reintentos no duplican el pedido.
         headers: { "Idempotency-Key": crypto.randomUUID() },
         body: {
           billing_address,
-          payment_method: "cod", // contra reembolso (demo); pasarela real en Fase 6
+          payment_method: "cod",
           customer_note: "",
         },
       });
@@ -52,7 +54,7 @@ export function CheckoutForm() {
         | { error?: string };
       if (!res.ok) {
         throw new Error(
-          ("error" in data && data.error) || "No se pudo completar el pedido.",
+          ("error" in data && data.error) || tCheckout("emptyCart"),
         );
       }
       setResult(data as CheckoutResult);
@@ -68,10 +70,10 @@ export function CheckoutForm() {
     return (
       <div className="rounded-xl border border-green-200 bg-green-50 p-8 text-center dark:border-green-900 dark:bg-green-950">
         <h2 className="text-xl font-bold text-green-800 dark:text-green-200">
-          ¡Pedido realizado!
+          {tCheckout("success")}
         </h2>
         <p className="mt-2 text-green-700 dark:text-green-300">
-          Pedido <strong>#{result.order_id}</strong> · estado: {result.status}
+          {tCheckout("orderNumber")} <strong>#{result.order_id}</strong> · {tCheckout("status")}: {result.status}
         </p>
       </div>
     );
@@ -88,7 +90,7 @@ export function CheckoutForm() {
       )}
       {empty && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-          Tu carrito está vacío. Añade productos antes de finalizar.
+          {tCheckout("emptyCart")}
         </p>
       )}
 
@@ -111,7 +113,7 @@ export function CheckoutForm() {
         disabled={pending || empty}
         className="w-full rounded-lg bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
       >
-        {pending ? "Procesando…" : "Confirmar pedido (contra reembolso)"}
+        {pending ? tCheckout("processing") : tCheckout("submit")}
       </button>
     </form>
   );

@@ -1,11 +1,14 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useRouter } from "@/i18n/navigation";
+import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 
 export function LoginForm() {
   const router = useRouter();
+  const tLogin = useTranslations("login");
+  const tForm = useTranslations("form");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -24,7 +27,7 @@ export function LoginForm() {
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || "No se pudo iniciar sesión.");
+        throw new Error(data.error || tLogin("error"));
       }
       router.push("/account");
       router.refresh();
@@ -43,7 +46,7 @@ export function LoginForm() {
         </p>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">Usuario o email</label>
+        <label className="mb-1 block text-sm font-medium">{tForm("usernameOrEmail")}</label>
         <input
           name="username"
           required
@@ -52,7 +55,7 @@ export function LoginForm() {
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Contraseña</label>
+        <label className="mb-1 block text-sm font-medium">{tForm("password")}</label>
         <input
           name="password"
           type="password"
@@ -66,12 +69,12 @@ export function LoginForm() {
         disabled={pending}
         className="w-full rounded-lg bg-brand py-2.5 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
       >
-        {pending ? "Entrando…" : "Iniciar sesión"}
+        {pending ? tLogin("submitting") : tLogin("submit")}
       </button>
       <p className="text-center text-sm text-gray-500">
-        ¿No tienes cuenta?{" "}
+        {tLogin("noAccount")}{" "}
         <Link href="/register" className="font-medium text-brand hover:underline">
-          Regístrate
+          {tLogin("register")}
         </Link>
       </p>
     </form>

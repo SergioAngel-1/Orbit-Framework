@@ -1,0 +1,122 @@
+{
+  "site": {
+    "name": "HeadlessWP",
+    "tagline": "Plantilla Headless WooCommerce",
+    "description": "Frontend Next.js (App Router) conectado a WordPress vía WPGraphQL y WooCommerce.",
+    "footer": "Next.js + WordPress (WPGraphQL) · Headless Web Ecosystem"
+  },
+  "nav": {
+    "store": "Tienda",
+    "account": "Cuenta",
+    "cart": "Carrito"
+  },
+  "home": {
+    "title": "Últimas publicaciones",
+    "description": "Contenido servido desde WordPress a través de WPGraphQL y renderizado de forma estática con regeneración incremental (ISR cada 60s).",
+    "readMore": "Leer más →",
+    "errorTitle": "No se pudieron cargar los posts.",
+    "errorDescription": "Comprueba que WordPress está levantado y que WPGraphQL responde en /graphql.",
+    "empty": "Todavía no hay publicaciones. Crea contenido en el panel de WordPress."
+  },
+  "products": {
+    "title": "Tienda",
+    "searchPlaceholder": "Buscar productos…",
+    "searchButton": "Buscar",
+    "loadMore": "Cargar más →",
+    "error": "No se pudo cargar el catálogo.",
+    "errorHint": "Comprueba que WooCommerce y WooGraphQL están activos.",
+    "notFound": "No se encontraron productos.",
+    "backToStore": "← Volver a la tienda",
+    "outOfStock": "Agotado",
+    "onSale": "Oferta"
+  },
+  "cart": {
+    "title": "Tu carrito",
+    "loading": "Cargando carrito…",
+    "empty": "Carrito vacío.",
+    "emptyDetailed": "Tu carrito está vacío.",
+    "viewProducts": "Ver productos →",
+    "quantity": "Cant.",
+    "remove": "Quitar",
+    "total": "Total",
+    "checkout": "Finalizar compra"
+  },
+  "checkout": {
+    "title": "Finalizar compra",
+    "success": "¡Pedido realizado!",
+    "orderNumber": "Pedido",
+    "status": "estado",
+    "emptyCart": "Tu carrito está vacío. Añade productos antes de finalizar.",
+    "processing": "Procesando…",
+    "submit": "Confirmar pedido (contra reembolso)"
+  },
+  "form": {
+    "firstName": "Nombre",
+    "lastName": "Apellidos",
+    "address": "Dirección",
+    "city": "Ciudad",
+    "postcode": "Código postal",
+    "country": "País (ISO 2, ej. ES)",
+    "email": "Email",
+    "phone": "Teléfono",
+    "username": "Usuario",
+    "usernameOrEmail": "Usuario o email",
+    "password": "Contraseña",
+    "passwordMin": "Mínimo 8 caracteres."
+  },
+  "login": {
+    "title": "Iniciar sesión",
+    "submit": "Iniciar sesión",
+    "submitting": "Entrando…",
+    "error": "No se pudo iniciar sesión.",
+    "noAccount": "¿No tienes cuenta?",
+    "register": "Regístrate"
+  },
+  "register": {
+    "title": "Crear cuenta",
+    "submit": "Crear cuenta",
+    "submitting": "Creando cuenta…",
+    "error": "No se pudo completar el registro.",
+    "hasAccount": "¿Ya tienes cuenta?",
+    "login": "Inicia sesión"
+  },
+  "account": {
+    "myAccount": "Mi cuenta",
+    "profile": "Perfil",
+    "orders": "Pedidos",
+    "ordersTitle": "Mis pedidos",
+    "sessionAs": "Sesión iniciada como",
+    "saveSuccess": "Datos guardados.",
+    "saveError": "No se pudo guardar.",
+    "ordersEmpty": "Todavía no tienes pedidos.",
+    "articles": "artículo(s)",
+    "logout": "Cerrar sesión",
+    "loggingOut": "Cerrando…",
+    "dataError": "No se pudieron cargar tus datos.",
+    "dataErrorHint": "Verifica que WooCommerce y las credenciales ck/cs están configuradas."
+  },
+  "addToCart": {
+    "add": "Añadir al carrito",
+    "adding": "Añadiendo…",
+    "added": "✓ Añadido"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "error": "Error.",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "back": "Volver"
+  },
+  "notFound": {
+    "message": "La página que buscas no existe.",
+    "backHome": "← Volver al inicio"
+  },
+  "consent": {
+    "message": "Esta web usa cookies técnicas necesarias y, si aceptas, cookies de analytics para mejorar el servicio.",
+    "necessaryOnly": "Solo necesarias",
+    "acceptAll": "Aceptar todas"
+  },
+  "meta": {
+    "titleTemplate": "%s · HeadlessWP"
+  }
+}
