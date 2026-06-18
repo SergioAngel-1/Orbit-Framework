@@ -150,6 +150,8 @@ services:
       # Credenciales ck/cs SOLO de servidor (genéralas con generate-woo-keys.sh).
       WC_CONSUMER_KEY: "${WC_CONSUMER_KEY:-}"
       WC_CONSUMER_SECRET: "${WC_CONSUMER_SECRET:-}"
+      # Secreto del webhook de WooCommerce (revalidación on-demand del catálogo).
+      WC_WEBHOOK_SECRET: "${WC_WEBHOOK_SECRET:-changeme-super-secret-webhook-key}"
       # Conexión a Redis por la red interna de Docker.
       REDIS_URL: "${REDIS_URL:-redis://redis:6379}"
       WATCHPACK_POLLING: "true" # hot-reload fiable en volúmenes montados (Windows/WSL)

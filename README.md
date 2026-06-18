@@ -257,6 +257,29 @@ curl -i -X POST http://localhost:3000/api/store/cart/items \
 - **Pedidos/cliente** → `wc/v3` con `ck`/`cs`; el handler **comprueba que el recurso
   pertenece al usuario** de la sesión (anti-IDOR).
 
+### Páginas de tienda (UI — Fase 5)
+
+| Ruta | Descripción |
+|------|-------------|
+| `/products` | Catálogo (WooGraphQL + ISR) con búsqueda y paginación |
+| `/products/[slug]` | Ficha de producto (SSG + ISR, SEO + JSON-LD) |
+| `/categories/[slug]` | Productos de una categoría |
+| `/cart` | Carrito (estado cliente sobre el BFF) |
+| `/checkout` | Finalizar compra (idempotente) |
+| `/login`, `/register` | Autenticación |
+| `/account`, `/account/orders` | Cuenta protegida (perfil + pedidos) |
+
+### Revalidación on-demand por webhook
+
+Para que el catálogo (ISR) se actualice al cambiar un producto, crea un webhook en
+**WooCommerce → Ajustes → Avanzado → Webhooks**:
+
+- **Tema:** `Producto actualizado` (y/o creado).
+- **URL de entrega:** `http://frontend:3000/api/revalidate` (red interna Docker).
+- **Secreto:** el mismo valor que `WC_WEBHOOK_SECRET` en tu `.env`.
+
+El endpoint verifica la firma HMAC y ejecuta `revalidateTag('products')`.
+
 ---
 
 ## 🛠️ Comandos Docker frecuentes

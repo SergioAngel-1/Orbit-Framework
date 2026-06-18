@@ -81,6 +81,13 @@ $WP option update woocommerce_onboarding_profile '{"skipped":true}' --format=jso
 $WP option update woocommerce_default_country "ES" 2>/dev/null || true
 $WP option update woocommerce_currency "EUR" 2>/dev/null || true
 
+echo "==> Instalando WPGraphQL WooCommerce (WooGraphQL)..."
+# Expone productos/categorías de WooCommerce en GraphQL para el catálogo (ISR).
+$WP plugin install wp-graphql-woocommerce --activate || \
+	$WP plugin install \
+		"https://github.com/wp-graphql/wp-graphql-woocommerce/archive/refs/heads/develop.zip" \
+		--activate || echo "    (aviso) WooGraphQL no instalado; instálalo manualmente."
+
 # ----------------------------------------------------------------------------
 # 4) Limpieza de plugins/themes de ejemplo
 # ----------------------------------------------------------------------------

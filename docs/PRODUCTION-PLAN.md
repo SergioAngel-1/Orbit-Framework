@@ -239,25 +239,35 @@ empaqueta dependencias Node.
 
 ---
 
-### Fase 5 — Funcionalidad e-commerce (catálogo + carrito + cuenta)
+### Fase 5 — Funcionalidad e-commerce (catálogo + carrito + cuenta) ✅ COMPLETADA
 **Objetivo:** experiencia de tienda completa sobre la base segura.
 
-- [ ] **WooGraphQL** en backend: instalar `wp-graphql-woocommerce` en `setup.sh`.
-- [ ] **Catálogo (lectura, ISR)**:
-  - `frontend/src/app/(shop)/products/page.tsx` — listado con paginación/filtros.
-  - `frontend/src/app/(shop)/products/[slug]/page.tsx` — ficha con
-    `generateStaticParams` + ISR + `generateMetadata` (SEO).
-  - `frontend/src/app/(shop)/categories/[slug]/page.tsx`.
-- [ ] **Carrito**: estado en servidor (sesión WC) + UI cliente (`useOptimistic`).
-- [ ] **Cuenta**: `frontend/src/app/(account)/` — pedidos, direcciones, perfil
-      (protegido por sesión).
-- [ ] **Búsqueda** y **revalidación on-demand**: Route Handler
-      `frontend/src/app/api/revalidate/route.ts` disparado por **webhooks de WooCommerce**
-      (producto creado/actualizado/stock) → `revalidateTag('products')`.
-- [ ] **Verificación de firma de webhooks** con `WC_WEBHOOK_SECRET` (HMAC).
+- [x] **WooGraphQL** en backend: `setup.sh` instala/activa `wp-graphql-woocommerce`.
+- [x] **Catálogo (lectura, ISR)** — `lib/catalog/products.ts` + `lib/woocommerce/queries.ts`:
+  - `app/products/page.tsx` — listado con **búsqueda** y **paginación** por cursor.
+  - `app/products/[slug]/page.tsx` — ficha con `generateStaticParams` + ISR +
+    `generateMetadata` + **JSON-LD** + descripción **saneada** (`sanitizeHtml`).
+  - `app/categories/[slug]/page.tsx`.
+- [x] **Carrito**: estado en servidor (Store API vía BFF) + UI cliente con
+      `CartProvider`/`useCart`. Componentes: `ProductCard`, `AddToCartButton`,
+      `CartView`, `CartIndicator`. Escrituras con CSRF automático.
+- [x] **Checkout**: `app/checkout/page.tsx` + formulario con `Idempotency-Key`.
+- [x] **Cuenta** (protegida por sesión, redirige a `/login`): `app/account/` con perfil
+      editable (`ProfileForm` → `PUT /api/store/customer`) y lista de pedidos.
+- [x] **Auth UI**: `app/login`, `app/register` con formularios CSRF-aware.
+- [x] **Revalidación on-demand**: `app/api/revalidate/route.ts` (webhook WooCommerce) →
+      `revalidateTag('products')`; el catálogo se etiqueta con `products`.
+- [x] **Verificación de firma de webhooks** con `WC_WEBHOOK_SECRET` (HMAC-SHA256,
+      `lib/security/webhook.ts`).
+
+> **Nota:** se optó por **estado de carrito en cliente con revalidación** (no
+> `useOptimistic`) por simplicidad y robustez; el `CartProvider` refleja siempre la
+> respuesta real del servidor. El checkout demo usa pago **contra reembolso (`cod`)**;
+> la pasarela real (Stripe + webhook) es la Fase 6.
 
 **Criterio de aceptación:** navegación de catálogo estática+ISR; añadir/editar/quitar del
-carrito persiste; cambio de producto en WP refleja en el front tras webhook.
+carrito persiste; cambio de producto en WP refleja tras webhook. **Verificado:** `tsc`,
+`next lint` y `next build` en verde (24 rutas; `/products/[slug]` como SSG).
 
 ---
 
