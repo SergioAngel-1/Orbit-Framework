@@ -21,7 +21,7 @@
 | Secretos | Solo claves de WP/DB | Credenciales WooCommerce **nunca** en el navegador |
 | API e-commerce | — | BFF / proxy inverso en Next.js Route Handlers |
 | Seguridad | CORS + bloqueo frontend nativo | CSRF, rate-limit, CSP, validación, webhooks firmados |
-| Pagos | — | Stripe (o pasarela WooCommerce) server-side |
+| Pagos | — | Capa de pasarelas enchufable (Wompi/PayU/Bold/…) confirmada por webhook |
 | Calidad | — | Tests, CI/CD, linting, observabilidad |
 | Comercial | README de arranque | Licencia, docs, white-label, demo seed, versionado |
 
@@ -87,10 +87,14 @@ RATELIMIT_MAX_REQUESTS=60
 # ---- Webhooks WooCommerce ----
 WC_WEBHOOK_SECRET=<openssl rand -hex 32>
 
-# ---- Pagos (Stripe) ----
-STRIPE_SECRET_KEY=sk_live_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_xxx
+# ---- Pagos: capa de pasarelas agnóstica (ver Fase 7) ----
+PAYMENT_PROVIDER=noop            # noop | wompi | payu | bold | …
+PAYMENT_CURRENCY=COP
+NEXT_PUBLIC_PAYMENT_RETURN_URL=https://tienda.tu-dominio.com/checkout/return
+# Credenciales server-only por proveedor (rellenar SOLO al integrar uno):
+# WOMPI_PRIVATE_KEY=  WOMPI_INTEGRITY_SECRET=  WOMPI_EVENTS_SECRET=
+# PAYU_MERCHANT_ID=  PAYU_API_KEY=  PAYU_ACCOUNT_ID=
+# BOLD_IDENTITY_KEY=  BOLD_SECRET_KEY=
 ```
 
 > **Regla de oro de comercialización:** el repo distribuible solo contiene `.env.example`.
@@ -263,7 +267,7 @@ empaqueta dependencias Node.
 > **Nota:** se optó por **estado de carrito en cliente con revalidación** (no
 > `useOptimistic`) por simplicidad y robustez; el `CartProvider` refleja siempre la
 > respuesta real del servidor. El checkout demo usa pago **contra reembolso (`cod`)**;
-> la pasarela real (Stripe + webhook) es la Fase 6.
+> la pasarela real (capa de pasarelas agnóstica + webhook) es la Fase 7.
 
 **Criterio de aceptación:** navegación de catálogo estática+ISR; añadir/editar/quitar del
 carrito persiste; cambio de producto en WP refleja tras webhook. **Verificado:** `tsc`,
@@ -271,23 +275,172 @@ carrito persiste; cambio de producto en WP refleja tras webhook. **Verificado:**
 
 ---
 
-### Fase 6 — Pagos
-**Objetivo:** cobro real, server-side, sin exponer secretos.
+### Fase 6 — SEO e internacionalización (i18n) ✅ COMPLETADA
+**Objetivo:** mercados multilingües y buscadores desde la arquitectura, con textos
+traducibles, **URLs localizadas indexables** y metadatos ricos, **sin sacrificar SSG/ISR**.
 
-- [ ] **Estrategia A (recomendada para headless):** Stripe Payment Intents desde el BFF.
-  - `frontend/src/app/api/checkout/payment-intent/route.ts` (server-only `STRIPE_SECRET_KEY`).
-  - `frontend/src/app/api/webhooks/stripe/route.ts` con verificación de firma
-    (`STRIPE_WEBHOOK_SECRET`) → marca el pedido WC como pagado.
-- [ ] **Estrategia B (alternativa):** redirección a pasarela WooCommerce nativa.
-- [ ] **Conciliación**: el pedido en WooCommerce se crea **antes** del pago y se confirma
-      vía webhook (nunca confiar en el redirect del cliente como prueba de pago).
+- [x] **next-intl con enrutado por prefijo** (`app/[locale]/`, `localePrefix: "as-needed"`):
+  `es` sin prefijo (canónico), `en` bajo `/en`. `i18n/{routing,request,navigation}.ts`,
+  mensajes `es.json`/`en.json` completos y paralelos, `NextIntlClientProvider` en el
+  layout de locale, `setRequestLocale` en páginas estáticas.
+- [x] **Navegación locale-aware** (`i18n/navigation.ts`: `Link`/`redirect`/`useRouter`) +
+  `LocaleSwitcher`. Todos los `next/link`/`next/navigation` migrados.
+- [x] **Migración de textos** en todas las páginas y componentes (header/footer/nav,
+  catálogo, carrito, checkout, cuenta, auth, banner de consentimiento).
+- [x] **Formateo locale-aware**: `formatDate(iso, locale)` y precios.
+- [x] **Sitemap** (`sitemap.ts`): páginas + productos con URLs `as-needed` correctas y
+  **hreflang** (es / en / `x-default`).
+- [x] **robots.ts**: bloquea todo en dev; en prod permite e **excluye rutas privadas**
+  (`/account`, `/cart`, `/checkout`, `/login`, `/register`, `/api`) y sus variantes `/en`.
+- [x] **Metadatos**: OG + Twitter + `metadataBase` + `alternates.canonical`/`languages`
+  por idioma en el layout; **JSON-LD** `WebSite` (layout) + `Product` (ficha).
+- [x] **Analytics provider** + banner de consentimiento (opt-in) traducido.
+- [x] **Manifest PWA** (`manifest.ts`).
+- [x] **Config central** `config/site.ts` (marca/URL/social) — base de white-label.
 
-**Criterio de aceptación:** pago de prueba (modo test) crea pedido `processing` solo tras
-webhook verificado; reintentos no duplican cobro (idempotencia Fase 4).
+> **Corrección clave durante la revisión:** la implementación inicial mezclaba
+> `createMiddleware` (modo *con* enrutado) con un árbol plano sin `[locale]`, lo que
+> **rompía el build** (`/_not-found`), y faltaba `export default nextConfig` (el plugin de
+> next-intl nunca se aplicaba). Se migró a `app/[locale]/` con root layout *passthrough* +
+> `not-found` global/por-locale, y middleware compuesto (next-intl + barrera de Origin +
+> refresh JWT) que **no toca `/api` ni archivos**.
+
+**Criterio de aceptación: cumplido y verificado en runtime** — `/`→es, `/en`→en,
+`/es`→307→`/`, `sitemap.xml` con hreflang, `robots.txt` correcto, 404 localizado, barrera
+de Origin activa (POST sin Origin → 403). `tsc`, `next lint` y `next build` (22 páginas
+SSG es+en) en verde.
+
+**Pendiente menor (no bloqueante):** el `AnalyticsProvider` gestiona el consentimiento
+pero aún **no inyecta** el script real de GA4/Plausible (es un stub listo para cablear con
+`NEXT_PUBLIC_GA_ID`).
 
 ---
 
-### Fase 7 — Calidad, CI/CD y observabilidad
+### Fase 7 — Pagos: capa de pasarelas enchufable (provider-agnostic)
+**Objetivo:** dejar el sistema **preparado** para integrar cualquier pasarela
+(Wompi, PayU, Bold, ePayco, Mercado Pago…) **sin acoplar el código a ninguna**. No se
+integra ninguna pasarela en esta fase: se construye la **abstracción** y un proveedor de
+ejemplo "no-op" para validar el contrato. Añadir una pasarela real debe ser un paso
+**repetible y autocontenido** (implementar una interfaz + registrarla), sin tocar el flujo
+de checkout ni los Route Handlers.
+
+> **Por qué redirect/confirmación y no SDK de tarjeta:** las pasarelas LATAM
+> (Wompi, PayU, Bold, ePayco, Mercado Pago) operan con **checkout alojado / widget +
+> confirmación server-to-server firmada**. El cliente nunca maneja datos de tarjeta ni el
+> resultado es prueba de pago: la verdad la da el **webhook verificado**. La abstracción se
+> diseña alrededor de ese patrón (no de PaymentIntents tipo Stripe).
+
+#### 7.1 Contrato común — `frontend/src/lib/payments/types.ts`
+Estado normalizado y única interfaz que todo proveedor implementa:
+
+```ts
+export type PaymentStatus = "pending" | "approved" | "declined" | "voided" | "error";
+
+export interface CreateCheckoutInput {
+  reference: string;          // id del pedido WooCommerce
+  amountMinor: number;        // importe en unidades menores (centavos)
+  currency: string;           // ISO-4217 (COP, USD…)
+  customer: { email: string; fullName: string; phone?: string };
+  returnUrl: string;          // URL de retorno (solo UX, NO prueba de pago)
+  metadata?: Record<string, string>;
+}
+
+export interface CreateCheckoutResult {
+  mode: "redirect" | "widget";
+  redirectUrl?: string;                 // checkout alojado
+  widget?: Record<string, unknown>;     // config para widget embebido
+  providerReference?: string;
+}
+
+export interface WebhookVerification {
+  valid: boolean;                       // firma/integridad verificada
+  reference: string;                    // id del pedido
+  status: PaymentStatus;
+  providerTransactionId?: string;
+  amountMinor?: number;                 // para validar contra el pedido
+  currency?: string;
+}
+
+export interface PaymentProvider {
+  readonly id: string;                  // "wompi" | "payu" | "bold" | …
+  createCheckout(input: CreateCheckoutInput): Promise<CreateCheckoutResult>;
+  verifyWebhook(rawBody: string, headers: Headers): Promise<WebhookVerification>;
+  mapStatus(providerStatus: string): PaymentStatus;
+}
+```
+
+#### 7.2 Registro extensible — `frontend/src/lib/payments/registry.ts`
+Patrón **repetible**: añadir una pasarela = crear `providers/<nombre>.ts`, implementar
+`PaymentProvider` y registrarlo. Cero cambios en el checkout.
+
+```ts
+const registry = new Map<string, PaymentProvider>();
+export function registerProvider(p: PaymentProvider) { registry.set(p.id, p); }
+export function getProvider(id = process.env.PAYMENT_PROVIDER): PaymentProvider { … }
+export function listProviders(): string[] { return [...registry.keys()]; }
+```
+
+- [ ] **Estructura de archivos** (scaffolding, sin integrar pasarela):
+  - `lib/payments/types.ts` — contrato anterior.
+  - `lib/payments/registry.ts` — registro + selección por `PAYMENT_PROVIDER`.
+  - `lib/payments/signature.ts` — helpers HMAC/SHA compartidos (firmas de integridad).
+  - `lib/payments/providers/index.ts` — registra los proveedores disponibles.
+  - `lib/payments/providers/noop.ts` — proveedor de ejemplo (sandbox) que implementa el
+    contrato y permite probar el flujo de punta a punta sin cobrar.
+  - `lib/payments/providers/{wompi,payu,bold}.ts` — **plantillas-stub** documentadas con
+    el TODO de cada API (sin credenciales ni llamadas reales).
+- [ ] **Endpoints BFF agnósticos** bajo `frontend/src/app/api/payments/`:
+  - `create/route.ts` (POST) — exige sesión + guard (CSRF/rate-limit/idempotencia, Fase 4);
+    obtiene el pedido `pending`, llama `getProvider().createCheckout(...)` y devuelve
+    `redirectUrl`/`widget`.
+  - `webhook/[provider]/route.ts` — **ruta recursiva**: un único handler atiende a
+    cualquier proveedor registrado; resuelve `getProvider(params.provider)`,
+    `verifyWebhook(rawBody, headers)` y, si `approved` **y** el importe/moneda coinciden con
+    el pedido, marca el pedido WC como pagado (wc/v3 ck/cs). Idempotente.
+  - `return/route.ts` — URL de retorno del usuario; solo muestra estado, **nunca** confirma
+    el pago.
+- [ ] **Máquina de estados del pedido**: `pending` → (`approved` por webhook) `processing`/
+      `completed`; `declined`/`voided` → `failed`/`cancelled`. La transición a pagado **solo**
+      ocurre desde el webhook verificado.
+- [ ] **Conciliación y anti-fraude**: el pedido se crea en WooCommerce **antes** del pago;
+      el webhook valida **firma + importe + moneda + referencia** contra el pedido; el
+      redirect del cliente nunca es prueba de pago; reintentos usan idempotencia (Fase 4).
+- [ ] **Config de proveedor activo** (`config/site.ts` / env): `PAYMENT_PROVIDER`,
+      `PAYMENT_CURRENCY`, y credenciales **server-only** por proveedor (ver Fase 7.3). La UI
+      de checkout consume `createCheckout` sin saber qué pasarela hay detrás.
+
+#### 7.3 Variables de entorno (placeholders, sin valores)
+```bash
+# Pasarela activa y moneda
+PAYMENT_PROVIDER=noop            # noop | wompi | payu | bold | …
+PAYMENT_CURRENCY=COP
+NEXT_PUBLIC_PAYMENT_RETURN_URL=https://tienda.tu-dominio.com/checkout/return
+
+# Credenciales por proveedor (SOLO servidor; rellenar al integrar)
+# WOMPI_PRIVATE_KEY=  WOMPI_INTEGRITY_SECRET=  WOMPI_EVENTS_SECRET=
+#   NEXT_PUBLIC_WOMPI_PUBLIC_KEY=   (solo si se usa widget)
+# PAYU_MERCHANT_ID=  PAYU_API_KEY=  PAYU_ACCOUNT_ID=
+# BOLD_IDENTITY_KEY=  BOLD_SECRET_KEY=
+```
+
+#### 7.4 Cómo añadir una pasarela nueva (procedimiento repetible)
+1. Crear `lib/payments/providers/<nombre>.ts` que implemente `PaymentProvider`
+   (`createCheckout`, `verifyWebhook` con su firma de integridad, `mapStatus`).
+2. Registrarlo en `providers/index.ts` con `registerProvider(new XxxProvider())`.
+3. Añadir sus credenciales al `.env` y poner `PAYMENT_PROVIDER=<nombre>`.
+4. Configurar en el panel de la pasarela la URL de webhook
+   `https://…/api/payments/webhook/<nombre>`.
+   → **Sin tocar** el checkout ni los endpoints: el resto del sistema es agnóstico.
+
+**Criterio de aceptación (de esta fase):** existe la abstracción con el proveedor `noop`
+funcionando de punta a punta en sandbox (crear pedido `pending` → `createCheckout` →
+webhook simulado verificado → pedido pagado, idempotente); cambiar `PAYMENT_PROVIDER` no
+requiere cambios de código; ninguna credencial real ni SDK de pasarela en el repo; `tsc`,
+`next lint` y `next build` en verde.
+
+---
+
+### Fase 8 — Calidad, CI/CD y observabilidad
 **Objetivo:** confianza para vender y mantener.
 
 - [ ] **Tests**: unit (Vitest) para `lib/`, integración para Route Handlers, E2E
@@ -306,7 +459,7 @@ funciona; errores se reportan a Sentry.
 
 ---
 
-### Fase 8 — Empaquetado comercial (requisito #4)
+### Fase 9 — Empaquetado comercial (requisito #4)
 **Objetivo:** que un comprador pueda instalarlo y personalizarlo sin fricción.
 
 - [ ] **Licencia y términos**: `LICENSE` (p. ej. licencia comercial propia o MIT según
@@ -322,10 +475,7 @@ funciona; errores se reportan a Sentry.
       hardcodeados de "Headless Web Ecosystem" en el código.
 - [ ] **Onboarding / seed**: script que carga **datos demo** (productos, categorías,
       imágenes de muestra) y un asistente de primer arranque. Ampliar `backend/scripts/`.
-- [ ] **i18n** (next-intl): al menos ES/EN, textos en archivos de traducción.
 - [ ] **Páginas legales**: privacidad, cookies, términos, devoluciones (plantillas).
-- [ ] **SEO/Analytics**: `sitemap.ts`, `robots.ts`, Open Graph, JSON-LD de producto,
-      consentimiento de cookies, soporte GA4/Plausible.
 - [ ] **Accesibilidad**: auditoría WCAG 2.2 AA (componentes accesibles).
 - [ ] **Versionado y changelog**: SemVer + `CHANGELOG.md`. Releases etiquetadas.
 - [ ] **Soporte**: plantillas de issues, canal de soporte, política de actualizaciones.
@@ -343,9 +493,9 @@ funciona; errores se reportan a Sentry.
 | XSS roba el token de sesión | JWT en cookie `httpOnly`, CSP estricta, sanitización | 1,2,4 |
 | CSRF en checkout/cuenta | Double-submit token + verificación de `Origin` | 4 |
 | Fuerza bruta en login | Rate-limit estricto + bloqueo progresivo | 4 |
-| Pedidos duplicados | Clave de idempotencia (Redis) | 4,6 |
-| Pago falsificado desde el cliente | Confirmación solo por webhook firmado | 6 |
-| Webhook falso | Verificación HMAC con secreto | 5,6 |
+| Pedidos duplicados | Clave de idempotencia (Redis) | 4,7 |
+| Pago falsificado desde el cliente | Confirmación solo por webhook firmado | 7 |
+| Webhook falso | Verificación HMAC con secreto | 5,7 |
 | Acceso a datos de otro usuario (IDOR) | Autorización por propietario en cada handler | 3 |
 | Enumeración de usuarios WP | Bloqueo de `/wp-json/wp/v2/users` y autores | 1 |
 | Fuga de secretos en el repo | Solo `.env.example`, secret scanning en CI | 0,7 |
@@ -361,9 +511,9 @@ funciona; errores se reportan a Sentry.
 "@upstash/ratelimit"          // o implementación propia con Redis
 "@upstash/redis" | "ioredis"  // backend de rate-limit / cache
 "isomorphic-dompurify"        // sanitización de HTML del CMS
-"stripe"                      // pagos server-side
-"@stripe/stripe-js"           // Stripe en cliente (publishable key)
-"next-intl"                   // i18n
+// Pagos: SIN SDK por defecto — la capa es agnóstica (fetch + firmas HMAC).
+//   Al integrar una pasarela, su SDK (si lo tiene) se añade en ESE provider.
+"next-intl"                   // i18n (Fase 6)
 "pino"                        // logging estructurado
 "@sentry/nextjs"              // observabilidad de errores
 
@@ -406,11 +556,12 @@ Fase 0/1 (seguridad base + Redis)
                 └─► Fase 3 (proxy WooCommerce BFF)   ◄── requisito #2
                         └─► Fase 4 (CSRF + rate-limit) ◄── requisito #1
                                 └─► Fase 5 (e-commerce)
-                                        └─► Fase 6 (pagos)
-Fase 7 (calidad/CI) — transversal, empezar desde Fase 1
-Fase 8 (comercial) — cierre, requiere 1–7 estables   ◄── requisito #4
+                                        └─► Fase 6 (SEO + i18n) — transversal
+                                                └─► Fase 7 (pagos)
+Fase 8 (calidad/CI) — transversal, empezar desde Fase 1
+Fase 9 (comercial) — cierre, requiere 1–8 estables   ◄── requisito #4
 ```
 
 > **Nota de alcance:** este documento es el plan. La implementación de cada fase debe ir
 > en PRs independientes con sus criterios de aceptación verificados. Recomendado fijar la
-> versión `1.0.0` (vendible) solo al completar la Fase 8 y el checklist del punto 6.
+> versión `1.0.0` (vendible) solo al completar la Fase 9 y el checklist del punto 6.
