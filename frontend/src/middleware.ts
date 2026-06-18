@@ -69,7 +69,49 @@ async function refreshAuthToken(refreshToken: string): Promise<string | null> {
   }
 }
 
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * Verificación de Origin centralizada (edge-compatible) para escrituras en
+ * `/api/*`. Es una primera barrera barata; los handlers repiten la comprobación
+ * (defensa en profundidad) y añaden CSRF + rate-limit. El rate-limit/idempotencia
+ * con Redis vive en los handlers porque el edge runtime no admite TCP a Redis.
+ */
+function originBlocked(request: NextRequest): boolean {
+  const { pathname } = request.nextUrl;
+  if (!pathname.startsWith("/api/")) return false;
+  if (!UNSAFE_METHODS.has(request.method)) return false;
+
+  const allowed = process.env.ALLOWED_ORIGIN;
+  if (!allowed) return false;
+
+  const origin = request.headers.get("origin");
+  if (origin) return origin !== allowed;
+
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).origin !== allowed;
+    } catch {
+      return true;
+    }
+  }
+  // Escritura sin Origin ni Referer -> no fiable.
+  return true;
+}
+
 export async function middleware(request: NextRequest) {
+  // 1) Barrera de origen para escrituras en la API (incluye /api/auth).
+  if (originBlocked(request)) {
+    return NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
+  }
+
+  // 2) Refresh transparente del JWT (no aplica a los endpoints de auth, que
+  //    gestionan las cookies por sí mismos).
+  if (request.nextUrl.pathname.startsWith("/api/auth/")) {
+    return NextResponse.next();
+  }
+
   const authToken = request.cookies.get(AUTH_COOKIE)?.value;
   const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
 
@@ -120,7 +162,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Aplica a todo salvo estáticos y los propios endpoints de auth
-  // (que ya gestionan las cookies por sí mismos).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth).*)"],
+  // Aplica a todo salvo estáticos. Incluye /api/auth para la barrera de Origin;
+  // el refresh de JWT se omite internamente para esas rutas.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

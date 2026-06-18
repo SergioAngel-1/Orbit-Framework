@@ -8,7 +8,7 @@ import {
   expiredCookieOptions,
 } from "@/lib/security/cookies";
 import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
-import { assertAllowedOrigin } from "@/lib/security/origin";
+import { guardMutation } from "@/lib/api/guard";
 import type { RefreshResponse } from "@/types/auth";
 
 export const dynamic = "force-dynamic";
@@ -19,9 +19,10 @@ export const dynamic = "force-dynamic";
  * Endpoint explícito; el middleware también refresca de forma transparente.
  */
 export async function POST(request: Request) {
-  if (!assertAllowedOrigin(request)) {
-    return NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
-  }
+  const blocked = await guardMutation(request, {
+    rateLimit: { name: "refresh", limit: 30, windowSeconds: 60 },
+  });
+  if (blocked) return blocked;
 
   const store = await cookies();
   const refreshToken = store.get(REFRESH_COOKIE)?.value;

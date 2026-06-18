@@ -167,50 +167,75 @@ route handlers + page ISR).
 
 ---
 
-### Fase 3 — Proxy inverso a WooCommerce REST API (BFF)
+### Fase 3 — Proxy inverso a WooCommerce (BFF) ✅ COMPLETADA
 **Objetivo:** todas las operaciones de comercio pasan por el servidor con credenciales
 server-only. **Este es el núcleo del requisito #2.**
 
-- [ ] **Cliente WC server-only** `frontend/src/lib/woocommerce/client.ts`:
-  - Construye peticiones a `WC_API_URL` con auth **Basic** (`ck`:`cs`) o cabecera OAuth.
-  - Marcado con `import "server-only";` para impedir su import desde el cliente.
-  - Timeout, reintentos, normalización de errores.
-- [ ] **Route Handlers proxy** bajo `frontend/src/app/api/store/`:
-  - `cart/route.ts` (GET/POST/PUT/DELETE) — carrito.
-  - `checkout/route.ts` (POST) — crear pedido.
-  - `orders/[id]/route.ts` (GET) — pedido del usuario autenticado.
-  - `customer/route.ts` (GET/PUT) — datos de la cuenta.
-- [ ] **Capa de autorización**: cada handler verifica la sesión (Fase 2) y que el recurso
-      pertenece al usuario (p. ej. un pedido solo lo ve su dueño).
-- [ ] **Validación de entrada** con **Zod** (`frontend/src/lib/validation/`): nunca
-      reenviar a WC un payload sin validar/sanear.
-- [ ] **Mapa de tipos** `frontend/src/types/woocommerce.ts`.
+> **Decisión de arquitectura (realidad de la API de WooCommerce):** WooCommerce expone
+> **dos** APIs y cada una cubre cosas distintas:
+> - **`wc/v3` (REST clásica, auth `ck`/`cs`)** → recursos "administrativos": pedidos,
+>   clientes. **Aquí viven las credenciales en el backend** y aquí aplica la autorización
+>   por propietario (anti-IDOR). Es el centro del requisito #2.
+> - **Store API (`wc/store/v1`, sin `ck`/`cs`, basada en *Cart-Token*)** → carrito y
+>   checkout de invitado/cliente. Se proxia persistiendo el `Cart-Token` en una cookie
+>   httpOnly. El nonce de la Store API se desactiva en WP porque el BFF ya impone
+>   verificación de `Origin` (+ CSRF en Fase 4).
 
-**Criterio de aceptación:** desde el navegador no aparece nunca `ck_`/`cs_` (verificar en
-Network y bundle); un usuario no puede leer pedidos de otro; payloads inválidos → 422.
+- [x] **Cliente `wc/v3` server-only** `frontend/src/lib/woocommerce/client.ts`:
+  auth **Basic** (`ck`:`cs`), timeout con `AbortController`, reintentos solo en GET/5xx,
+  y `WooCommerceError` normalizado. `import "server-only"`.
+- [x] **Cliente Store API server-only** `frontend/src/lib/woocommerce/store-client.ts`:
+  gestiona el `Cart-Token` (lo lee de la respuesta y lo devuelve para persistir en cookie).
+- [x] **Route Handlers proxy** bajo `frontend/src/app/api/store/`:
+  - `cart/route.ts` (GET carrito, DELETE vaciar) — Store API.
+  - `cart/items/route.ts` (POST añadir, PATCH actualizar, DELETE quitar) — Store API.
+  - `checkout/route.ts` (POST crear pedido) — Store API.
+  - `orders/[id]/route.ts` (GET) — `wc/v3` + **autorización por propietario**.
+  - `customer/route.ts` (GET/PUT) — `wc/v3` + **autorización** (solo el propio cliente).
+- [x] **Capa de autorización**: `orders` y `customer` exigen sesión (Fase 2) y comparan el
+      `customer_id` del recurso con el `userId` del JWT (un usuario no ve datos de otro).
+- [x] **Validación de entrada** con **Zod** (`frontend/src/lib/validation/store.ts`).
+- [x] **Verificación de `Origin`** en todas las escrituras (carrito/checkout/customer).
+- [x] **Mapa de tipos** `frontend/src/types/woocommerce.ts`.
+- [x] **Backend**: `setup.sh` instala y activa **WooCommerce**; mu-plugin
+      `woocommerce-headless.php` desactiva el nonce de la Store API; script
+      `generate-woo-keys.sh` genera el par `ck`/`cs` vía WP-CLI.
+
+**Criterio de aceptación:** desde el navegador no aparece nunca `ck_`/`cs_` (las cookies
+y el bundle no los contienen); un usuario no puede leer pedidos de otro (→ 403/404);
+payloads inválidos → 422. **Verificado:** `tsc`, `next lint` y `next build` en verde.
 
 ---
 
-### Fase 4 — CSRF, rate-limiting y validación
+### Fase 4 — CSRF, rate-limiting y validación ✅ COMPLETADA
 **Objetivo:** proteger los endpoints de escritura del BFF (requisito #1).
 
-- [ ] **CSRF (double-submit cookie)**:
-  - `frontend/src/lib/security/csrf.ts`: emite token en cookie no-httpOnly + lo exige en
-    cabecera `X-CSRF-Token` en toda mutación.
-  - Validación adicional de **`Origin`/`Referer`** contra `ALLOWED_ORIGIN`.
-- [ ] **Rate limiting** `frontend/src/lib/security/rate-limit.ts` (Redis/Upstash):
-  - Límites por IP + por usuario. Más estricto en `login`, `register`, `checkout`,
-    `forgot-password`.
-  - Respuesta `429` con `Retry-After`.
-- [ ] **Middleware central** `frontend/src/middleware.ts`: aplica rate-limit y verificación
-      de origen a `/api/*` antes de los handlers.
-- [ ] **Sanitización/escape** de toda salida que provenga del CMS (evitar XSS en
-      excerpts/descripción de producto — hoy `stripHtml` es un parche, usar un sanitizador).
-- [ ] **Idempotencia** en checkout (clave de idempotencia en Redis) para evitar pedidos
-      duplicados por doble clic / reintentos.
+- [x] **CSRF — signed double-submit cookie** (`lib/security/csrf.ts`): token firmado con
+      HMAC-SHA256 (`CSRF_SECRET`) en cookie legible + exigido en cabecera `X-CSRF-Token`;
+      comparación en tiempo constante. Endpoint `GET /api/csrf` lo emite.
+- [x] **Rate limiting con Redis** (`lib/security/rate-limit.ts`, ventana fija INCR+EXPIRE):
+      por IP (y opcionalmente por usuario). Umbrales: `login`/`register` 5/min,
+      `checkout` 10/min, `customer` 20/min, `cart` 60/min. Respuesta `429` + `Retry-After`.
+      **Fail-open** si Redis cae (mitigación, no barrera de integridad).
+- [x] **Guard unificado** `lib/api/guard.ts` (Origin → CSRF → rate-limit) aplicado en
+      todos los handlers de escritura (auth + store).
+- [x] **Verificación de Origin centralizada** en `middleware.ts` para escrituras `/api/*`
+      (barrera temprana edge-compatible; los handlers repiten como defensa en profundidad).
+- [x] **Idempotencia en checkout** (`lib/security/idempotency.ts`, Redis `SET NX`): la
+      cabecera `Idempotency-Key` evita pedidos duplicados (replay de respuesta / `409`).
+- [x] **Sanitización HTML** (`lib/security/sanitize.ts`, `isomorphic-dompurify`):
+      `sanitizeHtml()` (allowlist de tags) y `htmlToText()`, listos para renderizar HTML
+      del CMS de forma segura en la Fase 5.
 
-**Criterio de aceptación:** mutación sin token CSVF válido → 403; superar el umbral →
-429; doble envío de checkout → un único pedido.
+> **Nota de arquitectura (honesta):** el rate-limit y la idempotencia viven en los Route
+> Handlers (Node), **no** en el middleware, porque el edge runtime de Next no admite
+> conexiones TCP a Redis (ioredis). El middleware solo hace la verificación de Origin
+> (edge-compatible). Para mover el rate-limit al edge se usaría Upstash Redis (REST).
+
+**Criterio de aceptación:** mutación sin token CSRF válido → 403; superar el umbral →
+429 con `Retry-After`; doble checkout con misma `Idempotency-Key` → un único pedido.
+**Verificado:** `tsc`, `next lint` y `next build` en verde; el middleware (edge) no
+empaqueta dependencias Node.
 
 ---
 

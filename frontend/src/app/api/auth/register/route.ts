@@ -13,7 +13,7 @@ import {
   refreshCookieOptions,
 } from "@/lib/security/cookies";
 import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
-import { assertAllowedOrigin } from "@/lib/security/origin";
+import { guardMutation } from "@/lib/api/guard";
 import type { RegisterResponse, LoginResponse } from "@/types/auth";
 
 export const dynamic = "force-dynamic";
@@ -24,9 +24,10 @@ export const dynamic = "force-dynamic";
  * inicia sesión automáticamente fijando las cookies httpOnly.
  */
 export async function POST(request: Request) {
-  if (!assertAllowedOrigin(request)) {
-    return NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
-  }
+  const blocked = await guardMutation(request, {
+    rateLimit: { name: "register", limit: 5, windowSeconds: 60 },
+  });
+  if (blocked) return blocked;
 
   let body: unknown;
   try {

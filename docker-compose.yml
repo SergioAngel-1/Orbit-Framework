@@ -142,6 +142,14 @@ services:
       # Secreto JWT compartido con WordPress: el frontend verifica la firma
       # de los tokens localmente (server-only, sin prefijo NEXT_PUBLIC_).
       GRAPHQL_JWT_AUTH_SECRET_KEY: "${GRAPHQL_JWT_AUTH_SECRET_KEY:-changeme-super-secret-jwt-key}"
+      # Secreto para firmar los tokens CSRF (signed double-submit).
+      CSRF_SECRET: "${CSRF_SECRET:-changeme-super-secret-csrf-key}"
+      # WooCommerce: APIs resueltas por la red interna de Docker.
+      WC_API_URL: "${WC_API_URL:-http://wordpress:80/wp-json/wc/v3}"
+      WC_STORE_API_URL: "${WC_STORE_API_URL:-http://wordpress:80/wp-json/wc/store/v1}"
+      # Credenciales ck/cs SOLO de servidor (genéralas con generate-woo-keys.sh).
+      WC_CONSUMER_KEY: "${WC_CONSUMER_KEY:-}"
+      WC_CONSUMER_SECRET: "${WC_CONSUMER_SECRET:-}"
       # Conexión a Redis por la red interna de Docker.
       REDIS_URL: "${REDIS_URL:-redis://redis:6379}"
       WATCHPACK_POLLING: "true" # hot-reload fiable en volúmenes montados (Windows/WSL)

@@ -198,7 +198,64 @@ curl http://localhost:3000/api/auth/me -b cookies.txt
 - El **middleware** refresca el `authToken` caducado de forma transparente.
 - En **Server Components** usa `getSession()` / `fetchGraphQLAsViewer()` de
   `src/lib/auth/session.ts` para datos del usuario autenticado.
-- Todos los endpoints de escritura validan el `Origin` (CSRF completo en Fase 4).
+
+### Protección de escrituras (CSRF + rate-limit — Fase 4)
+
+Todo endpoint de **escritura** (POST/PUT/PATCH/DELETE) exige: `Origin` válido,
+**token CSRF** y respeta el **rate-limit**. El cliente primero obtiene un token:
+
+```bash
+# 1) Obtener token CSRF (se guarda en cookie y se devuelve en el cuerpo)
+curl -s http://localhost:3000/api/csrf -c cookies.txt
+# -> {"csrfToken":"<token>"}
+
+# 2) Reenviarlo en la cabecera X-CSRF-Token de cada mutación
+curl -i -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" -H "Origin: http://localhost:3000" \
+  -H "X-CSRF-Token: <token>" \
+  -c cookies.txt -b cookies.txt \
+  -d '{"username":"admin","password":"admin"}'
+```
+
+- Rate-limit (por IP): login/registro 5/min, checkout 10/min, carrito 60/min →
+  responde `429` con `Retry-After`. Requiere **Redis** (degrada a permitir si cae).
+- **Checkout idempotente**: envía `Idempotency-Key: <uuid>` para que los reintentos
+  no dupliquen el pedido.
+
+---
+
+## 🛒 Tienda (WooCommerce — Fase 3)
+
+WooCommerce se consume mediante **proxy inverso**: las credenciales `ck`/`cs`
+viven **solo en el servidor** y nunca llegan al navegador.
+
+| Endpoint | Método | API usada | Descripción |
+|----------|--------|-----------|-------------|
+| `/api/store/cart` | GET / DELETE | Store API | Ver / vaciar carrito |
+| `/api/store/cart/items` | POST / PATCH / DELETE | Store API | Añadir / actualizar / quitar línea |
+| `/api/store/checkout` | POST | Store API | Crear pedido desde el carrito |
+| `/api/store/orders/[id]` | GET | wc/v3 (ck/cs) | Pedido **del usuario** (autorizado) |
+| `/api/store/customer` | GET / PUT | wc/v3 (ck/cs) | Datos del cliente autenticado |
+
+**Generar las claves `ck`/`cs`** (tras `docker compose run --rm wpcli`):
+
+```bash
+docker compose run --rm --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
+# Copia WC_CONSUMER_KEY / WC_CONSUMER_SECRET en .env y reinicia:
+docker compose up -d frontend
+```
+
+```bash
+# Añadir un producto (id 12) al carrito; la cookie de carrito se guarda en cookies.txt
+curl -i -X POST http://localhost:3000/api/store/cart/items \
+  -H "Content-Type: application/json" -H "Origin: http://localhost:3000" \
+  -c cookies.txt -b cookies.txt \
+  -d '{"id":12,"quantity":1}'
+```
+
+- **Carrito/checkout** → Store API (`wc/store/v1`), token de carrito en cookie httpOnly.
+- **Pedidos/cliente** → `wc/v3` con `ck`/`cs`; el handler **comprueba que el recurso
+  pertenece al usuario** de la sesión (anti-IDOR).
 
 ---
 

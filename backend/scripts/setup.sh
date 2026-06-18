@@ -74,6 +74,13 @@ $WP plugin install \
 	"https://github.com/funkhaus/wp-graphql-cors/archive/refs/heads/master.zip" \
 	--activate || echo "    (aviso) wp-graphql-cors opcional no instalado; el mu-plugin ya cubre CORS."
 
+echo "==> Instalando WooCommerce (catálogo, carrito, pedidos)..."
+$WP plugin install woocommerce --activate
+# Evita el asistente de configuración y deja la tienda operativa por defecto.
+$WP option update woocommerce_onboarding_profile '{"skipped":true}' --format=json 2>/dev/null || true
+$WP option update woocommerce_default_country "ES" 2>/dev/null || true
+$WP option update woocommerce_currency "EUR" 2>/dev/null || true
+
 # ----------------------------------------------------------------------------
 # 4) Limpieza de plugins/themes de ejemplo
 # ----------------------------------------------------------------------------
@@ -100,10 +107,39 @@ if [ "${POST_COUNT}" -lt 5 ]; then
 	done
 fi
 
+# ----------------------------------------------------------------------------
+# 6) Productos de ejemplo (para que carrito/checkout tengan algo que vender)
+# ----------------------------------------------------------------------------
+PRODUCT_COUNT=$($WP post list --post_type=product --post_status=publish --format=count 2>/dev/null || echo 0)
+if [ "${PRODUCT_COUNT}" -lt 3 ]; then
+	echo "==> Generando productos de ejemplo..."
+	i=1
+	while [ "$i" -le 3 ]; do
+		# Forma nativa de WooCommerce: registra correctamente el producto simple.
+		$WP wc product create \
+			--user="${WP_ADMIN_USER:-admin}" \
+			--name="Producto de ejemplo #${i}" \
+			--type=simple \
+			--regular_price="$((i * 10)).00" \
+			--manage_stock=false \
+			--stock_status=instock \
+			--status=publish \
+			--description="Descripción de demostración del producto ${i}." \
+			--porcelain >/dev/null 2>&1 || \
+			echo "    (aviso) no se pudo crear el producto ${i} vía WC-CLI."
+		i=$((i + 1))
+	done
+fi
+
 echo ""
 echo "============================================================"
-echo "  ✔ WordPress Headless listo."
+echo "  ✔ WordPress Headless + WooCommerce listo."
 echo "  Panel:    ${WP_URL:-http://localhost:8080}/wp-admin"
 echo "  GraphQL:  ${WP_URL:-http://localhost:8080}/graphql"
+echo "  Store API:${WP_URL:-http://localhost:8080}/wp-json/wc/store/v1/cart"
 echo "  Usuario:  ${WP_ADMIN_USER:-admin}"
+echo ""
+echo "  SIGUIENTE PASO (claves WooCommerce para el BFF):"
+echo "    docker compose run --rm --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh"
+echo "    -> copia WC_CONSUMER_KEY / WC_CONSUMER_SECRET en tu .env y reinicia el frontend."
 echo "============================================================"

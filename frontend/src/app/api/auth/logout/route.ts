@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_COOKIE, REFRESH_COOKIE } from "@/lib/auth/constants";
 import { expiredCookieOptions } from "@/lib/security/cookies";
-import { assertAllowedOrigin } from "@/lib/security/origin";
+import { guardMutation } from "@/lib/api/guard";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +12,10 @@ export const dynamic = "force-dynamic";
  * GraphQL; para invalidación global se rota el "user secret" en WordPress.)
  */
 export async function POST(request: Request) {
-  if (!assertAllowedOrigin(request)) {
-    return NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
-  }
+  const blocked = await guardMutation(request, {
+    rateLimit: { name: "logout", limit: 30, windowSeconds: 60 },
+  });
+  if (blocked) return blocked;
 
   const store = await cookies();
   store.set(AUTH_COOKIE, "", expiredCookieOptions("/"));
