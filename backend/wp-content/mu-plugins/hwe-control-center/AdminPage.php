@@ -91,6 +91,7 @@ HTML;
 
         Storage::setAll($publicData);
         SecretsStorage::mergeNonEmpty($secretData);
+        BackupConfig::write($publicData['backups'] ?? []);
         Revalidation::trigger();
 
         return self::notice('success', __('Configuración guardada correctamente.', 'hwe'));

@@ -277,6 +277,66 @@ class Schema {
             ],
 
             /* ------------------------------------------------------------------ */
+            /* BACKUPS AUTOMÁTICOS                                                 */
+            /* ------------------------------------------------------------------ */
+            'backups' => [
+                'type'     => 'group',
+                'label'    => 'Backups automáticos',
+                'children' => [
+
+                    'enabled' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Activar backup automático',
+                        'default'     => true,
+                        'public'      => false,
+                        'description' => 'Requiere que el contenedor `backup` esté corriendo (docker-compose.prod.yml).',
+                    ],
+                    'schedule' => [
+                        'type'    => 'select',
+                        'label'   => 'Frecuencia',
+                        'default' => 'daily',
+                        'public'  => false,
+                        'options' => [
+                            'daily'       => 'Diario',
+                            'twice_daily' => 'Dos veces al día (12h de diferencia)',
+                            'weekly'      => 'Semanal (todos los domingos)',
+                        ],
+                    ],
+                    'hour_utc' => [
+                        'type'        => 'select',
+                        'label'       => 'Hora de inicio (UTC)',
+                        'default'     => '3',
+                        'public'      => false,
+                        'options'     => array_combine(
+                            array_map('strval', range(0, 23)),
+                            array_map(static fn(int $h) => sprintf('%02d:00 UTC', $h), range(0, 23))
+                        ),
+                        'description' => 'Reinicia el contenedor `backup` tras cambiar la hora para que el cron se actualice.',
+                    ],
+                    'retain_days' => [
+                        'type'        => 'text',
+                        'label'       => 'Días de retención local',
+                        'default'     => '14',
+                        'public'      => false,
+                        'description' => 'Backups más antiguos se eliminan automáticamente. Para retención larga, sincroniza a S3/R2.',
+                    ],
+                    'include_uploads' => [
+                        'type'    => 'boolean',
+                        'label'   => 'Incluir archivos multimedia (wp-content/uploads)',
+                        'default' => true,
+                        'public'  => false,
+                    ],
+                    'notify_email' => [
+                        'type'        => 'email',
+                        'label'       => 'Email de notificación (opcional)',
+                        'public'      => false,
+                        'description' => 'Requiere SMTP configurado en la sección Integraciones. Recibe un resumen tras cada backup.',
+                    ],
+
+                ],
+            ],
+
+            /* ------------------------------------------------------------------ */
             /* SEO                                                                 */
             /* ------------------------------------------------------------------ */
             'seo' => [

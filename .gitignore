@@ -34,6 +34,7 @@ backend/wp-content/languages/
 backend/wp-content/advanced-cache.php
 backend/wp-content/object-cache.php
 backend/wp-content/db.php
+backend/wp-content/hwe-backup-config.json
 
 # Mantén nuestro mu-plugin headless versionado
 !backend/wp-content/mu-plugins/
