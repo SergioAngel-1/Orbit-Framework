@@ -146,6 +146,8 @@ services:
       WP_ADMIN_USER:   "${WP_ADMIN_USER:-admin}"
       WP_ADMIN_PASSWORD: "${WP_ADMIN_PASSWORD}"
       WP_ADMIN_EMAIL:  "${WP_ADMIN_EMAIL:-admin@example.com}"
+      HEADLESS_FRONTEND_URL: "${HEADLESS_FRONTEND_URL:-http://frontend:3000}"
+      WC_WEBHOOK_SECRET:     "${WC_WEBHOOK_SECRET:-}"
     volumes:
       - ./backend/wp-content:/var/www/html/wp-content
       - ./backend/scripts:/scripts:ro
@@ -233,7 +235,8 @@ services:
     volumes:
       - ./backend/scripts/backup-cron.sh:/usr/local/bin/backup-cron.sh:ro
       - ./backend/scripts/backup-entrypoint.sh:/usr/local/bin/backup-entrypoint.sh:ro
-      - ./backend/wp-content/uploads:/wp-content/uploads:ro
+      # wp-content completo (solo lectura): acceso a uploads + hwe-backup-config.json
+      - ./backend/wp-content:/wp-content:ro
       - ./backups:/backups
     environment:
       MYSQL_HOST:          "db"
