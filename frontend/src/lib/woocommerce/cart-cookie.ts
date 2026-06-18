@@ -1,10 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { CART_TOKEN_COOKIE, CART_TOKEN_MAX_AGE } from "./constants";
-import {
-  sessionCookieOptions,
-  expiredCookieOptions,
-} from "@/lib/security/cookies";
+import { sessionCookieOptions, expiredCookieOptions } from "@/lib/security/cookies";
 
 // ============================================================================
 //  Persistencia del Cart-Token de la Store API en una cookie httpOnly.

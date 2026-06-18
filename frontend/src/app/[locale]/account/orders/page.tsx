@@ -35,12 +35,11 @@ export default async function OrdersPage() {
       ) : (
         <ul className="divide-y divide-gray-200 dark:divide-gray-800">
           {orders.map((order) => (
-            <li
-              key={order.id}
-              className="flex items-center justify-between py-4"
-            >
+            <li key={order.id} className="flex items-center justify-between py-4">
               <div>
-                <p className="font-medium">{t("orders")} #{order.id}</p>
+                <p className="font-medium">
+                  {t("orders")} #{order.id}
+                </p>
                 <p className="text-sm text-gray-500">
                   {formatDate(order.date_created, locale)} · {order.line_items.length}{" "}
                   {t("articles")}

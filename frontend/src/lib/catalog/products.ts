@@ -80,9 +80,7 @@ export async function getProducts(options: {
   };
 }
 
-export async function getProductBySlug(
-  slug: string,
-): Promise<ProductDetail | null> {
+export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
   const data = await fetchGraphQL<{ product: RawProductNode | null }>(
     PRODUCT_BY_SLUG_QUERY,
     { variables: { slug }, revalidate: CATALOG_REVALIDATE, tags: ["products"] },

@@ -51,6 +51,13 @@ frontend/.vercel
 frontend/*.tsbuildinfo
 frontend/next-env.d.ts
 
+# Tests / cobertura / Playwright (Fase 8)
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+frontend/.playwright/
+
 # ============================================================================
 #  Bases de datos / dumps
 # ============================================================================

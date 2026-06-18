@@ -31,9 +31,7 @@ export const REFRESH_TOKEN_MUTATION = /* GraphQL */ `
 /** Registra un nuevo usuario (requiere registro habilitado en WordPress). */
 export const REGISTER_USER_MUTATION = /* GraphQL */ `
   mutation RegisterUser($username: String!, $email: String!, $password: String!) {
-    registerUser(
-      input: { username: $username, email: $email, password: $password }
-    ) {
+    registerUser(input: { username: $username, email: $email, password: $password }) {
       user {
         id
         databaseId

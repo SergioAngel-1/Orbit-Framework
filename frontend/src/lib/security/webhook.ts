@@ -8,10 +8,7 @@ import crypto from "node:crypto";
 //  webhook y lo envía en base64 en la cabecera `X-WC-Webhook-Signature`.
 // ============================================================================
 
-export function verifyWooWebhook(
-  rawBody: string,
-  signature: string | null,
-): boolean {
+export function verifyWooWebhook(rawBody: string, signature: string | null): boolean {
   const secret = process.env.WC_WEBHOOK_SECRET;
   if (!secret || !signature) {
     return false;

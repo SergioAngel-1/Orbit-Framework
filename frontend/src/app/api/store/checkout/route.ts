@@ -68,14 +68,11 @@ export async function POST(request: Request) {
 
   try {
     const token = await readCartToken();
-    const { data, cartToken } = await storeFetch<StoreCheckoutResponse>(
-      "/checkout",
-      {
-        method: "POST",
-        body: parsed.data,
-        cartToken: token,
-      },
-    );
+    const { data, cartToken } = await storeFetch<StoreCheckoutResponse>("/checkout", {
+      method: "POST",
+      body: parsed.data,
+      cartToken: token,
+    });
 
     // El carrito queda consumido: reiniciamos el token para empezar uno nuevo.
     if (cartToken) {

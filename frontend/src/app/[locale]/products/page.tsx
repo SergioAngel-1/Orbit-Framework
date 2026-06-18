@@ -22,8 +22,7 @@ export default async function ProductsPage({
     products = result.products;
     pageInfo = result.pageInfo;
   } catch (e) {
-    errorMessage =
-      e instanceof Error ? e.message : t("error");
+    errorMessage = e instanceof Error ? e.message : t("error");
   }
 
   const nextHref = pageInfo.endCursor
@@ -57,9 +56,7 @@ export default async function ProductsPage({
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           <p className="font-semibold">{t("error")}</p>
           <p className="mt-1 text-sm opacity-80">{errorMessage}</p>
-          <p className="mt-2 text-sm">
-            {t("errorHint")}
-          </p>
+          <p className="mt-2 text-sm">{t("errorHint")}</p>
         </div>
       ) : (
         <>

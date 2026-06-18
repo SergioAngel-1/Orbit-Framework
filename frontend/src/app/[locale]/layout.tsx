@@ -2,11 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
-import {
-  getMessages,
-  getTranslations,
-  setRequestLocale,
-} from "next-intl/server";
+import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { siteConfig } from "@/config/site";
 import { routing } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
@@ -107,16 +103,32 @@ export default async function LocaleLayout({
         <NextIntlClientProvider messages={messages}>
           <AnalyticsProvider>
             <CartProvider>
+              <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-white"
+              >
+                {tNav("skipToContent")}
+              </a>
               <header className="border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-800 dark:bg-black/50">
                 <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-                  <Link href="/" className="text-lg font-bold tracking-tight">
-                    Headless<span className="text-brand">WP</span>
+                  <Link
+                    href="/"
+                    className="text-lg font-bold tracking-tight"
+                    aria-label={tSite("name")}
+                  >
+                    {tSite("name")}
                   </Link>
                   <nav className="flex items-center gap-5 text-sm font-medium text-gray-600 dark:text-gray-300">
-                    <Link href="/products" className="transition-colors hover:text-brand">
+                    <Link
+                      href="/products"
+                      className="transition-colors hover:text-brand"
+                    >
                       {tNav("store")}
                     </Link>
-                    <Link href="/account" className="transition-colors hover:text-brand">
+                    <Link
+                      href="/account"
+                      className="transition-colors hover:text-brand"
+                    >
                       {tNav("account")}
                     </Link>
                     <CartIndicator />
@@ -125,10 +137,34 @@ export default async function LocaleLayout({
                 </div>
               </header>
 
-              <main className="mx-auto max-w-5xl px-6 py-12">{children}</main>
+              <main
+                id="main-content"
+                className="mx-auto max-w-5xl px-6 py-12"
+              >
+                {children}
+              </main>
 
-              <footer className="border-t border-gray-200 py-8 text-center text-sm text-gray-500 dark:border-gray-800">
-                <div className="mx-auto max-w-5xl px-6">{tSite("footer")}</div>
+              <footer className="border-t border-gray-200 py-8 text-sm text-gray-500 dark:border-gray-800">
+                <div className="mx-auto max-w-5xl space-y-3 px-6 text-center">
+                  <nav
+                    aria-label={tNav("legal")}
+                    className="flex flex-wrap justify-center gap-x-5 gap-y-2"
+                  >
+                    <Link href="/legal/privacy" className="hover:text-brand">
+                      {tNav("privacy")}
+                    </Link>
+                    <Link href="/legal/cookies" className="hover:text-brand">
+                      {tNav("cookies")}
+                    </Link>
+                    <Link href="/legal/terms" className="hover:text-brand">
+                      {tNav("terms")}
+                    </Link>
+                    <Link href="/legal/returns" className="hover:text-brand">
+                      {tNav("returns")}
+                    </Link>
+                  </nav>
+                  <p>{tSite("footer")}</p>
+                </div>
               </footer>
             </CartProvider>
           </AnalyticsProvider>

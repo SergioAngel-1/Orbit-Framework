@@ -16,15 +16,9 @@ export const registerSchema = z.object({
     .string()
     .min(3, "Mínimo 3 caracteres")
     .max(60)
-    .regex(
-      /^[a-zA-Z0-9_.\-@]+$/,
-      "Solo letras, números y los símbolos . _ - @",
-    ),
+    .regex(/^[a-zA-Z0-9_.\-@]+$/, "Solo letras, números y los símbolos . _ - @"),
   email: z.string().email("Email no válido").max(200),
-  password: z
-    .string()
-    .min(8, "Mínimo 8 caracteres")
-    .max(200),
+  password: z.string().min(8, "Mínimo 8 caracteres").max(200),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

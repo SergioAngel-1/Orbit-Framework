@@ -67,7 +67,8 @@ export async function POST(request: Request) {
       currency: order.currency,
       customer: {
         email: order.billing.email ?? "",
-        fullName: `${order.billing.first_name ?? ""} ${order.billing.last_name ?? ""}`.trim(),
+        fullName:
+          `${order.billing.first_name ?? ""} ${order.billing.last_name ?? ""}`.trim(),
         phone: order.billing.phone,
       },
       returnUrl: effectiveReturnUrl,

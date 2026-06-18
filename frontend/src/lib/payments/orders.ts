@@ -44,8 +44,7 @@ export function paymentMatchesOrder(
   if (amountMinor == null || !currency) return false;
   const expected = toMinorUnits(order.total);
   const sameAmount = expected === amountMinor;
-  const sameCurrency =
-    order.currency.toUpperCase() === currency.toUpperCase();
+  const sameCurrency = order.currency.toUpperCase() === currency.toUpperCase();
   return sameAmount && sameCurrency;
 }
 

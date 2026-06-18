@@ -54,8 +54,13 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 ├── .env.example                # TODAS las variables (raíz). Copiar a .env
 ├── README.md                   # Guía de arranque y comandos
 ├── AGENTS.md                   # este archivo
-├── docs/
-│   └── PRODUCTION-PLAN.md       # ⭐ EL PLAN MAESTRO por fases (léelo, ver §5)
+├── docs/                        # documentación de cliente y operaciones
+│   ├── INSTALL.md               # instalación paso a paso
+│   ├── CONFIGURATION.md         # variables de entorno
+│   ├── CUSTOMIZATION.md         # guía de white-label / rebranding
+│   ├── DEPLOYMENT.md            # despliegue en producción
+│   ├── SECURITY.md              # modelo de amenazas y hardening
+│   └── ACCESIBILIDAD.md         # auditoría WCAG 2.2 AA
 │
 ├── backend/                    # WordPress headless (solo nuestro código propio se versiona)
 │   ├── scripts/setup.sh         # instala WP + plugins + WooCommerce + datos demo (WP-CLI)
@@ -98,25 +103,23 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 
 ---
 
-## 5. El plan maestro: `docs/PRODUCTION-PLAN.md`
+## 5. Estado del proyecto
 
-**Es la fuente de verdad del roadmap.** Está dividido en fases con criterios de aceptación.
-Estado actual:
+| Área | Estado |
+|------|--------|
+| Seguridad base (cabeceras, CORS, hardening, Redis) | ✅ |
+| Autenticación JWT (cookies httpOnly + refresh) | ✅ |
+| Proxy inverso a WooCommerce (BFF, ck/cs server-only) | ✅ |
+| CSRF + rate-limit + idempotencia | ✅ |
+| E-commerce (catálogo, carrito, checkout, cuenta) | ✅ |
+| SEO + i18n (next-intl, sitemap, hreflang, JSON-LD) | ✅ |
+| Pagos (capa de pasarelas enchufable Wompi/PayU/Bold…) | ✅ |
+| Calidad / CI/CD / observabilidad | ✅ |
+| Empaquetado comercial (licencia, docs, white-label) | ✅ |
 
-| Fase | Tema | Estado |
-|------|------|--------|
-| 1 | Seguridad base (cabeceras, CORS, hardening, Redis) | ✅ hecha |
-| 2 | Autenticación JWT (cookies httpOnly + refresh) | ✅ hecha |
-| 3 | Proxy inverso a WooCommerce (BFF, ck/cs server-only) | ✅ hecha |
-| 4 | CSRF + rate-limit + idempotencia | ✅ hecha |
-| 5 | E-commerce (catálogo, carrito, checkout, cuenta) | ✅ hecha |
-| 6 | SEO + i18n (next-intl, sitemap, hreflang, JSON-LD) | ✅ hecha |
-| 7 | **Pagos** — capa de pasarelas enchufable (Wompi/PayU/Bold…) | ✅ hecha (abstracción + `noop`) |
-| 8 | Calidad / CI/CD / observabilidad | ⏳ pendiente |
-| 9 | Empaquetado comercial (licencia, docs, white-label) | ⏳ pendiente |
-
-Si te piden continuar el proyecto, **lee la fase correspondiente del plan** antes de
-escribir código: ahí están las decisiones de arquitectura y los criterios de "terminado".
+El proyecto está **completo** y listo para comercializar. No hay fases pendientes.
+Cualquier trabajo futuro es mantenimiento, integración de una pasarela real o mejora
+puntual de características existentes.
 
 ---
 
@@ -264,11 +267,10 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 
 ## 10. Cómo trabajar en este repo (resumen para el agente)
 
-1. **Lee `docs/PRODUCTION-PLAN.md`** para la fase que vayas a tocar.
-2. **Ubica el flujo** con el §6 de este documento.
-3. **Respeta el patrón BFF** y las convenciones del §7 (secretos server-only, guard en
+1. **Ubica el flujo** con el §6 de este documento.
+2. **Respeta el patrón BFF** y las convenciones del §7 (secretos server-only, guard en
    escrituras, navegación locale-aware, i18n paralelo).
-4. **Verifica con `next build`** (y `tsc`/`lint`) antes de declarar algo terminado.
-5. **Sé honesto sobre lo no verificado en vivo**: muchas cosas requieren la pila Docker con
+3. **Verifica con `next build`** (y `tsc`/`lint`) antes de declarar algo terminado.
+4. **Sé honesto sobre lo no verificado en vivo**: muchas cosas requieren la pila Docker con
    WordPress real (login, carrito, checkout, webhooks). Si no la levantaste, dilo.
-6. **No metas secretos en el repo**: solo `.env.example` con placeholders.
+5. **No metas secretos en el repo**: solo `.env.example` con placeholders.

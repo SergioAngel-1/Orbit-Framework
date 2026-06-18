@@ -106,6 +106,10 @@ const nextConfig = withNextIntl({
   reactStrictMode: true,
   poweredByHeader: false, // No revelar "X-Powered-By: Next.js".
 
+  // Salida autocontenida para la imagen de producción (Dockerfile target `prod`):
+  // copia solo el server.js + node_modules mínimos trazados. Inocuo en dev.
+  output: "standalone",
+
   async headers() {
     return [
       {

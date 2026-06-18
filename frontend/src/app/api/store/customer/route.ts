@@ -16,9 +16,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const session = await requireSession();
-    const customer = await wcFetch<WooCustomer>(
-      `/customers/${Number(session.userId)}`,
-    );
+    const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
     return NextResponse.json(customer);
   } catch (error) {
     return handleApiError(error);

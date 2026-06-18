@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Hook pre-commit: formatea/lintea solo los archivos del frontend en staging.
+# Activar una vez:  git config core.hooksPath .husky
+cd frontend && npx --no-install lint-staged

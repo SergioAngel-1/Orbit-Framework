@@ -108,9 +108,7 @@ export default async function HomePage({
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           <p className="font-semibold">{t("errorTitle")}</p>
           <p className="mt-1 text-sm opacity-80">{errorMessage}</p>
-          <p className="mt-3 text-sm">
-            {t("errorDescription")}
-          </p>
+          <p className="mt-3 text-sm">{t("errorDescription")}</p>
         </div>
       ) : posts.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">

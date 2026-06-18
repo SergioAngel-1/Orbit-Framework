@@ -1,0 +1,8 @@
+.next/
+node_modules/
+coverage/
+playwright-report/
+test-results/
+public/
+*.md
+src/i18n/messages/*.json

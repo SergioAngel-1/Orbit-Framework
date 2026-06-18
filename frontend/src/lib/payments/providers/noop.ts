@@ -50,10 +50,7 @@ export class NoopProvider implements PaymentProvider {
     };
   }
 
-  async verifyWebhook(
-    rawBody: string,
-    headers: Headers,
-  ): Promise<WebhookVerification> {
+  async verifyWebhook(rawBody: string, headers: Headers): Promise<WebhookVerification> {
     const signature = headers.get(SIGNATURE_HEADER) ?? "";
     const expected = hmacSha256(rawBody, SANDBOX_SECRET, "hex");
     const valid = signature.length > 0 && safeEqual(signature, expected);

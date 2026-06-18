@@ -17,17 +17,16 @@ export function CheckoutForm() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CheckoutResult | null>(null);
 
-  const FIELDS: { name: string; label: string; type?: string; required?: boolean }[] =
-    [
-      { name: "first_name", label: tForm("firstName"), required: true },
-      { name: "last_name", label: tForm("lastName"), required: true },
-      { name: "address_1", label: tForm("address"), required: true },
-      { name: "city", label: tForm("city"), required: true },
-      { name: "postcode", label: tForm("postcode"), required: true },
-      { name: "country", label: tForm("country"), required: true },
-      { name: "email", label: tForm("email"), type: "email", required: true },
-      { name: "phone", label: tForm("phone") },
-    ];
+  const FIELDS: { name: string; label: string; type?: string; required?: boolean }[] = [
+    { name: "first_name", label: tForm("firstName"), required: true },
+    { name: "last_name", label: tForm("lastName"), required: true },
+    { name: "address_1", label: tForm("address"), required: true },
+    { name: "city", label: tForm("city"), required: true },
+    { name: "postcode", label: tForm("postcode"), required: true },
+    { name: "country", label: tForm("country"), required: true },
+    { name: "email", label: tForm("email"), type: "email", required: true },
+    { name: "phone", label: tForm("phone") },
+  ];
 
   /**
    * Inicia el cobro del pedido con la pasarela activa (capa agnóstica).
@@ -78,9 +77,7 @@ export function CheckoutForm() {
         | CheckoutResult
         | { error?: string };
       if (!res.ok) {
-        throw new Error(
-          ("error" in data && data.error) || tCheckout("emptyCart"),
-        );
+        throw new Error(("error" in data && data.error) || tCheckout("emptyCart"));
       }
 
       const order = data as CheckoutResult;
@@ -107,7 +104,8 @@ export function CheckoutForm() {
           {tCheckout("success")}
         </h2>
         <p className="mt-2 text-green-700 dark:text-green-300">
-          {tCheckout("orderNumber")} <strong>#{result.order_id}</strong> · {tCheckout("status")}: {result.status}
+          {tCheckout("orderNumber")} <strong>#{result.order_id}</strong> ·{" "}
+          {tCheckout("status")}: {result.status}
         </p>
       </div>
     );

@@ -57,9 +57,7 @@ export default async function ProductPage({
   }
   if (!product) notFound();
 
-  const descriptionHtml = product.description
-    ? sanitizeHtml(product.description)
-    : "";
+  const descriptionHtml = product.description ? sanitizeHtml(product.description) : "";
   const outOfStock = product.stockStatus === "OUT_OF_STOCK";
 
   const jsonLd = {
@@ -105,14 +103,10 @@ export default async function ProductPage({
         </div>
 
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">
-            {product.name}
-          </h1>
+          <h1 className="text-3xl font-extrabold tracking-tight">{product.name}</h1>
 
           <div className="mt-4 flex items-baseline gap-3">
-            <span className="text-2xl font-bold">
-              {formatPrice(product.price)}
-            </span>
+            <span className="text-2xl font-bold">{formatPrice(product.price)}</span>
             {product.onSale && product.regularPrice && (
               <span className="text-lg text-gray-400 line-through">
                 {formatPrice(product.regularPrice)}

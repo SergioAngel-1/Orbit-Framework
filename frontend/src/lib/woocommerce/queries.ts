@@ -42,7 +42,11 @@ export const PRODUCTS_QUERY = /* GraphQL */ `
     products(
       first: $first
       after: $after
-      where: { search: $search, status: "publish", orderby: { field: DATE, order: DESC } }
+      where: {
+        search: $search
+        status: "publish"
+        orderby: { field: DATE, order: DESC }
+      }
     ) {
       pageInfo {
         hasNextPage

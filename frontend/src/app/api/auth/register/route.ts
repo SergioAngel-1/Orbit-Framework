@@ -8,10 +8,7 @@ import {
   REFRESH_COOKIE,
   REFRESH_TOKEN_MAX_AGE,
 } from "@/lib/auth/constants";
-import {
-  sessionCookieOptions,
-  refreshCookieOptions,
-} from "@/lib/security/cookies";
+import { sessionCookieOptions, refreshCookieOptions } from "@/lib/security/cookies";
 import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
 import { guardMutation } from "@/lib/api/guard";
 import type { RegisterResponse, LoginResponse } from "@/types/auth";
@@ -70,8 +67,16 @@ export async function POST(request: Request) {
     });
     const { authToken, refreshToken, user } = data.login;
     const store = await cookies();
-    store.set(AUTH_COOKIE, authToken, sessionCookieOptions(getTokenMaxAgeSeconds(authToken)));
-    store.set(REFRESH_COOKIE, refreshToken, refreshCookieOptions(REFRESH_TOKEN_MAX_AGE));
+    store.set(
+      AUTH_COOKIE,
+      authToken,
+      sessionCookieOptions(getTokenMaxAgeSeconds(authToken)),
+    );
+    store.set(
+      REFRESH_COOKIE,
+      refreshToken,
+      refreshCookieOptions(REFRESH_TOKEN_MAX_AGE),
+    );
     return NextResponse.json({ user }, { status: 201 });
   } catch {
     // Usuario creado pero el auto-login falló: el cliente puede iniciar sesión.

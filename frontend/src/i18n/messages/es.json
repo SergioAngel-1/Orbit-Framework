@@ -8,7 +8,93 @@
   "nav": {
     "store": "Tienda",
     "account": "Cuenta",
-    "cart": "Carrito"
+    "cart": "Carrito",
+    "skipToContent": "Saltar al contenido",
+    "legal": "Enlaces legales",
+    "privacy": "Privacidad",
+    "cookies": "Cookies",
+    "terms": "Términos",
+    "returns": "Devoluciones"
+  },
+  "legal": {
+    "updated": "Última actualización",
+    "disclaimer": "Documento plantilla de ejemplo. Revísalo y adáptalo con asesoría legal antes de publicarlo en producción.",
+    "privacy": {
+      "title": "Política de privacidad",
+      "sections": [
+        {
+          "heading": "Responsable del tratamiento",
+          "body": "El responsable del tratamiento de tus datos es el titular de esta tienda. Para cualquier consulta sobre tus datos personales, contacta con el correo indicado en el pie de página."
+        },
+        {
+          "heading": "Datos que recogemos",
+          "body": "Recogemos los datos necesarios para gestionar tu cuenta y tus pedidos: nombre, dirección de facturación y envío, correo electrónico y teléfono. Los datos de pago los procesa la pasarela de pago; esta tienda nunca almacena datos de tarjeta."
+        },
+        {
+          "heading": "Finalidad y base legal",
+          "body": "Tratamos tus datos para ejecutar el contrato de compraventa, atender tus pedidos y cumplir obligaciones legales (facturación). La analítica solo se activa con tu consentimiento explícito."
+        },
+        {
+          "heading": "Tus derechos",
+          "body": "Puedes ejercer tus derechos de acceso, rectificación, supresión, oposición y portabilidad escribiendo al correo de contacto. También puedes reclamar ante la autoridad de protección de datos competente."
+        }
+      ]
+    },
+    "cookies": {
+      "title": "Política de cookies",
+      "sections": [
+        {
+          "heading": "Qué son las cookies",
+          "body": "Las cookies son pequeños archivos que se almacenan en tu dispositivo. Esta tienda usa cookies técnicas imprescindibles para el funcionamiento (sesión, carrito, seguridad CSRF) que no requieren consentimiento."
+        },
+        {
+          "heading": "Cookies de analítica",
+          "body": "Solo instalamos cookies de analítica si las aceptas en el banner de consentimiento. Puedes cambiar tu elección en cualquier momento borrando las cookies del navegador."
+        },
+        {
+          "heading": "Gestión de cookies",
+          "body": "Puedes configurar tu navegador para bloquear o eliminar cookies. Ten en cuenta que bloquear las cookies técnicas puede impedir el uso del carrito y el área de cuenta."
+        }
+      ]
+    },
+    "terms": {
+      "title": "Términos y condiciones",
+      "sections": [
+        {
+          "heading": "Objeto",
+          "body": "Estos términos regulan el uso de la tienda y la compra de los productos ofrecidos. Al realizar un pedido aceptas estas condiciones en su totalidad."
+        },
+        {
+          "heading": "Precios y pagos",
+          "body": "Los precios se muestran en la moneda indicada e incluyen los impuestos aplicables salvo que se indique lo contrario. El pago se confirma cuando la pasarela notifica la transacción como aprobada."
+        },
+        {
+          "heading": "Disponibilidad",
+          "body": "La disponibilidad de los productos depende del stock. Si un producto no estuviera disponible tras tu pedido, te informaremos y gestionaremos el reembolso correspondiente."
+        },
+        {
+          "heading": "Responsabilidad",
+          "body": "El titular de la tienda no será responsable de interrupciones del servicio ajenas a su control. Nada en estos términos limita los derechos que la ley reconoce a las personas consumidoras."
+        }
+      ]
+    },
+    "returns": {
+      "title": "Política de devoluciones",
+      "sections": [
+        {
+          "heading": "Derecho de desistimiento",
+          "body": "Dispones de un plazo para desistir de la compra desde la recepción del pedido, según la legislación aplicable. Para ejercerlo, contacta con el correo de soporte indicando el número de pedido."
+        },
+        {
+          "heading": "Condiciones de la devolución",
+          "body": "Los productos deben devolverse en su estado original. Algunos productos pueden estar excluidos del derecho de desistimiento conforme a la ley (p. ej. productos personalizados)."
+        },
+        {
+          "heading": "Reembolsos",
+          "body": "Una vez recibida y verificada la devolución, tramitaremos el reembolso por el mismo medio de pago utilizado, en los plazos previstos por la pasarela y la legislación vigente."
+        }
+      ]
+    }
   },
   "home": {
     "title": "Últimas publicaciones",

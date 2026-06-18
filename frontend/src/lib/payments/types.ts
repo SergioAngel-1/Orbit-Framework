@@ -11,12 +11,7 @@
 // ============================================================================
 
 /** Estado de pago normalizado, común a todas las pasarelas. */
-export type PaymentStatus =
-  | "pending"
-  | "approved"
-  | "declined"
-  | "voided"
-  | "error";
+export type PaymentStatus = "pending" | "approved" | "declined" | "voided" | "error";
 
 /** Datos para iniciar un cobro. Los provee el BFF a partir del pedido WC. */
 export interface CreateCheckoutInput {

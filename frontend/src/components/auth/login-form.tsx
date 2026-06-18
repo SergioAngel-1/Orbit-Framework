@@ -46,7 +46,9 @@ export function LoginForm() {
         </p>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">{tForm("usernameOrEmail")}</label>
+        <label className="mb-1 block text-sm font-medium">
+          {tForm("usernameOrEmail")}
+        </label>
         <input
           name="username"
           required

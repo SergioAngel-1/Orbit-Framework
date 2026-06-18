@@ -15,10 +15,7 @@ export async function POST(request: Request) {
   const signature = request.headers.get("x-wc-webhook-signature");
 
   if (!verifyWooWebhook(rawBody, signature)) {
-    return NextResponse.json(
-      { error: "Firma de webhook inválida." },
-      { status: 401 },
-    );
+    return NextResponse.json({ error: "Firma de webhook inválida." }, { status: 401 });
   }
 
   revalidateTag("products");

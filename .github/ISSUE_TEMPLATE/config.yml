@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Soporte / Support
+    url: https://github.com/anomalyco/headless-web-ecosystem/discussions
+    about: Preguntas generales y discusiones

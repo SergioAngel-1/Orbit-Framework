@@ -22,6 +22,9 @@ export async function GET() {
     });
     return NextResponse.json({ user: data.viewer }, { status: 200 });
   } catch {
-    return NextResponse.json({ error: "No se pudo obtener el usuario." }, { status: 502 });
+    return NextResponse.json(
+      { error: "No se pudo obtener el usuario." },
+      { status: 502 },
+    );
   }
 }

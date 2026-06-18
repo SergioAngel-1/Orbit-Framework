@@ -3,10 +3,7 @@ import { cookies } from "next/headers";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { REFRESH_TOKEN_MUTATION } from "@/lib/auth/mutations";
 import { AUTH_COOKIE, REFRESH_COOKIE } from "@/lib/auth/constants";
-import {
-  sessionCookieOptions,
-  expiredCookieOptions,
-} from "@/lib/security/cookies";
+import { sessionCookieOptions, expiredCookieOptions } from "@/lib/security/cookies";
 import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
 import { guardMutation } from "@/lib/api/guard";
 import type { RefreshResponse } from "@/types/auth";
@@ -48,6 +45,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No se pudo refrescar." }, { status: 502 });
   }
 
-  store.set(AUTH_COOKIE, authToken, sessionCookieOptions(getTokenMaxAgeSeconds(authToken)));
+  store.set(
+    AUTH_COOKIE,
+    authToken,
+    sessionCookieOptions(getTokenMaxAgeSeconds(authToken)),
+  );
   return NextResponse.json({ ok: true }, { status: 200 });
 }

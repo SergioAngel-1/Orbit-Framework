@@ -29,9 +29,7 @@ export interface AuthTokenPayload {
  * Verifica la firma y vigencia del JWT de acceso y extrae el id de usuario.
  * Devuelve `null` si el token es inválido, está expirado o no contiene el id.
  */
-export async function verifyAuthToken(
-  token: string,
-): Promise<AuthTokenPayload | null> {
+export async function verifyAuthToken(token: string): Promise<AuthTokenPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecretKey(), {
       algorithms: ["HS256"],

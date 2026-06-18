@@ -8,8 +8,7 @@ import "server-only";
 //  navegador: el núcleo del proxy inverso (requisito #2).
 // ============================================================================
 
-const WC_API_URL =
-  process.env.WC_API_URL ?? "http://wordpress:80/wp-json/wc/v3";
+const WC_API_URL = process.env.WC_API_URL ?? "http://wordpress:80/wp-json/wc/v3";
 const WC_CONSUMER_KEY = process.env.WC_CONSUMER_KEY ?? "";
 const WC_CONSUMER_SECRET = process.env.WC_CONSUMER_SECRET ?? "";
 
@@ -27,9 +26,9 @@ export class WooCommerceError extends Error {
 }
 
 function authorizationHeader(): string {
-  const token = Buffer.from(
-    `${WC_CONSUMER_KEY}:${WC_CONSUMER_SECRET}`,
-  ).toString("base64");
+  const token = Buffer.from(`${WC_CONSUMER_KEY}:${WC_CONSUMER_SECRET}`).toString(
+    "base64",
+  );
   return `Basic ${token}`;
 }
 
@@ -112,8 +111,7 @@ export async function wcFetch<T>(
       lastError = error;
 
       // Solo reintentamos GET ante red caída o 5xx. Los 4xx no se reintentan.
-      const isClientError =
-        error instanceof WooCommerceError && error.status < 500;
+      const isClientError = error instanceof WooCommerceError && error.status < 500;
       const retriable = method === "GET" && !isClientError;
 
       if (!retriable || attempt === retries) {

@@ -10,7 +10,9 @@ export function CartView() {
   const tCart = useTranslations("cart");
 
   if (!cart) {
-    return <p className="text-gray-500">{loading ? tCart("loading") : tCart("empty")}</p>;
+    return (
+      <p className="text-gray-500">{loading ? tCart("loading") : tCart("empty")}</p>
+    );
   }
 
   if (cart.items.length === 0) {

@@ -123,6 +123,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: dev # imagen de desarrollo con hot-reload (prod: --target prod)
     container_name: hwe_frontend
     restart: unless-stopped
     depends_on:
@@ -132,6 +133,19 @@ services:
         condition: service_healthy
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
+    healthcheck:
+      # Usa el fetch global de Node 20 (sin curl/wget) contra la sonda /api/health.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
     environment:
       # El navegador del usuario llama a WP por su URL pública...
       NEXT_PUBLIC_WORDPRESS_API_URL: "${NEXT_PUBLIC_WORDPRESS_API_URL:-http://localhost:8080/graphql}"

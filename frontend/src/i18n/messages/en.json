@@ -8,7 +8,93 @@
   "nav": {
     "store": "Store",
     "account": "Account",
-    "cart": "Cart"
+    "cart": "Cart",
+    "skipToContent": "Skip to content",
+    "legal": "Legal links",
+    "privacy": "Privacy",
+    "cookies": "Cookies",
+    "terms": "Terms",
+    "returns": "Returns"
+  },
+  "legal": {
+    "updated": "Last updated",
+    "disclaimer": "Sample template document. Review and adapt it with legal counsel before publishing to production.",
+    "privacy": {
+      "title": "Privacy Policy",
+      "sections": [
+        {
+          "heading": "Data controller",
+          "body": "The data controller is the owner of this store. For any question about your personal data, contact the email shown in the footer."
+        },
+        {
+          "heading": "Data we collect",
+          "body": "We collect the data needed to manage your account and orders: name, billing and shipping address, email and phone. Payment data is processed by the payment gateway; this store never stores card data."
+        },
+        {
+          "heading": "Purpose and legal basis",
+          "body": "We process your data to perform the sales contract, fulfil your orders and meet legal obligations (invoicing). Analytics is enabled only with your explicit consent."
+        },
+        {
+          "heading": "Your rights",
+          "body": "You may exercise your rights of access, rectification, erasure, objection and portability by writing to the contact email. You may also lodge a complaint with the competent data protection authority."
+        }
+      ]
+    },
+    "cookies": {
+      "title": "Cookie Policy",
+      "sections": [
+        {
+          "heading": "What cookies are",
+          "body": "Cookies are small files stored on your device. This store uses strictly necessary technical cookies (session, cart, CSRF security) that do not require consent."
+        },
+        {
+          "heading": "Analytics cookies",
+          "body": "We set analytics cookies only if you accept them in the consent banner. You can change your choice at any time by clearing your browser cookies."
+        },
+        {
+          "heading": "Managing cookies",
+          "body": "You can configure your browser to block or delete cookies. Note that blocking technical cookies may prevent the use of the cart and account area."
+        }
+      ]
+    },
+    "terms": {
+      "title": "Terms & Conditions",
+      "sections": [
+        {
+          "heading": "Purpose",
+          "body": "These terms govern the use of the store and the purchase of the products offered. By placing an order you accept these conditions in full."
+        },
+        {
+          "heading": "Prices and payments",
+          "body": "Prices are shown in the stated currency and include applicable taxes unless otherwise indicated. Payment is confirmed when the gateway notifies the transaction as approved."
+        },
+        {
+          "heading": "Availability",
+          "body": "Product availability depends on stock. If a product is unavailable after your order, we will inform you and arrange the corresponding refund."
+        },
+        {
+          "heading": "Liability",
+          "body": "The store owner is not liable for service interruptions beyond its control. Nothing in these terms limits the rights granted to consumers by law."
+        }
+      ]
+    },
+    "returns": {
+      "title": "Returns Policy",
+      "sections": [
+        {
+          "heading": "Right of withdrawal",
+          "body": "You have a period to withdraw from the purchase from the moment you receive the order, as per applicable law. To exercise it, contact support with your order number."
+        },
+        {
+          "heading": "Return conditions",
+          "body": "Products must be returned in their original condition. Some products may be excluded from the right of withdrawal under the law (e.g. personalised products)."
+        },
+        {
+          "heading": "Refunds",
+          "body": "Once the return is received and verified, we will process the refund via the same payment method used, within the timeframes set by the gateway and applicable law."
+        }
+      ]
+    }
   },
   "home": {
     "title": "Latest posts",
