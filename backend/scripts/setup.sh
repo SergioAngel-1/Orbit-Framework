@@ -89,7 +89,17 @@ $WP plugin install wp-graphql-woocommerce --activate || \
 		--activate || echo "    (aviso) WooGraphQL no instalado; instálalo manualmente."
 
 # ----------------------------------------------------------------------------
-# 4) Limpieza de plugins/themes de ejemplo
+# 4) Redis Object Cache (accelera el acceso a la BD de WordPress)
+# ----------------------------------------------------------------------------
+echo "==> Instalando Redis Object Cache..."
+$WP plugin install redis-cache --activate
+# `wp redis enable` copia el drop-in object-cache.php a wp-content/
+# Requiere que las constantes WP_REDIS_HOST y WP_REDIS_PORT estén definidas
+# en wp-config.php (se inyectan via WORDPRESS_CONFIG_EXTRA en docker-compose).
+$WP redis enable 2>/dev/null || echo "    (aviso) Redis Object Cache: enable diferido hasta que Redis esté disponible."
+
+# ----------------------------------------------------------------------------
+# 5) Limpieza de plugins/themes de ejemplo
 # ----------------------------------------------------------------------------
 echo "==> Limpiando plugins y temas de ejemplo..."
 $WP plugin delete akismet hello 2>/dev/null || true
@@ -98,7 +108,7 @@ $WP theme activate twentytwentyfour 2>/dev/null || true
 $WP theme delete twentytwentythree twentytwentytwo 2>/dev/null || true
 
 # ----------------------------------------------------------------------------
-# 5) Contenido de ejemplo (garantiza que la home del frontend tenga posts)
+# 6) Contenido de ejemplo (garantiza que la home del frontend tenga posts)
 # ----------------------------------------------------------------------------
 POST_COUNT=$($WP post list --post_type=post --post_status=publish --format=count 2>/dev/null || echo 0)
 if [ "${POST_COUNT}" -lt 5 ]; then
@@ -115,7 +125,7 @@ if [ "${POST_COUNT}" -lt 5 ]; then
 fi
 
 # ----------------------------------------------------------------------------
-# 6) Productos de ejemplo (para que carrito/checkout tengan algo que vender)
+# 7) Productos de ejemplo (para que carrito/checkout tengan algo que vender)
 # ----------------------------------------------------------------------------
 PRODUCT_COUNT=$($WP post list --post_type=product --post_status=publish --format=count 2>/dev/null || echo 0)
 if [ "${PRODUCT_COUNT}" -lt 3 ]; then

@@ -1,0 +1,68 @@
+# ============================================================================
+#  Caddyfile — Reverse proxy con TLS automático (Let's Encrypt / ZeroSSL)
+#
+#  Uso en producción:
+#    PUBLIC_DOMAIN=tienda.mi-dominio.com ACME_EMAIL=admin@mi.com \
+#    docker compose -f docker-compose.prod.yml up -d
+#
+#  En local (docker-compose.prod.yml con PUBLIC_DOMAIN=localhost) Caddy sirve
+#  en HTTP sin intentar obtener certificados.
+# ============================================================================
+
+{
+    # Email para notificaciones de renovación de certificado.
+    email {$ACME_EMAIL:admin@example.com}
+}
+
+# ─── Sitio principal ─────────────────────────────────────────────────────────
+{$PUBLIC_DOMAIN:localhost} {
+
+    # ── WordPress: admin, login y webhooks REST ──────────────────────────────
+    # Estos paths van directamente a WordPress. El BFF Next.js llama a
+    # WordPress por la red interna Docker; aquí solo exponemos lo necesario.
+    handle /wp-admin/* {
+        reverse_proxy wordpress:80
+    }
+    handle /wp-login.php {
+        reverse_proxy wordpress:80
+    }
+    handle /wp-cron.php {
+        reverse_proxy wordpress:80
+    }
+
+    # API REST de WordPress: necesaria para webhooks de WooCommerce entrantes.
+    handle /wp-json/* {
+        reverse_proxy wordpress:80
+    }
+
+    # GraphQL: expuesto para el servidor Next.js vía red interna, pero también
+    # habilitado aquí como fallback si el cliente necesita acceso directo.
+    handle /graphql {
+        reverse_proxy wordpress:80
+    }
+
+    # Medios de WordPress con caché larga (immutable una vez publicados).
+    handle /wp-content/* {
+        reverse_proxy wordpress:80
+        header >Cache-Control "public, max-age=31536000, stale-while-revalidate=86400"
+    }
+
+    # ── Frontend (Next.js) ── todo lo demás ─────────────────────────────────
+    handle {
+        reverse_proxy frontend:3000
+    }
+
+    # Compresión de respuestas
+    encode zstd gzip
+
+    # Logging estructurado (JSON) hacia stdout → capturado por Docker logs
+    log {
+        output stdout
+        format json
+    }
+}
+
+# ─── Redirección www → sin www ───────────────────────────────────────────────
+www.{$PUBLIC_DOMAIN:localhost} {
+    redir https://{$PUBLIC_DOMAIN}{uri} permanent
+}

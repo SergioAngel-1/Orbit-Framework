@@ -1,0 +1,267 @@
+# ============================================================================
+#  docker-compose.prod.yml — Stack de producción
+#
+#  Diferencias clave frente al compose de desarrollo:
+#    ✔ Caddy como reverse proxy: TLS automático (Let's Encrypt), HTTP/3.
+#    ✔ Frontend usa imagen pre-construida standalone (sin volúmenes de código).
+#    ✔ WordPress y Redis sin puertos expuestos al host (solo acceso via Caddy).
+#    ✔ WORDPRESS_DEBUG=0, WP_ENVIRONMENT_TYPE=production.
+#    ✔ Límites de memoria por servicio.
+#    ✔ Servicio `backup` con cron diario (03:00 UTC).
+#    ✔ WordPress con healthcheck real (REST API).
+#
+#  Uso:
+#    # 1. Construir imagen del frontend:
+#    docker build --target prod -t hwe-frontend:prod ./frontend
+#
+#    # 2. Preparar entorno:
+#    cp .env.prod.example .env.prod
+#    nano .env.prod   # completar TODOS los secretos
+#    mkdir -p backups
+#
+#    # 3. Primer arranque (instala WordPress + plugins):
+#    docker compose -f docker-compose.prod.yml --env-file .env.prod \
+#        run --rm wpcli
+#
+#    # 4. Levantar la pila:
+#    docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+# ============================================================================
+
+services:
+
+  # ── Caddy: reverse proxy + TLS automático ───────────────────────────────────
+  caddy:
+    image: caddy:2.9-alpine
+    container_name: hwe_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3 (QUIC)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data          # certificados TLS persistentes
+      - caddy_config:/config      # configuración Caddy persistente
+    environment:
+      PUBLIC_DOMAIN: "${PUBLIC_DOMAIN:?PUBLIC_DOMAIN must be set}"
+      ACME_EMAIL:    "${ACME_EMAIL:?ACME_EMAIL must be set}"
+    depends_on:
+      frontend:
+        condition: service_healthy
+      wordpress:
+        condition: service_healthy
+    networks:
+      - hwe_net
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+
+  # ── Base de datos ──────────────────────────────────────────────────────────
+  db:
+    image: mariadb:11.4
+    container_name: hwe_db
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE:      "${MYSQL_DATABASE:-wordpress}"
+      MARIADB_USER:          "${MYSQL_USER:-wordpress}"
+      MARIADB_PASSWORD:      "${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set}"
+      MARIADB_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set}"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hwe_net
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ── WordPress headless ──────────────────────────────────────────────────────
+  # Puerto 8080 NO expuesto al host: solo accesible via Caddy en la red interna.
+  wordpress:
+    image: wordpress:6.7-php8.3-apache
+    container_name: hwe_wordpress
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST:     "db:3306"
+      WORDPRESS_DB_USER:     "${MYSQL_USER:-wordpress}"
+      WORDPRESS_DB_PASSWORD: "${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set}"
+      WORDPRESS_DB_NAME:     "${MYSQL_DATABASE:-wordpress}"
+      WORDPRESS_DEBUG:       "0"
+      WORDPRESS_CONFIG_EXTRA: |
+        define( 'GRAPHQL_JWT_AUTH_SECRET_KEY', '${GRAPHQL_JWT_AUTH_SECRET_KEY:?GRAPHQL_JWT_AUTH_SECRET_KEY must be set}' );
+        define( 'WP_ENVIRONMENT_TYPE', 'production' );
+        define( 'HEADLESS_FRONTEND_URL',    'https://${PUBLIC_DOMAIN}' );
+        define( 'HEADLESS_ALLOWED_ORIGINS', 'https://${PUBLIC_DOMAIN}' );
+        define( 'HWE_REVALIDATION_SECRET',  '${HWE_REVALIDATION_SECRET:?HWE_REVALIDATION_SECRET must be set}' );
+        define( 'WP_REDIS_HOST', 'redis' );
+        define( 'WP_REDIS_PORT', 6379 );
+        define( 'WP_CACHE', true );
+        define( 'DISALLOW_FILE_EDIT', true );
+        define( 'DISALLOW_FILE_MODS', true );
+    volumes:
+      - ./backend/wp-content:/var/www/html/wp-content
+      - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/wp-json/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 5
+    networks:
+      - hwe_net
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ── WP-CLI (primer arranque, bajo demanda) ─────────────────────────────────
+  wpcli:
+    image: wordpress:cli-php8.3
+    container_name: hwe_wpcli
+    profiles: ["cli"]
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_healthy
+    user: "33:33"
+    environment:
+      WORDPRESS_DB_HOST:     "db:3306"
+      WORDPRESS_DB_USER:     "${MYSQL_USER:-wordpress}"
+      WORDPRESS_DB_PASSWORD: "${MYSQL_PASSWORD}"
+      WORDPRESS_DB_NAME:     "${MYSQL_DATABASE:-wordpress}"
+      WP_URL:          "${WORDPRESS_PUBLIC_URL:-https://localhost}"
+      WP_TITLE:        "${WP_TITLE:-Headless Web Ecosystem}"
+      WP_ADMIN_USER:   "${WP_ADMIN_USER:-admin}"
+      WP_ADMIN_PASSWORD: "${WP_ADMIN_PASSWORD}"
+      WP_ADMIN_EMAIL:  "${WP_ADMIN_EMAIL:-admin@example.com}"
+    volumes:
+      - ./backend/wp-content:/var/www/html/wp-content
+      - ./backend/scripts:/scripts:ro
+    entrypoint: ["/bin/sh"]
+    command: ["/scripts/setup.sh"]
+    networks:
+      - hwe_net
+
+  # ── Redis (caché de objetos WP + rate-limit BFF) ────────────────────────────
+  redis:
+    image: redis:7.4-alpine
+    container_name: hwe_redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks:
+      - hwe_net
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  # ── Frontend (Next.js standalone — imagen pre-construida) ───────────────────
+  # Puerto 3000 NO expuesto al host: Caddy es el punto de entrada público.
+  frontend:
+    image: "${FRONTEND_IMAGE:-hwe-frontend:prod}"
+    container_name: hwe_frontend
+    restart: unless-stopped
+    depends_on:
+      wordpress:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_WORDPRESS_API_URL:    "${NEXT_PUBLIC_WORDPRESS_API_URL}"
+      NEXT_PUBLIC_SITE_URL:             "https://${PUBLIC_DOMAIN}"
+      WORDPRESS_INTERNAL_API_URL:       "http://wordpress:80/graphql"
+      ALLOWED_ORIGIN:                   "https://${PUBLIC_DOMAIN}"
+      GRAPHQL_JWT_AUTH_SECRET_KEY:      "${GRAPHQL_JWT_AUTH_SECRET_KEY}"
+      CSRF_SECRET:                      "${CSRF_SECRET:?CSRF_SECRET must be set}"
+      WC_API_URL:                       "http://wordpress:80/wp-json/wc/v3"
+      WC_STORE_API_URL:                 "http://wordpress:80/wp-json/wc/store/v1"
+      WC_CONSUMER_KEY:                  "${WC_CONSUMER_KEY}"
+      WC_CONSUMER_SECRET:               "${WC_CONSUMER_SECRET}"
+      WC_WEBHOOK_SECRET:                "${WC_WEBHOOK_SECRET}"
+      REDIS_URL:                        "redis://redis:6379"
+      HWE_REVALIDATION_SECRET:          "${HWE_REVALIDATION_SECRET}"
+      PAYMENT_PROVIDER:                 "${PAYMENT_PROVIDER:-noop}"
+      PAYMENT_CURRENCY:                 "${PAYMENT_CURRENCY:-EUR}"
+      NEXT_PUBLIC_PAYMENT_RETURN_URL:   "https://${PUBLIC_DOMAIN}/checkout/return"
+      NOOP_INTEGRITY_SECRET:            "${NOOP_INTEGRITY_SECRET:-}"
+      LOG_LEVEL:                        "${LOG_LEVEL:-info}"
+    healthcheck:
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+    networks:
+      - hwe_net
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ── Backup cron (diario 03:00 UTC) ──────────────────────────────────────────
+  backup:
+    image: alpine:3.21
+    container_name: hwe_backup
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/scripts/backup-cron.sh:/usr/local/bin/backup-cron.sh:ro
+      - ./backend/scripts/backup-entrypoint.sh:/usr/local/bin/backup-entrypoint.sh:ro
+      - ./backend/wp-content/uploads:/wp-content/uploads:ro
+      - ./backups:/backups
+    environment:
+      MYSQL_HOST:          "db"
+      MYSQL_USER:          "${MYSQL_USER:-wordpress}"
+      MYSQL_PASSWORD:      "${MYSQL_PASSWORD}"
+      MYSQL_DATABASE:      "${MYSQL_DATABASE:-wordpress}"
+      BACKUP_DIR:          "/backups"
+      BACKUP_RETAIN_DAYS:  "${BACKUP_RETAIN_DAYS:-14}"
+    entrypoint: ["/bin/sh", "/usr/local/bin/backup-entrypoint.sh"]
+    networks:
+      - hwe_net
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+
+# ── Volúmenes ──────────────────────────────────────────────────────────────────
+volumes:
+  db_data:
+    driver: local
+  redis_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+# ── Red interna ────────────────────────────────────────────────────────────────
+networks:
+  hwe_net:
+    driver: bridge
