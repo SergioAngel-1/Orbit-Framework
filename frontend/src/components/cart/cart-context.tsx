@@ -13,6 +13,7 @@ import type { StoreCart } from "@/types/woocommerce";
 // ============================================================================
 //  Estado global del carrito (cliente). El carrito real vive en el servidor
 //  (Store API vía BFF); aquí mantenemos una copia para la UI.
+//  También gestiona el estado del CartDrawer (mini-cart deslizante).
 // ============================================================================
 
 interface CartState {
@@ -20,11 +21,18 @@ interface CartState {
   count: number;
   loading: boolean;
   error: string | null;
+  drawerOpen: boolean;
+  openDrawer: () => void;
+  closeDrawer: () => void;
+  toggleDrawer: () => void;
   addItem: (id: number, quantity?: number) => Promise<void>;
   updateItem: (key: string, quantity: number) => Promise<void>;
   removeItem: (key: string) => Promise<void>;
   clear: () => Promise<void>;
   refresh: () => Promise<void>;
+  applyCoupon: (code: string) => Promise<void>;
+  removeCoupon: (code: string) => Promise<void>;
+  selectShippingRate: (packageId: number, rateId: string) => Promise<void>;
 }
 
 const CartContext = createContext<CartState | null>(null);
@@ -36,9 +44,10 @@ export function useCart(): CartState {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [cart, setCart] = useState<StoreCart | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [cart,       setCart]       = useState<StoreCart | null>(null);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -69,14 +78,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value: CartState = {
     cart,
-    count: cart?.items_count ?? 0,
+    count:       cart?.items_count ?? 0,
     loading,
     error,
-    addItem: (id, quantity = 1) => run(() => cartApi.addItem(id, quantity)),
+    drawerOpen,
+    openDrawer:  () => setDrawerOpen(true),
+    closeDrawer: () => setDrawerOpen(false),
+    toggleDrawer:() => setDrawerOpen((o) => !o),
+    addItem: (id, quantity = 1) =>
+      run(() => cartApi.addItem(id, quantity)).then(() => {
+        // Abrir el drawer automáticamente al añadir al carrito
+        setDrawerOpen(true);
+      }),
     updateItem: (key, quantity) => run(() => cartApi.updateItem(key, quantity)),
-    removeItem: (key) => run(() => cartApi.removeItem(key)),
-    clear: () => run(() => cartApi.clear()),
+    removeItem:  (key)          => run(() => cartApi.removeItem(key)),
+    clear:       ()             => run(() => cartApi.clear()),
     refresh,
+    applyCoupon: (code)         => run(() => cartApi.applyCoupon(code)),
+    removeCoupon:(code)         => run(() => cartApi.removeCoupon(code)),
+    selectShippingRate: (pkg, rate) => run(() => cartApi.selectShippingRate(pkg, rate)),
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

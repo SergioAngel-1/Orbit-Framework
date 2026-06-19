@@ -6,12 +6,14 @@ import { getMessages, getTranslations, setRequestLocale } from "next-intl/server
 import { routing } from "@/i18n/routing";
 import { Link } from "@/i18n/navigation";
 import "../globals.css";
-import { CartProvider } from "@/components/cart/cart-context";
-import { CartIndicator } from "@/components/cart/cart-indicator";
-import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
-import { LocaleSwitcher } from "@/components/i18n/locale-switcher";
-import { ThemeTokens } from "@/components/ui/theme-tokens";
-import { getSiteConfig } from "@/lib/config";
+import { CartProvider }       from "@/components/cart/cart-context";
+import { CartIndicator }      from "@/components/cart/cart-indicator";
+import { CartDrawer }         from "@/components/cart/cart-drawer";
+import { AnalyticsProvider }  from "@/components/analytics/analytics-provider";
+import { LocaleSwitcher }     from "@/components/i18n/locale-switcher";
+import { DarkModeToggle, DarkModeScript } from "@/components/ui/dark-mode-toggle";
+import { ThemeTokens }        from "@/components/ui/theme-tokens";
+import { getSiteConfig }      from "@/lib/config";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -69,9 +71,9 @@ async function JsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: config.brand.name,
+    name:        config.brand.name,
     description: config.brand.description,
-    url: config.brand.url,
+    url:         config.brand.url,
   };
   return (
     <script
@@ -95,23 +97,32 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
 
   const messages = await getMessages();
-  const tNav = await getTranslations("nav");
-  const tSite = await getTranslations("site");
+  const tNav     = await getTranslations("nav");
+  const tSite    = await getTranslations("site");
 
   return (
-    <html lang={locale} className={inter.variable}>
-      <body className="min-h-screen font-sans antialiased">
-        {/* Design tokens desde el panel de configuración (React 19 lo eleva a <head>). */}
+    // suppressHydrationWarning necesario para el script de modo oscuro que
+    // añade/quita .dark en <html> antes de que React hidrate.
+    <html lang={locale} className={inter.variable} suppressHydrationWarning>
+      <head>
+        {/* Evita FOUC: aplica .dark antes del primer paint */}
+        <DarkModeScript />
+      </head>
+      <body className="min-h-screen bg-[--background] font-sans text-[--foreground] antialiased">
+        {/* Design tokens dinámicos desde el panel de configuración */}
         <ThemeTokens />
         <NextIntlClientProvider messages={messages}>
           <AnalyticsProvider>
             <CartProvider>
+              {/* Skip link de accesibilidad */}
               <a
                 href="#main-content"
                 className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-white"
               >
                 {tNav("skipToContent")}
               </a>
+
+              {/* Navegación */}
               <header className="border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-800 dark:bg-black/50">
                 <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
                   <Link
@@ -121,7 +132,7 @@ export default async function LocaleLayout({
                   >
                     {tSite("name")}
                   </Link>
-                  <nav className="flex items-center gap-5 text-sm font-medium text-gray-600 dark:text-gray-300">
+                  <nav className="flex items-center gap-4 text-sm font-medium text-gray-600 dark:text-gray-300">
                     <Link href="/products" className="transition-colors hover:text-brand">
                       {tNav("store")}
                     </Link>
@@ -130,6 +141,7 @@ export default async function LocaleLayout({
                     </Link>
                     <CartIndicator />
                     <LocaleSwitcher />
+                    <DarkModeToggle className="text-gray-600 dark:text-gray-300" />
                   </nav>
                 </div>
               </header>
@@ -152,6 +164,9 @@ export default async function LocaleLayout({
                   <p>{tSite("footer")}</p>
                 </div>
               </footer>
+
+              {/* CartDrawer: panel deslizante (fuera del flujo principal) */}
+              <CartDrawer />
             </CartProvider>
           </AnalyticsProvider>
         </NextIntlClientProvider>

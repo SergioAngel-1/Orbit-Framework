@@ -2,18 +2,29 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useCart } from "./cart-context";
+import { Button } from "@/components/ui/button";
+
+export interface AddToCartButtonProps {
+  /** ID del producto (simple) o variación (variable). */
+  productId: number;
+  disabled?: boolean;
+  /** Etiqueta personalizada en estado normal. */
+  label?: string;
+  className?: string;
+  fullWidth?: boolean;
+}
 
 export function AddToCartButton({
   productId,
   disabled,
-}: {
-  productId: number;
-  disabled?: boolean;
-}) {
+  label,
+  className,
+  fullWidth = false,
+}: AddToCartButtonProps) {
   const { addItem } = useCart();
-  const t = useTranslations("addToCart");
+  const t           = useTranslations("addToCart");
   const [pending, setPending] = useState(false);
-  const [done, setDone] = useState(false);
+  const [done,    setDone]    = useState(false);
 
   async function handleClick() {
     setPending(true);
@@ -21,20 +32,21 @@ export function AddToCartButton({
     try {
       await addItem(productId, 1);
       setDone(true);
-      setTimeout(() => setDone(false), 1500);
+      setTimeout(() => setDone(false), 1800);
     } finally {
       setPending(false);
     }
   }
 
   return (
-    <button
-      type="button"
+    <Button
       onClick={handleClick}
       disabled={disabled || pending}
-      className="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
+      loading={pending}
+      fullWidth={fullWidth}
+      className={className}
     >
-      {pending ? t("adding") : done ? t("added") : t("add")}
-    </button>
+      {done ? t("added") : (label ?? t("add"))}
+    </Button>
   );
 }

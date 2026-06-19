@@ -114,7 +114,36 @@
     "notFound": "No se encontraron productos.",
     "backToStore": "← Volver a la tienda",
     "outOfStock": "Agotado",
-    "onSale": "Oferta"
+    "onSale": "Oferta",
+    "description": "Descripción",
+    "related": "Productos relacionados",
+    "selectVariant": "Selecciona una variación",
+    "filter": "Filtrar",
+    "allCategories": "Todas las categorías",
+    "sortBy": "Ordenar por",
+    "sortNewest": "Más recientes",
+    "sortPriceAsc": "Precio: menor a mayor",
+    "sortPriceDesc": "Precio: mayor a menor",
+    "sortNameAsc": "Nombre: A-Z",
+    "minPrice": "Precio mín.",
+    "maxPrice": "Precio máx.",
+    "applyFilters": "Aplicar filtros",
+    "clearFilters": "Limpiar filtros",
+    "reviews": "Reseñas",
+    "writeReview": "Escribir reseña",
+    "reviewSubmitted": "Reseña enviada. Pendiente de moderación.",
+    "reviewPlaceholder": "Comparte tu opinión sobre este producto…",
+    "reviewName": "Tu nombre",
+    "reviewEmail": "Tu email",
+    "reviewRating": "Puntuación",
+    "reviewSubmit": "Enviar reseña",
+    "noReviews": "Todavía no hay reseñas. ¡Sé el primero!",
+    "by": "por"
+  },
+  "addToCart": {
+    "add": "Añadir al carrito",
+    "adding": "Añadiendo…",
+    "added": "¡Añadido!"
   },
   "cart": {
     "title": "Tu carrito",
@@ -122,10 +151,18 @@
     "empty": "Carrito vacío.",
     "emptyDetailed": "Tu carrito está vacío.",
     "viewProducts": "Ver productos →",
+    "viewCart": "Ver carrito completo",
     "quantity": "Cant.",
     "remove": "Quitar",
     "total": "Total",
-    "checkout": "Finalizar compra"
+    "checkout": "Finalizar compra",
+    "couponCode": "Código de cupón",
+    "applyCoupon": "Aplicar",
+    "removeCoupon": "Quitar cupón",
+    "couponApplied": "Cupón aplicado",
+    "subtotal": "Subtotal",
+    "discount": "Dto.",
+    "shipping": "Envío"
   },
   "checkout": {
     "title": "Finalizar compra",
@@ -144,7 +181,12 @@
       "notFound": "No encontramos ese pedido o no te pertenece.",
       "viewOrders": "Ver mis pedidos",
       "continueShopping": "Seguir comprando"
-    }
+    },
+    "shippingMethod": "Método de envío",
+    "selectShipping": "Seleccionar método de envío…",
+    "noShipping": "No hay métodos de envío disponibles para esta dirección.",
+    "shippingAddress": "Dirección de envío",
+    "billingSameAsShipping": "La facturación coincide con el envío"
   },
   "form": {
     "firstName": "Nombre",
@@ -181,6 +223,8 @@
     "profile": "Perfil",
     "orders": "Pedidos",
     "ordersTitle": "Mis pedidos",
+    "orderDetail": "Pedido #%s",
+    "orderNotFound": "Pedido no encontrado.",
     "sessionAs": "Sesión iniciada como",
     "saveSuccess": "Datos guardados.",
     "saveError": "No se pudo guardar.",
@@ -189,7 +233,19 @@
     "logout": "Cerrar sesión",
     "loggingOut": "Cerrando…",
     "dataError": "No se pudieron cargar tus datos.",
-    "dataErrorHint": "Verifica que WooCommerce y las credenciales ck/cs están configuradas."
+    "dataErrorHint": "Verifica que WooCommerce y las credenciales ck/cs están configuradas.",
+    "created": "Fecha",
+    "total": "Total",
+    "status": "Estado",
+    "items": "Artículos",
+    "product": "Producto",
+    "quantity": "Cant.",
+    "price": "Precio",
+    "backToOrders": "← Volver a pedidos",
+    "shippingAddress": "Dirección de envío",
+    "billingAddress": "Dirección de facturación",
+    "customerDetails": "Datos del cliente",
+    "email": "Email"
   },
   "addToCart": {
     "add": "Añadir al carrito",

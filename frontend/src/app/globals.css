@@ -1,38 +1,81 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
-/* ----------------------------------------------------------------------------
- *  Configuración del tema (Tailwind CSS v4 — CSS-first, sin tailwind.config.ts)
- *  Cada variable --color-* / --font-* genera automáticamente sus utilidades
- *  (p. ej. --color-brand -> bg-brand, text-brand, from-brand, ...).
- * ------------------------------------------------------------------------- */
-/*
- * @theme: define qué clases Tailwind se generan (bg-brand, text-brand-dark, etc.)
- * Los valores aquí son el FALLBACK de build; el componente <ThemeTokens> los
- * sobreescribe en :root con los valores reales del panel de configuración.
- */
+/* ============================================================================
+ *  Modo oscuro basado en clase (.dark en <html>).
+ *  DarkModeScript aplica la clase antes del primer paint para evitar FOUC.
+ *  DarkModeToggle la cambia dinámicamente y guarda la preferencia en localStorage.
+ * ========================================================================== */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================================
+ *  Design tokens (Tailwind v4 CSS-first).
+ *  Valores FALLBACK de build — ThemeTokens los sobreescribe desde el panel.
+ *  Estos @theme son necesarios para que Tailwind genere bg-brand, text-brand, etc.
+ * ========================================================================== */
 @theme {
-  --color-brand: #2563eb;
-  --color-brand-dark: #1e40af;
+  --color-brand:       #2563eb;
+  --color-brand-dark:  #1e40af;
   --color-brand-light: #3b82f6;
 
   --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* Animaciones propias */
+  --animate-fade-in:   fade-in 0.2s ease-out;
+  --animate-slide-up:  slide-up 0.25s ease-out;
 }
 
+/* ── CSS Variables (tema claro por defecto) ─────────────────────────────── */
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
 }
 
+/* Tema oscuro activado por clase */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+/* Tema oscuro por preferencia del sistema (solo cuando no hay clase explícita) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light):not(.dark) {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
 }
 
+/* ── Base global ──────────────────────────────────────────────────────────── */
 body {
   background-color: var(--background);
-  color: var(--foreground);
+  color:            var(--foreground);
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  text-rendering:   optimizeLegibility;
+}
+
+/* ── Dialog/Modal backdrop ──────────────────────────────────────────────── */
+dialog::backdrop {
+  background-color:  rgb(0 0 0 / 0.5);
+  backdrop-filter:   blur(4px);
+}
+
+/* ── Animaciones ──────────────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Tipografía Prose (plugin @tailwindcss/typography) ──────────────────── */
+/* La clase .prose se usa en descripciones de producto y contenido del CMS.   */
+/* Los colores de enlace heredan el color de marca vía CSS var.               */
+.prose a {
+  color: var(--color-brand);
+}
+.dark .prose {
+  color: #e5e7eb;
 }

@@ -4,9 +4,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getProductBySlug, getProductSlugs } from "@/lib/catalog/products";
-import { AddToCartButton } from "@/components/cart/add-to-cart-button";
-import { sanitizeHtml } from "@/lib/security/sanitize";
-import { formatPrice, stripHtml } from "@/lib/format";
+import { sanitizeHtml }   from "@/lib/security/sanitize";
+import { formatPrice, stripHtml, formatDate } from "@/lib/format";
+import { Badge }          from "@/components/ui/badge";
+import { ProductGrid }    from "@/components/products/product-grid";
+import ProductActions     from "@/components/products/product-actions";
+import { ReviewForm }     from "@/components/products/review-form";
 
 export const revalidate = 300;
 
@@ -25,7 +28,7 @@ export async function generateMetadata({
   try {
     const product = await getProductBySlug(slug);
     if (!product) return { title: t("notFound") };
-    const description = stripHtml(product.shortDescription).slice(0, 160);
+    const description = stripHtml(product.shortDescription ?? "").slice(0, 160);
     return {
       title: product.name,
       description,
@@ -59,17 +62,19 @@ export default async function ProductPage({
 
   const descriptionHtml = product.description ? sanitizeHtml(product.description) : "";
   const outOfStock = product.stockStatus === "OUT_OF_STOCK";
+  const isVariable  = product.type === "VARIABLE";
 
   const jsonLd = {
     "@context": "https://schema.org/",
     "@type": "Product",
-    name: product.name,
-    image: product.image ? [product.image.sourceUrl] : [],
-    description: stripHtml(product.shortDescription || product.description),
+    name:   product.name,
+    image:  product.image ? [product.image.sourceUrl] : [],
+    description: stripHtml(product.shortDescription ?? product.description ?? ""),
     offers: {
       "@type": "Offer",
-      price: formatPrice(product.price).replace(/[^\d.,]/g, ""),
-      availability: outOfStock
+      priceCurrency: "EUR",
+      price:         (product.price ?? "0").replace(/[^\d.,]/g, "").replace(",", "."),
+      availability:  outOfStock
         ? "https://schema.org/OutOfStock"
         : "https://schema.org/InStock",
     },
@@ -82,15 +87,20 @@ export default async function ProductPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <nav className="mb-6 text-sm text-gray-500">
-        <Link href="/products" className="hover:text-brand">
-          {t("backToStore")}
+      {/* Breadcrumb */}
+      <nav className="mb-6 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        <Link href="/products" className="transition-colors hover:text-brand">
+          {t("title")}
         </Link>
+        <span aria-hidden>/</span>
+        <span className="truncate text-gray-900 dark:text-gray-200">{product.name}</span>
       </nav>
 
+      {/* Grid principal */}
       <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
+        {/* Imagen */}
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800">
-          {product.image?.sourceUrl && (
+          {product.image?.sourceUrl ? (
             <Image
               src={product.image.sourceUrl}
               alt={product.image.altText || product.name}
@@ -99,13 +109,31 @@ export default async function ProductPage({
               className="object-cover"
               priority
             />
+          ) : (
+            <div className="flex h-full items-center justify-center text-5xl font-bold text-gray-300">
+              {product.name.charAt(0)}
+            </div>
+          )}
+          {product.onSale && (
+            <div className="absolute left-3 top-3">
+              <Badge color="brand" variant="solid">{t("onSale")}</Badge>
+            </div>
           )}
         </div>
 
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">{product.name}</h1>
+        {/* Detalles + acciones */}
+        <div className="flex flex-col gap-5">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight">{product.name}</h1>
+            {product.shortDescription && (
+              <p className="mt-2 text-gray-600 dark:text-gray-400">
+                {stripHtml(product.shortDescription)}
+              </p>
+            )}
+          </div>
 
-          <div className="mt-4 flex items-baseline gap-3">
+          {/* Precio (lo actualiza ProductActions al seleccionar variación) */}
+          <div className="flex items-baseline gap-3">
             <span className="text-2xl font-bold">{formatPrice(product.price)}</span>
             {product.onSale && product.regularPrice && (
               <span className="text-lg text-gray-400 line-through">
@@ -114,22 +142,63 @@ export default async function ProductPage({
             )}
           </div>
 
-          <div className="mt-6">
-            {outOfStock ? (
-              <span className="font-medium text-gray-400">{t("outOfStock")}</span>
-            ) : (
-              <AddToCartButton productId={product.databaseId} />
-            )}
-          </div>
-
-          {descriptionHtml && (
-            <div
-              className="prose prose-sm mt-8 max-w-none dark:prose-invert"
-              dangerouslySetInnerHTML={{ __html: descriptionHtml }}
-            />
+          {outOfStock && !isVariable && (
+            <Badge color="error" variant="soft">{t("outOfStock")}</Badge>
           )}
+
+          {/* Selector de variaciones + botón carrito (client component) */}
+          <ProductActions
+            productId={product.databaseId}
+            isVariable={isVariable}
+            outOfStock={outOfStock}
+            attributes={isVariable ? product.attributes : []}
+            variations={isVariable ? product.variations : []}
+          />
         </div>
       </div>
+
+      {/* Descripción completa */}
+      {descriptionHtml && (
+        <section className="mt-12">
+          <h2 className="mb-4 text-xl font-bold">{t("description")}</h2>
+          <div
+            className="prose prose-sm max-w-none dark:prose-invert"
+            dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+          />
+        </section>
+      )}
+
+      {/* Reseñas */}
+      <section className="mt-14">
+        <h2 className="mb-6 text-xl font-bold">{t("reviews")}</h2>
+        {product.reviews.items.length > 0 ? (
+          <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+            {product.reviews.items.map((rev) => (
+              <li key={rev.id} className="py-4">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium">{rev.authorName}</span>
+                  <span className="text-yellow-500">{rev.rating > 0 ? "★".repeat(rev.rating) : ""}</span>
+                  <span className="text-gray-400">{formatDate(rev.date, locale)}</span>
+                </div>
+                {rev.content && <p className="mt-1 text-gray-600 dark:text-gray-400">{rev.content}</p>}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-gray-500">{t("noReviews")}</p>
+        )}
+        <div className="mt-6">
+          <ReviewForm productId={product.databaseId} />
+        </div>
+      </section>
+
+      {/* Productos relacionados */}
+      {product.related.length > 0 && (
+        <section className="mt-14">
+          <h2 className="mb-6 text-xl font-bold">{t("related")}</h2>
+          <ProductGrid products={product.related} />
+        </section>
+      )}
     </div>
   );
 }

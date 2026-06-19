@@ -114,7 +114,31 @@
     "notFound": "No products found.",
     "backToStore": "← Back to store",
     "outOfStock": "Out of stock",
-    "onSale": "Sale"
+    "onSale": "Sale",
+    "description": "Description",
+    "related": "Related products",
+    "selectVariant": "Select a variation",
+    "filter": "Filter",
+    "allCategories": "All categories",
+    "sortBy": "Sort by",
+    "sortNewest": "Newest",
+    "sortPriceAsc": "Price: low to high",
+    "sortPriceDesc": "Price: high to low",
+    "sortNameAsc": "Name: A-Z",
+    "minPrice": "Min price",
+    "maxPrice": "Max price",
+    "applyFilters": "Apply filters",
+    "clearFilters": "Clear filters",
+    "reviews": "Reviews",
+    "writeReview": "Write a review",
+    "reviewSubmitted": "Review submitted. Pending moderation.",
+    "reviewPlaceholder": "Share your thoughts about this product…",
+    "reviewName": "Your name",
+    "reviewEmail": "Your email",
+    "reviewRating": "Rating",
+    "reviewSubmit": "Submit review",
+    "noReviews": "No reviews yet. Be the first!",
+    "by": "by"
   },
   "cart": {
     "title": "Your cart",
@@ -122,10 +146,18 @@
     "empty": "Empty cart.",
     "emptyDetailed": "Your cart is empty.",
     "viewProducts": "View products →",
+    "viewCart": "View full cart",
     "quantity": "Qty",
     "remove": "Remove",
     "total": "Total",
-    "checkout": "Proceed to checkout"
+    "checkout": "Proceed to checkout",
+    "couponCode": "Coupon code",
+    "applyCoupon": "Apply",
+    "removeCoupon": "Remove coupon",
+    "couponApplied": "Coupon applied",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "shipping": "Shipping"
   },
   "checkout": {
     "title": "Checkout",
@@ -144,7 +176,12 @@
       "notFound": "We couldn't find that order, or it doesn't belong to you.",
       "viewOrders": "View my orders",
       "continueShopping": "Continue shopping"
-    }
+    },
+    "shippingMethod": "Shipping method",
+    "selectShipping": "Select shipping method…",
+    "noShipping": "No shipping methods available for this address.",
+    "shippingAddress": "Shipping address",
+    "billingSameAsShipping": "Billing matches shipping"
   },
   "form": {
     "firstName": "First name",
@@ -181,6 +218,8 @@
     "profile": "Profile",
     "orders": "Orders",
     "ordersTitle": "My orders",
+    "orderDetail": "Order #%s",
+    "orderNotFound": "Order not found.",
     "sessionAs": "Signed in as",
     "saveSuccess": "Data saved.",
     "saveError": "Could not save.",
@@ -189,12 +228,24 @@
     "logout": "Sign out",
     "loggingOut": "Signing out…",
     "dataError": "Could not load your data.",
-    "dataErrorHint": "Verify that WooCommerce and the ck/cs credentials are configured."
+    "dataErrorHint": "Verify that WooCommerce and the ck/cs credentials are configured.",
+    "created": "Date",
+    "total": "Total",
+    "status": "Status",
+    "items": "Items",
+    "product": "Product",
+    "quantity": "Qty",
+    "price": "Price",
+    "backToOrders": "← Back to orders",
+    "shippingAddress": "Shipping address",
+    "billingAddress": "Billing address",
+    "customerDetails": "Customer details",
+    "email": "Email"
   },
   "addToCart": {
     "add": "Add to cart",
     "adding": "Adding…",
-    "added": "✓ Added"
+    "added": "Added!"
   },
   "common": {
     "loading": "Loading…",

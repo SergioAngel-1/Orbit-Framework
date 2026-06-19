@@ -5,14 +5,24 @@ import type { WooOrder } from "@/types/woocommerce";
 function order(partial: Partial<WooOrder>): WooOrder {
   return {
     id: 1,
+    number: "1",
     status: "pending",
     currency: "COP",
     total: "59.99",
+    subtotal: "59.99",
+    total_discount: "0",
+    total_shipping: "0",
+    total_tax: "0",
     customer_id: 1,
+    customer_note: "",
     date_created: "",
+    date_modified: "",
     billing: {},
     shipping: {},
     line_items: [],
+    coupon_lines: [],
+    payment_method: "",
+    payment_method_title: "",
     ...partial,
   };
 }
