@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { getSession } from "@/lib/auth/session";
 import { getCustomer } from "@/lib/account/data";
 import { ProfileForm } from "@/components/account/profile-form";
 import { LogoutButton } from "@/components/account/logout-button";
+import { EmailVerificationBanner } from "@/components/account/email-verification-banner";
+import { TwoFactorSetup } from "@/components/account/two-factor-setup";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("account");
@@ -15,9 +18,21 @@ export default async function AccountPage() {
   const t = await getTranslations("account");
   let customer: Awaited<ReturnType<typeof getCustomer>> | null = null;
   let error: string | null = null;
+  let emailVerified = false;
 
   try {
     customer = await getCustomer();
+    const session = await getSession();
+    if (session) {
+      const res = await fetch(
+        `${process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80"}/wp-json/hwe/v1/auth/me`,
+        { headers: { Authorization: `Bearer ${session.token}` }, cache: "no-store" },
+      );
+      if (res.ok) {
+        const data = await res.json() as { email_verified: boolean };
+        emailVerified = data.email_verified;
+      }
+    }
   } catch (e) {
     error = e instanceof Error ? e.message : t("dataError");
   }
@@ -37,7 +52,9 @@ export default async function AccountPage() {
         </div>
       ) : (
         customer && (
-          <div className="space-y-6">
+          <div className="space-y-8">
+            {!emailVerified && <EmailVerificationBanner />}
+
             <p className="text-sm text-gray-500">
               {t("sessionAs")}{" "}
               <span className="font-medium text-gray-700 dark:text-gray-200">
@@ -50,6 +67,11 @@ export default async function AccountPage() {
                 last_name: customer.last_name ?? "",
               }}
             />
+
+            <section>
+              <h2 className="mb-4 text-lg font-semibold">Autenticación en dos pasos (2FA)</h2>
+              <TwoFactorSetup />
+            </section>
           </div>
         )
       )}

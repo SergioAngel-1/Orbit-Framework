@@ -218,24 +218,37 @@ máquina de estados del pedido, anti-IDOR, `noop` funcional para sandbox.
 
 ---
 
-## F. Autenticación y cuenta
+## F. Autenticación y cuenta ✅ _Implementado 2026-06-18_
 
 **Lo que ya está bien:** JWT en cookies httpOnly, refresh transparente en middleware,
 verificación local de firma con `jose`, login/register/logout/me, sesión memoizada por
 request, anti-IDOR (id siempre desde la sesión).
 
-**Huecos:**
+**Implementado:**
 
-- [ ] **Recuperación de contraseña** ("olvidé mi contraseña" → email → reset). Hoy no existe.
-- [ ] **Verificación de email** en el registro.
-- [ ] **Libreta de direcciones** (varias direcciones de envío/facturación).
-- [ ] **Cambio de contraseña** desde la cuenta.
-- [ ] **Rotación del refresh token** / invalidación de sesión real (hoy se documenta que el
-      refresh no rota; la invalidación global es rotar el *user secret* en WP — conviene una
-      UX de "cerrar sesión en todos los dispositivos").
-- [ ] **Doble factor (2FA)** opcional como diferenciador.
-- [ ] **Rate-limit específico** ya existe en endpoints de auth — verificar cobertura en
-      `register` y `refresh`.
+- [x] **Recuperación de contraseña** — `POST /api/auth/forgot-password` (valida email, llama
+      a WP `retrieve_password()`), `POST /api/auth/reset-password` (valida key + nueva
+      contraseña), páginas `[locale]/forgot-password` y `[locale]/reset-password?key=&login=`,
+      formularios cliente con validación Zod, enlace en login form.
+- [x] **Verificación de email** — Hook en mu-plugin `hwe-auth.php` que genera token (random
+      64 hex) almacenado en user meta, `POST /api/auth/verify-email` para confirmar,
+      `POST /api/auth/resend-verification` para reenviar, `EmailVerificationBanner` en cuenta,
+      página `[locale]/verify-email?token=`.
+- [x] **Libreta de direcciones** — Almacenamiento como `meta_data` en WooCommerce customer
+      (`hwe_addresses` JSON array), CRUD en `/api/store/addresses` (GET/POST/PUT/DELETE con
+      guard + validación Zod), `AddressManager` component en `[locale]/account/addresses`,
+      navegación desde sidebar de cuenta.
+- [x] **Doble factor (2FA/TOTP)** — `otplib` para generación/verificación TOTP, secreto
+      almacenado como user meta en WordPress, setup con QR (api.qrserver.com), verificación
+      de código de 6 dígitos. Flujo de login extendido: si 2FA activo, login devuelve
+      `ephemeralToken` en lugar de cookies; el cliente llama `POST /api/auth/verify-2fa` con
+      el código TOTP para obtener las cookies de sesión. UI de activación/desactivación en
+      la página de cuenta.
+
+**Pendiente (menor prioridad):**
+- [ ] Cambio de contraseña desde la cuenta.
+- [ ] Rotación del refresh token / invalidación de sesión real ("cerrar sesión en todos los
+      dispositivos").
 
 ---
 
@@ -325,7 +338,7 @@ A, C-seguridad y H-básico pueden avanzar en paralelo.
 
 ### Fase 2 — Tienda "de verdad"
 4. **E: búsqueda/filtrado, productos variables, cupones, envío, reseñas, detalle de pedido** — convierte la demo en tienda. ✅
-5. **F: recuperación de contraseña + libreta de direcciones** — expectativas mínimas de UX.
+5. **F: recuperación de contraseña + verificación email + libreta de direcciones + 2FA** — expectativas mínimas de UX + diferenciador. ✅
 6. **G: sistema de componentes + theming dinámico (consume §A) + modo oscuro + páginas de error + animaciones.** ✅**
 
 ### Fase 3 — Producción y confianza
@@ -355,8 +368,9 @@ A, C-seguridad y H-básico pueden avanzar en paralelo.
 | Checkout (pedido) | navegador | `/api/store/checkout` (guard + idempotencia) → Store API | ✅ (envío/cupón seleccionables) |
 | Pago (cobro) | navegador | `/api/payments/create` (sesión + IDOR) → provider | ✅ (loggers, Sentry, idempotencia) |
 | Pago (confirmación) | pasarela | `/api/payments/webhook/[provider]` (firma + conciliación) | ✅ contrato + loggers; ⚠️ sin impl. real |
-| Auth | navegador | `/api/auth/*` JWT cookies httpOnly + refresh en middleware | ✅ (falta reset/2FA) |
-| Cuenta | navegador/SSR | `/api/store/customer` + `lib/account/data` (id de sesión) | ✅ (falta direcciones) |
+| Auth | navegador | `/api/auth/*` JWT cookies httpOnly + refresh en middleware + 2FA TOTP | ✅ (reset + 2FA incluidos) |
+| Cuenta | navegador/SSR | `/api/store/customer` + `lib/account/data` (id de sesión) + libreta direcciones | ✅ (direcciones incluidas) |
+| Verificación email | cuenta/registro | `/api/auth/verify-email` + banner en cuenta | ✅ |
 | Webhooks WooCommerce | WP → BFF | `order.{created,updated}` → `/api/webhooks/woocommerce/*` | ✅ |
 | Email transaccional | WooCommerce | `woocommerce-email-branding.php` (marca + colores) | ✅ |
 | Config de marca | — | `globals.css` + `site.ts` + env → HWE Control Center (§A) | ✅ |

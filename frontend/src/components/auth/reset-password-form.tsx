@@ -1,13 +1,17 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
-import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 
-export function RegisterForm() {
+interface Props {
+  key: string;
+  login: string;
+}
+
+export function ResetPasswordForm({ key: resetKey, login }: Props) {
   const router = useRouter();
-  const tRegister = useTranslations("register");
+  const t = useTranslations("resetPassword");
   const tForm = useTranslations("form");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -17,23 +21,28 @@ export function RegisterForm() {
     setPending(true);
     setError(null);
     const form = new FormData(e.currentTarget);
+    const password = String(form.get("password") ?? "");
+    const confirm = String(form.get("confirm") ?? "");
+
+    if (password !== confirm) {
+      setError(t("mismatch"));
+      setPending(false);
+      return;
+    }
+
     try {
-      const res = await csrfFetch("/api/auth/register", {
+      const res = await csrfFetch("/api/auth/reset-password", {
         method: "POST",
-        body: {
-          username: String(form.get("username") ?? ""),
-          email: String(form.get("email") ?? ""),
-          password: String(form.get("password") ?? ""),
-        },
+        body: { key: resetKey, login, password },
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || tRegister("error"));
+        throw new Error(data.error || t("error"));
       }
-      router.push("/account");
+      router.push("/login");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error.");
+      setError(err instanceof Error ? err.message : t("error"));
     } finally {
       setPending(false);
     }
@@ -47,26 +56,6 @@ export function RegisterForm() {
         </p>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">{tForm("username")}</label>
-        <input
-          name="username"
-          required
-          minLength={3}
-          autoComplete="username"
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
-        />
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium">{tForm("email")}</label>
-        <input
-          name="email"
-          type="email"
-          required
-          autoComplete="email"
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
-        />
-      </div>
-      <div>
         <label className="mb-1 block text-sm font-medium">{tForm("password")}</label>
         <input
           name="password"
@@ -78,22 +67,24 @@ export function RegisterForm() {
         />
         <p className="mt-1 text-xs text-gray-500">{tForm("passwordMin")}</p>
       </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium">{t("confirmPassword")}</label>
+        <input
+          name="confirm"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          className="w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
+        />
+      </div>
       <button
         type="submit"
         disabled={pending}
         className="w-full rounded-lg bg-brand py-2.5 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
       >
-        {pending ? tRegister("submitting") : tRegister("submit")}
+        {pending ? t("submitting") : t("submit")}
       </button>
-      <p className="text-center text-sm text-gray-500">
-        {tRegister("hasAccount")}{" "}
-        <Link href="/login" className="font-medium text-brand hover:underline">
-          {tRegister("login")}
-        </Link>
-      </p>
-      <p className="text-center text-xs text-gray-400">
-        {tRegister("verificationNotice")}
-      </p>
     </form>
   );
 }

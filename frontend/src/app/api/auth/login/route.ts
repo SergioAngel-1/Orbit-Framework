@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { SignJWT } from "jose";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { LOGIN_MUTATION } from "@/lib/auth/mutations";
 import { loginSchema } from "@/lib/validation/auth";
@@ -16,11 +17,11 @@ import type { LoginResponse } from "@/types/auth";
 
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/auth/login
- * Autentica contra WordPress y fija las cookies httpOnly de sesión.
- * Los tokens NUNCA se devuelven en el cuerpo (solo se exponen como cookies).
- */
+const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80";
+const EPHEMERAL_SECRET = new TextEncoder().encode(
+  process.env.GRAPHQL_JWT_AUTH_SECRET_KEY || "fallback-dev-secret-change-in-prod",
+);
+
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
     rateLimit: { name: "login", limit: 5, windowSeconds: 60 },
@@ -62,6 +63,37 @@ export async function POST(request: Request) {
       { error: "Respuesta de autenticación incompleta." },
       { status: 502 },
     );
+  }
+
+  // Check if 2FA is enabled for this user
+  try {
+    const statusRes = await fetch(
+      `${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-status/${user.databaseId}`,
+      { cache: "no-store" },
+    );
+    if (statusRes.ok) {
+      const statusData = await statusRes.json() as { enabled: boolean };
+      if (statusData.enabled) {
+        // Create ephemeral token with the real tokens
+        const ephemeralToken = await new SignJWT({
+          authToken,
+          refreshToken,
+          userId: String(user.databaseId),
+        })
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("5m")
+          .setIssuedAt()
+          .sign(EPHEMERAL_SECRET);
+
+        logger.info({ event: "auth.login.2fa_required", userId: user.id }, "2FA requerido");
+        return NextResponse.json(
+          { requires_2fa: true, ephemeralToken },
+          { status: 200 },
+        );
+      }
+    }
+  } catch {
+    logger.warn({ event: "auth.login.2fa_check_failed" }, "No se pudo verificar estado 2FA; se omite");
   }
 
   const store = await cookies();

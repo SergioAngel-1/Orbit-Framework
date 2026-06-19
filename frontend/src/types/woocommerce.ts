@@ -182,6 +182,7 @@ export interface WooCustomer {
   username: string;
   billing: WooAddress;
   shipping: WooAddress;
+  meta_data?: { id?: number; key: string; value: string }[];
 }
 
 export interface WooProductReview {
