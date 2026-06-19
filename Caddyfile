@@ -30,15 +30,29 @@
         reverse_proxy wordpress:80
     }
 
-    # API REST de WordPress: necesaria para webhooks de WooCommerce entrantes.
+    # API REST de WordPress: la usa el panel /wp-admin (editor de bloques, etc.).
+    # El BFF NO la necesita por aquí (habla con WP por la red interna Docker).
+    # Para un endurecimiento mayor, restringe /wp-json/* por IP de oficina o
+    # detrás de auth; aquí se deja accesible porque wp-admin lo requiere.
     handle /wp-json/* {
         reverse_proxy wordpress:80
     }
 
-    # GraphQL: expuesto para el servidor Next.js vía red interna, pero también
-    # habilitado aquí como fallback si el cliente necesita acceso directo.
-    handle /graphql {
+    # GraphQL: el servidor Next.js lo consume por la RED INTERNA, no por aquí.
+    # Exponerlo en público amplía superficie de ataque. Lo restringimos a
+    # POST/OPTIONS (consultas legítimas) y bloqueamos GET (playground e
+    # introspección por URL). Para HEADLESS PURO, puedes ELIMINAR este bloque
+    # entero si ningún componente del navegador llama a GraphQL directamente.
+    @graphql_ok {
+        path /graphql
+        method POST OPTIONS
+    }
+    handle @graphql_ok {
         reverse_proxy wordpress:80
+    }
+    # Cualquier otro método contra /graphql (GET, etc.) se rechaza.
+    handle /graphql {
+        respond "Method Not Allowed" 405
     }
 
     # Medios de WordPress con caché larga (immutable una vez publicados).

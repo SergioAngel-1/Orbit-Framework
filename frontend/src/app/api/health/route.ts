@@ -44,12 +44,18 @@ async function checkWordPress(): Promise<"ok" | "down" | "unknown"> {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const [redis, wordpress] = await Promise.all([checkRedis(), checkWordPress()]);
 
   const degraded = redis === "down" || wordpress === "down";
 
-  logger.info({ event: "health.check", status: degraded ? "degraded" : "ok", redis, wordpress }, "Health check consultado");
+  // Modo READINESS estricto: `?ready=1` devuelve 503 si hay dependencias caídas,
+  // para que un orquestador saque la instancia del balanceo. Por defecto (sin el
+  // flag) devuelve 200 aunque esté `degraded` (el frontend degrada con elegancia).
+  const strict = new URL(request.url).searchParams.get("ready") === "1";
+  const httpStatus = strict && degraded ? 503 : 200;
+
+  logger.info({ event: "health.check", status: degraded ? "degraded" : "ok", redis, wordpress, strict }, "Health check consultado");
 
   return NextResponse.json(
     {
@@ -59,6 +65,6 @@ export async function GET() {
       version: process.env.npm_package_version ?? "unknown",
       dependencies: { redis, wordpress },
     },
-    { status: 200, headers: { "Cache-Control": "no-store" } },
+    { status: httpStatus, headers: { "Cache-Control": "no-store" } },
   );
 }

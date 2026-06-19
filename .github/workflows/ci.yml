@@ -45,6 +45,9 @@ jobs:
       - name: Tests unitarios
         run: npm run test
 
+      - name: Cobertura (informe; no bloquea hasta validar umbrales reales)
+        run: npm run test:coverage || true
+
       - name: Build de producción
         run: npm run build
         env:

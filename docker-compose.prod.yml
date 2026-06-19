@@ -9,6 +9,15 @@
 #    ✔ Límites de memoria por servicio.
 #    ✔ Servicio `backup` con cron diario (03:00 UTC).
 #    ✔ WordPress con healthcheck real (REST API).
+#    ✔ Hardening: `security_opt: no-new-privileges` en todos los servicios.
+#
+#  Endurecimiento adicional recomendado (según tu plataforma; puede requerir
+#  pruebas porque algunas imágenes escriben en disco o necesitan capacidades):
+#    - `cap_drop: [ALL]` (y `cap_add` solo lo imprescindible). Suele ir bien en
+#      db/redis/caddy; WordPress/Apache puede necesitar NET_BIND_SERVICE.
+#    - `read_only: true` + `tmpfs` para /tmp y rutas de escritura concretas.
+#    - Fijar imágenes por DIGEST (image: repo@sha256:...) para builds reproducibles.
+#    - Restore PROBADO con backend/scripts/restore.sh (ver docs/RUNBOOK.md).
 #
 #  Uso:
 #    # 1. Construir imagen del frontend:
@@ -34,6 +43,8 @@ services:
     image: caddy:2.9-alpine
     container_name: hwe_caddy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "80:80"
       - "443:443"
@@ -62,6 +73,8 @@ services:
     image: mariadb:11.4
     container_name: hwe_db
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       MARIADB_DATABASE:      "${MYSQL_DATABASE:-wordpress}"
       MARIADB_USER:          "${MYSQL_USER:-wordpress}"
@@ -87,6 +100,8 @@ services:
     image: wordpress:6.7-php8.3-apache
     container_name: hwe_wordpress
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       db:
         condition: service_healthy
@@ -161,6 +176,8 @@ services:
     image: redis:7.4-alpine
     container_name: hwe_redis
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
     volumes:
       - redis_data:/data
@@ -182,6 +199,8 @@ services:
     image: "${FRONTEND_IMAGE:-hwe-frontend:prod}"
     container_name: hwe_frontend
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       wordpress:
         condition: service_healthy
@@ -229,6 +248,8 @@ services:
     image: alpine:3.21
     container_name: hwe_backup
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       db:
         condition: service_healthy
