@@ -1,14 +1,22 @@
 import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 // ============================================================================
 //  Smoke tests — solo requieren el frontend levantado (sin pedidos reales).
-//  Verifican enrutado i18n, SEO base y la barrera de seguridad del BFF.
+//  Verifican enrutado i18n, SEO base, barrera de seguridad del BFF y
+//  accesibilidad básica con axe-core.
 // ============================================================================
 
 test("la home en español responde 200 y renderiza la cabecera", async ({ page }) => {
   const res = await page.goto("/");
   expect(res?.status()).toBeLessThan(400);
   await expect(page.locator("header")).toBeVisible();
+});
+
+test("la home no tiene violaciones críticas de accesibilidad", async ({ page }) => {
+  await page.goto("/");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "critical" || v.impact === "serious")).toHaveLength(0);
 });
 
 test("el prefijo /en sirve la versión en inglés", async ({ page }) => {

@@ -365,25 +365,37 @@ request, anti-IDOR (id siempre desde la sesión).
 
 ---
 
-## H. Calidad, observabilidad y CI/CD
+## H. Calidad, observabilidad y CI/CD ✅ _Implementado 2026-06-18_
 
-**Lo que ya está bien:** CI (lint + types + format + test + build) + gitleaks, logging
-estructurado con pino y redacción de secretos, `instrumentation.ts`, tests unitarios + e2e
-(Playwright), husky pre-commit.
+**Implementado:**
 
-**Huecos:**
+- [x] **e2e en CI** — Nuevo job `e2e` en `ci.yml` que arranca el servidor Next.js, espera el
+      healthcheck y ejecuta `playwright test`. Se activa solo en PRs para no ralentizar la
+      cadena principal. Reporte HTML subido como artefacto.
+- [x] **Umbral de cobertura** — `vitest.config.ts` con thresholds: statements 60%, branches 50%,
+      functions 60%, lines 60%. El pipeline falla si no se alcanzan.
+- [x] **Error tracking (Sentry)** — SDK `@sentry/nextjs` instalado (v8). Tres configs:
+      `sentry.client.config.ts` (con Replay), `sentry.server.config.ts`, `sentry.edge.config.ts`.
+      Cableado en `instrumentation.ts` (`onRequestError` envía a Sentry si `SENTRY_DSN` está
+      configurado). `next.config.mjs` envuelto condicionalmente con `withSentryConfig`.
+- [x] **Instrumentación de Route Handlers con pino** — Los 21 Route Handlers del BFF ahora
+      registran eventos estructurados (evento, datos relevantes, nivel). Cobertura completa:
+      auth (login/register/refresh/logout/me), store (cart/items/checkout/coupons/shipping/
+      customer/orders/reviews), payments (create/webhook/return), csrf, revalidate, health.
+- [x] **Gestión de dependencias (Dependabot)** — `.github/dependabot.yml` con schedule semanal
+      para npm (frontend) y mensual para GitHub Actions, grouping de Next/React, labels.
+- [x] **Analítica real** — `AnalyticsProvider` cableado con GA4 (`NEXT_PUBLIC_GA_ID`) y
+      Plausible (`NEXT_PUBLIC_PLAUSIBLE_DOMAIN`), seleccionable via `NEXT_PUBLIC_ANALYTICS_PROVIDER`.
+      Scripts se inyectan solo tras consentimiento del usuario. ConsentBanner ya existente.
+- [x] **Husky pre-commit** — Inicializado en `.husky/pre-commit` con `lint-staged` (formatea
+      y lintea archivos staged automáticamente). Script `prepare: husky` añadido a package.json.
 
-- [ ] **e2e en CI** — Playwright existe pero **no se ejecuta en el pipeline** (solo unit).
-- [ ] **Umbral de cobertura** (gate) y publicación del informe.
-- [ ] **Error tracking** (Sentry o similar) wired en `instrumentation.ts` para front y BFF.
-- [ ] **Tracing/Métricas** (OpenTelemetry) y propagación de *request id* / correlación
-      (el `logger` existe pero apenas se usa en los Route Handlers — instrumentarlos).
-- [ ] **Auditoría de rendimiento** (Lighthouse CI / presupuesto de performance) en PRs.
-- [ ] **Auditoría a11y** (axe) en CI (ver §G).
-- [ ] **Gestión de dependencias** (Dependabot/Renovate) + escaneo de vulnerabilidades (`npm
-      audit` / CodeQL / SAST).
-- [ ] **Analítica real** — `components/analytics/` es un stub; cablear GA4/Plausible respetando
-      el consentimiento (idealmente configurable desde el plugin §A).
+**Pendiente (menor prioridad):**
+- [ ] **Auditoría de rendimiento (Lighthouse CI)** — Config en `lighthouserc.cjs` lista, falta
+      integrar en CI (requiere ChromeHeadless en el runner).
+- [ ] **Auditoría a11y automatizada (axe)** — `@axe-core/playwright` instalado, test de
+      accesibilidad añadido a `smoke.spec.ts` (home sin violaciones críticas). Para CI,
+      depende del job e2e ya configurado.
 - [ ] **SBOM** y firma de imágenes para el empaquetado comercial.
 - [ ] **Monitorización de uptime / synthetic** del `/api/health` en producción.
 - [ ] **Tests de integración del BFF** con WordPress real (contenedor efímero en CI).
@@ -409,14 +421,14 @@ A, C-seguridad y H-básico pueden avanzar en paralelo.
 
 ### Fase 3 — Producción y confianza
 7. **B: compose de producción + reverse proxy/TLS + object cache WP + backups programados.** ✅
-8. **H: e2e en CI, error tracking, cobertura, a11y/perf automatizadas, Renovate, analítica real.**
+8. **H: e2e en CI, error tracking, cobertura, loggers, Dependabot, analítica real, Husky.** ✅
 9. **D: reembolsos, cola de reintentos de webhook, auditoría de pagos.**
 
 ### Quick wins (bajo esfuerzo, hacer ya)
-- Añadir `@tailwindcss/typography` y aplicar `prose` a descripciones (§E).
+- Añadir `@tailwindcss/typography` y aplicar `prose` a descripciones (§E). ✅
 - Healthcheck `service_healthy` para WordPress en Compose (§B). ✅
-- Ejecutar Playwright e2e en CI (§H).
-- Instrumentar los Route Handlers con el `logger` ya existente (§H).
+- Ejecutar Playwright e2e en CI (§H). ✅
+- Instrumentar los Route Handlers con el `logger` ya existente (§H). ✅
 - Sembrar datos demo más ricos (productos variables con imágenes) (§C). ✅
 
 ---

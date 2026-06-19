@@ -8,6 +8,7 @@ import {
   updateItemSchema,
   removeItemSchema,
 } from "@/lib/validation/store";
+import { logger } from "@/lib/observability/logger";
 import type { StoreCart } from "@/types/woocommerce";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
   if (blocked) return blocked;
   const parsed = addItemSchema.safeParse(await readBody(request));
   if (!parsed.success) {
+    logger.warn({ event: "cart.add_item.validation" }, "Datos inválidos al añadir producto al carrito");
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
       { status: 422 },
@@ -41,8 +43,10 @@ export async function POST(request: Request) {
       cartToken: token,
     });
     await writeCartToken(cartToken);
+    logger.info({ event: "cart.add_item.success", productId: parsed.data.id }, "Producto añadido al carrito");
     return NextResponse.json(data);
   } catch (error) {
+    logger.error({ event: "cart.add_item.error", err: error instanceof Error ? error.message : error }, "Error al añadir producto al carrito");
     return handleApiError(error);
   }
 }
@@ -55,6 +59,7 @@ export async function PATCH(request: Request) {
   if (blocked) return blocked;
   const parsed = updateItemSchema.safeParse(await readBody(request));
   if (!parsed.success) {
+    logger.warn({ event: "cart.update_item.validation" }, "Datos inválidos al actualizar ítem del carrito");
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
       { status: 422 },
@@ -68,8 +73,10 @@ export async function PATCH(request: Request) {
       cartToken: token,
     });
     await writeCartToken(cartToken);
+    logger.info({ event: "cart.update_item.success", key: parsed.data.key }, "Ítem del carrito actualizado");
     return NextResponse.json(data);
   } catch (error) {
+    logger.error({ event: "cart.update_item.error", err: error instanceof Error ? error.message : error }, "Error al actualizar ítem del carrito");
     return handleApiError(error);
   }
 }
@@ -82,6 +89,7 @@ export async function DELETE(request: Request) {
   if (blocked) return blocked;
   const parsed = removeItemSchema.safeParse(await readBody(request));
   if (!parsed.success) {
+    logger.warn({ event: "cart.remove_item.validation" }, "Datos inválidos al eliminar ítem del carrito");
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
       { status: 422 },
@@ -95,8 +103,10 @@ export async function DELETE(request: Request) {
       cartToken: token,
     });
     await writeCartToken(cartToken);
+    logger.info({ event: "cart.remove_item.success", key: parsed.data.key }, "Ítem eliminado del carrito");
     return NextResponse.json(data);
   } catch (error) {
+    logger.error({ event: "cart.remove_item.error", err: error instanceof Error ? error.message : error }, "Error al eliminar ítem del carrito");
     return handleApiError(error);
   }
 }

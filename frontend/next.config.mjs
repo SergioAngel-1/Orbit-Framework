@@ -140,4 +140,20 @@ const nextConfig = withNextIntl({
   },
 });
 
-export default nextConfig;
+let finalConfig = nextConfig;
+
+// Envuelve con Sentry si el SDK está disponible y hay DSN.
+try {
+  const { withSentryConfig } = await import("@sentry/nextjs");
+  if (process.env.SENTRY_DSN) {
+    finalConfig = withSentryConfig(nextConfig, {
+      silent: !process.env.CI,
+      widenClientFileUpload: true,
+      tunnelRoute: "/monitoring",
+    });
+  }
+} catch {
+  // @sentry/nextjs no instalado o no disponible — config sin wrap.
+}
+
+export default finalConfig;

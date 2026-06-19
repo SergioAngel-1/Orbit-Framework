@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { issueCsrfToken } from "@/lib/security/csrf";
+import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -11,5 +12,6 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   const csrfToken = await issueCsrfToken();
+  logger.info({ event: "csrf.token_issued" }, "Token CSRF generado");
   return NextResponse.json({ csrfToken });
 }

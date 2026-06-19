@@ -11,6 +11,7 @@ import {
 import { sessionCookieOptions, refreshCookieOptions } from "@/lib/security/cookies";
 import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
 import { guardMutation } from "@/lib/api/guard";
+import { logger } from "@/lib/observability/logger";
 import type { RegisterResponse, LoginResponse } from "@/types/auth";
 
 export const dynamic = "force-dynamic";
@@ -30,11 +31,13 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
+    logger.warn({ event: "auth.register.invalid_json" }, "JSON inválido en register");
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
+    logger.warn({ event: "auth.register.validation_error" }, "Validación fallida en register");
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
       { status: 422 },
@@ -53,11 +56,14 @@ export async function POST(request: Request) {
       message.includes("exist") ||
       message.includes("registrado") ||
       message.includes("already");
+    logger.warn({ event: "auth.register.failed", exists }, "Registro fallido");
     return NextResponse.json(
       { error: exists ? "El usuario o email ya existe." : "No se pudo registrar." },
       { status: exists ? 409 : 400 },
     );
   }
+
+  logger.info({ event: "auth.register.success", username: parsed.data.username }, "Usuario creado");
 
   // 2) Auto-login para dejar la sesión iniciada.
   try {
@@ -77,9 +83,10 @@ export async function POST(request: Request) {
       refreshToken,
       refreshCookieOptions(REFRESH_TOKEN_MAX_AGE),
     );
+    logger.info({ event: "auth.register.auto_login", userId: user.id }, "Auto-login post-registro exitoso");
     return NextResponse.json({ user }, { status: 201 });
   } catch {
-    // Usuario creado pero el auto-login falló: el cliente puede iniciar sesión.
+    logger.warn({ event: "auth.register.auto_login_failed" }, "Usuario creado pero auto-login falló");
     return NextResponse.json(
       { ok: true, message: "Usuario creado. Inicia sesión." },
       { status: 201 },

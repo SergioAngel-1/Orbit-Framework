@@ -14,7 +14,8 @@
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
+    "prepare": "husky"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -24,6 +25,7 @@
     "*.{css,json,md}": "prettier --write"
   },
   "dependencies": {
+    "@sentry/nextjs": "^8.55.2",
     "ioredis": "5.4.2",
     "isomorphic-dompurify": "2.20.0",
     "jose": "5.9.6",
@@ -35,6 +37,7 @@
     "zod": "3.24.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@playwright/test": "^1.49.1",
     "@tailwindcss/postcss": "^4.0.0",
     "@tailwindcss/typography": "^0.5.20",

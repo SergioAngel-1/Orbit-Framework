@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRedis } from "@/lib/redis/client";
+import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,8 @@ export async function GET() {
   const [redis, wordpress] = await Promise.all([checkRedis(), checkWordPress()]);
 
   const degraded = redis === "down" || wordpress === "down";
+
+  logger.info({ event: "health.check", status: degraded ? "degraded" : "ok", redis, wordpress }, "Health check consultado");
 
   return NextResponse.json(
     {

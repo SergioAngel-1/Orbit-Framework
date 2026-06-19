@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { AUTH_COOKIE, REFRESH_COOKIE } from "@/lib/auth/constants";
 import { expiredCookieOptions } from "@/lib/security/cookies";
 import { guardMutation } from "@/lib/api/guard";
+import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,8 @@ export async function POST(request: Request) {
   const store = await cookies();
   store.set(AUTH_COOKIE, "", expiredCookieOptions("/"));
   store.set(REFRESH_COOKIE, "", expiredCookieOptions("/"));
+
+  logger.info({ event: "auth.logout" }, "Sesión cerrada correctamente");
 
   return NextResponse.json({ ok: true }, { status: 200 });
 }

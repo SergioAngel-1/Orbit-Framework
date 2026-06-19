@@ -11,6 +11,7 @@ import {
 import { sessionCookieOptions, refreshCookieOptions } from "@/lib/security/cookies";
 import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
 import { guardMutation } from "@/lib/api/guard";
+import { logger } from "@/lib/observability/logger";
 import type { LoginResponse } from "@/types/auth";
 
 export const dynamic = "force-dynamic";
@@ -30,11 +31,13 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
+    logger.warn({ event: "auth.login.invalid_json" }, "JSON inválido en login");
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
+    logger.warn({ event: "auth.login.validation_error" }, "Validación fallida en login");
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
       { status: 422 },
@@ -48,12 +51,13 @@ export async function POST(request: Request) {
       revalidate: 0,
     });
   } catch {
-    // No distinguimos usuario inexistente de contraseña incorrecta.
+    logger.info({ event: "auth.login.failed" }, "Credenciales inválidas en login");
     return NextResponse.json({ error: "Credenciales inválidas." }, { status: 401 });
   }
 
   const { authToken, refreshToken, user } = data.login;
   if (!authToken || !refreshToken) {
+    logger.error({ event: "auth.login.incomplete_response" }, "WP devolvió login incompleto");
     return NextResponse.json(
       { error: "Respuesta de autenticación incompleta." },
       { status: 502 },
@@ -68,5 +72,6 @@ export async function POST(request: Request) {
   );
   store.set(REFRESH_COOKIE, refreshToken, refreshCookieOptions(REFRESH_TOKEN_MAX_AGE));
 
+  logger.info({ event: "auth.login.success", userId: user.id }, "Login exitoso");
   return NextResponse.json({ user }, { status: 200 });
 }

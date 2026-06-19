@@ -8,6 +8,7 @@ import {
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { checkoutSchema } from "@/lib/validation/store";
+import { logger } from "@/lib/observability/logger";
 import {
   isValidIdempotencyKey,
   reserveIdempotencyKey,
@@ -38,11 +39,13 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
+    logger.warn({ event: "checkout.invalid_json" }, "JSON inválido en checkout");
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
   const parsed = checkoutSchema.safeParse(body);
   if (!parsed.success) {
+    logger.warn({ event: "checkout.validation_error" }, "Validación fallida en checkout");
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
       { status: 422 },
@@ -56,9 +59,11 @@ export async function POST(request: Request) {
   if (useIdempotency) {
     const state = await reserveIdempotencyKey(idemKey);
     if (state.status === "replay") {
+      logger.info({ event: "checkout.idempotent_replay" }, "Replay de checkout idempotente");
       return NextResponse.json(state.body, { status: state.statusCode });
     }
     if (state.status === "conflict") {
+      logger.warn({ event: "checkout.idempotent_conflict" }, "Conflicto de idempotencia en checkout");
       return NextResponse.json(
         { error: "Un pedido con esta clave ya se está procesando o se completó." },
         { status: 409 },
@@ -85,12 +90,14 @@ export async function POST(request: Request) {
       await storeIdempotentResult(idemKey, data, 201);
     }
 
+    logger.info({ event: "checkout.success", order_id: data.order_id }, "Pedido creado en checkout");
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
     // Libera la reserva para permitir un reintento legítimo.
     if (useIdempotency) {
       await releaseIdempotencyKey(idemKey);
     }
+    logger.error({ event: "checkout.error", err: error instanceof Error ? error.message : error }, "Error en checkout");
     return handleApiError(error);
   }
 }
