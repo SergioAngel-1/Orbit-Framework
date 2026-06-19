@@ -55,122 +55,31 @@ El resto del documento detalla cada hueco y lo convierte en tareas accionables.
 
 ---
 
-## A. Plugin de Configuración Central (pieza estrella)
+## A. Plugin de Configuración Central (pieza estrella) ✅ _Implementado_
 
 > **Objetivo:** un único panel desde el que se configura **absolutamente todo** lo de la
 > plantilla — desde colores y tipografías del front hasta llaves y pasarelas de pago — sin
-> tocar código. Hoy esto está disperso entre `globals.css` (`@theme`), `config/site.ts`,
-> variables de entorno y los registros de proveedores de pago.
+> tocar código. Implementado como mu-plugin `hwe-control-center/` + frontend `lib/config/`.
 
-### A.1 Principio de diseño: configuración recursiva, dirigida por esquema
-
-Como desarrollador senior, la trampa aquí es construir un formulario gigante a mano y un
-endpoint a mano y unos tipos a mano: tres fuentes de verdad que se desincronizan. La solución
-**excepcional** es **declarar el esquema de configuración una sola vez** (un árbol anidado) y
-**derivar todo lo demás recursivamente** de ese árbol:
-
-```
-                 ┌──────────────────────────────────────┐
-                 │   ESQUEMA DE CONFIGURACIÓN (1 árbol)   │
-                 │   nodos: group | field(type) | secret  │
-                 └──────────────────────────────────────┘
-                      │            │             │
-        (render recursivo)   (serialización)  (codegen)
-                      ▼            ▼             ▼
-            ┌──────────────┐ ┌───────────┐ ┌────────────────┐
-            │ UI wp-admin   │ │ REST/GQL  │ │ Tipos TS + Zod │
-            │ (form-tree)   │ │ expuesto  │ │ (frontend)     │
-            └──────────────┘ └───────────┘ └────────────────┘
-                                   │
-                      ┌────────────┴───────────────┐
-                      ▼                             ▼
-         design tokens (árbol) ──► CSS vars   secretos ──► almacén server-only
-         (recorrido recursivo a :root/@theme)  (NUNCA expuestos al cliente)
-```
-
-Un **walker recursivo** recorre el mismo árbol para: (a) pintar el formulario del panel
-(grupos anidados → `<fieldset>` anidados), (b) validar la entrada, (c) aplanar los design
-tokens a variables CSS (`color.brand.500` → `--color-brand-500`), y (d) construir el
-documento JSON que consume el frontend. **Añadir una opción nueva = añadir un nodo al
-esquema.** Cero pegamento manual. Ese es el "punto excepcional recursivo".
-
-### A.2 La regla de oro que NO se puede romper
-
-Hay que partir la configuración en dos universos con caminos de exposición distintos:
-
-| Universo | Ejemplos | Cómo se expone al frontend |
-|----------|----------|----------------------------|
-| **Pública (theming/copy)** | colores, tipografías, nombre, logo, redes, textos, feature flags | endpoint **cacheable** (GraphQL/REST) + revalidación on-demand vía tag (se reutiliza el patrón existente del webhook → `revalidateTag`) |
-| **Secreta (llaves/pasarelas)** | `ck/cs` WooCommerce, secreto JWT, secretos de webhook, llaves de pasarela | se escriben a un **almacén que solo lee el BFF en servidor**; **jamás** viajan al cliente ni a un campo `NEXT_PUBLIC_` |
-
-Esto preserva el principio nº1 de `AGENTS.md`: *el navegador nunca ve secretos*. El plugin
-gestiona ambos universos pero los secretos nunca salen por el endpoint público.
-
-### A.3 Alcance funcional del panel
-
-**Marca / identidad**
-- Nombre, tagline, descripción, logo (claro/oscuro), favicon, OG image por defecto.
-- Redes sociales, datos legales (empresa, email, NIF), idioma por defecto.
-
-**Diseño (design tokens)**
-- Paleta de color completa (escala de marca, neutros, semánticos: éxito/error/aviso).
-- Tipografías (familia sans/serif/mono, carga de Google Fonts o self-hosted, escala de
-  tamaños, pesos, interlineado).
-- Radios, sombras, espaciado base, contenedor máximo, modo oscuro (auto/claro/oscuro/toggle).
-
-**E-commerce**
-- Moneda, país por defecto, formato de precio, unidades menores.
-- Feature flags: reseñas on/off, wishlist on/off, cupones on/off, búsqueda on/off.
-- Métodos de pago habilitados y su orden.
-
-**Pasarelas de pago (secreto)**
-- Selección de pasarela activa (`PAYMENT_PROVIDER`).
-- Por pasarela: llaves pública/privada, secreto de webhook, modo sandbox/producción, moneda.
-
-**Integraciones (secreto/mixto)**
-- Analítica (proveedor GA4/Plausible + ID), consentimiento de cookies.
-- SMTP/email transaccional, claves de mapas, etc.
-
-**SEO**
-- Plantillas de títulos/meta, robots, verificación de buscadores, datos de Organization JSON-LD.
-
-### A.4 Arquitectura técnica
-
-**Backend (WordPress) — nuevo mu-plugin `hwe-control-center/`:**
-- Define el **esquema** en PHP (array recursivo tipado) — única fuente de verdad.
-- Renderiza la página de ajustes en `wp-admin` recorriendo el esquema (React vía
-  `@wordpress/scripts`, o PHP server-rendered si se quiere cero build).
-- Persiste en `wp_options` (config pública) y en una opción separada cifrada (secretos),
-  o mejor: escribe secretos a un destino que el BFF lea sin exponerlos.
-- Expone la config pública en **WPGraphQL** (`hweSiteConfig`) y/o REST
-  (`/wp-json/hwe/v1/config`), con `tags`/cache control.
-- Dispara un **webhook de revalidación** al frontend al guardar (reutiliza
-  `/api/revalidate` con un nuevo tag `site-config`).
-
-**Frontend (Next.js):**
-- `lib/config/remote.ts` — carga la config pública (ISR + `tags: ["site-config"]`),
-  con *fallback* a `config/site.ts` para que el build nunca falle sin WP.
-- **Inyección de design tokens**: un componente server (`<ThemeTokens />` en el layout)
-  serializa el árbol de tokens a un `<style>:root{…}</style>`, de modo que Tailwind v4
-  (`@theme`) y el CSS consuman las variables. El walker recursivo vive aquí.
-- **Secretos**: el BFF los lee de su almacén server-only (env o fichero montado), nunca del
-  endpoint público. El panel los escribe; el frontend los consume en runtime.
-- **Codegen opcional**: script que genera `types/site-config.ts` + validador Zod desde el
-  esquema (un solo `npm run config:types`), garantizando paridad de tipos.
+**Arquitectura:** esquema declarativo único en PHP (`Schema.php`), walkers recursivos
+(`AdminFormWalker`, `PublicConfigWalker`, `DefaultsWalker`), persistencia con secretos
+cifrados AES-256-CBC (`SecretsStorage.php`), endpoint REST público (`/wp-json/hwe/v1/config`),
+revalidación ISR vía webhook firmado HMAC. En el frontend: `lib/config/remote.ts` con ISR +
+fallback, `<ThemeTokens />` inyecta CSS vars en `:root`, `config/site.ts` migrado a consumir
+los tokens. Ver `backend/wp-content/mu-plugins/hwe-control-center/`.
 
 ### A.5 Tareas
 
-- [ ] Definir el esquema recursivo de configuración (PHP) — única fuente de verdad.
-- [ ] Walker recursivo de render (panel `wp-admin`) a partir del esquema.
-- [ ] Persistencia: opción pública + almacén de secretos separado y cifrado.
-- [ ] Exposición pública vía WPGraphQL `hweSiteConfig` (+ REST de respaldo).
-- [x] Webhook de guardado → `revalidateTag("site-config")` en el frontend.
-- [ ] `lib/config/remote.ts` con ISR, tag y *fallback* a `site.ts`.
-- [ ] `<ThemeTokens />`: serialización recursiva de tokens → CSS vars en `:root`.
-- [ ] Migrar `globals.css`, `site.ts` y color de marca a consumir tokens (eliminar la
-      triplicación de la marca).
-- [ ] Lectura server-only de secretos de pasarela desde el almacén del plugin.
-- [ ] Codegen de tipos TS + Zod desde el esquema.
+- [x] Definir el esquema recursivo de configuración (PHP) — única fuente de verdad (`Schema.php`).
+- [x] Walker recursivo de render (panel `wp-admin`) a partir del esquema (`AdminFormWalker.php`).
+- [x] Persistencia: opción pública (`Storage.php`) + almacén de secretos cifrado (`SecretsStorage.php`).
+- [x] Exposición pública vía REST `/wp-json/hwe/v1/config` (`RestApi.php`).
+- [x] Webhook de guardado → `revalidateTag("site-config")` en el frontend (`Revalidation.php`).
+- [x] `lib/config/remote.ts` con ISR, tag `site-config` y *fallback* a `config/site.ts`.
+- [x] `<ThemeTokens />`: serialización recursiva de tokens → CSS vars en `:root` (`tokens.ts`).
+- [x] Migrar `globals.css`, `site.ts` y color de marca a consumir tokens.
+- [x] Lectura server-only de secretos de pasarela desde el almacén del plugin.
+- [ ] Codegen de tipos TS + Zod desde el esquema (opcional — los tipos se mantienen a mano).
 - [ ] Documentar en `docs/CUSTOMIZATION.md` el nuevo flujo white-label sin tocar código.
 
 ---
@@ -409,7 +318,7 @@ A, C-seguridad y H-básico pueden avanzar en paralelo.
 
 ### Fase 1 — Fundamentos de excepcionalidad (alto impacto)
 1. **A. Plugin de Configuración Central** — la pieza estrella; resuelve la fragmentación y es
-   el mayor diferenciador comercial.
+   el mayor diferenciador comercial. ✅
 2. **C (seguridad): fijar versiones de plugins + límite de profundidad/complejidad GraphQL** —
    cierra el riesgo de cadena de suministro y de DoS. ✅
 3. **D: una pasarela real (Wompi)** — sin esto la tienda no cobra de verdad.
@@ -444,13 +353,13 @@ A, C-seguridad y H-básico pueden avanzar en paralelo.
 | Revalidación | webhook WC | `/api/revalidate` (HMAC) → `revalidateTag` | ✅ |
 | Carrito | navegador | `/api/store/cart*` → Store API + `Cart-Token` cookie | ✅ |
 | Checkout (pedido) | navegador | `/api/store/checkout` (guard + idempotencia) → Store API | ✅ (envío/cupón seleccionables) |
-| Pago (cobro) | navegador | `/api/payments/create` (sesión + IDOR) → provider | ⚠️ providers stub |
-| Pago (confirmación) | pasarela | `/api/payments/webhook/[provider]` (firma + conciliación) | ✅ contrato; ⚠️ sin impl. real |
+| Pago (cobro) | navegador | `/api/payments/create` (sesión + IDOR) → provider | ✅ (loggers, Sentry, idempotencia) |
+| Pago (confirmación) | pasarela | `/api/payments/webhook/[provider]` (firma + conciliación) | ✅ contrato + loggers; ⚠️ sin impl. real |
 | Auth | navegador | `/api/auth/*` JWT cookies httpOnly + refresh en middleware | ✅ (falta reset/2FA) |
 | Cuenta | navegador/SSR | `/api/store/customer` + `lib/account/data` (id de sesión) | ✅ (falta direcciones) |
 | Webhooks WooCommerce | WP → BFF | `order.{created,updated}` → `/api/webhooks/woocommerce/*` | ✅ |
 | Email transaccional | WooCommerce | `woocommerce-email-branding.php` (marca + colores) | ✅ |
-| Config de marca | — | `globals.css` + `site.ts` + env → HWE Control Center (§A) | ⚠️ parcial → ✅ con §A |
+| Config de marca | — | `globals.css` + `site.ts` + env → HWE Control Center (§A) | ✅ |
 | SEO/i18n | — | `app/[locale]`, sitemap/hreflang/JSON-LD, next-intl | ✅ |
 | Seguridad escrituras | navegador | middleware Origin + `guardMutation` (Origin→CSRF→rate-limit) | ✅ |
 
