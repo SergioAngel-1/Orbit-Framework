@@ -3,6 +3,7 @@ import { wcFetch } from "@/lib/woocommerce/client";
 import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
+import { withLock } from "@/lib/security/lock";
 import { logger } from "@/lib/observability/logger";
 import type { WooCustomer } from "@/types/woocommerce";
 
@@ -51,16 +52,19 @@ export async function POST(request: Request) {
 
   try {
     const session = await requireSession();
-    const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
-    const ids = parseWishlist(customer);
-
-    if (!ids.includes(body.productId)) {
-      ids.push(body.productId);
-      await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
-        method: "PUT",
-        body: { meta_data: [{ key: WISHLIST_META_KEY, value: JSON.stringify(ids) }] },
-      });
-    }
+    const productId = body.productId;
+    // Sección crítica serializada por usuario (evita lost-update concurrente).
+    await withLock(`wishlist:${session.userId}`, async () => {
+      const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+      const ids = parseWishlist(customer);
+      if (!ids.includes(productId)) {
+        ids.push(productId);
+        await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
+          method: "PUT",
+          body: { meta_data: [{ key: WISHLIST_META_KEY, value: JSON.stringify(ids) }] },
+        });
+      }
+    });
 
     logger.info({ event: "wishlist.add", userId: session.userId, productId: body.productId });
     return NextResponse.json({ ok: true }, { status: 200 });
@@ -89,12 +93,14 @@ export async function DELETE(request: Request) {
 
   try {
     const session = await requireSession();
-    const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
-    const ids = parseWishlist(customer).filter((id) => id !== body.productId);
-
-    await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
-      method: "PUT",
-      body: { meta_data: [{ key: WISHLIST_META_KEY, value: JSON.stringify(ids) }] },
+    const productId = body.productId;
+    await withLock(`wishlist:${session.userId}`, async () => {
+      const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+      const ids = parseWishlist(customer).filter((id) => id !== productId);
+      await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
+        method: "PUT",
+        body: { meta_data: [{ key: WISHLIST_META_KEY, value: JSON.stringify(ids) }] },
+      });
     });
 
     logger.info({ event: "wishlist.remove", userId: session.userId, productId: body.productId });

@@ -11,7 +11,7 @@ const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", 
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
-    rateLimit: { name: "2fa_activate", limit: 5, windowSeconds: 60 },
+    rateLimit: { name: "2fa_activate", limit: 5, windowSeconds: 60, strict: true },
   });
   if (blocked) return blocked;
 
@@ -62,8 +62,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No se pudo guardar la configuración 2FA." }, { status: 502 });
     }
 
+    // WP genera los códigos de recuperación al activar y los devuelve UNA vez.
+    const data = (await res.json().catch(() => ({}))) as { recovery_codes?: string[] };
+
     logger.info({ event: "2fa.activate.success", userId: session.userId });
-    return NextResponse.json({ ok: true }, { status: 200 });
+    return NextResponse.json(
+      { ok: true, recovery_codes: data.recovery_codes ?? [] },
+      { status: 200 },
+    );
   } catch (error) {
     logger.error({ event: "2fa.activate.error", err: error instanceof Error ? error.message : error });
     return NextResponse.json({ error: "Error de conexión." }, { status: 502 });

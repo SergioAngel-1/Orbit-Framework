@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
-    rateLimit: { name: "2fa_setup", limit: 5, windowSeconds: 60 },
+    rateLimit: { name: "2fa_setup", limit: 5, windowSeconds: 60, strict: true },
   });
   if (blocked) return blocked;
 

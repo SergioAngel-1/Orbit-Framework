@@ -303,7 +303,13 @@
     "verifying": "Verifying…",
     "qrcode": "QR code",
     "verifyError": "Invalid code. Try again.",
-    "activated": "2FA activated successfully."
+    "activated": "2FA activated successfully.",
+    "recoveryTitle": "Recovery codes",
+    "recoveryIntro": "Save these codes somewhere safe. Each one works once to sign in if you lose your device.",
+    "recoveryWarning": "You will not see these codes again. Copy them now.",
+    "recoveryDone": "I've saved them",
+    "disablePrompt": "Enter a code from your authenticator app to disable 2FA:",
+    "disableCodeRequired": "A valid code is required to disable 2FA."
   },
   "account": {
     "myAccount": "My account",

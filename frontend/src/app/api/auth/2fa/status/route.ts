@@ -16,7 +16,10 @@ export async function GET() {
   try {
     const res = await fetch(
       `${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-status/${session.userId}`,
-      { cache: "no-store" },
+      {
+        cache: "no-store",
+        headers: { "X-HWE-Internal-Secret": process.env.HWE_REVALIDATION_SECRET ?? "" },
+      },
     );
     const data = await res.json() as { enabled: boolean };
     return NextResponse.json({ enabled: data.enabled }, { status: 200 });

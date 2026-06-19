@@ -4,6 +4,7 @@ import { Link, redirect } from "@/i18n/navigation";
 import { getSession } from "@/lib/auth/session";
 import { getOrder, isOrderPaid } from "@/lib/payments/orders";
 import { formatStoreAmount } from "@/lib/format";
+import { PurchaseTracker } from "@/components/analytics/purchase-tracker";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,7 @@ export default async function CheckoutReturnPage({
         </p>
       ) : paid ? (
         <div className="rounded-xl border border-green-200 bg-green-50 p-8 dark:border-green-900 dark:bg-green-950">
+          <PurchaseTracker orderId={ref!} amount={Number(total)} currency={currency} />
           <h2 className="text-xl font-bold text-green-800 dark:text-green-200">
             {t("return.paid")}
           </h2>

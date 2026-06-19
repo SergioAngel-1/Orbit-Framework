@@ -24,7 +24,7 @@ const EPHEMERAL_SECRET = new TextEncoder().encode(
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
-    rateLimit: { name: "login", limit: 5, windowSeconds: 60 },
+    rateLimit: { name: "login", limit: 5, windowSeconds: 60, strict: true },
   });
   if (blocked) return blocked;
 
@@ -69,7 +69,10 @@ export async function POST(request: Request) {
   try {
     const statusRes = await fetch(
       `${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-status/${user.databaseId}`,
-      { cache: "no-store" },
+      {
+        cache: "no-store",
+        headers: { "X-HWE-Internal-Secret": process.env.HWE_REVALIDATION_SECRET ?? "" },
+      },
     );
     if (statusRes.ok) {
       const statusData = await statusRes.json() as { enabled: boolean };

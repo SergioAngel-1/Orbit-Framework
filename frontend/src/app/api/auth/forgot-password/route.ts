@@ -10,7 +10,7 @@ const FRONTEND_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
-    rateLimit: { name: "forgot_password", limit: 3, windowSeconds: 300 },
+    rateLimit: { name: "forgot_password", limit: 3, windowSeconds: 300, strict: true },
   });
   if (blocked) return blocked;
 

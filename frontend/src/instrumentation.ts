@@ -13,6 +13,10 @@
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Guard de arranque: aborta en producción con secretos por defecto/cortos.
+    const { assertSecrets } = await import("@/lib/security/secret-guard");
+    assertSecrets();
+
     const { logger } = await import("@/lib/observability/logger");
     logger.info({ event: "server_start" }, "Frontend iniciado");
   }

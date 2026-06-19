@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { storeFetch } from "@/lib/woocommerce/store-client";
+import { wcFetch } from "@/lib/woocommerce/client";
+import { getSession } from "@/lib/auth/session";
 import {
   readCartToken,
   writeCartToken,
@@ -28,12 +30,23 @@ export const dynamic = "force-dynamic";
  *
  * NOTA (Fase 6): el cobro real se confirma vía webhook de la pasarela. Aquí se
  * crea el pedido; la integración de pago server-side llega en la Fase 6.
+ *
+ * Vinculación de propietario: si hay sesión, el pedido se asocia al usuario por
+ * DOS vías complementarias (defensa en profundidad):
+ *   1. Se reenvía el JWT a la Store API (Woo liga el `customer_id` de forma
+ *      nativa cuando la petición está autenticada), y
+ *   2. tras crear el pedido se confirma/fija el `customer_id` vía wc/v3.
+ * Sin esto, el checkout generaría pedidos de invitado (`customer_id = 0`) y las
+ * comprobaciones anti-IDOR de pagos/pedidos/cuenta nunca casarían con el comprador.
  */
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
     rateLimit: { name: "checkout", limit: 10, windowSeconds: 60 },
   });
   if (blocked) return blocked;
+
+  // Sesión opcional: el checkout de invitado sigue permitido (session === null).
+  const session = await getSession();
 
   let body: unknown;
   try {
@@ -77,6 +90,8 @@ export async function POST(request: Request) {
       method: "POST",
       body: parsed.data,
       cartToken: token,
+      // Vía 1: si hay sesión, autenticamos la creación del pedido como el usuario.
+      authToken: session?.token,
     });
 
     // El carrito queda consumido: reiniciamos el token para empezar uno nuevo.
@@ -86,11 +101,34 @@ export async function POST(request: Request) {
       await clearCartToken();
     }
 
+    // Vía 2 (salvaguarda): garantizamos que el pedido quede ligado al usuario.
+    // Si la Store API ya lo asoció (vía 1), este PUT es idempotente; si no lo
+    // hizo, lo corrige aquí. Un fallo aquí NO invalida el pedido ya creado:
+    // se registra para conciliación manual en vez de romper la compra.
+    if (session && data.order_id) {
+      try {
+        await ensureOrderOwner(data.order_id, Number(session.userId));
+      } catch (linkError) {
+        logger.error(
+          {
+            event: "checkout.link_owner_failed",
+            order_id: data.order_id,
+            userId: session.userId,
+            err: linkError instanceof Error ? linkError.message : linkError,
+          },
+          "No se pudo ligar el pedido al cliente; requiere conciliación",
+        );
+      }
+    }
+
     if (useIdempotency) {
       await storeIdempotentResult(idemKey, data, 201);
     }
 
-    logger.info({ event: "checkout.success", order_id: data.order_id }, "Pedido creado en checkout");
+    logger.info(
+      { event: "checkout.success", order_id: data.order_id, userId: session?.userId ?? null },
+      "Pedido creado en checkout",
+    );
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
     // Libera la reserva para permitir un reintento legítimo.
@@ -100,4 +138,27 @@ export async function POST(request: Request) {
     logger.error({ event: "checkout.error", err: error instanceof Error ? error.message : error }, "Error en checkout");
     return handleApiError(error);
   }
+}
+
+/**
+ * Garantiza que el pedido pertenezca al usuario indicado. Solo escribe si el
+ * pedido sigue como invitado (`customer_id = 0`) o pertenece a otro id, de modo
+ * que sea idempotente cuando la Store API ya lo asoció correctamente.
+ */
+async function ensureOrderOwner(orderId: number, userId: number): Promise<void> {
+  if (!Number.isInteger(userId) || userId <= 0) return;
+
+  const order = await wcFetch<{ customer_id: number }>(`/orders/${orderId}`);
+  if (order.customer_id === userId) {
+    return; // Ya está ligado (probablemente vía la Store API autenticada).
+  }
+
+  await wcFetch(`/orders/${orderId}`, {
+    method: "PUT",
+    body: { customer_id: userId },
+  });
+  logger.info(
+    { event: "checkout.link_owner", order_id: orderId, userId },
+    "Pedido ligado al cliente autenticado",
+  );
 }

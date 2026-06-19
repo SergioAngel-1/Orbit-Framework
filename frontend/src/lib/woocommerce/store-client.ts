@@ -24,6 +24,13 @@ export interface StoreRequestOptions {
   body?: unknown;
   /** Token de carrito existente (de la cookie). */
   cartToken?: string | null;
+  /**
+   * JWT de acceso del usuario autenticado (WPGraphQL JWT Auth). Si se envía,
+   * WooCommerce asocia las operaciones (incluido el pedido del checkout) al
+   * `customer_id` real en vez de tratarlas como invitado. Es opcional: el
+   * checkout de invitado sigue funcionando sin él.
+   */
+  authToken?: string | null;
   timeoutMs?: number;
 }
 
@@ -37,7 +44,7 @@ export async function storeFetch<T>(
   path: string,
   options: StoreRequestOptions = {},
 ): Promise<StoreApiResult<T>> {
-  const { method = "GET", body, cartToken, timeoutMs = 10_000 } = options;
+  const { method = "GET", body, cartToken, authToken, timeoutMs = 10_000 } = options;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -45,6 +52,10 @@ export async function storeFetch<T>(
   };
   if (cartToken) {
     headers["Cart-Token"] = cartToken;
+  }
+  if (authToken) {
+    // Autentica la operación como el usuario → Woo liga el pedido a su cuenta.
+    headers["Authorization"] = `Bearer ${authToken}`;
   }
 
   const controller = new AbortController();

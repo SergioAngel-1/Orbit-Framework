@@ -105,21 +105,33 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 
 ## 5. Estado del proyecto
 
+> Actualizado: **2026-06-18**. Estados realistas (✅ completo · 🟡 parcial · 🧪 stub).
+> Para el detalle de lo pendiente, ver `AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`.
+
 | Área | Estado |
 |------|--------|
 | Seguridad base (cabeceras, CORS, hardening, Redis) | ✅ |
 | Autenticación JWT (cookies httpOnly + refresh) | ✅ |
 | Proxy inverso a WooCommerce (BFF, ck/cs server-only) | ✅ |
 | CSRF + rate-limit + idempotencia | ✅ |
-| E-commerce (catálogo, carrito, checkout, cuenta) | ✅ |
+| E-commerce (catálogo, carrito, **checkout ligado a cliente**, cuenta) | ✅ |
+| Cuenta avanzada (wishlist, reseñas, direcciones — **meta atómica con lock**) | ✅ |
+| Cupones y envío (Store API) | ✅ |
+| Verificación de email (**opcional**, con expiración de token) | 🟡 (no bloqueante) |
+| 2FA TOTP (**secreto cifrado AES-GCM + códigos de recuperación**) | ✅ |
 | SEO + i18n (next-intl, sitemap, hreflang, JSON-LD) | ✅ |
-| Pagos (capa de pasarelas enchufable Wompi/PayU/Bold…) | ✅ |
-| Calidad / CI/CD / observabilidad | ✅ |
+| Analítica + consentimiento (Plausible/GA4 con opt-in + eventos e-commerce) | ✅ |
+| Pagos: capa agnóstica + `noop` funcional | ✅ |
+| Pagos: pasarelas reales (Wompi/PayU/Bold) | 🧪 stubs (pendiente integrar 1 real) |
+| Webhooks de pedido (transición real + dispatcher de efectos) | 🟡 (email al cliente lo hace Woo; ganchos ERP por conectar) |
+| HWE Control Center (config central + secretos cifrados) | ✅ |
+| Calidad / CI/CD / observabilidad (Sentry cableado) | 🟡 (e2e con WP real pendiente) |
 | Empaquetado comercial (licencia, docs, white-label) | ✅ |
 
-El proyecto está **completo** y listo para comercializar. No hay fases pendientes.
-Cualquier trabajo futuro es mantenimiento, integración de una pasarela real o mejora
-puntual de características existentes.
+El núcleo está **listo para producción**. Lo pendiente es endurecimiento adicional,
+una pasarela real, cobertura de tests e2e con la pila WP, y mejoras puntuales descritas
+en el plan. El flujo crítico de compra (login → carrito → checkout → pago → pedido en
+cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 
 ---
 
@@ -143,10 +155,25 @@ puntual de características existentes.
 - **Barrera de Origin** para escrituras `/api/*`: `frontend/src/middleware.ts`.
 - **CSRF** (signed double-submit): `lib/security/csrf.ts`; el cliente obtiene el token en
   `app/api/csrf/route.ts` y lo reenvía en `X-CSRF-Token`.
-- **Rate-limit** (Redis, ventana fija, fail-open): `lib/security/rate-limit.ts` + `lib/redis/client.ts`.
+- **Rate-limit** (Redis, ventana fija): `lib/security/rate-limit.ts` + `lib/redis/client.ts`.
+  Fail-open por defecto; con `strict: true` usa un **fallback en memoria** si Redis cae
+  (se aplica en auth: login/registro/2FA/forgot/reset).
 - **Idempotencia** (checkout): `lib/security/idempotency.ts`.
 - **Guard unificado** (Origin → CSRF → rate-limit) aplicado en cada escritura:
   `lib/api/guard.ts`. Si añades un endpoint de escritura, **úsalo**.
+- **Guard de arranque**: `lib/security/secret-guard.ts` (llamado desde `instrumentation.ts`)
+  **aborta el boot en producción** si los secretos siguen con valores por defecto o son cortos.
+- **IP del cliente anti-spoofing**: `lib/http/request-ip.ts` usa `TRUSTED_PROXY_COUNT`
+  (por defecto 1) para no fiarse del primer valor (falsificable) de `X-Forwarded-For`.
+  Equivalente en WP: constante `HWE_TRUSTED_PROXY_COUNT` en `rate-limit.php`.
+- **Revocación de sesión**: `lib/auth/revocation.ts` (blocklist en Redis). `logout` revoca el
+  access token; `getSession` lo comprueba. `app/api/auth/logout-all` rota el secreto JWT del
+  usuario en WP (invalida refresh tokens). Fail-open si Redis no responde.
+- **Anti-replay de webhooks**: `lib/security/replay.ts` (`markEventOnce`) en los webhooks de
+  pago y de Woo (`order-created/updated`), más rate-limit por IP. Defensa frente a reenvío de
+  eventos firmados capturados.
+- **Secretos del Control Center**: cifrados con **AES-256-GCM** y clave dedicada
+  `HWE_SECRETS_KEY` (desacoplada del JWT); lectura compatible con el formato legacy CBC.
 
 ### 6.4 Autenticación (JWT)
 - Endpoints BFF: `app/api/auth/{login,register,refresh,logout,me}/route.ts`.
@@ -157,6 +184,28 @@ puntual de características existentes.
   `fetchGraphQLAsViewer`).
 - **Refresh transparente**: lo hace `middleware.ts` (renueva el token caducado y lo propaga
   al request actual). Operaciones GraphQL de auth en `lib/auth/mutations.ts`.
+- **Endpoints WP propios** (mu-plugin `backend/.../hwe-auth.php`, namespace `hwe/v1`):
+  recuperación/reseteo de contraseña, verificación de email y 2FA. El BFF se autentica
+  ante ellos con `Authorization: Bearer <authToken>`.
+
+#### 6.4.1 Verificación de email (opcional, no bloqueante)
+- Política **opcional**: se dispara el email tras el registro (`register/route.ts` →
+  WP `send-verification`, best-effort) pero **no** bloquea compra ni login.
+- Token con **expiración (24 h)** y timestamp en WP. UI: `app/[locale]/verify-email`,
+  reenvío en `resend-verification`. Estado expuesto en `me` (`email_verified`).
+- Para hacerla obligatoria en el futuro: bloquear checkout/zona privada si `!email_verified`.
+
+#### 6.4.2 2FA (TOTP)
+- Flujo: `2fa/setup` (genera secreto) → `2fa/activate` (verifica código y **devuelve los
+  códigos de recuperación UNA vez**) → en login, si está activo, `login` responde
+  `requires_2fa` + token efímero (5 min) y el cliente completa en `verify-2fa`.
+- El **secreto TOTP se cifra en reposo** en WP con **AES-256-GCM** (`hwe-auth.php`,
+  clave dedicada `HWE_2FA_KEY` con fallback a `AUTH_KEY`). Verificación TOTP con `otplib` v13.
+- **Códigos de recuperación**: 10 por usuario, guardados **hasheados**; se consumen de uno
+  en uno (`2fa-recovery/verify`). Sirven en `verify-2fa` (campo `recoveryCode`).
+- **`2fa-status` no es público**: requiere el secreto interno del BFF
+  (`X-HWE-Internal-Secret` = `HWE_REVALIDATION_SECRET`) o que el usuario consulte su propio id.
+- **Desactivar exige re-verificación** (código TOTP o de recuperación), no solo sesión.
 
 ### 6.5 WooCommerce (catálogo, carrito, pedidos, cuenta)
 - **Dos APIs, dos clientes** (clave para no confundirse):
@@ -172,10 +221,27 @@ puntual de características existentes.
 - UI de tienda: `components/products/`, `components/cart/` (estado global en
   `cart-context.tsx`), `components/checkout/`, `components/account/`.
 - Cliente del carrito en el navegador: `lib/client/store-api.ts` (+ `lib/client/csrf.ts`).
+- **Pedido ligado al cliente (anti-pedido-invitado):** el checkout reenvía el JWT a la
+  Store API (`storeFetch({ authToken })`) y, como salvaguarda idempotente, `ensureOrderOwner()`
+  fija `customer_id` vía wc/v3 tras crear el pedido. Sin esto el comprador no podría pagar/ver
+  su pedido (las comprobaciones anti-IDOR exigen `order.customer_id === session.userId`).
+- **Cuenta avanzada:** wishlist, reseñas (`reviews/[productId]`), direcciones, cupones y envío.
+  Wishlist y direcciones guardan en `customer.meta_data`; sus secciones de
+  lectura-modificación-escritura van **serializadas por usuario** con `lib/security/lock.ts`
+  (lock Redis `SET NX`, fail-open) para evitar lost-update concurrente.
 
 ### 6.6 Revalidación on-demand (catálogo siempre fresco)
 - WooCommerce envía un webhook a `app/api/revalidate/route.ts`, que **verifica la firma
   HMAC** (`lib/security/webhook.ts`) y hace `revalidateTag("products")`.
+
+### 6.6.1 Webhooks de pedido y efectos
+- `app/api/webhooks/woocommerce/order-{created,updated}/route.ts` verifican la firma de Woo y
+  delegan en `lib/woocommerce/order-events.ts`.
+- **Transición real**: `recordAndDiffStatus()` persiste el último estado en Redis para calcular
+  el cambio (el payload de Woo solo trae el estado actual).
+- `dispatchOrderEffects()` centraliza los efectos. **Los emails AL CLIENTE los envía
+  WooCommerce de forma nativa** (no los dupliques aquí). Este dispatcher es para integraciones
+  operativas (ERP/Slack/cola) vía `ORDER_NOTIFICATION_WEBHOOK_URL` (opcional).
 
 ### 6.7 SEO + i18n
 - **Routing por idioma**: todo bajo `app/[locale]/`. `es` sin prefijo (canónico), `en` en
@@ -186,8 +252,11 @@ puntual de características existentes.
   `components/i18n/locale-switcher.tsx`.
 - **SEO**: `app/sitemap.ts` (URLs + hreflang), `app/robots.ts`, `app/manifest.ts`,
   metadatos + JSON-LD en `app/[locale]/layout.tsx` y en la ficha de producto.
-- **Analítica/consentimiento**: `components/analytics/` (banner opt-in; el script real de
-  GA4/Plausible aún es un stub por cablear).
+- **Analítica/consentimiento**: `components/analytics/` (banner opt-in). El script se carga
+  **solo tras consentimiento**; soporta **Plausible** (recomendado) y **GA4** según
+  `NEXT_PUBLIC_ANALYTICS_PROVIDER`. Eventos e-commerce con `trackEvent()`
+  (`add_to_cart` en `cart-context`, `purchase` en `checkout/return` vía `PurchaseTracker`).
+  Los hosts del proveedor se autorizan en la CSP de `next.config.mjs` (`getAnalyticsHosts`).
 
 ### 6.8 Pagos (Fase 7 — capa de pasarelas agnóstica)
 - **Contrato e implementación** en `lib/payments/`: `types.ts` (`PaymentProvider`,
@@ -259,9 +328,17 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 - **Rate-limit es fail-open**: si Redis cae, deja pasar (es mitigación, no barrera dura).
 - **El refresh token de WPGraphQL JWT no rota**: la invalidación global se hace rotando el
   "user secret" en WordPress. Documentado en el plan (Fase 2).
-- **`prose` (tipografía) no está instalado**: la descripción de producto se ve sin estilos
-  enriquecidos hasta añadir `@tailwindcss/typography`. No es un bug.
-- **Stripe/PayPal NO se usan**: la Fase 7 es una capa agnóstica para pasarelas LATAM.
+- **`@tailwindcss/typography` YA está instalado** (en `devDependencies`): `prose` está
+  disponible para las descripciones de producto. *(Corrige una nota antigua que decía lo contrario.)*
+- **Sentry YA está cableado**: `sentry.{client,server,edge}.config.ts` + `src/instrumentation.ts`.
+  El logger usa `pino` con eventos estructurados.
+- **Stripe/PayPal NO se usan**: la capa de pagos es agnóstica para pasarelas LATAM; solo
+  `noop` está implementado de extremo a extremo (las reales son stubs).
+- **El secreto interno del BFF** para llamadas server-to-server protegidas (p. ej. `2fa-status`)
+  es `HWE_REVALIDATION_SECRET`, enviado en la cabecera `X-HWE-Internal-Secret`.
+- **No dupliques emails transaccionales**: WooCommerce ya los envía al cambiar el estado del
+  pedido (ver `woocommerce-email-branding.php`). El dispatcher de `order-events` es para
+  integraciones, no para correos al cliente.
 
 ---
 

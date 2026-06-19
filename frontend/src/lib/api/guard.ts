@@ -22,6 +22,8 @@ export interface GuardOptions {
     windowSeconds: number;
     /** Identificador adicional (p. ej. userId) para limitar también por usuario. */
     extraId?: string;
+    /** Modo estricto: usa fallback en memoria si Redis cae (recomendado en auth). */
+    strict?: boolean;
   };
 }
 
@@ -44,11 +46,11 @@ export async function guardMutation(
 
   // 3) Rate-limit (por IP, y opcionalmente por usuario).
   if (options.rateLimit) {
-    const { name, limit, windowSeconds, extraId } = options.rateLimit;
+    const { name, limit, windowSeconds, extraId, strict } = options.rateLimit;
     const ip = getClientIp(request);
     const identifier = extraId ? `${name}:${ip}:${extraId}` : `${name}:${ip}`;
 
-    const result = await rateLimit(identifier, limit, windowSeconds);
+    const result = await rateLimit(identifier, limit, windowSeconds, { strict });
     if (!result.success) {
       return NextResponse.json(
         { error: "Demasiadas peticiones. Inténtalo más tarde." },

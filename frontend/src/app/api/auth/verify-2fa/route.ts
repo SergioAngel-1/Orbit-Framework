@@ -28,27 +28,34 @@ interface EphemeralPayload {
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
-    rateLimit: { name: "verify_2fa", limit: 5, windowSeconds: 60 },
+    rateLimit: { name: "verify_2fa", limit: 5, windowSeconds: 60, strict: true },
   });
   if (blocked) return blocked;
 
   let body: { ephemeralToken?: string; code?: string };
   try {
-    body = await request.json() as { ephemeralToken?: string; code?: string };
+    body = await request.json() as { ephemeralToken?: string; code?: string; recoveryCode?: string };
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  if (!body.ephemeralToken || !body.code) {
+  const usingRecovery = !!body.recoveryCode;
+
+  if (!body.ephemeralToken || (!body.code && !body.recoveryCode)) {
     return NextResponse.json({ error: "Token y código requeridos." }, { status: 422 });
   }
 
-  const parsed = twoFactorCodeSchema.safeParse({ code: body.code });
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Código inválido.", details: parsed.error.flatten().fieldErrors },
-      { status: 422 },
-    );
+  // Solo validamos el formato TOTP cuando no se usa un código de recuperación.
+  let totpCode: string | null = null;
+  if (!usingRecovery) {
+    const parsed = twoFactorCodeSchema.safeParse({ code: body.code });
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Código inválido.", details: parsed.error.flatten().fieldErrors },
+        { status: 422 },
+      );
+    }
+    totpCode = parsed.data.code;
   }
 
   // Verify ephemeral token
@@ -67,7 +74,10 @@ export async function POST(request: Request) {
   try {
     const statusRes = await fetch(
       `${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-status/${ephemeral.userId}`,
-      { cache: "no-store" },
+      {
+        cache: "no-store",
+        headers: { "X-HWE-Internal-Secret": process.env.HWE_REVALIDATION_SECRET ?? "" },
+      },
     );
     if (!statusRes.ok) {
       return NextResponse.json({ error: "Error de verificación." }, { status: 502 });
@@ -77,29 +87,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "2FA no está habilitado para esta cuenta." }, { status: 400 });
     }
 
-    // Get the secret to verify
-    const secretRes = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-secret`, {
-      headers: {
-        Authorization: `Bearer ${ephemeral.authToken}`,
-      },
-      cache: "no-store",
-    });
-    if (!secretRes.ok) {
-      return NextResponse.json({ error: "Error al obtener configuración 2FA." }, { status: 502 });
-    }
-    const secretData = await secretRes.json() as { secret: string | null; enabled: boolean };
-    if (!secretData.secret) {
-      return NextResponse.json({ error: "2FA no está configurado." }, { status: 400 });
-    }
+    if (usingRecovery) {
+      // Vía código de recuperación: WP valida y CONSUME el código (un solo uso).
+      const recRes = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-recovery/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${ephemeral.authToken}` },
+        body: JSON.stringify({ code: body.recoveryCode }),
+        cache: "no-store",
+      });
+      if (!recRes.ok) {
+        logger.warn({ event: "2fa.verify_login.invalid_recovery", userId: ephemeral.userId }, "Código de recuperación inválido");
+        return NextResponse.json({ error: "Código de recuperación inválido." }, { status: 401 });
+      }
+    } else {
+      // Vía TOTP: obtener el secreto (descifrado por WP) y verificar.
+      const secretRes = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-secret`, {
+        headers: {
+          Authorization: `Bearer ${ephemeral.authToken}`,
+        },
+        cache: "no-store",
+      });
+      if (!secretRes.ok) {
+        return NextResponse.json({ error: "Error al obtener configuración 2FA." }, { status: 502 });
+      }
+      const secretData = await secretRes.json() as { secret: string | null; enabled: boolean };
+      if (!secretData.secret) {
+        return NextResponse.json({ error: "2FA no está configurado." }, { status: 400 });
+      }
 
-    const totpResult = await verifyTotp({
-      token: parsed.data.code,
-      secret: secretData.secret,
-    });
+      const totpResult = await verifyTotp({
+        token: totpCode!,
+        secret: secretData.secret,
+      });
 
-    if (!totpResult.valid) {
-      logger.warn({ event: "2fa.verify_login.invalid_code" }, "Código 2FA inválido en login");
-      return NextResponse.json({ error: "Código inválido." }, { status: 401 });
+      if (!totpResult.valid) {
+        logger.warn({ event: "2fa.verify_login.invalid_code" }, "Código 2FA inválido en login");
+        return NextResponse.json({ error: "Código inválido." }, { status: 401 });
+      }
     }
 
     // Set session cookies

@@ -28,7 +28,33 @@ export function useConsent(): ConsentContextValue {
 }
 
 declare global {
-  interface Window { dataLayer?: unknown[]; }
+  interface Window {
+    dataLayer?: unknown[];
+    plausible?: (event: string, options?: { props?: Record<string, unknown>; revenue?: { currency: string; amount: number } }) => void;
+  }
+}
+
+/**
+ * Envía un evento de analítica al proveedor activo (Plausible o GA4), respetando
+ * el consentimiento: si el script no se ha cargado (sin opt-in), es un no-op.
+ *
+ * Eventos e-commerce recomendados: `add_to_cart`, `begin_checkout`, `purchase`.
+ */
+export function trackEvent(
+  name: string,
+  props: Record<string, unknown> = {},
+  revenue?: { currency: string; amount: number },
+): void {
+  if (typeof window === "undefined") return;
+  const provider = process.env.NEXT_PUBLIC_ANALYTICS_PROVIDER;
+
+  if (provider === "plausible" && typeof window.plausible === "function") {
+    window.plausible(name, revenue ? { props, revenue } : { props });
+    return;
+  }
+  if (provider === "ga4" && Array.isArray(window.dataLayer)) {
+    window.dataLayer.push({ event: name, ...props, ...(revenue ?? {}) });
+  }
 }
 
 /**

@@ -308,7 +308,13 @@
     "verifying": "Verificando…",
     "qrcode": "Código QR",
     "verifyError": "Código inválido. Intenta de nuevo.",
-    "activated": "2FA activado correctamente."
+    "activated": "2FA activado correctamente.",
+    "recoveryTitle": "Códigos de recuperación",
+    "recoveryIntro": "Guarda estos códigos en un lugar seguro. Cada uno sirve una sola vez para entrar si pierdes tu dispositivo.",
+    "recoveryWarning": "No volverás a ver estos códigos. Cópialos ahora.",
+    "recoveryDone": "Ya los he guardado",
+    "disablePrompt": "Introduce un código de tu app de autenticación para desactivar 2FA:",
+    "disableCodeRequired": "Necesitas un código válido para desactivar 2FA."
   },
   "account": {
     "myAccount": "Mi cuenta",

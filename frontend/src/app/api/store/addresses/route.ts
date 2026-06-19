@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { addressSchema, addressUpdateSchema, addressDeleteSchema } from "@/lib/validation/address";
+import { withLock } from "@/lib/security/lock";
 import { logger } from "@/lib/observability/logger";
 import type { WooCustomer } from "@/types/woocommerce";
 import type { SavedAddress } from "@/types/address";
@@ -57,24 +58,27 @@ export async function POST(request: Request) {
 
   try {
     const session = await requireSession();
-    const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
-    const addresses = parseAddresses(customer);
-    const newAddress = { ...parsed.data };
+    const newAddress = await withLock(`addresses:${session.userId}`, async () => {
+      const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+      const addresses = parseAddresses(customer);
+      const addr = { ...parsed.data };
 
-    // If marked as default, unmark others
-    if (newAddress.is_default) {
-      addresses.forEach((a) => { a.is_default = false; });
-    } else if (addresses.length === 0) {
-      newAddress.is_default = true;
-    }
+      // If marked as default, unmark others
+      if (addr.is_default) {
+        addresses.forEach((a) => { a.is_default = false; });
+      } else if (addresses.length === 0) {
+        addr.is_default = true;
+      }
 
-    addresses.push(newAddress);
+      addresses.push(addr);
 
-    await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
-      method: "PUT",
-      body: {
-        meta_data: [{ key: ADDRESSES_META_KEY, value: JSON.stringify(addresses) }],
-      },
+      await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
+        method: "PUT",
+        body: {
+          meta_data: [{ key: ADDRESSES_META_KEY, value: JSON.stringify(addresses) }],
+        },
+      });
+      return addr;
     });
 
     logger.info({ event: "addresses.create", userId: session.userId });
@@ -108,28 +112,35 @@ export async function PUT(request: Request) {
 
   try {
     const session = await requireSession();
-    const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
-    const addresses = parseAddresses(customer);
+    const result = await withLock(`addresses:${session.userId}`, async () => {
+      const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+      const addresses = parseAddresses(customer);
 
-    if (parsed.data.index >= addresses.length || parsed.data.index < 0) {
+      if (parsed.data.index >= addresses.length || parsed.data.index < 0) {
+        return { notFound: true as const };
+      }
+
+      const updated = { ...parsed.data.address };
+      if (updated.is_default) {
+        addresses.forEach((a) => { a.is_default = false; });
+      }
+      addresses[parsed.data.index] = updated;
+
+      await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
+        method: "PUT",
+        body: {
+          meta_data: [{ key: ADDRESSES_META_KEY, value: JSON.stringify(addresses) }],
+        },
+      });
+      return { notFound: false as const, updated };
+    });
+
+    if (result.notFound) {
       return NextResponse.json({ error: "Dirección no encontrada." }, { status: 404 });
     }
 
-    const updated = { ...parsed.data.address };
-    if (updated.is_default) {
-      addresses.forEach((a) => { a.is_default = false; });
-    }
-    addresses[parsed.data.index] = updated;
-
-    await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
-      method: "PUT",
-      body: {
-        meta_data: [{ key: ADDRESSES_META_KEY, value: JSON.stringify(addresses) }],
-      },
-    });
-
     logger.info({ event: "addresses.update", userId: session.userId, index: parsed.data.index });
-    return NextResponse.json(updated, { status: 200 });
+    return NextResponse.json(result.updated, { status: 200 });
   } catch (error) {
     logger.error({ event: "addresses.update.error", err: error instanceof Error ? error.message : error });
     return handleApiError(error);
@@ -159,26 +170,33 @@ export async function DELETE(request: Request) {
 
   try {
     const session = await requireSession();
-    const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
-    const addresses = parseAddresses(customer);
+    const result = await withLock(`addresses:${session.userId}`, async () => {
+      const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+      const addresses = parseAddresses(customer);
 
-    if (parsed.data.index >= addresses.length || parsed.data.index < 0) {
+      if (parsed.data.index >= addresses.length || parsed.data.index < 0) {
+        return { notFound: true as const };
+      }
+
+      addresses.splice(parsed.data.index, 1);
+
+      // If default was removed, set first as default
+      if (addresses.length > 0 && !addresses.some((a) => a.is_default)) {
+        addresses[0].is_default = true;
+      }
+
+      await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
+        method: "PUT",
+        body: {
+          meta_data: [{ key: ADDRESSES_META_KEY, value: JSON.stringify(addresses) }],
+        },
+      });
+      return { notFound: false as const };
+    });
+
+    if (result.notFound) {
       return NextResponse.json({ error: "Dirección no encontrada." }, { status: 404 });
     }
-
-    addresses.splice(parsed.data.index, 1);
-
-    // If default was removed, set first as default
-    if (addresses.length > 0 && !addresses.some((a) => a.is_default)) {
-      addresses[0].is_default = true;
-    }
-
-    await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
-      method: "PUT",
-      body: {
-        meta_data: [{ key: ADDRESSES_META_KEY, value: JSON.stringify(addresses) }],
-      },
-    });
 
     logger.info({ event: "addresses.delete", userId: session.userId, index: parsed.data.index });
     return NextResponse.json({ ok: true }, { status: 200 });

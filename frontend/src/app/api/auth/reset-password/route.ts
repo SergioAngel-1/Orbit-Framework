@@ -9,7 +9,7 @@ const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", 
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
-    rateLimit: { name: "reset_password", limit: 5, windowSeconds: 300 },
+    rateLimit: { name: "reset_password", limit: 5, windowSeconds: 300, strict: true },
   });
   if (blocked) return blocked;
 

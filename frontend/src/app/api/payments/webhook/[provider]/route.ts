@@ -2,6 +2,9 @@ import "@/lib/payments/providers"; // efecto secundario: registra las pasarelas
 import { NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api/errors";
 import { getProvider } from "@/lib/payments/registry";
+import { rateLimit } from "@/lib/security/rate-limit";
+import { markEventOnce } from "@/lib/security/replay";
+import { getClientIp } from "@/lib/http/request-ip";
 import { logger } from "@/lib/observability/logger";
 import {
   getOrder,
@@ -28,6 +31,12 @@ export async function POST(
 ) {
   const { provider: providerId } = await params;
 
+  // Rate-limit por IP (defensa en profundidad; el endpoint es server-to-server).
+  const rl = await rateLimit(`pay_webhook:${getClientIp(request)}`, 60, 60);
+  if (!rl.success) {
+    return NextResponse.json({ error: "Demasiadas peticiones." }, { status: 429 });
+  }
+
   // Cuerpo CRUDO: la firma se calcula sobre los bytes exactos recibidos.
   const rawBody = await request.text();
 
@@ -46,6 +55,13 @@ export async function POST(
     }
 
     logger.info({ event: "payments.webhook.verified", provider: providerId, reference: verification.reference, status: verification.status }, "Webhook verificado correctamente");
+
+    // Anti-replay: descartar reenvíos del MISMO evento firmado (ACK idempotente).
+    const fresh = await markEventOnce(`payments:${providerId}`, rawBody);
+    if (!fresh) {
+      logger.info({ event: "payments.webhook.replay", provider: providerId, reference: verification.reference }, "Webhook duplicado descartado");
+      return NextResponse.json({ received: true, applied: "duplicate" });
+    }
 
     const order = await getOrder(verification.reference);
 

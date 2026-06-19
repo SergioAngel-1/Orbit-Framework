@@ -26,6 +26,29 @@ function getWordPressOrigin() {
 const WP_ORIGIN = getWordPressOrigin();
 
 /**
+ * Orígenes del proveedor de analítica para autorizarlos en la CSP
+ * (`script-src` para cargar el script; `connect-src` para sus beacons).
+ * Solo se añaden si hay un proveedor configurado y con consentimiento real
+ * en runtime; en CSP listamos el host para que el navegador no bloquee.
+ */
+function getAnalyticsHosts() {
+  const provider = process.env.NEXT_PUBLIC_ANALYTICS_PROVIDER;
+  if (provider === "plausible") {
+    const host = process.env.NEXT_PUBLIC_PLAUSIBLE_HOST || "https://plausible.io";
+    return { script: [host], connect: [host] };
+  }
+  if (provider === "ga4") {
+    return {
+      script: ["https://www.googletagmanager.com"],
+      connect: ["https://www.google-analytics.com", "https://region1.google-analytics.com"],
+    };
+  }
+  return { script: [], connect: [] };
+}
+
+const ANALYTICS = getAnalyticsHosts();
+
+/**
  * Construye un `remotePattern` de next/image a partir del origen del CMS,
  * para permitir imágenes alojadas en el dominio de producción sin hardcodearlo.
  */
@@ -58,11 +81,11 @@ function wordpressImagePattern() {
 function buildContentSecurityPolicy() {
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
+    `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}${ANALYTICS.script.length ? " " + ANALYTICS.script.join(" ") : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data: blob: ${WP_ORIGIN}`,
+    `img-src 'self' data: blob: ${WP_ORIGIN} https://api.qrserver.com`,
     "font-src 'self' data:",
-    `connect-src 'self' ${WP_ORIGIN}${isProd ? "" : " ws: wss:"}`,
+    `connect-src 'self' ${WP_ORIGIN}${ANALYTICS.connect.length ? " " + ANALYTICS.connect.join(" ") : ""}${isProd ? "" : " ws: wss:"}`,
     "frame-ancestors 'none'",
     "frame-src 'none'",
     "object-src 'none'",

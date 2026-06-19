@@ -55,8 +55,29 @@ class SecretsStorage {
     // Cifrado / descifrado
     // -------------------------------------------------------------------------
 
+    /**
+     * Clave de cifrado actual (AES-256-GCM). DESACOPLADA del secreto JWT: rotar
+     * el JWT ya no inutiliza los secretos. Prioridad: HWE_SECRETS_KEY →
+     * AUTH_KEY → SECURE_AUTH_KEY → fallback.
+     */
     private static function encryptionKey(): string {
-        $source = '';
+        if (defined('HWE_SECRETS_KEY') && HWE_SECRETS_KEY) {
+            $source = HWE_SECRETS_KEY;
+        } elseif (defined('AUTH_KEY') && AUTH_KEY) {
+            $source = AUTH_KEY;
+        } elseif (defined('SECURE_AUTH_KEY') && SECURE_AUTH_KEY) {
+            $source = SECURE_AUTH_KEY;
+        } else {
+            $source = 'hwe-fallback-insecure-key';
+        }
+        return hash('sha256', 'hwe-secrets-v2:' . $source, true);
+    }
+
+    /**
+     * Clave LEGACY (AES-256-CBC) para descifrar secretos guardados antes de la
+     * migración a GCM. Se mantiene solo para lectura/migración transparente.
+     */
+    private static function legacyKey(): string {
         if (defined('GRAPHQL_JWT_AUTH_SECRET_KEY') && GRAPHQL_JWT_AUTH_SECRET_KEY) {
             $source = GRAPHQL_JWT_AUTH_SECRET_KEY;
         } elseif (defined('AUTH_KEY') && AUTH_KEY) {
@@ -72,23 +93,42 @@ class SecretsStorage {
             return '';
         }
         $key = self::encryptionKey();
-        $iv  = random_bytes(16);
-        $ciphertext = openssl_encrypt($plaintext, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
-        return base64_encode($iv . $ciphertext);
+        $iv  = random_bytes(12);
+        $tag = '';
+        $ciphertext = openssl_encrypt($plaintext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+        if ($ciphertext === false) {
+            return '';
+        }
+        // Formato v2: prefijo + base64(iv(12) . tag(16) . ciphertext).
+        return 'v2:' . base64_encode($iv . $tag . $ciphertext);
     }
 
     private static function decrypt(string $encoded): string {
         if ($encoded === '') {
             return '';
         }
-        $key  = self::encryptionKey();
-        $raw  = base64_decode($encoded, true);
+
+        // Formato v2 (GCM autenticado).
+        if (strpos($encoded, 'v2:') === 0) {
+            $raw = base64_decode(substr($encoded, 3), true);
+            if ($raw === false || strlen($raw) < 29) {
+                return '';
+            }
+            $iv         = substr($raw, 0, 12);
+            $tag        = substr($raw, 12, 16);
+            $ciphertext = substr($raw, 28);
+            $result     = openssl_decrypt($ciphertext, 'aes-256-gcm', self::encryptionKey(), OPENSSL_RAW_DATA, $iv, $tag);
+            return ($result === false) ? '' : $result;
+        }
+
+        // Legacy (AES-256-CBC, sin prefijo): base64(iv(16) . ciphertext).
+        $raw = base64_decode($encoded, true);
         if ($raw === false || strlen($raw) < 17) {
             return '';
         }
         $iv         = substr($raw, 0, 16);
         $ciphertext = substr($raw, 16);
-        $result     = openssl_decrypt($ciphertext, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+        $result     = openssl_decrypt($ciphertext, 'aes-256-cbc', self::legacyKey(), OPENSSL_RAW_DATA, $iv);
         return ($result === false) ? '' : $result;
     }
 

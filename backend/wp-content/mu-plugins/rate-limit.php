@@ -85,16 +85,27 @@ function hwe_check_rate_limit( array $cfg ): void {
 
 /* ---------------------------------------------------------------------------
  * Obtener IP del cliente considerando proxies inversos (Caddy, Nginx).
- * Solamente confía en X-Forwarded-For si viene de IPs de confianza.
- * En producción con Caddy, la IP real está en X-Forwarded-For.
+ *
+ * SEGURIDAD: el PRIMER valor de X-Forwarded-For lo controla el cliente (es
+ * falsificable). Cada proxy de confianza añade a la DERECHA la IP de su par.
+ * Con N proxies de confianza (HWE_TRUSTED_PROXY_COUNT, por defecto 1), la IP
+ * real del cliente es el valor a N posiciones del final. Tomar el primero a
+ * ciegas permitiría falsear la IP y evadir el rate-limit.
  * ------------------------------------------------------------------------ */
 function hwe_get_client_ip(): string {
-	// Si hay un proxy inverso de confianza
-	if ( isset( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
-		$ips = explode( ',', sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) );
-		$ip  = trim( $ips[0] );
-		if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-			return $ip;
+	$count = defined( 'HWE_TRUSTED_PROXY_COUNT' ) ? (int) HWE_TRUSTED_PROXY_COUNT : 1;
+
+	if ( $count > 0 && isset( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+		$ips = array_values( array_filter( array_map(
+			'trim',
+			explode( ',', sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) )
+		) ) );
+		if ( ! empty( $ips ) ) {
+			$idx = max( 0, count( $ips ) - $count );
+			$ip  = $ips[ $idx ];
+			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+				return $ip;
+			}
 		}
 	}
 	if ( isset( $_SERVER['REMOTE_ADDR'] ) ) {

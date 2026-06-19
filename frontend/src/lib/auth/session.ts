@@ -4,6 +4,7 @@ import { cache } from "react";
 import { fetchGraphQL, type GraphQLRequestOptions } from "@/lib/graphql-client";
 import { AUTH_COOKIE } from "./constants";
 import { verifyAuthToken } from "./jwt";
+import { isTokenRevoked } from "./revocation";
 import type { Session } from "@/types/auth";
 
 // ============================================================================
@@ -29,6 +30,11 @@ export const getSession = cache(async (): Promise<Session | null> => {
   }
   const payload = await verifyAuthToken(token);
   if (!payload) {
+    return null;
+  }
+  // Revocación: un token en la blocklist (logout) se rechaza aunque su firma
+  // siga siendo válida. Fail-open si Redis no responde.
+  if (await isTokenRevoked(token)) {
     return null;
   }
   return { userId: payload.userId, token };

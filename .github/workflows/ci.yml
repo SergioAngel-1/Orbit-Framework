@@ -85,14 +85,22 @@ jobs:
         run: npm ci
       - name: Instalar navegadores Playwright
         run: npx playwright install --with-deps chromium
+      # `next start` REQUIERE un build de producción previo: sin este paso el
+      # servidor no arranca y el job daría un falso verde / fallo intermitente.
+      - name: Build de producción
+        run: npm run build
+        env:
+          NEXT_PUBLIC_WORDPRESS_API_URL: http://localhost:8080/graphql
       - name: Arrancar servidor
         run: npx next start --port 3000 &
         env:
           NEXT_PUBLIC_WORDPRESS_API_URL: http://localhost:8080/graphql
       - name: Esperar servidor listo
-        run: npx wait-on http://localhost:3000/api/health --timeout 30000
+        run: npx wait-on http://localhost:3000/api/health --timeout 60000
       - name: Tests e2e
         run: npx playwright test
+        env:
+          NEXT_PUBLIC_WORDPRESS_API_URL: http://localhost:8080/graphql
       - name: Subir report HTML
         if: always()
         uses: actions/upload-artifact@v4
