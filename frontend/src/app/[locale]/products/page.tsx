@@ -1,7 +1,7 @@
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { getProducts, getCategories } from "@/lib/catalog/products";
-import { ProductGrid } from "@/components/products/product-grid";
+import { InfiniteProductGrid } from "@/components/products/infinite-product-grid";
 
 export const revalidate = 300;
 
@@ -12,6 +12,8 @@ export default async function ProductsPage({
 }) {
   const t = await getTranslations("products");
   const { search, after, category, minPrice, maxPrice, sort } = await searchParams;
+
+  const filters = { search, category, minPrice, maxPrice, sort };
 
   let products: Awaited<ReturnType<typeof getProducts>>["products"] = [];
   let pageInfo = { hasNextPage: false, endCursor: null as string | null };
@@ -26,17 +28,6 @@ export default async function ProductsPage({
   }
 
   const categories = await getCategories();
-
-  const nextHref = pageInfo.endCursor
-    ? `/products?${new URLSearchParams({
-        ...(search ? { search } : {}),
-        ...(category ? { category } : {}),
-        ...(minPrice ? { minPrice } : {}),
-        ...(maxPrice ? { maxPrice } : {}),
-        ...(sort ? { sort } : {}),
-        after: pageInfo.endCursor,
-      }).toString()}`
-    : null;
 
   return (
     <div>
@@ -133,19 +124,11 @@ export default async function ProductsPage({
           <p className="mt-2 text-sm">{t("errorHint")}</p>
         </div>
       ) : (
-        <>
-          <ProductGrid products={products} />
-          {nextHref && (
-            <div className="mt-10 text-center">
-              <Link
-                href={nextHref}
-                className="inline-block rounded-lg border border-gray-300 px-6 py-2 font-medium transition-colors hover:border-brand hover:text-brand dark:border-gray-700"
-              >
-                {t("loadMore")}
-              </Link>
-            </div>
-          )}
-        </>
+        <InfiniteProductGrid
+          initialProducts={products}
+          initialPageInfo={pageInfo}
+          filters={filters}
+        />
       )}
     </div>
   );

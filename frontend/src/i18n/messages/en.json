@@ -232,6 +232,17 @@
     "mismatch": "Passwords do not match.",
     "confirmPassword": "Confirm password"
   },
+  "changePassword": {
+    "title": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "submit": "Change password",
+    "submitting": "Changing…",
+    "mismatch": "Passwords do not match.",
+    "success": "Password changed successfully.",
+    "error": "Could not change password."
+  },
   "verifyEmail": {
     "bannerTitle": "Verify your email",
     "bannerMessage": "Your email address is not yet verified.",
@@ -268,6 +279,12 @@
     "labelPlaceholder": "e.g. Home, Office",
     "state": "State / Province"
   },
+  "wishlist": {
+    "title": "Wishlist",
+    "loading": "Loading wishlist…",
+    "empty": "You have no favorite products yet.",
+    "browse": "Browse store →"
+  },
   "twoFactor": {
     "loading": "Loading…",
     "notEnabled": "Two-factor authentication is disabled.",
@@ -293,6 +310,8 @@
     "profile": "Profile",
     "orders": "Orders",
     "addresses": "Addresses",
+    "wishlist": "Wishlist",
+    "changePassword": "Password",
     "ordersTitle": "My orders",
     "orderDetail": "Order #%s",
     "orderNotFound": "Order not found.",

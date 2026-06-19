@@ -237,6 +237,17 @@
     "mismatch": "Las contraseñas no coinciden.",
     "confirmPassword": "Confirmar contraseña"
   },
+  "changePassword": {
+    "title": "Cambiar contraseña",
+    "currentPassword": "Contraseña actual",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar nueva contraseña",
+    "submit": "Cambiar contraseña",
+    "submitting": "Cambiando…",
+    "mismatch": "Las contraseñas no coinciden.",
+    "success": "Contraseña cambiada correctamente.",
+    "error": "No se pudo cambiar la contraseña."
+  },
   "verifyEmail": {
     "bannerTitle": "Verifica tu email",
     "bannerMessage": "Tu dirección de email aún no está verificada.",
@@ -273,6 +284,12 @@
     "labelPlaceholder": "ej. Casa, Oficina",
     "state": "Provincia / Estado"
   },
+  "wishlist": {
+    "title": "Favoritos",
+    "loading": "Cargando favoritos…",
+    "empty": "No tienes productos favoritos aún.",
+    "browse": "Ver tienda →"
+  },
   "twoFactor": {
     "loading": "Cargando…",
     "notEnabled": "La autenticación en dos pasos está desactivada.",
@@ -298,6 +315,8 @@
     "profile": "Perfil",
     "orders": "Pedidos",
     "addresses": "Direcciones",
+    "wishlist": "Favoritos",
+    "changePassword": "Contraseña",
     "ordersTitle": "Mis pedidos",
     "orderDetail": "Pedido #%s",
     "orderNotFound": "Pedido no encontrado.",

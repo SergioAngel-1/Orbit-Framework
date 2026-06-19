@@ -34,6 +34,12 @@ export default async function AccountLayout({
           <Link href="/account/addresses" className="hover:text-brand">
             {t("addresses")}
           </Link>
+          <Link href="/account/wishlist" className="hover:text-brand">
+            {t("wishlist")}
+          </Link>
+          <Link href="/account/password" className="hover:text-brand">
+            {t("changePassword")}
+          </Link>
         </nav>
       </aside>
       <section>{children}</section>

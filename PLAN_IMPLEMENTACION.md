@@ -212,9 +212,14 @@ máquina de estados del pedido, anti-IDOR, `noop` funcional para sandbox.
       estado/total), lista de artículos con imagen, direcciones de envío/facturación.
       Protegido con anti-IDOR via `getOrderById()`.
 
-**Pendiente (menor prioridad):**
-- [ ] Wishlist / favoritos.
-- [ ] Paginación avanzada / scroll infinito.
+**Implementado (adicional):**
+- [x] **Wishlist / favoritos** — CRUD en `/api/store/wishlist` (GET/POST/DELETE con guardMutation),
+      almacenado como `meta_data.hwe_wishlist` en WooCommerce customer. `WishlistButton` (heart SVG)
+      posicionado sobre la imagen en `ProductCard`. Página `[locale]/account/wishlist` con server fetch
+      y lazy load de productos via `/api/store/products?include=`.
+- [x] **Scroll infinito** — `InfiniteProductGrid` (IntersectionObserver + 200px rootMargin) en
+      lugar de "Load More". Primer render SSR, cargas subsiguientes via `GET /api/store/products`
+      (Route Handler que reusa `getProducts()` con caché 300s).
 
 ---
 
@@ -245,8 +250,15 @@ request, anti-IDOR (id siempre desde la sesión).
       el código TOTP para obtener las cookies de sesión. UI de activación/desactivación en
       la página de cuenta.
 
+**Implementado (adicional):**
+- [x] **Cambio de contraseña** — `POST /api/auth/change-password` verifica la contraseña actual
+      via GraphQL login y actualiza via `wp/v2/users/{id}` con token fresco. `ChangePasswordForm`
+      en `[locale]/account/password`, navegación desde sidebar de cuenta.
+- [x] **Axé (auditoría a11y automatizada)** — tests axe-core expandidos en `smoke.spec.ts`:
+      home, login, register, products, forgot-password, 404. Se ejecutan en CI via job e2e.
+      Violaciones críticas/serious como umbral de fallo.
+
 **Pendiente (menor prioridad):**
-- [ ] Cambio de contraseña desde la cuenta.
 - [ ] Rotación del refresh token / invalidación de sesión real ("cerrar sesión en todos los
       dispositivos").
 
@@ -282,7 +294,6 @@ request, anti-IDOR (id siempre desde la sesión).
       backdrop-blur en modales y drawer.
 
 **Pendiente:**
-- [ ] Auditoría a11y automatizada (axe) en CI.
 - [ ] Self-hosting de fuentes (`next/font`) configurable desde el plugin.
 
 ---
@@ -315,9 +326,6 @@ request, anti-IDOR (id siempre desde la sesión).
 **Pendiente (menor prioridad):**
 - [ ] **Auditoría de rendimiento (Lighthouse CI)** — Config en `lighthouserc.cjs` lista, falta
       integrar en CI (requiere ChromeHeadless en el runner).
-- [ ] **Auditoría a11y automatizada (axe)** — `@axe-core/playwright` instalado, test de
-      accesibilidad añadido a `smoke.spec.ts` (home sin violaciones críticas). Para CI,
-      depende del job e2e ya configurado.
 - [ ] **SBOM** y firma de imágenes para el empaquetado comercial.
 - [ ] **Monitorización de uptime / synthetic** del `/api/health` en producción.
 - [ ] **Tests de integración del BFF** con WordPress real (contenedor efímero en CI).
@@ -337,9 +345,9 @@ A, C-seguridad y H-básico pueden avanzar en paralelo.
 3. **D: una pasarela real (Wompi)** — sin esto la tienda no cobra de verdad.
 
 ### Fase 2 — Tienda "de verdad"
-4. **E: búsqueda/filtrado, productos variables, cupones, envío, reseñas, detalle de pedido** — convierte la demo en tienda. ✅
-5. **F: recuperación de contraseña + verificación email + libreta de direcciones + 2FA** — expectativas mínimas de UX + diferenciador. ✅
-6. **G: sistema de componentes + theming dinámico (consume §A) + modo oscuro + páginas de error + animaciones.** ✅**
+4. **E: búsqueda/filtrado, productos variables, cupones, envío, reseñas, detalle de pedido, wishlist, scroll infinito** — convierte la demo en tienda. ✅
+5. **F: recuperación de contraseña + verificación email + libreta de direcciones + 2FA + cambio de contraseña** — expectativas mínimas de UX + diferenciador. ✅
+6. **G: sistema de componentes + theming dinámico (consume §A) + modo oscuro + páginas de error + animaciones + auditoría a11y.** ✅**
 
 ### Fase 3 — Producción y confianza
 7. **B: compose de producción + reverse proxy/TLS + object cache WP + backups programados.** ✅
@@ -363,6 +371,7 @@ A, C-seguridad y H-básico pueden avanzar en paralelo.
 | GraphQL (protección) | — | `graphql-protection.php` (depth/complexity/introspection) | ✅ |
 | GraphQL (rate-limit) | — | `rate-limit.php` (60 req/min) | ✅ |
 | WPGraphQL (caché) | — | `graphql_cache_section` + Redis | ✅ |
+| Wishlist / favoritos | navegador | `/api/store/wishlist` (guard + IDOR) → WooCommerce `meta_data` | ✅ |
 | Revalidación | webhook WC | `/api/revalidate` (HMAC) → `revalidateTag` | ✅ |
 | Carrito | navegador | `/api/store/cart*` → Store API + `Cart-Token` cookie | ✅ |
 | Checkout (pedido) | navegador | `/api/store/checkout` (guard + idempotencia) → Store API | ✅ (envío/cupón seleccionables) |

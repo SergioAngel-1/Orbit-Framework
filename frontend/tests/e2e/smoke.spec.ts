@@ -42,6 +42,34 @@ test("la sonda de salud responde", async ({ request }) => {
   expect(["ok", "degraded"]).toContain(body.status);
 });
 
+test("la página de recuperación de contraseña no tiene violaciones críticas de accesibilidad", async ({ page }) => {
+  await page.goto("/forgot-password");
+  await page.waitForSelector("form");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "critical" || v.impact === "serious")).toHaveLength(0);
+});
+
+test("la página de registro no tiene violaciones críticas de accesibilidad", async ({ page }) => {
+  await page.goto("/register");
+  await page.waitForSelector("form");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "critical" || v.impact === "serious")).toHaveLength(0);
+});
+
+test("la página de productos no tiene violaciones críticas de accesibilidad", async ({ page }) => {
+  await page.goto("/products");
+  await page.waitForSelector("h1, h2");
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "critical" || v.impact === "serious")).toHaveLength(0);
+});
+
+test("la página 404 no tiene violaciones críticas de accesibilidad", async ({ page }) => {
+  const res = await page.goto("/pagina-que-no-existe");
+  // 404 should still render the error page
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((v) => v.impact === "critical" || v.impact === "serious")).toHaveLength(0);
+});
+
 test("una escritura sin Origin ni CSRF es rechazada (barrera del BFF)", async ({
   request,
 }) => {
