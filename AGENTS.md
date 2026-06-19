@@ -50,43 +50,57 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 
 ```
 /
-├── docker-compose.yml          # db + wordpress(:8080) + redis + wpcli + frontend(:3000)
-├── .env.example                # TODAS las variables (raíz). Copiar a .env
-├── README.md                   # Guía de arranque y comandos
-├── AGENTS.md                   # este archivo
+├── docker-compose.yml          # dev: db + wordpress(:8080) + redis + wpcli + frontend(:3000)
+├── docker-compose.prod.yml     # prod: + caddy (TLS) + backup; sin puertos WP/Redis al host
+├── Caddyfile                   # reverse proxy prod (TLS, HTTP/3); /graphql público restringido
+├── .env.example / .env.prod.example  # TODAS las variables. Copiar a .env / .env.prod
+├── README.md  AGENTS.md  CHANGELOG.md  LICENSE  EULA.md
+├── AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md  # auditoría + plan + estado por fase (LÉELO)
 ├── docs/                        # documentación de cliente y operaciones
-│   ├── INSTALL.md               # instalación paso a paso
-│   ├── CONFIGURATION.md         # variables de entorno
-│   ├── CUSTOMIZATION.md         # guía de white-label / rebranding
-│   ├── DEPLOYMENT.md            # despliegue en producción
-│   ├── SECURITY.md              # modelo de amenazas y hardening
-│   └── ACCESIBILIDAD.md         # auditoría WCAG 2.2 AA
+│   ├── INSTALL.md  CONFIGURATION.md  CUSTOMIZATION.md  DEPLOYMENT.md
+│   ├── SECURITY.md  ACCESIBILIDAD.md
+│   ├── RUNBOOK.md               # ⭐ operación: backup/restore, rotación de secretos, incidentes
+│   ├── GO-LIVE.md               # ⭐ checklist "de cero a producción"
+│   └── COMPATIBILITY.md         # matriz de versiones (WP/Woo/PHP/Node/Next…)
 │
 ├── backend/                    # WordPress headless (solo nuestro código propio se versiona)
 │   ├── scripts/setup.sh         # instala WP + plugins + WooCommerce + datos demo (WP-CLI)
 │   ├── scripts/generate-woo-keys.sh  # genera las claves ck/cs de WooCommerce
+│   ├── scripts/backup.sh  scripts/restore.sh  # ⭐ copia y restauración (DB + uploads)
+│   ├── scripts/backup-entrypoint.sh  backup-cron.sh  seed-demo.sh
 │   ├── config/uploads.ini
-│   └── wp-content/mu-plugins/   # ⭐ aquí vive el comportamiento headless (ver §6.2)
+│   └── wp-content/mu-plugins/   # ⭐ comportamiento headless + endpoints propios (ver §6.2/§6.4)
 │       ├── headless-config.php      # bloqueo del frontend nativo + CORS de GraphQL
 │       ├── security.php             # hardening (enumeración de usuarios, pingbacks…)
-│       └── woocommerce-headless.php # ajustes Store API (nonce) + CORS
+│       ├── woocommerce-headless.php # ajustes Store API (nonce) + CORS
+│       ├── woocommerce-email-branding.php # emails transaccionales con marca
+│       ├── graphql-protection.php   # límites de profundidad/complejidad + introspección off
+│       ├── rate-limit.php           # rate-limit de /graphql y /wp-json (XFF de confianza)
+│       ├── hwe-auth.php             # ⭐ REST: reset pass, verificación email, 2FA, logout-all
+│       └── hwe-control-center/      # plugin de config central + secretos cifrados (AES-GCM)
 │
 └── frontend/                   # Next.js (web pública + BFF)
-    ├── next.config.mjs          # cabeceras de seguridad + CSP + plugin next-intl + imágenes
+    ├── next.config.mjs          # cabeceras de seguridad + CSP (incl. hosts analítica) + i18n
+    ├── tests/                   # unit (Vitest) + e2e (Playwright: smoke, axe, purchase opt-in)
     ├── src/
-    │   ├── middleware.ts         # ⭐ i18n + barrera de Origin + refresh JWT (ver §6)
-    │   ├── i18n/                 # routing, request, navigation, messages (es/en)
-    │   ├── config/site.ts        # marca/URL/social centralizadas (base white-label)
+    │   ├── instrumentation.ts   # arranque: guard de secretos + Sentry + log de inicio
+    │   ├── middleware.ts        # ⭐ i18n + barrera de Origin + refresh JWT (ver §6)
+    │   ├── i18n/                # routing, request, navigation, messages (es/en)
+    │   ├── config/site.ts       # marca/URL/social centralizadas (base white-label)
     │   ├── app/
-    │   │   ├── [locale]/         # ⭐ TODAS las páginas viven bajo el segmento de idioma
-    │   │   ├── api/              # ⭐ el BFF: auth, store, csrf, revalidate
+    │   │   ├── [locale]/        # ⭐ TODAS las páginas viven bajo el segmento de idioma
+    │   │   ├── api/             # ⭐ el BFF: auth (+2fa,+email,+logout-all), store, payments,
+    │   │   │                    #    webhooks, csrf, revalidate, health (+/live)
     │   │   ├── sitemap.ts robots.ts manifest.ts not-found.tsx layout.tsx (passthrough)
-    │   ├── components/           # UI (cart, products, auth, account, checkout, analytics, i18n)
-    │   └── lib/                  # ⭐ toda la lógica de servidor/cliente (ver §6)
+    │   ├── components/          # UI (cart, products, auth, account, checkout, analytics, i18n)
+    │   └── lib/                 # ⭐ toda la lógica de servidor/cliente (ver §6)
 ```
 
 Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por dominio
-(`auth/`, `woocommerce/`, `security/`, `catalog/`, `account/`, `client/`).
+(`auth/` —incl. `revocation.ts`—, `woocommerce/` —incl. `order-events.ts`—, `security/`
+—`csrf`, `rate-limit`, `idempotency`, `lock`, `replay`, `secret-guard`, `webhook`, `origin`,
+`cookies`, `sanitize`—, `catalog/`, `account/`, `payments/`, `config/`, `http/`, `redis/`,
+`observability/`, `validation/`, `client/`).
 
 ---
 
@@ -141,6 +155,12 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 - `docker-compose.yml` — servicios y variables. `README.md` — pasos exactos.
 - Primer arranque: `docker compose up -d` → `docker compose run --rm wpcli` (instala todo)
   → `generate-woo-keys.sh` (claves WC) → pegar en `.env` → `docker compose up -d frontend`.
+- **Producción**: `docker-compose.prod.yml` + `Caddyfile` (TLS, HTTP/3). Servicios con
+  `security_opt: no-new-privileges`. GraphQL público restringido a POST/OPTIONS en Caddy.
+- **Backups/restore**: `backend/scripts/backup.sh` (+ contenedor `backup` con cron) y
+  `backend/scripts/restore.sh`. Procedimientos y simulacro en **`docs/RUNBOOK.md`**.
+- **Sondas**: liveness `GET /api/health/live`; readiness `GET /api/health?ready=1` (503 si
+  alguna dependencia está caída). `GET /api/health` (sin flag) siempre 200 con detalle.
 
 ### 6.2 Comportamiento "headless" de WordPress
 - `backend/wp-content/mu-plugins/headless-config.php` — bloquea el frontend nativo (redirige
@@ -305,9 +325,15 @@ Desde `frontend/`:
 npm run dev          # desarrollo
 npx tsc --noEmit     # tipos
 npx next lint        # ESLint
+npm run test         # tests unitarios (Vitest): seguridad, auth, pagos, validación
+npm run test:coverage# cobertura (umbrales en vitest.config.ts)
 npx next build       # ⭐ la verificación definitiva (prerender + tipos + middleware edge)
 ```
 Pila completa: `docker compose up -d` (+ `wpcli` la primera vez). Ver `README.md`.
+
+E2E (Playwright): `npx playwright test` (smoke + accesibilidad axe). El e2e de **compra
+completa** (`tests/e2e/purchase.spec.ts`) es opt-in: requiere la pila sembrada y
+`E2E_FULL=1` (opcionalmente `E2E_PRODUCT_ID`).
 
 **Antes de dar por terminado un cambio en el frontend, corre `next build`.** Atrapa la
 mayoría de problemas (límites server/client, RSC, edge runtime, prerender por locale).
@@ -325,9 +351,11 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
   hace cosas edge-compatibles (Origin, locale, refresh JWT vía fetch).
 - **CSP usa `'unsafe-inline'` en scripts** a propósito: una CSP con nonce obligaría a render
   dinámico y rompería el ISR/SSG. Documentado como endurecimiento opcional (Fase 8).
-- **Rate-limit es fail-open**: si Redis cae, deja pasar (es mitigación, no barrera dura).
-- **El refresh token de WPGraphQL JWT no rota**: la invalidación global se hace rotando el
-  "user secret" en WordPress. Documentado en el plan (Fase 2).
+- **Rate-limit es fail-open por defecto**, pero los endpoints de auth usan `strict: true`,
+  que degrada a un **contador en memoria** si Redis cae (no se queda sin límite).
+- **Sesión revocable**: `logout` revoca el access token (blocklist en `lib/auth/revocation.ts`,
+  consultada en `getSession`); `/api/auth/logout-all` rota el "user secret" en WP e invalida los
+  refresh tokens. El refresh **no rota en cada uso** (limitación del plugin WPGraphQL JWT).
 - **`@tailwindcss/typography` YA está instalado** (en `devDependencies`): `prose` está
   disponible para las descripciones de producto. *(Corrige una nota antigua que decía lo contrario.)*
 - **Sentry YA está cableado**: `sentry.{client,server,edge}.config.ts` + `src/instrumentation.ts`.
@@ -351,3 +379,19 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 4. **Sé honesto sobre lo no verificado en vivo**: muchas cosas requieren la pila Docker con
    WordPress real (login, carrito, checkout, webhooks). Si no la levantaste, dilo.
 5. **No metas secretos en el repo**: solo `.env.example` con placeholders.
+6. **Lee primero `AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`**: contiene el estado real por área,
+   qué se implementó (fases §1–§7), qué quedó diferido a propósito (CSP nonce, pasarela real)
+   y por qué. Es la fuente de verdad del progreso.
+
+---
+
+## 11. Documentación (para clientes y operación)
+
+- **Cliente/instalación**: `docs/INSTALL.md`, `docs/CONFIGURATION.md`, `docs/CUSTOMIZATION.md`,
+  `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `docs/ACCESIBILIDAD.md`.
+- **Operación**: `docs/RUNBOOK.md` (backup/restore probado, rotación de secretos, cierre de
+  sesiones, incidentes) y `docs/GO-LIVE.md` (checklist de cero a producción, incluye el guard
+  de secretos que **aborta el arranque** en prod con valores por defecto).
+- **Compatibilidad**: `docs/COMPATIBILITY.md` (matriz de versiones soportadas).
+- **Cambios**: `CHANGELOG.md` (Keep a Changelog + SemVer).
+- **Estado/plan**: `AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`.

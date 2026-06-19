@@ -301,11 +301,28 @@ docker compose run --rm wpcli wp --path=/var/www/html --allow-root plugin list
 
 ---
 
+## 📚 Documentación
+
+| Documento | Para qué |
+|-----------|----------|
+| [`docs/INSTALL.md`](docs/INSTALL.md) | Instalación paso a paso. |
+| [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Variables de entorno. |
+| [`docs/CUSTOMIZATION.md`](docs/CUSTOMIZATION.md) | White-label / rebranding. |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Despliegue en producción. |
+| [`docs/GO-LIVE.md`](docs/GO-LIVE.md) | **Checklist de cero a producción.** |
+| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | **Operación: backup/restore, rotación de secretos, incidentes.** |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Modelo de amenazas y hardening. |
+| [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) | Matriz de versiones soportadas. |
+| [`docs/ACCESIBILIDAD.md`](docs/ACCESIBILIDAD.md) | Auditoría WCAG 2.2 AA. |
+| [`AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`](AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md) | Estado real por área y plan. |
+| [`CHANGELOG.md`](CHANGELOG.md) | Novedades por versión. |
+
 ## 🔒 Seguridad
 
-> El plan completo de seguridad y comercialización está en
-> [`docs/PRODUCTION-PLAN.md`](docs/PRODUCTION-PLAN.md). **La Fase 1 (endurecimiento
-> base) ya está implementada.**
+> Estado y plan detallado de seguridad en
+> [`AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`](AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md).
+> El endurecimiento base **y** el del plan de auditoría (guard de secretos, revocación de
+> sesión, anti-replay de webhooks, cifrado GCM, etc.) ya están implementados.
 
 **Ya incluido (Fase 1):**
 

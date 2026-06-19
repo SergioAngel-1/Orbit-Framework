@@ -6,6 +6,52 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Auditoría y endurecimiento (remediación del plan `AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`)
+
+#### Corregido (flujos rotos — P0)
+- **Checkout creaba pedidos de invitado** (`customer_id = 0`), lo que impedía al comprador
+  pagar/ver su pedido y vaciaba el historial. Ahora el checkout reenvía el JWT a la Store API
+  y, como salvaguarda idempotente, `ensureOrderOwner()` fija `customer_id` vía wc/v3.
+- **CI E2E** arrancaba `next start` sin `next build` (falso verde): se añade el build previo.
+- **Webhook `order.updated`** con lógica de "estado anterior" muerta: transición real vía
+  Redis (`recordAndDiffStatus`) + dispatcher de efectos (`order-events.ts`).
+
+#### Añadido (flujos incompletos — P1)
+- **Verificación de email** (opcional): envío tras registro + expiración de token (24 h).
+- **2FA endurecido**: secreto TOTP cifrado en reposo (AES-256-GCM), **códigos de recuperación**
+  de un solo uso, `2fa-status` no público (secreto interno del BFF) y re-verificación al desactivar.
+- **Analítica** real con consentimiento (Plausible/GA4) + eventos `add_to_cart` y `purchase`.
+- **Meta de cliente atómica**: wishlist/direcciones serializadas con lock Redis (`lib/security/lock.ts`).
+
+#### Seguridad (endurecimiento — P1/P2)
+- **Guard de arranque** que aborta en producción con secretos por defecto/cortos (`secret-guard.ts`).
+- **Revocación de sesión**: blocklist del access token en `logout`; `/api/auth/logout-all` rota
+  el secreto JWT del usuario en WP.
+- **SecretsStorage** del Control Center migrado a AES-256-GCM con clave dedicada `HWE_SECRETS_KEY`.
+- **Rate-limit durable** en auth (fallback en memoria si Redis cae).
+- **Anti-replay + rate-limit** en webhooks de pago y de WooCommerce (`lib/security/replay.ts`).
+- **Anti-spoofing de `X-Forwarded-For`** (Next y WP) vía nº de proxies de confianza.
+
+#### Infraestructura (P2)
+- **Restauración probada**: `backend/scripts/restore.sh` + `docs/RUNBOOK.md`.
+- **Caddy**: `/graphql` público restringido a POST/OPTIONS.
+- **Hardening**: `security_opt: no-new-privileges` en todos los servicios de producción.
+- **Sondas**: `/api/health/live` (liveness) y readiness estricta `GET /api/health?ready=1`.
+
+#### Tests (P1)
+- Unit (Vitest) de `origin`, `csrf`, `jwt`, `rate-limit`, `idempotency`, `lock`, `replay`,
+  `secret-guard`, `request-ip`, `order-events`.
+- E2E de **compra completa** (`tests/e2e/purchase.spec.ts`, opt-in `E2E_FULL=1`): regresión del fix de pedido-invitado.
+
+#### Documentación (P1)
+- `docs/RUNBOOK.md`, `docs/GO-LIVE.md`, `docs/COMPATIBILITY.md`; `AGENTS.md` actualizado al
+  estado real (mapa del repo, flujos 6.4/6.5/6.6.1, gotchas, doc map §11).
+- `.env.example` documenta las nuevas variables (analítica, 2FA, proxies, secretos, notificaciones).
+
+#### Diferido a propósito
+- **CSP con nonce** (rompería ISR/SSG) y **pasarela de pago real** (requiere credenciales y
+  certificación). Ver el plan para el detalle.
+
 ### Añadido
 - **Fase 8 — Calidad, CI/CD y observabilidad:**
   - Tests unitarios con **Vitest** (`tests/unit/`) para `lib/` (formato, firmas de
