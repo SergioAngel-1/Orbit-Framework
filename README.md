@@ -312,6 +312,7 @@ docker compose run --rm wpcli wp --path=/var/www/html --allow-root plugin list
 | [`docs/GO-LIVE.md`](docs/GO-LIVE.md) | **Checklist de cero a producción.** |
 | [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | **Operación: backup/restore, rotación de secretos, incidentes.** |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Modelo de amenazas y hardening. |
+| [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) | Correlación request-id, alertas, retención/PII. |
 | [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) | Matriz de versiones soportadas. |
 | [`docs/ACCESIBILIDAD.md`](docs/ACCESIBILIDAD.md) | Auditoría WCAG 2.2 AA. |
 | [`AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`](AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md) | Estado real por área y plan. |

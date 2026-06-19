@@ -139,7 +139,8 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 | Pagos: pasarelas reales (Wompi/PayU/Bold) | 🧪 stubs (pendiente integrar 1 real) |
 | Webhooks de pedido (transición real + dispatcher de efectos) | 🟡 (email al cliente lo hace Woo; ganchos ERP por conectar) |
 | HWE Control Center (config central + secretos cifrados) | ✅ |
-| Calidad / CI/CD / observabilidad (Sentry cableado) | 🟡 (e2e con WP real pendiente) |
+| Calidad / CI/CD (unit de seguridad/auth + e2e de compra opt-in) | ✅ |
+| Observabilidad (Sentry + pino + correlación request-id + alertas) | ✅ (métricas OTel pendientes) |
 | Empaquetado comercial (licencia, docs, white-label) | ✅ |
 
 El núcleo está **listo para producción**. Lo pendiente es endurecimiento adicional,
@@ -367,6 +368,14 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 - **No dupliques emails transaccionales**: WooCommerce ya los envía al cambiar el estado del
   pedido (ver `woocommerce-email-branding.php`). El dispatcher de `order-events` es para
   integraciones, no para correos al cliente.
+- **Correlación por `request-id`**: Caddy genera `X-Request-Id`, el `middleware` lo reutiliza/
+  crea y lo devuelve en la respuesta, y los clientes WP lo propagan vía un AsyncLocalStorage
+  (`lib/observability/request-context.ts`). Para correlacionar tus logs con los de WP en un
+  handler, envuélvelo en `runWithRequestId(getOrCreateRequestId(request.headers), …)` y usa
+  `requestLogger()`. Ver `docs/OBSERVABILITY.md`.
+- **Los logs no llevan PII sensible**: pino redacta `authorization`/`cookie`/`password`/`token`;
+  no se registran emails ni tarjetas. `userId` es un id numérico pseudónimo; la IP solo para
+  rate-limit/abuso. Retención y política en `docs/OBSERVABILITY.md`.
 
 ---
 
@@ -392,6 +401,8 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 - **Operación**: `docs/RUNBOOK.md` (backup/restore probado, rotación de secretos, cierre de
   sesiones, incidentes) y `docs/GO-LIVE.md` (checklist de cero a producción, incluye el guard
   de secretos que **aborta el arranque** en prod con valores por defecto).
+- **Observabilidad**: `docs/OBSERVABILITY.md` (correlación request-id, eventos de alerta,
+  retención de logs y PII).
 - **Compatibilidad**: `docs/COMPATIBILITY.md` (matriz de versiones soportadas).
 - **Cambios**: `CHANGELOG.md` (Keep a Changelog + SemVer).
 - **Estado/plan**: `AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`.

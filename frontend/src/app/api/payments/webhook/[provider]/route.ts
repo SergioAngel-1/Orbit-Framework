@@ -5,6 +5,8 @@ import { getProvider } from "@/lib/payments/registry";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { markEventOnce } from "@/lib/security/replay";
 import { getClientIp } from "@/lib/http/request-ip";
+import { getOrCreateRequestId } from "@/lib/observability/request-id";
+import { runWithRequestId } from "@/lib/observability/request-context";
 import { logger } from "@/lib/observability/logger";
 import {
   getOrder,
@@ -39,8 +41,12 @@ export async function POST(
 
   // Cuerpo CRUDO: la firma se calcula sobre los bytes exactos recibidos.
   const rawBody = await request.text();
+  const requestId = getOrCreateRequestId(request.headers);
 
-  logger.info({ event: "payments.webhook.received", provider: providerId }, "Webhook recibido");
+  // Contexto de correlación: los `getOrder`/`markOrderPaid` (wc/v3) propagarán
+  // este `X-Request-Id` a WordPress para seguir el pago de extremo a extremo.
+  return runWithRequestId(requestId, async () => {
+  logger.info({ event: "payments.webhook.received", provider: providerId, requestId }, "Webhook recibido");
 
   try {
     const provider = getProvider(providerId);
@@ -100,4 +106,5 @@ export async function POST(
     logger.error({ event: "payments.webhook.error", err: error instanceof Error ? error.message : error, provider: providerId }, "Error procesando webhook");
     return handleApiError(error);
   }
+  });
 }

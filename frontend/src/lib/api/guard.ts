@@ -4,6 +4,8 @@ import { assertAllowedOrigin } from "@/lib/security/origin";
 import { verifyCsrf } from "@/lib/security/csrf";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/http/request-ip";
+import { getRequestId } from "@/lib/observability/request-id";
+import { logger } from "@/lib/observability/logger";
 
 // ============================================================================
 //  Guard unificado para endpoints de escritura del BFF.
@@ -31,8 +33,14 @@ export async function guardMutation(
   request: Request,
   options: GuardOptions = {},
 ): Promise<NextResponse | null> {
+  const requestId = getRequestId(request.headers);
+  const path = (() => {
+    try { return new URL(request.url).pathname; } catch { return undefined; }
+  })();
+
   // 1) Origen permitido.
   if (!assertAllowedOrigin(request)) {
+    logger.warn({ event: "guard.blocked", reason: "origin", path, requestId }, "Escritura bloqueada: origen no permitido");
     return NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
   }
 
@@ -40,6 +48,7 @@ export async function guardMutation(
   if (options.csrf !== false) {
     const ok = await verifyCsrf(request);
     if (!ok) {
+      logger.warn({ event: "guard.blocked", reason: "csrf", path, requestId }, "Escritura bloqueada: CSRF inválido");
       return NextResponse.json({ error: "Token CSRF inválido." }, { status: 403 });
     }
   }
@@ -52,6 +61,7 @@ export async function guardMutation(
 
     const result = await rateLimit(identifier, limit, windowSeconds, { strict });
     if (!result.success) {
+      logger.warn({ event: "guard.blocked", reason: "rate_limit", name, path, requestId }, "Escritura bloqueada: rate-limit");
       return NextResponse.json(
         { error: "Demasiadas peticiones. Inténtalo más tarde." },
         {

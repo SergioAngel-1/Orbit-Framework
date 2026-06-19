@@ -72,6 +72,19 @@ export async function fetchGraphQL<TData>(
     headers.Authorization = `Bearer ${authToken}`;
   }
 
+  // Propaga el request-id (si hay contexto en el servidor) para correlacionar
+  // este request con los logs de WordPress. Import dinámico: el contexto es
+  // server-only y no debe entrar en el bundle del navegador.
+  if (typeof window === "undefined") {
+    try {
+      const { currentRequestId } = await import("@/lib/observability/request-context");
+      const rid = currentRequestId();
+      if (rid) headers["X-Request-Id"] = rid;
+    } catch {
+      /* sin contexto: no añadimos cabecera */
+    }
+  }
+
   const response = await fetch(getEndpoint(), {
     method: "POST",
     headers,

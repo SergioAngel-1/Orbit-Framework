@@ -1,5 +1,6 @@
 import "server-only";
 import pino, { type Logger } from "pino";
+import { currentRequestId } from "./request-context";
 
 // ============================================================================
 //  Logging estructurado (pino) — SOLO servidor.
@@ -40,4 +41,14 @@ if (!isProd) {
 /** Crea un logger hijo con contexto fijo (p. ej. el nombre de la ruta). */
 export function childLogger(bindings: Record<string, unknown>): Logger {
   return logger.child(bindings);
+}
+
+/**
+ * Logger hijo con el `requestId` del contexto actual (si lo hay), para
+ * correlacionar todos los logs de una misma petición. Úsalo dentro de un
+ * `runWithRequestId(...)`.
+ */
+export function requestLogger(extra: Record<string, unknown> = {}): Logger {
+  const requestId = currentRequestId();
+  return logger.child(requestId ? { requestId, ...extra } : extra);
 }

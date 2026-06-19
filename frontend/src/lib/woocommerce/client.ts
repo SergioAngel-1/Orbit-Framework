@@ -1,4 +1,5 @@
 import "server-only";
+import { currentRequestId } from "@/lib/observability/request-context";
 
 // ============================================================================
 //  Cliente de la WooCommerce REST API (wc/v3) — SOLO servidor.
@@ -80,12 +81,14 @@ export async function wcFetch<T>(
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
+      const rid = currentRequestId();
       const response = await fetch(url, {
         method,
         headers: {
           Authorization: authorizationHeader(),
           "Content-Type": "application/json",
           Accept: "application/json",
+          ...(rid ? { "X-Request-Id": rid } : {}),
         },
         body: body !== undefined ? JSON.stringify(body) : undefined,
         signal: controller.signal,

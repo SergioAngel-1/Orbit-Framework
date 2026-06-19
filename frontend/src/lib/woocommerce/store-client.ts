@@ -1,5 +1,6 @@
 import "server-only";
 import { WooCommerceError } from "./client";
+import { currentRequestId } from "@/lib/observability/request-context";
 
 // ============================================================================
 //  Cliente de la WooCommerce Store API (wc/store/v1) — SOLO servidor.
@@ -57,6 +58,8 @@ export async function storeFetch<T>(
     // Autentica la operación como el usuario → Woo liga el pedido a su cuenta.
     headers["Authorization"] = `Bearer ${authToken}`;
   }
+  const rid = currentRequestId();
+  if (rid) headers["X-Request-Id"] = rid;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

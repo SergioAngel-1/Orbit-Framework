@@ -17,6 +17,12 @@
 # ─── Sitio principal ─────────────────────────────────────────────────────────
 {$PUBLIC_DOMAIN:localhost} {
 
+    # ── Correlación: id único por petición ───────────────────────────────────
+    # Caddy genera un UUID y lo inyecta en la petición; reverse_proxy lo reenvía
+    # a WordPress y a Next.js, que lo reutilizan y lo registran (X-Request-Id).
+    # Permite seguir una misma petición a través de los tres logs.
+    request_header X-Request-Id {http.request.uuid}
+
     # ── WordPress: admin, login y webhooks REST ──────────────────────────────
     # Estos paths van directamente a WordPress. El BFF Next.js llama a
     # WordPress por la red interna Docker; aquí solo exponemos lo necesario.

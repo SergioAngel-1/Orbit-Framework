@@ -9,6 +9,7 @@ import {
   DEFAULT_AUTH_TOKEN_MAX_AGE,
 } from "@/lib/auth/constants";
 import { REFRESH_TOKEN_MUTATION } from "@/lib/auth/mutations";
+import { getOrCreateRequestId, REQUEST_ID_HEADER } from "@/lib/observability/request-id";
 
 // ============================================================================
 //  Middleware compuesto:
@@ -118,9 +119,18 @@ function authCookie(token: string) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Request-id de correlación: lo reutilizamos del entrante (Caddy lo genera y
+  // reenvía) o creamos uno. Se reenvía a los handlers (request) y se devuelve en
+  // la respuesta para alinear logs de Caddy, Next y navegador.
+  const requestId = getOrCreateRequestId(request.headers);
+  const fwd = new Headers(request.headers);
+  fwd.set(REQUEST_ID_HEADER, requestId);
+
   // 1) Barrera de Origin para escrituras en la API.
   if (originBlocked(request)) {
-    return NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
+    const res = NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
+    res.headers.set(REQUEST_ID_HEADER, requestId);
+    return res;
   }
 
   const authToken = request.cookies.get(AUTH_COOKIE)?.value;
@@ -130,24 +140,29 @@ export async function middleware(request: NextRequest) {
   // 2) Rutas /api: sin locale. Refresh JWT salvo en /api/auth/*.
   if (pathname.startsWith("/api")) {
     if (pathname.startsWith("/api/auth/") || !needsRefresh) {
-      return NextResponse.next();
+      const res = NextResponse.next({ request: { headers: fwd } });
+      res.headers.set(REQUEST_ID_HEADER, requestId);
+      return res;
     }
     const newToken = await refreshAuthToken(refreshToken!);
     if (!newToken) {
-      const res = NextResponse.next();
+      const res = NextResponse.next({ request: { headers: fwd } });
       if (authToken) res.cookies.delete(AUTH_COOKIE);
+      res.headers.set(REQUEST_ID_HEADER, requestId);
       return res;
     }
     const headers = new Headers(request.headers);
     headers.set("cookie", cookieHeaderWithAuth(request, newToken));
+    headers.set(REQUEST_ID_HEADER, requestId);
     const res = NextResponse.next({ request: { headers } });
     res.cookies.set(authCookie(newToken));
+    res.headers.set(REQUEST_ID_HEADER, requestId);
     return res;
   }
 
   // 3) Páginas: refresca (reconstruyendo el request) y deja que next-intl
   //    construya la respuesta de locale sobre el request ya actualizado.
-  let workingRequest = request;
+  let workingRequest = new NextRequest(request.url, { headers: fwd });
   let newToken: string | null = null;
   let clearAuth = false;
 
@@ -156,6 +171,7 @@ export async function middleware(request: NextRequest) {
     if (newToken) {
       const headers = new Headers(request.headers);
       headers.set("cookie", cookieHeaderWithAuth(request, newToken));
+      headers.set(REQUEST_ID_HEADER, requestId);
       workingRequest = new NextRequest(request.url, { headers });
     } else if (authToken) {
       clearAuth = true;
@@ -165,6 +181,7 @@ export async function middleware(request: NextRequest) {
   const response = intlMiddleware(workingRequest);
   if (newToken) response.cookies.set(authCookie(newToken));
   if (clearAuth) response.cookies.delete(AUTH_COOKIE);
+  response.headers.set(REQUEST_ID_HEADER, requestId);
   return response;
 }
 
