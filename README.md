@@ -315,13 +315,11 @@ docker compose run --rm wpcli wp --path=/var/www/html --allow-root plugin list
 | [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) | Correlación request-id, alertas, retención/PII. |
 | [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) | Matriz de versiones soportadas. |
 | [`docs/ACCESIBILIDAD.md`](docs/ACCESIBILIDAD.md) | Auditoría WCAG 2.2 AA. |
-| [`AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`](AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md) | Estado real por área y plan. |
 | [`CHANGELOG.md`](CHANGELOG.md) | Novedades por versión. |
 
 ## 🔒 Seguridad
 
-> Estado y plan detallado de seguridad en
-> [`AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`](AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md).
+> Modelo de amenazas y hardening detallado en [`docs/SECURITY.md`](docs/SECURITY.md).
 > El endurecimiento base **y** el del plan de auditoría (guard de secretos, revocación de
 > sesión, anti-replay de webhooks, cifrado GCM, etc.) ya están implementados.
 

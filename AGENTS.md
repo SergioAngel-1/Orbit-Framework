@@ -55,7 +55,6 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 ├── Caddyfile                   # reverse proxy prod (TLS, HTTP/3); /graphql público restringido
 ├── .env.example / .env.prod.example  # TODAS las variables. Copiar a .env / .env.prod
 ├── README.md  AGENTS.md  CHANGELOG.md  LICENSE  EULA.md
-├── AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md  # auditoría + plan + estado por fase (LÉELO)
 ├── docs/                        # documentación de cliente y operaciones
 │   ├── INSTALL.md  CONFIGURATION.md  CUSTOMIZATION.md  DEPLOYMENT.md
 │   ├── SECURITY.md  ACCESIBILIDAD.md
@@ -120,7 +119,6 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 ## 5. Estado del proyecto
 
 > Actualizado: **2026-06-18**. Estados realistas (✅ completo · 🟡 parcial · 🧪 stub).
-> Para el detalle de lo pendiente, ver `AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`.
 
 | Área | Estado |
 |------|--------|
@@ -388,9 +386,6 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 4. **Sé honesto sobre lo no verificado en vivo**: muchas cosas requieren la pila Docker con
    WordPress real (login, carrito, checkout, webhooks). Si no la levantaste, dilo.
 5. **No metas secretos en el repo**: solo `.env.example` con placeholders.
-6. **Lee primero `AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`**: contiene el estado real por área,
-   qué se implementó (fases §1–§7), qué quedó diferido a propósito (CSP nonce, pasarela real)
-   y por qué. Es la fuente de verdad del progreso.
 
 ---
 
@@ -405,4 +400,3 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
   retención de logs y PII).
 - **Compatibilidad**: `docs/COMPATIBILITY.md` (matriz de versiones soportadas).
 - **Cambios**: `CHANGELOG.md` (Keep a Changelog + SemVer).
-- **Estado/plan**: `AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`.

@@ -111,3 +111,40 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
+
+  # --------------------------------------------------------------------------
+  # Validación de configuración de infraestructura: detecta YAML/Caddyfile
+  # roto o truncado y errores de sintaxis en los scripts de shell ANTES de
+  # llegar a producción (guard anti-corrupción de archivos de config).
+  # --------------------------------------------------------------------------
+  config:
+    name: Config (Compose · Caddy · scripts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar docker-compose (dev)
+        run: docker compose -f docker-compose.yml config --quiet
+
+      - name: Validar docker-compose (prod)
+        env:
+          PUBLIC_DOMAIN: example.com
+          ACME_EMAIL: admin@example.com
+          MYSQL_PASSWORD: dummy-validation-value
+          MYSQL_ROOT_PASSWORD: dummy-validation-value
+          GRAPHQL_JWT_AUTH_SECRET_KEY: dummy-validation-value
+          HWE_REVALIDATION_SECRET: dummy-validation-value
+          CSRF_SECRET: dummy-validation-value
+        run: docker compose -f docker-compose.prod.yml config --quiet
+
+      - name: Validar Caddyfile
+        run: |
+          docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.9-alpine \
+            caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile
+
+      - name: Sintaxis de scripts de shell
+        run: |
+          for f in backend/scripts/*.sh; do
+            echo "· $f"
+            sh -n "$f"
+          done

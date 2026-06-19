@@ -46,15 +46,22 @@
 
 ## Plugins de WordPress (instalados por `backend/scripts/setup.sh`)
 
-| Plugin | Versión | Notas |
-|--------|---------|-------|
-| WooCommerce | última compatible con WP 6.7 | Tienda, Store API (carrito/checkout), wc/v3 (admin). |
-| WPGraphQL | última compatible | Lectura del catálogo/contenido (GraphQL). |
-| WPGraphQL JWT Authentication | última compatible | Tokens de sesión; el "user secret" permite `logout-all`. |
-| WooGraphQL (wp-graphql-woocommerce) | última compatible | Tipos de WooCommerce en GraphQL. |
+| Plugin | Versión fijada | Variable de override | Notas |
+|--------|----------------|----------------------|-------|
+| WooCommerce | `9.4.3` | `WOOCOMMERCE_VERSION` | Tienda, Store API (carrito/checkout), wc/v3 (admin). |
+| WPGraphQL | `1.30.0` | `WPGRAPHQL_VERSION` | Lectura del catálogo/contenido (GraphQL). |
+| WPGraphQL JWT Authentication | `0.7.2` | — (fijada + checksum SHA256) | Tokens de sesión; el "user secret" permite `logout-all`. |
+| WooGraphQL (wp-graphql-woocommerce) | `1.0.2` | `WOOGRAPHQL_WPORG_VERSION` | Tipos de WooCommerce en GraphQL (fallback a release de GitHub con checksum). |
+| WPGraphQL CORS | `2.1.1` | — (fijada) | Opcional; el mu-plugin ya cubre CORS. |
+| Redis Object Cache | `2.5.4` | `REDISCACHE_VERSION` | Caché de objetos de WordPress sobre Redis. |
 
-> Estos plugins NO se versionan en el repo; se instalan en el primer arranque.
-> Si una actualización rompe el esquema GraphQL, fija la versión en `setup.sh`.
+> **Versiones fijadas para reproducibilidad.** `setup.sh` instala estas versiones
+> CONCRETAS (no "la última"), definidas como variables al inicio del script y
+> overridables por entorno. Si una versión fijada no existiera en wp.org, el
+> instalador degrada a la última estable con un aviso (no bloquea el primer
+> arranque). Para subir de versión: cambia la variable, prueba en *staging* y
+> revisa el `CHANGELOG`. Los plugins de GitHub (JWT, WooGraphQL, CORS) verifican
+> checksum SHA256 cuando está disponible.
 
 ## Compatibilidad de navegador
 

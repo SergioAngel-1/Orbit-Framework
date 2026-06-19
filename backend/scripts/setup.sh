@@ -22,6 +22,32 @@ WP="wp --path=/var/www/html --allow-root"
 JWT_AUTH_SHA256="37e7bcc573fdd74a6cf60475b01285e62e62fa9bd5684c1f6a365a6e2bce47d8"
 WOOGRAPHQL_SHA256="15e9b320114349cc5213f7245d93985d45def4bbe27d9a1850a3a49c7f4f9e58"
 
+# ----------------------------------------------------------------------------
+#  VERSIONES FIJADAS de los plugins de wp.org (fuente única de verdad).
+#  Reproducibilidad: por defecto se instala una versión CONCRETA alineada con
+#  docs/COMPATIBILITY.md (no "la última"). Cada una es overridable por entorno
+#  para subir de versión de forma controlada (probar en staging primero).
+#  Si una versión fijada no existiera en wp.org, se degrada a la última estable
+#  con un AVISO (no rompe el primer arranque).
+# ----------------------------------------------------------------------------
+WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-1.30.0}"
+WOOCOMMERCE_VERSION="${WOOCOMMERCE_VERSION:-9.4.3}"
+WOOGRAPHQL_WPORG_VERSION="${WOOGRAPHQL_WPORG_VERSION:-1.0.2}"
+REDISCACHE_VERSION="${REDISCACHE_VERSION:-2.5.4}"
+
+# Instala un plugin de wp.org fijando la versión; si esa versión no existe,
+# degrada a la última estable con aviso (reproducible por defecto, resiliente).
+install_wporg_pinned() {
+	_slug="$1"
+	_version="$2"
+	if $WP plugin install "$_slug" --version="$_version" --activate 2>/dev/null; then
+		echo "    ✓ ${_slug} v${_version} (fijada)"
+	else
+		echo "    ⚠️  ${_slug} v${_version} no disponible en wp.org; instalando la última estable."
+		$WP plugin install "$_slug" --activate
+	fi
+}
+
 echo "==> Esperando a que la base de datos acepte conexiones..."
 until $WP db check >/dev/null 2>&1; do
 	if $WP db query "SELECT 1;" >/dev/null 2>&1; then
@@ -68,8 +94,8 @@ $WP option update default_role subscriber
 #        Las descargas desde GitHub verifican checksum SHA256 cuando está
 #        disponible.
 # ----------------------------------------------------------------------------
-echo "==> Instalando WPGraphQL (desde el repositorio oficial de WordPress.org)..."
-$WP plugin install wp-graphql --activate
+echo "==> Instalando WPGraphQL v${WPGRAPHQL_VERSION} (desde WordPress.org)..."
+install_wporg_pinned wp-graphql "$WPGRAPHQL_VERSION"
 
 # --- WPGraphQL JWT Authentication — v0.7.2 (release fijado) ---
 echo "==> Instalando WPGraphQL JWT Authentication v0.7.2 (desde GitHub)..."
@@ -95,19 +121,19 @@ $WP plugin install \
 	"https://github.com/funkhaus/wp-graphql-cors/zipball/2.1.1" \
 	--activate || echo "    (aviso) wp-graphql-cors opcional no instalado; el mu-plugin ya cubre CORS."
 
-# --- WooCommerce — desde wp.org (siempre la última estable) ---
-echo "==> Instalando WooCommerce (catálogo, carrito, pedidos)..."
-$WP plugin install woocommerce --activate
+# --- WooCommerce — desde wp.org (versión fijada; ver COMPATIBILITY.md) ---
+echo "==> Instalando WooCommerce v${WOOCOMMERCE_VERSION} (catálogo, carrito, pedidos)..."
+install_wporg_pinned woocommerce "$WOOCOMMERCE_VERSION"
 $WP option update woocommerce_onboarding_profile '{"skipped":true}' --format=json 2>/dev/null || true
 $WP option update woocommerce_default_country "ES" 2>/dev/null || true
 $WP option update woocommerce_currency "EUR" 2>/dev/null || true
 
 # --- WPGraphQL WooCommerce (WooGraphQL) — v1.0.2 (release fijado) ---
 echo "==> Instalando WPGraphQL WooCommerce (WooGraphQL) v1.0.2..."
-# Primero intentamos instalarlo desde wp.org (si la versión estable coincide)
-$WP plugin install wp-graphql-woocommerce --activate 2>/dev/null && \
-	echo "    (WooGraphQL instalado desde wp.org)" || {
-	echo "    (WooGraphQL no disponible en wp.org; descargando release fijado v1.0.2)..."
+# Primero intentamos instalarlo desde wp.org con la versión fijada
+$WP plugin install wp-graphql-woocommerce --version="$WOOGRAPHQL_WPORG_VERSION" --activate 2>/dev/null && \
+	echo "    (WooGraphQL v${WOOGRAPHQL_WPORG_VERSION} instalado desde wp.org)" || {
+	echo "    (WooGraphQL v${WOOGRAPHQL_WPORG_VERSION} no disponible en wp.org; descargando release fijado v1.0.2 de GitHub)..."
 	WOO_URL="https://github.com/wp-graphql/wp-graphql-woocommerce/releases/download/v1.0.2/wp-graphql-woocommerce.zip"
 	WOO_TMP="/tmp/woo-graphql.zip"
 	if command -v curl >/dev/null 2>&1; then
@@ -128,8 +154,8 @@ $WP plugin install wp-graphql-woocommerce --activate 2>/dev/null && \
 # ----------------------------------------------------------------------------
 # 4) Redis Object Cache (acelera el acceso a la BD de WordPress)
 # ----------------------------------------------------------------------------
-echo "==> Instalando Redis Object Cache..."
-$WP plugin install redis-cache --activate
+echo "==> Instalando Redis Object Cache v${REDISCACHE_VERSION}..."
+install_wporg_pinned redis-cache "$REDISCACHE_VERSION"
 $WP redis enable 2>/dev/null || echo "    (aviso) Redis Object Cache: enable diferido hasta que Redis esté disponible."
 
 # ----------------------------------------------------------------------------

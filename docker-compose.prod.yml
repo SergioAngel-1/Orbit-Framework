@@ -13,9 +13,11 @@
 #
 #  Endurecimiento adicional recomendado (según tu plataforma; puede requerir
 #  pruebas porque algunas imágenes escriben en disco o necesitan capacidades):
-#    - `cap_drop: [ALL]` (y `cap_add` solo lo imprescindible). Suele ir bien en
-#      db/redis/caddy; WordPress/Apache puede necesitar NET_BIND_SERVICE.
-#    - `read_only: true` + `tmpfs` para /tmp y rutas de escritura concretas.
+#    - `cap_drop: [ALL]` APLICADO a redis/frontend/caddy/backup (caddy con
+#      cap_add NET_BIND_SERVICE). db y wordpress se dejan SIN cap_drop porque
+#      su init/Apache necesita capacidades; endurécelos tras probar en staging.
+#    - `read_only: true` + `tmpfs` APLICADO a redis. No se aplica a frontend
+#      (caché ISR) ni a WordPress (escribe en disco) por defecto.
 #    - Fijar imágenes por DIGEST (image: repo@sha256:...) para builds reproducibles.
 #    - Restore PROBADO con backend/scripts/restore.sh (ver docs/RUNBOOK.md).
 #
@@ -45,6 +47,10 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     ports:
       - "80:80"
       - "443:443"
@@ -178,6 +184,11 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
     command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
     volumes:
       - redis_data:/data
@@ -201,6 +212,8 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
     depends_on:
       wordpress:
         condition: service_healthy
@@ -250,6 +263,8 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
     depends_on:
       db:
         condition: service_healthy
