@@ -71,6 +71,10 @@ HTML;
         echo $formHtml;
         echo '<p class="submit"><input type="submit" name="submit" id="submit" class="button button-primary" value="' . esc_attr__('Guardar configuración', 'hwe') . '"></p>';
         echo '</form>';
+
+        // Sección de prueba del transporte SMTP (envía un email de test).
+        self::renderSmtpTest();
+
         echo '</div>';
     }
 
@@ -188,5 +192,51 @@ HTML;
             esc_attr($type),
             esc_html($message)
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // Prueba de transporte SMTP (botón "enviar email de prueba")
+    // -------------------------------------------------------------------------
+
+    private static function renderSmtpTest(): void {
+        $status = isset($_GET['hwe_smtp_test'])
+            ? sanitize_text_field(wp_unslash($_GET['hwe_smtp_test']))
+            : '';
+
+        if ($status === 'sent') {
+            echo self::notice('success', __('Email de prueba enviado. Revisa la bandeja de entrada (y la carpeta de spam).', 'hwe'));
+        } elseif ($status === 'failed') {
+            $err = get_transient('hwe_smtp_last_error');
+            $msg = __('No se pudo enviar el email de prueba.', 'hwe');
+            if (is_string($err) && $err !== '') {
+                $msg .= ' ' . $err;
+            }
+            echo self::notice('error', $msg);
+        }
+
+        $active = function_exists('hwe_smtp_is_active') && hwe_smtp_is_active();
+        $estado = $active
+            ? __('SMTP activo: el correo se enviará por el servidor configurado.', 'hwe')
+            : __('SMTP inactivo: actívalo y completa el host arriba; mientras tanto se usa el envío PHP por defecto.', 'hwe');
+
+        $actionUrl = esc_url(admin_url('admin-post.php'));
+        $current   = esc_attr(wp_get_current_user()->user_email);
+        $nonce     = wp_nonce_field('hwe_smtp_test', '_wpnonce', true, false);
+        $title     = esc_html__('Probar entrega de email', 'hwe');
+        $label     = esc_html__('Enviar email de prueba a:', 'hwe');
+        $btn       = esc_attr__('Enviar email de prueba', 'hwe');
+        $estadoHtml = esc_html($estado);
+
+        echo <<<HTML
+<hr style="margin:24px 0;">
+<h2>{$title}</h2>
+<p class="description">{$estadoHtml}</p>
+<form method="post" action="{$actionUrl}" style="margin-top:8px;">
+{$nonce}
+<input type="hidden" name="action" value="hwe_smtp_test">
+<label>{$label} <input type="email" name="hwe_smtp_test_email" value="{$current}" class="regular-text" required></label>
+<p class="submit"><input type="submit" class="button" value="{$btn}"></p>
+</form>
+HTML;
     }
 }

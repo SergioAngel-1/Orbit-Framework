@@ -47,7 +47,9 @@
 
 - [ ] Productos, categorías y páginas legales reales (no datos demo).
 - [ ] Webhook de WooCommerce → `/api/revalidate` con `WC_WEBHOOK_SECRET` (catálogo fresco).
-- [ ] Email saliente configurado (SMTP) para reset de contraseña, verificación y emails de pedido.
+- [ ] **SMTP configurado** en *Ajustes → HWE Config → Integraciones* (host, puerto, cifrado, usuario, contraseña, remitente). Cubre reset de contraseña, verificación de email y emails de pedido.
+- [ ] **Email de prueba enviado** desde el panel (botón "Enviar email de prueba") y recibido **fuera de spam**.
+- [ ] **SPF, DKIM y DMARC** del dominio remitente configurados en DNS (decisivo para la entregabilidad).
 
 ## 6. Analítica y legal
 

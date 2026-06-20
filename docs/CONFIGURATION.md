@@ -71,6 +71,32 @@ trabajas fuera de Docker, en `frontend/.env.local`. **El repositorio solo contie
 > Para integrar una pasarela real, ver `lib/payments/providers/<nombre>.ts` y el
 > procedimiento en `docs/PRODUCTION-PLAN.md` §7.4.
 
+## Email transaccional (SMTP)
+
+El envío de correo (reset de contraseña, verificación de email y emails de pedido de
+WooCommerce) se configura **desde el panel**, no por variables de entorno:
+*wp-admin → Ajustes → HWE Config → Integraciones*.
+
+| Campo | Notas |
+|-------|-------|
+| Activar envío por SMTP | Interruptor maestro. Si está off, WordPress usa el envío PHP por defecto (poco fiable). |
+| SMTP Host / Puerto | P. ej. `email-smtp.eu-west-1.amazonaws.com` / `587`. |
+| Cifrado | `STARTTLS` (587), `SSL/TLS` (465) o sin cifrado (solo redes internas). |
+| Requiere autenticación | Si el relay exige usuario/contraseña (lo normal). |
+| Usuario / Contraseña | La **contraseña se guarda cifrada** (AES-256-GCM); déjala en blanco al guardar para conservarla. |
+| Email remitente (From) / Nombre | Usa un dominio con **SPF/DKIM** válidos. |
+
+Tras guardar, usa el botón **“Enviar email de prueba”** del propio panel para validar la
+entrega. El transporte lo implementa el mu-plugin `hwe-smtp.php` (hook `phpmailer_init`).
+
+Para gestionar el secreto fuera de la BD (p. ej. en `wp-config.php`), define cualquiera de
+estas constantes, que **tienen prioridad** sobre el panel: `HWE_SMTP_ENABLED`, `HWE_SMTP_HOST`,
+`HWE_SMTP_PORT`, `HWE_SMTP_ENCRYPTION`, `HWE_SMTP_AUTH`, `HWE_SMTP_USER`, `HWE_SMTP_PASSWORD`,
+`HWE_SMTP_FROM`, `HWE_SMTP_FROM_NAME`.
+
+> Entregabilidad: configura **SPF, DKIM y DMARC** en el DNS del dominio remitente. Sin ellos,
+> los correos legítimos acaban en spam aunque el SMTP funcione.
+
 ## Observabilidad (opcional)
 
 | Variable | Descripción |
