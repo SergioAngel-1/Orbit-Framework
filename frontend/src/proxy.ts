@@ -12,7 +12,8 @@ import { REFRESH_TOKEN_MUTATION } from "@/lib/auth/mutations";
 import { getOrCreateRequestId, REQUEST_ID_HEADER } from "@/lib/observability/request-id";
 
 // ============================================================================
-//  Middleware compuesto:
+//  Proxy compuesto (antes "middleware"; Next 16 renombró el convenio a `proxy`,
+//  mismo comportamiento y runtime edge):
 //   1. Barrera de Origin para escrituras en /api  (edge-compatible).
 //   2. next-intl: detección/redirect/rewrite de locale (solo páginas).
 //   3. Refresh transparente del JWT: si caducó, lo renueva y lo propaga al
@@ -116,7 +117,7 @@ function authCookie(token: string) {
   };
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Request-id de correlación: lo reutilizamos del entrante (Caddy lo genera y

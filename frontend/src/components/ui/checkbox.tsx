@@ -1,4 +1,4 @@
-import { forwardRef, type InputHTMLAttributes, type ReactNode } from "react";
+import { type InputHTMLAttributes, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils";
 
 export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
@@ -10,12 +10,20 @@ export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement
   indeterminate?: boolean;
   error?: string;
   id?: string;
+  /** Ref reenviada al `<input>` nativo (React 19: ref como prop). */
+  ref?: Ref<HTMLInputElement>;
 }
 
-export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Checkbox(
-  { label, description, indeterminate = false, error, id, className, ...props },
+export function Checkbox({
+  label,
+  description,
+  indeterminate = false,
+  error,
+  id,
+  className,
   ref,
-) {
+  ...props
+}: CheckboxProps) {
   const checkId = id ?? (typeof label === "string" ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
   const hasError = Boolean(error);
 
@@ -89,4 +97,4 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
       )}
     </div>
   );
-});
+}

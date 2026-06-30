@@ -39,7 +39,10 @@ export async function POST(request: Request) {
       logger.warn({ event: "revalidate.invalid_hwe_signature" }, "Firma HWE de webhook inválida");
       return NextResponse.json({ error: "Firma de webhook inválida." }, { status: 401 });
     }
-    revalidateTag("site-config");
+    // Next 16: revalidateTag requiere un perfil de cacheLife. "max" marca el
+    // tag como obsoleto y revalida en segundo plano (stale-while-revalidate),
+    // acorde al modelo ISR + webhook de esta plantilla.
+    revalidateTag("site-config", "max");
     logger.info({ event: "revalidate.site_config" }, "Configuración del sitio revalidada");
     return NextResponse.json({ revalidated: true, tag: "site-config", now: Date.now() });
   }
@@ -50,7 +53,7 @@ export async function POST(request: Request) {
     logger.warn({ event: "revalidate.invalid_wc_signature" }, "Firma WC de webhook inválida");
     return NextResponse.json({ error: "Firma de webhook inválida." }, { status: 401 });
   }
-  revalidateTag("products");
+  revalidateTag("products", "max");
   logger.info({ event: "revalidate.products" }, "Catálogo de productos revalidado");
   return NextResponse.json({ revalidated: true, tag: "products", now: Date.now() });
 }

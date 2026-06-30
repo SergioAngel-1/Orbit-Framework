@@ -10,7 +10,7 @@
 # ============================================================================
 
 # ---------- Base común ----------
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 WORKDIR /app
 # libc6-compat: algunas dependencias nativas lo requieren en Alpine.
 RUN apk add --no-cache libc6-compat
@@ -37,7 +37,7 @@ COPY . .
 RUN npm run build
 
 # ---------- Runtime de producción (standalone) ----------
-FROM node:20-alpine AS prod
+FROM node:24-alpine AS prod
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

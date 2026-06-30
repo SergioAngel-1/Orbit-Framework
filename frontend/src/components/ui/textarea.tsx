@@ -1,4 +1,4 @@
-import { forwardRef, type TextareaHTMLAttributes } from "react";
+import { type TextareaHTMLAttributes, type Ref } from "react";
 import { cn } from "@/lib/utils";
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -10,12 +10,21 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   rows?: number;
   /** Impide que el usuario redimensione. Default: false. */
   noResize?: boolean;
+  /** Ref reenviada al `<textarea>` nativo (React 19: ref como prop). */
+  ref?: Ref<HTMLTextAreaElement>;
 }
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
-  { label, error, helper, id, rows = 4, noResize = false, className, ...props },
+export function Textarea({
+  label,
+  error,
+  helper,
+  id,
+  rows = 4,
+  noResize = false,
+  className,
   ref,
-) {
+  ...props
+}: TextareaProps) {
   const areaId = id ?? (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
   const hasError = Boolean(error);
 
@@ -65,4 +74,4 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
       ) : null}
     </div>
   );
-});
+}

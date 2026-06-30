@@ -13,6 +13,9 @@ export interface SiteConfig {
     instagram: string;
     facebook: string;
     linkedin: string;
+    youtube: string;
+    wikipedia: string;
+    wikidata: string;
   };
   legal: {
     company: string;
@@ -50,5 +53,32 @@ export interface SiteConfig {
     title_template: string;
     robots: string;
     google_site_verification: string;
+    /** 'auto' = OG/iconos generados desde la marca · 'custom' = usar brand.og_image. */
+    default_og: string;
+    /** Datos estructurados de producto (todos opcionales; vacío = no emitir). */
+    product_brand: string;
+    shipping_amount: string;
+    return_days: string;
+    /** 'finite' | 'unlimited' | 'none' */
+    return_category: string;
+    /** Logo para el schema Organization. Vacío = icono dinámico de marca. */
+    organization_logo: string;
+    /** Fecha de fundación ISO 8601 (Organization.foundingDate). */
+    founding_date: string;
+    /** Temas de experiencia (knowsAbout), uno por línea o separados por comas. */
+    knows_about: string;
+    /** Responsable/fundador (Person en /about). Vacío = no se publica. */
+    founder_name: string;
+    founder_role: string;
+    founder_url: string;
+  };
+  geo: {
+    /** 'allow' | 'search_only' | 'block' */
+    ai_crawlers: string;
+    llms_txt_enabled: boolean;
+    /** Líneas "pregunta | respuesta". */
+    faq: string;
+    /** Emitir directiva Content-Signal en robots.txt. */
+    content_signal: boolean;
   };
 }

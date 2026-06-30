@@ -7,6 +7,8 @@
   },
   "nav": {
     "store": "Store",
+    "blog": "Blog",
+    "about": "About",
     "account": "Account",
     "cart": "Cart",
     "skipToContent": "Skip to content",
@@ -102,7 +104,28 @@
     "readMore": "Read more →",
     "errorTitle": "Could not load posts.",
     "errorDescription": "Check that WordPress is running and WPGraphQL responds at /graphql.",
-    "empty": "No posts yet. Create content in the WordPress admin panel."
+    "empty": "No posts yet. Create content in the WordPress admin panel.",
+    "faqTitle": "Frequently asked questions"
+  },
+  "blog": {
+    "title": "Blog",
+    "description": "Articles, guides and updates published from WordPress.",
+    "readMore": "Read more →",
+    "loadMore": "Load more →",
+    "backToBlog": "← Back to blog",
+    "empty": "No posts yet. Create content in the WordPress admin panel.",
+    "error": "Couldn't load posts.",
+    "errorHint": "Check that WordPress is running and WPGraphQL responds at /graphql.",
+    "notFound": "Post not found."
+  },
+  "about": {
+    "title": "About us",
+    "company": "Company",
+    "founded": "Founded",
+    "location": "Location",
+    "expertise": "Areas of expertise",
+    "contact": "Contact",
+    "team": "Team"
   },
   "products": {
     "title": "Store",

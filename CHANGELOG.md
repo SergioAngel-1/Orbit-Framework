@@ -6,6 +6,23 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Modo de desarrollo híbrido (WordPress + frontend nativos, DB/Redis en Docker)
+
+#### Añadido
+- **Documentación actualizada** para reflejar dos modos de desarrollo: Docker puro y
+  híbrido (recomendado en Windows para evitar latencia de bind mounts).
+- **Scripts de inicio local**: `start-local.bat` / `start-local.ps1` que establecen
+  las variables de entorno necesarias para WordPress nativo y lo arrancan con
+  `php -S`.
+- **Puerto MariaDB 3307 expuesto** al host para que WordPress nativo pueda
+  conectarse al contenedor Docker.
+
+#### Cambiado
+- `README.md`, `AGENTS.md`, `docs/INSTALL.md`, `docs/CONFIGURATION.md`:
+  documentación actualizada con los dos modos de desarrollo.
+- `docker-compose.yml`: puerto 3307:3306 para MariaDB, volumen wordpress_core
+  compartido entre WordPress y wpcli, healthcheck optimizado.
+
 ### Auditoría y endurecimiento (remediación del plan `AUDITORIA-Y-PLAN-DE-IMPLEMENTACION.md`)
 
 #### Corregido (flujos rotos — P0)

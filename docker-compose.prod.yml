@@ -38,12 +38,21 @@
 #    docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 # ============================================================================
 
+# Rotación de logs compartida: evita que los json-file de Docker crezcan sin
+# límite y llenen el disco del host. 3 archivos de 10 MB = 30 MB máx por servicio.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
 
   # ── Caddy: reverse proxy + TLS automático ───────────────────────────────────
   caddy:
-    image: caddy:2.9-alpine
+    image: caddy:2.11-alpine
     container_name: hwe_caddy
+    logging: *default-logging
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -76,8 +85,9 @@ services:
 
   # ── Base de datos ──────────────────────────────────────────────────────────
   db:
-    image: mariadb:11.4
+    image: mariadb:11.8
     container_name: hwe_db
+    logging: *default-logging
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -103,8 +113,9 @@ services:
   # ── WordPress headless ──────────────────────────────────────────────────────
   # Puerto 8080 NO expuesto al host: solo accesible via Caddy en la red interna.
   wordpress:
-    image: wordpress:6.7-php8.3-apache
+    image: wordpress:7.0-php8.4-apache
     container_name: hwe_wordpress
+    logging: *default-logging
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -125,14 +136,24 @@ services:
         define( 'HEADLESS_FRONTEND_URL',    'https://${PUBLIC_DOMAIN}' );
         define( 'HEADLESS_ALLOWED_ORIGINS', 'https://${PUBLIC_DOMAIN}' );
         define( 'HWE_REVALIDATION_SECRET',  '${HWE_REVALIDATION_SECRET:?HWE_REVALIDATION_SECRET must be set}' );
+        // Claves AES dedicadas (estables entre recreaciones del contenedor). En
+        // prod el core de WP NO se persiste, así que NO se puede depender del
+        // fallback a AUTH_KEY autogenerado: si cambiara, los secretos del Control
+        // Center y los secretos 2FA cifrados quedarían indescifrables.
+        define( 'HWE_SECRETS_KEY', '${HWE_SECRETS_KEY:?HWE_SECRETS_KEY must be set}' );
+        define( 'HWE_2FA_KEY',     '${HWE_2FA_KEY:?HWE_2FA_KEY must be set}' );
         define( 'WP_REDIS_HOST', 'redis' );
         define( 'WP_REDIS_PORT', 6379 );
         define( 'WP_CACHE', true );
+        define( 'HWE_TRUSTED_PROXY_COUNT', ${TRUSTED_PROXY_COUNT:-1} );
         define( 'DISALLOW_FILE_EDIT', true );
         define( 'DISALLOW_FILE_MODS', true );
     volumes:
       - ./backend/wp-content:/var/www/html/wp-content
       - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
+      # OPcache optimizado para producción (validate_timestamps=0): tras
+      # actualizar mu-plugins/plugins hay que reiniciar este contenedor.
+      - ./backend/config/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/wp-json/ || exit 1"]
       interval: 30s
@@ -148,14 +169,16 @@ services:
 
   # ── WP-CLI (primer arranque, bajo demanda) ─────────────────────────────────
   wpcli:
-    image: wordpress:cli-php8.3
+    image: wordpress:cli-php8.4
     container_name: hwe_wpcli
     profiles: ["cli"]
     depends_on:
       db:
         condition: service_healthy
+      # service_started (no healthy): evita el deadlock circular en el primer arranque
+      # (wordpress no es healthy hasta que setup.sh —que corre aquí— lo instala).
       wordpress:
-        condition: service_healthy
+        condition: service_started
     user: "33:33"
     environment:
       WORDPRESS_DB_HOST:     "db:3306"
@@ -179,8 +202,9 @@ services:
 
   # ── Redis (caché de objetos WP + rate-limit BFF) ────────────────────────────
   redis:
-    image: redis:7.4-alpine
+    image: redis:8-alpine
     container_name: hwe_redis
+    logging: *default-logging
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -189,7 +213,18 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    # maxmemory por debajo del límite del contenedor (256m) para que Redis
+    # gestione la memoria con evicción LRU en lugar de que el kernel lo mate por
+    # OOM (lo que perdería TODA la caché). allkeys-lru: las claves de seguridad
+    # (revocación, idempotencia) son recientes/con TTL, así que sobreviven.
+    command:
+      [
+        "redis-server",
+        "--save", "60", "1",
+        "--loglevel", "warning",
+        "--maxmemory", "220mb",
+        "--maxmemory-policy", "allkeys-lru",
+      ]
     volumes:
       - redis_data:/data
     healthcheck:
@@ -209,6 +244,7 @@ services:
   frontend:
     image: "${FRONTEND_IMAGE:-hwe-frontend:prod}"
     container_name: hwe_frontend
+    logging: *default-logging
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -258,8 +294,9 @@ services:
 
   # ── Backup cron (diario 03:00 UTC) ──────────────────────────────────────────
   backup:
-    image: alpine:3.21
+    image: alpine:3.23
     container_name: hwe_backup
+    logging: *default-logging
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

@@ -1,4 +1,4 @@
-import { forwardRef, type InputHTMLAttributes, type ReactNode } from "react";
+import { type InputHTMLAttributes, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils";
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -14,12 +14,21 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   trailing?: ReactNode;
   /** ID del input (generado si no se proporciona). */
   id?: string;
+  /** Ref reenviada al `<input>` nativo (React 19: ref como prop). */
+  ref?: Ref<HTMLInputElement>;
 }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, helper, leading, trailing, id, className, ...props },
+export function Input({
+  label,
+  error,
+  helper,
+  leading,
+  trailing,
+  id,
+  className,
   ref,
-) {
+  ...props
+}: InputProps) {
   const inputId = id ?? (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
   const hasError = Boolean(error);
 
@@ -81,4 +90,4 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       ) : null}
     </div>
   );
-});
+}

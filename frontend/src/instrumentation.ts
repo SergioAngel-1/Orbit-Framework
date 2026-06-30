@@ -13,12 +13,21 @@
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Inicialización del SDK de Sentry (servidor) — Sentry v9+ recomienda
+    // cargar la config desde `register()` en lugar de la carga implícita.
+    await import("../sentry.server.config");
+
     // Guard de arranque: aborta en producción con secretos por defecto/cortos.
     const { assertSecrets } = await import("@/lib/security/secret-guard");
     assertSecrets();
 
     const { logger } = await import("@/lib/observability/logger");
     logger.info({ event: "server_start" }, "Frontend iniciado");
+  }
+
+  if (process.env.NEXT_RUNTIME === "edge") {
+    // Inicialización del SDK de Sentry para el runtime edge (middleware).
+    await import("../sentry.edge.config");
   }
 }
 

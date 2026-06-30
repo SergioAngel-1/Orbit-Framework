@@ -32,9 +32,9 @@ export async function POST(request: Request) {
   });
   if (blocked) return blocked;
 
-  let body: { ephemeralToken?: string; code?: string };
+  let body: { ephemeralToken?: string; code?: string; recoveryCode?: string };
   try {
-    body = await request.json() as { ephemeralToken?: string; code?: string; recoveryCode?: string };
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }

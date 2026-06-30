@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getCategory } from "@/lib/catalog/products";
+import { getSiteConfig } from "@/lib/config";
+import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
+import { buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { ProductGrid } from "@/components/products/product-grid";
 import { stripHtml } from "@/lib/format";
 
@@ -10,16 +13,17 @@ export const revalidate = 300;
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
-  const t = await getTranslations("products");
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  const t = await getTranslations({ locale, namespace: "products" });
   try {
     const result = await getCategory(slug);
     if (!result) return { title: t("notFound") };
     return {
       title: result.category.name,
-      description: stripHtml(result.category.description).slice(0, 160),
+      description: stripHtml(result.category.description ?? "").slice(0, 160),
+      alternates: alternatesFor(`/categories/${slug}`, locale),
     };
   } catch {
     return { title: t("title") };
@@ -29,9 +33,15 @@ export async function generateMetadata({
 export default async function CategoryPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }) {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
+
+  const [t, config] = await Promise.all([
+    getTranslations("products"),
+    getSiteConfig(),
+  ]);
 
   let result: Awaited<ReturnType<typeof getCategory>>;
   try {
@@ -41,8 +51,20 @@ export default async function CategoryPage({
   }
   if (!result) notFound();
 
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: t("title"), url: absoluteLocalized(config.brand.url, "/products", locale) },
+    {
+      name: result.category.name,
+      url: absoluteLocalized(config.brand.url, `/categories/${slug}`, locale),
+    },
+  ]);
+
   return (
     <div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <h1 className="mb-2 text-3xl font-extrabold tracking-tight">
         {result.category.name}
       </h1>

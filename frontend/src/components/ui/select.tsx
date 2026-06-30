@@ -1,4 +1,4 @@
-import { forwardRef, type SelectHTMLAttributes } from "react";
+import { type SelectHTMLAttributes, type Ref } from "react";
 import { cn } from "@/lib/utils";
 
 export interface SelectOption {
@@ -16,12 +16,22 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   /** Lista de opciones. Si se prefiere, se puede usar `children` directamente. */
   options?: SelectOption[];
   id?: string;
+  /** Ref reenviada al `<select>` nativo (React 19: ref como prop). */
+  ref?: Ref<HTMLSelectElement>;
 }
 
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, error, helper, placeholder, options, id, className, children, ...props },
+export function Select({
+  label,
+  error,
+  helper,
+  placeholder,
+  options,
+  id,
+  className,
+  children,
   ref,
-) {
+  ...props
+}: SelectProps) {
   const selectId = id ?? (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
   const hasError = Boolean(error);
 
@@ -103,4 +113,4 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       ) : null}
     </div>
   );
-});
+}

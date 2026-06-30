@@ -13,7 +13,7 @@ export const createPaymentSchema = z.object({
     .union([z.number().int().positive(), z.string().regex(/^\d+$/)])
     .transform((v) => String(v)),
   /** URL de retorno opcional; si se omite, se usa la del entorno. */
-  returnUrl: z.string().url().max(2000).optional(),
+  returnUrl: z.url().max(2000).optional(),
 });
 
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;

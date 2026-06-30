@@ -30,21 +30,24 @@ WOOGRAPHQL_SHA256="15e9b320114349cc5213f7245d93985d45def4bbe27d9a1850a3a49c7f4f9
 #  Si una versión fijada no existiera en wp.org, se degrada a la última estable
 #  con un AVISO (no rompe el primer arranque).
 # ----------------------------------------------------------------------------
-WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-1.30.0}"
-WOOCOMMERCE_VERSION="${WOOCOMMERCE_VERSION:-9.4.3}"
+WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-2.16.0}"
+WOOCOMMERCE_VERSION="${WOOCOMMERCE_VERSION:-10.8.1}"
 WOOGRAPHQL_WPORG_VERSION="${WOOGRAPHQL_WPORG_VERSION:-1.0.2}"
-REDISCACHE_VERSION="${REDISCACHE_VERSION:-2.5.4}"
+REDISCACHE_VERSION="${REDISCACHE_VERSION:-2.7.0}"
 
 # Instala un plugin de wp.org fijando la versión; si esa versión no existe,
 # degrada a la última estable con aviso (reproducible por defecto, resiliente).
 install_wporg_pinned() {
 	_slug="$1"
 	_version="$2"
-	if $WP plugin install "$_slug" --version="$_version" --activate 2>/dev/null; then
+	# --force: sobrescribe si la carpeta del plugin ya existe (el bind mount de
+	# wp-content conserva los plugins aunque se resetee la BD). Hace el script
+	# re-ejecutable sin el error "Destination folder already exists".
+	if $WP plugin install "$_slug" --version="$_version" --activate --force 2>/dev/null; then
 		echo "    ✓ ${_slug} v${_version} (fijada)"
 	else
 		echo "    ⚠️  ${_slug} v${_version} no disponible en wp.org; instalando la última estable."
-		$WP plugin install "$_slug" --activate
+		$WP plugin install "$_slug" --activate --force
 	fi
 }
 
@@ -98,6 +101,13 @@ echo "==> Instalando WPGraphQL v${WPGRAPHQL_VERSION} (desde WordPress.org)..."
 install_wporg_pinned wp-graphql "$WPGRAPHQL_VERSION"
 
 # --- WPGraphQL JWT Authentication — v0.7.2 (release fijado) ---
+# Elimina cualquier copia legacy en la carpeta "jwt-auth" (slug que colisiona con el plugin
+# homónimo de wordpress.org y dispara falsas actualizaciones a su versión 3.x). El release de
+# GitHub se instala en la carpeta "wp-graphql-jwt-authentication", que no colisiona.
+echo "==> Limpiando instalación legacy de JWT Auth (carpeta jwt-auth) si existe..."
+$WP plugin deactivate jwt-auth 2>/dev/null || true
+$WP plugin delete jwt-auth 2>/dev/null || true
+
 echo "==> Instalando WPGraphQL JWT Authentication v0.7.2 (desde GitHub)..."
 JWT_URL="https://github.com/wp-graphql/wp-graphql-jwt-authentication/releases/download/v0.7.2/wp-graphql-jwt-authentication.zip"
 JWT_TMP="/tmp/jwt-auth.zip"
@@ -105,21 +115,21 @@ if command -v curl >/dev/null 2>&1; then
 	curl -sL -o "$JWT_TMP" "$JWT_URL"
 	COMPUTED=$(sha256sum "$JWT_TMP" | cut -d' ' -f1)
 	if [ "$COMPUTED" = "$JWT_AUTH_SHA256" ]; then
-		$WP plugin install "$JWT_TMP" --activate
+		$WP plugin install "$JWT_TMP" --activate --force
 	else
 		echo "    ⚠️  Checksum SHA256 de JWT Auth no coincide (esperado $JWT_AUTH_SHA256, obtenido $COMPUTED). Usando URL directa."
-		$WP plugin install "$JWT_URL" --activate
+		$WP plugin install "$JWT_URL" --activate --force
 	fi
 	rm -f "$JWT_TMP"
 else
-	$WP plugin install "$JWT_URL" --activate
+	$WP plugin install "$JWT_URL" --activate --force
 fi
 
 # --- WPGraphQL CORS — v2.1.1 (release fijado, no tiene .zip en assets) ---
 echo "==> Instalando WPGraphQL CORS v2.1.1 (desde GitHub)..."
 $WP plugin install \
 	"https://github.com/funkhaus/wp-graphql-cors/zipball/2.1.1" \
-	--activate || echo "    (aviso) wp-graphql-cors opcional no instalado; el mu-plugin ya cubre CORS."
+	--activate --force || echo "    (aviso) wp-graphql-cors opcional no instalado; el mu-plugin ya cubre CORS."
 
 # --- WooCommerce — desde wp.org (versión fijada; ver COMPATIBILITY.md) ---
 echo "==> Instalando WooCommerce v${WOOCOMMERCE_VERSION} (catálogo, carrito, pedidos)..."
@@ -131,7 +141,7 @@ $WP option update woocommerce_currency "EUR" 2>/dev/null || true
 # --- WPGraphQL WooCommerce (WooGraphQL) — v1.0.2 (release fijado) ---
 echo "==> Instalando WPGraphQL WooCommerce (WooGraphQL) v1.0.2..."
 # Primero intentamos instalarlo desde wp.org con la versión fijada
-$WP plugin install wp-graphql-woocommerce --version="$WOOGRAPHQL_WPORG_VERSION" --activate 2>/dev/null && \
+$WP plugin install wp-graphql-woocommerce --version="$WOOGRAPHQL_WPORG_VERSION" --activate --force 2>/dev/null && \
 	echo "    (WooGraphQL v${WOOGRAPHQL_WPORG_VERSION} instalado desde wp.org)" || {
 	echo "    (WooGraphQL v${WOOGRAPHQL_WPORG_VERSION} no disponible en wp.org; descargando release fijado v1.0.2 de GitHub)..."
 	WOO_URL="https://github.com/wp-graphql/wp-graphql-woocommerce/releases/download/v1.0.2/wp-graphql-woocommerce.zip"
@@ -140,14 +150,14 @@ $WP plugin install wp-graphql-woocommerce --version="$WOOGRAPHQL_WPORG_VERSION" 
 		curl -sL -o "$WOO_TMP" "$WOO_URL"
 		COMPUTED=$(sha256sum "$WOO_TMP" | cut -d' ' -f1)
 		if [ "$COMPUTED" = "$WOOGRAPHQL_SHA256" ]; then
-			$WP plugin install "$WOO_TMP" --activate
+			$WP plugin install "$WOO_TMP" --activate --force
 		else
 			echo "    ⚠️  Checksum SHA256 de WooGraphQL no coincide. Usando URL directa."
-			$WP plugin install "$WOO_URL" --activate
+			$WP plugin install "$WOO_URL" --activate --force
 		fi
 		rm -f "$WOO_TMP"
 	else
-		$WP plugin install "$WOO_URL" --activate
+		$WP plugin install "$WOO_URL" --activate --force
 	fi
 } || echo "    (aviso) WooGraphQL no instalado; instálalo manualmente."
 
@@ -171,8 +181,19 @@ $WP option update graphql_cache_section 'on' 2>/dev/null || true
 # ----------------------------------------------------------------------------
 echo "==> Limpiando plugins y temas de ejemplo..."
 $WP plugin delete akismet hello 2>/dev/null || true
-$WP theme activate twentytwentyfour 2>/dev/null || true
-$WP theme delete twentytwentythree twentytwentytwo 2>/dev/null || true
+# En headless el tema casi no importa: activamos el más reciente disponible
+# (WP 7.0 incluye Twenty Twenty-Six) y eliminamos los bundled más antiguos.
+# Todo best-effort para no depender del set exacto de temas de cada versión.
+ACTIVE_THEME=$($WP theme list --status=active --field=name 2>/dev/null | head -1 || echo "")
+for t in twentytwentysix twentytwentyfive twentytwentyfour; do
+	if $WP theme is-installed "$t" >/dev/null 2>&1; then
+		$WP theme activate "$t" 2>/dev/null && ACTIVE_THEME="$t" && break
+	fi
+done
+# Borra cualquier tema bundled que no sea el activo.
+for t in twentytwentyfour twentytwentythree twentytwentytwo twentytwentyone; do
+	[ "$t" != "$ACTIVE_THEME" ] && $WP theme delete "$t" 2>/dev/null || true
+done
 
 # ----------------------------------------------------------------------------
 # 6) Webhooks de WooCommerce (pedido creado/actualizado)
@@ -227,170 +248,39 @@ $WP option update woocommerce_prices_include_tax "yes" 2>/dev/null || true
 $WP option update woocommerce_tax_based_on "shipping" 2>/dev/null || true
 $WP option update woocommerce_default_customer_address "base" 2>/dev/null || true
 
-# Crear zona de envío: España peninsular con tarifa plana
-$WP wc shipping_zone create \
+echo "==> Configurando zona de envío y método de tarifa plana..."
+ZONE_ID=$($WP wc shipping_zone create \
+	--user="${WP_ADMIN_USER:-admin}" \
 	--name="España peninsular" \
-	--porcelain 2>/dev/null || true
+	--porcelain 2>/dev/null || echo "")
 
-# ----------------------------------------------------------------------------
-# 7) Contenido de ejemplo (garantiza que la home del frontend tenga posts)
-# ----------------------------------------------------------------------------
-POST_COUNT=$($WP post list --post_type=post --post_status=publish --format=count 2>/dev/null || echo 0)
-if [ "${POST_COUNT}" -lt 5 ]; then
-	echo "==> Generando posts de ejemplo..."
-	i=1
-	while [ "$i" -le 5 ]; do
-		$WP post create \
-			--post_type=post \
-			--post_status=publish \
-			--post_title="Post de ejemplo #${i}" \
-			--post_content="Contenido de demostración generado automáticamente para el post número ${i}. Edítalo o elimínalo desde el panel de WordPress."
-		i=$((i + 1))
-	done
+if [ -n "$ZONE_ID" ] && [ "$ZONE_ID" -gt 0 ] 2>/dev/null; then
+	# Add zone location (Spain)
+	$WP wc shipping_zone_location save "$ZONE_ID" \
+		--user="${WP_ADMIN_USER:-admin}" \
+		'[{"code":"ES","type":"country"}]' 2>/dev/null || true
+
+	# Add flat rate method
+	$WP wc shipping_zone_method create "$ZONE_ID" \
+		--user="${WP_ADMIN_USER:-admin}" \
+		--method_id="flat_rate" \
+		--enabled=true \
+		--porcelain 2>/dev/null && \
+		echo "    ✓ Método de envío tarifa plana añadido a zona $ZONE_ID" || \
+		echo "    (aviso) No se pudo añadir el método de envío. Configúralo manualmente en WooCommerce."
+else
+	echo "    (aviso) No se pudo crear la zona de envío. Configúrala manualmente."
 fi
 
 # ----------------------------------------------------------------------------
-# 7b) Categorías de producto de ejemplo
+# 7) Contenido de ejemplo — DESHABILITADO
 # ----------------------------------------------------------------------------
-CAT_COUNT=$($WP wc product_cat list --per_page=1 --format=count 2>/dev/null || echo 0)
-if [ "${CAT_COUNT}" -le 1 ]; then
-	echo "==> Creando categorías de producto de ejemplo..."
-	$WP wc product_cat create --name="Ropa" --description="Ropa y accesorios" --porcelain 2>/dev/null || true
-	$WP wc product_cat create --name="Electrónica" --description="Dispositivos y gadgets" --porcelain 2>/dev/null || true
-	$WP wc product_cat create --name="Hogar" --description="Artículos para el hogar" --porcelain 2>/dev/null || true
-fi
-
-# ----------------------------------------------------------------------------
-# 7c) Productos de ejemplo (simples + variables, con categorías)
-# ----------------------------------------------------------------------------
-PRODUCT_COUNT=$($WP post list --post_type=product --post_status=publish --format=count 2>/dev/null || echo 0)
-if [ "${PRODUCT_COUNT}" -lt 5 ]; then
-	echo "==> Generando productos de ejemplo..."
-
-	# Obtener IDs de categorías
-	CAT_ROPA=$($WP wc product_cat list --search="Ropa" --field=id --porcelain 2>/dev/null | head -1)
-	CAT_ELECTRONICA=$($WP wc product_cat list --search="Electrónica" --field=id --porcelain 2>/dev/null | head -1)
-	CAT_HOGAR=$($WP wc product_cat list --search="Hogar" --field=id --porcelain 2>/dev/null | head -1)
-
-	# Producto simple 1: Camiseta
-	$WP wc product create \
-		--user="${WP_ADMIN_USER:-admin}" \
-		--name="Camiseta básica" \
-		--type=simple \
-		--regular_price="29.95" \
-		--manage_stock=true \
-		--stock_quantity=50 \
-		--stock_status=instock \
-		--status=publish \
-		--description="Camiseta de algodón orgánico, cómoda y duradera. Ideal para el día a día." \
-		--short_description="Camiseta de algodón orgánico" \
-		--categories="[{\"id\":${CAT_ROPA:-1}}]" \
-		--porcelain >/dev/null 2>&1 || \
-		echo "    (aviso) no se pudo crear producto Camiseta."
-
-	# Producto simple 2: Auriculares
-	$WP wc product create \
-		--user="${WP_ADMIN_USER:-admin}" \
-		--name="Auriculares inalámbricos" \
-		--type=simple \
-		--regular_price="79.99" \
-		--sale_price="59.99" \
-		--manage_stock=true \
-		--stock_quantity=25 \
-		--stock_status=instock \
-		--status=publish \
-		--description="Auriculares Bluetooth con cancelación de ruido activa. 20h de autonomía." \
-		--short_description="Bluetooth, cancelación de ruido" \
-		--categories="[{\"id\":${CAT_ELECTRONICA:-1}}]" \
-		--porcelain >/dev/null 2>&1 || \
-		echo "    (aviso) no se pudo crear producto Auriculares."
-
-	# Producto simple 3: Lámpara
-	$WP wc product create \
-		--user="${WP_ADMIN_USER:-admin}" \
-		--name="Lámpara de escritorio LED" \
-		--type=simple \
-		--regular_price="45.00" \
-		--manage_stock=true \
-		--stock_quantity=30 \
-		--stock_status=instock \
-		--status=publish \
-		--description="Lámpara LED regulable con temperatura de color ajustable y puerto USB de carga." \
-		--short_description="LED regulable con puerto USB" \
-		--categories="[{\"id\":${CAT_HOGAR:-1}}]" \
-		--porcelain >/dev/null 2>&1 || \
-		echo "    (aviso) no se pudo crear producto Lámpara."
-
-	# --- Producto variable: Sudaderas (tallas S/M/L/XL) ---
-	echo "    Creando producto variable: Sudadera..."
-	PARENT_ID=$($WP wc product create \
-		--user="${WP_ADMIN_USER:-admin}" \
-		--name="Sudadera con capucha" \
-		--type=variable \
-		--manage_stock=false \
-		--status=publish \
-		--description="Sudadera unisex con capucha y bolsillo canguro. Disponible en varias tallas." \
-		--short_description="Unisex con capucha, varios colores" \
-		--categories="[{\"id\":${CAT_ROPA:-1}}]" \
-		--porcelain 2>/dev/null || echo "")
-
-		if [ -n "$PARENT_ID" ] && [ "$PARENT_ID" -gt 0 ] 2>/dev/null; then
-			# Crear atributo "Talla"
-			ATTR_ID=$($WP wc product_attribute create \
-				--name="Talla" \
-				--slug="talla" \
-				--type="select" \
-				--order_by="menu_order" \
-				--porcelain 2>/dev/null || echo "")
-
-			if [ -n "$ATTR_ID" ] && [ "$ATTR_ID" -gt 0 ] 2>/dev/null; then
-				# Añadir términos del atributo
-				for talla in S M L XL; do
-					TERM_ID=$($WP wc product_attribute term create \
-						--attribute_id="$ATTR_ID" \
-						--name="$talla" \
-						--porcelain 2>/dev/null || echo "")
-				done
-
-				# Asociar atributo al producto
-				$WP wc product update "$PARENT_ID" \
-					--attributes="[{\"id\":${ATTR_ID},\"name\":\"Talla\",\"position\":0,\"visible\":true,\"variation\":true,\"options\":[\"S\",\"M\",\"L\",\"XL\"]}]" \
-					--porcelain 2>/dev/null || true
-
-				# Crear variaciones
-				for talla in S M L XL; do
-					PRECIO="49.95"
-					[ "$talla" = "XL" ] && PRECIO="54.95"
-					$WP wc product variation create \
-						"$PARENT_ID" \
-						--sku="HOOD-${talla}" \
-						--regular_price="$PRECIO" \
-						--manage_stock=true \
-						--stock_quantity=20 \
-						--attributes="[{\"id\":${ATTR_ID},\"option\":\"${talla}\"}]" \
-						--porcelain 2>/dev/null || true
-				done
-			fi
-		else
-			echo "    (aviso) no se pudo crear producto variable Sudadera."
-		fi
-
-	# Producto simple adicional: Mochila
-	$WP wc product create \
-		--user="${WP_ADMIN_USER:-admin}" \
-		--name="Mochila impermeable 30L" \
-		--type=simple \
-		--regular_price="65.00" \
-		--manage_stock=true \
-		--stock_quantity=15 \
-		--stock_status=instock \
-		--status=publish \
-		--description="Mochila impermeable con compartimento para portátil de hasta 15.6\", bolsillo acolchado y correas ajustables." \
-		--short_description="Impermeable, 30L, compartimento laptop" \
-		--categories="[{\"id\":${CAT_ROPA:-1}}]" \
-		--porcelain >/dev/null 2>&1 || \
-		echo "    (aviso) no se pudo crear producto Mochila."
-fi
+# El setup deja WordPress LIMPIO: solo plugins instalados/activados y la
+# configuración headless. NO se crean posts, categorías ni productos de ejemplo.
+#
+# ¿Quieres datos demo para probar el frontend? Ejecútalos bajo demanda:
+#   docker compose run --rm --entrypoint /bin/sh wpcli /scripts/seed-demo.sh
+echo "==> WordPress limpio (sin contenido de ejemplo). Demo opcional: seed-demo.sh"
 
 echo ""
 echo "============================================================"

@@ -6,6 +6,9 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getProductBySlug, getProductSlugs } from "@/lib/catalog/products";
 import { sanitizeHtml }   from "@/lib/security/sanitize";
 import { formatPrice, stripHtml, formatDate } from "@/lib/format";
+import { getSiteConfig }  from "@/lib/config";
+import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
+import { buildProductJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { Badge }          from "@/components/ui/badge";
 import { ProductGrid }    from "@/components/products/product-grid";
 import ProductActions     from "@/components/products/product-actions";
@@ -32,9 +35,11 @@ export async function generateMetadata({
     return {
       title: product.name,
       description,
+      alternates: alternatesFor(`/products/${slug}`, locale),
       openGraph: {
         title: product.name,
         description,
+        type: "website",
         images: product.image ? [{ url: product.image.sourceUrl }] : [],
       },
     };
@@ -50,7 +55,10 @@ export default async function ProductPage({
 }) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations("products");
+  const [t, config] = await Promise.all([
+    getTranslations("products"),
+    getSiteConfig(),
+  ]);
 
   let product: Awaited<ReturnType<typeof getProductBySlug>>;
   try {
@@ -64,27 +72,28 @@ export default async function ProductPage({
   const outOfStock = product.stockStatus === "OUT_OF_STOCK";
   const isVariable  = product.type === "VARIABLE";
 
-  const jsonLd = {
-    "@context": "https://schema.org/",
-    "@type": "Product",
-    name:   product.name,
-    image:  product.image ? [product.image.sourceUrl] : [],
+  const canonicalUrl = absoluteLocalized(config.brand.url, `/products/${slug}`, locale);
+  const jsonLd = buildProductJsonLd({
+    product,
+    config,
+    url: canonicalUrl,
     description: stripHtml(product.shortDescription ?? product.description ?? ""),
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "EUR",
-      price:         (product.price ?? "0").replace(/[^\d.,]/g, "").replace(",", "."),
-      availability:  outOfStock
-        ? "https://schema.org/OutOfStock"
-        : "https://schema.org/InStock",
-    },
-  };
+  });
+
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: t("title"), url: absoluteLocalized(config.brand.url, "/products", locale) },
+    { name: product.name, url: canonicalUrl },
+  ]);
 
   return (
     <div>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
       {/* Breadcrumb */}
@@ -124,9 +133,9 @@ export default async function ProductPage({
         {/* Detalles + acciones */}
         <div className="flex flex-col gap-5">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">{product.name}</h1>
+            <h1 className="product-name text-3xl font-extrabold tracking-tight">{product.name}</h1>
             {product.shortDescription && (
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
+              <p className="product-summary mt-2 text-gray-600 dark:text-gray-400">
                 {stripHtml(product.shortDescription)}
               </p>
             )}

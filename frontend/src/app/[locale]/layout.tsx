@@ -14,6 +14,7 @@ import { LocaleSwitcher }     from "@/components/i18n/locale-switcher";
 import { DarkModeToggle, DarkModeScript } from "@/components/ui/dark-mode-toggle";
 import { ThemeTokens }        from "@/components/ui/theme-tokens";
 import { getSiteConfig }      from "@/lib/config";
+import { buildSiteGraph } from "@/lib/seo/jsonld";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -36,29 +37,50 @@ export async function generateMetadata({
     getSiteConfig(),
   ]);
 
+  const siteName = config.brand.name || t("name");
+
+  // Plantilla de título configurable (Control Center → SEO & GEO).
+  // %site% se sustituye aquí; %s lo resuelve Next con el título de cada página.
+  const titleTemplate = (config.seo.title_template || "%s · %site%").replaceAll(
+    "%site%",
+    siteName,
+  );
+
+  // Indexación por defecto según el módulo SEO & GEO (index/follow vs noindex).
+  const noindex = config.seo.robots === "noindex,nofollow";
+
+  // Imagen OG: dinámica desde la marca (/api/og) o URL personalizada del panel.
+  const ogImage =
+    config.seo.default_og === "custom" && config.brand.og_image
+      ? config.brand.og_image
+      : "/api/og";
+
   return {
     title: {
-      default: t("name"),
-      template: `%s · ${t("name")}`,
+      default: siteName,
+      template: titleTemplate,
     },
     description: t("description"),
     metadataBase: new URL(config.brand.url || "http://localhost:3000"),
+    robots: { index: !noindex, follow: !noindex },
     alternates: {
       canonical: locale === routing.defaultLocale ? "/" : `/${locale}`,
       languages: { es: "/", en: "/en", "x-default": "/" },
     },
     openGraph: {
-      title: t("name"),
+      title: siteName,
       description: t("description"),
-      siteName: t("name"),
+      siteName,
       type: "website",
       locale,
+      images: [{ url: ogImage, width: 1200, height: 630, alt: siteName }],
     },
     twitter: {
       card: "summary_large_image",
-      title: t("name"),
+      title: siteName,
       description: t("description"),
       creator: config.social.twitter || undefined,
+      images: [ogImage],
     },
     ...(config.seo.google_site_verification && {
       verification: { google: config.seo.google_site_verification },
@@ -68,17 +90,11 @@ export async function generateMetadata({
 
 async function JsonLd() {
   const config = await getSiteConfig();
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name:        config.brand.name,
-    description: config.brand.description,
-    url:         config.brand.url,
-  };
+  const graph = buildSiteGraph(config);
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(graph) }}
     />
   );
 }
@@ -135,6 +151,12 @@ export default async function LocaleLayout({
                   <nav className="flex items-center gap-4 text-sm font-medium text-gray-600 dark:text-gray-300">
                     <Link href="/products" className="transition-colors hover:text-brand">
                       {tNav("store")}
+                    </Link>
+                    <Link href="/blog" className="transition-colors hover:text-brand">
+                      {tNav("blog")}
+                    </Link>
+                    <Link href="/about" className="transition-colors hover:text-brand">
+                      {tNav("about")}
                     </Link>
                     <Link href="/account" className="transition-colors hover:text-brand">
                       {tNav("account")}

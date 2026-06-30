@@ -1,7 +1,12 @@
 # Configuración — Variables de entorno
 
 Todas las variables viven en `.env` (raíz, las consume Docker Compose) y, si
-trabajas fuera de Docker, en `frontend/.env.local`. **El repositorio solo contiene
+trabajas fuera de Docker, en `frontend/.env.local`.
+
+> ⚡ **Modo híbrido**: WordPress nativo obtiene sus variables de DB de
+> `WORDPRESS_DB_*` del entorno (se establecen en `start-local.bat` o
+> `start-local.ps1`). MariaDB se expone en `localhost:3307` (no 3306) para
+> evitar conflictos con instalaciones locales de MySQL. **El repositorio solo contiene
 `.env.example`; nunca subas claves reales.**
 
 > **Regla de oro:** todo lo secreto va **sin** el prefijo `NEXT_PUBLIC_`. Solo las

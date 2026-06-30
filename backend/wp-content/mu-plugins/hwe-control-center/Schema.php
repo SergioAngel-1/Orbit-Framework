@@ -87,6 +87,9 @@ class Schema {
                     'instagram' => ['type' => 'text', 'label' => 'Instagram (@handle)',     'public' => true],
                     'facebook'  => ['type' => 'text', 'label' => 'Facebook (slug o URL)',   'public' => true],
                     'linkedin'  => ['type' => 'url',  'label' => 'LinkedIn (URL completa)', 'public' => true],
+                    'youtube'   => ['type' => 'text', 'label' => 'YouTube (@handle o URL)',  'public' => true],
+                    'wikipedia' => ['type' => 'url',  'label' => 'Wikipedia (URL del artículo)', 'public' => true, 'description' => 'Refuerza el reconocimiento de entidad (sameAs) por buscadores e IA.'],
+                    'wikidata'  => ['type' => 'url',  'label' => 'Wikidata (URL del ítem Q…)',   'public' => true, 'description' => 'Identificador de entidad legible por máquinas (sameAs).'],
                 ],
             ],
 
@@ -341,18 +344,18 @@ class Schema {
             ],
 
             /* ------------------------------------------------------------------ */
-            /* SEO                                                                 */
+            /* SEO & GEO                                                           */
             /* ------------------------------------------------------------------ */
             'seo' => [
                 'type'     => 'group',
-                'label'    => 'SEO',
+                'label'    => 'SEO & GEO',
                 'children' => [
                     'title_template'            => [
                         'type'        => 'text',
                         'label'       => 'Plantilla de título',
-                        'default'     => '%s',
+                        'default'     => '%s · %site%',
                         'public'      => true,
-                        'description' => 'Usa %s como marcador del título de página.',
+                        'description' => 'Marcadores: %s = título de la página, %site% = nombre del sitio. Ej.: "%s · %site%".',
                     ],
                     'robots'                    => [
                         'type'    => 'select',
@@ -368,6 +371,173 @@ class Schema {
                         'type'   => 'text',
                         'label'  => 'Código de verificación Google Search Console',
                         'public' => true,
+                    ],
+                    'default_og'                => [
+                        'type'        => 'select',
+                        'label'       => 'Imagen Open Graph por defecto',
+                        'default'     => 'auto',
+                        'public'      => true,
+                        'options'     => [
+                            'auto'   => 'Generar dinámicamente desde la marca (recomendado)',
+                            'custom' => 'Usar la URL de "OG Image por defecto" (Identidad de marca)',
+                        ],
+                        'description' => 'En modo automático la plantilla genera la tarjeta social y los iconos a partir del nombre y los colores de marca (sin archivos estáticos). En modo personalizado usa la URL definida en Identidad de marca → OG Image.',
+                    ],
+
+                    /* Datos estructurados de producto (Merchant Listing / Rich Results).
+                       Todos opcionales: si se dejan vacíos, no se emite ese bloque. */
+                    'product_brand'             => [
+                        'type'        => 'text',
+                        'label'       => 'Marca por defecto de los productos',
+                        'public'      => true,
+                        'description' => 'Se usa en el JSON-LD Product (campo brand). Vacío = nombre del sitio.',
+                    ],
+                    'shipping_amount'           => [
+                        'type'        => 'text',
+                        'label'       => 'Coste de envío para datos estructurados',
+                        'public'      => true,
+                        'description' => 'Importe en la moneda de la tienda (0 = envío gratis). Vacío = no declarar shippingDetails en el schema.',
+                    ],
+                    'return_days'               => [
+                        'type'        => 'text',
+                        'label'       => 'Días de devolución (schema)',
+                        'public'      => true,
+                        'description' => 'Nº de días de la política de devolución (MerchantReturnPolicy). Vacío = no declarar devoluciones en el schema.',
+                    ],
+                    'return_category'           => [
+                        'type'        => 'select',
+                        'label'       => 'Tipo de política de devolución',
+                        'default'     => 'finite',
+                        'public'      => true,
+                        'options'     => [
+                            'finite'    => 'Ventana finita (devolución dentro de X días)',
+                            'unlimited' => 'Ilimitada',
+                            'none'      => 'No se permiten devoluciones',
+                        ],
+                        'description' => 'Solo se aplica si se ha indicado un nº de días de devolución.',
+                    ],
+                    'organization_logo'         => [
+                        'type'        => 'url',
+                        'label'       => 'Logo de la organización (JSON-LD)',
+                        'public'      => true,
+                        'description' => 'URL del logo usado en el schema Organization (reconocimiento de entidad por buscadores/IA). Vacío = se usa el icono generado dinámicamente desde la marca.',
+                    ],
+                    'founding_date'             => [
+                        'type'        => 'text',
+                        'label'       => 'Fecha de fundación (ISO 8601)',
+                        'public'      => true,
+                        'description' => 'Ej.: 2020-01-15. Se añade al schema Organization (foundingDate).',
+                    ],
+                    'knows_about'               => [
+                        'type'        => 'textarea',
+                        'label'       => 'Áreas de conocimiento (knowsAbout)',
+                        'public'      => true,
+                        'description' => 'Temas en los que la marca es experta, uno por línea o separados por comas. Señal fuerte de entidad para la IA.',
+                    ],
+                    'founder_name'              => [
+                        'type'        => 'text',
+                        'label'       => 'Responsable / fundador (nombre)',
+                        'public'      => true,
+                        'description' => 'Se muestra en la página "Sobre nosotros" y genera un schema Person (E-E-A-T). Vacío = no se publica.',
+                    ],
+                    'founder_role'              => [
+                        'type'        => 'text',
+                        'label'       => 'Responsable / fundador (cargo)',
+                        'public'      => true,
+                        'description' => 'Ej.: Fundador y CEO. Se usa como jobTitle del schema Person.',
+                    ],
+                    'founder_url'               => [
+                        'type'        => 'url',
+                        'label'       => 'Responsable / fundador (perfil)',
+                        'public'      => true,
+                        'description' => 'URL de perfil (LinkedIn, web personal…). Se usa como url/sameAs del schema Person.',
+                    ],
+                ],
+            ],
+
+            /* ------------------------------------------------------------------ */
+            /* ENVÍO                                                               */
+            /* ------------------------------------------------------------------ */
+            'shipping' => [
+                'type'     => 'group',
+                'label'    => 'Envío',
+                'children' => [
+                    'zone_name' => [
+                        'type'        => 'text',
+                        'label'       => 'Nombre de la zona de envío principal',
+                        'default'     => 'España peninsular',
+                        'public'      => false,
+                        'description' => 'Nombre de la zona principal en WooCommerce. Cámbialo si tu mercado principal no es España.',
+                    ],
+                    'flat_rate_cost' => [
+                        'type'        => 'text',
+                        'label'       => 'Coste de envío (tarifa plana)',
+                        'default'     => '4.99',
+                        'public'      => true,
+                        'description' => 'Importe en la moneda de la tienda. Ej.: 4.99. Aplicado a todos los pedidos de la zona principal salvo que superen el umbral de envío gratis.',
+                    ],
+                    'free_above' => [
+                        'type'        => 'text',
+                        'label'       => 'Envío gratis a partir de (0 = desactivado)',
+                        'default'     => '0',
+                        'public'      => true,
+                        'description' => 'Si el subtotal del carrito supera este importe, el envío es gratuito. 0 = tarifa plana siempre.',
+                    ],
+                    'free_label' => [
+                        'type'        => 'text',
+                        'label'       => 'Etiqueta de envío gratis',
+                        'default'     => 'Envío gratuito',
+                        'public'      => true,
+                        'description' => 'Texto que se muestra al cliente cuando el envío es gratis.',
+                    ],
+                    'flat_label' => [
+                        'type'        => 'text',
+                        'label'       => 'Etiqueta de tarifa plana',
+                        'default'     => 'Envío estándar',
+                        'public'      => true,
+                        'description' => 'Texto que se muestra al cliente para la tarifa plana.',
+                    ],
+                ],
+            ],
+
+            /* ------------------------------------------------------------------ */
+            /* GEO (optimización para agentes de IA)                              */
+            /* ------------------------------------------------------------------ */
+            'geo' => [
+                'type'     => 'group',
+                'label'    => 'GEO (IA)',
+                'children' => [
+                    'ai_crawlers'      => [
+                        'type'        => 'select',
+                        'label'       => 'Crawlers de IA',
+                        'default'     => 'allow',
+                        'public'      => true,
+                        'options'     => [
+                            'allow'       => 'Permitir todos (máxima visibilidad en respuestas de IA)',
+                            'search_only' => 'Solo búsqueda/citación; bloquear bots de entrenamiento',
+                            'block'       => 'Bloquear todos los crawlers de IA',
+                        ],
+                        'description' => 'Controla las reglas de robots.txt para bots como GPTBot, ClaudeBot, PerplexityBot, Google-Extended, etc. Las rutas privadas se bloquean siempre.',
+                    ],
+                    'llms_txt_enabled' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Generar /llms.txt',
+                        'default'     => true,
+                        'public'      => true,
+                        'description' => 'Publica un fichero /llms.txt (estándar emergente) que describe la estructura del sitio para agentes de IA.',
+                    ],
+                    'content_signal'   => [
+                        'type'        => 'boolean',
+                        'label'       => 'Declarar Content-Signal en robots.txt',
+                        'default'     => true,
+                        'public'      => true,
+                        'description' => 'Añade la directiva Content-Signal (borrador IETF) coherente con la política de crawlers de IA: declara explícitamente ai-train / search / ai-retrieval.',
+                    ],
+                    'faq'              => [
+                        'type'        => 'textarea',
+                        'label'       => 'Preguntas frecuentes (FAQ)',
+                        'public'      => true,
+                        'description' => 'Una pregunta y respuesta por línea, separadas por "|". Se muestran en la home y se publican como JSON-LD FAQPage (muy citado por la IA). Ej.: ¿Hacéis envíos internacionales? | Sí, enviamos a toda Europa.',
                     ],
                 ],
             ],

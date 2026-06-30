@@ -7,6 +7,8 @@
   },
   "nav": {
     "store": "Tienda",
+    "blog": "Blog",
+    "about": "Nosotros",
     "account": "Cuenta",
     "cart": "Carrito",
     "skipToContent": "Saltar al contenido",
@@ -102,7 +104,28 @@
     "readMore": "Leer más →",
     "errorTitle": "No se pudieron cargar los posts.",
     "errorDescription": "Comprueba que WordPress está levantado y que WPGraphQL responde en /graphql.",
-    "empty": "Todavía no hay publicaciones. Crea contenido en el panel de WordPress."
+    "empty": "Todavía no hay publicaciones. Crea contenido en el panel de WordPress.",
+    "faqTitle": "Preguntas frecuentes"
+  },
+  "blog": {
+    "title": "Blog",
+    "description": "Artículos, guías y novedades publicados desde WordPress.",
+    "readMore": "Leer más →",
+    "loadMore": "Cargar más →",
+    "backToBlog": "← Volver al blog",
+    "empty": "Todavía no hay entradas. Crea contenido en el panel de WordPress.",
+    "error": "No se pudieron cargar las entradas.",
+    "errorHint": "Comprueba que WordPress está levantado y que WPGraphQL responde en /graphql.",
+    "notFound": "Entrada no encontrada."
+  },
+  "about": {
+    "title": "Sobre nosotros",
+    "company": "Empresa",
+    "founded": "Fundación",
+    "location": "Ubicación",
+    "expertise": "Áreas de especialización",
+    "contact": "Contacto",
+    "team": "Equipo"
   },
   "products": {
     "title": "Tienda",

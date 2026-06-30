@@ -1,9 +1,26 @@
+import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { getProducts, getCategories } from "@/lib/catalog/products";
+import { alternatesFor } from "@/lib/seo/urls";
 import { InfiniteProductGrid } from "@/components/products/infinite-product-grid";
 
 export const revalidate = 300;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "products" });
+  return {
+    title: t("title"),
+    // Canónica autorreferencial: las variantes con filtros (?search, ?category…)
+    // apuntan al listado base para evitar duplicados indexables.
+    alternates: alternatesFor("/products", locale),
+  };
+}
 
 export default async function ProductsPage({
   searchParams,

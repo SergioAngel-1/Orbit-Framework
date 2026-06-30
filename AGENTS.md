@@ -13,11 +13,11 @@ Una **plantilla de e-commerce headless** lista para producción y comercializabl
 - **Backend = WordPress + WooCommerce**, en modo **headless** (sin frontend nativo).
   Solo expone datos vía API (GraphQL para leer, REST para escribir). El panel `/wp-admin`
   sigue siendo la herramienta de gestión de contenido/pedidos.
-- **Frontend = Next.js 15 (App Router) + React 19 + TypeScript + Tailwind v4.**
+- **Frontend = Next.js 16 (App Router, Turbopack) + React 19.2 + TypeScript + Tailwind v4.**
   Además de ser la web pública, actúa como **BFF (Backend-for-Frontend)**: todas las
   operaciones sensibles pasan por sus *Route Handlers* (`/api/...`), nunca directo del
   navegador a WordPress.
-- **Infra = Docker Compose**: MariaDB + WordPress + Redis + Next.js.
+- **Infra = Docker Compose** (producción) o **híbrido** (desarrollo: WordPress y frontend nativos, DB/Redis en Docker).
 
 El idioma del proyecto (comentarios, docs, UI) es **español**; el código y los nombres
 técnicos están en inglés. Mantén esa convención.
@@ -50,7 +50,7 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 
 ```
 /
-├── docker-compose.yml          # dev: db + wordpress(:8080) + redis + wpcli + frontend(:3000)
+├── docker-compose.yml          # dev: db + wordpress + redis + wpcli + frontend (todo en contenedores)
 ├── docker-compose.prod.yml     # prod: + caddy (TLS) + backup; sin puertos WP/Redis al host
 ├── Caddyfile                   # reverse proxy prod (TLS, HTTP/3); /graphql público restringido
 ├── .env.example / .env.prod.example  # TODAS las variables. Copiar a .env / .env.prod
@@ -83,7 +83,7 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
     ├── tests/                   # unit (Vitest) + e2e (Playwright: smoke, axe, purchase opt-in)
     ├── src/
     │   ├── instrumentation.ts   # arranque: guard de secretos + Sentry + log de inicio
-    │   ├── middleware.ts        # ⭐ i18n + barrera de Origin + refresh JWT (ver §6)
+    │   ├── proxy.ts             # ⭐ i18n + barrera de Origin + refresh JWT (ver §6). Next 16 renombró middleware→proxy
     │   ├── i18n/                # routing, request, navigation, messages (es/en)
     │   ├── config/site.ts       # marca/URL/social centralizadas (base white-label)
     │   ├── app/
@@ -111,8 +111,8 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
   Route Handlers que validan (Zod), protegen (CSRF + rate-limit + Origin), autorizan
   (sesión + propiedad del recurso) y reenvían a WooCommerce con los secretos del servidor.
 - **Cliente GraphQL** (`lib/graphql-client.ts`) elige endpoint según dónde corre: en el
-  **servidor** usa la red interna de Docker (`http://wordpress`), en el **navegador** la URL
-  pública. Mismo patrón en los clientes de WooCommerce.
+  **servidor** usa la red interna de Docker (`http://wordpress`) o local (`http://localhost:8080`),
+  en el **navegador** la URL pública. Mismo patrón en los clientes de WooCommerce.
 
 ---
 
@@ -171,7 +171,7 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 
 ### 6.3 Seguridad del frontend
 - **Cabeceras + CSP**: `frontend/next.config.mjs` (función `headers()`).
-- **Barrera de Origin** para escrituras `/api/*`: `frontend/src/middleware.ts`.
+- **Barrera de Origin** para escrituras `/api/*`: `frontend/src/proxy.ts` (función `proxy`).
 - **CSRF** (signed double-submit): `lib/security/csrf.ts`; el cliente obtiene el token en
   `app/api/csrf/route.ts` y lo reenvía en `X-CSRF-Token`.
 - **Rate-limit** (Redis, ventana fija): `lib/security/rate-limit.ts` + `lib/redis/client.ts`.
@@ -201,7 +201,7 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 - Verificación local de firma con `jose`: `lib/auth/jwt.ts`.
 - Sesión en Server Components: `lib/auth/session.ts` (`getSession`, `requireSession`,
   `fetchGraphQLAsViewer`).
-- **Refresh transparente**: lo hace `middleware.ts` (renueva el token caducado y lo propaga
+- **Refresh transparente**: lo hace `proxy.ts` (renueva el token caducado y lo propaga
   al request actual). Operaciones GraphQL de auth en `lib/auth/mutations.ts`.
 - **Endpoints WP propios** (mu-plugin `backend/.../hwe-auth.php`, namespace `hwe/v1`):
   recuperación/reseteo de contraseña, verificación de email y 2FA. El BFF se autentica
@@ -323,12 +323,22 @@ Desde `frontend/`:
 ```bash
 npm run dev          # desarrollo
 npx tsc --noEmit     # tipos
-npx next lint        # ESLint
+npm run lint         # ESLint (flat config; `next lint` se eliminó en Next 16)
 npm run test         # tests unitarios (Vitest): seguridad, auth, pagos, validación
 npm run test:coverage# cobertura (umbrales en vitest.config.ts)
 npx next build       # ⭐ la verificación definitiva (prerender + tipos + middleware edge)
 ```
-Pila completa: `docker compose up -d` (+ `wpcli` la primera vez). Ver `README.md`.
+
+**Pila completa — dos modos:**
+
+| Modo | Comando | Descripción |
+|------|---------|-------------|
+| **Docker puro** | `docker compose up -d` + `wpcli` | Todo en contenedores (más lento en Windows) |
+| **Híbrido** (recom.) | `docker compose up -d db redis` + `start-local.bat` + `npm run dev` | WordPress y frontend nativos; DB/Redis en Docker |
+
+Para desarrollo pesado, el **modo híbrido** evita la latencia de bind mounts Docker
+(WordPress nativo con `php -S 0.0.0.0:8080`, DB en puerto `3307`, frontend con `npm run dev`).
+Ver `docs/INSTALL.md` y `README.md` para instrucciones detalladas.
 
 E2E (Playwright): `npx playwright test` (smoke + accesibilidad axe). El e2e de **compra
 completa** (`tests/e2e/purchase.spec.ts`) es opt-in: requiere la pila sembrada y

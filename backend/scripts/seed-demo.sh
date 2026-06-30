@@ -37,9 +37,10 @@ $WP wc product_cat create --name="$_HOGAR" --description="$_HOGAR_EN" --porcelai
 # 2) Atributos globales (para productos variables)
 # ----------------------------------------------------------------------------
 echo "==> Creando atributos..."
-$WP wc product_attribute create --name="Talla" --slug="talla" --type="select" --order_by="menu_order" --porcelain 2>/dev/null || true
-$WP wc product_attribute create --name="Size" --slug="size" --type="select" --order_by="menu_order" --porcelain 2>/dev/null || true
-$WP wc product_attribute create --name="Color" --slug="color" --type="select" --order_by="menu_order" --porcelain 2>/dev/null || true
+# Los comandos wc requieren --user para autenticarse en la REST API de WooCommerce
+$WP wc product_attribute create --user="${WP_ADMIN_USER:-admin}" --name="Talla" --slug="talla" --type="select" --order_by="menu_order" --porcelain 2>/dev/null || true
+$WP wc product_attribute create --user="${WP_ADMIN_USER:-admin}" --name="Size" --slug="size" --type="select" --order_by="menu_order" --porcelain 2>/dev/null || true
+$WP wc product_attribute create --user="${WP_ADMIN_USER:-admin}" --name="Color" --slug="color" --type="select" --order_by="menu_order" --porcelain 2>/dev/null || true
 
 # ----------------------------------------------------------------------------
 # 3) Productos simples
@@ -58,7 +59,6 @@ $WP wc product create \
 	--sale_price="69.99" \
 	--manage_stock=true \
 	--stock_quantity=25 \
-	--stock_status=instock \
 	--weight="0.25" \
 	--categories='[{"name":"'"$_CATS"'"}]' \
 	--description="Auriculares inalámbricos con cancelación de ruido activa, 30h de batería y códec aptX HD. Ideales para música y llamadas." \
@@ -76,7 +76,6 @@ $WP wc product create \
 	--regular_price="29.99" \
 	--manage_stock=true \
 	--stock_quantity=50 \
-	--stock_status=instock \
 	--weight="0.20" \
 	--categories='[{"name":"'"$_ROPA"'"}]' \
 	--description="Camiseta de algodón orgánico peinado 180g/m². Corte regular, costuras reforzadas y etiqueta removible. Disponible en varios colores." \
@@ -94,7 +93,6 @@ $WP wc product create \
 	--regular_price="45.00" \
 	--manage_stock=true \
 	--stock_quantity=15 \
-	--stock_status=instock \
 	--weight="0.40" \
 	--categories='[{"name":"'"$_HOGAR"'"}]' \
 	--description="Lámpara LED WiFi compatible con Alexa y Google Home. 16 millones de colores, temperatura regulable y programación horaria. Eficiencia energética A++." \
@@ -112,7 +110,6 @@ $WP wc product create \
 	--regular_price="59.99" \
 	--manage_stock=true \
 	--stock_quantity=30 \
-	--stock_status=instock \
 	--weight="0.65" \
 	--categories='[{"name":"'"$_ROPA"'"}]' \
 	--description="Mochila urbana impermeable con compartimento acolchado para portátil de hasta 15.6\", bolsillo organizador, puerto USB externo y cierre reforzado." \
@@ -130,7 +127,6 @@ $WP wc product create \
 	--regular_price="399.99" \
 	--manage_stock=true \
 	--stock_quantity=10 \
-	--stock_status=instock \
 	--weight="4.50" \
 	--categories='[{"name":"'"$_CATS"'"}]' \
 	--description="Monitor IPS 27\" 4K UHD (3840x2160), 60Hz, HDR10, 99% sRGB. Puertos HDMI 2.0, DisplayPort 1.4 y USB-C con carga 65W. Altavoces integrados." \
@@ -148,7 +144,6 @@ $WP wc product create \
 	--regular_price="14.99" \
 	--manage_stock=true \
 	--stock_quantity=100 \
-	--stock_status=instock \
 	--weight="0.35" \
 	--categories='[{"name":"'"$_HOGAR"'"}]' \
 	--description="Taza de cerámica de alta calidad, 330ml. Apta para microondas y lavavajillas. Acabado brillante y asa ergonómica." \

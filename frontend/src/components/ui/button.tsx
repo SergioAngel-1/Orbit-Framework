@@ -1,5 +1,5 @@
 "use client";
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { type ButtonHTMLAttributes, type ReactNode, type Ref } from "react";
 import { Spinner } from "./spinner";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   trailingIcon?: ReactNode;
   /** Ocupa el ancho completo del contenedor. */
   fullWidth?: boolean;
+  /** Ref reenviada al `<button>` nativo (React 19: ref como prop). */
+  ref?: Ref<HTMLButtonElement>;
 }
 
 // ─── Variantes ──────────────────────────────────────────────────────────────
@@ -54,21 +56,19 @@ const sizes: Record<Size, string> = {
 
 // ─── Componente ─────────────────────────────────────────────────────────────
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  {
-    variant   = "solid",
-    size      = "md",
-    loading   = false,
-    leadingIcon,
-    trailingIcon,
-    fullWidth = false,
-    className,
-    disabled,
-    children,
-    ...props
-  },
+export function Button({
+  variant = "solid",
+  size = "md",
+  loading = false,
+  leadingIcon,
+  trailingIcon,
+  fullWidth = false,
+  className,
+  disabled,
+  children,
   ref,
-) {
+  ...props
+}: ButtonProps) {
   return (
     <button
       ref={ref}
@@ -94,4 +94,4 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {!loading && trailingIcon}
     </button>
   );
-});
+}

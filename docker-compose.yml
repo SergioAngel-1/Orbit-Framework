@@ -1,8 +1,8 @@
 # ============================================================================
 #  Headless Web Ecosystem — Docker Compose (desarrollo)
 #  Servicios:
-#    - db        : MariaDB 11 (persistencia en volumen nombrado)
-#    - wordpress : WordPress (PHP 8.3 + Apache) como Headless CMS -> :8080
+#    - db        : MariaDB 11.8 LTS (persistencia en volumen nombrado)
+#    - wordpress : WordPress 7.0 (PHP 8.4 + Apache) como Headless CMS -> :8080
 #    - wpcli     : WP-CLI para automatizar la instalación/configuración
 #    - redis     : Cache / rate-limit / idempotencia (BFF del frontend)
 #    - frontend  : Next.js (App Router) en modo desarrollo            -> :3000
@@ -15,9 +15,11 @@ services:
   # Base de datos
   # --------------------------------------------------------------------------
   db:
-    image: mariadb:11.4
+    image: mariadb:11.8
     container_name: hwe_db
     restart: unless-stopped
+    ports:
+      - "3307:3306"
     environment:
       MARIADB_DATABASE: "${MYSQL_DATABASE:-wordpress}"
       MARIADB_USER: "${MYSQL_USER:-wordpress}"
@@ -37,7 +39,7 @@ services:
   # WordPress (Headless CMS)
   # --------------------------------------------------------------------------
   wordpress:
-    image: wordpress:6.7-php8.3-apache
+    image: wordpress:7.0-php8.4-apache
     container_name: hwe_wordpress
     restart: unless-stopped
     depends_on:
@@ -61,15 +63,19 @@ services:
         define( 'WP_REDIS_HOST', 'redis' );
         define( 'WP_REDIS_PORT', 6379 );
         define( 'WP_CACHE', true );
+        define( 'HWE_TRUSTED_PROXY_COUNT', ${TRUSTED_PROXY_COUNT:-1} );
         if ( ! defined( 'WP_DEBUG_LOG' ) ) { define( 'WP_DEBUG_LOG', true ); }
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/wp-json/ || exit 1"]
+      # Endpoint ligero (categorías con 1 post) en lugar de /wp-json/ que devuelve >1MB con WooCommerce
+      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/wp-json/wp/v2/categories?per_page=1 || exit 1"]
       interval: 30s
-      timeout: 10s
-      start_period: 90s
-      retries: 5
+      timeout: 15s
+      start_period: 120s
+      retries: 6
     volumes:
-      # Persistencia local de TODO wp-content (plugins, themes, uploads, mu-plugins)
+      # Volumen compartido con wpcli para los archivos core de WP (wp-admin, wp-includes, wp-config.php)
+      - wordpress_core:/var/www/html
+      # Persistencia local de wp-content (plugins, themes, uploads, mu-plugins) montado sobre el volumen core
       - ./backend/wp-content:/var/www/html/wp-content
       # Límites de subida ampliados
       - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
@@ -80,7 +86,7 @@ services:
   # WP-CLI (automatización: instala WP + plugins + configuración headless)
   # --------------------------------------------------------------------------
   wpcli:
-    image: wordpress:cli-php8.3
+    image: wordpress:cli-php8.4
     container_name: hwe_wpcli
     # No arranca solo; se invoca bajo demanda:
     #   docker compose run --rm wpcli
@@ -88,8 +94,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      # `service_started` (no `service_healthy`): en arranque limpio WordPress NO llega a
+      # healthy hasta que setup.sh lo instala, y setup.sh corre en este mismo wpcli → deadlock
+      # circular. Basta con que el contenedor wordpress haya arrancado para que extraiga el
+      # core al volumen compartido; setup.sh ya espera a la BD y reintenta hasta tener wp-load.
       wordpress:
-        condition: service_healthy
+        condition: service_started
     user: "33:33" # www-data, mismo UID que el contenedor de WordPress
     environment:
       WORDPRESS_DB_HOST: "db:3306"
@@ -105,6 +115,9 @@ services:
       HEADLESS_FRONTEND_URL: "${HEADLESS_FRONTEND_URL:-http://frontend:3000}"
       WC_WEBHOOK_SECRET: "${WC_WEBHOOK_SECRET:-}"
     volumes:
+      # Mismo volumen core de WordPress para que wp-cli tenga acceso a wp-load.php, wp-config.php, etc.
+      - wordpress_core:/var/www/html
+      # Mismo bind mount de wp-content
       - ./backend/wp-content:/var/www/html/wp-content
       - ./backend/scripts:/scripts:ro
     entrypoint: ["/bin/sh"]
@@ -116,9 +129,11 @@ services:
   # Redis (cache / rate-limit / idempotencia para el BFF del frontend)
   # --------------------------------------------------------------------------
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: hwe_redis
     restart: unless-stopped
+    ports:
+      - "6379:6379"
     command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
     volumes:
       - redis_data:/data
@@ -148,7 +163,7 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     healthcheck:
-      # Usa el fetch global de Node 20 (sin curl/wget) contra la sonda /api/health.
+      # Usa el fetch global de Node 24 (sin curl/wget) contra la sonda /api/health.
       test:
         [
           "CMD",
@@ -199,6 +214,8 @@ volumes:
   db_data:
     driver: local
   redis_data:
+    driver: local
+  wordpress_core:
     driver: local
 
 networks:

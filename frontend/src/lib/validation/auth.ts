@@ -17,12 +17,12 @@ export const registerSchema = z.object({
     .min(3, "Mínimo 3 caracteres")
     .max(60)
     .regex(/^[a-zA-Z0-9_.\-@]+$/, "Solo letras, números y los símbolos . _ - @"),
-  email: z.string().email("Email no válido").max(200),
+  email: z.email("Email no válido").max(200),
   password: z.string().min(8, "Mínimo 8 caracteres").max(200),
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email("Email no válido").max(200),
+  email: z.email("Email no válido").max(200),
 });
 
 export const resetPasswordSchema = z.object({

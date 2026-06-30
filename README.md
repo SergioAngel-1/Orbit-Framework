@@ -4,7 +4,7 @@ Ecosistema web **Headless / JAMstack** completo y contenedorizado:
 
 - **Backend (CMS):** WordPress configurado **exclusivamente como Headless CMS**, exponiendo su contenido vía **WPGraphQL** (con JWT Auth y CORS).
 - **Frontend:** **Next.js 15** (App Router) + **React 19** + **TypeScript** + **Tailwind CSS v4** (config CSS-first), con **ISR** (Incremental Static Regeneration).
-- **Infraestructura:** **Docker Compose** (MariaDB + WordPress + Next.js, totalmente aislados).
+- **Infraestructura:** **Docker Compose** en producción (MariaDB + WordPress + Next.js); en desarrollo, **modo híbrido** (WordPress + frontend nativos, DB/Redis en Docker) para máximo rendimiento.
 
 ---
 
@@ -12,41 +12,24 @@ Ecosistema web **Headless / JAMstack** completo y contenedorizado:
 
 ```
 Headless Web Ecosystem/
-├── docker-compose.yml          # Orquesta db + wordpress + wpcli + frontend
-├── .env.example                # Variables globales (DB, puertos, claves)
-├── .gitignore
-├── README.md
-│
+├── docker-compose.yml          # Orquesta servicios para Docker puro
+├── docker-compose.prod.yml     # Producción: + Caddy TLS, backup, sin puertos expuestos
+├── Caddyfile                   # Reverse proxy de producción (TLS automático)
+├── .env.example / .env.prod.example
 ├── backend/                    # WordPress (Headless CMS)
-│   ├── .env.example
-│   ├── config/
-│   │   └── uploads.ini         # Límites de subida de PHP
 │   ├── scripts/
-│   │   └── setup.sh            # Instalación automática vía WP-CLI
-│   └── wp-content/             # Persistido en local (bind mount)
-│       ├── mu-plugins/
-│       │   └── headless-config.php   # Bloqueo de frontend + CORS + limpieza
-│       └── uploads/.gitkeep
-│
-└── frontend/                   # Next.js (App Router)
-    ├── .env.example
-    ├── Dockerfile
-    ├── .dockerignore
-    ├── package.json
-    ├── tsconfig.json
-    ├── next.config.mjs
-    ├── postcss.config.mjs       # Plugin Tailwind v4 (@tailwindcss/postcss)
-    ├── .eslintrc.json
-    └── src/
-        ├── app/
-        │   ├── layout.tsx      # Layout global (fuentes + Tailwind)
-        │   ├── page.tsx        # Home: últimos 5 posts vía GraphQL + ISR
-        │   └── globals.css     # @import "tailwindcss" + tema (@theme)
-        ├── lib/
-        │   ├── graphql-client.ts   # Cliente GraphQL (fetch nativo + ISR)
-        │   └── queries.ts          # Queries GraphQL
-        └── types/
-            └── wordpress.ts        # Tipos de la respuesta WPGraphQL
+│   │   ├── setup.sh            # Instalación automática vía WP-CLI
+│   │   ├── generate-woo-keys.sh
+│   │   └── seed-demo.sh
+│   └── wp-content/mu-plugins/  # ⭐ comportamiento headless + endpoints propios
+└── frontend/                   # Next.js (App Router) — web pública + BFF
+    ├── src/
+    │   ├── app/
+    │   │   ├── [locale]/       # ⭐ TODAS las páginas (con i18n)
+    │   │   └── api/            # ⭐ el BFF (auth, store, payments, webhooks…)
+    │   ├── components/         # UI: cart, products, auth, account, checkout…
+    │   └── lib/                # ⭐ toda la lógica (auth, woocommerce, security…)
+    └── tests/                  # unit (Vitest) + e2e (Playwright)
 ```
 
 ---
@@ -54,23 +37,22 @@ Headless Web Ecosystem/
 ## ✅ Requisitos previos
 
 - **Docker** y **Docker Compose v2** (`docker compose`, no `docker-compose`).
-- Puertos **8080** (WordPress) y **3000** (Next.js) libres.
+- **Node.js ≥ 20.18** (recomendado **24 LTS**, para frontend nativo).
+- **PHP ≥ 8.4** (paridad con producción) con extensiones `mysqli`, `curl`, `mbstring`, `gd` (para WordPress nativo — solo desarrollo híbrido).
+- Puertos **8080** (WordPress), **3000** (Next.js), **3307** (MariaDB), **6379** (Redis) libres.
 
 ---
 
-## 🚀 Puesta en marcha (paso a paso)
+## 🚀 Puesta en marcha
 
-### 1. Clonar y preparar variables de entorno
+### 0. Preparar variables de entorno
 
 ```bash
 git clone <URL_DEL_REPO> "Headless Web Ecosystem"
 cd "Headless Web Ecosystem"
 
-# Variables globales (las consume docker-compose)
+# Variables globales
 cp .env.example .env
-
-# (Opcional) variables de referencia por servicio
-cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env.local
 ```
 
@@ -80,76 +62,105 @@ cp frontend/.env.example frontend/.env.local
 > openssl rand -base64 64
 > ```
 
-### 2. Levantar los contenedores
+### 1. Primer arranque (WP-CLI) — una sola vez
+
+Independientemente del modo que elijas, primero instala WordPress y los plugins:
+
+```bash
+docker compose up -d db redis           # solo la base de datos
+docker compose run --rm wpcli           # instala WP + plugins + WooCommerce
+docker compose run --rm --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
+# Copia WC_CONSUMER_KEY / WC_CONSUMER_SECRET a .env y .env.local
+```
+
+Elige el modo de desarrollo:
+
+---
+
+### Opción A: Todo en Docker (rápido, sin instalar PHP/Node local)
 
 ```bash
 docker compose up -d --build
 ```
 
-Esto arranca:
-
-| Servicio   | URL                              | Descripción                      |
-|------------|----------------------------------|----------------------------------|
-| `db`       | (interno)                        | MariaDB 11                       |
-| `wordpress`| http://localhost:8080            | WordPress (Headless CMS)        |
-| `frontend` | http://localhost:3000            | Next.js (dev, hot-reload)       |
-
-### 3. Configurar WordPress por primera vez (automático)
-
-Ejecuta el script de instalación vía WP-CLI (instala el core, los plugins
-headless, configura permalinks y crea posts de ejemplo):
-
-```bash
-docker compose run --rm wpcli
-```
-
-Al terminar verás un resumen con el panel, el endpoint GraphQL y el usuario.
-
-**Plugins que instala y activa automáticamente:**
-
-- `WPGraphQL` — expone el contenido en `/graphql`.
-- `WPGraphQL JWT Authentication` — autenticación con JSON Web Tokens.
-- `WPGraphQL CORS` — control de orígenes (complementa al mu-plugin).
-
-> El comportamiento **headless** (bloqueo del frontend nativo de WP, redirección
-> a `/wp-admin` y cabeceras CORS) lo aplica el **must-use plugin**
-> `backend/wp-content/mu-plugins/headless-config.php`, que se carga solo y no
-> puede desactivarse desde el panel.
-
-### 4. Verificar
-
-- **Panel de administración:** http://localhost:8080/wp-admin
-  (usuario / contraseña por defecto: `admin` / `admin` — cámbialos en `.env`).
-- **Endpoint GraphQL (GraphiQL IDE):** http://localhost:8080/wp-admin/admin.php?page=graphiql-ide
-- **Frontend:** http://localhost:3000 — debe mostrar los últimos 5 posts.
-
-Visitar cualquier URL pública de WordPress (p. ej. http://localhost:8080/)
-redirige automáticamente a `/wp-admin`: el frontend nativo está bloqueado.
+| Servicio   | URL                   | Descripción                 |
+|------------|-----------------------|-----------------------------|
+| `db`       | (interno)             | MariaDB 11                  |
+| `wordpress`| http://localhost:8080 | WordPress (Headless CMS)    |
+| `redis`    | (interno)             | Cache + rate-limit          |
+| `frontend` | http://localhost:3000 | Next.js (dev, hot-reload)   |
 
 ---
 
-## 🔧 Desarrollo del frontend
+### Opción B: Híbrido (recomendado para desarrollo pesado)
 
-El frontend ya corre dentro de Docker con **hot-reload** (volumen montado).
-Edita archivos en `frontend/src/` y los cambios se reflejan en
-http://localhost:3000.
+WordPress y frontend nativos → sin la lentitud de bind mounts Docker en Windows.
 
-Si prefieres ejecutarlo **fuera de Docker**:
+**Requisitos adicionales:** PHP ≥ 8.3 instalado y en el PATH.
 
 ```bash
+# 2. Arrancar servicios de infraestructura (Docker)
+docker compose up -d db redis
+
+# 3. WordPress nativo (nueva terminal)
+# Apunta -t al directorio raíz de tu instalación local de WordPress.
+# Linux/Mac — ejecutar directamente:
+php -S 0.0.0.0:8080 -t /path/to/your/local/wordpress
+# Windows — puedes crear un archivo start-local.bat con esa misma línea
+# y ejecutarlo haciendo doble clic, o lanzarlo desde la terminal.
+
+# 4. Frontend nativo (nueva terminal)
 cd frontend
-npm install
-# Asegúrate de que .env.local apunta a http://localhost:8080/graphql
 npm run dev
 ```
 
-Comandos útiles:
+| Servicio   | Dónde corre     | Puerto | URL                   |
+|------------|-----------------|--------|-----------------------|
+| **MariaDB**| Docker          | `3307` | (interno)             |
+| **Redis**  | Docker          | `6379` | (interno)             |
+| **WordPress**| Nativo (PHP)  | `8080` | http://localhost:8080 |
+| **Frontend**| Nativo (Node) | `3000` | http://localhost:3000 |
+
+> ⚡ El frontend nativo responde en segundos, sin WATCHPACK_POLLING.
+> WordPress nativo evita la latencia de bind mounts del contenedor.
+
+### Verificar (ambos modos)
+
+- **Panel de administración:** http://localhost:8080/wp-admin (admin / admin)
+- **GraphQL:** http://localhost:8080/graphql
+- **Frontend:** http://localhost:3000
+- **REST API:** http://localhost:8080/wp-json/wp/v2/categories
+
+---
+
+## 🔧 Comandos útiles
 
 ```bash
-npm run build       # Build de producción
-npm run start       # Servir el build
-npm run lint        # ESLint
-npm run type-check  # Comprobación de tipos (tsc --noEmit)
+cd frontend
+npm run dev          # Desarrollo (frontend nativo)
+npm run build        # Build de producción
+npx tsc --noEmit     # Comprobación de tipos
+npx next lint        # ESLint
+npm run test         # Tests unitarios (Vitest)
+npm run build        # ⭐ verificación definitiva (prerender + tipos + edge)
+```
+
+### Docker
+
+```bash
+docker compose up -d          # Todo en Docker (modo A)
+docker compose up -d db redis # Solo infraestructura (modo B)
+docker compose logs -f frontend
+docker compose down           # Parar
+docker compose down -v        # ⚠️ Borra la BD (reset total)
+```
+
+WP-CLI a demanda:
+
+```bash
+docker compose run --rm --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
+docker compose run --rm --entrypoint /bin/sh wpcli /scripts/seed-demo.sh
+docker compose run --rm wpcli wp --path=/var/www/html --allow-root plugin list
 ```
 
 ---
@@ -159,10 +170,14 @@ npm run type-check  # Comprobación de tipos (tsc --noEmit)
 El cliente GraphQL (`frontend/src/lib/graphql-client.ts`) resuelve el endpoint
 según **quién hace la petición**:
 
-- **Servidor Next (SSR / ISR / RSC):** usa la red interna de Docker
-  → `WORDPRESS_INTERNAL_API_URL` = `http://wordpress:80/graphql`.
+- **Servidor Next (SSR / ISR / RSC):** usa la red interna de Docker o local
+  → `WORDPRESS_INTERNAL_API_URL` = `http://wordpress:80/graphql` (Docker) o
+  `http://localhost:8080/graphql` (nativo).
 - **Navegador del usuario (componentes cliente):** usa la URL pública
   → `NEXT_PUBLIC_WORDPRESS_API_URL` = `http://localhost:8080/graphql`.
+
+Ambos modos (`frontend/.env.local`) apuntan a `localhost:8080` cuando se
+trabaja fuera de Docker.
 
 La home (`page.tsx`) usa **ISR** con `export const revalidate = 60`: se sirve
 estática y se regenera, como máximo, cada 60 segundos.
@@ -241,8 +256,9 @@ viven **solo en el servidor** y nunca llegan al navegador.
 
 ```bash
 docker compose run --rm --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
-# Copia WC_CONSUMER_KEY / WC_CONSUMER_SECRET en .env y reinicia:
-docker compose up -d frontend
+# Copia WC_CONSUMER_KEY / WC_CONSUMER_SECRET en .env y .env.local
+# En modo Docker: docker compose up -d frontend
+# En modo híbrido: reinicia npm run dev
 ```
 
 ```bash
@@ -275,29 +291,15 @@ Para que el catálogo (ISR) se actualice al cambiar un producto, crea un webhook
 **WooCommerce → Ajustes → Avanzado → Webhooks**:
 
 - **Tema:** `Producto actualizado` (y/o creado).
-- **URL de entrega:** `http://frontend:3000/api/revalidate` (red interna Docker).
+- **URL de entrega:** `http://frontend:3000/api/revalidate` (Docker) o
+  `http://localhost:3000/api/revalidate` (híbrido).
 - **Secreto:** el mismo valor que `WC_WEBHOOK_SECRET` en tu `.env`.
 
 El endpoint verifica la firma HMAC y ejecuta `revalidateTag('products')`.
 
 ---
 
-## 🛠️ Comandos Docker frecuentes
 
-```bash
-docker compose up -d            # Levantar en segundo plano
-docker compose logs -f frontend # Ver logs del frontend
-docker compose logs -f wordpress
-docker compose ps               # Estado de los servicios
-docker compose down             # Parar y eliminar contenedores
-docker compose down -v          # ⚠️ Además borra el volumen de la BD (reset total)
-```
-
-WP-CLI a demanda (cualquier comando de WordPress):
-
-```bash
-docker compose run --rm wpcli wp --path=/var/www/html --allow-root plugin list
-```
 
 ---
 
