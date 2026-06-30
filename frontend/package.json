@@ -27,7 +27,7 @@
   "dependencies": {
     "@emnapi/core": "^1.11.1",
     "@emnapi/runtime": "^1.11.1",
-    "@sentry/nextjs": "^10.59.0",
+    "@sentry/nextjs": "^10.62.0",
     "@swc/helpers": "^0.5.23",
     "ioredis": "5.11.1",
     "isomorphic-dompurify": "3.18.0",
