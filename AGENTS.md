@@ -57,26 +57,37 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 ├── README.md  AGENTS.md  CHANGELOG.md  LICENSE  EULA.md
 ├── docs/                        # documentación de cliente y operaciones
 │   ├── INSTALL.md  CONFIGURATION.md  CUSTOMIZATION.md  DEPLOYMENT.md
+│   ├── CREATE_INSTANCE.md       # ⭐ crear una instancia nueva (clonar + `wp hwe setup`)
+│   ├── FRONTEND_CONNECT.md      # ⭐ para agentes: inventario de vistas/componentes del frontend
+│   ├── FRONTEND_BUILD.md        # ⭐ para agentes: entrevista de negocio → plan de vistas
 │   ├── SECURITY.md  ACCESIBILIDAD.md
 │   ├── RUNBOOK.md               # ⭐ operación: backup/restore, rotación de secretos, incidentes
 │   ├── GO-LIVE.md               # ⭐ checklist "de cero a producción"
 │   └── COMPATIBILITY.md         # matriz de versiones (WP/Woo/PHP/Node/Next…)
 │
 ├── backend/                    # WordPress headless (solo nuestro código propio se versiona)
-│   ├── scripts/setup.sh         # instala WP + plugins + WooCommerce + datos demo (WP-CLI)
-│   ├── scripts/generate-woo-keys.sh  # genera las claves ck/cs de WooCommerce
+│   ├── scripts/setup.sh         # instala WP + plugins + WooCommerce + tema base + config de instancia (WP-CLI)
+│   ├── scripts/generate-secrets.sh   # genera y escribe los secretos en .env/.env.local
+│   ├── scripts/generate-woo-keys.sh  # genera y escribe las claves ck/cs de WooCommerce
+│   ├── scripts/instance.config.example.json  # plantilla de `wp hwe setup` (marca/diseño/ecommerce/seo…)
 │   ├── scripts/backup.sh  scripts/restore.sh  # ⭐ copia y restauración (DB + uploads)
 │   ├── scripts/backup-entrypoint.sh  backup-cron.sh  seed-demo.sh
 │   ├── config/uploads.ini
-│   └── wp-content/mu-plugins/   # ⭐ comportamiento headless + endpoints propios (ver §6.2/§6.4)
-│       ├── headless-config.php      # bloqueo del frontend nativo + CORS de GraphQL
-│       ├── security.php             # hardening (enumeración de usuarios, pingbacks…)
-│       ├── woocommerce-headless.php # ajustes Store API (nonce) + CORS
-│       ├── woocommerce-email-branding.php # emails transaccionales con marca
-│       ├── graphql-protection.php   # límites de profundidad/complejidad + introspección off
-│       ├── rate-limit.php           # rate-limit de /graphql y /wp-json (XFF de confianza)
-│       ├── hwe-auth.php             # ⭐ REST: reset pass, verificación email, 2FA, logout-all
-│       └── hwe-control-center/      # plugin de config central + secretos cifrados (AES-GCM)
+│   └── wp-content/
+│       ├── themes/hwe-headless-base/  # ⭐ único tema versionado: sin funcionalidad real (headless),
+│       │                              #    evita depender de un tema de wordpress.org (ver setup.sh)
+│       └── mu-plugins/           # ⭐ comportamiento headless + endpoints propios (ver §6.2/§6.4)
+│           ├── headless-config.php      # bloqueo del frontend nativo + CORS de GraphQL
+│           ├── security.php             # hardening (enumeración de usuarios, pingbacks…)
+│           ├── woocommerce-headless.php # ajustes Store API (nonce) + CORS
+│           ├── woocommerce-email-branding.php # emails transaccionales con marca
+│           ├── graphql-protection.php   # límites de profundidad/complejidad + introspección off
+│           ├── rate-limit.php           # rate-limit de /graphql y /wp-json (XFF de confianza)
+│           ├── hwe-auth.php             # ⭐ REST: reset pass, verificación email, 2FA, logout-all
+│           └── hwe-control-center/      # ⭐ plugin de config central + secretos cifrados (AES-GCM).
+│               ├── Schema.php               # fuente única de verdad de TODOS los campos de config
+│               ├── Cli.php                  # comando `wp hwe setup <json>` (ver docs/CREATE_INSTANCE.md)
+│               └── RestApi.php               # expone los campos `public` en /wp-json/hwe/v1/config
 │
 └── frontend/                   # Next.js (web pública + BFF)
     ├── next.config.mjs          # cabeceras de seguridad + CSP (incl. hosts analítica) + i18n
@@ -85,14 +96,15 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
     │   ├── instrumentation.ts   # arranque: guard de secretos + Sentry + log de inicio
     │   ├── proxy.ts             # ⭐ i18n + barrera de Origin + refresh JWT (ver §6). Next 16 renombró middleware→proxy
     │   ├── i18n/                # routing, request, navigation, messages (es/en)
-    │   ├── config/site.ts       # marca/URL/social centralizadas (base white-label)
     │   ├── app/
-    │   │   ├── [locale]/        # ⭐ TODAS las páginas viven bajo el segmento de idioma
+    │   │   ├── [locale]/        # ⭐ TODAS las páginas viven bajo el segmento de idioma (ver docs/FRONTEND_CONNECT.md)
     │   │   ├── api/             # ⭐ el BFF: auth (+2fa,+email,+logout-all), store, payments,
-    │   │   │                    #    webhooks, csrf, revalidate, health (+/live)
-    │   │   ├── sitemap.ts robots.ts manifest.ts not-found.tsx layout.tsx (passthrough)
-    │   ├── components/          # UI (cart, products, auth, account, checkout, analytics, i18n)
-    │   └── lib/                 # ⭐ toda la lógica de servidor/cliente (ver §6)
+    │   │   │                    #    webhooks, csrf, revalidate, health (+/live), contact
+    │   │   ├── sitemap.ts  robots.txt/route.ts  manifest.ts  not-found.tsx  layout.tsx (passthrough)
+    │   ├── components/          # ⭐ UI por dominio — catálogo completo en docs/FRONTEND_CONNECT.md
+    │   │                        #    (layout, marketing, products, forms, cart, checkout, account, auth, i18n, ui…)
+    │   └── lib/                 # ⭐ toda la lógica de servidor/cliente (ver §6). `lib/config/` = config
+    │                            #    dinámica del negocio (getSiteConfig() — ver §6.7)
 ```
 
 Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por dominio
@@ -167,6 +179,15 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 - `backend/wp-content/mu-plugins/security.php` — bloquea enumeración de usuarios, pingbacks.
 - `backend/wp-content/mu-plugins/woocommerce-headless.php` — desactiva el nonce de la Store
   API (seguro porque el BFF ya impone Origin + CSRF).
+- **Tema**: `backend/wp-content/themes/hwe-headless-base` es el único tema que se versiona y
+  el único que queda instalado tras `setup.sh` (borra todos los temas bundled de wordpress.org).
+  No renderiza nada público — es headless, el frontend vive en Next.js. Solo satisface el
+  requisito de WP de tener un tema activo (y las declaraciones de soporte que WooCommerce
+  espera de cualquier tema).
+- **Config de instancia**: `wp hwe setup <archivo.json>` (comando WP-CLI, `Cli.php`) siembra
+  marca/diseño/redes/legal/ecommerce/SEO/envío/GEO/backups desde un JSON en un solo paso —
+  ver `docs/CREATE_INSTANCE.md`. Se aplica automáticamente al final de `setup.sh` si existe
+  `backend/scripts/instance.config.json` (plantilla: `instance.config.example.json`).
 - Plugins/contenido se instalan vía `backend/scripts/setup.sh`.
 
 ### 6.3 Seguridad del frontend
@@ -262,15 +283,32 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   WooCommerce de forma nativa** (no los dupliques aquí). Este dispatcher es para integraciones
   operativas (ERP/Slack/cola) vía `ORDER_NOTIFICATION_WEBHOOK_URL` (opcional).
 
-### 6.7 SEO + i18n
+### 6.7 Config dinámica del negocio, vistas y feature flags
+- **`getSiteConfig()`** (`lib/config/index.ts`) es la ÚNICA fuente de verdad de la config de
+  marca/negocio en el frontend: hace fetch server-only (cacheado con `cache()` de React) a
+  `/wp-json/hwe/v1/config` con fallback a `CONFIG_DEFAULTS` si WP no responde. **No existe
+  ningún otro sitio "estático" con la URL/marca del sitio** — si ves un valor de marca
+  hardcodeado o un import que no sea `getSiteConfig()`, es un bug (había uno: `sitemap.ts` y
+  `robots.txt` usaban una URL de build-time en vez de `config.brand.url`; corregido).
+- **Flags de funcionalidad opcional** (`config.ecommerce.reviews_enabled`, `wishlist_enabled`,
+  `coupons_enabled`, `search_enabled`, configurables desde `wp-admin → HWE Config`): **toda
+  vista que renderice esa funcionalidad debe comprobar el flag primero**. Ejemplos ya
+  aplicados: `components/products/product-card.tsx` (wishlist), la sección de reseñas en
+  `app/[locale]/products/[slug]/page.tsx`, el cupón en `cart-drawer.tsx`/`checkout-form.tsx`,
+  el enlace de wishlist en `account/layout.tsx`. Si añades una vista nueva que use una de
+  estas funcionalidades, replica el patrón — no la muestres incondicionalmente.
+- **Catálogo completo de páginas y componentes, con qué está conectado y qué es un building
+  block sin usar todavía**: ver **`docs/FRONTEND_CONNECT.md`**. Para levantar el frontend de
+  una instancia nueva (qué preguntar del negocio antes de tocar vistas): **`docs/FRONTEND_BUILD.md`**.
 - **Routing por idioma**: todo bajo `app/[locale]/`. `es` sin prefijo (canónico), `en` en
   `/en`. Config en `i18n/routing.ts`; locale resuelto en `i18n/request.ts`.
 - **Navegación locale-aware**: usa SIEMPRE `Link`/`redirect`/`useRouter` de
   `i18n/navigation.ts` (no los de `next/*`), o se pierde el idioma al navegar.
 - **Textos**: `i18n/messages/es.json` y `en.json` (mantenlos paralelos). Selector:
   `components/i18n/locale-switcher.tsx`.
-- **SEO**: `app/sitemap.ts` (URLs + hreflang), `app/robots.ts`, `app/manifest.ts`,
-  metadatos + JSON-LD en `app/[locale]/layout.tsx` y en la ficha de producto.
+- **SEO**: `app/sitemap.ts` (URLs + hreflang), `app/robots.txt/route.ts`, `app/manifest.ts`,
+  metadatos + JSON-LD en `app/[locale]/layout.tsx` y en la ficha de producto — todos leen
+  `getSiteConfig()`, ninguno tiene la URL o la marca hardcodeada.
 - **Analítica/consentimiento**: `components/analytics/` (banner opt-in). El script se carga
   **solo tras consentimiento**; soporta **Plausible** (recomendado) y **GA4** según
   `NEXT_PUBLIC_ANALYTICS_PROVIDER`. Eventos e-commerce con `trackEvent()`
@@ -313,7 +351,11 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 - **HTML del CMS** que se inyecte con `dangerouslySetInnerHTML` debe pasar por
   `sanitizeHtml` (`lib/security/sanitize.ts`).
 - **Tailwind v4 es CSS-first**: el tema vive en `globals.css` (`@theme`), no hay
-  `tailwind.config`. Colores de marca: `brand`, `brand-dark`, `brand-light`.
+  `tailwind.config`. Colores de marca (clases utilitarias, nunca hex hardcodeado):
+  `brand`, `brand-dark`, `brand-light`, `secondary`, `secondary-dark`, `accent`, `surface`.
+- **La marca/URL del sitio SIEMPRE sale de `getSiteConfig()`**, nunca de una constante o env
+  var leída directamente en un componente. **Los flags `config.ecommerce.*_enabled` deben
+  gatear la UI correspondiente** (no solo afectar JSON-LD). Ver §6.7 y `docs/FRONTEND_CONNECT.md`.
 
 ---
 
@@ -399,10 +441,18 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 
 ---
 
-## 11. Documentación (para clientes y operación)
+## 11. Documentación (para clientes, operación y agentes)
 
-- **Cliente/instalación**: `docs/INSTALL.md`, `docs/CONFIGURATION.md`, `docs/CUSTOMIZATION.md`,
-  `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `docs/ACCESIBILIDAD.md`.
+- **Cliente/instalación**: `docs/INSTALL.md`, `docs/CREATE_INSTANCE.md` (crear una instancia
+  nueva: clonar + `wp hwe setup` + `generate-secrets.sh`), `docs/CONFIGURATION.md`,
+  `docs/CUSTOMIZATION.md`, `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `docs/ACCESIBILIDAD.md`.
+- **Para agentes que van a tocar el frontend de una instancia**:
+  - `docs/FRONTEND_CONNECT.md` — inventario completo de páginas y componentes: qué existe,
+    qué está conectado a una página real y qué es un building block disponible sin usar,
+    de dónde saca cada uno sus datos, y el patrón para componer una vista nueva.
+  - `docs/FRONTEND_BUILD.md` — entrevista de características del negocio (catálogo, sedes,
+    funcionalidades opcionales, contenido editorial, envío/pagos, SEO/GEO, idiomas) y cómo
+    traducir las respuestas a `instance.config.json` + un plan concreto de vistas a construir.
 - **Operación**: `docs/RUNBOOK.md` (backup/restore probado, rotación de secretos, cierre de
   sesiones, incidentes) y `docs/GO-LIVE.md` (checklist de cero a producción, incluye el guard
   de secretos que **aborta el arranque** en prod con valores por defecto).
