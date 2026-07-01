@@ -30,10 +30,10 @@ WOOGRAPHQL_SHA256="15e9b320114349cc5213f7245d93985d45def4bbe27d9a1850a3a49c7f4f9
 #  Si una versión fijada no existiera en wp.org, se degrada a la última estable
 #  con un AVISO (no rompe el primer arranque).
 # ----------------------------------------------------------------------------
-WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-2.16.0}"
+WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-2.17.0}"
 WOOCOMMERCE_VERSION="${WOOCOMMERCE_VERSION:-10.8.1}"
 WOOGRAPHQL_WPORG_VERSION="${WOOGRAPHQL_WPORG_VERSION:-1.0.2}"
-REDISCACHE_VERSION="${REDISCACHE_VERSION:-2.7.0}"
+REDISCACHE_VERSION="${REDISCACHE_VERSION:-2.8.0}"
 
 # Instala un plugin de wp.org fijando la versión; si esa versión no existe,
 # degrada a la última estable con aviso (reproducible por defecto, resiliente).
@@ -101,13 +101,8 @@ echo "==> Instalando WPGraphQL v${WPGRAPHQL_VERSION} (desde WordPress.org)..."
 install_wporg_pinned wp-graphql "$WPGRAPHQL_VERSION"
 
 # --- WPGraphQL JWT Authentication — v0.7.2 (release fijado) ---
-# Elimina cualquier copia legacy en la carpeta "jwt-auth" (slug que colisiona con el plugin
-# homónimo de wordpress.org y dispara falsas actualizaciones a su versión 3.x). El release de
-# GitHub se instala en la carpeta "wp-graphql-jwt-authentication", que no colisiona.
-echo "==> Limpiando instalación legacy de JWT Auth (carpeta jwt-auth) si existe..."
-$WP plugin deactivate jwt-auth 2>/dev/null || true
-$WP plugin delete jwt-auth 2>/dev/null || true
-
+# Nota: el directorio de plugins arranca siempre limpio (volumen Docker),
+# no es necesario limpiar legacy jwt-auth/.
 echo "==> Instalando WPGraphQL JWT Authentication v0.7.2 (desde GitHub)..."
 JWT_URL="https://github.com/wp-graphql/wp-graphql-jwt-authentication/releases/download/v0.7.2/wp-graphql-jwt-authentication.zip"
 JWT_TMP="/tmp/jwt-auth.zip"
