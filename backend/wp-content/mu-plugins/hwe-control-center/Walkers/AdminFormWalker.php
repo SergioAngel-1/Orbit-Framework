@@ -8,17 +8,17 @@ use HWE\ControlCenter\Walker;
  * Genera el HTML del formulario de wp-admin recorriendo el esquema.
  *
  * Salida por nivel de profundidad:
- *   Profundidad 1 → postbox completo con <table> interna.
- *   Profundidad 2+ → filas <tr> de sección dentro de la tabla del padre.
- *   Campos leaf  → fila <tr> estándar con <label> + input.
+ *   Profundidad 1 → contenedor <div class="hwe-fields"> con campos hijos.
+ *   Profundidad 2+ → subgrupo <div class="hwe-subgroup"> con header + campos.
+ *   Campos leaf  → fila <div class="hwe-field"> con label + control.
  *
  * Los secretos renderizan un <input type="password"> vacío con placeholder;
  * el handler de guardado conserva el valor existente si se deja en blanco.
  *
  * Uso:
- *   $walker   = new AdminFormWalker($storedPublicValues, $hasSecretByPath);
- *   $sections = $walker->walk(Schema::get(), $storedPublicValues);
- *   echo implode("\n", array_values($sections));
+ *   $walker   = new AdminFormWalker($secretsExist);
+ *   $sections = $walker->walk(Schema::get(), $merged);
+ *   // $sections se usa en tab panels del AdminPage.
  */
 class AdminFormWalker extends Walker {
 
@@ -43,10 +43,13 @@ class AdminFormWalker extends Walker {
         $input = $this->renderInput($field, $id, $name, $value, $path);
 
         return <<<HTML
-<tr>
-    <th scope="row"><label for="{$id}">{$label}</label></th>
-    <td>{$input}{$desc}</td>
-</tr>
+<div class="hwe-field">
+    <label for="{$id}">{$label}</label>
+    <div class="hwe-field-control">
+        {$input}
+        {$desc}
+    </div>
+</div>
 HTML;
     }
 
@@ -55,18 +58,30 @@ HTML;
         $content = implode("\n", array_values($children));
         $depth   = count($path);
 
+        // Depth 1 groups are rendered as tab panels by AdminPage.
         if ($depth === 1) {
-            return $this->renderPostbox($key, $label, $content);
+            return $this->renderFormGroup($key, $label, $content);
         }
 
-        // Grupos anidados: encabezado de sección + filas de hijos.
+        // Subgrupos anidados: card con borde izquierdo azul.
+        $icon = $this->subgroupIcon($key);
+
+        // Payment provider subgroups get a data attribute for conditional display.
+        $providerAttr = '';
+        if ($path[0] === 'payments' && $key !== 'provider') {
+            $providerAttr = ' data-provider="' . esc_attr($key) . '"';
+        }
+
         return <<<HTML
-<tr class="hwe-subgroup-header">
-    <th colspan="2" style="padding-top:1.5em;padding-bottom:0.25em;border-top:1px solid #e5e7eb;">
-        <h3 style="margin:0;font-size:13px;font-weight:600;color:#50575e;text-transform:uppercase;letter-spacing:.04em;">{$label}</h3>
-    </th>
-</tr>
-{$content}
+<div class="hwe-subgroup{$providerAttr}">
+    <h3 class="hwe-subgroup-title">
+        <span class="dashicons {$icon}"></span>
+        {$label}
+    </h3>
+    <div class="hwe-fields">
+        {$content}
+    </div>
+</div>
 HTML;
     }
 
@@ -74,17 +89,10 @@ HTML;
     // Helpers de renderizado
     // -------------------------------------------------------------------------
 
-    private function renderPostbox(string $key, string $label, string $tableBody): string {
+    private function renderFormGroup(string $key, string $label, string $tableBody): string {
         return <<<HTML
-<div class="postbox hwe-section" id="hwe-section-{$key}" style="margin-bottom:1.5em;">
-    <div class="postbox-header" style="border-bottom:1px solid #e5e7eb;">
-        <h2 class="hndle" style="padding:1em 1.5em;font-size:14px;font-weight:600;">{$label}</h2>
-    </div>
-    <div class="inside" style="padding:0 1.5em 1em;">
-        <table class="form-table" role="presentation">
-            <tbody>{$tableBody}</tbody>
-        </table>
-    </div>
+<div class="hwe-fields">
+{$tableBody}
 </div>
 HTML;
     }
@@ -93,7 +101,7 @@ HTML;
         return match ($field['type']) {
             'textarea' => $this->renderTextarea($id, $name, (string) ($value ?? '')),
             'color'    => $this->renderColor($id, $name, (string) ($value ?? ($field['default'] ?? '#000000'))),
-            'boolean'  => $this->renderCheckbox($id, $name, (bool) $value, $field),
+            'boolean'  => $this->renderToggle($id, $name, (bool) $value, $field),
             'select'   => $this->renderSelect($id, $name, (string) ($value ?? ''), $field),
             'secret'   => $this->renderSecret($id, $name, $path),
             'url'      => $this->renderText($id, $name, (string) ($value ?? ''), 'url'),
@@ -104,38 +112,41 @@ HTML;
 
     private function renderText(string $id, string $name, string $value, string $type): string {
         $v = esc_attr($value);
-        return "<input type=\"{$type}\" id=\"{$id}\" name=\"{$name}\" value=\"{$v}\" class=\"regular-text\">";
+        return "<input type=\"{$type}\" id=\"{$id}\" name=\"{$name}\" value=\"{$v}\">";
     }
 
     private function renderTextarea(string $id, string $name, string $value): string {
         $v = esc_textarea($value);
-        return "<textarea id=\"{$id}\" name=\"{$name}\" rows=\"3\" class=\"large-text\">{$v}</textarea>";
+        return "<textarea id=\"{$id}\" name=\"{$name}\" rows=\"3\">{$v}</textarea>";
     }
 
     private function renderColor(string $id, string $name, string $value): string {
         $v = esc_attr($value);
         return <<<HTML
-<span style="display:flex;align-items:center;gap:.75em;">
-    <input type="color" id="{$id}" name="{$name}" value="{$v}" style="width:48px;height:36px;padding:2px;border:1px solid #8c8f94;border-radius:4px;cursor:pointer;">
-    <input type="text" id="{$id}_text" name="{$name}" value="{$v}" class="small-text" maxlength="7" style="width:90px;"
-        oninput="document.getElementById('{$id}').value=this.value"
+<span class="hwe-color-picker">
+    <span class="hwe-color-preview" style="background:{$v}"></span>
+    <input type="color" id="{$id}" name="{$name}" value="{$v}">
+    <input type="text" id="{$id}_text" name="{$name}" value="{$v}" class="small-text" maxlength="7"
         aria-label="Código hex del color">
 </span>
-<script>
-document.getElementById('{$id}').addEventListener('input',function(){
-    var t=document.getElementById('{$id}_text');if(t)t.value=this.value;
-});
-</script>
 HTML;
     }
 
-    private function renderCheckbox(string $id, string $name, bool $checked, array $field): string {
+    /**
+     * Toggle switch moderno para campos booleanos.
+     * Reemplaza el checkbox nativo de WordPress.
+     */
+    private function renderToggle(string $id, string $name, bool $checked, array $field): string {
         $c     = $checked ? ' checked' : '';
         $label = esc_html($field['label'] ?? '');
         return <<<HTML
-<label>
+<label class="hwe-toggle">
     <input type="hidden" name="{$name}" value="0">
-    <input type="checkbox" id="{$id}" name="{$name}" value="1"{$c}> {$label}
+    <input type="checkbox" id="{$id}" name="{$name}" value="1"{$c}>
+    <span class="hwe-toggle-track">
+        <span class="hwe-toggle-thumb"></span>
+    </span>
+    <span class="hwe-toggle-label">{$label}</span>
 </label>
 HTML;
     }
@@ -160,7 +171,7 @@ HTML;
         $ph       = $hasValue
             ? esc_attr(__('●●●●●●●● (dejar en blanco para conservar)', 'hwe'))
             : esc_attr(__('Introducir valor...', 'hwe'));
-        return "<input type=\"password\" id=\"{$id}\" name=\"{$name}\" value=\"\" class=\"regular-text\" autocomplete=\"new-password\" placeholder=\"{$ph}\">";
+        return "<input type=\"password\" id=\"{$id}\" name=\"{$name}\" value=\"\" autocomplete=\"new-password\" placeholder=\"{$ph}\">";
     }
 
     // -------------------------------------------------------------------------
@@ -186,5 +197,19 @@ HTML;
             $current = $current[$key];
         }
         return is_string($current) && $current !== '';
+    }
+
+    /**
+     * Mapa de iconos para subgrupos conocidos.
+     */
+    private function subgroupIcon(string $key): string {
+        return match ($key) {
+            'colors'       => 'dashicons-art',
+            'typography'   => 'dashicons-editor-paste-text',
+            'wompi'        => 'dashicons-awards',
+            'payu'         => 'dashicons-money-alt',
+            'bold'         => 'dashicons-admin-generic',
+            default        => 'dashicons-admin-generic',
+        };
     }
 }

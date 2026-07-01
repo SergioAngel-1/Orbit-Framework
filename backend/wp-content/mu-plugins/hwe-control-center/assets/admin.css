@@ -1,0 +1,878 @@
+/*
+ * HWE Control Center — Admin UI
+ * Modern, card-based settings interface for wp-admin.
+ */
+
+/* ==========================================================================
+   Layout & Container
+   ========================================================================== */
+
+.hwe-wrap {
+    max-width: 1200px;
+    margin: 20px auto;
+    animation: hwe-fadeIn 0.3s ease-out;
+}
+
+@keyframes hwe-fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   Header
+   ========================================================================== */
+
+.hwe-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+    color: #fff;
+    padding: 28px 36px;
+    border-radius: 16px;
+    margin-bottom: 28px;
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.15),
+        0 2px 4px -2px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.hwe-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(96, 165, 250, 0.12) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.hwe-header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+.hwe-logo {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+}
+
+.hwe-logo .dashicons {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: #60a5fa;
+}
+
+.hwe-header-text h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+}
+
+.hwe-subtitle {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.hwe-header-actions {
+    position: relative;
+    z-index: 1;
+}
+
+.hwe-header-actions .button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+    border-radius: 10px;
+    padding: 10px 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease-out;
+    font-weight: 500;
+    text-decoration: none;
+    backdrop-filter: blur(4px);
+}
+
+.hwe-header-actions .button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.hwe-header-actions .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+/* ==========================================================================
+   Tabs — Sidebar Navigation
+   ========================================================================== */
+
+.hwe-tabs {
+    display: flex;
+    gap: 0;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.08),
+        0 1px 2px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    min-height: 600px;
+}
+
+.hwe-tab-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 220px;
+    background: #f9fafb;
+    border-right: 1px solid #e5e7eb;
+    padding: 12px 8px;
+}
+
+.hwe-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.2s ease-out;
+    text-align: left;
+    width: 100%;
+    position: relative;
+}
+
+.hwe-tab-btn:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.hwe-tab-btn.active {
+    background: #eff6ff;
+    color: #2563eb;
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.hwe-tab-btn .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+}
+
+.hwe-tab-btn.active .dashicons {
+    opacity: 1;
+    color: #2563eb;
+}
+
+.hwe-tab-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   Tab Content Panels
+   ========================================================================== */
+
+.hwe-tab-content {
+    flex: 1;
+    min-width: 0;
+    padding: 32px;
+    overflow-y: auto;
+    max-height: 700px;
+}
+
+.hwe-tab-panel {
+    display: none;
+    animation: hwe-panelIn 0.25s ease-out;
+}
+
+.hwe-tab-panel.active {
+    display: block;
+}
+
+@keyframes hwe-panelIn {
+    from { opacity: 0; transform: translateX(8px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.hwe-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #f1f5f9;
+}
+
+.hwe-panel-header .dashicons {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    color: #2563eb;
+}
+
+.hwe-panel-header h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+}
+
+.hwe-panel-body {
+    padding: 0;
+}
+
+/* ==========================================================================
+   Fields — Card Layout (replaces form-table)
+   ========================================================================== */
+
+.hwe-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.hwe-field {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 18px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.hwe-field:last-child {
+    border-bottom: none;
+}
+
+.hwe-field > label {
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 14px;
+    padding-top: 10px;
+    line-height: 1.4;
+}
+
+.hwe-field-control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.hwe-field .description {
+    color: #6b7280;
+    font-size: 13px;
+    margin: 4px 0 0;
+    line-height: 1.5;
+}
+
+/* ==========================================================================
+   Form Inputs — Modern Styling
+   ========================================================================== */
+
+.hwe-field-control input[type="text"],
+.hwe-field-control input[type="url"],
+.hwe-field-control input[type="email"],
+.hwe-field-control input[type="password"],
+.hwe-field-control textarea,
+.hwe-field-control select {
+    border: 1.5px solid #d1d5db;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    transition: all 0.2s ease-out;
+    background: #fff;
+    width: 100%;
+    max-width: 480px;
+    color: #1e293b;
+}
+
+.hwe-field-control input[type="text"]:hover,
+.hwe-field-control input[type="url"]:hover,
+.hwe-field-control input[type="email"]:hover,
+.hwe-field-control input[type="password"]:hover,
+.hwe-field-control textarea:hover,
+.hwe-field-control select:hover {
+    border-color: #9ca3af;
+}
+
+.hwe-field-control input[type="text"]:focus,
+.hwe-field-control input[type="url"]:focus,
+.hwe-field-control input[type="email"]:focus,
+.hwe-field-control input[type="password"]:focus,
+.hwe-field-control textarea:focus,
+.hwe-field-control select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    outline: none;
+}
+
+.hwe-field-control textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.hwe-field-control select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8.825L1.175 4 2.238 2.938 6 6.7 9.763 2.937 10.825 4z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+    cursor: pointer;
+}
+
+.hwe-field-control input[type="password"] {
+    font-family: monospace;
+    letter-spacing: 2px;
+}
+
+/* ==========================================================================
+   Toggle Switch (boolean fields)
+   ========================================================================== */
+
+.hwe-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    padding: 10px 0;
+    user-select: none;
+}
+
+.hwe-toggle input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.hwe-toggle-track {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    background: #d1d5db;
+    border-radius: 13px;
+    transition: background 0.25s ease-out;
+    flex-shrink: 0;
+}
+
+.hwe-toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hwe-toggle input:checked + .hwe-toggle-track {
+    background: #2563eb;
+}
+
+.hwe-toggle input:checked + .hwe-toggle-track .hwe-toggle-thumb {
+    transform: translateX(22px);
+}
+
+.hwe-toggle input:focus-visible + .hwe-toggle-track {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+}
+
+.hwe-toggle-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+}
+
+/* ==========================================================================
+   Color Picker
+   ========================================================================== */
+
+.hwe-color-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.hwe-color-preview {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 2px solid #e5e7eb;
+    flex-shrink: 0;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.hwe-color-preview:hover {
+    border-color: #9ca3af;
+}
+
+.hwe-color-picker input[type="color"] {
+    width: 44px;
+    height: 36px;
+    padding: 2px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+    background: none;
+}
+
+.hwe-color-picker input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 2px;
+}
+
+.hwe-color-picker input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px;
+}
+
+.hwe-color-picker .small-text {
+    width: 100px;
+    font-family: 'SF Mono', SFMono-Regular, ui-monospace, monospace;
+    font-size: 13px;
+}
+
+/* ==========================================================================
+   Subgroups (nested sections)
+   ========================================================================== */
+
+.hwe-subgroup {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #2563eb;
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 16px 0;
+}
+
+.hwe-subgroup-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.hwe-subgroup-title .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: #2563eb;
+}
+
+.hwe-subgroup .hwe-fields {
+    gap: 0;
+}
+
+.hwe-subgroup .hwe-field {
+    border-bottom-color: #e2e8f0;
+}
+
+/* Payment provider groups — hidden until selected */
+.hwe-subgroup[data-provider] {
+    display: none;
+    animation: hwe-panelIn 0.25s ease-out;
+}
+
+.hwe-subgroup[data-provider].is-active {
+    display: block;
+}
+
+/* ==========================================================================
+   Save Bar (sticky bottom)
+   ========================================================================== */
+
+.hwe-save-bar {
+    position: sticky;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid #e5e7eb;
+    padding: 18px 32px;
+    margin: 28px -32px -32px;
+    border-radius: 0 0 16px 16px;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    z-index: 100;
+}
+
+.hwe-save-bar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.hwe-save-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.hwe-save-info .dashicons {
+    color: #2563eb;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.hwe-save-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 28px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 10px;
+    background: #2563eb;
+    border-color: #1d4ed8;
+    color: #fff;
+    transition: all 0.2s ease-out;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+}
+
+.hwe-save-btn:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.hwe-save-btn:active {
+    transform: translateY(0);
+}
+
+.hwe-save-btn .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+/* Save button — saving state */
+.hwe-save-btn.saving {
+    background: #93c5fd;
+    border-color: #93c5fd;
+    pointer-events: none;
+    box-shadow: none;
+}
+
+.hwe-save-btn.saving .dashicons {
+    animation: hwe-spin 0.8s linear infinite;
+}
+
+.hwe-save-btn.saving .hwe-save-btn-text::after {
+    content: '...';
+}
+
+@keyframes hwe-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* Save success flash */
+.hwe-save-bar.success {
+    border-top-color: #22c55e;
+}
+
+.hwe-save-bar.success .hwe-save-info {
+    color: #16a34a;
+}
+
+.hwe-save-bar.success .hwe-save-info .dashicons {
+    color: #22c55e;
+}
+
+/* ==========================================================================
+   SMTP Test Section
+   ========================================================================== */
+
+.hwe-smtp-test {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 24px;
+}
+
+.hwe-smtp-test .hwe-panel-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.hwe-smtp-test .hwe-panel-header h2 {
+    font-size: 16px;
+}
+
+.hwe-smtp-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 20px;
+}
+
+.hwe-smtp-status .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.hwe-smtp-status .dashicons-yes-alt {
+    color: #22c55e;
+}
+
+.hwe-smtp-status .dashicons-warning {
+    color: #f59e0b;
+}
+
+.hwe-smtp-status p {
+    margin: 0;
+    color: #475569;
+    font-size: 14px;
+}
+
+.hwe-smtp-form .hwe-field-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.hwe-smtp-form label {
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.hwe-smtp-form .button {
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-weight: 500;
+}
+
+/* ==========================================================================
+   Postbox (legacy wrapper, still used inside panels)
+   ========================================================================== */
+
+.postbox.hwe-section {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    margin-bottom: 0;
+}
+
+.postbox.hwe-section .postbox-header {
+    background: #f9fafb;
+    border-radius: 12px 12px 0 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.postbox.hwe-section .inside {
+    padding: 0 24px 24px;
+    margin: 0;
+}
+
+/* ==========================================================================
+   Notices
+   ========================================================================== */
+
+.hwe-wrap .notice {
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border-width: 1px;
+    animation: hwe-noticeIn 0.3s ease-out;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+@keyframes hwe-noticeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.hwe-wrap .notice-success {
+    border-left: 4px solid #22c55e;
+}
+
+.hwe-wrap .notice-error {
+    border-left: 4px solid #dc2626;
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 960px) {
+    .hwe-tabs {
+        flex-direction: column;
+        min-height: auto;
+    }
+
+    .hwe-tab-nav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        border-right: none;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 8px;
+        min-width: auto;
+        gap: 4px;
+        background: #fff;
+    }
+
+    .hwe-tab-btn {
+        width: auto;
+        padding: 10px 14px;
+        gap: 6px;
+    }
+
+    .hwe-tab-label {
+        display: none;
+    }
+
+    .hwe-tab-btn .dashicons {
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
+    }
+
+    .hwe-tab-content {
+        max-height: none;
+        padding: 20px;
+    }
+
+    .hwe-field {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .hwe-field > label {
+        padding-top: 0;
+    }
+
+    .hwe-field-control input[type="text"],
+    .hwe-field-control input[type="url"],
+    .hwe-field-control input[type="email"],
+    .hwe-field-control input[type="password"],
+    .hwe-field-control textarea,
+    .hwe-field-control select {
+        max-width: 100%;
+    }
+
+    .hwe-save-bar-inner {
+        flex-direction: column;
+        gap: 14px;
+        text-align: center;
+    }
+
+    .hwe-save-info {
+        justify-content: center;
+    }
+
+    .hwe-header {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+        padding: 24px 20px;
+    }
+
+    .hwe-header-left {
+        flex-direction: column;
+    }
+
+    .hwe-subgroup {
+        padding: 16px;
+    }
+}
+
+@media (max-width: 600px) {
+    .hwe-wrap {
+        margin: 10px;
+    }
+
+    .hwe-header-text h1 {
+        font-size: 20px;
+    }
+
+    .hwe-panel-header h2 {
+        font-size: 18px;
+    }
+
+    .hwe-save-bar {
+        margin: 16px -10px -10px;
+        padding: 14px 16px;
+    }
+}
+
+/* ==========================================================================
+   Scrollbar (webkit)
+   ========================================================================== */
+
+.hwe-tab-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.hwe-tab-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.hwe-tab-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.hwe-tab-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}

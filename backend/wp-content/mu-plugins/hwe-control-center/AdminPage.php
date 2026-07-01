@@ -8,7 +8,8 @@ use HWE\ControlCenter\Walkers\DefaultsWalker;
 /**
  * Página de administración en wp-admin para el Control Center.
  *
- * - Menú: Ajustes → HWE Config.
+ * - Menú: HWE Config (entry principal en la sidebar de WP).
+ * - Interfaz con pestañas para organizar las secciones de configuración.
  * - Formulario generado recursivamente desde el esquema (AdminFormWalker).
  * - Guardado: nonce + capacidad + sanitización recursiva por tipo de campo.
  * - Separa valores públicos (Storage) de secretos (SecretsStorage).
@@ -21,15 +22,45 @@ class AdminPage {
 
     public static function register(): void {
         add_action('admin_menu', [self::class, 'addMenuPage']);
+        add_action('admin_enqueue_scripts', [self::class, 'enqueueAssets']);
     }
 
     public static function addMenuPage(): void {
-        add_options_page(
+        add_menu_page(
             'HWE Control Center',
             'HWE Config',
             'manage_options',
             self::MENU_SLUG,
-            [self::class, 'renderPage']
+            [self::class, 'renderPage'],
+            'dashicons-admin-settings',
+            80
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Asset enqueuing
+    // -------------------------------------------------------------------------
+
+    public static function enqueueAssets(string $hook): void {
+        if ($hook !== 'toplevel_page_hwe-config') {
+            return;
+        }
+
+        $baseUrl = content_url('mu-plugins/hwe-control-center');
+
+        wp_enqueue_style(
+            'hwe-admin',
+            $baseUrl . '/assets/admin.css',
+            [],
+            '1.0.0'
+        );
+
+        wp_enqueue_script(
+            'hwe-admin',
+            $baseUrl . '/assets/admin.js',
+            [],
+            '1.0.0',
+            true
         );
     }
 
@@ -58,23 +89,103 @@ class AdminPage {
 
         $walker   = new AdminFormWalker($secretsExist);
         $sections = $walker->walk($schema, $merged);
-        $formHtml = implode("\n", array_values($sections));
-        $formUrl  = esc_url(admin_url('options-general.php?page=' . self::MENU_SLUG));
 
-        echo '<div class="wrap">';
+        // Inject SMTP test into integrations tab.
+        $sections['integrations'] .= self::renderSmtpTest();
+
+        // Build tabs from sections.
+        $tabs = [];
+        $tabIcons = [
+            'brand'        => 'dashicons-admin-home',
+            'social'       => 'dashicons-share',
+            'legal'        => 'dashicons-media-document',
+            'design'       => 'dashicons-admin-appearance',
+            'ecommerce'    => 'dashicons-cart',
+            'payments'     => 'dashicons-money',
+            'integrations' => 'dashicons-admin-plugins',
+            'backups'      => 'dashicons-backup',
+            'seo'          => 'dashicons-search',
+            'shipping'     => 'dashicons-store',
+            'geo'          => 'dashicons-location',
+        ];
+
+        foreach ($sections as $key => $html) {
+            $label = $schema[$key]['label'] ?? $key;
+            $icon  = $tabIcons[$key] ?? 'dashicons-admin-generic';
+            $tabs[$key] = ['label' => $label, 'icon' => $icon, 'content' => $html];
+        }
+
+        $formUrl = esc_url(admin_url('admin.php?page=' . self::MENU_SLUG));
+
+        echo '<div class="wrap hwe-wrap">';
+
+        // Header.
+        echo '<div class="hwe-header">';
+        echo '<div class="hwe-header-left">';
+        echo '<div class="hwe-logo"><span class="dashicons dashicons-admin-settings"></span></div>';
+        echo '<div class="hwe-header-text">';
         echo '<h1>' . esc_html(get_admin_page_title()) . '</h1>';
+        echo '<p class="hwe-subtitle">' . esc_html__('Panel de configuración central para tu tienda headless', 'hwe') . '</p>';
+        echo '</div>';
+        echo '</div>';
+        echo '<div class="hwe-header-actions">';
+        echo '<a href="' . esc_url(rest_url('hwe/v1/config')) . '" target="_blank" class="button button-secondary hwe-api-btn"><span class="dashicons dashicons-visibility"></span> ' . esc_html__('Ver API', 'hwe') . '</a>';
+        echo '</div>';
+        echo '</div>';
+
         echo $notice;
-        echo <<<HTML
-<form method="post" action="{$formUrl}">
-HTML;
+
+        // Form.
+        echo '<form method="post" action="' . $formUrl . '" class="hwe-form">';
         wp_nonce_field(self::NONCE_KEY, 'hwe_nonce');
-        echo $formHtml;
-        echo '<p class="submit"><input type="submit" name="submit" id="submit" class="button button-primary" value="' . esc_attr__('Guardar configuración', 'hwe') . '"></p>';
+
+        // Tabs wrapper.
+        echo '<div class="hwe-tabs">';
+
+        // Tab navigation.
+        echo '<nav class="hwe-tab-nav">';
+        foreach ($tabs as $key => $tab) {
+            $active = $key === array_key_first($tabs) ? ' active' : '';
+            echo '<button type="button" class="hwe-tab-btn' . $active . '" data-tab="' . esc_attr($key) . '">';
+            echo '<span class="dashicons ' . esc_attr($tab['icon']) . '"></span>';
+            echo '<span class="hwe-tab-label">' . esc_html($tab['label']) . '</span>';
+            echo '</button>';
+        }
+        echo '</nav>';
+
+        // Tab content.
+        echo '<div class="hwe-tab-content">';
+        foreach ($tabs as $key => $tab) {
+            $active = $key === array_key_first($tabs) ? ' active' : '';
+            echo '<div class="hwe-tab-panel' . $active . '" data-panel="' . esc_attr($key) . '">';
+            echo '<div class="hwe-panel-header">';
+            echo '<span class="dashicons ' . esc_attr($tab['icon']) . '"></span>';
+            echo '<h2>' . esc_html($tab['label']) . '</h2>';
+            echo '</div>';
+            echo '<div class="hwe-panel-body">';
+            echo $tab['content'];
+            echo '</div>';
+            echo '</div>';
+        }
+        echo '</div>'; // .hwe-tab-content
+
+        echo '</div>'; // .hwe-tabs
+
+        // Sticky save bar.
+        echo '<div class="hwe-save-bar">';
+        echo '<div class="hwe-save-bar-inner">';
+        echo '<div class="hwe-save-info">';
+        echo '<span class="dashicons dashicons-info"></span>';
+        echo esc_html__('Los cambios se aplican inmediatamente al frontend (revalidación ISR).', 'hwe');
+        echo '</div>';
+        echo '<button type="submit" name="submit" id="submit" class="button button-primary button-hero hwe-save-btn">';
+        echo '<span class="dashicons dashicons-saved"></span>';
+        echo '<span class="hwe-save-btn-text">' . esc_html__('Guardar configuración', 'hwe') . '</span>';
+        echo '</button>';
+        echo '</div>';
+        echo '</div>';
+
         echo '</form>';
-
-        // Sección de prueba del transporte SMTP (envía un email de test).
-        self::renderSmtpTest();
-
         echo '</div>';
     }
 
@@ -195,48 +306,64 @@ HTML;
     }
 
     // -------------------------------------------------------------------------
-    // Prueba de transporte SMTP (botón "enviar email de prueba")
+    // Prueba de transporte SMTP (integrada en la pestaña de Integraciones)
     // -------------------------------------------------------------------------
 
-    private static function renderSmtpTest(): void {
+    private static function renderSmtpTest(): string {
         $status = isset($_GET['hwe_smtp_test'])
             ? sanitize_text_field(wp_unslash($_GET['hwe_smtp_test']))
             : '';
 
+        $notices = '';
         if ($status === 'sent') {
-            echo self::notice('success', __('Email de prueba enviado. Revisa la bandeja de entrada (y la carpeta de spam).', 'hwe'));
+            $notices = self::notice('success', __('Email de prueba enviado. Revisa la bandeja de entrada (y la carpeta de spam).', 'hwe'));
         } elseif ($status === 'failed') {
             $err = get_transient('hwe_smtp_last_error');
             $msg = __('No se pudo enviar el email de prueba.', 'hwe');
             if (is_string($err) && $err !== '') {
                 $msg .= ' ' . $err;
             }
-            echo self::notice('error', $msg);
+            $notices = self::notice('error', $msg);
         }
 
-        $active = function_exists('hwe_smtp_is_active') && hwe_smtp_is_active();
-        $estado = $active
+        $active  = function_exists('hwe_smtp_is_active') && hwe_smtp_is_active();
+        $estado  = $active
             ? __('SMTP activo: el correo se enviará por el servidor configurado.', 'hwe')
             : __('SMTP inactivo: actívalo y completa el host arriba; mientras tanto se usa el envío PHP por defecto.', 'hwe');
 
-        $actionUrl = esc_url(admin_url('admin-post.php'));
-        $current   = esc_attr(wp_get_current_user()->user_email);
-        $nonce     = wp_nonce_field('hwe_smtp_test', '_wpnonce', true, false);
-        $title     = esc_html__('Probar entrega de email', 'hwe');
-        $label     = esc_html__('Enviar email de prueba a:', 'hwe');
-        $btn       = esc_attr__('Enviar email de prueba', 'hwe');
+        $actionUrl  = esc_url(admin_url('admin-post.php'));
+        $current    = esc_attr(wp_get_current_user()->user_email);
+        $nonce      = wp_nonce_field('hwe_smtp_test', '_wpnonce', true, false);
+        $title      = esc_html__('Probar entrega de email', 'hwe');
+        $label      = esc_html__('Enviar email de prueba a:', 'hwe');
+        $btn        = esc_attr__('Enviar email de prueba', 'hwe');
         $estadoHtml = esc_html($estado);
+        $iconClass  = $active ? 'yes-alt' : 'warning';
 
-        echo <<<HTML
-<hr style="margin:24px 0;">
-<h2>{$title}</h2>
-<p class="description">{$estadoHtml}</p>
-<form method="post" action="{$actionUrl}" style="margin-top:8px;">
-{$nonce}
-<input type="hidden" name="action" value="hwe_smtp_test">
-<label>{$label} <input type="email" name="hwe_smtp_test_email" value="{$current}" class="regular-text" required></label>
-<p class="submit"><input type="submit" class="button" value="{$btn}"></p>
-</form>
-HTML;
+        ob_start();
+        ?>
+        <div class="hwe-smtp-test">
+            <div class="hwe-panel-header">
+                <span class="dashicons dashicons-email-alt"></span>
+                <h2><?php echo $title; ?></h2>
+            </div>
+            <div class="hwe-panel-body">
+                <div class="hwe-smtp-status">
+                    <span class="dashicons dashicons-<?php echo $iconClass; ?>"></span>
+                    <p><?php echo $estadoHtml; ?></p>
+                </div>
+                <form method="post" action="<?php echo $actionUrl; ?>" class="hwe-smtp-form">
+                    <?php echo $nonce; ?>
+                    <input type="hidden" name="action" value="hwe_smtp_test">
+                    <div class="hwe-field-row">
+                        <label><?php echo $label; ?></label>
+                        <input type="email" name="hwe_smtp_test_email" value="<?php echo $current; ?>" class="regular-text" required>
+                    </div>
+                    <p class="submit"><button type="submit" class="button button-secondary"><span class="dashicons dashicons-email"></span> <?php echo $btn; ?></button></p>
+                </form>
+            </div>
+        </div>
+        <?php
+        return $notices . ob_get_clean();
     }
 }
