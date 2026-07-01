@@ -14,11 +14,16 @@
  *  Estos @theme son necesarios para que Tailwind genere bg-brand, text-brand, etc.
  * ========================================================================== */
 @theme {
-  --color-brand:       #2563eb;
-  --color-brand-dark:  #1e40af;
-  --color-brand-light: #3b82f6;
+  --color-brand:          #2563eb;
+  --color-brand-dark:     #1e40af;
+  --color-brand-light:    #3b82f6;
+  --color-secondary:      #16a34a;
+  --color-secondary-dark: #15803d;
+  --color-accent:         #f59e0b;
+  --color-surface:        #f8fafc;
 
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans:    var(--font-inter), system-ui, sans-serif;
+  --font-heading: var(--font-inter), system-ui, sans-serif;
 
   /* Animaciones propias */
   --animate-fade-in:   fade-in 0.2s ease-out;

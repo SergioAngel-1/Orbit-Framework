@@ -24,6 +24,12 @@ export type { InputProps }   from "./input";
 export { Modal }             from "./modal";
 export type { ModalProps }   from "./modal";
 
+export { Paginator }         from "./paginator";
+export type { PaginatorProps } from "./paginator";
+
+export { QuantityCounter }   from "./quantity-counter";
+export type { QuantityCounterProps } from "./quantity-counter";
+
 export { Select }            from "./select";
 export type { SelectProps, SelectOption } from "./select";
 

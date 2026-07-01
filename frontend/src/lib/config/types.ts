@@ -28,12 +28,18 @@ export interface SiteConfig {
       brand: string;
       brand_dark: string;
       brand_light: string;
+      secondary: string;
+      secondary_dark: string;
+      accent: string;
+      surface: string;
       background: string;
       foreground: string;
     };
     typography: {
       font_sans: string;
       font_url: string;
+      font_heading: string;
+      font_heading_url: string;
     };
   };
   ecommerce: {

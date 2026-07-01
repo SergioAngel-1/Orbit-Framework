@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
-type Variant = "solid" | "outline" | "ghost" | "destructive" | "link";
+type Variant = "solid" | "secondary" | "outline" | "ghost" | "destructive" | "link";
 type Size    = "xs" | "sm" | "md" | "lg" | "icon";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -36,6 +36,8 @@ const base =
 const variants: Record<Variant, string> = {
   solid:
     "bg-brand text-white hover:bg-brand-dark active:bg-brand-dark/90",
+  secondary:
+    "bg-secondary text-white hover:bg-secondary-dark active:bg-secondary-dark/90",
   outline:
     "border border-brand text-brand bg-transparent hover:bg-brand/8 active:bg-brand/15",
   ghost:
@@ -85,7 +87,7 @@ export function Button({
       {loading ? (
         <Spinner
           size="xs"
-          color={variant === "solid" || variant === "destructive" ? "white" : "brand"}
+          color={variant === "solid" || variant === "secondary" || variant === "destructive" ? "white" : "brand"}
         />
       ) : (
         leadingIcon

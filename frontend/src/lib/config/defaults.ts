@@ -34,12 +34,18 @@ export const CONFIG_DEFAULTS: SiteConfig = {
       brand: "#2563eb",
       brand_dark: "#1e40af",
       brand_light: "#3b82f6",
+      secondary: "#16a34a",
+      secondary_dark: "#15803d",
+      accent: "#f59e0b",
+      surface: "#f8fafc",
       background: "#ffffff",
       foreground: "#0a0a0a",
     },
     typography: {
       font_sans: "Inter",
       font_url: "",
+      font_heading: "",
+      font_heading_url: "",
     },
   },
   ecommerce: {

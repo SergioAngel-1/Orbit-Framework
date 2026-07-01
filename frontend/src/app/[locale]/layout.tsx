@@ -4,15 +4,14 @@ import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
-import { Link } from "@/i18n/navigation";
 import "../globals.css";
 import { CartProvider }       from "@/components/cart/cart-context";
-import { CartIndicator }      from "@/components/cart/cart-indicator";
 import { CartDrawer }         from "@/components/cart/cart-drawer";
 import { AnalyticsProvider }  from "@/components/analytics/analytics-provider";
-import { LocaleSwitcher }     from "@/components/i18n/locale-switcher";
-import { DarkModeToggle, DarkModeScript } from "@/components/ui/dark-mode-toggle";
+import { DarkModeScript }     from "@/components/ui/dark-mode-toggle";
 import { ThemeTokens }        from "@/components/ui/theme-tokens";
+import { SiteHeader }         from "@/components/layout/site-header";
+import { SiteFooter }         from "@/components/layout/site-footer";
 import { getSiteConfig }      from "@/lib/config";
 import { buildSiteGraph } from "@/lib/seo/jsonld";
 
@@ -114,7 +113,7 @@ export default async function LocaleLayout({
 
   const messages = await getMessages();
   const tNav     = await getTranslations("nav");
-  const tSite    = await getTranslations("site");
+  const config   = await getSiteConfig();
 
   return (
     // suppressHydrationWarning necesario para el script de modo oscuro que
@@ -139,56 +138,16 @@ export default async function LocaleLayout({
               </a>
 
               {/* Navegación */}
-              <header className="border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-800 dark:bg-black/50">
-                <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-                  <Link
-                    href="/"
-                    className="text-lg font-bold tracking-tight"
-                    aria-label={tSite("name")}
-                  >
-                    {tSite("name")}
-                  </Link>
-                  <nav className="flex items-center gap-4 text-sm font-medium text-gray-600 dark:text-gray-300">
-                    <Link href="/products" className="transition-colors hover:text-brand">
-                      {tNav("store")}
-                    </Link>
-                    <Link href="/blog" className="transition-colors hover:text-brand">
-                      {tNav("blog")}
-                    </Link>
-                    <Link href="/about" className="transition-colors hover:text-brand">
-                      {tNav("about")}
-                    </Link>
-                    <Link href="/account" className="transition-colors hover:text-brand">
-                      {tNav("account")}
-                    </Link>
-                    <CartIndicator />
-                    <LocaleSwitcher />
-                    <DarkModeToggle className="text-gray-600 dark:text-gray-300" />
-                  </nav>
-                </div>
-              </header>
+              <SiteHeader />
 
               <main id="main-content" className="mx-auto max-w-5xl px-6 py-12">
                 {children}
               </main>
 
-              <footer className="border-t border-gray-200 py-8 text-sm text-gray-500 dark:border-gray-800">
-                <div className="mx-auto max-w-5xl space-y-3 px-6 text-center">
-                  <nav
-                    aria-label={tNav("legal")}
-                    className="flex flex-wrap justify-center gap-x-5 gap-y-2"
-                  >
-                    <Link href="/legal/privacy" className="hover:text-brand">{tNav("privacy")}</Link>
-                    <Link href="/legal/cookies" className="hover:text-brand">{tNav("cookies")}</Link>
-                    <Link href="/legal/terms"   className="hover:text-brand">{tNav("terms")}</Link>
-                    <Link href="/legal/returns" className="hover:text-brand">{tNav("returns")}</Link>
-                  </nav>
-                  <p>{tSite("footer")}</p>
-                </div>
-              </footer>
+              <SiteFooter />
 
               {/* CartDrawer: panel deslizante (fuera del flujo principal) */}
-              <CartDrawer />
+              <CartDrawer couponsEnabled={config.ecommerce.coupons_enabled} />
             </CartProvider>
           </AnalyticsProvider>
         </NextIntlClientProvider>

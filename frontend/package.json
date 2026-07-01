@@ -29,6 +29,7 @@
     "@emnapi/runtime": "^1.11.1",
     "@sentry/nextjs": "^10.59.0",
     "@swc/helpers": "^0.5.23",
+    "country-flag-icons": "^1.6.20",
     "ioredis": "5.11.1",
     "isomorphic-dompurify": "3.18.0",
     "jose": "6.2.3",

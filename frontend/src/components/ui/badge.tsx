@@ -2,7 +2,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type Variant = "solid" | "outline" | "soft";
-type Color   = "brand" | "success" | "warning" | "error" | "gray";
+type Color   = "brand" | "secondary" | "accent" | "success" | "warning" | "error" | "gray";
 type Size    = "sm" | "md";
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
@@ -17,6 +17,16 @@ const colors: Record<Color, Record<Variant, string>> = {
     solid:   "bg-brand text-white",
     outline: "border border-brand text-brand",
     soft:    "bg-brand/10 text-brand",
+  },
+  secondary: {
+    solid:   "bg-secondary text-white",
+    outline: "border border-secondary text-secondary",
+    soft:    "bg-secondary/10 text-secondary",
+  },
+  accent: {
+    solid:   "bg-accent text-white",
+    outline: "border border-accent text-accent",
+    soft:    "bg-accent/10 text-accent",
   },
   success: {
     solid:   "bg-emerald-600 text-white",

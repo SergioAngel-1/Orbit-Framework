@@ -6,10 +6,14 @@
     "footer": "Next.js + WordPress (WPGraphQL) · Headless Web Ecosystem"
   },
   "nav": {
+    "home": "Home",
     "store": "Store",
     "blog": "Blog",
     "about": "About",
     "account": "Account",
+    "contact": "Contact",
+    "allProducts": "All products",
+    "offers": "Offers",
     "cart": "Cart",
     "skipToContent": "Skip to content",
     "legal": "Legal links",
@@ -17,6 +21,16 @@
     "cookies": "Cookies",
     "terms": "Terms",
     "returns": "Returns"
+  },
+  "trustBar": {
+    "natural": "100% Natural",
+    "freeShipping": "Free shipping",
+    "returns": "15-day returns",
+    "securePayment": "Secure payment"
+  },
+  "footer": {
+    "company": "COMPANY",
+    "rights": "All rights reserved"
   },
   "legal": {
     "updated": "Last updated",
@@ -126,6 +140,9 @@
     "expertise": "Areas of expertise",
     "contact": "Contact",
     "team": "Team"
+  },
+  "contact": {
+    "title": "Contact"
   },
   "products": {
     "title": "Store",

@@ -518,12 +518,12 @@
 
 /* Payment provider groups — hidden until selected */
 .hwe-subgroup[data-provider] {
-    display: none;
+    display: none !important;
     animation: hwe-panelIn 0.25s ease-out;
 }
 
 .hwe-subgroup[data-provider].is-active {
-    display: block;
+    display: block !important;
 }
 
 /* ==========================================================================

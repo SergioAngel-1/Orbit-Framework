@@ -48,18 +48,20 @@ class AdminPage {
 
         $baseUrl = content_url('mu-plugins/hwe-control-center');
 
+        $assetVersion = filemtime(dirname(__FILE__) . '/assets/admin.css');
+
         wp_enqueue_style(
             'hwe-admin',
             $baseUrl . '/assets/admin.css',
             [],
-            '1.0.0'
+            $assetVersion
         );
 
         wp_enqueue_script(
             'hwe-admin',
             $baseUrl . '/assets/admin.js',
             [],
-            '1.0.0',
+            $assetVersion,
             true
         );
     }
@@ -139,6 +141,9 @@ class AdminPage {
         echo '<form method="post" action="' . $formUrl . '" class="hwe-form">';
         wp_nonce_field(self::NONCE_KEY, 'hwe_nonce');
 
+        // Inline fallback: hide payment provider groups until JS activates the selected one.
+        echo '<style>.hwe-subgroup[data-provider]{display:none!important}.hwe-subgroup[data-provider].is-active{display:block!important}</style>';
+
         // Tabs wrapper.
         echo '<div class="hwe-tabs">';
 
@@ -216,7 +221,11 @@ class AdminPage {
      * Recorre el esquema y los datos enviados de forma recursiva.
      * Devuelve [publicData, secretData] separados.
      */
-    private static function sanitizeAndSplit(array $schema, array $submitted, array $path = []): array {
+    /**
+     * Público para que Cli::setup() reutilice la misma sanitización/validación
+     * por tipo de campo que usa el guardado desde wp-admin.
+     */
+    public static function sanitizeAndSplit(array $schema, array $submitted, array $path = []): array {
         $publicData = [];
         $secretData = [];
 
