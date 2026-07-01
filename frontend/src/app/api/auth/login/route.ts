@@ -65,7 +65,8 @@ export async function POST(request: Request) {
     );
   }
 
-  // Check if 2FA is enabled for this user
+  // Check if 2FA is enabled for this user — fail-closed: any failure blocks login.
+  let twoFactorEnabled: boolean;
   try {
     const statusRes = await fetch(
       `${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-status/${user.databaseId}`,
@@ -74,29 +75,43 @@ export async function POST(request: Request) {
         headers: { "X-HWE-Internal-Secret": process.env.HWE_REVALIDATION_SECRET ?? "" },
       },
     );
-    if (statusRes.ok) {
-      const statusData = await statusRes.json() as { enabled: boolean };
-      if (statusData.enabled) {
-        // Create ephemeral token with the real tokens
-        const ephemeralToken = await new SignJWT({
-          authToken,
-          refreshToken,
-          userId: String(user.databaseId),
-        })
-          .setProtectedHeader({ alg: "HS256" })
-          .setExpirationTime("5m")
-          .setIssuedAt()
-          .sign(EPHEMERAL_SECRET);
-
-        logger.info({ event: "auth.login.2fa_required", userId: user.id }, "2FA requerido");
-        return NextResponse.json(
-          { requires_2fa: true, ephemeralToken },
-          { status: 200 },
-        );
-      }
+    if (!statusRes.ok) {
+      logger.error(
+        { event: "auth.login.2fa_check_error", httpStatus: statusRes.status },
+        "Endpoint de estado 2FA devolvió error",
+      );
+      return NextResponse.json(
+        { error: "Servicio de autenticación temporalmente no disponible." },
+        { status: 503 },
+      );
     }
+    const statusData = (await statusRes.json()) as { enabled: boolean };
+    twoFactorEnabled = statusData.enabled === true;
   } catch {
-    logger.warn({ event: "auth.login.2fa_check_failed" }, "No se pudo verificar estado 2FA; se omite");
+    logger.error({ event: "auth.login.2fa_check_failed" }, "No se pudo verificar estado 2FA");
+    return NextResponse.json(
+      { error: "Servicio de autenticación temporalmente no disponible." },
+      { status: 503 },
+    );
+  }
+
+  if (twoFactorEnabled) {
+    // Create ephemeral token with the real tokens
+    const ephemeralToken = await new SignJWT({
+      authToken,
+      refreshToken,
+      userId: String(user.databaseId),
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setExpirationTime("5m")
+      .setIssuedAt()
+      .sign(EPHEMERAL_SECRET);
+
+    logger.info({ event: "auth.login.2fa_required", userId: user.id }, "2FA requerido");
+    return NextResponse.json(
+      { requires_2fa: true, ephemeralToken },
+      { status: 200 },
+    );
   }
 
   const store = await cookies();
