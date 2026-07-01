@@ -15,7 +15,12 @@ import { cn } from "@/lib/utils";
 //  quitar artículos, total y botones de navegación a checkout/carrito.
 // ============================================================================
 
-export function CartDrawer() {
+export interface CartDrawerProps {
+  /** `config.ecommerce.coupons_enabled` — oculta la sección de cupón si es `false`. */
+  couponsEnabled?: boolean;
+}
+
+export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
   const { cart, loading, error, updateItem, removeItem, applyCoupon, removeCoupon, drawerOpen, closeDrawer } = useCart();
   const tCart = useTranslations("cart");
   const [couponCode, setCouponCode] = useState("");
@@ -190,7 +195,7 @@ export function CartDrawer() {
         </div>
 
         {/* Cupones */}
-        {cart && cart.items.length > 0 && (
+        {couponsEnabled && cart && cart.items.length > 0 && (
           <div className="border-t border-gray-200 px-5 py-4 dark:border-gray-800">
             <div className="flex gap-2">
               <input

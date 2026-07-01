@@ -177,29 +177,31 @@ export default async function ProductPage({
         </section>
       )}
 
-      {/* Reseñas */}
-      <section className="mt-14">
-        <h2 className="mb-6 text-xl font-bold">{t("reviews")}</h2>
-        {product.reviews.items.length > 0 ? (
-          <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-            {product.reviews.items.map((rev) => (
-              <li key={rev.id} className="py-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">{rev.authorName}</span>
-                  <span className="text-yellow-500">{rev.rating > 0 ? "★".repeat(rev.rating) : ""}</span>
-                  <span className="text-gray-400">{formatDate(rev.date, locale)}</span>
-                </div>
-                {rev.content && <p className="mt-1 text-gray-600 dark:text-gray-400">{rev.content}</p>}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-gray-500">{t("noReviews")}</p>
-        )}
-        <div className="mt-6">
-          <ReviewForm productId={product.databaseId} />
-        </div>
-      </section>
+      {/* Reseñas — solo si la instancia las tiene habilitadas (ecommerce.reviews_enabled) */}
+      {config.ecommerce.reviews_enabled && (
+        <section className="mt-14">
+          <h2 className="mb-6 text-xl font-bold">{t("reviews")}</h2>
+          {product.reviews.items.length > 0 ? (
+            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+              {product.reviews.items.map((rev) => (
+                <li key={rev.id} className="py-4">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium">{rev.authorName}</span>
+                    <span className="text-yellow-500">{rev.rating > 0 ? "★".repeat(rev.rating) : ""}</span>
+                    <span className="text-gray-400">{formatDate(rev.date, locale)}</span>
+                  </div>
+                  {rev.content && <p className="mt-1 text-gray-600 dark:text-gray-400">{rev.content}</p>}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500">{t("noReviews")}</p>
+          )}
+          <div className="mt-6">
+            <ReviewForm productId={product.databaseId} />
+          </div>
+        </section>
+      )}
 
       {/* Productos relacionados */}
       {product.related.length > 0 && (

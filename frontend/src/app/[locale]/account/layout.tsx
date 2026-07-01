@@ -1,6 +1,7 @@
 import { Link, redirect } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { getSession } from "@/lib/auth/session";
+import { getSiteConfig } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export default async function AccountLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const t = await getTranslations("account");
+  const [t, config] = await Promise.all([getTranslations("account"), getSiteConfig()]);
   const session = await getSession();
   if (!session) {
     redirect({ href: "/login", locale });
@@ -34,9 +35,11 @@ export default async function AccountLayout({
           <Link href="/account/addresses" className="hover:text-brand">
             {t("addresses")}
           </Link>
-          <Link href="/account/wishlist" className="hover:text-brand">
-            {t("wishlist")}
-          </Link>
+          {config.ecommerce.wishlist_enabled && (
+            <Link href="/account/wishlist" className="hover:text-brand">
+              {t("wishlist")}
+            </Link>
+          )}
           <Link href="/account/password" className="hover:text-brand">
             {t("changePassword")}
           </Link>

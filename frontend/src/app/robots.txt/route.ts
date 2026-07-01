@@ -1,4 +1,3 @@
-import { siteConfig } from "@/config/site";
 import { routing } from "@/i18n/routing";
 import { getSiteConfig } from "@/lib/config";
 
@@ -93,7 +92,7 @@ export async function GET(): Promise<Response> {
     lines.push("", `User-agent: ${agent}`, "Disallow: /");
   }
 
-  lines.push("", `Sitemap: ${siteConfig.url}/sitemap.xml`, "");
+  lines.push("", `Sitemap: ${config.brand.url}/sitemap.xml`, "");
   return text(lines.join("\n"));
 }
 

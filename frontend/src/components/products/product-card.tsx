@@ -4,10 +4,11 @@ import { getTranslations } from "next-intl/server";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 import { WishlistButton } from "@/components/products/wishlist-button";
 import { formatPrice } from "@/lib/format";
+import { getSiteConfig } from "@/lib/config";
 import type { CatalogProduct } from "@/types/catalog";
 
 export async function ProductCard({ product }: { product: CatalogProduct }) {
-  const t = await getTranslations("products");
+  const [t, config] = await Promise.all([getTranslations("products"), getSiteConfig()]);
   const outOfStock = product.stockStatus === "OUT_OF_STOCK";
 
   return (
@@ -31,7 +32,7 @@ export async function ProductCard({ product }: { product: CatalogProduct }) {
             </div>
           )}
         </Link>
-        <WishlistButton productId={product.databaseId} />
+        {config.ecommerce.wishlist_enabled && <WishlistButton productId={product.databaseId} />}
         {product.onSale && (
           <span className="absolute left-2 top-2 z-10 rounded-full bg-brand px-2 py-0.5 text-xs font-bold text-white">
             {t("onSale")}

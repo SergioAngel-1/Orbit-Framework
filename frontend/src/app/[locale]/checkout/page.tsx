@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
+import { getSiteConfig } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +22,11 @@ export default async function CheckoutPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations("checkout");
+  const [t, config] = await Promise.all([getTranslations("checkout"), getSiteConfig()]);
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-8 text-3xl font-extrabold tracking-tight">{t("title")}</h1>
-      <CheckoutForm />
+      <CheckoutForm couponsEnabled={config.ecommerce.coupons_enabled} />
     </div>
   );
 }

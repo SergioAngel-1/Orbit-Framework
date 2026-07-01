@@ -11,7 +11,12 @@ interface CheckoutResult {
   status: string;
 }
 
-export function CheckoutForm() {
+export interface CheckoutFormProps {
+  /** `config.ecommerce.coupons_enabled` — oculta la sección de cupón si es `false`. */
+  couponsEnabled?: boolean;
+}
+
+export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
   const { cart, loading, refresh, applyCoupon, removeCoupon, selectShippingRate } = useCart();
   const t = useTranslations();
   const tCheckout = t.raw("checkout") as unknown as Record<string, string>;
@@ -125,27 +130,29 @@ export function CheckoutForm() {
       )}
 
       {/* Cupón */}
-      <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
-        <h3 className="mb-2 text-sm font-semibold">{tCart.couponCode}</h3>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={couponCode}
-            onChange={(e) => setCouponCode(e.target.value)}
-            placeholder={tCart.couponCode}
-            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-          />
-          <Button variant="outline" size="sm" disabled={loading || !couponCode.trim()} onClick={() => { applyCoupon(couponCode.trim()); setCouponCode(""); }}>
-            {tCart.applyCoupon}
-          </Button>
-        </div>
-        {cart?.coupons.map((c) => (
-          <div key={c.code} className="mt-2 flex items-center justify-between text-sm">
-            <span className="text-green-600 dark:text-green-400">{c.code}</span>
-            <button type="button" disabled={loading} onClick={() => removeCoupon(c.code)} className="text-xs text-gray-400 hover:text-red-600">{tCart.removeCoupon}</button>
+      {couponsEnabled && (
+        <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+          <h3 className="mb-2 text-sm font-semibold">{tCart.couponCode}</h3>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value)}
+              placeholder={tCart.couponCode}
+              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            />
+            <Button variant="outline" size="sm" disabled={loading || !couponCode.trim()} onClick={() => { applyCoupon(couponCode.trim()); setCouponCode(""); }}>
+              {tCart.applyCoupon}
+            </Button>
           </div>
-        ))}
-      </section>
+          {cart?.coupons.map((c) => (
+            <div key={c.code} className="mt-2 flex items-center justify-between text-sm">
+              <span className="text-green-600 dark:text-green-400">{c.code}</span>
+              <button type="button" disabled={loading} onClick={() => removeCoupon(c.code)} className="text-xs text-gray-400 hover:text-red-600">{tCart.removeCoupon}</button>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* Selección de envío */}
       {cart && cart.needs_shipping && cart.shipping_rates.length > 0 && (
