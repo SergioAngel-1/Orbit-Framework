@@ -18,10 +18,18 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env.local
 ```
 
-Edita `.env` y, como mínimo, genera secretos propios:
+Genera secretos propios. En vez de copiar/pegar cada `openssl rand` a mano,
+`generate-secrets.sh` los genera y los escribe directo en `.env` y
+`frontend/.env.local` (idempotente: no rota secretos que ya hayas generado):
 
 ```bash
-# Linux / macOS / Git Bash
+sh backend/scripts/generate-secrets.sh
+```
+
+<details>
+<summary>Alternativa manual (Linux/macOS/Git Bash sin <code>sh</code>, o Windows)</summary>
+
+```bash
 # Secreto JWT (debe coincidir en WordPress y frontend)
 openssl rand -base64 64    # -> GRAPHQL_JWT_AUTH_SECRET_KEY
 openssl rand -base64 32    # -> CSRF_SECRET
@@ -43,6 +51,12 @@ New-Secret 32          # -> CSRF_SECRET / NOOP_INTEGRITY_SECRET
 New-Secret 32 -Hex     # -> WC_WEBHOOK_SECRET / HWE_REVALIDATION_SECRET
 ```
 
+Copia cada valor a mano en `.env` **y** `frontend/.env.local` (los que
+apliquen a ambos — ver cabecera de `backend/scripts/generate-secrets.sh`
+para la lista exacta por archivo).
+
+</details>
+
 > Detalle completo de cada variable en [CONFIGURATION.md](./CONFIGURATION.md).
 
 ## 3. Primer arranque (WP-CLI)
@@ -60,12 +74,10 @@ docker compose run --rm wpcli
 docker compose run --rm --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
 ```
 
-Copia el par `ck_…`/`cs_…` que imprime a `.env` y `frontend/.env.local`:
-
-```bash
-WC_CONSUMER_KEY=ck_xxxxxxxx
-WC_CONSUMER_SECRET=cs_xxxxxxxx
-```
+Escribe `WC_CONSUMER_KEY`/`WC_CONSUMER_SECRET` directamente en `.env` y
+`frontend/.env.local` (el `docker-compose.yml` monta ambos archivos dentro
+del contenedor `wpcli` para esto). Si prefieres el comportamiento anterior
+(solo imprimir, copiar/pegar a mano), añade `--print-only`.
 
 ## 5. (Opcional) Cargar datos demo
 

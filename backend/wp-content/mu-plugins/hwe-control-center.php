@@ -40,3 +40,11 @@ add_action( 'init', static function (): void {
 	HWE\ControlCenter\RestApi::register();
 	HWE\ControlCenter\AdminPage::register();
 }, 20 );
+
+// ---------------------------------------------------------------------------
+// Comando WP-CLI `wp hwe setup <archivo.json>` para seedear la config de una
+// instancia nueva durante la inicialización (ver backend/scripts/setup.sh).
+// ---------------------------------------------------------------------------
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	WP_CLI::add_command( 'hwe setup', [ HWE\ControlCenter\Cli::class, 'setup' ] );
+}

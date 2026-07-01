@@ -77,10 +77,13 @@ services:
       # Volumen para wp-content completo (plugins, themes, uploads) — empieza limpio
       # en cada deploy, sin arrastrar basura del host.
       - wordpress_content:/var/www/html/wp-content
-      # mu-plugins es código versionado, se monta desde el host (SOBREESCRIBE el
-      # directorio dentro del volumen wordpress_content, que se inicializa con
-      # el contenido default de la imagen de WordPress).
+      # mu-plugins y el tema base son código versionado del framework: se
+      # montan desde el host (SOBREESCRIBEN esos subdirectorios dentro del
+      # volumen wordpress_content, que se inicializa con el contenido default
+      # de la imagen de WordPress — plugins de terceros sí quedan en el
+      # volumen, instalados por setup.sh vía WP-CLI).
       - ./backend/wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
+      - ./backend/wp-content/themes/hwe-headless-base:/var/www/html/wp-content/themes/hwe-headless-base
       - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
     networks:
       - hwe_net
@@ -114,7 +117,15 @@ services:
       - wordpress_core:/var/www/html
       - wordpress_content:/var/www/html/wp-content
       - ./backend/wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
+      - ./backend/wp-content/themes/hwe-headless-base:/var/www/html/wp-content/themes/hwe-headless-base
       - ./backend/scripts:/scripts:ro
+      # Repo host montado en /workspace: permite a generate-woo-keys.sh escribir
+      # WC_CONSUMER_KEY/SECRET directamente en los .env en vez de imprimirlos
+      # para copiar/pegar a mano (ver docs/INSTALL.md §4). Deben existir ANTES
+      # de `docker compose run wpcli` (cp .env.example .env, etc.) — si faltan,
+      # Docker los crearía como directorios vacíos.
+      - ./.env:/workspace/.env
+      - ./frontend/.env.local:/workspace/frontend/.env.local
     entrypoint: ["/bin/sh"]
     command: ["/scripts/setup.sh"]
     networks:

@@ -12,6 +12,10 @@ frontend/.env
 frontend/.env.local
 !**/.env.example
 
+# Config de marca/diseño de la instancia (wp hwe setup) — solo se versiona la plantilla
+backend/scripts/instance.config.json
+!backend/scripts/instance.config.example.json
+
 # ---------- Secretos / claves ----------
 *.pem
 *.key
@@ -39,6 +43,11 @@ backend/wp-content/hwe-backup-config.json
 # Mantén nuestro mu-plugin headless versionado
 !backend/wp-content/mu-plugins/
 !backend/wp-content/mu-plugins/**
+
+# Mantén el tema base del framework versionado (headless: no renderiza nada
+# público, solo evita depender de un tema de wordpress.org — ver setup.sh).
+!backend/wp-content/themes/hwe-headless-base/
+!backend/wp-content/themes/hwe-headless-base/**
 
 # ============================================================================
 #  FRONTEND — Next.js

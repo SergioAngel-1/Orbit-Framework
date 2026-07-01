@@ -1,0 +1,14 @@
+/*
+Theme Name: HWE Headless Base
+Theme URI: https://github.com/SergioAngel-1/Orbit-Framework
+Author: Headless Web Ecosystem
+Author URI: https://github.com/SergioAngel-1/Orbit-Framework
+Description: Tema mínimo del framework Headless Web Ecosystem. WordPress se usa exclusivamente como CMS headless (WPGraphQL + WooCommerce): este tema no renderiza ninguna plantilla pública real, solo satisface el requisito de WordPress de tener un tema activo y evita depender de un tema de ejemplo de wordpress.org. Toda la interfaz pública vive en el frontend Next.js.
+Requires at least: 6.7
+Tested up to: 7.0
+Requires PHP: 8.1
+Version: 1.0.0
+License: GNU General Public License v2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: hwe-headless-base
+*/

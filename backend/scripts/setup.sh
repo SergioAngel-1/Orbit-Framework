@@ -13,6 +13,8 @@
 #    6. Crea webhooks de WooCommerce (pedido creado/actualizado).
 #    7. Genera datos demo más ricos (categorías, productos variables).
 #    8. Configura impuestos y método de envío básico.
+#    9. Aplica la configuración de marca/diseño de la instancia (HWE Control
+#       Center) desde instance.config.json, si existe (ver docs/CREATE_INSTANCE.md).
 # ============================================================================
 
 set -e
@@ -176,18 +178,15 @@ $WP option update graphql_cache_section 'on' 2>/dev/null || true
 # ----------------------------------------------------------------------------
 echo "==> Limpiando plugins y temas de ejemplo..."
 $WP plugin delete akismet hello 2>/dev/null || true
-# En headless el tema casi no importa: activamos el más reciente disponible
-# (WP 7.0 incluye Twenty Twenty-Six) y eliminamos los bundled más antiguos.
-# Todo best-effort para no depender del set exacto de temas de cada versión.
-ACTIVE_THEME=$($WP theme list --status=active --field=name 2>/dev/null | head -1 || echo "")
-for t in twentytwentysix twentytwentyfive twentytwentyfour; do
-	if $WP theme is-installed "$t" >/dev/null 2>&1; then
-		$WP theme activate "$t" 2>/dev/null && ACTIVE_THEME="$t" && break
-	fi
-done
-# Borra cualquier tema bundled que no sea el activo.
-for t in twentytwentyfour twentytwentythree twentytwentytwo twentytwentyone; do
-	[ "$t" != "$ACTIVE_THEME" ] && $WP theme delete "$t" 2>/dev/null || true
+# WordPress headless: el tema no renderiza nada público (el frontend es
+# Next.js), así que no se conserva ningún tema de wordpress.org. Se activa
+# el tema propio del framework (backend/wp-content/themes/hwe-headless-base,
+# ver docs/CREATE_INSTANCE.md) y se borran TODOS los temas bundled del core
+# (Twenty Twenty-*, el set exacto varía según la versión de la imagen WP).
+echo "==> Activando el tema base del framework (hwe-headless-base)..."
+$WP theme activate hwe-headless-base
+for t in twentytwentysix twentytwentyfive twentytwentyfour twentytwentythree twentytwentytwo twentytwentyone; do
+	$WP theme delete "$t" 2>/dev/null || true
 done
 
 # ----------------------------------------------------------------------------
@@ -276,6 +275,20 @@ fi
 # ¿Quieres datos demo para probar el frontend? Ejecútalos bajo demanda:
 #   docker compose run --rm --entrypoint /bin/sh wpcli /scripts/seed-demo.sh
 echo "==> WordPress limpio (sin contenido de ejemplo). Demo opcional: seed-demo.sh"
+
+# ----------------------------------------------------------------------------
+# 8) Configuración de instancia (HWE Control Center)
+#    Seedea marca/diseño/redes/legal/ecommerce/SEO desde un único JSON en vez
+#    de rellenar el formulario de wp-admin a mano. Ver
+#    backend/scripts/instance.config.example.json y docs/CREATE_INSTANCE.md.
+# ----------------------------------------------------------------------------
+echo "==> Aplicando configuración de instancia (HWE Control Center)..."
+if [ -f /scripts/instance.config.json ]; then
+	$WP hwe setup /scripts/instance.config.json
+else
+	echo "    (sin /scripts/instance.config.json — se omite; configura la marca manualmente en wp-admin → HWE Config,"
+	echo "     o copia backend/scripts/instance.config.example.json a backend/scripts/instance.config.json y reejecuta)"
+fi
 
 echo ""
 echo "============================================================"

@@ -1,0 +1,100 @@
+{
+  "_comment": "Plantilla para 'wp hwe setup <archivo>'. Copia este archivo a instance.config.json (no versionado), rellena los valores de la instancia y ejecútalo (automáticamente desde setup.sh, o a mano con: docker compose run --rm wpcli wp hwe setup /scripts/instance.config.json --path=/var/www/html --allow-root). No incluyas credenciales de pago/SMTP aquí: esos campos son 'secret' y se configuran desde wp-admin → HWE Config o por variable de entorno. Los grupos/campos deben coincidir con backend/wp-content/mu-plugins/hwe-control-center/Schema.php.",
+
+  "brand": {
+    "name": "Mi Marca",
+    "tagline": "Tagline corta de la marca",
+    "description": "Descripción breve de la tienda (1-2 frases).",
+    "url": "https://midominio.com",
+    "locale": "es",
+    "og_image": "https://midominio.com/og-default.jpg"
+  },
+
+  "social": {
+    "twitter": "",
+    "instagram": "",
+    "facebook": "",
+    "linkedin": "",
+    "youtube": "",
+    "wikipedia": "",
+    "wikidata": ""
+  },
+
+  "legal": {
+    "company": "Mi Empresa S.A.S.",
+    "nif": "",
+    "email": "hola@midominio.com",
+    "address": ""
+  },
+
+  "design": {
+    "colors": {
+      "brand": "#2563eb",
+      "brand_dark": "#1e40af",
+      "brand_light": "#3b82f6",
+      "secondary": "#16a34a",
+      "secondary_dark": "#15803d",
+      "accent": "#f59e0b",
+      "surface": "#f8fafc",
+      "background": "#ffffff",
+      "foreground": "#0a0a0a"
+    },
+    "typography": {
+      "font_sans": "Inter",
+      "font_url": "",
+      "font_heading": "",
+      "font_heading_url": ""
+    }
+  },
+
+  "ecommerce": {
+    "currency": "EUR",
+    "country": "ES",
+    "products_per_page": "12",
+    "reviews_enabled": false,
+    "wishlist_enabled": false,
+    "coupons_enabled": false,
+    "search_enabled": true
+  },
+
+  "seo": {
+    "title_template": "%s · %site%",
+    "robots": "index,follow",
+    "google_site_verification": "",
+    "default_og": "auto",
+    "product_brand": "",
+    "shipping_amount": "",
+    "return_days": "",
+    "return_category": "finite",
+    "organization_logo": "",
+    "founding_date": "",
+    "knows_about": "",
+    "founder_name": "",
+    "founder_role": "",
+    "founder_url": ""
+  },
+
+  "shipping": {
+    "zone_name": "Zona principal",
+    "flat_rate_cost": "4.99",
+    "free_above": "0",
+    "free_label": "Envío gratuito",
+    "flat_label": "Envío estándar"
+  },
+
+  "geo": {
+    "ai_crawlers": "allow",
+    "llms_txt_enabled": true,
+    "content_signal": true,
+    "faq": ""
+  },
+
+  "backups": {
+    "enabled": true,
+    "schedule": "daily",
+    "hour_utc": "3",
+    "retain_days": "14",
+    "include_uploads": true,
+    "notify_email": ""
+  }
+}
