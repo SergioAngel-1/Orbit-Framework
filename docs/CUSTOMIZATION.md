@@ -1,50 +1,44 @@
 # Personalización (White-label)
 
-La plantilla está pensada para rebrandear **sin tocar la lógica**. Todo lo de marca
-está centralizado.
+> Nota de arquitectura: todo lo de esta guía vive en la capa de UI/vistas del frontend, que es
+> **responsabilidad de cada instancia**, no del framework (ver `AGENTS.md §1.1`). Lo que sí es
+> dinámico y centralizado (sin tocar código) es la config de marca del HWE Control Center —
+> empieza siempre por ahí.
 
-## 1. Marca y datos del sitio
+## 1. Marca y datos del sitio (dinámico, sin tocar código)
 
-Edita `frontend/src/config/site.ts`:
+La fuente de verdad es **`wp-admin → HWE Config`** (o `wp hwe setup <archivo.json>` para
+seedearla de una vez — ver `docs/CREATE_INSTANCE.md`), no un archivo estático del frontend.
+Ahí se define: nombre, tagline, descripción, URL, idioma por defecto, redes sociales, datos
+legales (razón social/NIF/email/dirección), y los flags de funcionalidad opcional
+(reseñas/wishlist/cupones/búsqueda). El frontend lo lee vía `getSiteConfig()`
+(`frontend/src/lib/config/index.ts`) — no hay un `siteConfig` estático que editar; si tu
+componente necesita un dato de marca, sale de ahí (ver `docs/FRONTEND_CONNECT.md §A.3`).
 
-```ts
-export const siteConfig = {
-  name: "TuMarca",
-  tagline: "Tu eslogan",
-  description: "…",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-  social: { twitter: "@tumarca" },
-  legal: { email: "hola@tumarca.com", company: "Tu Empresa S.L." },
-  defaultOgImage: "/og-default.jpg",
-};
-```
+El **nombre visible en la UI que no viene de la config** (labels de navegación, textos fijos
+del header/footer heredado) se toma de los mensajes i18n: `frontend/src/i18n/messages/es.json`
+y `en.json` (mantenlos paralelos).
 
-El **nombre visible** (header, títulos, footer) se toma de los mensajes i18n:
-edita `site.name`, `site.tagline` y `site.footer` en
-`frontend/src/i18n/messages/es.json` y `en.json` (mantenlos paralelos).
+## 2. Colores y tipografía (dinámico, sin tocar código)
 
-## 2. Colores y tipografía (Tailwind v4, CSS-first)
+También en **`wp-admin → HWE Config → Diseño`**: 9 colores + 2 tipografías por instancia.
+Next.js los aplica en runtime como variables CSS (`--color-brand`, `--color-secondary`,
+`--color-accent`, `--color-surface`, `--font-sans`, `--font-heading`…) — no hay que tocar
+`globals.css` ni un `tailwind.config` para cambiar la paleta. Detalle del mapeo campo →
+variable: `frontend/src/lib/config/tokens.ts`; contrato completo en
+`docs/FRONTEND_CONNECT.md §A.4`.
 
-No hay `tailwind.config`. El tema vive en `frontend/src/app/globals.css`:
-
-```css
-@theme {
-  --color-brand: #2563eb;        /* cámbialo por tu color */
-  --color-brand-dark: #1e40af;
-  --color-brand-light: #3b82f6;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-}
-```
-
-Cada variable `--color-*` genera utilidades automáticamente (`bg-brand`,
-`text-brand`, etc.). Para cambiar la tipografía, sustituye la fuente importada en
-`frontend/src/app/[locale]/layout.tsx` (`next/font`).
+Si necesitas una utilidad Tailwind nueva que no exista (p. ej. una escala de grises propia),
+ahí sí edita el bloque `@theme` de `frontend/src/app/globals.css` — pero eso es código de tu
+instancia, no algo que reconfigures desde `wp-admin`.
 
 ## 3. Logo
 
-Reemplaza el texto del header por tu logo en `layout.tsx` (el enlace de marca).
-Coloca los assets en `frontend/public/` y usa `next/image`. Recuerda actualizar
-`public/og-default.jpg` (imagen Open Graph por defecto).
+No hay campo de "subir logo" con render automático todavía: coloca el archivo en
+`frontend/public/`, referéncialo con `next/image` donde corresponda (header heredado, `/about`,
+etc.) y actualiza `public/og-default.jpg` (o usa `brand.og_image` desde `wp-admin` para la
+imagen Open Graph). `seo.organization_logo` (HWE Config) alimenta el JSON-LD `Organization` si
+lo defines.
 
 ## 4. Idiomas
 
@@ -57,18 +51,26 @@ Coloca los assets en `frontend/public/` y usa `next/image`. Recuerda actualizar
 
 El contenido de privacidad/cookies/términos/devoluciones está en el namespace
 `legal` de los mensajes i18n y se renderiza en `/[locale]/legal/[slug]`. Edítalo
-para tu jurisdicción (son plantillas de ejemplo).
+para tu jurisdicción (son plantillas de ejemplo) — con asesoría legal antes de publicar.
 
 ## 6. Navegación locale-aware
 
 Usa **siempre** `Link`/`redirect`/`useRouter` de `@/i18n/navigation` (no de
 `next/*`), o se pierde el idioma al navegar.
 
+## 7. Vistas y componentes (home, catálogo, marketing…)
+
+Esto ya no es "personalización ligera" — es construir el frontend de la instancia. Sigue
+`docs/FRONTEND_BUILD.md` (entrevista de negocio → plan de vistas) y usa
+`docs/FRONTEND_CONNECT.md` Parte B como inventario de lo que trae el repo heredado.
+
 ## Checklist de rebranding
 
-- [ ] `config/site.ts` con tu marca, social y datos legales.
-- [ ] `site.name` / `site.footer` en `es.json` y `en.json`.
-- [ ] Colores `--color-brand*` en `globals.css`.
-- [ ] Logo + `public/og-default.jpg`.
+- [ ] `wp-admin → HWE Config` (o `instance.config.json` + `wp hwe setup`) con marca, social,
+      legal, diseño y flags de funcionalidad.
+- [ ] Textos fijos de UI (no cubiertos por la config) en `es.json`/`en.json`.
+- [ ] Logo + `public/og-default.jpg` (o `brand.og_image` desde `wp-admin`).
 - [ ] Páginas legales adaptadas.
 - [ ] `NEXT_PUBLIC_SITE_URL` y dominios en `.env`.
+- [ ] Vistas de marketing/catálogo (`docs/FRONTEND_BUILD.md`) — home y `/products` en
+      particular, ver `docs/FRONTEND_CONNECT.md §B.1`.

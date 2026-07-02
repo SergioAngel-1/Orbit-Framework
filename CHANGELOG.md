@@ -6,6 +6,20 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Decisión de arquitectura: el framework es backend + BFF, no un generador de UI
+
+#### Cambiado
+- **Alcance del framework redefinido**: el núcleo reutilizable es WordPress headless
+  (`backend/`) + el BFF de Next.js (`frontend/src/app/api/*`, `frontend/src/lib/*`) +
+  `frontend/src/components/ui/*` (primitivas sin negocio). Todo lo demás del frontend
+  (`components/**` salvo `ui/`, y las vistas de `app/[locale]/*`) pasa a considerarse código
+  **heredado al clonar**, responsabilidad de cada instancia — el framework deja de prometer
+  que se mantenga genérico o se actualice.
+- **Documentación actualizada** para reflejar el límite: `AGENTS.md` (nueva §1.1), `README.md`,
+  `docs/CREATE_INSTANCE.md` (§7 reescrita), `docs/FRONTEND_CONNECT.md` (reestructurado en
+  Parte A — contrato backend/BFF estable — y Parte B — inventario de lo heredado, no
+  mantenido), `docs/FRONTEND_BUILD.md`.
+
 ### Modo de desarrollo híbrido (WordPress + frontend nativos, DB/Redis en Docker)
 
 #### Añadido

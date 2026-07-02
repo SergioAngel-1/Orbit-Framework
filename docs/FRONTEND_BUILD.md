@@ -5,8 +5,15 @@
 > documento es que **preguntes antes de construir**: no adivines el catálogo, las
 > funcionalidades ni el tono de marca de un negocio que no conoces. El resultado de la
 > entrevista se traduce en (a) un `instance.config.json` para `wp hwe setup` y (b) un plan
-> concreto de qué páginas/componentes tocar, usando el inventario de
-> **`docs/FRONTEND_CONNECT.md`**.
+> concreto de qué construir, contra el contrato backend/BFF de **`docs/FRONTEND_CONNECT.md`
+> Parte A**.
+
+**Recuerda `AGENTS.md §1.1`**: el frontend (UI y vistas) NO es núcleo del framework — es
+responsabilidad de esta instancia desde el momento en que se clona. Esta entrevista te ayuda a
+decidir **qué construir**, sea reutilizando el código heredado que trae el repo
+(`docs/FRONTEND_CONNECT.md` Parte B) o escribiéndolo desde cero contra el contrato (Parte A).
+Ninguna de las dos opciones es "más correcta" — depende de si lo heredado encaja con el
+negocio o conviene descartarlo.
 
 No sustituye a `docs/CREATE_INSTANCE.md` (esa guía cubre clonar, secretos, Docker, WooCommerce
 — el "chore" de infraestructura). Esta guía asume que **el backend ya está levantado** y se
@@ -39,8 +46,8 @@ Preguntas:
 - URL final del sitio, idioma principal (¿necesitan también inglés u otro idioma?).
 - Logo, favicon/OG image.
 
-**Determina**: `brand.*`, `design.colors.*`, `design.typography.*` en `instance.config.json`
-(ver §4). Si la marca tiene más matices que los 9 colores/2 tipografías del schema, documenta
+**Determina**: `brand.*`, `design.colors.*`, `design.typography.*` en `instance.config.json`.
+Si la marca tiene más matices que los 9 colores/2 tipografías del schema, documenta
 el mapeo explícito ANTES de rellenar el JSON (tabla de ejemplo en `docs/CREATE_INSTANCE.md §4`).
 Si piden un segundo idioma más allá de es/en, es trabajo de código (`i18n/routing.ts` +
 mensajes nuevos), no de config — dilo.
@@ -60,7 +67,7 @@ Preguntas:
 **Determina**:
 - `ecommerce.reviews_enabled` / `wishlist_enabled` / `coupons_enabled` / `search_enabled` en
   `instance.config.json` — recuerda que estos flags **ya están conectados** a la UI (ver
-  `docs/FRONTEND_CONNECT.md §1.1`), no hace falta tocar código para activarlos/desactivarlos.
+  `docs/FRONTEND_CONNECT.md §A.3`), no hace falta tocar código para activarlos/desactivarlos.
 - Si piden búsqueda con resultados reales: `SearchModal` existe pero no está conectado (tiene
   un TODO explícito) — es trabajo de código, no solo de flag.
 - Vistas de `/products`: con pocas categorías, `CategoryCard` en la home puede bastar; con
@@ -84,7 +91,7 @@ Preguntas:
 - Si hay sedes físicas: **no hay campo en el schema para esto** (es de más alta cardinalidad
   que la config plana del Control Center) — pásalas explícitas a `<ContactForm branches={...}
   phone={...} />` en `app/[locale]/contact/page.tsx` (prop ya soportada, ver
-  `docs/FRONTEND_CONNECT.md §3`).
+  `docs/FRONTEND_CONNECT.md §B.2`).
 
 ---
 
@@ -103,7 +110,7 @@ Preguntas:
 - Si hay aliados/partners reales: `AllyCard` existe pero necesita una fuente de datos — eso es
   un CPT propio de la instancia (mu-plugin aparte, NO en el framework base).
 - `TrustBar` (si la usas) — ajusta las 4 etiquetas a lo que es cierto para este negocio antes
-  de conectarla (ver `docs/FRONTEND_CONNECT.md §3`, las etiquetas actuales son ejemplo).
+  de conectarla (ver `docs/FRONTEND_CONNECT.md §B.2`, las etiquetas actuales son ejemplo).
 
 ---
 
@@ -152,10 +159,72 @@ comando en `docs/CREATE_INSTANCE.md §3`.
 
 ---
 
-## 9. De la entrevista al plan de vistas
+## 9. Componentes: qué usar y de dónde
 
-Con las respuestas de los bloques 2-7, arma un plan concreto usando el inventario de
-`docs/FRONTEND_CONNECT.md §2-3`. Plantilla de razonamiento:
+Regla general: **si un componente ya existe y encaja, úsalo antes de escribir uno nuevo** —
+pero recuerda que solo `components/ui/` es un contrato del framework (`AGENTS.md §1.1`); todo
+lo demás es el punto de partida heredado (`docs/FRONTEND_CONNECT.md` Parte B) y puedes
+reemplazarlo sin miedo si no encaja con el negocio.
+
+### 9.1 Obligatorios — siempre de `components/ui/` (núcleo del framework)
+
+No reinventes estos con HTML/CSS suelto: son el vocabulario visual base, ya accesibles,
+consistentes con los design tokens (§A.4 de `docs/FRONTEND_CONNECT.md`) y con soporte de modo
+oscuro.
+
+| Componente | Úsalo para |
+|---|---|
+| `Button` | Cualquier acción/CTA (variantes `solid`/`outline`, con `loading`/iconos) |
+| `Input`, `Select`, `Textarea`, `Checkbox` | Cualquier campo de formulario |
+| `Card` | Contenedor con borde/sombra reutilizable (base de `AllyCard`, `VideoCard`, etc.) |
+| `Badge` | Etiquetas de estado (oferta, stock, categoría) — colores `brand`/`secondary`/`accent`/`success`/`warning`/`error`/`gray` |
+| `Modal` | Cualquier diálogo/overlay (usado por `SearchModal`, `CountrySelector`) |
+| `Alert` | Mensajes de error/aviso/éxito |
+| `Skeleton` | Estados de carga (todas las tarjetas de catálogo lo soportan vía prop `loading`) |
+| `Spinner` | Carga inline en botones/acciones |
+| `Paginator` | Paginación clásica (alternativa a scroll infinito) |
+| `QuantityCounter` | Selector de cantidad (carrito, ficha de producto) |
+| `DarkModeToggle` | Ya integrado en `SiteHeader`; solo lo tocas si rediseñas el header |
+
+Junto con estos componentes, son igual de obligatorios los **patrones** de
+`docs/FRONTEND_CONNECT.md` Parte A: `getSiteConfig()` como única fuente de marca, el gating por
+`config.ecommerce.*_enabled`, y `Link`/`redirect` de `@/i18n/navigation` en vez de `next/*`.
+
+### 9.2 Recomendados — heredados, según lo que decidas en cada bloque de la entrevista
+
+| Bloque | Componente heredado | Úsalo si… |
+|---|---|---|
+| 2. Identidad de marca | *(ninguno — es 100% `wp-admin → HWE Config`; `ThemeTokens` aplica la paleta sola)* | — |
+| 3. Catálogo | `ProductCard`, `ProductGrid` / `InfiniteProductGrid` | Siempre — ya conectados, es el listado estándar de producto |
+| 3. Catálogo | `ProductCardHorizontal` | Resultados de búsqueda o listas densas (usado por `SearchModal`) |
+| 3. Catálogo | `CategoryCard` | El negocio tiene categorías que merecen destacarse (home o cabecera de `/products`) |
+| 3. Catálogo | `FilterChips` + `SortDropdown` | Catálogo grande que necesita filtrar/ordenar en `/products` |
+| 3. Catálogo | `SearchModal` | Piden búsqueda con resultados reales — **requiere conectar `onSearch`** (tiene un TODO explícito), no es solo activar `search_enabled` |
+| 4. Presencia física / contacto | `ContactForm` (props `email`/`phone`/`socials`/`branches`) | Casi siempre — ya conectado en `/contact`; pasa `branches`/`phone` si hay sedes físicas |
+| 5. Contenido editorial | `HeroCarousel` | La home necesita un banner rotativo de campañas/producto destacado |
+| 5. Contenido editorial | `PageHero` + `Breadcrumb` | Quieres dar identidad a cabeceras de página en vez del `<h1>` plano actual |
+| 5. Contenido editorial | `TrustBar` | Franja de confianza bajo el header — **ajusta las 4 etiquetas de ejemplo al negocio real antes de conectarla** |
+| 5. Contenido editorial | `AllyCard` | Hay partners/aliados reales (necesitas fuente de datos propia — CPT de instancia, no del framework) |
+| 5. Contenido editorial | `VideoCard` | Hay testimonios/contenido en vídeo |
+| 5. Contenido editorial | `FaqSection` | Ya conectado en home si rellenas `geo.faq` — no hace falta decidir nada |
+| 6/7. Envío, pagos, SEO/GEO | *(ninguno — 100% config `instance.config.json` + `lib/payments/` si integras una pasarela real)* | — |
+
+### 9.3 Layout — ya conectado, normalmente no hay que decidir nada
+
+`SiteHeader` y `SiteFooter` ya están wireados en `app/[locale]/layout.tsx` para todas las
+páginas. Lo único que suele ajustarse por instancia: `SiteFooter` acepta un prop `columns?`
+si el negocio necesita otra estructura de enlaces a la que trae por defecto (tienda/blog/sobre
+nosotros/contacto/legal).
+
+Detalle de props/estado de conexión de cada componente de esta sección:
+`docs/FRONTEND_CONNECT.md §B.2`.
+
+---
+
+## 10. De la entrevista al plan de vistas
+
+Con las respuestas de los bloques 2-7 y la selección de componentes de §9, arma un plan
+concreto página por página. Plantilla de razonamiento:
 
 1. **Home (`/`)** — ¿el negocio necesita una home de marketing (hero, categorías destacadas,
    trust bar) o el esqueleto actual (posts + FAQ) es suficiente para el lanzamiento? Si hace
@@ -168,19 +237,19 @@ Con las respuestas de los bloques 2-7, arma un plan concreto usando el inventari
    es "conectar un componente existente" (rápido) vs. "construir algo nuevo" (más trabajo, y
    si es específico del negocio, aíslalo en su propia carpeta de instancia, no en el framework
    base).
-5. Recorre el checklist de composición de vistas (`docs/FRONTEND_CONNECT.md §4`) para cada
+5. Recorre el checklist de composición de vistas (`docs/FRONTEND_CONNECT.md §B.3`) para cada
    página que toques.
 
 ---
 
-## 10. Checklist final antes de dar el frontend por "construido"
+## 11. Checklist final antes de dar el frontend por "construido"
 
 - [ ] `instance.config.json` aplicado y revisado en `wp-admin → HWE Config` (colores,
       tipografía, flags de ecommerce, SEO/GEO).
 - [ ] Home y `/products` responden al negocio real, no al esqueleto genérico (o se decidió
       explícitamente mantenerlo así para el lanzamiento).
 - [ ] Cada funcionalidad opcional mencionada en la entrevista corresponde a un flag activado
-      Y a una vista que lo respeta (§3 de `docs/FRONTEND_CONNECT.md`).
+      Y a una vista que lo respeta (§B.2 de `docs/FRONTEND_CONNECT.md`).
 - [ ] `/contact` tiene los canales reales del negocio (o se dejó vacío a propósito).
 - [ ] `i18n/messages/es.json` y `en.json` están en paralelo (si aplica un segundo idioma).
 - [ ] Nada de contenido de OTRO negocio (marca, categorías de ejemplo, direcciones) quedó

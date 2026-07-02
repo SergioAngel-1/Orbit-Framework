@@ -6,6 +6,13 @@ Ecosistema web **Headless / JAMstack** completo y contenedorizado:
 - **Frontend:** **Next.js 15** (App Router) + **React 19** + **TypeScript** + **Tailwind CSS v4** (config CSS-first), con **ISR** (Incremental Static Regeneration).
 - **Infraestructura:** **Docker Compose** en producción (MariaDB + WordPress + Next.js); en desarrollo, **modo híbrido** (WordPress + frontend nativos, DB/Redis en Docker) para máximo rendimiento.
 
+> **Alcance del framework:** el núcleo reutilizable es el backend (WordPress headless) y el
+> BFF de Next.js (`frontend/src/app/api/*`, `frontend/src/lib/*` — auth, seguridad, proxy a
+> WooCommerce, pagos, config). La UI (`frontend/src/components/**` salvo `ui/`, y todas las
+> páginas de `frontend/src/app/[locale]/*`) se hereda una sola vez al clonar y pasa a ser
+> responsabilidad de cada instancia — el framework no la mantiene ni la actualiza. Ver
+> `AGENTS.md §1.1` y `docs/FRONTEND_CONNECT.md`.
+
 ---
 
 ## 🗂️ Estructura del proyecto
@@ -25,10 +32,10 @@ Headless Web Ecosystem/
 └── frontend/                   # Next.js (App Router) — web pública + BFF
     ├── src/
     │   ├── app/
-    │   │   ├── [locale]/       # ⭐ TODAS las páginas (con i18n)
-    │   │   └── api/            # ⭐ el BFF (auth, store, payments, webhooks…)
-    │   ├── components/         # UI: cart, products, auth, account, checkout…
-    │   └── lib/                # ⭐ toda la lógica (auth, woocommerce, security…)
+    │   │   ├── [locale]/       # ⚠️ vistas heredadas al clonar — responsabilidad de la instancia
+    │   │   └── api/            # ⭐ el BFF (núcleo del framework): auth, store, payments, webhooks…
+    │   ├── components/         # ⚠️ heredado (salvo ui/, que sí es núcleo): cart, products, auth…
+    │   └── lib/                # ⭐ toda la lógica (núcleo del framework): auth, woocommerce, security…
     └── tests/                  # unit (Vitest) + e2e (Playwright)
 ```
 

@@ -1,68 +1,131 @@
-# Conectar el frontend con el framework — guía para agentes
+# Conectar un frontend con el framework — guía para agentes
 
-> Audiencia: un agente que va a **construir o adaptar las vistas** del frontend Next.js para
-> una instancia concreta. Este documento NO cubre el "chore" de infraestructura (Docker,
-> `.env`, secretos, WooCommerce) — eso ya está en `docs/INSTALL.md` y `docs/CREATE_INSTANCE.md`.
-> Aquí el tema es: **qué páginas y componentes ya existen, cómo sacan sus datos, cuáles están
-> conectados a una vista real y cuáles son piezas disponibles sin usar todavía**, para que
-> puedas componer el frontend de un negocio concreto sin reinventar ni romper el patrón.
->
-> Si vas a levantar el frontend de una instancia nueva desde cero (o adaptarlo a un negocio
-> específico), primero pasa por **`docs/FRONTEND_BUILD.md`** — esa guía te hace la entrevista
-> de características del negocio y te devuelve un plan de qué construir; este documento es la
-> referencia que usas mientras lo construyes.
+> **Lee primero `AGENTS.md §1.1`**: el framework es backend + arquitectura (WordPress headless
+> + el BFF de Next.js en `app/api/*`/`lib/*`). La UI — `components/**` (salvo `ui/`) y todas
+> las vistas de `app/[locale]/*` — **no es núcleo del framework**: se hereda una vez al clonar
+> y desde ahí es responsabilidad de cada instancia. El framework no la actualiza ni promete
+> que se mantenga genérica.
+
+Este documento tiene dos partes con garantías muy distintas:
+
+- **Parte A — El contrato backend/BFF.** Esto es lo único que el framework promete mantener
+  estable. Constrúyelo sobre esto tanto si usas la UI heredada como si escribes un frontend
+  desde cero (otro framework, otro repo, lo que sea).
+- **Parte B — Lo heredado al clonar.** Inventario de la UI que trae el repo hoy: qué existe,
+  qué está conectado, qué es un building block sin usar. Es una foto del momento en que se
+  escribió esto — no hay promesa de que el framework la actualice. Trátalo como el punto de
+  partida de TU proyecto, no como una librería externa.
 
 ---
 
-## 1. El principio: todo lo que se ve viene de `getSiteConfig()` o de GraphQL/Store API
+# Parte A — El contrato backend/BFF (estable, mantenido por el framework)
 
-No hay una segunda fuente de verdad. Antes de escribir una vista nueva, entiende esto:
+## A.1 Lectura de catálogo/contenido: WPGraphQL + WooGraphQL
 
-```
-WordPress (wp-admin → HWE Config)  ──/wp-json/hwe/v1/config──►  getSiteConfig()  ──►  vistas
-WooCommerce (catálogo/carrito)     ──WPGraphQL / Store API────►  lib/catalog, lib/woocommerce  ──►  vistas
-```
+- Endpoint: `${WORDPRESS_INTERNAL_API_URL}` (servidor, red interna Docker) o
+  `${NEXT_PUBLIC_WORDPRESS_API_URL}` (navegador) + `/graphql`.
+- Queries de catálogo/posts son **públicas** (sin auth) — WooGraphQL para productos/
+  categorías/variaciones, WPGraphQL nativo para posts. CORS restringido por
+  `HEADLESS_ALLOWED_ORIGINS` (mu-plugin `headless-config.php`).
+- Queries "como el usuario autenticado" (p. ej. reseñas propias) llevan
+  `Authorization: Bearer <accessToken>`.
+- **Introspección desactivada y límites de profundidad/complejidad activos**
+  (`graphql-protection.php`) — no asumas que puedes introspectar el schema en producción;
+  hazlo contra un WordPress local con la misma versión de plugins (ver
+  `docs/COMPATIBILITY.md`) o lee las queries ya escritas en `lib/woocommerce/queries.ts` y
+  `lib/queries.ts` como referencia del schema real en uso.
+- Caché: ISR con `revalidateTag`, invalidado on-demand por webhook de WooCommerce contra
+  `POST /api/revalidate` (firma HMAC, `lib/security/webhook.ts`).
 
-- **`getSiteConfig()`** (`frontend/src/lib/config/index.ts`) es la ÚNICA fuente de marca/negocio:
-  nombre, tagline, descripción, redes sociales, datos legales, colores/tipografía, flags de
-  ecommerce, SEO, envío, GEO. Es `server-only`, cacheada por request, con fallback a
-  `CONFIG_DEFAULTS` si WordPress no responde. **Nunca hardcodees marca/URL/colores en un
-  componente** — si necesitas un dato de negocio, sale de aquí.
-- **Catálogo** (productos/categorías): `lib/catalog/products.ts` (`getProducts`,
-  `getProductBySlug`, `getProductSlugs`, `getCategory`, `getCategories`) — GraphQL con ISR.
-- **Carrito/checkout**: `components/cart/cart-context.tsx` (estado cliente) + `lib/client/store-api.ts`
-  → BFF (`app/api/store/*`) → Store API de WooCommerce.
-- **Blog**: `lib/blog/posts.ts` — GraphQL con ISR.
+## A.2 Escritura y datos privados: el BFF (`app/api/*`)
 
-Regla práctica: **si un Server Component necesita mostrar algo del negocio, llama a
-`getSiteConfig()` (y/o a `lib/catalog`/`lib/blog`) y pasa los datos como props a los
-componentes de presentación** (muchos de `components/` son "tontos": reciben todo por props y
-no hacen fetch propio — eso los hace reutilizables entre instancias).
+**Regla de oro: el navegador nunca habla directo con WordPress/WooCommerce para nada
+sensible.** Todo pasa por estos Route Handlers, que guardan los secretos (`ck/cs` de
+WooCommerce, secreto JWT, secretos de webhook) en el servidor.
 
-### 1.1 El patrón de feature flags (`config.ecommerce.*_enabled`)
-
-El HWE Control Center expone 4 interruptores de funcionalidad opcional:
-`reviews_enabled`, `wishlist_enabled`, `coupons_enabled`, `search_enabled`
-(`wp-admin → HWE Config → Tienda`). **Toda vista que renderice esa funcionalidad debe
-comprobar el flag antes de mostrarla** — si no, un dueño de tienda desactiva "reseñas" en el
-panel y la UI las sigue mostrando (esto era un bug real, corregido; no lo reintroduzcas).
-
-Ejemplos ya aplicados — cópialos como plantilla:
-
-| Flag | Dónde se comprueba | Qué oculta si es `false` |
+| Grupo | Rutas | Qué hace |
 |---|---|---|
-| `wishlist_enabled` | `components/products/product-card.tsx`, `app/[locale]/account/layout.tsx` | Botón de wishlist en la tarjeta de producto; enlace "Wishlist" en el menú de cuenta |
-| `reviews_enabled` | `app/[locale]/products/[slug]/page.tsx` | Toda la sección de reseñas (lista + formulario) |
-| `coupons_enabled` | `components/cart/cart-drawer.tsx`, `components/checkout/checkout-form.tsx` | Campo de cupón (recibido como prop `couponsEnabled`, resuelto en el Server Component padre con `getSiteConfig()`) |
-| `search_enabled` | `lib/seo/jsonld.ts` (`SearchAction`) | — `components/products/search-modal.tsx` existe pero **no está conectado a ninguna página todavía** (ver §3); cuando lo conectes, gátalo también con este flag |
+| Auth | `POST /api/auth/{login,register,refresh,logout,logout-all}`, `GET /api/auth/me`, `POST /api/auth/{forgot-password,reset-password,verify-email,resend-verification,change-password}`, `POST /api/auth/2fa/{setup,activate,disable,status}`, `POST /api/auth/verify-2fa` | Sesión JWT en cookies httpOnly, 2FA TOTP opcional, verificación de email opcional no bloqueante. |
+| Tienda | `GET/POST /api/store/cart`, `POST /api/store/cart/items`, `POST /api/store/checkout`, `GET/PUT /api/store/customer`, `GET/POST/DELETE /api/store/coupons`, `GET /api/store/orders/[id]`, `GET /api/store/products`, `GET/POST/DELETE /api/store/wishlist`, `GET/POST /api/store/reviews/[productId]`, `GET/PUT /api/store/addresses`, `GET /api/store/shipping` | Proxy autorizado a la Store API / WC REST v3 de WooCommerce. |
+| Pagos | `POST /api/payments/create`, `POST /api/payments/webhook/[provider]`, `GET /api/payments/return` | Capa agnóstica de pasarela (`lib/payments/`). **La prueba de pago es el webhook verificado, nunca el `return`.** |
+| Webhooks de Woo | `POST /api/webhooks/woocommerce/{order-created,order-updated}` | Firma HMAC verificada, dispara efectos (`lib/woocommerce/order-events.ts`). |
+| Utilidad | `GET /api/csrf`, `GET /api/health` (+`/live`), `POST /api/contact`, `GET /api/og`, `GET /api/icon`, `POST /api/revalidate` | Token CSRF, sondas de salud, formulario de contacto, imágenes OG/icon dinámicas, revalidación on-demand. |
+
+**Contrato de auth/CSRF** (aplica a cualquier frontend que consuma este BFF):
+1. Sesión en **cookies httpOnly** (nunca `localStorage` ni body) — el frontend no maneja el
+   JWT directamente, solo hace `fetch` con `credentials: "include"`.
+2. Toda escritura (`POST`/`PUT`/`PATCH`/`DELETE`) exige **primero** `GET /api/csrf` y reenviar
+   el token en la cabecera `X-CSRF-Token`. Sin esto, `guardMutation` (`lib/api/guard.ts`)
+   rechaza la petición (también verifica `Origin` y aplica rate-limit).
+3. Los importes de la Store API vienen en **unidades menores** (céntimos); los de WooGraphQL
+   ya vienen formateados. No los mezcles sin convertir.
+
+## A.3 Config pública dinámica: `GET /wp-json/hwe/v1/config`
+
+Fuente única de verdad de marca/negocio, sin auth, cacheable. Forma exacta (ver
+`backend/wp-content/mu-plugins/hwe-control-center/Schema.php` para el detalle de cada campo
+y `frontend/src/lib/config/types.ts` para el tipo TypeScript equivalente):
+
+```
+brand:  { name, tagline, description, url, locale, og_image }
+social: { twitter, instagram, facebook, linkedin, youtube, wikipedia, wikidata }
+legal:  { company, nif, email, address }
+design: {
+  colors:     { brand, brand_dark, brand_light, secondary, secondary_dark, accent, surface, background, foreground }
+  typography: { font_sans, font_url, font_heading, font_heading_url }
+}
+ecommerce: { currency, country, products_per_page, reviews_enabled, wishlist_enabled, coupons_enabled, search_enabled }
+integrations: { analytics_provider, analytics_id }
+seo: { title_template, robots, google_site_verification, default_og, product_brand,
+       shipping_amount, return_days, return_category, organization_logo, founding_date,
+       knows_about, founder_name, founder_role, founder_url }
+geo: { ai_crawlers, llms_txt_enabled, faq, content_signal }
+```
+
+Solo se exponen aquí los campos marcados `'public' => true` en `Schema.php` — los grupos
+`payments`/`integrations.smtp_*`/`backups` con campos `secret` **nunca** aparecen en esta
+respuesta (se gestionan aparte, ver `docs/CONFIGURATION.md`).
+
+**Flags de funcionalidad opcional** (`ecommerce.reviews_enabled`, `wishlist_enabled`,
+`coupons_enabled`, `search_enabled`, configurables desde `wp-admin → HWE Config`): **cualquier
+frontend que los consuma debe ocultar la funcionalidad correspondiente cuando el flag es
+`false`**, no solo dejar de anunciarla en metadatos. Esto es parte del contrato, no un detalle
+de implementación de la UI heredada.
+
+## A.4 Design tokens (paleta/tipografía dinámica)
+
+`design.colors.*`/`design.typography.*` (§A.3) están pensados para mapearse 1:1 a variables
+CSS (`--color-brand`, `--color-brand-dark`, `--color-brand-light`, `--color-secondary`,
+`--color-secondary-dark`, `--color-accent`, `--color-surface`, `--background`, `--foreground`,
+`--font-sans`, `--font-heading`) para que cambiar la paleta en `wp-admin` no requiera tocar
+código. El mapeo campo → variable vive en `frontend/src/lib/config/tokens.ts`; el mecanismo de
+inyección en runtime (`components/ui/theme-tokens.tsx`) es parte de la UI heredada (Parte B),
+pero el **contrato de qué 9 colores + 2 tipografías existen** es estable.
+
+## A.5 Webhooks salientes (WordPress/WooCommerce → tu frontend)
+
+- **Pedido creado/actualizado**: `POST {frontend}/api/webhooks/woocommerce/order-{created,updated}`,
+  firmado con `WC_WEBHOOK_SECRET` (HMAC). Payload = el de WooCommerce; el estado real se
+  calcula por diff contra el último conocido (Redis), porque el payload solo trae el estado
+  actual.
+- **Revalidación de catálogo**: `POST {frontend}/api/revalidate`, firmado con
+  `HWE_REVALIDATION_SECRET` (cabecera `X-HWE-Signature`).
+- **Pago** (si integras una pasarela real): `POST {frontend}/api/payments/webhook/[provider]`,
+  la verificación de firma/importe/moneda es responsabilidad del provider (`lib/payments/`).
 
 ---
 
-## 2. Inventario de páginas (`frontend/src/app/[locale]/`)
+# Parte B — Lo heredado al clonar (código de instancia, NO mantenido por el framework)
+
+> Todo lo de aquí abajo describe el estado de `components/**` (salvo `ui/`) y
+> `app/[locale]/*` **al momento de escribir esto**. Úsalo como inventario de tu punto de
+> partida, no como referencia de una librería que vaya a actualizarse. Si lo reescribes por
+> completo, este documento deja de aplicar a tu proyecto — eso es exactamente lo esperado.
+
+## B.1 Inventario de páginas (`frontend/src/app/[locale]/`)
 
 Leyenda: ✅ **completa** (usa datos reales, sin componentes de relleno) · 🧱 **mínima**
-(funciona pero es un esqueleto — buen punto de partida, no un diseño terminado) · —
-no aplica.
+(funciona pero es un esqueleto — buen punto de partida, no un diseño terminado).
 
 | Ruta | Estado | Componentes clave | Notas |
 |---|---|---|---|
@@ -73,21 +136,20 @@ no aplica.
 | `/blog` | ✅ | `PostCard` | Listado de entradas. |
 | `/blog/[slug]` | ✅ | — | Entrada individual, JSON-LD `Article`. |
 | `/about` | ✅ | — | 100% `getSiteConfig()` (descripción, fundador, áreas de expertise, JSON-LD `Person`) — sin componentes de layout nuevos, buen ejemplo de vista "de config pura". |
-| `/contact` | ✅ | `ContactForm` | Usa `config.legal.email` + `config.social.*`. Sin teléfono/sedes por defecto (el schema no tiene esos campos — pásalos como prop si el negocio los necesita, ver §4). |
+| `/contact` | ✅ | `ContactForm` | Usa `config.legal.email` + `config.social.*`. Sin teléfono/sedes por defecto (el schema no tiene esos campos — pásalos como prop si el negocio los necesita, ver B.3). |
 | `/cart` | ✅ | `CartView` | — |
-| `/checkout`, `/checkout/return` | ✅ | `CheckoutForm` | Cupón gateado por `coupons_enabled` (ver §1.1). |
+| `/checkout`, `/checkout/return` | ✅ | `CheckoutForm` | Cupón gateado por `coupons_enabled` (ver A.3). |
 | `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` | ✅ | `*-form.tsx` de `components/auth/` | Flujo de auth completo (JWT + 2FA opcional). |
 | `/account/*` | ✅ | `components/account/*` | Perfil, pedidos, direcciones, wishlist (gateado), 2FA, cambio de contraseña. |
 | `/legal/[slug]` | ✅ | — | Páginas legales (privacidad/cookies/términos/devoluciones) desde `i18n/messages`. |
 
-**Lectura clave**: el "backend de negocio" (catálogo, cuenta, checkout, auth) está completo y
-probado. Lo que falta trabajar por instancia son las **vistas de marketing/descubrimiento**
-(home, listado de productos) — ahí es donde vive la mayoría del trabajo de "construir el
-frontend de un negocio concreto". `docs/FRONTEND_BUILD.md` te ayuda a decidir qué meter ahí.
+**Lectura clave**: lo que resuelve funcionalidad de cuenta/carrito/checkout/auth está completo
+y probado — normalmente no necesitas tocarlo. Lo que suele reescribirse por completo por
+instancia son las **vistas de marketing/descubrimiento** (home, listado de productos): ahí es
+donde vive la mayoría del trabajo de "construir el frontend de un negocio concreto".
+`docs/FRONTEND_BUILD.md` ayuda a decidir qué construir ahí.
 
----
-
-## 3. Catálogo de componentes por dominio
+## B.2 Catálogo de componentes por dominio
 
 Formato por componente: **qué hace** — *de dónde saca datos* — estado de conexión.
 
@@ -117,9 +179,8 @@ Formato por componente: **qué hace** — *de dónde saca datos* — estado de c
 
 - **`AllyCard`** — tarjeta de "aliado/partner" (logo, nombre, descripción, link). *Recibe
   todo por props.* 🧱 Disponible, no conectada. Si el negocio tiene partners/aliados reales,
-  necesitas una fuente de datos (WordPress no trae un CPT para esto en el framework base —
-  créalo como mu-plugin *propio de la instancia*, nunca en el framework base; ver
-  `docs/CREATE_INSTANCE.md §7`).
+  necesitas una fuente de datos propia (un CPT vía mu-plugin, o un array estático) — eso es
+  100% código de tu instancia, no algo que el framework provea.
 - **`VideoCard`** — tarjeta de vídeo (thumbnail, canal, vistas, duración). *Recibe todo por
   props.* 🧱 Disponible, no conectada.
 
@@ -132,7 +193,7 @@ Formato por componente: **qué hace** — *de dónde saca datos* — estado de c
   prop.* 🧱 Disponible; usada internamente por `SearchModal`.
 - **`ProductGrid`** / **`InfiniteProductGrid`** — grid con/sin scroll infinito. ✅ Conectadas.
 - **`CategoryCard`** — tarjeta de categoría con 4 variantes de color temático
-  (`brand`/`secondary`/`accent`/`surface` — mapeadas a los tokens de diseño, ver §5). *Recibe
+  (`brand`/`secondary`/`accent`/`surface` — mapeadas a los design tokens, ver A.4). *Recibe
   `href`/`label`/`image` por prop.* 🧱 Disponible, no conectada — candidata natural para la
   home o el header de `/products`.
 - **`FilterChips`** — chips de filtro activo/inactivo. *Controlado: recibe `options`/`active`/
@@ -152,43 +213,40 @@ Formato por componente: **qué hace** — *de dónde saca datos* — estado de c
 
 - **`ContactForm`** — formulario + panel de "canales de contacto". Props: `email?`, `phone?`,
   `socials?: { facebook?, instagram?, youtube? }`, `branches?: Branch[]`. **Todo opcional y
-  con default vacío** (una sección se oculta si no le pasas datos) — así el componente sirve
-  para cualquier negocio, tenga o no sedes físicas. Envía a `POST /api/contact` (Zod +
-  rate-limit; hoy solo loggea, tiene un TODO para reenviar a email/WordPress real). ✅
-  Conectado en `/contact`. `country-selector.tsx` y `contact-form.data.ts`
-  (`REQUEST_TYPES`/`COUNTRIES`) son genéricos, sin datos de negocio.
+  con default vacío** (una sección se oculta si no le pasas datos). Envía a `POST /api/contact`
+  (§A.2; hoy solo loggea, tiene un TODO para reenviar a email/WordPress real). ✅ Conectado en
+  `/contact`. `country-selector.tsx` y `contact-form.data.ts` (`REQUEST_TYPES`/`COUNTRIES`)
+  son genéricos, sin datos de negocio.
 
-### `components/ui/` — primitivas
+### `components/ui/` — primitivas (esto sí es núcleo del framework, ver `AGENTS.md §1.1`)
 
 `Button`, `Input`, `Select`, `Textarea`, `Checkbox`, `Card`, `Badge`, `Modal`, `Alert`,
-`Skeleton`, `Spinner`, `Paginator`, `QuantityCounter`, `DarkModeToggle`. Todas genéricas,
-sin dependencia de negocio — son el vocabulario visual base;úsalas en vez de reinventar
-botones/inputs sueltos.
+`Skeleton`, `Spinner`, `Paginator`, `QuantityCounter`, `DarkModeToggle`. Sin dependencia de
+negocio — vocabulario visual base. A diferencia del resto de `components/`, estas sí se
+consideran parte del framework: úsalas en vez de reinventar botones/inputs sueltos.
 
-### Resto (ya completos, no suelen necesitar cambios por instancia)
+### Resto (funcionalidad de producto, normalmente no se rediseña por instancia)
 
 `components/cart/`, `components/checkout/`, `components/account/`, `components/auth/`,
-`components/analytics/`, `components/i18n/`, `components/blog/`, `components/seo/` — lógica de
-producto core del framework, no de marketing. Tócalos solo si el negocio pide una
-funcionalidad de cuenta/carrito distinta al estándar.
+`components/analytics/`, `components/i18n/`, `components/blog/`, `components/seo/` —
+implementan flujos del BFF (carrito, checkout, cuenta, auth). Aunque técnicamente son
+"heredados" igual que el resto de `components/`, en la práctica cambian poco entre
+instancias porque siguen de cerca el contrato de la Parte A. Tócalos solo si el negocio pide
+una funcionalidad de cuenta/carrito distinta al estándar.
 
----
-
-## 4. Cómo componer una vista nueva (checklist)
+## B.3 Cómo componer una vista (si partes de lo heredado)
 
 1. **Server Component** (la página en `app/[locale]/…/page.tsx`): llama a
    `getSiteConfig()` / `lib/catalog`/`lib/blog` según lo que necesites, con `await Promise.all(...)`.
 2. **Pasa los datos como props** a componentes de `components/` — no dupliques fetch en
    componentes cliente si el padre ya tiene el dato.
-3. **Gatea funcionalidad opcional** con los flags de `config.ecommerce.*` (§1.1) — nunca la
+3. **Gatea funcionalidad opcional** con los flags de `config.ecommerce.*` (§A.3) — nunca la
    muestres incondicionalmente si tiene un flag correspondiente.
 4. **i18n**: añade las keys que uses en `i18n/messages/es.json` **y** `en.json` en paralelo
    (mismo namespace/estructura). Usa `Link`/`redirect` de `@/i18n/navigation`, no de `next/*`.
-5. **Diseño**: usa las clases utilitarias de marca (`brand`, `brand-dark`, `brand-light`,
+5. **Diseño**: usa las clases utilitarias de marca (§A.4: `brand`, `brand-dark`, `brand-light`,
    `secondary`, `secondary-dark`, `accent`, `surface`, `font-sans`, `font-heading`) en vez de
-   colores/fuentes hardcodeados — así la vista respeta la paleta que cada instancia define en
-   `wp-admin → HWE Config → Diseño` (ver `frontend/src/lib/config/tokens.ts` para el mapeo
-   completo campo → variable CSS).
+   colores/fuentes hardcodeados.
 6. **SEO** (si la página es pública e indexable): `alternates: alternatesFor(...)` en
    `generateMetadata`, añade la ruta a `app/sitemap.ts` si debe indexarse, y JSON-LD si aplica
    (`lib/seo/jsonld.ts` tiene builders para `Product`, `Article`, `Person`, `BreadcrumbList`,
@@ -198,14 +256,16 @@ funcionalidad de cuenta/carrito distinta al estándar.
 8. Verifica con `npx tsc --noEmit`, `npm run test`, y `npx next build` antes de dar la vista
    por terminada (`AGENTS.md §8`).
 
----
+## B.4 Si NO partes de lo heredado (frontend nuevo desde cero)
 
-## 5. Design tokens (paleta/tipografía por instancia)
+Todo lo de la Parte A sigue aplicando igual — es el contrato, no importa el stack. Lo único
+que necesitas construir tú mismo:
+- Un cliente GraphQL contra WPGraphQL/WooGraphQL (§A.1).
+- Llamadas `fetch` al BFF con `credentials: "include"` + el flujo CSRF (§A.2).
+- Lectura de `/wp-json/hwe/v1/config` y aplicación de los design tokens (§A.4) al sistema de
+  diseño que elijas.
+- Manejo de los flags de funcionalidad opcional (§A.3) en tu propia UI.
 
-`wp-admin → HWE Config → Diseño` define 9 colores + 2 tipografías por instancia
-(`design.colors.*`, `design.typography.*` en el schema — ver
-`backend/wp-content/mu-plugins/hwe-control-center/Schema.php`). Se mapean a variables CSS en
-`frontend/src/lib/config/tokens.ts` y se inyectan en runtime por `components/ui/theme-tokens.tsx`
-(montado en `layout.tsx`). Nunca escribas un color hex en un componente: usa las clases
-Tailwind (`bg-brand`, `text-secondary`, `border-accent/30`, `bg-surface`, `font-heading`…) —
-así cualquier instancia puede cambiar toda la paleta sin tocar código.
+No hay SDK ni cliente oficial más allá del código Next.js heredado — si lo extraes como
+referencia de "cómo se hizo una vez", perfecto; si no, la Parte A es toda la documentación que
+necesitas.

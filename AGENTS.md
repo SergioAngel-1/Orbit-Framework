@@ -22,6 +22,30 @@ Una **plantilla de e-commerce headless** lista para producción y comercializabl
 El idioma del proyecto (comentarios, docs, UI) es **español**; el código y los nombres
 técnicos están en inglés. Mantén esa convención.
 
+### 1.1 Qué es "el framework" y qué es "responsabilidad de cada instancia"
+
+**Decisión de arquitectura (léela antes de tocar `frontend/`):** el framework es
+**backend + arquitectura**, no un generador de UI. Dos capas muy distintas viven hoy en el
+mismo repo `frontend/` y es clave no confundirlas:
+
+| Capa | Qué incluye | ¿Quién la mantiene? |
+|---|---|---|
+| **Núcleo del framework** | WordPress headless + WooCommerce (`backend/`), el **BFF**: `frontend/src/app/api/*` y `frontend/src/lib/*` (auth, seguridad, proxy a WooCommerce, pagos, config del HWE Control Center), `frontend/src/components/ui/*` (primitivas sin negocio: Button, Input, Modal…) | El framework. Se actualiza, se documenta, se versiona como una unidad reutilizable entre instancias. |
+| **Responsabilidad de cada proyecto/instancia** | `frontend/src/components/**` (excepto `ui/`) y **todas las vistas** bajo `frontend/src/app/[locale]/*` — layout visual, home, listados, fichas, marketing, contacto, footer/header, etc. | **La instancia.** Al clonar, este código se hereda como punto de partida único (no vuelve a sincronizarse con el framework). Cámbialo, bórralo, reescríbelo — es 100% tuyo desde el clone. |
+
+**Por qué:** la UI de e-commerce siempre termina con decisiones de un negocio concreto
+(categorías, tono de marca, qué secciones tiene el footer…). Si el framework la "posee", esas
+decisiones se filtran al framework base — esto ya pasó una vez (un mu-plugin y componentes de
+un cliente real quedaron mezclados en el repo base) y volverá a pasar si se sigue tratando la
+UI como parte del núcleo. La solución no es "genericizar mejor" — es que el framework deje de
+prometer nada sobre esa capa.
+
+**Lo que SÍ es un contrato estable** entre el backend/BFF y cualquier frontend (el heredado o
+uno construido desde cero): el esquema de WPGraphQL/WooGraphQL, los endpoints REST del BFF
+bajo `app/api/*`, el endpoint público `/wp-json/hwe/v1/config` (marca/diseño/flags), y el
+contrato de auth (cookies httpOnly + CSRF). Ese contrato está documentado en
+**`docs/FRONTEND_CONNECT.md`** — es la referencia que sobrevive aunque reescribas toda la UI.
+
 ---
 
 ## 2. El principio que lo explica casi todo: **el BFF**
@@ -58,8 +82,8 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 ├── docs/                        # documentación de cliente y operaciones
 │   ├── INSTALL.md  CONFIGURATION.md  CUSTOMIZATION.md  DEPLOYMENT.md
 │   ├── CREATE_INSTANCE.md       # ⭐ crear una instancia nueva (clonar + `wp hwe setup`)
-│   ├── FRONTEND_CONNECT.md      # ⭐ para agentes: inventario de vistas/componentes del frontend
-│   ├── FRONTEND_BUILD.md        # ⭐ para agentes: entrevista de negocio → plan de vistas
+│   ├── FRONTEND_CONNECT.md      # ⭐ el CONTRATO backend/BFF (estable) + inventario de lo heredado (no estable)
+│   ├── FRONTEND_BUILD.md        # ⭐ para agentes: entrevista de negocio → plan de vistas (responsabilidad de la instancia)
 │   ├── SECURITY.md  ACCESIBILIDAD.md
 │   ├── RUNBOOK.md               # ⭐ operación: backup/restore, rotación de secretos, incidentes
 │   ├── GO-LIVE.md               # ⭐ checklist "de cero a producción"
@@ -97,14 +121,17 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
     │   ├── proxy.ts             # ⭐ i18n + barrera de Origin + refresh JWT (ver §6). Next 16 renombró middleware→proxy
     │   ├── i18n/                # routing, request, navigation, messages (es/en)
     │   ├── app/
-    │   │   ├── [locale]/        # ⭐ TODAS las páginas viven bajo el segmento de idioma (ver docs/FRONTEND_CONNECT.md)
-    │   │   ├── api/             # ⭐ el BFF: auth (+2fa,+email,+logout-all), store, payments,
-    │   │   │                    #    webhooks, csrf, revalidate, health (+/live), contact
+    │   │   ├── [locale]/        # ⚠️ NO es núcleo del framework (ver §1.1) — vistas heredadas
+    │   │   │                    #    una vez al clonar, responsabilidad de cada instancia
+    │   │   ├── api/             # ⭐ el BFF (SÍ es núcleo): auth (+2fa,+email,+logout-all), store,
+    │   │   │                    #    payments, webhooks, csrf, revalidate, health (+/live), contact
     │   │   ├── sitemap.ts  robots.txt/route.ts  manifest.ts  not-found.tsx  layout.tsx (passthrough)
-    │   ├── components/          # ⭐ UI por dominio — catálogo completo en docs/FRONTEND_CONNECT.md
-    │   │                        #    (layout, marketing, products, forms, cart, checkout, account, auth, i18n, ui…)
-    │   └── lib/                 # ⭐ toda la lógica de servidor/cliente (ver §6). `lib/config/` = config
-    │                            #    dinámica del negocio (getSiteConfig() — ver §6.7)
+    │   ├── components/          # ⚠️ NO es núcleo del framework, salvo `ui/` (primitivas sin negocio).
+    │   │                        #    layout/marketing/products/forms/cart/checkout/account/auth/i18n
+    │   │                        #    se heredan al clonar y pasan a ser responsabilidad de la instancia.
+    │   │                        #    Inventario de lo heredado: docs/FRONTEND_CONNECT.md §B.2.
+    │   └── lib/                 # ⭐ toda la lógica de servidor/cliente (SÍ es núcleo, ver §6).
+    │                            #    `lib/config/` = config dinámica del negocio (getSiteConfig(), §6.7)
 ```
 
 Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por dominio
@@ -297,9 +324,12 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   `app/[locale]/products/[slug]/page.tsx`, el cupón en `cart-drawer.tsx`/`checkout-form.tsx`,
   el enlace de wishlist en `account/layout.tsx`. Si añades una vista nueva que use una de
   estas funcionalidades, replica el patrón — no la muestres incondicionalmente.
-- **Catálogo completo de páginas y componentes, con qué está conectado y qué es un building
-  block sin usar todavía**: ver **`docs/FRONTEND_CONNECT.md`**. Para levantar el frontend de
-  una instancia nueva (qué preguntar del negocio antes de tocar vistas): **`docs/FRONTEND_BUILD.md`**.
+- **Recuerda §1.1**: todo lo de esta sección que vive en `components/**` (salvo `ui/`) y en
+  `app/[locale]/*` es código **heredado, no núcleo del framework**. `docs/FRONTEND_CONNECT.md`
+  documenta el contrato backend/BFF estable y, aparte, un inventario de ese código heredado tal
+  como quedó al escribir esto — no una promesa de que seguirá existiendo o actualizándose.
+  Para levantar el frontend de una instancia nueva (qué preguntar del negocio antes de tocar
+  vistas, propias o heredadas): **`docs/FRONTEND_BUILD.md`**.
 - **Routing por idioma**: todo bajo `app/[locale]/`. `es` sin prefijo (canónico), `en` en
   `/en`. Config en `i18n/routing.ts`; locale resuelto en `i18n/request.ts`.
 - **Navegación locale-aware**: usa SIEMPRE `Link`/`redirect`/`useRouter` de
@@ -446,13 +476,17 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 - **Cliente/instalación**: `docs/INSTALL.md`, `docs/CREATE_INSTANCE.md` (crear una instancia
   nueva: clonar + `wp hwe setup` + `generate-secrets.sh`), `docs/CONFIGURATION.md`,
   `docs/CUSTOMIZATION.md`, `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `docs/ACCESIBILIDAD.md`.
-- **Para agentes que van a tocar el frontend de una instancia**:
-  - `docs/FRONTEND_CONNECT.md` — inventario completo de páginas y componentes: qué existe,
-    qué está conectado a una página real y qué es un building block disponible sin usar,
-    de dónde saca cada uno sus datos, y el patrón para componer una vista nueva.
+- **Para agentes que van a tocar el frontend de una instancia** (recuerda §1.1: UI/vistas NO
+  son núcleo del framework):
+  - `docs/FRONTEND_CONNECT.md` — el contrato backend/BFF estable (GraphQL, REST del BFF,
+    `/wp-json/hwe/v1/config`, flags, auth) que cualquier frontend debe respetar, más un
+    inventario de la UI heredada al clonar (qué hay, qué está conectado, qué es un building
+    block sin usar) — ese inventario es una foto del momento, no algo que el framework
+    mantenga.
   - `docs/FRONTEND_BUILD.md` — entrevista de características del negocio (catálogo, sedes,
     funcionalidades opcionales, contenido editorial, envío/pagos, SEO/GEO, idiomas) y cómo
-    traducir las respuestas a `instance.config.json` + un plan concreto de vistas a construir.
+    traducir las respuestas a `instance.config.json` + un plan concreto de vistas a construir
+    (reutilizando lo heredado, o desde cero).
 - **Operación**: `docs/RUNBOOK.md` (backup/restore probado, rotación de secretos, cierre de
   sesiones, incidentes) y `docs/GO-LIVE.md` (checklist de cero a producción, incluye el guard
   de secretos que **aborta el arranque** en prod con valores por defecto).
