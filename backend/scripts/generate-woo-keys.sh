@@ -3,13 +3,18 @@
 #  generate-woo-keys.sh — Genera un par de claves REST de WooCommerce (ck/cs)
 #  para que el BFF (Next.js) consuma la API wc/v3 con credenciales de servidor.
 #
-#  Uso:
-#    docker compose run --rm --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
+#  Uso (nota el --user: escribe como el usuario del HOST, no como www-data:33
+#  del servicio wpcli — así puede escribir en .env/.env.local sin necesitar
+#  permisos de escritura para "otros" en esos archivos, que contienen
+#  secretos y deben quedarse en modo 600):
+#    docker compose run --rm --user "$(id -u):$(id -g)" \
+#      --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
 #
 #  Por defecto escribe WC_CONSUMER_KEY/WC_CONSUMER_SECRET directamente en
 #  /workspace/.env y /workspace/frontend/.env.local (bind mount del repo, ver
 #  --workspace-dir más abajo) además de imprimirlas. Usa --print-only para
-#  conservar el comportamiento anterior (solo imprime, no escribe archivos).
+#  conservar el comportamiento anterior (solo imprime, no escribe archivos) —
+#  necesario si corres el comando SIN el --user de arriba.
 # ============================================================================
 
 set -e
@@ -65,6 +70,27 @@ CS=$(echo "$KEYS" | grep '^WC_CONSUMER_SECRET=' | cut -d= -f2-)
 echo "$KEYS"
 echo ""
 
+# Escribe una variable en un archivo SIN `sed -i` (que crea un temp file en el
+# MISMO directorio para el rename — el bind mount de un solo archivo expone
+# /workspace como directorio propiedad de root dentro del contenedor, no
+# escribible salvo que el proceso sea root). En vez de eso: genera el
+# contenido en /tmp (siempre escribible) y vuelca ese contenido DENTRO del
+# archivo existente con `cat >`, que solo necesita permiso de escritura sobre
+# el archivo — por eso el comando de arriba corre con `--user
+# "$(id -u):$(id -g)"`: así el proceso ES el dueño del archivo (modo 600
+# normal, sin aflojar permisos a "otros").
+set_env_var() {
+	_file="$1"; _key="$2"; _value="$3"
+	_tmp="/tmp/env.$$.tmp"
+	if grep -q "^${_key}=" "$_file"; then
+		sed "s|^${_key}=.*|${_key}=${_value}|" "$_file" > "$_tmp" || return 1
+		cat "$_tmp" > "$_file" || return 1
+		rm -f "$_tmp"
+	else
+		printf '%s=%s\n' "$_key" "$_value" >> "$_file" || return 1
+	fi
+}
+
 # Escritura automática solo si el workspace (repo host) está montado en el
 # contenedor (ver docker-compose.yml: servicio wpcli, mounts .env/.env.local).
 # Si no está disponible (--print-only, o compose antiguo sin esos mounts),
@@ -72,20 +98,19 @@ echo ""
 if [ "$PRINT_ONLY" = "1" ]; then
 	echo "↑ (--print-only) Copia estas dos líneas en tu .env y reinicia el frontend."
 elif [ -f "$WORKSPACE_DIR/.env" ] && [ -f "$WORKSPACE_DIR/frontend/.env.local" ]; then
+	WRITE_FAILED=0
 	for f in "$WORKSPACE_DIR/.env" "$WORKSPACE_DIR/frontend/.env.local"; do
-		if grep -q '^WC_CONSUMER_KEY=' "$f"; then
-			sed -i.bak "s|^WC_CONSUMER_KEY=.*|WC_CONSUMER_KEY=${CK}|" "$f" && rm -f "${f}.bak"
-		else
-			printf 'WC_CONSUMER_KEY=%s\n' "$CK" >> "$f"
-		fi
-		if grep -q '^WC_CONSUMER_SECRET=' "$f"; then
-			sed -i.bak "s|^WC_CONSUMER_SECRET=.*|WC_CONSUMER_SECRET=${CS}|" "$f" && rm -f "${f}.bak"
-		else
-			printf 'WC_CONSUMER_SECRET=%s\n' "$CS" >> "$f"
-		fi
+		set_env_var "$f" "WC_CONSUMER_KEY" "$CK" || WRITE_FAILED=1
+		set_env_var "$f" "WC_CONSUMER_SECRET" "$CS" || WRITE_FAILED=1
 	done
-	echo "✔ Escritas en $WORKSPACE_DIR/.env y $WORKSPACE_DIR/frontend/.env.local."
-	echo "  Reinicia el frontend: docker compose up -d frontend"
+	if [ "$WRITE_FAILED" = "1" ]; then
+		echo "⚠️  No se pudo escribir en $WORKSPACE_DIR/.env o frontend/.env.local." >&2
+		echo "    ¿Corriste el comando con --user \"\$(id -u):\$(id -g)\"? (ver cabecera del script)" >&2
+		echo "↑ Copia las dos líneas de arriba a mano en tu .env y reinicia el frontend."
+	else
+		echo "✔ Escritas en $WORKSPACE_DIR/.env y $WORKSPACE_DIR/frontend/.env.local."
+		echo "  Reinicia el frontend: docker compose up -d frontend"
+	fi
 else
 	echo "↑ Copia estas dos líneas en tu .env y reinicia el frontend."
 	echo "  (escritura automática desactivada: $WORKSPACE_DIR/.env no está montado en este contenedor)"

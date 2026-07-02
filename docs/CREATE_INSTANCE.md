@@ -131,23 +131,33 @@ troubleshooting.
 ## 6. Claves de WooCommerce para el BFF
 
 ```bash
-docker compose run --rm --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
+docker compose run --rm --user "$(id -u):$(id -g)" --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
 ```
 
 Escribe `WC_CONSUMER_KEY`/`WC_CONSUMER_SECRET` directamente en `.env` y
-`frontend/.env.local` (usa `--print-only` para solo imprimirlas y copiarlas
-a mano). Reinicia el frontend tras esto: `docker compose up -d frontend`.
+`frontend/.env.local` — el `--user "$(id -u):$(id -g)"` hace que escriba
+como tu usuario del host (dueño de esos archivos, en modo `600`) en vez de
+como `www-data:33` del contenedor. Usa `--print-only` para solo imprimirlas
+y copiarlas a mano (y omite el `--user`). Reinicia el frontend tras esto:
+`docker compose up -d frontend`.
 
-## 7. Extender el frontend si la marca lo requiere
+## 7. El frontend (UI y vistas) es responsabilidad de esta instancia
 
-El comando `wp hwe setup` cubre la config de marca/diseño, pero **no** porta
-componentes de UI. Si el diseño de la instancia necesita componentes que el
-frontend base no tiene (hero/carrusel propio, tarjetas de dominio específicas,
-secciones de marketing, etc.), pórtalos a `frontend/src/components/` siguiendo
-la convención por dominio ya usada (`cart/`, `products/`, `layout/`, etc.) y
-aislando lo estrictamente específico de la instancia en su propia carpeta (p.
-ej. `components/<instancia>/`) para que futuras actualizaciones del framework
-base no choquen con las personalizaciones.
+El comando `wp hwe setup` cubre la config de marca/diseño, pero **no** genera ni mantiene
+componentes de UI. Esto es intencional: el framework es backend + arquitectura
+(WordPress headless + el BFF de Next.js en `frontend/src/app/api/*` y `frontend/src/lib/*`)
+— ver `AGENTS.md §1.1`. Todo lo demás del frontend (`frontend/src/components/**` salvo
+`ui/`, y todas las vistas bajo `frontend/src/app/[locale]/*`) se **hereda una sola vez** al
+clonar y pasa a ser 100% de esta instancia desde ese momento: constrúyelo, cámbialo o
+bórralo por completo, sin necesidad de aislarlo en una carpeta separada para "no chocar con
+futuras actualizaciones del framework" — no habrá actualizaciones del framework a esa capa,
+porque el framework no la mantiene.
+
+Lo único que sí es un contrato estable (y a lo que cualquier vista, heredada o nueva, debe
+ajustarse) es el backend/BFF: WPGraphQL/WooGraphQL, los endpoints REST bajo `app/api/*`, el
+endpoint de config `/wp-json/hwe/v1/config` y los flags `ecommerce.*_enabled` — documentado en
+**`docs/FRONTEND_CONNECT.md` Parte A**. Para decidir qué construir (entrevista de
+características del negocio → plan de vistas, reutilizando lo heredado o desde cero): **`docs/FRONTEND_BUILD.md`**.
 
 ## 8. Checklist de rebranding restante (manual)
 

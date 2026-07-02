@@ -71,13 +71,18 @@ docker compose run --rm wpcli
 ## 4. Generar las claves de WooCommerce (`ck`/`cs`)
 
 ```bash
-docker compose run --rm --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
+docker compose run --rm --user "$(id -u):$(id -g)" --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
 ```
 
 Escribe `WC_CONSUMER_KEY`/`WC_CONSUMER_SECRET` directamente en `.env` y
 `frontend/.env.local` (el `docker-compose.yml` monta ambos archivos dentro
-del contenedor `wpcli` para esto). Si prefieres el comportamiento anterior
-(solo imprimir, copiar/pegar a mano), añade `--print-only`.
+del contenedor `wpcli` para esto). El `--user "$(id -u):$(id -g)"` es
+importante: hace que el proceso escriba como tu usuario del host (dueño real
+de esos archivos, que deben quedarse en modo `600`) en vez de como
+`www-data:33` del contenedor — sin él, la escritura automática falla
+silenciosamente y hay que copiar las claves a mano. Si prefieres el
+comportamiento anterior (solo imprimir, copiar/pegar a mano), añade
+`--print-only` (y entonces el `--user` ya no hace falta).
 
 ## 5. (Opcional) Cargar datos demo
 
