@@ -8,9 +8,11 @@ interface Props {
   initialProducts: CatalogProduct[];
   initialPageInfo: { hasNextPage: boolean; endCursor: string | null };
   filters: Record<string, string | undefined>;
+  /** `config.ecommerce.wishlist_enabled`, resuelto por el Server Component padre. */
+  wishlistEnabled?: boolean;
 }
 
-export function InfiniteProductGrid({ initialProducts, initialPageInfo, filters }: Props) {
+export function InfiniteProductGrid({ initialProducts, initialPageInfo, filters, wishlistEnabled = false }: Props) {
   const t = useTranslations("products");
   const [products, setProducts] = useState(initialProducts);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
@@ -75,7 +77,7 @@ export function InfiniteProductGrid({ initialProducts, initialPageInfo, filters 
     <>
       <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard key={product.id} product={product} wishlistEnabled={wishlistEnabled} />
         ))}
       </div>
 

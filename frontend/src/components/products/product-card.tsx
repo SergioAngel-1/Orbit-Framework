@@ -1,14 +1,27 @@
+"use client";
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
-import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 import { WishlistButton } from "@/components/products/wishlist-button";
 import { formatPrice } from "@/lib/format";
-import { getSiteConfig } from "@/lib/config";
 import type { CatalogProduct } from "@/types/catalog";
 
-export async function ProductCard({ product }: { product: CatalogProduct }) {
-  const [t, config] = await Promise.all([getTranslations("products"), getSiteConfig()]);
+export interface ProductCardProps {
+  product: CatalogProduct;
+  /** `config.ecommerce.wishlist_enabled` — el propio caller (Server Component) lo resuelve. */
+  wishlistEnabled?: boolean;
+}
+
+// Client Component a propósito: lo instancian tanto Server Components
+// (ProductGrid) como Client Components (InfiniteProductGrid, con scroll
+// infinito) — un Client Component NO puede importar un Server Component
+// directamente (rompe el build: "server-only cannot be imported from a
+// Client Component module" en cuanto ese Server Component toca algo con
+// `server-only`, como getSiteConfig()). Por eso no hace fetch propio: recibe
+// `wishlistEnabled` ya resuelto por props.
+export function ProductCard({ product, wishlistEnabled = false }: ProductCardProps) {
+  const t = useTranslations("products");
   const outOfStock = product.stockStatus === "OUT_OF_STOCK";
 
   return (
@@ -32,7 +45,7 @@ export async function ProductCard({ product }: { product: CatalogProduct }) {
             </div>
           )}
         </Link>
-        {config.ecommerce.wishlist_enabled && <WishlistButton productId={product.databaseId} />}
+        {wishlistEnabled && <WishlistButton productId={product.databaseId} />}
         {product.onSale && (
           <span className="absolute left-2 top-2 z-10 rounded-full bg-brand px-2 py-0.5 text-xs font-bold text-white">
             {t("onSale")}

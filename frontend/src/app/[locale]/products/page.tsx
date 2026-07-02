@@ -3,6 +3,7 @@ import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { getProducts, getCategories } from "@/lib/catalog/products";
 import { alternatesFor } from "@/lib/seo/urls";
+import { getSiteConfig } from "@/lib/config";
 import { InfiniteProductGrid } from "@/components/products/infinite-product-grid";
 
 export const revalidate = 300;
@@ -27,7 +28,7 @@ export default async function ProductsPage({
 }: {
   searchParams: Promise<{ search?: string; after?: string; category?: string; minPrice?: string; maxPrice?: string; sort?: string }>;
 }) {
-  const t = await getTranslations("products");
+  const [t, config] = await Promise.all([getTranslations("products"), getSiteConfig()]);
   const { search, after, category, minPrice, maxPrice, sort } = await searchParams;
 
   const filters = { search, category, minPrice, maxPrice, sort };
@@ -145,6 +146,7 @@ export default async function ProductsPage({
           initialProducts={products}
           initialPageInfo={pageInfo}
           filters={filters}
+          wishlistEnabled={config.ecommerce.wishlist_enabled}
         />
       )}
     </div>

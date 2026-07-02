@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { CountrySelector } from "./country-selector";
 import { REQUEST_TYPES, type Branch, type RequestTypeValue } from "./contact-form.data";
 
+export type { Branch };
+
 // ─── Iconos inline (evita dependencia de iconos externos) ─────────────────────
 
 function PhoneIcon(props: SVGProps<SVGSVGElement>) {

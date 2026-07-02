@@ -42,4 +42,10 @@ export type { SpinnerProps } from "./spinner"; // inferred
 export { Textarea }          from "./textarea";
 export type { TextareaProps } from "./textarea";
 
-export { ThemeTokens }       from "./theme-tokens";
+// ThemeTokens NO se re-exporta aquí a propósito: es un Server Component
+// (`server-only`, usa getSiteConfig()) y este barrel lo importan también
+// Client Components (p. ej. ContactForm). Re-exportarlo aquí contamina el
+// grafo de módulos de cualquier consumidor cliente del barrel con código
+// server-only y rompe el build ("'server-only' cannot be imported from a
+// Client Component module"). Impórtalo directo: `@/components/ui/theme-tokens`
+// (así lo hace `app/[locale]/layout.tsx`, su único consumidor).
