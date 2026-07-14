@@ -14,15 +14,7 @@
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
-    "prepare": "husky"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "prettier --write",
-      "eslint --fix"
-    ],
-    "*.{css,json,md}": "prettier --write"
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\""
   },
   "dependencies": {
     "@emnapi/core": "^1.11.1",
@@ -52,8 +44,6 @@
     "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.2.9",
-    "husky": "^9.1.7",
-    "lint-staged": "^17.0.8",
     "prettier": "^3.8.4",
     "tailwindcss": "^4.3.1",
     "typescript": "6.0.3",
