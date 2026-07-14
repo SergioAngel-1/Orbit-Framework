@@ -245,6 +245,35 @@ class Schema {
             ],
 
             /* ------------------------------------------------------------------ */
+            /* BANNERS (hero de portada)                                           */
+            /* ------------------------------------------------------------------ */
+            'banners' => [
+                'type'     => 'group',
+                'label'    => 'Banners',
+                'children' => [
+                    'enabled' => [
+                        'type'    => 'boolean',
+                        'label'   => 'Mostrar carrusel de banners en la portada',
+                        'default' => false,
+                        'public'  => true,
+                    ],
+                    'interval_ms' => [
+                        'type'        => 'text',
+                        'label'       => 'Intervalo de rotación (ms)',
+                        'default'     => '6000',
+                        'public'      => true,
+                        'description' => 'Milisegundos entre transiciones automáticas del carrusel.',
+                    ],
+                    'slides' => [
+                        'type'        => 'textarea',
+                        'label'       => 'Slides',
+                        'public'      => true,
+                        'description' => 'Un banner por línea, campos separados por "|": imagen | título | subtítulo | texto del botón | URL del botón | badge. Solo imagen y título son obligatorios; deja el resto vacío si no aplica. Ej.: https://…/verano.jpg | Rebajas de verano | Hasta -50% | Ver ofertas | /products | Nuevo',
+                    ],
+                ],
+            ],
+
+            /* ------------------------------------------------------------------ */
             /* PASARELAS DE PAGO (secretos cifrados)                               */
             /* ------------------------------------------------------------------ */
             'payments' => [

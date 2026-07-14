@@ -58,6 +58,12 @@
     "search_enabled": true
   },
 
+  "banners": {
+    "enabled": false,
+    "interval_ms": "6000",
+    "slides": ""
+  },
+
   "seo": {
     "title_template": "%s · %site%",
     "robots": "index,follow",
