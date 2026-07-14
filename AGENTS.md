@@ -475,7 +475,8 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 
 - **Cliente/instalación**: `docs/INSTALL.md`, `docs/CREATE_INSTANCE.md` (crear una instancia
   nueva: clonar + `wp hwe setup` + `generate-secrets.sh`), `docs/CONFIGURATION.md`,
-  `docs/CUSTOMIZATION.md`, `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `docs/ACCESIBILIDAD.md`.
+  `docs/CUSTOMIZATION.md`, `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `docs/ACCESIBILIDAD.md`,
+  `docs/PLUGIN_DEVELOPMENT.md` (desarrollar plugins del framework).
 - **Para agentes que van a tocar el frontend de una instancia** (recuerda §1.1: UI/vistas NO
   son núcleo del framework):
   - `docs/FRONTEND_CONNECT.md` — el contrato backend/BFF estable (GraphQL, REST del BFF,
