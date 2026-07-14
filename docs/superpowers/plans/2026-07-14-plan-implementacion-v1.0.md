@@ -1,5 +1,13 @@
 # Plan de implementación — Framework HWE hacia v1.0
 
+> **✅ EJECUTADO el 2026-07-14** — las 16 tareas completadas; releases `v0.9.0` y `v1.0.0`
+> taggeadas. Desviación registrada: la Fase 0 incluyó además reparar dos fallos preexistentes
+> de la línea base (ESLint roto por FlatCompat sobre los flat configs nativos de
+> eslint-config-next 16 + eslint 10 no soportado, y `format:check` en rojo en 122 archivos).
+> Pendiente de verificación en vivo (pila WP no levantada durante la ejecución): locations de
+> menú en wp-admin, siembra de `setup.sh`, render real del logo/menús/banners y el smoke test
+> `examples/minimal-consumer`.
+
 > **Para agentes que ejecuten este plan:** SKILL REQUERIDA: usa `superpowers:subagent-driven-development`
 > (recomendado) o `superpowers:executing-plans` para implementarlo tarea a tarea. Los pasos usan
 > checkboxes (`- [ ]`) para seguimiento.
