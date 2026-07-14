@@ -34,6 +34,27 @@ const eslintConfig = [
       "react-hooks/set-state-in-effect": "warn",
     },
   },
+  // ── Frontera núcleo/instancia (AGENTS.md §1.1) ─────────────────────────────
+  // El núcleo del framework (lib/, app/api/, proxy) NO puede depender de código
+  // de instancia (components/**, salvo las primitivas ui/). Los `import type`
+  // también cuentan: el contrato de tipos del núcleo debe vivir en el núcleo.
+  {
+    files: ["src/lib/**/*.{ts,tsx}", "src/app/api/**/*.{ts,tsx}", "src/proxy.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/components/**", "!@/components/ui", "!@/components/ui/**"],
+              message:
+                "El núcleo del framework no puede importar código de instancia (components/**, salvo ui/). Mueve el tipo/lógica a lib/ o invierte la dependencia.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ];
 
 export default eslintConfig;
