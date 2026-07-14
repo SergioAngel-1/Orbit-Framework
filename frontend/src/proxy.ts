@@ -9,7 +9,10 @@ import {
   DEFAULT_AUTH_TOKEN_MAX_AGE,
 } from "@/lib/auth/constants";
 import { REFRESH_TOKEN_MUTATION } from "@/lib/auth/mutations";
-import { getOrCreateRequestId, REQUEST_ID_HEADER } from "@/lib/observability/request-id";
+import {
+  getOrCreateRequestId,
+  REQUEST_ID_HEADER,
+} from "@/lib/observability/request-id";
 
 // ============================================================================
 //  Proxy compuesto (antes "middleware"; Next 16 renombró el convenio a `proxy`,

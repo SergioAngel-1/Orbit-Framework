@@ -32,12 +32,18 @@ export const resetPasswordSchema = z.object({
 });
 
 export const twoFactorCodeSchema = z.object({
-  code: z.string().length(6, "Código debe tener 6 dígitos").regex(/^\d{6}$/, "Solo dígitos"),
+  code: z
+    .string()
+    .length(6, "Código debe tener 6 dígitos")
+    .regex(/^\d{6}$/, "Solo dígitos"),
 });
 
 export const twoFactorSetupSchema = z.object({
   secret: z.string().min(1, "Secreto requerido"),
-  code: z.string().length(6, "Código debe tener 6 dígitos").regex(/^\d{6}$/, "Solo dígitos"),
+  code: z
+    .string()
+    .length(6, "Código debe tener 6 dígitos")
+    .regex(/^\d{6}$/, "Solo dígitos"),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

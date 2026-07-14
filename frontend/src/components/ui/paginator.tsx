@@ -24,13 +24,26 @@ export function Paginator({
 }: PaginatorProps) {
   if (totalPages <= 1) return null;
   return variant === "dots" ? (
-    <PaginatorDots currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} className={className} />
+    <PaginatorDots
+      currentPage={currentPage}
+      totalPages={totalPages}
+      onPageChange={onPageChange}
+      className={className}
+    />
   ) : (
-    <PaginatorNumbers currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} className={className} />
+    <PaginatorNumbers
+      currentPage={currentPage}
+      totalPages={totalPages}
+      onPageChange={onPageChange}
+      className={className}
+    />
   );
 }
 
-function getVisiblePages(currentPage: number, totalPages: number): (number | "ellipsis")[] {
+function getVisiblePages(
+  currentPage: number,
+  totalPages: number,
+): (number | "ellipsis")[] {
   if (totalPages <= 5) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
   }
@@ -40,7 +53,15 @@ function getVisiblePages(currentPage: number, totalPages: number): (number | "el
   if (currentPage >= totalPages - 2) {
     return [1, "ellipsis", totalPages - 2, totalPages - 1, totalPages];
   }
-  return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages];
+  return [
+    1,
+    "ellipsis",
+    currentPage - 1,
+    currentPage,
+    currentPage + 1,
+    "ellipsis",
+    totalPages,
+  ];
 }
 
 const arrowBtn =
@@ -54,11 +75,21 @@ function PaginatorNumbers({
 }: Omit<PaginatorProps, "variant">) {
   const pages = getVisiblePages(currentPage, totalPages);
   return (
-    <nav className={cn("flex items-center justify-center gap-1.5", className)} aria-label="Paginación">
-      <ArrowButton direction="prev" disabled={currentPage === 1} onClick={() => onPageChange(currentPage - 1)} />
+    <nav
+      className={cn("flex items-center justify-center gap-1.5", className)}
+      aria-label="Paginación"
+    >
+      <ArrowButton
+        direction="prev"
+        disabled={currentPage === 1}
+        onClick={() => onPageChange(currentPage - 1)}
+      />
       {pages.map((page, i) =>
         page === "ellipsis" ? (
-          <span key={`e-${i}`} className="flex h-9 w-9 items-center justify-center text-sm text-[--foreground]/30">
+          <span
+            key={`e-${i}`}
+            className="flex h-9 w-9 items-center justify-center text-sm text-[--foreground]/30"
+          >
             …
           </span>
         ) : (
@@ -79,7 +110,11 @@ function PaginatorNumbers({
           </button>
         ),
       )}
-      <ArrowButton direction="next" disabled={currentPage === totalPages} onClick={() => onPageChange(currentPage + 1)} />
+      <ArrowButton
+        direction="next"
+        disabled={currentPage === totalPages}
+        onClick={() => onPageChange(currentPage + 1)}
+      />
     </nav>
   );
 }
@@ -91,8 +126,15 @@ function PaginatorDots({
   className,
 }: Omit<PaginatorProps, "variant">) {
   return (
-    <nav className={cn("flex items-center justify-center gap-3", className)} aria-label="Paginación">
-      <ArrowButton direction="prev" disabled={currentPage === 1} onClick={() => onPageChange(currentPage - 1)} />
+    <nav
+      className={cn("flex items-center justify-center gap-3", className)}
+      aria-label="Paginación"
+    >
+      <ArrowButton
+        direction="prev"
+        disabled={currentPage === 1}
+        onClick={() => onPageChange(currentPage - 1)}
+      />
       <div className="flex items-center gap-2">
         {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
           <button
@@ -103,12 +145,18 @@ function PaginatorDots({
             aria-current={page === currentPage ? "page" : undefined}
             className={cn(
               "h-2 rounded-full transition-all duration-200",
-              page === currentPage ? "w-6 bg-brand" : "w-2 bg-gray-300 hover:bg-brand/50 dark:bg-gray-600",
+              page === currentPage
+                ? "w-6 bg-brand"
+                : "w-2 bg-gray-300 hover:bg-brand/50 dark:bg-gray-600",
             )}
           />
         ))}
       </div>
-      <ArrowButton direction="next" disabled={currentPage === totalPages} onClick={() => onPageChange(currentPage + 1)} />
+      <ArrowButton
+        direction="next"
+        disabled={currentPage === totalPages}
+        onClick={() => onPageChange(currentPage + 1)}
+      />
     </nav>
   );
 }
@@ -135,8 +183,22 @@ function ArrowButton({
           : "text-[--foreground]/60 hover:bg-brand/10 hover:text-[--foreground]",
       )}
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        {direction === "prev" ? <path d="M15 19l-7-7 7-7" /> : <path d="M9 5l7 7-7 7" />}
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        {direction === "prev" ? (
+          <path d="M15 19l-7-7 7-7" />
+        ) : (
+          <path d="M9 5l7 7-7 7" />
+        )}
       </svg>
     </button>
   );

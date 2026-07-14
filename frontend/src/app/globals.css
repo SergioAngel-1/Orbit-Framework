@@ -14,20 +14,20 @@
  *  Estos @theme son necesarios para que Tailwind genere bg-brand, text-brand, etc.
  * ========================================================================== */
 @theme {
-  --color-brand:          #2563eb;
-  --color-brand-dark:     #1e40af;
-  --color-brand-light:    #3b82f6;
-  --color-secondary:      #16a34a;
+  --color-brand: #2563eb;
+  --color-brand-dark: #1e40af;
+  --color-brand-light: #3b82f6;
+  --color-secondary: #16a34a;
   --color-secondary-dark: #15803d;
-  --color-accent:         #f59e0b;
-  --color-surface:        #f8fafc;
+  --color-accent: #f59e0b;
+  --color-surface: #f8fafc;
 
-  --font-sans:    var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-heading: var(--font-inter), system-ui, sans-serif;
 
   /* Animaciones propias */
-  --animate-fade-in:   fade-in 0.2s ease-out;
-  --animate-slide-up:  slide-up 0.25s ease-out;
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.25s ease-out;
 }
 
 /* ── CSS Variables (tema claro por defecto) ─────────────────────────────── */
@@ -53,26 +53,36 @@
 /* ── Base global ──────────────────────────────────────────────────────────── */
 body {
   background-color: var(--background);
-  color:            var(--foreground);
+  color: var(--foreground);
   -webkit-font-smoothing: antialiased;
-  text-rendering:   optimizeLegibility;
+  text-rendering: optimizeLegibility;
 }
 
 /* ── Dialog/Modal backdrop ──────────────────────────────────────────────── */
 dialog::backdrop {
-  background-color:  rgb(0 0 0 / 0.5);
-  backdrop-filter:   blur(4px);
+  background-color: rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(4px);
 }
 
 /* ── Animaciones ──────────────────────────────────────────────────────────── */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── Tipografía Prose (plugin @tailwindcss/typography) ──────────────────── */

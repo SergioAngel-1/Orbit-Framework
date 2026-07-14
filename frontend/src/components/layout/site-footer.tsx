@@ -48,25 +48,24 @@ export async function SiteFooter({ columns }: SiteFooterProps = {}) {
   const siteName = tSite("name");
   const year = new Date().getFullYear();
 
-  const footerColumns: FooterColumn[] =
-    columns ?? [
-      {
-        heading: tNav("store"),
-        links: [
-          { label: tNav("allProducts"), href: "/products" },
-          { label: tNav("offers"), href: "/products" },
-          { label: tNav("blog"), href: "/blog" },
-        ],
-      },
-      {
-        heading: tFooter("company"),
-        links: [
-          { label: tNav("about"), href: "/about" },
-          { label: tNav("contact"), href: "/contact" },
-          { label: tNav("terms"), href: "/legal/terms" },
-        ],
-      },
-    ];
+  const footerColumns: FooterColumn[] = columns ?? [
+    {
+      heading: tNav("store"),
+      links: [
+        { label: tNav("allProducts"), href: "/products" },
+        { label: tNav("offers"), href: "/products" },
+        { label: tNav("blog"), href: "/blog" },
+      ],
+    },
+    {
+      heading: tFooter("company"),
+      links: [
+        { label: tNav("about"), href: "/about" },
+        { label: tNav("contact"), href: "/contact" },
+        { label: tNav("terms"), href: "/legal/terms" },
+      ],
+    },
+  ];
 
   const socialLinks = (
     [
@@ -74,7 +73,9 @@ export async function SiteFooter({ columns }: SiteFooterProps = {}) {
       ["facebook", config.social.facebook],
       ["youtube", config.social.youtube],
     ] as const
-  ).filter((entry): entry is [keyof typeof SOCIAL_ICON_PATHS, string] => Boolean(entry[1]));
+  ).filter((entry): entry is [keyof typeof SOCIAL_ICON_PATHS, string] =>
+    Boolean(entry[1]),
+  );
 
   return (
     <footer className="bg-gray-900 px-4 py-12 sm:px-6 md:py-16 lg:px-10">
@@ -99,7 +100,11 @@ export async function SiteFooter({ columns }: SiteFooterProps = {}) {
                     aria-label={platform}
                     className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 transition-all duration-200 hover:border-white/50 hover:bg-white/10"
                   >
-                    <svg className="h-4 w-4 text-white/45" viewBox="0 0 24 24" fill="currentColor">
+                    <svg
+                      className="h-4 w-4 text-white/45"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
                       <path d={SOCIAL_ICON_PATHS[platform]} />
                     </svg>
                   </a>
@@ -132,16 +137,28 @@ export async function SiteFooter({ columns }: SiteFooterProps = {}) {
           aria-label={tNav("legal")}
           className="mb-6 flex flex-wrap justify-center gap-x-5 gap-y-2 border-t border-white/10 pt-6 md:justify-start"
         >
-          <Link href="/legal/privacy" className="text-[12px] text-white/40 hover:text-white">
+          <Link
+            href="/legal/privacy"
+            className="text-[12px] text-white/40 hover:text-white"
+          >
             {tNav("privacy")}
           </Link>
-          <Link href="/legal/cookies" className="text-[12px] text-white/40 hover:text-white">
+          <Link
+            href="/legal/cookies"
+            className="text-[12px] text-white/40 hover:text-white"
+          >
             {tNav("cookies")}
           </Link>
-          <Link href="/legal/terms" className="text-[12px] text-white/40 hover:text-white">
+          <Link
+            href="/legal/terms"
+            className="text-[12px] text-white/40 hover:text-white"
+          >
             {tNav("terms")}
           </Link>
-          <Link href="/legal/returns" className="text-[12px] text-white/40 hover:text-white">
+          <Link
+            href="/legal/returns"
+            className="text-[12px] text-white/40 hover:text-white"
+          >
             {tNav("returns")}
           </Link>
         </nav>

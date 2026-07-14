@@ -35,12 +35,19 @@ export async function guardMutation(
 ): Promise<NextResponse | null> {
   const requestId = getRequestId(request.headers);
   const path = (() => {
-    try { return new URL(request.url).pathname; } catch { return undefined; }
+    try {
+      return new URL(request.url).pathname;
+    } catch {
+      return undefined;
+    }
   })();
 
   // 1) Origen permitido.
   if (!assertAllowedOrigin(request)) {
-    logger.warn({ event: "guard.blocked", reason: "origin", path, requestId }, "Escritura bloqueada: origen no permitido");
+    logger.warn(
+      { event: "guard.blocked", reason: "origin", path, requestId },
+      "Escritura bloqueada: origen no permitido",
+    );
     return NextResponse.json({ error: "Origen no permitido." }, { status: 403 });
   }
 
@@ -48,7 +55,10 @@ export async function guardMutation(
   if (options.csrf !== false) {
     const ok = await verifyCsrf(request);
     if (!ok) {
-      logger.warn({ event: "guard.blocked", reason: "csrf", path, requestId }, "Escritura bloqueada: CSRF inválido");
+      logger.warn(
+        { event: "guard.blocked", reason: "csrf", path, requestId },
+        "Escritura bloqueada: CSRF inválido",
+      );
       return NextResponse.json({ error: "Token CSRF inválido." }, { status: 403 });
     }
   }
@@ -61,7 +71,10 @@ export async function guardMutation(
 
     const result = await rateLimit(identifier, limit, windowSeconds, { strict });
     if (!result.success) {
-      logger.warn({ event: "guard.blocked", reason: "rate_limit", name, path, requestId }, "Escritura bloqueada: rate-limit");
+      logger.warn(
+        { event: "guard.blocked", reason: "rate_limit", name, path, requestId },
+        "Escritura bloqueada: rate-limit",
+      );
       return NextResponse.json(
         { error: "Demasiadas peticiones. Inténtalo más tarde." },
         {

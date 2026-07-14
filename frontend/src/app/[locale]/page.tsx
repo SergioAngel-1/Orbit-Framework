@@ -25,10 +25,7 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [t, config] = await Promise.all([
-    getTranslations("home"),
-    getSiteConfig(),
-  ]);
+  const [t, config] = await Promise.all([getTranslations("home"), getSiteConfig()]);
   const faqItems = parseFaq(config.geo.faq);
 
   let posts: WPPost[] = [];

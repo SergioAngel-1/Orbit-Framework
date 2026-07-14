@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { recordAndDiffStatus, dispatchOrderEffects } from "@/lib/woocommerce/order-events";
+import {
+  recordAndDiffStatus,
+  dispatchOrderEffects,
+} from "@/lib/woocommerce/order-events";
 
 describe("order-events sin Redis ni webhook configurado", () => {
   let redis: string | undefined;

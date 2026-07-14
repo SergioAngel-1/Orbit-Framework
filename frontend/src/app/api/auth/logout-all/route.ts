@@ -9,7 +9,9 @@ import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
 
-const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80";
+const WP_INTERNAL =
+  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
+  "http://wordpress:80";
 
 /**
  * POST /api/auth/logout-all
@@ -37,10 +39,16 @@ export async function POST(request: Request) {
       cache: "no-store",
     });
     if (!res.ok) {
-      return NextResponse.json({ error: "No se pudieron cerrar las sesiones." }, { status: 502 });
+      return NextResponse.json(
+        { error: "No se pudieron cerrar las sesiones." },
+        { status: 502 },
+      );
     }
   } catch (error) {
-    logger.error({ event: "auth.logout_all.error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "auth.logout_all.error",
+      err: error instanceof Error ? error.message : error,
+    });
     return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
   }
 
@@ -50,6 +58,9 @@ export async function POST(request: Request) {
   store.set(AUTH_COOKIE, "", expiredCookieOptions("/"));
   store.set(REFRESH_COOKIE, "", expiredCookieOptions("/"));
 
-  logger.info({ event: "auth.logout_all", userId: session.userId }, "Todas las sesiones cerradas");
+  logger.info(
+    { event: "auth.logout_all", userId: session.userId },
+    "Todas las sesiones cerradas",
+  );
   return NextResponse.json({ ok: true }, { status: 200 });
 }

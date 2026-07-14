@@ -9,7 +9,9 @@ export default function VerifyEmailPage() {
   const t = useTranslations("verifyEmail");
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
-  const [status, setStatus] = useState<"verifying" | "ok" | "error" | "no-token">("verifying");
+  const [status, setStatus] = useState<"verifying" | "ok" | "error" | "no-token">(
+    "verifying",
+  );
 
   useEffect(() => {
     if (!token) {

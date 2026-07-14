@@ -5,14 +5,14 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
-import { CartProvider }       from "@/components/cart/cart-context";
-import { CartDrawer }         from "@/components/cart/cart-drawer";
-import { AnalyticsProvider }  from "@/components/analytics/analytics-provider";
-import { DarkModeScript }     from "@/components/ui/dark-mode-toggle";
-import { ThemeTokens }        from "@/components/ui/theme-tokens";
-import { SiteHeader }         from "@/components/layout/site-header";
-import { SiteFooter }         from "@/components/layout/site-footer";
-import { getSiteConfig }      from "@/lib/config";
+import { CartProvider } from "@/components/cart/cart-context";
+import { CartDrawer } from "@/components/cart/cart-drawer";
+import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
+import { DarkModeScript } from "@/components/ui/dark-mode-toggle";
+import { ThemeTokens } from "@/components/ui/theme-tokens";
+import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { getSiteConfig } from "@/lib/config";
 import { buildSiteGraph } from "@/lib/seo/jsonld";
 
 const inter = Inter({
@@ -112,8 +112,8 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
 
   const messages = await getMessages();
-  const tNav     = await getTranslations("nav");
-  const config   = await getSiteConfig();
+  const tNav = await getTranslations("nav");
+  const config = await getSiteConfig();
 
   return (
     // suppressHydrationWarning necesario para el script de modo oscuro que

@@ -15,7 +15,9 @@ import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
 
-const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80";
+const WP_INTERNAL =
+  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
+  "http://wordpress:80";
 const EPHEMERAL_SECRET = new TextEncoder().encode(
   process.env.GRAPHQL_JWT_AUTH_SECRET_KEY || "fallback-dev-secret-change-in-prod",
 );
@@ -66,8 +68,14 @@ export async function POST(request: Request) {
     });
     ephemeral = payload as unknown as EphemeralPayload;
   } catch {
-    logger.warn({ event: "2fa.verify_login.invalid_ephemeral" }, "Token efímero inválido");
-    return NextResponse.json({ error: "Sesión expirada. Inicia sesión de nuevo." }, { status: 401 });
+    logger.warn(
+      { event: "2fa.verify_login.invalid_ephemeral" },
+      "Token efímero inválido",
+    );
+    return NextResponse.json(
+      { error: "Sesión expirada. Inicia sesión de nuevo." },
+      { status: 401 },
+    );
   }
 
   // Check if 2FA is enabled
@@ -82,22 +90,37 @@ export async function POST(request: Request) {
     if (!statusRes.ok) {
       return NextResponse.json({ error: "Error de verificación." }, { status: 502 });
     }
-    const statusData = await statusRes.json() as { enabled: boolean };
+    const statusData = (await statusRes.json()) as { enabled: boolean };
     if (!statusData.enabled) {
-      return NextResponse.json({ error: "2FA no está habilitado para esta cuenta." }, { status: 400 });
+      return NextResponse.json(
+        { error: "2FA no está habilitado para esta cuenta." },
+        { status: 400 },
+      );
     }
 
     if (usingRecovery) {
       // Vía código de recuperación: WP valida y CONSUME el código (un solo uso).
-      const recRes = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-recovery/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${ephemeral.authToken}` },
-        body: JSON.stringify({ code: body.recoveryCode }),
-        cache: "no-store",
-      });
+      const recRes = await fetch(
+        `${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-recovery/verify`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${ephemeral.authToken}`,
+          },
+          body: JSON.stringify({ code: body.recoveryCode }),
+          cache: "no-store",
+        },
+      );
       if (!recRes.ok) {
-        logger.warn({ event: "2fa.verify_login.invalid_recovery", userId: ephemeral.userId }, "Código de recuperación inválido");
-        return NextResponse.json({ error: "Código de recuperación inválido." }, { status: 401 });
+        logger.warn(
+          { event: "2fa.verify_login.invalid_recovery", userId: ephemeral.userId },
+          "Código de recuperación inválido",
+        );
+        return NextResponse.json(
+          { error: "Código de recuperación inválido." },
+          { status: 401 },
+        );
       }
     } else {
       // Vía TOTP: obtener el secreto (descifrado por WP) y verificar.
@@ -108,11 +131,20 @@ export async function POST(request: Request) {
         cache: "no-store",
       });
       if (!secretRes.ok) {
-        return NextResponse.json({ error: "Error al obtener configuración 2FA." }, { status: 502 });
+        return NextResponse.json(
+          { error: "Error al obtener configuración 2FA." },
+          { status: 502 },
+        );
       }
-      const secretData = await secretRes.json() as { secret: string | null; enabled: boolean };
+      const secretData = (await secretRes.json()) as {
+        secret: string | null;
+        enabled: boolean;
+      };
       if (!secretData.secret) {
-        return NextResponse.json({ error: "2FA no está configurado." }, { status: 400 });
+        return NextResponse.json(
+          { error: "2FA no está configurado." },
+          { status: 400 },
+        );
       }
 
       const totpResult = await verifyTotp({
@@ -121,7 +153,10 @@ export async function POST(request: Request) {
       });
 
       if (!totpResult.valid) {
-        logger.warn({ event: "2fa.verify_login.invalid_code" }, "Código 2FA inválido en login");
+        logger.warn(
+          { event: "2fa.verify_login.invalid_code" },
+          "Código 2FA inválido en login",
+        );
         return NextResponse.json({ error: "Código inválido." }, { status: 401 });
       }
     }
@@ -142,7 +177,10 @@ export async function POST(request: Request) {
     logger.info({ event: "2fa.verify_login.success", userId: ephemeral.userId });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
-    logger.error({ event: "2fa.verify_login.error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "2fa.verify_login.error",
+      err: error instanceof Error ? error.message : error,
+    });
     return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
   }
 }

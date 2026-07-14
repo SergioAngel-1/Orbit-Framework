@@ -55,7 +55,16 @@ export async function GET(request: Request) {
   const strict = new URL(request.url).searchParams.get("ready") === "1";
   const httpStatus = strict && degraded ? 503 : 200;
 
-  logger.info({ event: "health.check", status: degraded ? "degraded" : "ok", redis, wordpress, strict }, "Health check consultado");
+  logger.info(
+    {
+      event: "health.check",
+      status: degraded ? "degraded" : "ok",
+      redis,
+      wordpress,
+      strict,
+    },
+    "Health check consultado",
+  );
 
   return NextResponse.json(
     {

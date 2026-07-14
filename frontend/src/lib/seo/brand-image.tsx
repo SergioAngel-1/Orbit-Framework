@@ -31,56 +31,56 @@ export function renderOgCard(config: SiteConfig): ImageResponse {
   const tagline = brand.tagline || brand.description || "";
 
   return new ImageResponse(
-    (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        padding: "80px",
+        backgroundColor: primary,
+        backgroundImage: `linear-gradient(135deg, ${primary} 0%, ${dark} 100%)`,
+        color: "#ffffff",
+        fontFamily: "sans-serif",
+      }}
+    >
       <div
         style={{
-          width: "100%",
-          height: "100%",
           display: "flex",
-          flexDirection: "column",
+          alignItems: "center",
           justifyContent: "center",
-          padding: "80px",
-          backgroundColor: primary,
-          backgroundImage: `linear-gradient(135deg, ${primary} 0%, ${dark} 100%)`,
-          color: "#ffffff",
-          fontFamily: "sans-serif",
+          width: "96px",
+          height: "96px",
+          borderRadius: "24px",
+          backgroundColor: "rgba(255,255,255,0.15)",
+          fontSize: "56px",
+          fontWeight: 800,
+          marginBottom: "40px",
         }}
       >
+        {brandInitial(name)}
+      </div>
+      <div
+        style={{ display: "flex", fontSize: "72px", fontWeight: 800, lineHeight: 1.1 }}
+      >
+        {name}
+      </div>
+      {tagline ? (
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "96px",
-            height: "96px",
-            borderRadius: "24px",
-            backgroundColor: "rgba(255,255,255,0.15)",
-            fontSize: "56px",
-            fontWeight: 800,
-            marginBottom: "40px",
+            fontSize: "34px",
+            fontWeight: 400,
+            marginTop: "24px",
+            opacity: 0.92,
+            maxWidth: "900px",
           }}
         >
-          {brandInitial(name)}
+          {tagline}
         </div>
-        <div style={{ display: "flex", fontSize: "72px", fontWeight: 800, lineHeight: 1.1 }}>
-          {name}
-        </div>
-        {tagline ? (
-          <div
-            style={{
-              display: "flex",
-              fontSize: "34px",
-              fontWeight: 400,
-              marginTop: "24px",
-              opacity: 0.92,
-              maxWidth: "900px",
-            }}
-          >
-            {tagline}
-          </div>
-        ) : null}
-      </div>
-    ),
+      ) : null}
+    </div>,
     { width: 1200, height: 630 },
   );
 }
@@ -96,26 +96,24 @@ export function renderBrandIcon(config: SiteConfig, size: number): ImageResponse
   const radius = Math.round(size * 0.18);
 
   return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: primary,
-          backgroundImage: `linear-gradient(135deg, ${primary} 0%, ${dark} 100%)`,
-          borderRadius: `${radius}px`,
-          color: "#ffffff",
-          fontSize: `${Math.round(size * 0.6)}px`,
-          fontWeight: 800,
-          fontFamily: "sans-serif",
-        }}
-      >
-        {initial}
-      </div>
-    ),
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: primary,
+        backgroundImage: `linear-gradient(135deg, ${primary} 0%, ${dark} 100%)`,
+        borderRadius: `${radius}px`,
+        color: "#ffffff",
+        fontSize: `${Math.round(size * 0.6)}px`,
+        fontWeight: 800,
+        fontFamily: "sans-serif",
+      }}
+    >
+      {initial}
+    </div>,
     { width: size, height: size },
   );
 }

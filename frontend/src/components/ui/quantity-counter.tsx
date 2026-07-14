@@ -15,7 +15,10 @@ export interface QuantityCounterProps {
   className?: string;
 }
 
-const sizeStyles: Record<QuantityCounterSize, { button: string; icon: number; text: string }> = {
+const sizeStyles: Record<
+  QuantityCounterSize,
+  { button: string; icon: number; text: string }
+> = {
   sm: { button: "h-9 w-9", icon: 14, text: "text-sm" },
   md: { button: "h-10 w-10", icon: 16, text: "text-[15px]" },
   lg: { button: "h-11 w-11", icon: 18, text: "text-base" },
@@ -69,7 +72,12 @@ export function QuantityCounter({
         {isMin ? <TrashIcon size={styles.icon} /> : <MinusIcon size={styles.icon} />}
       </button>
 
-      <span className={cn(styles.text, "min-w-9 flex-1 text-center font-sans font-medium tabular-nums")}>
+      <span
+        className={cn(
+          styles.text,
+          "min-w-9 flex-1 text-center font-sans font-medium tabular-nums",
+        )}
+      >
         {value}
       </span>
 
@@ -92,7 +100,17 @@ export function QuantityCounter({
 
 function MinusIcon({ size }: { size: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
@@ -100,16 +118,38 @@ function MinusIcon({ size }: { size: number }) {
 
 function PlusIcon({ size }: { size: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
 }
 
 function TrashIcon({ size }: { size: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
     </svg>
   );
 }

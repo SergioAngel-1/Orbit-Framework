@@ -21,7 +21,17 @@ export interface CartDrawerProps {
 }
 
 export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
-  const { cart, loading, error, updateItem, removeItem, applyCoupon, removeCoupon, drawerOpen, closeDrawer } = useCart();
+  const {
+    cart,
+    loading,
+    error,
+    updateItem,
+    removeItem,
+    applyCoupon,
+    removeCoupon,
+    drawerOpen,
+    closeDrawer,
+  } = useCart();
   const tCart = useTranslations("cart");
   const [couponCode, setCouponCode] = useState("");
 
@@ -38,7 +48,9 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
   // Bloquear scroll del body
   useEffect(() => {
     document.body.style.overflow = drawerOpen ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [drawerOpen]);
 
   const total = cart
@@ -82,8 +94,20 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
             onClick={closeDrawer}
             aria-label="Cerrar carrito"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </Button>
         </div>
@@ -104,7 +128,9 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
 
           {cart && cart.items.length === 0 && (
             <div className="py-12 text-center">
-              <p className="text-gray-500 dark:text-gray-400">{tCart("emptyDetailed")}</p>
+              <p className="text-gray-500 dark:text-gray-400">
+                {tCart("emptyDetailed")}
+              </p>
               <Link
                 href="/products"
                 onClick={closeDrawer}
@@ -134,7 +160,9 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
 
                   {/* Detalles */}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium leading-snug">{item.name}</p>
+                    <p className="truncate text-sm font-medium leading-snug">
+                      {item.name}
+                    </p>
                     <p className="mt-0.5 text-xs text-gray-500">
                       {formatStoreAmount(
                         item.prices.price,
@@ -209,7 +237,10 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
                 variant="outline"
                 size="sm"
                 disabled={loading || !couponCode.trim()}
-                onClick={() => { applyCoupon(couponCode.trim()); setCouponCode(""); }}
+                onClick={() => {
+                  applyCoupon(couponCode.trim());
+                  setCouponCode("");
+                }}
               >
                 {tCart("applyCoupon")}
               </Button>
@@ -217,7 +248,10 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
             {cart.coupons.length > 0 && (
               <ul className="mt-2 space-y-1">
                 {cart.coupons.map((c) => (
-                  <li key={c.code} className="flex items-center justify-between text-sm">
+                  <li
+                    key={c.code}
+                    className="flex items-center justify-between text-sm"
+                  >
                     <span className="text-green-600 dark:text-green-400">
                       {c.label} ({c.code})
                     </span>
@@ -241,12 +275,25 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
           <div className="border-t border-gray-200 px-5 py-5 dark:border-gray-800">
             <div className="mb-2 flex items-center justify-between text-sm">
               <span className="text-gray-500">{tCart("subtotal")}</span>
-              <span>{formatStoreAmount(cart.totals.total_items, cart.totals.currency_minor_unit, cart.totals.currency_code)}</span>
+              <span>
+                {formatStoreAmount(
+                  cart.totals.total_items,
+                  cart.totals.currency_minor_unit,
+                  cart.totals.currency_code,
+                )}
+              </span>
             </div>
             {cart.totals.total_discount !== "0" && (
               <div className="mb-2 flex items-center justify-between text-sm">
                 <span className="text-gray-500">{tCart("discount")}</span>
-                <span className="text-green-600">-{formatStoreAmount(cart.totals.total_discount, cart.totals.currency_minor_unit, cart.totals.currency_code)}</span>
+                <span className="text-green-600">
+                  -
+                  {formatStoreAmount(
+                    cart.totals.total_discount,
+                    cart.totals.currency_minor_unit,
+                    cart.totals.currency_code,
+                  )}
+                </span>
               </div>
             )}
             <div className="mb-4 flex items-center justify-between">

@@ -56,7 +56,12 @@ export function VideoCard({
         )}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/90 shadow-lg">
-            <svg className="ml-0.5 h-5 w-5 text-[--foreground]" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <svg
+              className="ml-0.5 h-5 w-5 text-[--foreground]"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden
+            >
               <path d="M8 5v14l11-7z" />
             </svg>
           </div>

@@ -42,14 +42,17 @@ export async function onRequestError(
       event: "request_error",
       path: request?.path,
       method: request?.method,
-      err: error instanceof Error ? { message: error.message, name: error.name } : error,
+      err:
+        error instanceof Error ? { message: error.message, name: error.name } : error,
     },
     "Error no controlado en una petición",
   );
   if (process.env.SENTRY_DSN) {
     try {
       const Sentry = await import("@sentry/nextjs");
-      Sentry.captureException(error, { extra: { path: request?.path, method: request?.method } });
+      Sentry.captureException(error, {
+        extra: { path: request?.path, method: request?.method },
+      });
     } catch {
       // Si Sentry falla, no bloquear la respuesta.
     }

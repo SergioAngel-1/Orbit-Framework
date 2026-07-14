@@ -13,9 +13,7 @@ interface Section {
 
 /** Pre-genera las 4 páginas legales por idioma (SSG). */
 export function generateStaticParams() {
-  return routing.locales.flatMap((locale) =>
-    SLUGS.map((slug) => ({ locale, slug })),
-  );
+  return routing.locales.flatMap((locale) => SLUGS.map((slug) => ({ locale, slug })));
 }
 
 function isLegalSlug(slug: string): slug is LegalSlug {

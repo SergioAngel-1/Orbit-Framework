@@ -16,9 +16,24 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     background_color: config.design.colors.background || "#ffffff",
     theme_color: config.design.colors.brand || "#2563eb",
     icons: [
-      { src: "/api/icon?size=192", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/api/icon?size=512", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/api/icon?size=512", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      {
+        src: "/api/icon?size=192",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/api/icon?size=512",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/api/icon?size=512",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
     ],
   };
 }

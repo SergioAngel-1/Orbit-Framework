@@ -18,15 +18,15 @@ interface TokenEntry {
 }
 
 const TOKEN_MAP: TokenEntry[] = [
-  { path: ["design", "colors", "brand"],          cssVar: "--color-brand" },
-  { path: ["design", "colors", "brand_dark"],     cssVar: "--color-brand-dark" },
-  { path: ["design", "colors", "brand_light"],    cssVar: "--color-brand-light" },
-  { path: ["design", "colors", "secondary"],      cssVar: "--color-secondary" },
+  { path: ["design", "colors", "brand"], cssVar: "--color-brand" },
+  { path: ["design", "colors", "brand_dark"], cssVar: "--color-brand-dark" },
+  { path: ["design", "colors", "brand_light"], cssVar: "--color-brand-light" },
+  { path: ["design", "colors", "secondary"], cssVar: "--color-secondary" },
   { path: ["design", "colors", "secondary_dark"], cssVar: "--color-secondary-dark" },
-  { path: ["design", "colors", "accent"],         cssVar: "--color-accent" },
-  { path: ["design", "colors", "surface"],        cssVar: "--color-surface" },
-  { path: ["design", "colors", "background"],     cssVar: "--background" },
-  { path: ["design", "colors", "foreground"],     cssVar: "--foreground" },
+  { path: ["design", "colors", "accent"], cssVar: "--color-accent" },
+  { path: ["design", "colors", "surface"], cssVar: "--color-surface" },
+  { path: ["design", "colors", "background"], cssVar: "--background" },
+  { path: ["design", "colors", "foreground"], cssVar: "--foreground" },
   {
     path: ["design", "typography", "font_sans"],
     cssVar: "--font-sans",
@@ -39,7 +39,10 @@ const TOKEN_MAP: TokenEntry[] = [
   },
 ];
 
-function getNestedValue(obj: Record<string, unknown>, path: readonly string[]): string | undefined {
+function getNestedValue(
+  obj: Record<string, unknown>,
+  path: readonly string[],
+): string | undefined {
   let current: unknown = obj;
   for (const key of path) {
     if (current === null || typeof current !== "object") return undefined;

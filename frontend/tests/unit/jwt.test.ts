@@ -34,7 +34,11 @@ describe("verifyAuthToken", () => {
   });
 
   it("devuelve null con firma inválida (otro secreto)", async () => {
-    const token = await signToken({ data: { user: { id: "42" } } }, 300, "otro-secreto-distinto");
+    const token = await signToken(
+      { data: { user: { id: "42" } } },
+      300,
+      "otro-secreto-distinto",
+    );
     expect(await verifyAuthToken(token)).toBeNull();
   });
 

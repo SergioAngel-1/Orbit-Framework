@@ -5,7 +5,9 @@ import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
 
-const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80";
+const WP_INTERNAL =
+  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
+  "http://wordpress:80";
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
@@ -15,7 +17,7 @@ export async function POST(request: Request) {
 
   let body: { token?: string };
   try {
-    body = await request.json() as { token?: string };
+    body = (await request.json()) as { token?: string };
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
     });
 
     if (!res.ok) {
-      const data = await res.json().catch(() => ({})) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
       return NextResponse.json(
         { error: data.error || "Token inválido." },
         { status: 400 },
@@ -52,7 +54,13 @@ export async function POST(request: Request) {
     logger.info({ event: "auth.verify_email.success", userId: session.userId });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
-    logger.error({ event: "auth.verify_email.error", err: error instanceof Error ? error.message : error });
-    return NextResponse.json({ error: "Error de conexión con el servidor." }, { status: 502 });
+    logger.error({
+      event: "auth.verify_email.error",
+      err: error instanceof Error ? error.message : error,
+    });
+    return NextResponse.json(
+      { error: "Error de conexión con el servidor." },
+      { status: 502 },
+    );
   }
 }

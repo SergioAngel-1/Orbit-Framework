@@ -80,7 +80,11 @@ export function ProductCardHorizontal({
           </div>
         )}
         {product.onSale && (
-          <Badge color="brand" size="sm" className="absolute left-1 top-1 uppercase tracking-wide">
+          <Badge
+            color="brand"
+            size="sm"
+            className="absolute left-1 top-1 uppercase tracking-wide"
+          >
             {saleLabel}
           </Badge>
         )}
@@ -98,11 +102,17 @@ export function ProductCardHorizontal({
         {rating !== undefined && (
           <div className="mb-1 flex items-center gap-2">
             <StarRating rating={rating} />
-            {reviews > 0 && <span className="font-sans text-[10px] text-[--foreground]/40">({reviews})</span>}
+            {reviews > 0 && (
+              <span className="font-sans text-[10px] text-[--foreground]/40">
+                ({reviews})
+              </span>
+            )}
           </div>
         )}
         <div className="flex items-baseline gap-2">
-          <span className="font-heading text-base leading-none text-brand">{formatPrice(product.price)}</span>
+          <span className="font-heading text-base leading-none text-brand">
+            {formatPrice(product.price)}
+          </span>
           {product.onSale && product.regularPrice && (
             <span className="font-sans text-[11px] leading-none text-[--foreground]/40 line-through">
               {formatPrice(product.regularPrice)}
@@ -111,8 +121,23 @@ export function ProductCardHorizontal({
         </div>
       </div>
 
-      <span className={cn("shrink-0 transition-all duration-150", selected ? "text-brand" : "text-[--foreground]/20")}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <span
+        className={cn(
+          "shrink-0 transition-all duration-150",
+          selected ? "text-brand" : "text-[--foreground]/20",
+        )}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
           <path d="M9 5l7 7-7 7" />
         </svg>
       </span>

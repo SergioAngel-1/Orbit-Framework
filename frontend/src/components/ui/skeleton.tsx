@@ -18,10 +18,7 @@ function SkeletonBase({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       aria-hidden="true"
-      className={cn(
-        "animate-pulse rounded-md bg-gray-200 dark:bg-gray-700",
-        className,
-      )}
+      className={cn("animate-pulse rounded-md bg-gray-200 dark:bg-gray-700", className)}
       {...props}
     />
   );
@@ -29,9 +26,9 @@ function SkeletonBase({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 
 export function Skeleton({
   variant = "block",
-  lines   = 3,
-  height  = "h-4",
-  width   = "w-full",
+  lines = 3,
+  height = "h-4",
+  width = "w-full",
   className,
   ...props
 }: SkeletonProps) {
@@ -41,10 +38,7 @@ export function Skeleton({
         {Array.from({ length: lines }).map((_, i) => (
           <SkeletonBase
             key={i}
-            className={cn(
-              "h-4",
-              i === lines - 1 && lines > 1 ? "w-3/4" : "w-full",
-            )}
+            className={cn("h-4", i === lines - 1 && lines > 1 ? "w-3/4" : "w-full")}
           />
         ))}
       </div>
@@ -70,12 +64,7 @@ export function Skeleton({
   }
 
   // block
-  return (
-    <SkeletonBase
-      className={cn(height, width, className)}
-      {...props}
-    />
-  );
+  return <SkeletonBase className={cn(height, width, className)} {...props} />;
 }
 
 // Skeleton pre-compuesto para tarjetas de producto

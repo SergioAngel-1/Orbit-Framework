@@ -38,10 +38,7 @@ export default async function CategoryPage({
   const { locale, slug } = await params;
   setRequestLocale(locale);
 
-  const [t, config] = await Promise.all([
-    getTranslations("products"),
-    getSiteConfig(),
-  ]);
+  const [t, config] = await Promise.all([getTranslations("products"), getSiteConfig()]);
 
   let result: Awaited<ReturnType<typeof getCategory>>;
   try {

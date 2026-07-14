@@ -22,12 +22,18 @@ export const cartApi = {
   },
   async addItem(id: number, quantity = 1): Promise<StoreCart> {
     return parseCart(
-      await csrfFetch("/api/store/cart/items", { method: "POST", body: { id, quantity } }),
+      await csrfFetch("/api/store/cart/items", {
+        method: "POST",
+        body: { id, quantity },
+      }),
     );
   },
   async updateItem(key: string, quantity: number): Promise<StoreCart> {
     return parseCart(
-      await csrfFetch("/api/store/cart/items", { method: "PATCH", body: { key, quantity } }),
+      await csrfFetch("/api/store/cart/items", {
+        method: "PATCH",
+        body: { key, quantity },
+      }),
     );
   },
   async removeItem(key: string): Promise<StoreCart> {

@@ -21,7 +21,13 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-export function AllyCard({ logoUrl, name, description, websiteUrl, className }: AllyCardProps) {
+export function AllyCard({
+  logoUrl,
+  name,
+  description,
+  websiteUrl,
+  className,
+}: AllyCardProps) {
   const content = (
     <>
       <div className="flex items-start gap-4">
@@ -50,13 +56,27 @@ export function AllyCard({ logoUrl, name, description, websiteUrl, className }: 
       {websiteUrl && (
         <div className="mt-4 border-t border-brand-light/30 pt-3">
           <span className="flex items-center gap-1.5 font-sans text-[10px] text-brand transition-all group-hover:gap-2">
-            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <svg
+              className="h-3 w-3"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden
+            >
               <circle cx="12" cy="12" r="10" />
               <line x1="2" y1="12" x2="22" y2="12" />
               <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
             </svg>
             Visitar sitio web
-            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+            <svg
+              className="h-3 w-3"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden
+            >
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
           </span>
@@ -70,9 +90,17 @@ export function AllyCard({ logoUrl, name, description, websiteUrl, className }: 
       <Card
         as="article"
         hoverable
-        className={cn("group border-brand-light/30 transition-colors hover:border-brand/40", className)}
+        className={cn(
+          "group border-brand-light/30 transition-colors hover:border-brand/40",
+          className,
+        )}
       >
-        <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="block">
+        <a
+          href={websiteUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block"
+        >
           {content}
         </a>
       </Card>

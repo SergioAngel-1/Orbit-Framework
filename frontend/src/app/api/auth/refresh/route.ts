@@ -36,7 +36,10 @@ export async function POST(request: Request) {
       revalidate: 0,
     });
   } catch {
-    logger.warn({ event: "auth.refresh.invalid" }, "Refresh token inválido o revocado, cookies limpiadas");
+    logger.warn(
+      { event: "auth.refresh.invalid" },
+      "Refresh token inválido o revocado, cookies limpiadas",
+    );
     // Refresh inválido/revocado: limpiamos cookies para forzar re-login.
     store.set(AUTH_COOKIE, "", expiredCookieOptions("/"));
     store.set(REFRESH_COOKIE, "", expiredCookieOptions("/"));
@@ -45,7 +48,10 @@ export async function POST(request: Request) {
 
   const authToken = data.refreshJwtAuthToken.authToken;
   if (!authToken) {
-    logger.warn({ event: "auth.refresh.no_token" }, "No se pudo obtener nuevo auth token");
+    logger.warn(
+      { event: "auth.refresh.no_token" },
+      "No se pudo obtener nuevo auth token",
+    );
     return NextResponse.json({ error: "No se pudo refrescar." }, { status: 502 });
   }
 

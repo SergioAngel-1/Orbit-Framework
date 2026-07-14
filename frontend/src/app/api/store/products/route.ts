@@ -13,12 +13,17 @@ export async function GET(request: Request) {
   // Support fetching by specific IDs (for wishlist page)
   if (includeParam) {
     try {
-      const ids = includeParam.split(",").map(Number).filter((n) => !isNaN(n));
+      const ids = includeParam
+        .split(",")
+        .map(Number)
+        .filter((n) => !isNaN(n));
       const raw = await wcFetch<Record<string, unknown>[]>("/products", {
         query: { include: ids.join(","), per_page: 100 },
       });
       const products: CatalogProduct[] = raw.map((p) => {
-        const images = Array.isArray(p.images) ? (p.images as { src?: string; alt?: string }[]) : [];
+        const images = Array.isArray(p.images)
+          ? (p.images as { src?: string; alt?: string }[])
+          : [];
         return {
           id: String(p.id),
           databaseId: Number(p.id),
@@ -32,14 +37,26 @@ export async function GET(request: Request) {
           stockStatus: String(p.stock_status ?? "IN_STOCK"),
           shortDescription: String(p.short_description ?? ""),
           image: images[0]
-            ? { sourceUrl: String(images[0].src ?? ""), altText: String(images[0].alt ?? "") }
+            ? {
+                sourceUrl: String(images[0].src ?? ""),
+                altText: String(images[0].alt ?? ""),
+              }
             : null,
         };
       });
-      return NextResponse.json({ products, pageInfo: { hasNextPage: false, endCursor: null } });
+      return NextResponse.json({
+        products,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      });
     } catch (error) {
-      logger.error({ event: "api.products.include_error", err: error instanceof Error ? error.message : error });
-      return NextResponse.json({ products: [], pageInfo: { hasNextPage: false, endCursor: null } });
+      logger.error({
+        event: "api.products.include_error",
+        err: error instanceof Error ? error.message : error,
+      });
+      return NextResponse.json({
+        products: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      });
     }
   }
 
@@ -58,7 +75,13 @@ export async function GET(request: Request) {
       headers: { "Cache-Control": "public, max-age=300, s-maxage=300" },
     });
   } catch (error) {
-    logger.error({ event: "api.products.error", err: error instanceof Error ? error.message : error });
-    return NextResponse.json({ error: "No se pudieron cargar productos." }, { status: 502 });
+    logger.error({
+      event: "api.products.error",
+      err: error instanceof Error ? error.message : error,
+    });
+    return NextResponse.json(
+      { error: "No se pudieron cargar productos." },
+      { status: 502 },
+    );
   }
 }

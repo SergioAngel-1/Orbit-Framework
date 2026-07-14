@@ -29,7 +29,7 @@ export default async function AccountPage() {
         { headers: { Authorization: `Bearer ${session.token}` }, cache: "no-store" },
       );
       if (res.ok) {
-        const data = await res.json() as { email_verified: boolean };
+        const data = (await res.json()) as { email_verified: boolean };
         emailVerified = data.email_verified;
       }
     }
@@ -69,7 +69,9 @@ export default async function AccountPage() {
             />
 
             <section>
-              <h2 className="mb-4 text-lg font-semibold">Autenticación en dos pasos (2FA)</h2>
+              <h2 className="mb-4 text-lg font-semibold">
+                Autenticación en dos pasos (2FA)
+              </h2>
               <TwoFactorSetup />
             </section>
           </div>

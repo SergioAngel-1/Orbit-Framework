@@ -18,17 +18,27 @@ const sizes: Record<Size, string> = {
 };
 
 const colors: Record<Color, string> = {
-  brand:   "border-brand/30 border-t-brand",
-  white:   "border-white/30 border-t-white",
+  brand: "border-brand/30 border-t-brand",
+  white: "border-white/30 border-t-white",
   current: "border-current/30 border-t-current",
 };
 
-export function Spinner({ size = "md", color = "brand", className, label = "Cargando…" }: SpinnerProps) {
+export function Spinner({
+  size = "md",
+  color = "brand",
+  className,
+  label = "Cargando…",
+}: SpinnerProps) {
   return (
     <span
       role="status"
       aria-label={label}
-      className={cn("inline-block animate-spin rounded-full", sizes[size], colors[color], className)}
+      className={cn(
+        "inline-block animate-spin rounded-full",
+        sizes[size],
+        colors[color],
+        className,
+      )}
     />
   );
 }

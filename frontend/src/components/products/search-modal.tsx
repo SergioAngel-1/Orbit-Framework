@@ -78,7 +78,9 @@ export function SearchModal({
             <p className="mb-1 font-sans text-sm text-[--foreground]/60">
               Sin resultados para &quot;{query}&quot;
             </p>
-            <p className="font-sans text-xs text-[--foreground]/40">Intenta con otros términos</p>
+            <p className="font-sans text-xs text-[--foreground]/40">
+              Intenta con otros términos
+            </p>
           </div>
         ) : (
           <div className="flex max-h-[400px] flex-col gap-4 overflow-y-auto">
@@ -89,7 +91,11 @@ export function SearchModal({
                 </p>
                 <div className="flex flex-col gap-1">
                   {productResults.map((product) => (
-                    <ProductCardHorizontal key={product.id} product={product} onClick={onClose} />
+                    <ProductCardHorizontal
+                      key={product.id}
+                      product={product}
+                      onClick={onClose}
+                    />
                   ))}
                 </div>
               </section>
@@ -133,31 +139,56 @@ export function SearchModal({
 
 function SearchIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
       <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
     </svg>
   );
 }
 
 function ResultTypeIcon({ type }: { type: SearchResultItem["type"] }) {
-  const common = { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
+  const common = {
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+  } as const;
   if (type === "post") {
     return (
       <svg {...common}>
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" />
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="8" y1="13" x2="16" y2="13" />
+        <line x1="8" y1="17" x2="16" y2="17" />
       </svg>
     );
   }
   if (type === "category") {
     return (
       <svg {...common}>
-        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" />
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" />
       </svg>
     );
   }
   return (
     <svg {...common}>
-      <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" />
+      <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+      <polyline points="13 2 13 9 20 9" />
     </svg>
   );
 }

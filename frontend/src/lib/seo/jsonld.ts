@@ -16,7 +16,10 @@ const RETURN_CATEGORY_MAP: Record<string, string> = {
 
 /** Normaliza un precio de WooGraphQL ("&euro;19,99") a decimal con punto. */
 function parsePrice(raw?: string | null): string {
-  return (raw ?? "0").replace(/[^\d.,]/g, "").replace(/\.(?=\d{3})/g, "").replace(",", ".");
+  return (raw ?? "0")
+    .replace(/[^\d.,]/g, "")
+    .replace(/\.(?=\d{3})/g, "")
+    .replace(",", ".");
 }
 
 /** Fecha (YYYY-MM-DD) a +1 año, para offers.priceValidUntil. */
@@ -36,7 +39,12 @@ export interface ProductJsonLdInput {
 }
 
 /** JSON-LD `Product` con grado merchant listing (brand, rating, envío, devoluciones). */
-export function buildProductJsonLd({ product, config, url, description }: ProductJsonLdInput) {
+export function buildProductJsonLd({
+  product,
+  config,
+  url,
+  description,
+}: ProductJsonLdInput) {
   const currency = config.ecommerce.currency || "EUR";
   const country = config.ecommerce.country || "ES";
   const brandName = config.seo.product_brand || config.brand.name;
@@ -49,7 +57,9 @@ export function buildProductJsonLd({ product, config, url, description }: Produc
     price: parsePrice(product.price),
     priceValidUntil: priceValidUntil(),
     itemCondition: "https://schema.org/NewCondition",
-    availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+    availability: inStock
+      ? "https://schema.org/InStock"
+      : "https://schema.org/OutOfStock",
   };
 
   // shippingDetails (opcional, gobernado por el módulo SEO & GEO).
@@ -70,7 +80,8 @@ export function buildProductJsonLd({ product, config, url, description }: Produc
 
   // hasMerchantReturnPolicy (opcional).
   if (config.seo.return_days !== "") {
-    const category = RETURN_CATEGORY_MAP[config.seo.return_category] ?? RETURN_CATEGORY_MAP.finite;
+    const category =
+      RETURN_CATEGORY_MAP[config.seo.return_category] ?? RETURN_CATEGORY_MAP.finite;
     const policy: Record<string, unknown> = {
       "@type": "MerchantReturnPolicy",
       applicableCountry: country,
@@ -220,7 +231,9 @@ function websiteNode(config: SiteConfig): Record<string, unknown> {
   const base = cleanBase(config.brand.url);
   const site: Record<string, unknown> = {
     "@type": "WebSite",
-    ...(base ? { "@id": `${base}/#website`, publisher: { "@id": `${base}/#organization` } } : {}),
+    ...(base
+      ? { "@id": `${base}/#website`, publisher: { "@id": `${base}/#organization` } }
+      : {}),
     name: config.brand.name,
     url: base || undefined,
   };

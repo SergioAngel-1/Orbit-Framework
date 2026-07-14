@@ -30,7 +30,7 @@ export function TwoFactorSetup() {
     try {
       const res = await csrfFetch("/api/auth/2fa/setup", { method: "POST" });
       if (!res.ok) throw new Error(t("setupError"));
-      const data = await res.json() as { secret: string; site_name: string };
+      const data = (await res.json()) as { secret: string; site_name: string };
       setSecret(data.secret);
       setSiteName(data.site_name);
       setStep("setup");
@@ -53,7 +53,9 @@ export function TwoFactorSetup() {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error || t("verifyError"));
       }
-      const data = (await res.json().catch(() => ({}))) as { recovery_codes?: string[] };
+      const data = (await res.json().catch(() => ({}))) as {
+        recovery_codes?: string[];
+      };
       setEnabled(true);
       setSecret(null);
       setCode("");
@@ -106,7 +108,9 @@ export function TwoFactorSetup() {
 
   const username =
     typeof window !== "undefined"
-      ? document.cookie.replace(/(?:(?:^|.*;\s*)hwe_at\s*=\s*([^;]*).*$)|^.*$/, "$1").slice(0, 20)
+      ? document.cookie
+          .replace(/(?:(?:^|.*;\s*)hwe_at\s*=\s*([^;]*).*$)|^.*$/, "$1")
+          .slice(0, 20)
       : "";
   const otpauth = secret
     ? `otpauth://totp/${encodeURIComponent(siteName)}:${encodeURIComponent(username || "user")}?secret=${secret}&issuer=${encodeURIComponent(siteName)}`
@@ -127,17 +131,24 @@ export function TwoFactorSetup() {
 
       {enabled && step === "idle" ? (
         <div>
-          <p className="mb-3 text-sm text-green-600 dark:text-green-400">{t("enabled")}</p>
-          <button onClick={disable} disabled={saving}
-            className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:hover:bg-red-950">
+          <p className="mb-3 text-sm text-green-600 dark:text-green-400">
+            {t("enabled")}
+          </p>
+          <button
+            onClick={disable}
+            disabled={saving}
+            className="rounded-lg border border-red-300 px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:hover:bg-red-950"
+          >
             {saving ? t("disabling") : t("disable")}
           </button>
         </div>
       ) : step === "idle" ? (
         <div>
           <p className="mb-3 text-sm text-gray-500">{t("notEnabled")}</p>
-          <button onClick={startSetup}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark">
+          <button
+            onClick={startSetup}
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+          >
             {t("enable")}
           </button>
         </div>
@@ -145,16 +156,30 @@ export function TwoFactorSetup() {
 
       {step === "recovery" && recoveryCodes.length > 0 && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
-          <p className="mb-1 text-sm font-semibold text-amber-900 dark:text-amber-200">{t("recoveryTitle")}</p>
-          <p className="mb-3 text-sm text-amber-800 dark:text-amber-300">{t("recoveryIntro")}</p>
+          <p className="mb-1 text-sm font-semibold text-amber-900 dark:text-amber-200">
+            {t("recoveryTitle")}
+          </p>
+          <p className="mb-3 text-sm text-amber-800 dark:text-amber-300">
+            {t("recoveryIntro")}
+          </p>
           <ul className="grid grid-cols-2 gap-2 font-mono text-sm">
             {recoveryCodes.map((c) => (
-              <li key={c} className="select-all rounded bg-white px-2 py-1 text-center dark:bg-gray-900">{c}</li>
+              <li
+                key={c}
+                className="select-all rounded bg-white px-2 py-1 text-center dark:bg-gray-900"
+              >
+                {c}
+              </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-400">{t("recoveryWarning")}</p>
+          <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-400">
+            {t("recoveryWarning")}
+          </p>
           <button
-            onClick={() => { setStep("idle"); setRecoveryCodes([]); }}
+            onClick={() => {
+              setStep("idle");
+              setRecoveryCodes([]);
+            }}
             className="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
           >
             {t("recoveryDone")}
@@ -188,8 +213,11 @@ export function TwoFactorSetup() {
                 maxLength={6}
                 className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-center text-lg tracking-widest dark:border-gray-700 dark:bg-gray-900"
               />
-              <button onClick={verifyAndActivate} disabled={saving || code.length !== 6}
-                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50">
+              <button
+                onClick={verifyAndActivate}
+                disabled={saving || code.length !== 6}
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50"
+              >
                 {saving ? t("verifying") : t("verify")}
               </button>
             </div>

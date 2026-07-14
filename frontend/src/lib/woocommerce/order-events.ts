@@ -66,7 +66,14 @@ export async function dispatchOrderEffects(ctx: OrderEffectContext): Promise<voi
   const changed = previousStatus !== null && previousStatus !== status;
 
   logger.info(
-    { event: "order.effects.dispatch", source: event, orderId, status, previousStatus, changed },
+    {
+      event: "order.effects.dispatch",
+      source: event,
+      orderId,
+      status,
+      previousStatus,
+      changed,
+    },
     "Evaluando efectos del pedido",
   );
 
@@ -119,7 +126,10 @@ interface OpsNotification {
 async function notifyOps(payload: OpsNotification): Promise<void> {
   const url = process.env.ORDER_NOTIFICATION_WEBHOOK_URL;
   if (!url) {
-    logger.info({ event: `order.effects.${payload.kind}`, ...payload }, "Efecto de pedido (sin webhook configurado)");
+    logger.info(
+      { event: `order.effects.${payload.kind}`, ...payload },
+      "Efecto de pedido (sin webhook configurado)",
+    );
     return;
   }
   try {
@@ -132,10 +142,18 @@ async function notifyOps(payload: OpsNotification): Promise<void> {
       signal: controller.signal,
     });
     clearTimeout(timer);
-    logger.info({ event: `order.effects.${payload.kind}.notified`, orderId: payload.orderId }, "Notificación operativa enviada");
+    logger.info(
+      { event: `order.effects.${payload.kind}.notified`, orderId: payload.orderId },
+      "Notificación operativa enviada",
+    );
   } catch (err) {
     logger.warn(
-      { event: "order.effects.notify_failed", kind: payload.kind, orderId: payload.orderId, err: err instanceof Error ? err.message : err },
+      {
+        event: "order.effects.notify_failed",
+        kind: payload.kind,
+        orderId: payload.orderId,
+        err: err instanceof Error ? err.message : err,
+      },
       "No se pudo enviar la notificación operativa",
     );
   }

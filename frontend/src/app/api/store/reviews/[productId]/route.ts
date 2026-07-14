@@ -33,19 +33,30 @@ export async function POST(
   try {
     await requireSession();
   } catch {
-    logger.warn({ event: "reviews.create.unauthorized" }, "Intento de reseña sin autenticación");
-    return NextResponse.json({ error: "Debes iniciar sesión para dejar una reseña." }, { status: 401 });
+    logger.warn(
+      { event: "reviews.create.unauthorized" },
+      "Intento de reseña sin autenticación",
+    );
+    return NextResponse.json(
+      { error: "Debes iniciar sesión para dejar una reseña." },
+      { status: 401 },
+    );
   }
 
   const { productId } = await params;
   const pid = Number(productId);
   if (!Number.isInteger(pid) || pid <= 0) {
-    logger.warn({ event: "reviews.create.invalid_product" }, "ID de producto inválido para reseña");
+    logger.warn(
+      { event: "reviews.create.invalid_product" },
+      "ID de producto inválido para reseña",
+    );
     return NextResponse.json({ error: "ID de producto inválido." }, { status: 400 });
   }
 
   let body: unknown;
-  try { body = await request.json(); } catch {
+  try {
+    body = await request.json();
+  } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
@@ -53,7 +64,10 @@ export async function POST(
   if (!parsed.success) {
     logger.warn({ event: "reviews.create.validation" }, "Datos de reseña inválidos");
     return NextResponse.json(
-      { error: "Datos de reseña inválidos.", details: parsed.error.flatten().fieldErrors },
+      {
+        error: "Datos de reseña inválidos.",
+        details: parsed.error.flatten().fieldErrors,
+      },
       { status: 422 },
     );
   }
@@ -62,18 +76,28 @@ export async function POST(
     const review = await wcFetch<WooProductReview>("/products/reviews", {
       method: "POST",
       body: {
-        product_id:      pid,
-        review:          parsed.data.content,
-        reviewer:        parsed.data.name,
-        reviewer_email:  parsed.data.email,
-        rating:          parsed.data.rating,
-        status:          "hold",
+        product_id: pid,
+        review: parsed.data.content,
+        reviewer: parsed.data.name,
+        reviewer_email: parsed.data.email,
+        rating: parsed.data.rating,
+        status: "hold",
       },
     });
-    logger.info({ event: "reviews.create.success", productId: pid, reviewId: review.id }, "Reseña creada correctamente");
+    logger.info(
+      { event: "reviews.create.success", productId: pid, reviewId: review.id },
+      "Reseña creada correctamente",
+    );
     return NextResponse.json({ id: review.id, status: review.status }, { status: 201 });
   } catch (error) {
-    logger.error({ event: "reviews.create.error", err: error instanceof Error ? error.message : error, productId: pid }, "Error al crear reseña");
+    logger.error(
+      {
+        event: "reviews.create.error",
+        err: error instanceof Error ? error.message : error,
+        productId: pid,
+      },
+      "Error al crear reseña",
+    );
     return handleApiError(error);
   }
 }

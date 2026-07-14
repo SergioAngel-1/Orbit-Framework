@@ -36,7 +36,11 @@ export function Textarea({
           className="text-sm font-medium text-gray-700 dark:text-gray-300"
         >
           {label}
-          {props.required && <span className="ml-0.5 text-red-500" aria-hidden>*</span>}
+          {props.required && (
+            <span className="ml-0.5 text-red-500" aria-hidden>
+              *
+            </span>
+          )}
         </label>
       )}
 
@@ -64,7 +68,11 @@ export function Textarea({
       />
 
       {hasError ? (
-        <p id={`${areaId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
+        <p
+          id={`${areaId}-error`}
+          role="alert"
+          className="text-xs text-red-600 dark:text-red-400"
+        >
           {error}
         </p>
       ) : helper ? (

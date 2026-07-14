@@ -26,7 +26,14 @@ export async function generateMetadata({
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; after?: string; category?: string; minPrice?: string; maxPrice?: string; sort?: string }>;
+  searchParams: Promise<{
+    search?: string;
+    after?: string;
+    category?: string;
+    minPrice?: string;
+    maxPrice?: string;
+    sort?: string;
+  }>;
 }) {
   const [t, config] = await Promise.all([getTranslations("products"), getSiteConfig()]);
   const { search, after, category, minPrice, maxPrice, sort } = await searchParams;
@@ -38,7 +45,15 @@ export default async function ProductsPage({
   let errorMessage: string | null = null;
 
   try {
-    const result = await getProducts({ search, after, category, minPrice, maxPrice, sort, first: 12 });
+    const result = await getProducts({
+      search,
+      after,
+      category,
+      minPrice,
+      maxPrice,
+      sort,
+      first: 12,
+    });
     products = result.products;
     pageInfo = result.pageInfo;
   } catch (e) {
@@ -51,9 +66,15 @@ export default async function ProductsPage({
     <div>
       <h1 className="mb-6 text-3xl font-extrabold tracking-tight">{t("title")}</h1>
 
-      <form action="/products" method="get" className="mb-8 flex flex-wrap items-end gap-3">
+      <form
+        action="/products"
+        method="get"
+        className="mb-8 flex flex-wrap items-end gap-3"
+      >
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">{t("searchPlaceholder")}</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            {t("searchPlaceholder")}
+          </label>
           <input
             type="search"
             name="search"
@@ -64,7 +85,9 @@ export default async function ProductsPage({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">{t("sortBy")}</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            {t("sortBy")}
+          </label>
           <select
             name="sort"
             defaultValue={sort ?? ""}
@@ -79,7 +102,9 @@ export default async function ProductsPage({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">{t("filter")}</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            {t("filter")}
+          </label>
           <select
             name="category"
             defaultValue={category ?? ""}
@@ -87,13 +112,17 @@ export default async function ProductsPage({
           >
             <option value="">{t("allCategories")}</option>
             {categories.map((cat) => (
-              <option key={cat.slug} value={cat.slug}>{cat.name}</option>
+              <option key={cat.slug} value={cat.slug}>
+                {cat.name}
+              </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">{t("minPrice")}</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            {t("minPrice")}
+          </label>
           <input
             type="number"
             name="minPrice"
@@ -106,7 +135,9 @@ export default async function ProductsPage({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">{t("maxPrice")}</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            {t("maxPrice")}
+          </label>
           <input
             type="number"
             name="maxPrice"

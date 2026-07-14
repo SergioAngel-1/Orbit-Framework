@@ -17,7 +17,9 @@ import type { LoginResponse } from "@/types/auth";
 
 export const dynamic = "force-dynamic";
 
-const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80";
+const WP_INTERNAL =
+  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
+  "http://wordpress:80";
 const EPHEMERAL_SECRET = new TextEncoder().encode(
   process.env.GRAPHQL_JWT_AUTH_SECRET_KEY || "fallback-dev-secret-change-in-prod",
 );
@@ -38,7 +40,10 @@ export async function POST(request: Request) {
 
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
-    logger.warn({ event: "auth.login.validation_error" }, "Validación fallida en login");
+    logger.warn(
+      { event: "auth.login.validation_error" },
+      "Validación fallida en login",
+    );
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
       { status: 422 },
@@ -58,7 +63,10 @@ export async function POST(request: Request) {
 
   const { authToken, refreshToken, user } = data.login;
   if (!authToken || !refreshToken) {
-    logger.error({ event: "auth.login.incomplete_response" }, "WP devolvió login incompleto");
+    logger.error(
+      { event: "auth.login.incomplete_response" },
+      "WP devolvió login incompleto",
+    );
     return NextResponse.json(
       { error: "Respuesta de autenticación incompleta." },
       { status: 502 },
@@ -88,7 +96,10 @@ export async function POST(request: Request) {
     const statusData = (await statusRes.json()) as { enabled: boolean };
     twoFactorEnabled = statusData.enabled === true;
   } catch {
-    logger.error({ event: "auth.login.2fa_check_failed" }, "No se pudo verificar estado 2FA");
+    logger.error(
+      { event: "auth.login.2fa_check_failed" },
+      "No se pudo verificar estado 2FA",
+    );
     return NextResponse.json(
       { error: "Servicio de autenticación temporalmente no disponible." },
       { status: 503 },
@@ -108,10 +119,7 @@ export async function POST(request: Request) {
       .sign(EPHEMERAL_SECRET);
 
     logger.info({ event: "auth.login.2fa_required", userId: user.id }, "2FA requerido");
-    return NextResponse.json(
-      { requires_2fa: true, ephemeralToken },
-      { status: 200 },
-    );
+    return NextResponse.json({ requires_2fa: true, ephemeralToken }, { status: 200 });
   }
 
   const store = await cookies();

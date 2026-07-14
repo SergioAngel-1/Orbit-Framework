@@ -13,12 +13,25 @@ const PRODUCT_CARD_FRAGMENT = /* GraphQL */ `
     name
     slug
     type
-    image { sourceUrl altText }
+    image {
+      sourceUrl
+      altText
+    }
     ... on SimpleProduct {
-      onSale price regularPrice salePrice stockStatus shortDescription
+      onSale
+      price
+      regularPrice
+      salePrice
+      stockStatus
+      shortDescription
     }
     ... on VariableProduct {
-      onSale price regularPrice salePrice stockStatus shortDescription
+      onSale
+      price
+      regularPrice
+      salePrice
+      stockStatus
+      shortDescription
     }
   }
 `;
@@ -47,31 +60,36 @@ const REVIEWS_FRAGMENT = /* GraphQL */ `
 export const PRODUCTS_QUERY = /* GraphQL */ `
   ${PRODUCT_CARD_FRAGMENT}
   query Products(
-    $first:       Int    = 12
-    $after:       String
-    $search:      String
-    $category:    String
-    $minPrice:    String
-    $maxPrice:    String
+    $first: Int = 12
+    $after: String
+    $search: String
+    $category: String
+    $minPrice: String
+    $maxPrice: String
     $stockStatus: [ProductStockStatusEnum]
-    $orderbyField: ProductsOrderbyEnum  = DATE
-    $orderbyOrder: OrderEnum           = DESC
+    $orderbyField: ProductsOrderbyEnum = DATE
+    $orderbyOrder: OrderEnum = DESC
   ) {
     products(
       first: $first
       after: $after
       where: {
-        search:      $search
-        category:    $category
-        minPrice:    $minPrice
-        maxPrice:    $maxPrice
+        search: $search
+        category: $category
+        minPrice: $minPrice
+        maxPrice: $maxPrice
         stockStatus: $stockStatus
-        status:      "publish"
-        orderby:     [{ field: $orderbyField, order: $orderbyOrder }]
+        status: "publish"
+        orderby: [{ field: $orderbyField, order: $orderbyOrder }]
       }
     ) {
-      pageInfo { hasNextPage endCursor }
-      nodes { ...ProductCard }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+      nodes {
+        ...ProductCard
+      }
     }
   }
 `;
@@ -110,7 +128,9 @@ export const PRODUCT_BY_SLUG_QUERY = /* GraphQL */ `
 export const PRODUCT_SLUGS_QUERY = /* GraphQL */ `
   query ProductSlugs($first: Int = 100) {
     products(first: $first, where: { status: "publish" }) {
-      nodes { slug }
+      nodes {
+        slug
+      }
     }
   }
 `;
@@ -119,8 +139,16 @@ export const CATEGORY_BY_SLUG_QUERY = /* GraphQL */ `
   ${PRODUCT_CARD_FRAGMENT}
   query CategoryBySlug($slug: ID!, $first: Int = 12) {
     productCategory(id: $slug, idType: SLUG) {
-      id databaseId name slug description
-      products(first: $first) { nodes { ...ProductCard } }
+      id
+      databaseId
+      name
+      slug
+      description
+      products(first: $first) {
+        nodes {
+          ...ProductCard
+        }
+      }
     }
   }
 `;
@@ -128,7 +156,13 @@ export const CATEGORY_BY_SLUG_QUERY = /* GraphQL */ `
 export const CATEGORIES_QUERY = /* GraphQL */ `
   query Categories($first: Int = 50) {
     productCategories(first: $first, where: { hideEmpty: true }) {
-      nodes { id databaseId name slug count }
+      nodes {
+        id
+        databaseId
+        name
+        slug
+        count
+      }
     }
   }
 `;

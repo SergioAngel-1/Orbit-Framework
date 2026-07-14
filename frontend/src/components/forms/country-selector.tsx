@@ -1,6 +1,22 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import { US, CA, MX, CO, AR, CL, PE, EC, VE, BO, PY, UY, ES, BR, GB } from "country-flag-icons/react/3x2";
+import {
+  US,
+  CA,
+  MX,
+  CO,
+  AR,
+  CL,
+  PE,
+  EC,
+  VE,
+  BO,
+  PY,
+  UY,
+  ES,
+  BR,
+  GB,
+} from "country-flag-icons/react/3x2";
 import { Modal, Input } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { COUNTRIES, type Country } from "./contact-form.data";
@@ -8,7 +24,21 @@ import { COUNTRIES, type Country } from "./contact-form.data";
 type FlagComponent = ComponentType<{ className?: string; title?: string }>;
 
 const FLAG_ICONS: Record<string, FlagComponent> = {
-  US, CA, MX, CO, AR, CL, PE, EC, VE, BO, PY, UY, ES, BR, GB,
+  US,
+  CA,
+  MX,
+  CO,
+  AR,
+  CL,
+  PE,
+  EC,
+  VE,
+  BO,
+  PY,
+  UY,
+  ES,
+  BR,
+  GB,
 };
 
 function toFlagEmoji(countryCode: string): string {
@@ -31,7 +61,11 @@ export interface CountrySelectorProps {
   className?: string;
 }
 
-export function CountrySelector({ value = "+57", onChange, className }: CountrySelectorProps) {
+export function CountrySelector({
+  value = "+57",
+  onChange,
+  className,
+}: CountrySelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -71,7 +105,9 @@ export function CountrySelector({ value = "+57", onChange, className }: CountryS
         )}
       >
         <Flag country={selected.country} className="h-4 w-5" />
-        <span className="font-sans text-[13px] text-[--foreground]">{selected.code}</span>
+        <span className="font-sans text-[13px] text-[--foreground]">
+          {selected.code}
+        </span>
         <svg
           className="ml-auto h-4 w-4 text-[--foreground]/40"
           xmlns="http://www.w3.org/2000/svg"
@@ -87,7 +123,12 @@ export function CountrySelector({ value = "+57", onChange, className }: CountryS
         </svg>
       </button>
 
-      <Modal open={isOpen} onClose={() => setIsOpen(false)} title="Seleccionar país" size="sm">
+      <Modal
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Seleccionar país"
+        size="sm"
+      >
         <Input
           ref={inputRef}
           value={search}
@@ -116,10 +157,16 @@ export function CountrySelector({ value = "+57", onChange, className }: CountryS
                 )}
               >
                 <Flag country={country.country} className="h-4 w-6" />
-                <span className="font-sans text-[13px] text-[--foreground]">{country.name}</span>
-                <span className="ml-auto font-sans text-[13px] text-[--foreground]/60">{country.code}</span>
+                <span className="font-sans text-[13px] text-[--foreground]">
+                  {country.name}
+                </span>
+                <span className="ml-auto font-sans text-[13px] text-[--foreground]/60">
+                  {country.code}
+                </span>
                 {value === country.code && (
-                  <span className="font-sans text-[10px] tracking-wide text-brand">ACTUAL</span>
+                  <span className="font-sans text-[10px] tracking-wide text-brand">
+                    ACTUAL
+                  </span>
                 )}
               </button>
             ))}

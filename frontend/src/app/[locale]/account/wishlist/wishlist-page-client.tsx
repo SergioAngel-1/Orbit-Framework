@@ -36,7 +36,10 @@ export function WishlistPageClient({ initialIds }: Props) {
     return (
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-6 text-center dark:border-gray-800 dark:bg-gray-900">
         <p className="text-gray-600 dark:text-gray-300">{t("empty")}</p>
-        <Link href="/products" className="mt-3 inline-block font-medium text-brand hover:underline">
+        <Link
+          href="/products"
+          className="mt-3 inline-block font-medium text-brand hover:underline"
+        >
           {t("browse")}
         </Link>
       </div>
@@ -62,7 +65,9 @@ export function WishlistPageClient({ initialIds }: Props) {
               )}
             </div>
             <div className="p-3">
-              <h3 className="text-sm font-semibold leading-snug group-hover:text-brand">{product.name}</h3>
+              <h3 className="text-sm font-semibold leading-snug group-hover:text-brand">
+                {product.name}
+              </h3>
               <p className="mt-1 font-bold text-sm">{formatPrice(product.price)}</p>
             </div>
           </article>

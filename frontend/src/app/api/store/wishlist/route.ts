@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   let body: { productId?: number };
   try {
-    body = await request.json() as { productId?: number };
+    body = (await request.json()) as { productId?: number };
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
@@ -55,7 +55,9 @@ export async function POST(request: Request) {
     const productId = body.productId;
     // Sección crítica serializada por usuario (evita lost-update concurrente).
     await withLock(`wishlist:${session.userId}`, async () => {
-      const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+      const customer = await wcFetch<WooCustomer>(
+        `/customers/${Number(session.userId)}`,
+      );
       const ids = parseWishlist(customer);
       if (!ids.includes(productId)) {
         ids.push(productId);
@@ -66,10 +68,17 @@ export async function POST(request: Request) {
       }
     });
 
-    logger.info({ event: "wishlist.add", userId: session.userId, productId: body.productId });
+    logger.info({
+      event: "wishlist.add",
+      userId: session.userId,
+      productId: body.productId,
+    });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
-    logger.error({ event: "wishlist.add.error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "wishlist.add.error",
+      err: error instanceof Error ? error.message : error,
+    });
     return handleApiError(error);
   }
 }
@@ -82,7 +91,7 @@ export async function DELETE(request: Request) {
 
   let body: { productId?: number };
   try {
-    body = await request.json() as { productId?: number };
+    body = (await request.json()) as { productId?: number };
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
@@ -95,7 +104,9 @@ export async function DELETE(request: Request) {
     const session = await requireSession();
     const productId = body.productId;
     await withLock(`wishlist:${session.userId}`, async () => {
-      const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+      const customer = await wcFetch<WooCustomer>(
+        `/customers/${Number(session.userId)}`,
+      );
       const ids = parseWishlist(customer).filter((id) => id !== productId);
       await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
         method: "PUT",
@@ -103,10 +114,17 @@ export async function DELETE(request: Request) {
       });
     });
 
-    logger.info({ event: "wishlist.remove", userId: session.userId, productId: body.productId });
+    logger.info({
+      event: "wishlist.remove",
+      userId: session.userId,
+      productId: body.productId,
+    });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
-    logger.error({ event: "wishlist.remove.error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "wishlist.remove.error",
+      err: error instanceof Error ? error.message : error,
+    });
     return handleApiError(error);
   }
 }

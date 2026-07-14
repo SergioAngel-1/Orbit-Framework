@@ -4,7 +4,9 @@ import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
 
-const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80";
+const WP_INTERNAL =
+  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
+  "http://wordpress:80";
 
 export async function GET() {
   let session;
@@ -24,13 +26,24 @@ export async function GET() {
 
     if (!res.ok) {
       logger.warn({ event: "auth.me.wp_error", status: res.status });
-      return NextResponse.json({ error: "No se pudo obtener la información del usuario." }, { status: 502 });
+      return NextResponse.json(
+        { error: "No se pudo obtener la información del usuario." },
+        { status: 502 },
+      );
     }
 
-    const data = await res.json() as { id: number; email: string; display_name: string; email_verified: boolean };
+    const data = (await res.json()) as {
+      id: number;
+      email: string;
+      display_name: string;
+      email_verified: boolean;
+    };
     return NextResponse.json(data, { status: 200 });
   } catch (error) {
-    logger.error({ event: "auth.me.error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "auth.me.error",
+      err: error instanceof Error ? error.message : error,
+    });
     return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
   }
 }

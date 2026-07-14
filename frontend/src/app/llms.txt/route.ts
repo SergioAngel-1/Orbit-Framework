@@ -29,9 +29,15 @@ export async function GET(): Promise<Response> {
   if (config.brand.description) lines.push("", config.brand.description);
 
   lines.push("", "## Páginas principales");
-  lines.push(`- [Inicio](${base}/): Página principal con las últimas publicaciones y novedades de la tienda.`);
-  lines.push(`- [Tienda](${base}/products): Catálogo completo de productos con búsqueda, filtros por categoría y precio.`);
-  lines.push(`- [Blog](${base}/blog): Artículos, guías y novedades publicados por la marca.`);
+  lines.push(
+    `- [Inicio](${base}/): Página principal con las últimas publicaciones y novedades de la tienda.`,
+  );
+  lines.push(
+    `- [Tienda](${base}/products): Catálogo completo de productos con búsqueda, filtros por categoría y precio.`,
+  );
+  lines.push(
+    `- [Blog](${base}/blog): Artículos, guías y novedades publicados por la marca.`,
+  );
 
   try {
     const categories = await getCategories();
@@ -49,10 +55,18 @@ export async function GET(): Promise<Response> {
   }
 
   lines.push("", "## Legal");
-  lines.push(`- [Privacidad](${base}/legal/privacy): Política de privacidad y tratamiento de datos personales.`);
-  lines.push(`- [Cookies](${base}/legal/cookies): Política de cookies y tecnologías de seguimiento.`);
-  lines.push(`- [Términos](${base}/legal/terms): Términos y condiciones de uso y de compra.`);
-  lines.push(`- [Devoluciones](${base}/legal/returns): Política de devoluciones y derecho de desistimiento.`);
+  lines.push(
+    `- [Privacidad](${base}/legal/privacy): Política de privacidad y tratamiento de datos personales.`,
+  );
+  lines.push(
+    `- [Cookies](${base}/legal/cookies): Política de cookies y tecnologías de seguimiento.`,
+  );
+  lines.push(
+    `- [Términos](${base}/legal/terms): Términos y condiciones de uso y de compra.`,
+  );
+  lines.push(
+    `- [Devoluciones](${base}/legal/returns): Política de devoluciones y derecho de desistimiento.`,
+  );
 
   // Key Facts: datos de referencia que la IA consulta con frecuencia.
   const facts: string[] = [];

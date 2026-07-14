@@ -7,8 +7,8 @@ import {
   type ProductAttributeOption,
 } from "./variation-selector";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
-import { formatPrice }     from "@/lib/format";
-import { Badge }           from "@/components/ui/badge";
+import { formatPrice } from "@/lib/format";
+import { Badge } from "@/components/ui/badge";
 
 // ============================================================================
 //  ProductActions — Client Component que gestiona la selección de variaciones
@@ -19,7 +19,7 @@ import { Badge }           from "@/components/ui/badge";
 // ============================================================================
 
 interface ProductActionsProps {
-  productId:  number;
+  productId: number;
   isVariable: boolean;
   outOfStock: boolean;
   attributes: ProductAttributeOption[];
@@ -44,11 +44,7 @@ export default function ProductActions({
   if (!isVariable) {
     return (
       <div className="mt-2">
-        <AddToCartButton
-          productId={productId}
-          disabled={outOfStock}
-          fullWidth
-        />
+        <AddToCartButton productId={productId} disabled={outOfStock} fullWidth />
       </div>
     );
   }
@@ -72,14 +68,18 @@ export default function ProductActions({
       {/* Precio dinámico de la variación */}
       {activeVariation && (
         <div className="flex items-baseline gap-2">
-          <span className="text-xl font-bold">{formatPrice(activeVariation.price)}</span>
+          <span className="text-xl font-bold">
+            {formatPrice(activeVariation.price)}
+          </span>
           {activeVariation.salePrice && activeVariation.regularPrice && (
             <span className="text-base text-gray-400 line-through">
               {formatPrice(activeVariation.regularPrice)}
             </span>
           )}
           {variantOutOfStock && (
-            <Badge color="error" variant="soft">{t("outOfStock")}</Badge>
+            <Badge color="error" variant="soft">
+              {t("outOfStock")}
+            </Badge>
           )}
         </div>
       )}
@@ -92,8 +92,8 @@ export default function ProductActions({
           !activeVariation
             ? t("selectVariant")
             : variantOutOfStock
-            ? t("outOfStock")
-            : undefined
+              ? t("outOfStock")
+              : undefined
         }
         fullWidth
       />

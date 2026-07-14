@@ -32,13 +32,19 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      logger.warn({ event: "payments.create.invalid_json" }, "JSON inválido en payments.create");
+      logger.warn(
+        { event: "payments.create.invalid_json" },
+        "JSON inválido en payments.create",
+      );
       return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
     }
 
     const parsed = createPaymentSchema.safeParse(body);
     if (!parsed.success) {
-      logger.warn({ event: "payments.create.validation_error" }, "Validación fallida en payments.create");
+      logger.warn(
+        { event: "payments.create.validation_error" },
+        "Validación fallida en payments.create",
+      );
       return NextResponse.json(
         { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
         { status: 422 },
@@ -50,13 +56,19 @@ export async function POST(request: Request) {
     // El pedido debe existir y pertenecer al usuario autenticado.
     const order = await getOrder(reference);
     if (order.customer_id !== Number(session.userId)) {
-      logger.warn({ event: "payments.create.idor_attempt", reference, userId: session.userId }, "Intento de IDOR en payments.create");
+      logger.warn(
+        { event: "payments.create.idor_attempt", reference, userId: session.userId },
+        "Intento de IDOR en payments.create",
+      );
       return NextResponse.json({ error: "No encontrado." }, { status: 404 });
     }
 
     // Si ya está pagado, no reiniciamos un cobro: el flujo es idempotente.
     if (isOrderPaid(order)) {
-      logger.info({ event: "payments.create.already_paid", reference }, "Pedido ya pagado, cobro omitido");
+      logger.info(
+        { event: "payments.create.already_paid", reference },
+        "Pedido ya pagado, cobro omitido",
+      );
       return NextResponse.json({ mode: "none", alreadyPaid: true }, { status: 200 });
     }
 
@@ -80,13 +92,22 @@ export async function POST(request: Request) {
       metadata: { order_id: reference, order_key: String(order.id) },
     });
 
-    logger.info({ event: "payments.create.success", reference, provider: activeProviderId() }, "Checkout de pago creado");
+    logger.info(
+      { event: "payments.create.success", reference, provider: activeProviderId() },
+      "Checkout de pago creado",
+    );
     return NextResponse.json(
       { provider: activeProviderId(), ...result },
       { status: 200 },
     );
   } catch (error) {
-    logger.error({ event: "payments.create.error", err: error instanceof Error ? error.message : error }, "Error en payments.create");
+    logger.error(
+      {
+        event: "payments.create.error",
+        err: error instanceof Error ? error.message : error,
+      },
+      "Error en payments.create",
+    );
     return handleApiError(error);
   }
 }

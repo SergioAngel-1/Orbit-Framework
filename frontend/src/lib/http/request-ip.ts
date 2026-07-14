@@ -24,7 +24,10 @@ export function getClientIp(request: Request): string {
   const count = trustedProxyCount();
 
   if (xff) {
-    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
+    const parts = xff
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
     if (parts.length > 0) {
       if (count === 0) {
         // Sin proxies de confianza: XFF no es fiable; preferimos x-real-ip.

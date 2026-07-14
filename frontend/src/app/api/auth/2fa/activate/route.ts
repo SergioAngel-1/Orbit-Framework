@@ -7,7 +7,9 @@ import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
 
-const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80";
+const WP_INTERNAL =
+  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
+  "http://wordpress:80";
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
@@ -38,7 +40,10 @@ export async function POST(request: Request) {
 
   if (!result.valid) {
     logger.warn({ event: "2fa.activate.invalid_code" }, "Código 2FA inválido");
-    return NextResponse.json({ error: "Código inválido. Intenta de nuevo." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Código inválido. Intenta de nuevo." },
+      { status: 400 },
+    );
   }
 
   let session;
@@ -59,7 +64,10 @@ export async function POST(request: Request) {
     });
 
     if (!res.ok) {
-      return NextResponse.json({ error: "No se pudo guardar la configuración 2FA." }, { status: 502 });
+      return NextResponse.json(
+        { error: "No se pudo guardar la configuración 2FA." },
+        { status: 502 },
+      );
     }
 
     // WP genera los códigos de recuperación al activar y los devuelve UNA vez.
@@ -71,7 +79,10 @@ export async function POST(request: Request) {
       { status: 200 },
     );
   } catch (error) {
-    logger.error({ event: "2fa.activate.error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "2fa.activate.error",
+      err: error instanceof Error ? error.message : error,
+    });
     return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
   }
 }

@@ -12,7 +12,16 @@ export type { Branch };
 
 function PhoneIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      {...props}
+    >
       <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
     </svg>
   );
@@ -20,7 +29,16 @@ function PhoneIcon(props: SVGProps<SVGSVGElement>) {
 
 function MailIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      {...props}
+    >
       <rect x="2" y="4" width="20" height="16" rx="2" />
       <path d="m22 7-10 5L2 7" />
     </svg>
@@ -29,7 +47,16 @@ function MailIcon(props: SVGProps<SVGSVGElement>) {
 
 function MapPinIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      {...props}
+    >
       <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" />
       <circle cx="12" cy="10" r="3" />
     </svg>
@@ -38,7 +65,16 @@ function MapPinIcon(props: SVGProps<SVGSVGElement>) {
 
 function ClockIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      {...props}
+    >
       <circle cx="12" cy="12" r="10" />
       <path d="M12 6v6l4 2" />
     </svg>
@@ -47,7 +83,16 @@ function ClockIcon(props: SVGProps<SVGSVGElement>) {
 
 function SendIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      {...props}
+    >
       <path d="M22 2 11 13" />
       <path d="M22 2 15 22l-4-9-9-4 20-7z" />
     </svg>
@@ -56,7 +101,16 @@ function SendIcon(props: SVGProps<SVGSVGElement>) {
 
 function NavigationIcon(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden {...props}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      {...props}
+    >
       <polygon points="3 11 22 2 13 21 11 13 3 11" />
     </svg>
   );
@@ -75,26 +129,36 @@ export interface ContactSocialLinks {
 
 type SocialPlatform = keyof ContactSocialLinks;
 
-const SOCIAL_ICONS: Record<SocialPlatform, (p: SVGProps<SVGSVGElement>) => ReactNode> = {
-  facebook: (p) => (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...p}>
-      <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
-    </svg>
-  ),
-  instagram: (p) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden {...p}>
-      <rect x="2" y="2" width="20" height="20" rx="5" />
-      <circle cx="12" cy="12" r="5" />
-      <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none" />
-    </svg>
-  ),
-  youtube: (p) => (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...p}>
-      <path d="M22.54 6.42a2.78 2.78 0 00-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 00-1.94 2A29 29 0 001 11.75a29 29 0 00.46 5.33A2.78 2.78 0 003.4 19.1c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 001.94-2 29 29 0 00.46-5.25 29 29 0 00-.46-5.43z" />
-      <polygon points="9.75,15.02 15.5,11.75 9.75,8.48" fill="var(--surface, #fff)" />
-    </svg>
-  ),
-};
+const SOCIAL_ICONS: Record<SocialPlatform, (p: SVGProps<SVGSVGElement>) => ReactNode> =
+  {
+    facebook: (p) => (
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...p}>
+        <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
+      </svg>
+    ),
+    instagram: (p) => (
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+        {...p}
+      >
+        <rect x="2" y="2" width="20" height="20" rx="5" />
+        <circle cx="12" cy="12" r="5" />
+        <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none" />
+      </svg>
+    ),
+    youtube: (p) => (
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...p}>
+        <path d="M22.54 6.42a2.78 2.78 0 00-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 00-1.94 2A29 29 0 001 11.75a29 29 0 00.46 5.33A2.78 2.78 0 003.4 19.1c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 001.94-2 29 29 0 00.46-5.25 29 29 0 00-.46-5.43z" />
+        <polygon points="9.75,15.02 15.5,11.75 9.75,8.48" fill="var(--surface, #fff)" />
+      </svg>
+    ),
+  };
 
 const SOCIAL_LABELS: Record<SocialPlatform, string> = {
   facebook: "Facebook",
@@ -121,7 +185,9 @@ function BranchCard({ branch }: { branch: Branch }) {
             Ir
           </a>
         </div>
-        <p className="mt-0.5 font-sans text-[11px] text-[--foreground]/45">{branch.address}</p>
+        <p className="mt-0.5 font-sans text-[11px] text-[--foreground]/45">
+          {branch.address}
+        </p>
         <div className="mt-1 flex items-center gap-3">
           <span className="flex items-center gap-1 font-sans text-[10px] text-[--foreground]/35">
             <PhoneIcon className="h-3 w-3" /> {branch.phone}
@@ -169,12 +235,21 @@ export interface ContactFormProps {
   branches?: readonly Branch[];
 }
 
-export function ContactForm({ className, email, phone, socials, branches = [] }: ContactFormProps) {
+export function ContactForm({
+  className,
+  email,
+  phone,
+  socials,
+  branches = [],
+}: ContactFormProps) {
   const [formData, setFormData] = useState<ContactFormData>(INITIAL);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
 
-  const setField = <K extends keyof ContactFormData>(field: K, value: ContactFormData[K]) => {
+  const setField = <K extends keyof ContactFormData>(
+    field: K,
+    value: ContactFormData[K],
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -207,12 +282,19 @@ export function ContactForm({ className, email, phone, socials, branches = [] }:
   };
 
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-brand-light/40 bg-surface dark:bg-gray-900", className)}>
+    <div
+      className={cn(
+        "overflow-hidden rounded-2xl border border-brand-light/40 bg-surface dark:bg-gray-900",
+        className,
+      )}
+    >
       <div className="flex flex-col lg:flex-row">
         {/* Izquierda: formulario */}
         <div className="flex flex-col border-brand-light/20 p-6 lg:w-1/2 lg:border-r lg:p-8">
           <div className="mb-6">
-            <h3 className="font-heading text-[24px] leading-tight text-[--foreground]">Escríbenos</h3>
+            <h3 className="font-heading text-[24px] leading-tight text-[--foreground]">
+              Escríbenos
+            </h3>
             <p className="mt-1 font-sans text-[13px] text-[--foreground]/45">
               Completa el formulario y te responderemos pronto.
             </p>
@@ -223,11 +305,18 @@ export function ContactForm({ className, email, phone, socials, branches = [] }:
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/15 text-secondary">
                 <SendIcon className="h-5 w-5" />
               </div>
-              <p className="font-heading text-[18px] text-[--foreground]">¡Solicitud enviada!</p>
+              <p className="font-heading text-[18px] text-[--foreground]">
+                ¡Solicitud enviada!
+              </p>
               <p className="font-sans text-[13px] text-[--foreground]/45">
                 Gracias por escribirnos. Te responderemos pronto.
               </p>
-              <Button variant="outline" size="sm" className="mt-2" onClick={() => setStatus("idle")}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => setStatus("idle")}
+              >
                 Enviar otra
               </Button>
             </div>
@@ -273,7 +362,9 @@ export function ContactForm({ className, email, phone, socials, branches = [] }:
                 label="Tipo de requerimiento"
                 options={[...REQUEST_TYPES]}
                 value={formData.requestType}
-                onChange={(e) => setField("requestType", e.target.value as RequestTypeValue)}
+                onChange={(e) =>
+                  setField("requestType", e.target.value as RequestTypeValue)
+                }
               />
 
               <Textarea
@@ -300,7 +391,10 @@ export function ContactForm({ className, email, phone, socials, branches = [] }:
               />
 
               {status === "error" && error && (
-                <p role="alert" className="font-sans text-[12px] text-red-600 dark:text-red-400">
+                <p
+                  role="alert"
+                  className="font-sans text-[12px] text-red-600 dark:text-red-400"
+                >
                   {error}
                 </p>
               )}
@@ -323,7 +417,9 @@ export function ContactForm({ className, email, phone, socials, branches = [] }:
         {/* Derecha: información de contacto */}
         <div className="flex flex-col p-6 lg:w-1/2 lg:p-8">
           <div className="mb-6">
-            <h3 className="font-heading text-[24px] leading-tight text-[--foreground]">Encuéntranos</h3>
+            <h3 className="font-heading text-[24px] leading-tight text-[--foreground]">
+              Encuéntranos
+            </h3>
             <p className="mt-1 font-sans text-[13px] text-[--foreground]/45">
               Nuestras sedes y canales de atención.
             </p>
@@ -336,7 +432,10 @@ export function ContactForm({ className, email, phone, socials, branches = [] }:
               </p>
               <div className="space-y-2.5">
                 {phone && (
-                  <a href={`tel:${phone.replace(/[^+\d]/g, "")}`} className="group flex items-center gap-3">
+                  <a
+                    href={`tel:${phone.replace(/[^+\d]/g, "")}`}
+                    className="group flex items-center gap-3"
+                  >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/8">
                       <PhoneIcon className="h-4 w-4 text-brand" />
                     </div>
@@ -366,7 +465,9 @@ export function ContactForm({ className, email, phone, socials, branches = [] }:
               </p>
               <div className="flex gap-2">
                 {(Object.entries(socials) as [SocialPlatform, string | undefined][])
-                  .filter((entry): entry is [SocialPlatform, string] => Boolean(entry[1]))
+                  .filter((entry): entry is [SocialPlatform, string] =>
+                    Boolean(entry[1]),
+                  )
                   .map(([platform, href]) => {
                     const Icon = SOCIAL_ICONS[platform];
                     return (
@@ -388,7 +489,9 @@ export function ContactForm({ className, email, phone, socials, branches = [] }:
 
           {branches.length > 0 && (
             <div className="flex-1">
-              <p className="mb-2 font-sans text-[10px] tracking-[0.15em] text-[--foreground]/35">SEDES</p>
+              <p className="mb-2 font-sans text-[10px] tracking-[0.15em] text-[--foreground]/35">
+                SEDES
+              </p>
               <div>
                 {branches.map((branch) => (
                   <BranchCard key={branch.name} branch={branch} />

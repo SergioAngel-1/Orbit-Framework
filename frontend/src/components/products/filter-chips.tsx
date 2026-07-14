@@ -15,10 +15,18 @@ export interface FilterChipsProps {
   className?: string;
 }
 
-export function FilterChips({ options, active, onChange, className }: FilterChipsProps) {
+export function FilterChips({
+  options,
+  active,
+  onChange,
+  className,
+}: FilterChipsProps) {
   return (
     <div
-      className={cn("flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", className)}
+      className={cn(
+        "flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        className,
+      )}
     >
       {options.map((opt) => {
         const isActive = active === opt.value;
@@ -39,7 +47,9 @@ export function FilterChips({ options, active, onChange, className }: FilterChip
               <span
                 className={cn(
                   "rounded-full px-1.5 py-0.5 text-[10px]",
-                  isActive ? "bg-white/20 text-white" : "bg-gray-200 text-[--foreground]/50 dark:bg-gray-700",
+                  isActive
+                    ? "bg-white/20 text-white"
+                    : "bg-gray-200 text-[--foreground]/50 dark:bg-gray-700",
                 )}
               >
                 {opt.count}

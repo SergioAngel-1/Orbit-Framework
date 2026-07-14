@@ -31,11 +31,18 @@ export function ReviewForm({ productId }: { productId: number }) {
   }
 
   if (submitted) {
-    return <p className="text-sm text-green-600 dark:text-green-400">{t("reviewSubmitted")}</p>;
+    return (
+      <p className="text-sm text-green-600 dark:text-green-400">
+        {t("reviewSubmitted")}
+      </p>
+    );
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3 rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+    <form
+      onSubmit={onSubmit}
+      className="space-y-3 rounded-xl border border-gray-200 p-4 dark:border-gray-800"
+    >
       <h3 className="font-semibold text-sm">{t("writeReview")}</h3>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -62,7 +69,9 @@ export function ReviewForm({ productId }: { productId: number }) {
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
         >
           {[5, 4, 3, 2, 1].map((n) => (
-            <option key={n} value={n}>{n} ★</option>
+            <option key={n} value={n}>
+              {n} ★
+            </option>
           ))}
         </select>
       </div>

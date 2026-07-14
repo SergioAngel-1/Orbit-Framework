@@ -62,7 +62,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Catálogo: fichas de producto.
   try {
     for (const slug of await getProductSlugs()) {
-      paths.push({ path: `/products/${slug}`, changeFrequency: "weekly", priority: 0.7 });
+      paths.push({
+        path: `/products/${slug}`,
+        changeFrequency: "weekly",
+        priority: 0.7,
+      });
     }
   } catch {
     /* sin productos todavía */
@@ -71,7 +75,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Categorías.
   try {
     for (const cat of await getCategories()) {
-      paths.push({ path: `/categories/${cat.slug}`, changeFrequency: "weekly", priority: 0.6 });
+      paths.push({
+        path: `/categories/${cat.slug}`,
+        changeFrequency: "weekly",
+        priority: 0.6,
+      });
     }
   } catch {
     /* sin categorías todavía */

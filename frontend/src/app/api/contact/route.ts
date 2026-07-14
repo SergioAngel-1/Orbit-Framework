@@ -9,7 +9,14 @@ const contactSchema = z.object({
   name: z.string().min(1, "Nombre requerido").max(120),
   email: z.email("Email no válido").max(200),
   phone: z.string().max(40).optional().default(""),
-  requestType: z.enum(["peticion", "queja", "reclamo", "sugerencia", "felicitacion", "otro"]),
+  requestType: z.enum([
+    "peticion",
+    "queja",
+    "reclamo",
+    "sugerencia",
+    "felicitacion",
+    "otro",
+  ]),
   description: z.string().min(1, "Descripción requerida").max(5000),
   acceptedTerms: z.literal(true, { error: "Debes aceptar la política de privacidad." }),
 });

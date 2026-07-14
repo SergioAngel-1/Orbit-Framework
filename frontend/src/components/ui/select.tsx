@@ -43,7 +43,11 @@ export function Select({
           className="text-sm font-medium text-gray-700 dark:text-gray-300"
         >
           {label}
-          {props.required && <span className="ml-0.5 text-red-500" aria-hidden>*</span>}
+          {props.required && (
+            <span className="ml-0.5 text-red-500" aria-hidden>
+              *
+            </span>
+          )}
         </label>
       )}
 
@@ -103,11 +107,18 @@ export function Select({
       </div>
 
       {hasError ? (
-        <p id={`${selectId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
+        <p
+          id={`${selectId}-error`}
+          role="alert"
+          className="text-xs text-red-600 dark:text-red-400"
+        >
           {error}
         </p>
       ) : helper ? (
-        <p id={`${selectId}-helper`} className="text-xs text-gray-500 dark:text-gray-400">
+        <p
+          id={`${selectId}-helper`}
+          className="text-xs text-gray-500 dark:text-gray-400"
+        >
           {helper}
         </p>
       ) : null}

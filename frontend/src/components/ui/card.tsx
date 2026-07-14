@@ -18,23 +18,23 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 
 const paddings: Record<Padding, string> = {
   none: "",
-  sm:   "p-3",
-  md:   "p-5",
-  lg:   "p-7",
+  sm: "p-3",
+  md: "p-5",
+  lg: "p-7",
 };
 
 const shadows: Record<"none" | "sm" | "md", string> = {
   none: "",
-  sm:   "shadow-sm",
-  md:   "shadow-md",
+  sm: "shadow-sm",
+  md: "shadow-md",
 };
 
 export function Card({
-  padding   = "md",
-  bordered  = true,
+  padding = "md",
+  bordered = true,
   hoverable = false,
-  shadow    = "sm",
-  as: Tag   = "div",
+  shadow = "sm",
+  as: Tag = "div",
   className,
   children,
   ...props
@@ -60,17 +60,30 @@ export function Card({
 
 // Sub-componentes de conveniencia
 export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("mb-4 flex items-center justify-between gap-2", className)} {...props} />;
+  return (
+    <div
+      className={cn("mb-4 flex items-center justify-between gap-2", className)}
+      {...props}
+    />
+  );
 }
 
 export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("font-semibold text-gray-900 dark:text-gray-100", className)} {...props} />;
+  return (
+    <h3
+      className={cn("font-semibold text-gray-900 dark:text-gray-100", className)}
+      {...props}
+    />
+  );
 }
 
 export function CardFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("mt-4 border-t border-gray-100 pt-4 dark:border-gray-800", className)}
+      className={cn(
+        "mt-4 border-t border-gray-100 pt-4 dark:border-gray-800",
+        className,
+      )}
       {...props}
     />
   );

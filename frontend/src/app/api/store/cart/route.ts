@@ -19,7 +19,10 @@ export async function GET() {
     logger.info({ event: "cart.get" }, "Carrito consultado");
     return NextResponse.json(data);
   } catch (error) {
-    logger.error({ event: "cart.get.error", err: error instanceof Error ? error.message : error }, "Error al obtener el carrito");
+    logger.error(
+      { event: "cart.get.error", err: error instanceof Error ? error.message : error },
+      "Error al obtener el carrito",
+    );
     return handleApiError(error);
   }
 }
@@ -40,7 +43,13 @@ export async function DELETE(request: Request) {
     logger.info({ event: "cart.clear" }, "Carrito vaciado");
     return NextResponse.json(data);
   } catch (error) {
-    logger.error({ event: "cart.clear.error", err: error instanceof Error ? error.message : error }, "Error al vaciar el carrito");
+    logger.error(
+      {
+        event: "cart.clear.error",
+        err: error instanceof Error ? error.message : error,
+      },
+      "Error al vaciar el carrito",
+    );
     return handleApiError(error);
   }
 }

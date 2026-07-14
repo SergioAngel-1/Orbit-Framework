@@ -37,10 +37,7 @@ export default async function AboutPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [t, config] = await Promise.all([
-    getTranslations("about"),
-    getSiteConfig(),
-  ]);
+  const [t, config] = await Promise.all([getTranslations("about"), getSiteConfig()]);
 
   const expertise = parseList(config.seo.knows_about);
   const person = buildPersonJsonLd(config);
@@ -76,7 +73,9 @@ export default async function AboutPage({
             <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400">
               {t("founded")}
             </dt>
-            <dd className="text-gray-900 dark:text-gray-100">{config.seo.founding_date}</dd>
+            <dd className="text-gray-900 dark:text-gray-100">
+              {config.seo.founding_date}
+            </dd>
           </div>
         )}
 
@@ -113,7 +112,10 @@ export default async function AboutPage({
               {t("contact")}
             </dt>
             <dd>
-              <a href={`mailto:${config.legal.email}`} className="text-brand hover:underline">
+              <a
+                href={`mailto:${config.legal.email}`}
+                className="text-brand hover:underline"
+              >
                 {config.legal.email}
               </a>
             </dd>
@@ -127,7 +129,10 @@ export default async function AboutPage({
           <p className="text-gray-900 dark:text-gray-100">
             <span className="font-semibold">{config.seo.founder_name}</span>
             {config.seo.founder_role && (
-              <span className="text-gray-500 dark:text-gray-400"> · {config.seo.founder_role}</span>
+              <span className="text-gray-500 dark:text-gray-400">
+                {" "}
+                · {config.seo.founder_role}
+              </span>
             )}
           </p>
           {config.seo.founder_url && (

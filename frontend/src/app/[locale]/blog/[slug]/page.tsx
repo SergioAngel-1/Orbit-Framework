@@ -54,10 +54,7 @@ export default async function PostPage({
 }) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
-  const [t, config] = await Promise.all([
-    getTranslations("blog"),
-    getSiteConfig(),
-  ]);
+  const [t, config] = await Promise.all([getTranslations("blog"), getSiteConfig()]);
 
   let post: Awaited<ReturnType<typeof getPostBySlug>>;
   try {
@@ -122,7 +119,9 @@ export default async function PostPage({
       </nav>
 
       <header className="mb-8">
-        <h1 className="post-headline text-3xl font-extrabold tracking-tight sm:text-4xl">{post.title}</h1>
+        <h1 className="post-headline text-3xl font-extrabold tracking-tight sm:text-4xl">
+          {post.title}
+        </h1>
         <div className="mt-3 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
           <time dateTime={post.date}>{formatDate(post.date, locale)}</time>
           {authorName && (

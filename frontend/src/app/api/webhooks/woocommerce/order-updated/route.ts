@@ -3,7 +3,10 @@ import { verifyWooWebhook } from "@/lib/security/webhook";
 import { markEventOnce } from "@/lib/security/replay";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/http/request-ip";
-import { recordAndDiffStatus, dispatchOrderEffects } from "@/lib/woocommerce/order-events";
+import {
+  recordAndDiffStatus,
+  dispatchOrderEffects,
+} from "@/lib/woocommerce/order-events";
 import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
@@ -27,13 +30,19 @@ export async function POST(request: Request) {
   const signature = request.headers.get("x-wc-webhook-signature");
 
   if (!verifyWooWebhook(rawBody, signature)) {
-    logger.warn({ event: "webhook.order-updated.invalid_signature" }, "Firma inválida en webhook order.updated");
+    logger.warn(
+      { event: "webhook.order-updated.invalid_signature" },
+      "Firma inválida en webhook order.updated",
+    );
     return NextResponse.json({ error: "Firma de webhook inválida." }, { status: 401 });
   }
 
   // Anti-replay: descartar reenvíos idénticos del mismo evento firmado.
   if (!(await markEventOnce("wc:order-updated", rawBody))) {
-    logger.info({ event: "webhook.order-updated.replay" }, "Webhook duplicado descartado");
+    logger.info(
+      { event: "webhook.order-updated.replay" },
+      "Webhook duplicado descartado",
+    );
     return NextResponse.json({ received: true, duplicate: true });
   }
 
@@ -48,7 +57,10 @@ export async function POST(request: Request) {
   const status = String(payload.status ?? "");
 
   if (orderId == null || status === "") {
-    return NextResponse.json({ error: "Payload de pedido incompleto." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Payload de pedido incompleto." },
+      { status: 400 },
+    );
   }
 
   // Estado anterior real (no el actual): lo recuperamos del almacén y guardamos
@@ -60,7 +72,19 @@ export async function POST(request: Request) {
     "Pedido actualizado recibido vía webhook",
   );
 
-  await dispatchOrderEffects({ event: "order.updated", orderId, status, previousStatus, payload });
+  await dispatchOrderEffects({
+    event: "order.updated",
+    orderId,
+    status,
+    previousStatus,
+    payload,
+  });
 
-  return NextResponse.json({ received: true, orderId, status, previousStatus, now: Date.now() });
+  return NextResponse.json({
+    received: true,
+    orderId,
+    status,
+    previousStatus,
+    now: Date.now(),
+  });
 }

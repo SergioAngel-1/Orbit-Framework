@@ -27,10 +27,7 @@ export function ProductCard({ product, wishlistEnabled = false }: ProductCardPro
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
       <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800">
-        <Link
-          href={`/products/${product.slug}`}
-          className="block h-full w-full"
-        >
+        <Link href={`/products/${product.slug}`} className="block h-full w-full">
           {product.image?.sourceUrl ? (
             <Image
               src={product.image.sourceUrl}

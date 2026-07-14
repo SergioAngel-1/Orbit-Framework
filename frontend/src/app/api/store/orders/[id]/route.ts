@@ -31,15 +31,27 @@ export async function GET(
 
     // El pedido debe pertenecer al usuario de la sesión.
     if (order.customer_id !== Number(session.userId)) {
-      logger.warn({ event: "orders.get.idor", userId: session.userId, orderId }, "Intento de acceso a pedido de otro usuario");
+      logger.warn(
+        { event: "orders.get.idor", userId: session.userId, orderId },
+        "Intento de acceso a pedido de otro usuario",
+      );
       // No revelamos la existencia del recurso de otro usuario.
       return NextResponse.json({ error: "No encontrado." }, { status: 404 });
     }
 
-    logger.info({ event: "orders.get.success", userId: session.userId, orderId }, "Pedido consultado");
+    logger.info(
+      { event: "orders.get.success", userId: session.userId, orderId },
+      "Pedido consultado",
+    );
     return NextResponse.json(order);
   } catch (error) {
-    logger.error({ event: "orders.get.error", err: error instanceof Error ? error.message : error }, "Error al obtener pedido");
+    logger.error(
+      {
+        event: "orders.get.error",
+        err: error instanceof Error ? error.message : error,
+      },
+      "Error al obtener pedido",
+    );
     return handleApiError(error);
   }
 }

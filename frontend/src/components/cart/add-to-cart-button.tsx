@@ -22,9 +22,9 @@ export function AddToCartButton({
   fullWidth = false,
 }: AddToCartButtonProps) {
   const { addItem } = useCart();
-  const t           = useTranslations("addToCart");
+  const t = useTranslations("addToCart");
   const [pending, setPending] = useState(false);
-  const [done,    setDone]    = useState(false);
+  const [done, setDone] = useState(false);
 
   async function handleClick() {
     setPending(true);

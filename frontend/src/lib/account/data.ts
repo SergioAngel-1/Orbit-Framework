@@ -25,8 +25,8 @@ export async function getCustomerOrders(): Promise<WooOrder[]> {
  * Lanza FORBIDDEN si el pedido no le pertenece (anti-IDOR).
  */
 export async function getOrderById(orderId: number): Promise<WooOrder> {
-  const session  = await requireSession();
-  const order    = await wcFetch<WooOrder>(`/orders/${orderId}`);
+  const session = await requireSession();
+  const order = await wcFetch<WooOrder>(`/orders/${orderId}`);
 
   if (order.customer_id !== Number(session.userId)) {
     throw new Error("FORBIDDEN");

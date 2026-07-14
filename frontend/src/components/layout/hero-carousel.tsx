@@ -241,7 +241,9 @@ export function HeroCarousel({
                 className={cn(
                   "relative h-2.5 rounded-full transition-all duration-300",
                   "disabled:cursor-not-allowed disabled:opacity-50",
-                  current === idx ? "w-7 bg-accent shadow-md" : "w-2.5 bg-white/40 hover:bg-white/70",
+                  current === idx
+                    ? "w-7 bg-accent shadow-md"
+                    : "w-2.5 bg-white/40 hover:bg-white/70",
                 )}
                 aria-label={`Ir a slide ${idx + 1}`}
                 aria-current={current === idx}

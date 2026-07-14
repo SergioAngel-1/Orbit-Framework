@@ -18,10 +18,19 @@ export async function GET() {
   try {
     const session = await requireSession();
     const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
-    logger.info({ event: "customer.get", userId: session.userId }, "Datos de cliente consultados");
+    logger.info(
+      { event: "customer.get", userId: session.userId },
+      "Datos de cliente consultados",
+    );
     return NextResponse.json(customer);
   } catch (error) {
-    logger.error({ event: "customer.get.error", err: error instanceof Error ? error.message : error }, "Error al obtener datos del cliente");
+    logger.error(
+      {
+        event: "customer.get.error",
+        err: error instanceof Error ? error.message : error,
+      },
+      "Error al obtener datos del cliente",
+    );
     return handleApiError(error);
   }
 }
@@ -45,7 +54,10 @@ export async function PUT(request: Request) {
 
   const parsed = customerUpdateSchema.safeParse(body);
   if (!parsed.success) {
-    logger.warn({ event: "customer.update.validation" }, "Datos inválidos al actualizar cliente");
+    logger.warn(
+      { event: "customer.update.validation" },
+      "Datos inválidos al actualizar cliente",
+    );
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
       { status: 422 },
@@ -58,10 +70,19 @@ export async function PUT(request: Request) {
       `/customers/${Number(session.userId)}`,
       { method: "PUT", body: parsed.data },
     );
-    logger.info({ event: "customer.update.success", userId: session.userId }, "Cliente actualizado");
+    logger.info(
+      { event: "customer.update.success", userId: session.userId },
+      "Cliente actualizado",
+    );
     return NextResponse.json(customer);
   } catch (error) {
-    logger.error({ event: "customer.update.error", err: error instanceof Error ? error.message : error }, "Error al actualizar cliente");
+    logger.error(
+      {
+        event: "customer.update.error",
+        err: error instanceof Error ? error.message : error,
+      },
+      "Error al actualizar cliente",
+    );
     return handleApiError(error);
   }
 }

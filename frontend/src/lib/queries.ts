@@ -49,7 +49,10 @@ export const POSTS_QUERY = /* GraphQL */ `
       after: $after
       where: { orderby: { field: DATE, order: DESC }, status: PUBLISH }
     ) {
-      pageInfo { hasNextPage endCursor }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       nodes {
         id
         databaseId
@@ -58,9 +61,20 @@ export const POSTS_QUERY = /* GraphQL */ `
         date
         modified
         excerpt
-        author { node { name } }
+        author {
+          node {
+            name
+          }
+        }
         featuredImage {
-          node { sourceUrl altText mediaDetails { width height } }
+          node {
+            sourceUrl
+            altText
+            mediaDetails {
+              width
+              height
+            }
+          }
         }
       }
     }
@@ -79,9 +93,22 @@ export const POST_BY_SLUG_QUERY = /* GraphQL */ `
       modified
       excerpt
       content
-      author { node { name description url } }
+      author {
+        node {
+          name
+          description
+          url
+        }
+      }
       featuredImage {
-        node { sourceUrl altText mediaDetails { width height } }
+        node {
+          sourceUrl
+          altText
+          mediaDetails {
+            width
+            height
+          }
+        }
       }
     }
   }
@@ -91,7 +118,10 @@ export const POST_BY_SLUG_QUERY = /* GraphQL */ `
 export const POST_SLUGS_QUERY = /* GraphQL */ `
   query PostSlugs($first: Int = 100) {
     posts(first: $first, where: { status: PUBLISH }) {
-      nodes { slug modified }
+      nodes {
+        slug
+        modified
+      }
     }
   }
 `;

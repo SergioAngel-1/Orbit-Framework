@@ -21,7 +21,8 @@ export const dynamic = "force-dynamic";
 function verifyHweSignature(rawBody: string, signature: string | null): boolean {
   const secret = process.env.HWE_REVALIDATION_SECRET;
   if (!signature || !secret) return false;
-  const expected = "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
+  const expected =
+    "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
   try {
     return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
   } catch {
@@ -36,21 +37,37 @@ export async function POST(request: Request) {
   const hweSignature = request.headers.get("x-hwe-signature");
   if (hweSignature !== null) {
     if (!verifyHweSignature(rawBody, hweSignature)) {
-      logger.warn({ event: "revalidate.invalid_hwe_signature" }, "Firma HWE de webhook inválida");
-      return NextResponse.json({ error: "Firma de webhook inválida." }, { status: 401 });
+      logger.warn(
+        { event: "revalidate.invalid_hwe_signature" },
+        "Firma HWE de webhook inválida",
+      );
+      return NextResponse.json(
+        { error: "Firma de webhook inválida." },
+        { status: 401 },
+      );
     }
     // Next 16: revalidateTag requiere un perfil de cacheLife. "max" marca el
     // tag como obsoleto y revalida en segundo plano (stale-while-revalidate),
     // acorde al modelo ISR + webhook de esta plantilla.
     revalidateTag("site-config", "max");
-    logger.info({ event: "revalidate.site_config" }, "Configuración del sitio revalidada");
-    return NextResponse.json({ revalidated: true, tag: "site-config", now: Date.now() });
+    logger.info(
+      { event: "revalidate.site_config" },
+      "Configuración del sitio revalidada",
+    );
+    return NextResponse.json({
+      revalidated: true,
+      tag: "site-config",
+      now: Date.now(),
+    });
   }
 
   // ── Rama 2: revalidación del catálogo WooCommerce ────────────────────────
   const wcSignature = request.headers.get("x-wc-webhook-signature");
   if (!verifyWooWebhook(rawBody, wcSignature)) {
-    logger.warn({ event: "revalidate.invalid_wc_signature" }, "Firma WC de webhook inválida");
+    logger.warn(
+      { event: "revalidate.invalid_wc_signature" },
+      "Firma WC de webhook inválida",
+    );
     return NextResponse.json({ error: "Firma de webhook inválida." }, { status: 401 });
   }
   revalidateTag("products", "max");

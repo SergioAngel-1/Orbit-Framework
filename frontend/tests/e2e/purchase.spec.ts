@@ -24,8 +24,13 @@ const ORIGIN = process.env.ALLOWED_ORIGIN || "http://localhost:3000";
 test.describe("Compra de extremo a extremo (BFF)", () => {
   test.skip(!RUN, "Define E2E_FULL=1 con la pila Docker sembrada para ejecutar.");
 
-  test("registro → carrito → checkout → pago → el comprador ve su pedido", async ({ baseURL }) => {
-    const ctx = await pwRequest.newContext({ baseURL, extraHTTPHeaders: { origin: ORIGIN } });
+  test("registro → carrito → checkout → pago → el comprador ve su pedido", async ({
+    baseURL,
+  }) => {
+    const ctx = await pwRequest.newContext({
+      baseURL,
+      extraHTTPHeaders: { origin: ORIGIN },
+    });
 
     // 1) CSRF (cookie + token). Lo reenviaremos en cada escritura.
     const csrfRes = await ctx.get("/api/csrf");
@@ -37,7 +42,11 @@ test.describe("Compra de extremo a extremo (BFF)", () => {
     const uniq = Date.now();
     const reg = await ctx.post("/api/auth/register", {
       headers: W,
-      data: { username: `e2e_${uniq}`, email: `e2e_${uniq}@example.com`, password: "Sup3rSecret!" },
+      data: {
+        username: `e2e_${uniq}`,
+        email: `e2e_${uniq}@example.com`,
+        password: "Sup3rSecret!",
+      },
     });
     expect([200, 201]).toContain(reg.status());
 
@@ -53,8 +62,13 @@ test.describe("Compra de extremo a extremo (BFF)", () => {
       headers: { ...W, "idempotency-key": `e2e-${uniq}` },
       data: {
         billing_address: {
-          first_name: "E2E", last_name: "Test", email: `e2e_${uniq}@example.com`,
-          address_1: "Calle 1", city: "Bogotá", country: "CO", postcode: "110111",
+          first_name: "E2E",
+          last_name: "Test",
+          email: `e2e_${uniq}@example.com`,
+          address_1: "Calle 1",
+          city: "Bogotá",
+          country: "CO",
+          postcode: "110111",
         },
         payment_method: "noop",
       },
@@ -71,16 +85,25 @@ test.describe("Compra de extremo a extremo (BFF)", () => {
     expect(viewed.customer_id).toBeGreaterThan(0); // ligado, no invitado (0)
 
     // 6) Iniciar el pago (debe encontrar el pedido del usuario, no 404).
-    const pay = await ctx.post("/api/payments/create", { headers: W, data: { reference: orderId } });
+    const pay = await ctx.post("/api/payments/create", {
+      headers: W,
+      data: { reference: orderId },
+    });
     expect(pay.ok()).toBeTruthy();
 
     // 7) Simular el webhook firmado de la pasarela (noop) → pedido pagado.
     const amountMinor = Math.round(Number(viewed.total) * 100);
     const body = JSON.stringify({
-      reference: String(orderId), status: "APPROVED",
-      transactionId: `e2e-tx-${uniq}`, amountMinor, currency: viewed.currency,
+      reference: String(orderId),
+      status: "APPROVED",
+      transactionId: `e2e-tx-${uniq}`,
+      amountMinor,
+      currency: viewed.currency,
     });
-    const sig = crypto.createHmac("sha256", NOOP_SECRET).update(body, "utf8").digest("hex");
+    const sig = crypto
+      .createHmac("sha256", NOOP_SECRET)
+      .update(body, "utf8")
+      .digest("hex");
     const hook = await ctx.post("/api/payments/webhook/noop", {
       headers: { "content-type": "application/json", "x-noop-signature": sig },
       data: body,

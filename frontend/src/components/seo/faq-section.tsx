@@ -21,7 +21,9 @@ export function FaqSection({ items, title }: { items: FaqItem[]; title: string }
       <dl className="divide-y divide-gray-200 dark:divide-gray-800">
         {items.map((item, i) => (
           <div key={i} className="py-4">
-            <dt className="font-semibold text-gray-900 dark:text-gray-100">{item.question}</dt>
+            <dt className="font-semibold text-gray-900 dark:text-gray-100">
+              {item.question}
+            </dt>
             <dd className="mt-1 text-gray-600 dark:text-gray-300">{item.answer}</dd>
           </div>
         ))}

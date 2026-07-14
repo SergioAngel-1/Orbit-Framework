@@ -6,7 +6,9 @@ import type { WPPost, WPPostDetail, PostsPage } from "@/types/wordpress";
 const BLOG_REVALIDATE = 300;
 
 /** Índice del blog: listado paginado de posts publicados. */
-export async function getPosts(options: { first?: number; after?: string } = {}): Promise<PostsPage> {
+export async function getPosts(
+  options: { first?: number; after?: string } = {},
+): Promise<PostsPage> {
   const data = await fetchGraphQL<{
     posts: { pageInfo: PostsPage["pageInfo"]; nodes: WPPost[] };
   }>(POSTS_QUERY, {
@@ -28,7 +30,9 @@ export async function getPostBySlug(slug: string): Promise<WPPostDetail | null> 
 }
 
 /** Slugs publicados (+ fecha de modificación) para SSG y sitemap. */
-export async function getPostSlugs(): Promise<{ slug: string; modified: string | null }[]> {
+export async function getPostSlugs(): Promise<
+  { slug: string; modified: string | null }[]
+> {
   try {
     const data = await fetchGraphQL<{
       posts: { nodes: { slug: string; modified: string | null }[] };
@@ -37,7 +41,10 @@ export async function getPostSlugs(): Promise<{ slug: string; modified: string |
       revalidate: BLOG_REVALIDATE,
       tags: ["posts"],
     });
-    return data.posts.nodes.map((n) => ({ slug: n.slug, modified: n.modified ?? null }));
+    return data.posts.nodes.map((n) => ({
+      slug: n.slug,
+      modified: n.modified ?? null,
+    }));
   } catch {
     return [];
   }

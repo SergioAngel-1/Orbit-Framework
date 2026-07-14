@@ -226,7 +226,9 @@ export function SiteHeader() {
                     <div
                       className={cn(
                         "overflow-hidden transition-all duration-200",
-                        openDropdown === item.key ? "max-h-48 opacity-100" : "max-h-0 opacity-0",
+                        openDropdown === item.key
+                          ? "max-h-48 opacity-100"
+                          : "max-h-0 opacity-0",
                       )}
                     >
                       <div className="py-1 pl-4">

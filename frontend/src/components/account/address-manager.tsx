@@ -5,9 +5,18 @@ import { csrfFetch } from "@/lib/client/csrf";
 import type { SavedAddress } from "@/types/address";
 
 const emptyAddress: SavedAddress = {
-  first_name: "", last_name: "", company: "",
-  address_1: "", address_2: "", city: "", state: "",
-  postcode: "", country: "ES", phone: "", is_default: false, label: "",
+  first_name: "",
+  last_name: "",
+  company: "",
+  address_1: "",
+  address_2: "",
+  city: "",
+  state: "",
+  postcode: "",
+  country: "ES",
+  phone: "",
+  is_default: false,
+  label: "",
 };
 
 const COUNTRY_OPTIONS = [
@@ -35,14 +44,18 @@ export function AddressManager() {
     try {
       const res = await fetch("/api/store/addresses", { credentials: "same-origin" });
       if (res.ok) {
-        setAddresses(await res.json() as SavedAddress[]);
+        setAddresses((await res.json()) as SavedAddress[]);
       }
-    } catch { /* ignore */ } finally {
+    } catch {
+      /* ignore */
+    } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchAddresses(); }, [fetchAddresses]);
+  useEffect(() => {
+    fetchAddresses();
+  }, [fetchAddresses]);
 
   function startNew() {
     setEditing("new");
@@ -70,7 +83,10 @@ export function AddressManager() {
     setMessage(null);
     try {
       if (editing === "new") {
-        const res = await csrfFetch("/api/store/addresses", { method: "POST", body: form });
+        const res = await csrfFetch("/api/store/addresses", {
+          method: "POST",
+          body: form,
+        });
         if (!res.ok) throw new Error((await res.json()).error || t("saveError"));
         setMessage(t("saved"));
         await fetchAddresses();
@@ -95,7 +111,10 @@ export function AddressManager() {
   async function remove(index: number) {
     if (!confirm(t("deleteConfirm"))) return;
     try {
-      const res = await csrfFetch("/api/store/addresses", { method: "DELETE", body: { index } });
+      const res = await csrfFetch("/api/store/addresses", {
+        method: "DELETE",
+        body: { index },
+      });
       if (!res.ok) throw new Error((await res.json()).error || t("deleteError"));
       await fetchAddresses();
     } catch (err) {
@@ -129,32 +148,59 @@ export function AddressManager() {
       )}
 
       {addresses.map((addr, i) => (
-        <div key={i} className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+        <div
+          key={i}
+          className="rounded-xl border border-gray-200 p-4 dark:border-gray-700"
+        >
           <div className="flex items-start justify-between">
             <div>
               <p className="font-medium">
-                {addr.label && <span className="text-xs uppercase tracking-wide text-gray-400">{addr.label}</span>}
+                {addr.label && (
+                  <span className="text-xs uppercase tracking-wide text-gray-400">
+                    {addr.label}
+                  </span>
+                )}
                 {addr.is_default && (
-                  <span className="ml-2 rounded bg-brand-light px-2 py-0.5 text-xs text-white">{t("default")}</span>
+                  <span className="ml-2 rounded bg-brand-light px-2 py-0.5 text-xs text-white">
+                    {t("default")}
+                  </span>
                 )}
               </p>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                {addr.first_name} {addr.last_name}<br />
-                {addr.address_1}{addr.address_2 && <>, {addr.address_2}</>}<br />
-                {addr.city}, {addr.state} {addr.postcode}<br />
-                {addr.country}{addr.phone && <> &middot; {addr.phone}</>}
+                {addr.first_name} {addr.last_name}
+                <br />
+                {addr.address_1}
+                {addr.address_2 && <>, {addr.address_2}</>}
+                <br />
+                {addr.city}, {addr.state} {addr.postcode}
+                <br />
+                {addr.country}
+                {addr.phone && <> &middot; {addr.phone}</>}
               </p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => startEdit(i)} className="text-sm text-brand hover:underline">{t("edit")}</button>
-              <button onClick={() => remove(i)} className="text-sm text-red-500 hover:underline">{t("delete")}</button>
+              <button
+                onClick={() => startEdit(i)}
+                className="text-sm text-brand hover:underline"
+              >
+                {t("edit")}
+              </button>
+              <button
+                onClick={() => remove(i)}
+                className="text-sm text-red-500 hover:underline"
+              >
+                {t("delete")}
+              </button>
             </div>
           </div>
         </div>
       ))}
 
       {editing === null && (
-        <button onClick={startNew} className="rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-500 hover:border-brand hover:text-brand dark:border-gray-600">
+        <button
+          onClick={startNew}
+          className="rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-500 hover:border-brand hover:text-brand dark:border-gray-600"
+        >
           + {t("addNew")}
         </button>
       )}
@@ -166,67 +212,116 @@ export function AddressManager() {
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium">{tForm("firstName")}</label>
-              <input value={form.first_name} onChange={(e) => updateField("first_name", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" />
+              <label className="mb-1 block text-sm font-medium">
+                {tForm("firstName")}
+              </label>
+              <input
+                value={form.first_name}
+                onChange={(e) => updateField("first_name", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+              />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">{tForm("lastName")}</label>
-              <input value={form.last_name} onChange={(e) => updateField("last_name", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" />
+              <label className="mb-1 block text-sm font-medium">
+                {tForm("lastName")}
+              </label>
+              <input
+                value={form.last_name}
+                onChange={(e) => updateField("last_name", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">{t("label")}</label>
-              <input value={form.label} onChange={(e) => updateField("label", e.target.value)} placeholder={t("labelPlaceholder")}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" />
+              <input
+                value={form.label}
+                onChange={(e) => updateField("label", e.target.value)}
+                placeholder={t("labelPlaceholder")}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">{tForm("phone")}</label>
-              <input value={form.phone} onChange={(e) => updateField("phone", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" />
+              <input
+                value={form.phone}
+                onChange={(e) => updateField("phone", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+              />
             </div>
             <div className="col-span-2">
-              <label className="mb-1 block text-sm font-medium">{tForm("address")}</label>
-              <input value={form.address_1} onChange={(e) => updateField("address_1", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" />
+              <label className="mb-1 block text-sm font-medium">
+                {tForm("address")}
+              </label>
+              <input
+                value={form.address_1}
+                onChange={(e) => updateField("address_1", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">{tForm("city")}</label>
-              <input value={form.city} onChange={(e) => updateField("city", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" />
+              <input
+                value={form.city}
+                onChange={(e) => updateField("city", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+              />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">{tForm("postcode")}</label>
-              <input value={form.postcode} onChange={(e) => updateField("postcode", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" />
+              <label className="mb-1 block text-sm font-medium">
+                {tForm("postcode")}
+              </label>
+              <input
+                value={form.postcode}
+                onChange={(e) => updateField("postcode", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">{t("state")}</label>
-              <input value={form.state} onChange={(e) => updateField("state", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" />
+              <input
+                value={form.state}
+                onChange={(e) => updateField("state", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+              />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">{tForm("country")}</label>
-              <select value={form.country} onChange={(e) => updateField("country", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900">
+              <label className="mb-1 block text-sm font-medium">
+                {tForm("country")}
+              </label>
+              <select
+                value={form.country}
+                onChange={(e) => updateField("country", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+              >
                 {COUNTRY_OPTIONS.map((c) => (
-                  <option key={c.code} value={c.code}>{c.name}</option>
+                  <option key={c.code} value={c.code}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
           <label className="mt-4 flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.is_default} onChange={(e) => updateField("is_default", e.target.checked)}
-              className="rounded border-gray-300 dark:border-gray-700" />
+            <input
+              type="checkbox"
+              checked={form.is_default}
+              onChange={(e) => updateField("is_default", e.target.checked)}
+              className="rounded border-gray-300 dark:border-gray-700"
+            />
             {t("setDefault")}
           </label>
           <div className="mt-4 flex gap-3">
-            <button onClick={save} disabled={saving}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50">
+            <button
+              onClick={save}
+              disabled={saving}
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50"
+            >
               {saving ? t("saving") : t("save")}
             </button>
-            <button onClick={cancelEdit}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700">
+            <button
+              onClick={cancelEdit}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700"
+            >
               {t("cancel")}
             </button>
           </div>

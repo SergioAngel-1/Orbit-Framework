@@ -20,67 +20,67 @@ const CATALOG_REVALIDATE = 300;
 
 interface RawVariation {
   databaseId: number;
-  price:        string | null;
+  price: string | null;
   regularPrice: string | null;
-  salePrice:    string | null;
-  stockStatus:  string | null;
-  attributes:   { nodes: { name: string; value: string }[] };
+  salePrice: string | null;
+  stockStatus: string | null;
+  attributes: { nodes: { name: string; value: string }[] };
 }
 
 interface RawAttribute {
-  id:        string;
-  name:      string;
-  label:     string | null;
+  id: string;
+  name: string;
+  label: string | null;
   variation: boolean | null;
-  options:   string[];
+  options: string[];
 }
 
 interface RawReview {
   rating: number;
   node: {
-    id:      string;
+    id: string;
     content: string | null;
-    date:    string | null;
-    author:  { node: { name: string | null } | null } | null;
+    date: string | null;
+    author: { node: { name: string | null } | null } | null;
   };
 }
 
 interface RawProductNode {
-  id:               string;
-  databaseId:       number;
-  name:             string;
-  slug:             string;
-  type:             string;
-  onSale?:          boolean | null;
-  price?:           string | null;
-  regularPrice?:    string | null;
-  salePrice?:       string | null;
-  stockStatus?:     string | null;
+  id: string;
+  databaseId: number;
+  name: string;
+  slug: string;
+  type: string;
+  onSale?: boolean | null;
+  price?: string | null;
+  regularPrice?: string | null;
+  salePrice?: string | null;
+  stockStatus?: string | null;
   shortDescription?: string | null;
-  description?:     string | null;
-  image?:           { sourceUrl: string; altText: string | null } | null;
-  attributes?:      { nodes: RawAttribute[] } | null;
-  variations?:      { nodes: RawVariation[] } | null;
-  reviews?:         { averageRating: number; edges: RawReview[] } | null;
-  related?:         { nodes: RawProductNode[] } | null;
+  description?: string | null;
+  image?: { sourceUrl: string; altText: string | null } | null;
+  attributes?: { nodes: RawAttribute[] } | null;
+  variations?: { nodes: RawVariation[] } | null;
+  reviews?: { averageRating: number; edges: RawReview[] } | null;
+  related?: { nodes: RawProductNode[] } | null;
 }
 
 // ── Normalización ─────────────────────────────────────────────────────────────
 
 function normalize(node: RawProductNode): CatalogProduct {
   return {
-    id:               node.id,
-    databaseId:       node.databaseId,
-    name:             node.name,
-    slug:             node.slug,
-    type:             node.type,
-    onSale:           Boolean(node.onSale),
-    price:            node.price ?? null,
-    regularPrice:     node.regularPrice ?? null,
-    salePrice:        node.salePrice ?? null,
-    stockStatus:      node.stockStatus ?? null,
+    id: node.id,
+    databaseId: node.databaseId,
+    name: node.name,
+    slug: node.slug,
+    type: node.type,
+    onSale: Boolean(node.onSale),
+    price: node.price ?? null,
+    regularPrice: node.regularPrice ?? null,
+    salePrice: node.salePrice ?? null,
+    stockStatus: node.stockStatus ?? null,
     shortDescription: node.shortDescription ?? null,
-    image:            node.image
+    image: node.image
       ? { sourceUrl: node.image.sourceUrl, altText: node.image.altText ?? "" }
       : null,
   };
@@ -89,42 +89,49 @@ function normalize(node: RawProductNode): CatalogProduct {
 // ── Parámetros de filtro ──────────────────────────────────────────────────────
 
 export interface ProductFilterParams {
-  search?:      string;
-  category?:    string;
-  minPrice?:    string;
-  maxPrice?:    string;
+  search?: string;
+  category?: string;
+  minPrice?: string;
+  maxPrice?: string;
   stockStatus?: "IN_STOCK" | "OUT_OF_STOCK";
   /** "price-asc" | "price-desc" | "date-desc" | "date-asc" | "title-asc" */
-  sort?:        string;
-  after?:       string;
-  first?:       number;
+  sort?: string;
+  after?: string;
+  first?: number;
 }
 
 function parseSortVariables(sort?: string) {
   switch (sort) {
-    case "price-asc":   return { orderbyField: "PRICE", orderbyOrder: "ASC" };
-    case "price-desc":  return { orderbyField: "PRICE", orderbyOrder: "DESC" };
-    case "date-asc":    return { orderbyField: "DATE",  orderbyOrder: "ASC" };
-    case "title-asc":   return { orderbyField: "TITLE", orderbyOrder: "ASC" };
-    default:            return { orderbyField: "DATE",  orderbyOrder: "DESC" };
+    case "price-asc":
+      return { orderbyField: "PRICE", orderbyOrder: "ASC" };
+    case "price-desc":
+      return { orderbyField: "PRICE", orderbyOrder: "DESC" };
+    case "date-asc":
+      return { orderbyField: "DATE", orderbyOrder: "ASC" };
+    case "title-asc":
+      return { orderbyField: "TITLE", orderbyOrder: "ASC" };
+    default:
+      return { orderbyField: "DATE", orderbyOrder: "DESC" };
   }
 }
 
 // ── Funciones públicas ─────────────────────────────────────────────────────────
 
-export async function getProducts(options: ProductFilterParams = {}): Promise<ProductsPage> {
+export async function getProducts(
+  options: ProductFilterParams = {},
+): Promise<ProductsPage> {
   const { orderbyField, orderbyOrder } = parseSortVariables(options.sort);
   const data = await fetchGraphQL<{
     products: { pageInfo: ProductsPage["pageInfo"]; nodes: RawProductNode[] };
   }>(PRODUCTS_QUERY, {
     variables: {
-      first:        options.first ?? 12,
-      after:        options.after,
-      search:       options.search,
-      category:     options.category,
-      minPrice:     options.minPrice,
-      maxPrice:     options.maxPrice,
-      stockStatus:  options.stockStatus ? [options.stockStatus] : undefined,
+      first: options.first ?? 12,
+      after: options.after,
+      search: options.search,
+      category: options.category,
+      minPrice: options.minPrice,
+      maxPrice: options.maxPrice,
+      stockStatus: options.stockStatus ? [options.stockStatus] : undefined,
       orderbyField,
       orderbyOrder,
     },
@@ -150,28 +157,30 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
   return {
     ...normalize(node),
     description: node.description ?? null,
-    attributes:  node.attributes?.nodes.map((a) => ({
-      id:        a.id,
-      name:      a.name,
-      label:     a.label ?? a.name,
-      variation: a.variation ?? false,
-      options:   a.options,
-    })) ?? [],
-    variations: node.variations?.nodes.map((v) => ({
-      databaseId:   v.databaseId,
-      price:        v.price ?? null,
-      regularPrice: v.regularPrice ?? null,
-      salePrice:    v.salePrice ?? null,
-      stockStatus:  v.stockStatus ?? null,
-      attributes:   v.attributes.nodes.map((a) => ({ name: a.name, value: a.value })),
-    })) ?? [],
+    attributes:
+      node.attributes?.nodes.map((a) => ({
+        id: a.id,
+        name: a.name,
+        label: a.label ?? a.name,
+        variation: a.variation ?? false,
+        options: a.options,
+      })) ?? [],
+    variations:
+      node.variations?.nodes.map((v) => ({
+        databaseId: v.databaseId,
+        price: v.price ?? null,
+        regularPrice: v.regularPrice ?? null,
+        salePrice: v.salePrice ?? null,
+        stockStatus: v.stockStatus ?? null,
+        attributes: v.attributes.nodes.map((a) => ({ name: a.name, value: a.value })),
+      })) ?? [],
     reviews: {
       averageRating: node.reviews?.averageRating ?? 0,
       items: (node.reviews?.edges ?? []).map((e) => ({
-        id:         e.node.id,
-        content:    e.node.content ?? "",
-        date:       e.node.date ?? "",
-        rating:     e.rating,
+        id: e.node.id,
+        content: e.node.content ?? "",
+        date: e.node.date ?? "",
+        rating: e.rating,
         authorName: e.node.author?.node?.name ?? "Anónimo",
       })),
     },
@@ -195,7 +204,9 @@ export async function getCategory(
   slug: string,
 ): Promise<{ category: ProductCategory; products: CatalogProduct[] } | null> {
   const data = await fetchGraphQL<{
-    productCategory: (ProductCategory & { products: { nodes: RawProductNode[] } }) | null;
+    productCategory:
+      | (ProductCategory & { products: { nodes: RawProductNode[] } })
+      | null;
   }>(CATEGORY_BY_SLUG_QUERY, {
     variables: { slug, first: 24 },
     revalidate: CATALOG_REVALIDATE,
@@ -206,7 +217,13 @@ export async function getCategory(
   if (!cat) return null;
 
   return {
-    category: { id: cat.id, databaseId: cat.databaseId, name: cat.name, slug: cat.slug, description: cat.description ?? null },
+    category: {
+      id: cat.id,
+      databaseId: cat.databaseId,
+      name: cat.name,
+      slug: cat.slug,
+      description: cat.description ?? null,
+    },
     products: cat.products.nodes.map(normalize),
   };
 }
@@ -221,10 +238,10 @@ export async function getCategories(): Promise<ProductCategory[]> {
       tags: ["products"],
     });
     return data.productCategories.nodes.map((c) => ({
-      id:          c.id,
-      databaseId:  c.databaseId,
-      name:        c.name,
-      slug:        c.slug,
+      id: c.id,
+      databaseId: c.databaseId,
+      name: c.name,
+      slug: c.slug,
       description: c.description,
     }));
   } catch {

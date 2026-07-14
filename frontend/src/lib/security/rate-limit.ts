@@ -45,7 +45,12 @@ function memoryRateLimit(
 
   entry.count += 1;
   if (entry.count > limit) {
-    return { success: false, remaining: 0, retryAfter: Math.ceil((entry.resetAt - now) / 1000), limit };
+    return {
+      success: false,
+      remaining: 0,
+      retryAfter: Math.ceil((entry.resetAt - now) / 1000),
+      limit,
+    };
   }
   return { success: true, remaining: limit - entry.count, retryAfter: 0, limit };
 }

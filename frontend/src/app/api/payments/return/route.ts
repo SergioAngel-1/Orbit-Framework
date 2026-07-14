@@ -19,17 +19,31 @@ export async function GET(request: Request) {
 
     const ref = new URL(request.url).searchParams.get("ref");
     if (!ref || !/^\d+$/.test(ref)) {
-      logger.warn({ event: "payments.return.invalid_ref" }, "Referencia de retorno inválida");
+      logger.warn(
+        { event: "payments.return.invalid_ref" },
+        "Referencia de retorno inválida",
+      );
       return NextResponse.json({ error: "Referencia inválida." }, { status: 400 });
     }
 
     const order = await getOrder(ref);
     if (order.customer_id !== Number(session.userId)) {
-      logger.warn({ event: "payments.return.idor", userId: session.userId, ref }, "Intento de acceso a pedido de otro usuario");
+      logger.warn(
+        { event: "payments.return.idor", userId: session.userId, ref },
+        "Intento de acceso a pedido de otro usuario",
+      );
       return NextResponse.json({ error: "No encontrado." }, { status: 404 });
     }
 
-    logger.info({ event: "payments.return.success", userId: session.userId, ref, status: order.status }, "Retorno de pago consultado");
+    logger.info(
+      {
+        event: "payments.return.success",
+        userId: session.userId,
+        ref,
+        status: order.status,
+      },
+      "Retorno de pago consultado",
+    );
     return NextResponse.json({
       reference: String(order.id),
       status: order.status,
@@ -38,7 +52,13 @@ export async function GET(request: Request) {
       currency: order.currency,
     });
   } catch (error) {
-    logger.error({ event: "payments.return.error", err: error instanceof Error ? error.message : error }, "Error en retorno de pago");
+    logger.error(
+      {
+        event: "payments.return.error",
+        err: error instanceof Error ? error.message : error,
+      },
+      "Error en retorno de pago",
+    );
     return handleApiError(error);
   }
 }

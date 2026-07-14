@@ -6,7 +6,9 @@ import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
 
-const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80";
+const WP_INTERNAL =
+  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
+  "http://wordpress:80";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Contraseña actual requerida").max(200),
@@ -53,30 +55,45 @@ export async function POST(request: Request) {
         variables: { username: session.userId, password: parsed.data.currentPassword },
       }),
     });
-    const loginData = await loginRes.json() as { data?: { login?: { authToken?: string } }; errors?: unknown };
+    const loginData = (await loginRes.json()) as {
+      data?: { login?: { authToken?: string } };
+      errors?: unknown;
+    };
     if (!loginData.data?.login?.authToken) {
-      return NextResponse.json({ error: "La contraseña actual no es correcta." }, { status: 403 });
+      return NextResponse.json(
+        { error: "La contraseña actual no es correcta." },
+        { status: 403 },
+      );
     }
 
     // Update password via WP REST API
-    const updateRes = await fetch(`${WP_INTERNAL}/wp-json/wp/v2/users/${session.userId}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${loginData.data.login.authToken}`,
+    const updateRes = await fetch(
+      `${WP_INTERNAL}/wp-json/wp/v2/users/${session.userId}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${loginData.data.login.authToken}`,
+        },
+        body: JSON.stringify({ password: parsed.data.newPassword }),
       },
-      body: JSON.stringify({ password: parsed.data.newPassword }),
-    });
+    );
 
     if (!updateRes.ok) {
       logger.warn({ event: "auth.change_password.wp_error", status: updateRes.status });
-      return NextResponse.json({ error: "No se pudo cambiar la contraseña." }, { status: 502 });
+      return NextResponse.json(
+        { error: "No se pudo cambiar la contraseña." },
+        { status: 502 },
+      );
     }
 
     logger.info({ event: "auth.change_password.success", userId: session.userId });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
-    logger.error({ event: "auth.change_password.error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "auth.change_password.error",
+      err: error instanceof Error ? error.message : error,
+    });
     return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
   }
 }

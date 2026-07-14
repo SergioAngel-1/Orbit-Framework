@@ -25,7 +25,9 @@ describe("assertAllowedOrigin", () => {
   });
 
   it("usa Referer como respaldo cuando no hay Origin", () => {
-    expect(assertAllowedOrigin(req({ referer: "https://app.example/login" }))).toBe(true);
+    expect(assertAllowedOrigin(req({ referer: "https://app.example/login" }))).toBe(
+      true,
+    );
     expect(assertAllowedOrigin(req({ referer: "https://evil.example/x" }))).toBe(false);
   });
 

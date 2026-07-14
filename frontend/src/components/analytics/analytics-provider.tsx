@@ -30,7 +30,13 @@ export function useConsent(): ConsentContextValue {
 declare global {
   interface Window {
     dataLayer?: unknown[];
-    plausible?: (event: string, options?: { props?: Record<string, unknown>; revenue?: { currency: string; amount: number } }) => void;
+    plausible?: (
+      event: string,
+      options?: {
+        props?: Record<string, unknown>;
+        revenue?: { currency: string; amount: number };
+      },
+    ) => void;
   }
 }
 
@@ -77,12 +83,18 @@ function useAnalyticsScript(consent: ConsentStatus) {
       document.head.appendChild(script);
 
       window.dataLayer = window.dataLayer || [];
-      function gtag(...args: unknown[]) { window.dataLayer!.push(args); }
+      function gtag(...args: unknown[]) {
+        window.dataLayer!.push(args);
+      }
       gtag("js", new Date());
       gtag("config", gaId, { anonymize_ip: true });
     }
 
-    if (provider === "plausible" && plausibleDomain && !document.querySelector("#hwe-plausible")) {
+    if (
+      provider === "plausible" &&
+      plausibleDomain &&
+      !document.querySelector("#hwe-plausible")
+    ) {
       const script = document.createElement("script");
       script.id = "hwe-plausible";
       script.async = true;

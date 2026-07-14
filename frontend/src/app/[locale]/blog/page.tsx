@@ -49,7 +49,9 @@ export default async function BlogPage({
   return (
     <div>
       <h1 className="mb-2 text-3xl font-extrabold tracking-tight">{t("title")}</h1>
-      <p className="mb-8 max-w-2xl text-gray-600 dark:text-gray-300">{t("description")}</p>
+      <p className="mb-8 max-w-2xl text-gray-600 dark:text-gray-300">
+        {t("description")}
+      </p>
 
       {errorMessage ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
@@ -65,7 +67,12 @@ export default async function BlogPage({
         <>
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {posts.map((post) => (
-              <PostCard key={post.id} post={post} locale={locale} readMore={t("readMore")} />
+              <PostCard
+                key={post.id}
+                post={post}
+                locale={locale}
+                readMore={t("readMore")}
+              />
             ))}
           </div>
 

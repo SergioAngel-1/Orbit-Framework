@@ -4,15 +4,15 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getProductBySlug, getProductSlugs } from "@/lib/catalog/products";
-import { sanitizeHtml }   from "@/lib/security/sanitize";
+import { sanitizeHtml } from "@/lib/security/sanitize";
 import { formatPrice, stripHtml, formatDate } from "@/lib/format";
-import { getSiteConfig }  from "@/lib/config";
+import { getSiteConfig } from "@/lib/config";
 import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
 import { buildProductJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
-import { Badge }          from "@/components/ui/badge";
-import { ProductGrid }    from "@/components/products/product-grid";
-import ProductActions     from "@/components/products/product-actions";
-import { ReviewForm }     from "@/components/products/review-form";
+import { Badge } from "@/components/ui/badge";
+import { ProductGrid } from "@/components/products/product-grid";
+import ProductActions from "@/components/products/product-actions";
+import { ReviewForm } from "@/components/products/review-form";
 
 export const revalidate = 300;
 
@@ -55,10 +55,7 @@ export default async function ProductPage({
 }) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
-  const [t, config] = await Promise.all([
-    getTranslations("products"),
-    getSiteConfig(),
-  ]);
+  const [t, config] = await Promise.all([getTranslations("products"), getSiteConfig()]);
 
   let product: Awaited<ReturnType<typeof getProductBySlug>>;
   try {
@@ -70,7 +67,7 @@ export default async function ProductPage({
 
   const descriptionHtml = product.description ? sanitizeHtml(product.description) : "";
   const outOfStock = product.stockStatus === "OUT_OF_STOCK";
-  const isVariable  = product.type === "VARIABLE";
+  const isVariable = product.type === "VARIABLE";
 
   const canonicalUrl = absoluteLocalized(config.brand.url, `/products/${slug}`, locale);
   const jsonLd = buildProductJsonLd({
@@ -102,7 +99,9 @@ export default async function ProductPage({
           {t("title")}
         </Link>
         <span aria-hidden>/</span>
-        <span className="truncate text-gray-900 dark:text-gray-200">{product.name}</span>
+        <span className="truncate text-gray-900 dark:text-gray-200">
+          {product.name}
+        </span>
       </nav>
 
       {/* Grid principal */}
@@ -125,7 +124,9 @@ export default async function ProductPage({
           )}
           {product.onSale && (
             <div className="absolute left-3 top-3">
-              <Badge color="brand" variant="solid">{t("onSale")}</Badge>
+              <Badge color="brand" variant="solid">
+                {t("onSale")}
+              </Badge>
             </div>
           )}
         </div>
@@ -133,7 +134,9 @@ export default async function ProductPage({
         {/* Detalles + acciones */}
         <div className="flex flex-col gap-5">
           <div>
-            <h1 className="product-name text-3xl font-extrabold tracking-tight">{product.name}</h1>
+            <h1 className="product-name text-3xl font-extrabold tracking-tight">
+              {product.name}
+            </h1>
             {product.shortDescription && (
               <p className="product-summary mt-2 text-gray-600 dark:text-gray-400">
                 {stripHtml(product.shortDescription)}
@@ -152,7 +155,9 @@ export default async function ProductPage({
           </div>
 
           {outOfStock && !isVariable && (
-            <Badge color="error" variant="soft">{t("outOfStock")}</Badge>
+            <Badge color="error" variant="soft">
+              {t("outOfStock")}
+            </Badge>
           )}
 
           {/* Selector de variaciones + botón carrito (client component) */}
@@ -187,10 +192,18 @@ export default async function ProductPage({
                 <li key={rev.id} className="py-4">
                   <div className="flex items-center gap-2 text-sm">
                     <span className="font-medium">{rev.authorName}</span>
-                    <span className="text-yellow-500">{rev.rating > 0 ? "★".repeat(rev.rating) : ""}</span>
-                    <span className="text-gray-400">{formatDate(rev.date, locale)}</span>
+                    <span className="text-yellow-500">
+                      {rev.rating > 0 ? "★".repeat(rev.rating) : ""}
+                    </span>
+                    <span className="text-gray-400">
+                      {formatDate(rev.date, locale)}
+                    </span>
                   </div>
-                  {rev.content && <p className="mt-1 text-gray-600 dark:text-gray-400">{rev.content}</p>}
+                  {rev.content && (
+                    <p className="mt-1 text-gray-600 dark:text-gray-400">
+                      {rev.content}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

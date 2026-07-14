@@ -26,10 +26,7 @@ export default async function ContactPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [t, config] = await Promise.all([
-    getTranslations("contact"),
-    getSiteConfig(),
-  ]);
+  const [t, config] = await Promise.all([getTranslations("contact"), getSiteConfig()]);
 
   return (
     <div>

@@ -3,7 +3,11 @@ import { wcFetch } from "@/lib/woocommerce/client";
 import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
-import { addressSchema, addressUpdateSchema, addressDeleteSchema } from "@/lib/validation/address";
+import {
+  addressSchema,
+  addressUpdateSchema,
+  addressDeleteSchema,
+} from "@/lib/validation/address";
 import { withLock } from "@/lib/security/lock";
 import { logger } from "@/lib/observability/logger";
 import type { WooCustomer } from "@/types/woocommerce";
@@ -59,13 +63,17 @@ export async function POST(request: Request) {
   try {
     const session = await requireSession();
     const newAddress = await withLock(`addresses:${session.userId}`, async () => {
-      const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+      const customer = await wcFetch<WooCustomer>(
+        `/customers/${Number(session.userId)}`,
+      );
       const addresses = parseAddresses(customer);
       const addr = { ...parsed.data };
 
       // If marked as default, unmark others
       if (addr.is_default) {
-        addresses.forEach((a) => { a.is_default = false; });
+        addresses.forEach((a) => {
+          a.is_default = false;
+        });
       } else if (addresses.length === 0) {
         addr.is_default = true;
       }
@@ -84,7 +92,10 @@ export async function POST(request: Request) {
     logger.info({ event: "addresses.create", userId: session.userId });
     return NextResponse.json(newAddress, { status: 201 });
   } catch (error) {
-    logger.error({ event: "addresses.create.error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "addresses.create.error",
+      err: error instanceof Error ? error.message : error,
+    });
     return handleApiError(error);
   }
 }
@@ -113,7 +124,9 @@ export async function PUT(request: Request) {
   try {
     const session = await requireSession();
     const result = await withLock(`addresses:${session.userId}`, async () => {
-      const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+      const customer = await wcFetch<WooCustomer>(
+        `/customers/${Number(session.userId)}`,
+      );
       const addresses = parseAddresses(customer);
 
       if (parsed.data.index >= addresses.length || parsed.data.index < 0) {
@@ -122,7 +135,9 @@ export async function PUT(request: Request) {
 
       const updated = { ...parsed.data.address };
       if (updated.is_default) {
-        addresses.forEach((a) => { a.is_default = false; });
+        addresses.forEach((a) => {
+          a.is_default = false;
+        });
       }
       addresses[parsed.data.index] = updated;
 
@@ -139,10 +154,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Dirección no encontrada." }, { status: 404 });
     }
 
-    logger.info({ event: "addresses.update", userId: session.userId, index: parsed.data.index });
+    logger.info({
+      event: "addresses.update",
+      userId: session.userId,
+      index: parsed.data.index,
+    });
     return NextResponse.json(result.updated, { status: 200 });
   } catch (error) {
-    logger.error({ event: "addresses.update.error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "addresses.update.error",
+      err: error instanceof Error ? error.message : error,
+    });
     return handleApiError(error);
   }
 }
@@ -171,7 +193,9 @@ export async function DELETE(request: Request) {
   try {
     const session = await requireSession();
     const result = await withLock(`addresses:${session.userId}`, async () => {
-      const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+      const customer = await wcFetch<WooCustomer>(
+        `/customers/${Number(session.userId)}`,
+      );
       const addresses = parseAddresses(customer);
 
       if (parsed.data.index >= addresses.length || parsed.data.index < 0) {
@@ -198,10 +222,17 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Dirección no encontrada." }, { status: 404 });
     }
 
-    logger.info({ event: "addresses.delete", userId: session.userId, index: parsed.data.index });
+    logger.info({
+      event: "addresses.delete",
+      userId: session.userId,
+      index: parsed.data.index,
+    });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
-    logger.error({ event: "addresses.delete.error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "addresses.delete.error",
+      err: error instanceof Error ? error.message : error,
+    });
     return handleApiError(error);
   }
 }

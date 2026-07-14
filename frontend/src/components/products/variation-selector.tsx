@@ -91,7 +91,10 @@ export function VariationSelector({
   };
 
   const isOptionAvailable = (attrName: string, option: string): boolean => {
-    const hypothetical = { ...selected, [normalizeValue(attrName)]: normalizeValue(option) };
+    const hypothetical = {
+      ...selected,
+      [normalizeValue(attrName)]: normalizeValue(option),
+    };
     return variations.some(
       (v) =>
         v.stockStatus !== "OUT_OF_STOCK" &&
@@ -115,16 +118,24 @@ export function VariationSelector({
         return (
           <div key={attr.name}>
             <div className="mb-2 flex items-center gap-2 text-sm">
-              <span className="font-medium text-gray-700 dark:text-gray-300">{label}</span>
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                {label}
+              </span>
               {currentValue && (
-                <span className="text-gray-500 dark:text-gray-400 capitalize">{currentValue}</span>
+                <span className="text-gray-500 dark:text-gray-400 capitalize">
+                  {currentValue}
+                </span>
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2" role="group" aria-label={`Seleccionar ${label}`}>
+            <div
+              className="flex flex-wrap gap-2"
+              role="group"
+              aria-label={`Seleccionar ${label}`}
+            >
               {attr.options.map((option) => {
                 const isSelected = normalizeValue(option) === currentValue;
-                const available  = isOptionAvailable(attr.name, option);
+                const available = isOptionAvailable(attr.name, option);
 
                 return (
                   <button

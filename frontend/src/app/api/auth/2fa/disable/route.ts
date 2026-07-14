@@ -7,7 +7,9 @@ import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
 
-const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80";
+const WP_INTERNAL =
+  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
+  "http://wordpress:80";
 
 /**
  * POST /api/auth/2fa/disable
@@ -38,38 +40,62 @@ export async function POST(request: Request) {
   // Re-verificación obligatoria antes de desactivar.
   try {
     if (body.recoveryCode) {
-      const recRes = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-recovery/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
-        body: JSON.stringify({ code: body.recoveryCode }),
-        cache: "no-store",
-      });
+      const recRes = await fetch(
+        `${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-recovery/verify`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.token}`,
+          },
+          body: JSON.stringify({ code: body.recoveryCode }),
+          cache: "no-store",
+        },
+      );
       if (!recRes.ok) {
-        return NextResponse.json({ error: "Código de recuperación inválido." }, { status: 401 });
+        return NextResponse.json(
+          { error: "Código de recuperación inválido." },
+          { status: 401 },
+        );
       }
     } else {
       const parsed = twoFactorCodeSchema.safeParse({ code: body.code });
       if (!parsed.success) {
-        return NextResponse.json({ error: "Código requerido para desactivar 2FA." }, { status: 422 });
+        return NextResponse.json(
+          { error: "Código requerido para desactivar 2FA." },
+          { status: 422 },
+        );
       }
       const secretRes = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-secret`, {
         headers: { Authorization: `Bearer ${session.token}` },
         cache: "no-store",
       });
       if (!secretRes.ok) {
-        return NextResponse.json({ error: "Error al obtener configuración 2FA." }, { status: 502 });
+        return NextResponse.json(
+          { error: "Error al obtener configuración 2FA." },
+          { status: 502 },
+        );
       }
       const secretData = (await secretRes.json()) as { secret: string | null };
       if (!secretData.secret) {
-        return NextResponse.json({ error: "2FA no está configurado." }, { status: 400 });
+        return NextResponse.json(
+          { error: "2FA no está configurado." },
+          { status: 400 },
+        );
       }
-      const totpResult = await verifyTotp({ token: parsed.data.code, secret: secretData.secret });
+      const totpResult = await verifyTotp({
+        token: parsed.data.code,
+        secret: secretData.secret,
+      });
       if (!totpResult.valid) {
         return NextResponse.json({ error: "Código inválido." }, { status: 401 });
       }
     }
   } catch (error) {
-    logger.error({ event: "2fa.disable.verify_error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "2fa.disable.verify_error",
+      err: error instanceof Error ? error.message : error,
+    });
     return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
   }
 
@@ -85,13 +111,19 @@ export async function POST(request: Request) {
     });
 
     if (!res.ok) {
-      return NextResponse.json({ error: "No se pudo desactivar 2FA." }, { status: 502 });
+      return NextResponse.json(
+        { error: "No se pudo desactivar 2FA." },
+        { status: 502 },
+      );
     }
 
     logger.info({ event: "2fa.disable.success", userId: session.userId });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
-    logger.error({ event: "2fa.disable.error", err: error instanceof Error ? error.message : error });
+    logger.error({
+      event: "2fa.disable.error",
+      err: error instanceof Error ? error.message : error,
+    });
     return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
   }
 }

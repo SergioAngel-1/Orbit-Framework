@@ -1,7 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Alert }  from "@/components/ui/alert";
+import { Alert } from "@/components/ui/alert";
 
 // Error boundary para la capa del locale.
 // Next.js lo renderiza cuando un Server/Client Component lanza una excepción.

@@ -17,7 +17,9 @@ export async function PUT(request: Request) {
   if (blocked) return blocked;
 
   let body: unknown;
-  try { body = await request.json(); } catch {
+  try {
+    body = await request.json();
+  } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
@@ -25,23 +27,38 @@ export async function PUT(request: Request) {
   if (!parsed.success) {
     logger.warn({ event: "shipping.select.validation" }, "Datos de envío inválidos");
     return NextResponse.json(
-      { error: "Datos de envío inválidos.", details: parsed.error.flatten().fieldErrors },
+      {
+        error: "Datos de envío inválidos.",
+        details: parsed.error.flatten().fieldErrors,
+      },
       { status: 422 },
     );
   }
 
   try {
     const token = await readCartToken();
-    const { data, cartToken } = await storeFetch<StoreCart>("/cart/select-shipping-rate", {
-      method: "POST",
-      body: { package_id: parsed.data.package_id, rate_id: parsed.data.rate_id },
-      cartToken: token,
-    });
+    const { data, cartToken } = await storeFetch<StoreCart>(
+      "/cart/select-shipping-rate",
+      {
+        method: "POST",
+        body: { package_id: parsed.data.package_id, rate_id: parsed.data.rate_id },
+        cartToken: token,
+      },
+    );
     await writeCartToken(cartToken);
-    logger.info({ event: "shipping.select.success", rateId: parsed.data.rate_id }, "Tarifa de envío seleccionada");
+    logger.info(
+      { event: "shipping.select.success", rateId: parsed.data.rate_id },
+      "Tarifa de envío seleccionada",
+    );
     return NextResponse.json(data);
   } catch (error) {
-    logger.error({ event: "shipping.select.error", err: error instanceof Error ? error.message : error }, "Error al seleccionar tarifa de envío");
+    logger.error(
+      {
+        event: "shipping.select.error",
+        err: error instanceof Error ? error.message : error,
+      },
+      "Error al seleccionar tarifa de envío",
+    );
     return handleApiError(error);
   }
 }

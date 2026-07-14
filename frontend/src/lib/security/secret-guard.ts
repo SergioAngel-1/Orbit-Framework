@@ -59,7 +59,9 @@ export function findSecretProblems(): string[] {
       continue;
     }
     if (rule.checkLength && value.length < MIN_SECRET_LENGTH) {
-      problems.push(`${rule.name} es demasiado corto (mínimo ${MIN_SECRET_LENGTH} caracteres).`);
+      problems.push(
+        `${rule.name} es demasiado corto (mínimo ${MIN_SECRET_LENGTH} caracteres).`,
+      );
     }
   }
 

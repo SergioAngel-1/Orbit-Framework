@@ -45,9 +45,9 @@ export function useCart(): CartState {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [cart,       setCart]       = useState<StoreCart | null>(null);
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState<string | null>(null);
+  const [cart, setCart] = useState<StoreCart | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -79,13 +79,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value: CartState = {
     cart,
-    count:       cart?.items_count ?? 0,
+    count: cart?.items_count ?? 0,
     loading,
     error,
     drawerOpen,
-    openDrawer:  () => setDrawerOpen(true),
+    openDrawer: () => setDrawerOpen(true),
     closeDrawer: () => setDrawerOpen(false),
-    toggleDrawer:() => setDrawerOpen((o) => !o),
+    toggleDrawer: () => setDrawerOpen((o) => !o),
     addItem: (id, quantity = 1) =>
       run(() => cartApi.addItem(id, quantity)).then(() => {
         // Evento de analítica (no-op sin consentimiento/proveedor).
@@ -94,11 +94,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setDrawerOpen(true);
       }),
     updateItem: (key, quantity) => run(() => cartApi.updateItem(key, quantity)),
-    removeItem:  (key)          => run(() => cartApi.removeItem(key)),
-    clear:       ()             => run(() => cartApi.clear()),
+    removeItem: (key) => run(() => cartApi.removeItem(key)),
+    clear: () => run(() => cartApi.clear()),
     refresh,
-    applyCoupon: (code)         => run(() => cartApi.applyCoupon(code)),
-    removeCoupon:(code)         => run(() => cartApi.removeCoupon(code)),
+    applyCoupon: (code) => run(() => cartApi.applyCoupon(code)),
+    removeCoupon: (code) => run(() => cartApi.removeCoupon(code)),
     selectShippingRate: (pkg, rate) => run(() => cartApi.selectShippingRate(pkg, rate)),
   };
 

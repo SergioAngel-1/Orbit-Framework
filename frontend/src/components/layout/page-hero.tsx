@@ -33,7 +33,11 @@ export function PageHero({
     return (
       <div className={cn("relative overflow-hidden", className)}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img
+          src={image}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
         <div className="absolute inset-0 bg-gray-900/65" />
         <div className="relative px-4 py-14 sm:px-6 md:py-20 lg:px-10">
           <div className={cn("mx-auto max-w-7xl", centered && "text-center")}>

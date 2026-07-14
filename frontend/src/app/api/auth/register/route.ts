@@ -16,7 +16,9 @@ import type { RegisterResponse, LoginResponse } from "@/types/auth";
 
 export const dynamic = "force-dynamic";
 
-const WP_INTERNAL = process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80";
+const WP_INTERNAL =
+  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
+  "http://wordpress:80";
 const FRONTEND_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 /**
@@ -29,12 +31,18 @@ async function sendVerificationEmail(authToken: string): Promise<void> {
   try {
     await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/send-verification`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
       body: JSON.stringify({ verification_url: `${FRONTEND_URL}/verify-email` }),
     });
   } catch (error) {
     logger.warn(
-      { event: "auth.register.send_verification_failed", err: error instanceof Error ? error.message : error },
+      {
+        event: "auth.register.send_verification_failed",
+        err: error instanceof Error ? error.message : error,
+      },
       "No se pudo enviar el email de verificación tras el registro",
     );
   }
@@ -61,7 +69,10 @@ export async function POST(request: Request) {
 
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
-    logger.warn({ event: "auth.register.validation_error" }, "Validación fallida en register");
+    logger.warn(
+      { event: "auth.register.validation_error" },
+      "Validación fallida en register",
+    );
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
       { status: 422 },
@@ -87,7 +98,10 @@ export async function POST(request: Request) {
     );
   }
 
-  logger.info({ event: "auth.register.success", username: parsed.data.username }, "Usuario creado");
+  logger.info(
+    { event: "auth.register.success", username: parsed.data.username },
+    "Usuario creado",
+  );
 
   // 2) Auto-login para dejar la sesión iniciada.
   try {
@@ -107,7 +121,10 @@ export async function POST(request: Request) {
       refreshToken,
       refreshCookieOptions(REFRESH_TOKEN_MAX_AGE),
     );
-    logger.info({ event: "auth.register.auto_login", userId: user.id }, "Auto-login post-registro exitoso");
+    logger.info(
+      { event: "auth.register.auto_login", userId: user.id },
+      "Auto-login post-registro exitoso",
+    );
 
     // Inicia el flujo de verificación de email (opcional, no bloqueante).
     if (authToken) {
@@ -116,7 +133,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ user }, { status: 201 });
   } catch {
-    logger.warn({ event: "auth.register.auto_login_failed" }, "Usuario creado pero auto-login falló");
+    logger.warn(
+      { event: "auth.register.auto_login_failed" },
+      "Usuario creado pero auto-login falló",
+    );
     return NextResponse.json(
       { ok: true, message: "Usuario creado. Inicia sesión." },
       { status: 201 },

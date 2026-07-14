@@ -1,7 +1,10 @@
 import { type InputHTMLAttributes, type ReactNode, type Ref } from "react";
 import { cn } from "@/lib/utils";
 
-export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
+export interface CheckboxProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "type"
+> {
   /** Etiqueta a la derecha del checkbox. */
   label?: ReactNode;
   /** Texto descriptivo secundario bajo la etiqueta. */
@@ -24,7 +27,9 @@ export function Checkbox({
   ref,
   ...props
 }: CheckboxProps) {
-  const checkId = id ?? (typeof label === "string" ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
+  const checkId =
+    id ??
+    (typeof label === "string" ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
   const hasError = Boolean(error);
 
   return (
@@ -54,9 +59,7 @@ export function Checkbox({
               "indeterminate:bg-brand/60 indeterminate:border-brand/60",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-1",
               "disabled:cursor-not-allowed",
-              hasError
-                ? "border-red-500"
-                : "border-gray-300 dark:border-gray-600",
+              hasError ? "border-red-500" : "border-gray-300 dark:border-gray-600",
               className,
             )}
             {...props}
@@ -84,14 +87,20 @@ export function Checkbox({
               </span>
             )}
             {description && (
-              <span className="text-xs text-gray-500 dark:text-gray-400">{description}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {description}
+              </span>
             )}
           </div>
         )}
       </label>
 
       {hasError && (
-        <p id={`${checkId}-error`} role="alert" className="pl-7 text-xs text-red-600 dark:text-red-400">
+        <p
+          id={`${checkId}-error`}
+          role="alert"
+          className="pl-7 text-xs text-red-600 dark:text-red-400"
+        >
           {error}
         </p>
       )}
