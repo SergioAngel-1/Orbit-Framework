@@ -6,6 +6,19 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [0.9.0] — 2026-07-14
+
+### Corregido
+- **ESLint funcional de nuevo**: `eslint.config.mjs` importa los flat configs nativos de
+  `eslint-config-next` 16 (cargarlos vía FlatCompat rompía el validador eslintrc) y `eslint`
+  baja a `^9` (rango soportado por los plugins que arrastra Next). Se retira `@eslint/eslintrc`.
+- **Formato Prettier aplicado** a todo `src/` y `tests/` (122 archivos): `format:check` llevaba
+  tiempo en rojo, invisible porque el lint estaba roto.
+
+### Cambiado
+- Se retiran `husky` y `lint-staged` (hook de pre-commit eliminado); la calidad la impone la CI.
+- `CLAUDE.md` y el plan de implementación v1.0 (`docs/superpowers/plans/`) quedan versionados.
+
 ### Decisión de arquitectura: el framework es backend + BFF, no un generador de UI
 
 #### Cambiado
