@@ -41,10 +41,9 @@
 | vitest | `^4.1.9` |
 | @playwright/test | `^1.61.0` |
 | @axe-core/playwright | `^4.11.3` |
-| eslint / eslint-config-next | `10.5.0` / `16.2.9` (flat config `eslint.config.mjs`) |
-| @eslint/eslintrc | `^3.3.5` (compat para `extends` en flat config) |
+| eslint / eslint-config-next | `^9.39.5` / `16.2.9` (flat config nativo en `eslint.config.mjs`; eslint-config-next 16 aún no soporta ESLint 10) |
 | @vitejs/plugin-react | `^6.0.2` |
-| prettier · husky · lint-staged | `^3.8.4` · `^9.1.7` · `^17.0.8` |
+| prettier | `^3.8.4` |
 
 ## Plugins de WordPress (instalados por `backend/scripts/setup.sh`)
 
