@@ -17,7 +17,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\""
   },
   "dependencies": {
-    "@emnapi/core": "^1.11.1",
+    "@emnapi/core": "^1.11.2",
     "@emnapi/runtime": "^1.11.1",
     "@sentry/nextjs": "^10.59.0",
     "@swc/helpers": "^0.5.23",
