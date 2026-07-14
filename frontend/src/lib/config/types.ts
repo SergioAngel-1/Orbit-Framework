@@ -53,6 +53,13 @@ export interface SiteConfig {
     coupons_enabled: boolean;
     search_enabled: boolean;
   };
+  banners: {
+    enabled: boolean;
+    /** Milisegundos entre transiciones del carrusel. */
+    interval_ms: string;
+    /** Líneas "imagen | título | subtítulo | cta | ctaHref | badge" (parsear con parseBanners). */
+    slides: string;
+  };
   integrations: {
     analytics_provider: string;
     analytics_id: string;

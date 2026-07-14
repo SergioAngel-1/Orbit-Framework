@@ -58,6 +58,11 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     coupons_enabled: false,
     search_enabled: true,
   },
+  banners: {
+    enabled: false,
+    interval_ms: "6000",
+    slides: "",
+  },
   integrations: {
     analytics_provider: "none",
     analytics_id: "",
