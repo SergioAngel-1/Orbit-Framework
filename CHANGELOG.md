@@ -17,6 +17,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 - **Guía de desarrollo de plugins** (`docs/PLUGIN_DEVELOPMENT.md`).
 - **Ejemplo mínimo de integración** (`examples/minimal-consumer/`): consumidor Node del
   contrato (config pública + GraphQL + BFF) sin framework.
+- **Banner Manager**: banners de portada administrables desde HWE Config (sección Banners),
+  expuestos en la config pública, con parser en el núcleo (`parseBanners`) y el carrusel
+  heredado (`HeroCarousel`) conectado como implementación de referencia.
 
 ## [0.9.0] — 2026-07-14
 

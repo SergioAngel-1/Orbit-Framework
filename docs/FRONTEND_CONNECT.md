@@ -79,6 +79,7 @@ design: {
   typography: { font_sans, font_url, font_heading, font_heading_url }
 }
 ecommerce: { currency, country, products_per_page, reviews_enabled, wishlist_enabled, coupons_enabled, search_enabled }
+banners: { enabled, interval_ms, slides }
 integrations: { analytics_provider, analytics_id }
 seo: { title_template, robots, google_site_verification, default_og, product_brand,
        shipping_amount, return_days, return_category, organization_logo, founding_date,
@@ -98,6 +99,11 @@ de implementación de la UI heredada.
 
 - `brand.logo` — URL del logo de cabecera (medioteca WP). Vacío = renderizar `brand.name`
   como texto.
+- `banners.enabled` / `banners.interval_ms` / `banners.slides` — Banner Manager. `slides` es un
+  textarea con una línea por banner: `imagen | título | subtítulo | texto CTA | URL CTA | badge`
+  (solo imagen y título obligatorios). Parser de referencia: `lib/config/banners.ts`
+  (`parseBanners`); consumidor de referencia: `HeroCarousel` en la home heredada, gateado por
+  `banners.enabled`.
 
 ## A.4 Design tokens (paleta/tipografía dinámica)
 
@@ -168,7 +174,7 @@ Leyenda: ✅ **completa** (usa datos reales, sin componentes de relleno) · 🧱
 
 | Ruta | Estado | Componentes clave | Notas |
 |---|---|---|---|
-| `/` (home) | 🧱 | `PostCard`, `FaqSection` | Solo título/descripción + últimos posts + FAQ (`config.geo.faq`). No usa `HeroCarousel`, `PageHero`, `TrustBar`, `CategoryCard` — todos disponibles, ninguno conectado aquí. Primer candidato a rediseñar por negocio. |
+| `/` (home) | 🧱 | `HeroCarousel` (gateado por `banners.enabled`), `PostCard`, `FaqSection` | Título/descripción + carrusel de banners (Banner Manager, §A.3) + últimos posts + FAQ (`config.geo.faq`). No usa `PageHero`, `TrustBar`, `CategoryCard` — disponibles, no conectados aquí. Primer candidato a rediseñar por negocio. |
 | `/products` | 🧱 | `InfiniteProductGrid` | Filtro con un `<form>` HTML plano (`search`/`category`/`minPrice`/`maxPrice`/`sort` por query string). No usa `FilterChips`, `SortDropdown`, `SearchModal`, `CategoryCard` — todos disponibles, ninguno conectado. |
 | `/products/[slug]` | ✅ | `ProductActions`, `VariationSelector`, `ReviewForm` (gateado), `ProductGrid` (relacionados) | Ficha de producto completa: imagen, precio, variantes, JSON-LD `Product` + `BreadcrumbList`. |
 | `/categories/[slug]` | ✅ | `ProductGrid` | Listado por categoría con JSON-LD breadcrumb. |
@@ -208,7 +214,8 @@ Formato por componente: **qué hace** — *de dónde saca datos* — estado de c
   no encaja con cualquier vertical) — si la usas, ajusta las labels/i18n al negocio o
   sustituye alguna por otra genérica (envío/devoluciones/pago seguro si encajan mejor).
 - **`HeroCarousel`** — carrusel de slides con imagen/título/CTA. *Recibe `slides: HeroSlide[]`
-  por prop — no hace fetch propio.* 🧱 Disponible, no conectado. Pensado para la home.
+  por prop — no hace fetch propio.* ✅ Conectado en la home vía Banner Manager
+  (`config.banners.*` + `parseBanners`, gateado por `banners.enabled`).
 - **`PageHero`** — cabecera de página con breadcrumb opcional, título/subtítulo, fondo con o
   sin overlay. *Recibe todo por props.* 🧱 Disponible, no conectada — buen candidato para dar
   identidad a `/products`, `/blog`, `/about` en vez del `<h1>` plano actual.

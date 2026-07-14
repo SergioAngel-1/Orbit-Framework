@@ -2,9 +2,11 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { LATEST_POSTS_QUERY } from "@/lib/queries";
 import { getSiteConfig } from "@/lib/config";
+import { parseBanners } from "@/lib/config/banners";
 import { parseFaq } from "@/lib/seo/faq";
 import { PostCard } from "@/components/blog/post-card";
 import { FaqSection } from "@/components/seo/faq-section";
+import { HeroCarousel } from "@/components/layout/hero-carousel";
 import type { PostsQueryResponse, WPPost } from "@/types/wordpress";
 
 export const revalidate = 60;
@@ -27,6 +29,9 @@ export default async function HomePage({
   setRequestLocale(locale);
   const [t, config] = await Promise.all([getTranslations("home"), getSiteConfig()]);
   const faqItems = parseFaq(config.geo.faq);
+  const bannerSlides = config.banners.enabled
+    ? parseBanners(config.banners.slides)
+    : [];
 
   let posts: WPPost[] = [];
   let errorMessage: string | null = null;
@@ -40,6 +45,14 @@ export default async function HomePage({
 
   return (
     <div>
+      {bannerSlides.length > 0 && (
+        <HeroCarousel
+          slides={bannerSlides}
+          interval={Number(config.banners.interval_ms) || 6000}
+          className="mb-12"
+        />
+      )}
+
       <section className="mb-12">
         <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
           {t("title")}

@@ -4,7 +4,9 @@ import { parseBanners } from "@/lib/config/banners";
 describe("parseBanners", () => {
   it("parsea una línea completa", () => {
     expect(
-      parseBanners("https://x/img.jpg | Rebajas | Hasta -50% | Ver ofertas | /products | Nuevo"),
+      parseBanners(
+        "https://x/img.jpg | Rebajas | Hasta -50% | Ver ofertas | /products | Nuevo",
+      ),
     ).toEqual([
       {
         id: 0,
@@ -30,7 +32,9 @@ describe("parseBanners", () => {
   it("descarta líneas sin imagen o sin título y líneas en blanco", () => {
     const raw = "\n | Sin imagen \nhttps://x/b.jpg |  \n\nhttps://x/c.jpg | Válido\n";
     // id = índice de la línea original ("https://x/c.jpg | Válido" es la línea 4, contando las inválidas)
-    expect(parseBanners(raw)).toEqual([{ id: 4, image: "https://x/c.jpg", title: "Válido" }]);
+    expect(parseBanners(raw)).toEqual([
+      { id: 4, image: "https://x/c.jpg", title: "Válido" },
+    ]);
   });
 
   it("devuelve [] para entrada vacía", () => {

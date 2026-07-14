@@ -23,9 +23,14 @@ export function parseBanners(raw: string): BannerSlide[] {
   return raw
     .split(/\r?\n/)
     .map((line, index) => {
-      const [image = "", title = "", subtitle = "", cta = "", ctaHref = "", badge = ""] = line
-        .split("|")
-        .map((part) => part.trim());
+      const [
+        image = "",
+        title = "",
+        subtitle = "",
+        cta = "",
+        ctaHref = "",
+        badge = "",
+      ] = line.split("|").map((part) => part.trim());
 
       if (!image || !title) return null;
 
