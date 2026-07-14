@@ -195,3 +195,14 @@ wp hwe setup <archivo.json>
 - Es un *merge* profundo sobre la config existente, no un reemplazo total.
 - Se registra solo si WP-CLI está presente
   (`backend/wp-content/mu-plugins/hwe-control-center.php`).
+
+## Último paso: prepara las actualizaciones futuras
+
+Configura el repo del framework como remote para poder traer sus releases:
+
+```bash
+git remote add framework <URL-del-repo-del-framework>
+git fetch framework --tags
+```
+
+El procedimiento de actualización completo está en [`docs/UPGRADE.md`](UPGRADE.md).

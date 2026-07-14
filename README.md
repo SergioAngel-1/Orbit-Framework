@@ -323,6 +323,8 @@ El endpoint verifica la firma HMAC y ejecuta `revalidateTag('products')`.
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Modelo de amenazas y hardening. |
 | [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) | Correlación request-id, alertas, retención/PII. |
 | [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) | Matriz de versiones soportadas. |
+| [`docs/UPGRADE.md`](docs/UPGRADE.md) | **Actualizar una instancia con los cambios del framework.** |
+| [`docs/PLUGIN_DEVELOPMENT.md`](docs/PLUGIN_DEVELOPMENT.md) | Desarrollar plugins del framework. |
 | [`docs/ACCESIBILIDAD.md`](docs/ACCESIBILIDAD.md) | Auditoría WCAG 2.2 AA. |
 | [`CHANGELOG.md`](CHANGELOG.md) | Novedades por versión. |
 
