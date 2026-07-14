@@ -1,6 +1,8 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getSiteConfig } from "@/lib/config";
+import { getMenu } from "@/lib/navigation/menu";
+import type { MenuLink } from "@/lib/navigation/types";
 
 export interface FooterLink {
   /** Texto ya traducido (no una key de i18n: el caller decide el idioma). */
@@ -29,43 +31,74 @@ const SOCIAL_ICON_PATHS: Record<"instagram" | "facebook" | "youtube", string> = 
 
 export interface SiteFooterProps {
   /**
-   * Columnas de enlaces. Por defecto reutiliza las páginas/traducciones que
-   * YA existen en el framework base (tienda, blog, sobre nosotros, legal) —
-   * sin inventar categorías de catálogo de un negocio concreto. Pásalas
-   * explícitas si la instancia necesita otra estructura.
+   * Columnas de enlaces. Por defecto usa el menú `footer` de WordPress
+   * (Apariencia → Menús) si está asignado; si no, reutiliza las páginas/
+   * traducciones que YA existen en el framework base (tienda, blog, sobre
+   * nosotros, legal) — sin inventar categorías de catálogo de un negocio
+   * concreto. Pásalas explícitas si la instancia necesita otra estructura.
    */
   columns?: FooterColumn[];
 }
 
+/**
+ * Convierte el menú `footer` de WP en columnas: cada item raíz CON hijos es
+ * una columna (heading = label del padre); los items raíz sueltos se agrupan
+ * en una única columna final con el heading genérico indicado.
+ */
+function menuToColumns(menu: MenuLink[], looseHeading: string): FooterColumn[] {
+  const columns: FooterColumn[] = [];
+  const loose: FooterLink[] = [];
+
+  for (const item of menu) {
+    if (item.children && item.children.length > 0) {
+      columns.push({
+        heading: item.label,
+        links: item.children.map((c) => ({ label: c.label, href: c.href })),
+      });
+    } else {
+      loose.push({ label: item.label, href: item.href });
+    }
+  }
+  if (loose.length > 0) {
+    columns.push({ heading: looseHeading, links: loose });
+  }
+  return columns;
+}
+
 export async function SiteFooter({ columns }: SiteFooterProps = {}) {
-  const [tFooter, tNav, tSite, config] = await Promise.all([
+  const [tFooter, tNav, tSite, config, locale] = await Promise.all([
     getTranslations("footer"),
     getTranslations("nav"),
     getTranslations("site"),
     getSiteConfig(),
+    getLocale(),
   ]);
+
+  const footerMenu = await getMenu("footer", locale);
 
   const siteName = tSite("name");
   const year = new Date().getFullYear();
 
-  const footerColumns: FooterColumn[] = columns ?? [
-    {
-      heading: tNav("store"),
-      links: [
-        { label: tNav("allProducts"), href: "/products" },
-        { label: tNav("offers"), href: "/products" },
-        { label: tNav("blog"), href: "/blog" },
-      ],
-    },
-    {
-      heading: tFooter("company"),
-      links: [
-        { label: tNav("about"), href: "/about" },
-        { label: tNav("contact"), href: "/contact" },
-        { label: tNav("terms"), href: "/legal/terms" },
-      ],
-    },
-  ];
+  // Prioridad: props explícitas > menú `footer` de WP > defaults i18n.
+  const footerColumns: FooterColumn[] = columns ??
+    (footerMenu ? menuToColumns(footerMenu, tFooter("links")) : null) ?? [
+      {
+        heading: tNav("store"),
+        links: [
+          { label: tNav("allProducts"), href: "/products" },
+          { label: tNav("offers"), href: "/products" },
+          { label: tNav("blog"), href: "/blog" },
+        ],
+      },
+      {
+        heading: tFooter("company"),
+        links: [
+          { label: tNav("about"), href: "/about" },
+          { label: tNav("contact"), href: "/contact" },
+          { label: tNav("terms"), href: "/legal/terms" },
+        ],
+      },
+    ];
 
   const socialLinks = (
     [
