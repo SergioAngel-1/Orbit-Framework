@@ -52,6 +52,25 @@ interface GraphQLResponse<T> {
   errors?: GraphQLErrorShape[];
 }
 
+/** Error tipado del cliente GraphQL: permite distinguir red / HTTP / GraphQL sin parsear mensajes. */
+export class GraphQLClientError extends Error {
+  readonly kind: "network" | "http" | "graphql" | "empty";
+  readonly status?: number;
+  readonly errors?: GraphQLErrorShape[];
+
+  constructor(
+    kind: "network" | "http" | "graphql" | "empty",
+    message: string,
+    extras: { status?: number; errors?: GraphQLErrorShape[]; cause?: unknown } = {},
+  ) {
+    super(message, extras.cause !== undefined ? { cause: extras.cause } : undefined);
+    this.name = "GraphQLClientError";
+    this.kind = kind;
+    this.status = extras.status;
+    this.errors = extras.errors;
+  }
+}
+
 /**
  * Ejecuta una operación GraphQL contra WordPress (WPGraphQL).
  *
@@ -85,21 +104,34 @@ export async function fetchGraphQL<TData>(
     }
   }
 
-  const response = await fetch(getEndpoint(), {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ query, variables }),
-    // Integración con la caché de Next.js (ISR / revalidación on-demand).
-    next: {
-      ...(typeof revalidate === "number" ? { revalidate } : {}),
-      ...(tags && tags.length > 0 ? { tags } : {}),
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(getEndpoint(), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ query, variables }),
+      // Integración con la caché de Next.js (ISR / revalidación on-demand).
+      next: {
+        ...(typeof revalidate === "number" ? { revalidate } : {}),
+        ...(tags && tags.length > 0 ? { tags } : {}),
+      },
+    });
+  } catch (cause) {
+    throw new GraphQLClientError(
+      "network",
+      "No se pudo conectar con el endpoint GraphQL.",
+      {
+        cause,
+      },
+    );
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    throw new Error(
+    throw new GraphQLClientError(
+      "http",
       `Error HTTP de GraphQL: ${response.status} ${response.statusText}. ${text}`,
+      { status: response.status },
     );
   }
 
@@ -107,11 +139,13 @@ export async function fetchGraphQL<TData>(
 
   if (json.errors && json.errors.length > 0) {
     const message = json.errors.map((e) => e.message).join(" | ");
-    throw new Error(`Error de GraphQL: ${message}`);
+    throw new GraphQLClientError("graphql", `Error de GraphQL: ${message}`, {
+      errors: json.errors,
+    });
   }
 
   if (!json.data) {
-    throw new Error("La respuesta de GraphQL no contiene datos.");
+    throw new GraphQLClientError("empty", "La respuesta de GraphQL no contiene datos.");
   }
 
   return json.data;
