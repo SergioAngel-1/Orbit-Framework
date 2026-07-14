@@ -6,6 +6,14 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Añadido
+- **Logo de marca** administrable desde HWE Control Center (`brand.logo`), consumido por el
+  header heredado y expuesto en `/wp-json/hwe/v1/config`.
+- **Menús gestionables desde WordPress**: locations `primary`/`footer` (+ variantes `_en`) en el
+  tema headless, siembra de menú por defecto en `setup.sh`, helper de núcleo
+  `lib/navigation/menu.ts` (`getMenu`) y consumo de referencia en header/footer heredados con
+  fallback local. Contrato documentado en `docs/FRONTEND_CONNECT.md §A.6`.
+
 ## [0.9.0] — 2026-07-14
 
 ### Corregido

@@ -32,13 +32,16 @@ Si necesitas una utilidad Tailwind nueva que no exista (p. ej. una escala de gri
 ahí sí edita el bloque `@theme` de `frontend/src/app/globals.css` — pero eso es código de tu
 instancia, no algo que reconfigures desde `wp-admin`.
 
-## 3. Logo
+## 3. Logo y menús
 
-No hay campo de "subir logo" con render automático todavía: coloca el archivo en
-`frontend/public/`, referéncialo con `next/image` donde corresponda (header heredado, `/about`,
-etc.) y actualiza `public/og-default.jpg` (o usa `brand.og_image` desde `wp-admin` para la
-imagen Open Graph). `seo.organization_logo` (HWE Config) alimenta el JSON-LD `Organization` si
-lo defines.
+- **Logo**: súbelo a la medioteca de WordPress y pega su URL en `wp-admin → HWE Config →
+  Identidad de marca → Logo (URL)` (`brand.logo`). El header heredado lo renderiza
+  automáticamente; vacío = nombre del sitio como texto. `brand.og_image` sigue siendo la
+  imagen Open Graph y `seo.organization_logo` alimenta el JSON-LD `Organization`.
+- **Menús**: se gestionan en `wp-admin → Apariencia → Menús` asignando un menú a las
+  locations `primary`/`footer` (+ variantes `_en`). Contrato y reglas de contenido en
+  `docs/FRONTEND_CONNECT.md §A.6`. Sin menú asignado, el frontend heredado usa su
+  navegación local por defecto (`NAV_ITEMS` + i18n).
 
 ## 4. Idiomas
 

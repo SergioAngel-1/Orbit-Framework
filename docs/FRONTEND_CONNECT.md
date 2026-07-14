@@ -67,7 +67,7 @@ Fuente única de verdad de marca/negocio, sin auth, cacheable. Forma exacta (ver
 y `frontend/src/lib/config/types.ts` para el tipo TypeScript equivalente):
 
 ```
-brand:  { name, tagline, description, url, locale, og_image }
+brand:  { name, tagline, description, url, logo, locale, og_image }
 social: { twitter, instagram, facebook, linkedin, youtube, wikipedia, wikidata }
 legal:  { company, nif, email, address }
 design: {
@@ -92,6 +92,9 @@ frontend que los consuma debe ocultar la funcionalidad correspondiente cuando el
 `false`**, no solo dejar de anunciarla en metadatos. Esto es parte del contrato, no un detalle
 de implementación de la UI heredada.
 
+- `brand.logo` — URL del logo de cabecera (medioteca WP). Vacío = renderizar `brand.name`
+  como texto.
+
 ## A.4 Design tokens (paleta/tipografía dinámica)
 
 `design.colors.*`/`design.typography.*` (§A.3) están pensados para mapearse 1:1 a variables
@@ -112,6 +115,38 @@ pero el **contrato de qué 9 colores + 2 tipografías existen** es estable.
   `HWE_REVALIDATION_SECRET` (cabecera `X-HWE-Signature`).
 - **Pago** (si integras una pasarela real): `POST {frontend}/api/payments/webhook/[provider]`,
   la verificación de firma/importe/moneda es responsabilidad del provider (`lib/payments/`).
+
+## A.6 Menús de navegación (WordPress → cualquier frontend)
+
+Los menús se gestionan en **wp-admin → Apariencia → Menús** y se exponen por WPGraphQL.
+El tema `hwe-headless-base` registra cuatro *locations*; asignar un menú a una location
+es la "selección del menú activo":
+
+| Location | Enum WPGraphQL | Uso |
+|---|---|---|
+| `primary` | `PRIMARY` | Navegación principal (locale por defecto, `es`) |
+| `primary_en` | `PRIMARY_EN` | Navegación principal en `/en` |
+| `footer` | `FOOTER` | Columnas del pie (locale por defecto) |
+| `footer_en` | `FOOTER_EN` | Columnas del pie en `/en` |
+
+**Regla de contenido:** los items deben ser **enlaces personalizados con rutas relativas del
+frontend** (`/products`, `/blog`, `/contact`…). No uses páginas/entradas de WP: sus permalinks
+apuntan a WordPress, no al frontend.
+
+Query de referencia:
+
+```graphql
+query MenuByLocation($location: MenuLocationEnum!) {
+  menuItems(where: { location: $location }, first: 100) {
+    nodes { id parentId label uri }
+  }
+}
+```
+
+En el frontend heredado ya hay un consumidor listo: `lib/navigation/menu.ts`
+(`getMenu(area, locale)` — ISR 5 min, tag `menus`, fail-soft a `null`). Un item raíz **con
+hijos** se renderiza como dropdown (header) o columna (footer). Si la location no tiene menú
+asignado, el frontend heredado usa su navegación local por defecto.
 
 ---
 
