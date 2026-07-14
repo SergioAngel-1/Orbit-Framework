@@ -118,7 +118,7 @@ export async function SiteFooter({ columns }: SiteFooterProps = {}) {
           <div className="col-span-2 md:col-span-1">
             <p className="mb-4 font-heading text-lg text-white">{siteName}</p>
             {config.brand.tagline && (
-              <p className="mb-5 max-w-xs text-[12px] leading-relaxed text-white/40">
+              <p className="mb-5 max-w-xs text-[12px] leading-relaxed text-white/60">
                 {config.brand.tagline}
               </p>
             )}
@@ -134,7 +134,7 @@ export async function SiteFooter({ columns }: SiteFooterProps = {}) {
                     className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 transition-all duration-200 hover:border-white/50 hover:bg-white/10"
                   >
                     <svg
-                      className="h-4 w-4 text-white/45"
+                      className="h-4 w-4 text-white/60"
                       viewBox="0 0 24 24"
                       fill="currentColor"
                     >
@@ -149,14 +149,14 @@ export async function SiteFooter({ columns }: SiteFooterProps = {}) {
           {/* Columnas de enlaces */}
           {footerColumns.map((col) => (
             <div key={col.heading}>
-              <p className="mb-4 text-[10px] tracking-[0.2em] text-white/30">
+              <p className="mb-4 text-[10px] tracking-[0.2em] text-white/60">
                 {col.heading}
               </p>
               {col.links.map((link) => (
                 <Link
                   key={link.href + link.label}
                   href={link.href}
-                  className="mb-2.5 block text-[13px] text-white/50 transition-colors duration-150 hover:text-white"
+                  className="mb-2.5 block text-[13px] text-white/70 transition-colors duration-150 hover:text-white"
                 >
                   {link.label}
                 </Link>
@@ -172,32 +172,32 @@ export async function SiteFooter({ columns }: SiteFooterProps = {}) {
         >
           <Link
             href="/legal/privacy"
-            className="text-[12px] text-white/40 hover:text-white"
+            className="text-[12px] text-white/60 hover:text-white"
           >
             {tNav("privacy")}
           </Link>
           <Link
             href="/legal/cookies"
-            className="text-[12px] text-white/40 hover:text-white"
+            className="text-[12px] text-white/60 hover:text-white"
           >
             {tNav("cookies")}
           </Link>
           <Link
             href="/legal/terms"
-            className="text-[12px] text-white/40 hover:text-white"
+            className="text-[12px] text-white/60 hover:text-white"
           >
             {tNav("terms")}
           </Link>
           <Link
             href="/legal/returns"
-            className="text-[12px] text-white/40 hover:text-white"
+            className="text-[12px] text-white/60 hover:text-white"
           >
             {tNav("returns")}
           </Link>
         </nav>
 
         <div className="flex flex-col items-center justify-between gap-3 md:flex-row">
-          <p className="text-center text-[11px] text-white/25 md:text-left">
+          <p className="text-center text-[11px] text-white/60 md:text-left">
             © {year} {siteName} · {tFooter("rights")}
           </p>
         </div>

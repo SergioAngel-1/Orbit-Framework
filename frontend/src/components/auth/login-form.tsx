@@ -111,10 +111,11 @@ export function LoginForm() {
         </p>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">
+        <label htmlFor="username" className="mb-1 block text-sm font-medium">
           {tForm("usernameOrEmail")}
         </label>
         <input
+          id="username"
           name="username"
           required
           autoComplete="username"
@@ -122,8 +123,11 @@ export function LoginForm() {
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">{tForm("password")}</label>
+        <label htmlFor="password" className="mb-1 block text-sm font-medium">
+          {tForm("password")}
+        </label>
         <input
+          id="password"
           name="password"
           type="password"
           required
@@ -139,7 +143,7 @@ export function LoginForm() {
         {pending ? tLogin("submitting") : tLogin("submit")}
       </button>
       <p className="text-right text-sm">
-        <Link href="/forgot-password" className="text-gray-400 hover:text-brand">
+        <Link href="/forgot-password" className="text-gray-600 hover:text-brand">
           {tLogin("forgotPassword")}
         </Link>
       </p>

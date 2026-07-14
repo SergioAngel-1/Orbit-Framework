@@ -72,10 +72,14 @@ export default async function ProductsPage({
         className="mb-8 flex flex-wrap items-end gap-3"
       >
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">
+          <label
+            htmlFor="search"
+            className="mb-1 block text-xs font-medium text-gray-500"
+          >
             {t("searchPlaceholder")}
           </label>
           <input
+            id="search"
             type="search"
             name="search"
             defaultValue={search ?? ""}
@@ -85,10 +89,14 @@ export default async function ProductsPage({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">
+          <label
+            htmlFor="sort"
+            className="mb-1 block text-xs font-medium text-gray-500"
+          >
             {t("sortBy")}
           </label>
           <select
+            id="sort"
             name="sort"
             defaultValue={sort ?? ""}
             className="rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
@@ -102,10 +110,14 @@ export default async function ProductsPage({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">
+          <label
+            htmlFor="category"
+            className="mb-1 block text-xs font-medium text-gray-500"
+          >
             {t("filter")}
           </label>
           <select
+            id="category"
             name="category"
             defaultValue={category ?? ""}
             className="rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
@@ -120,10 +132,14 @@ export default async function ProductsPage({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">
+          <label
+            htmlFor="minPrice"
+            className="mb-1 block text-xs font-medium text-gray-500"
+          >
             {t("minPrice")}
           </label>
           <input
+            id="minPrice"
             type="number"
             name="minPrice"
             min="0"
@@ -135,10 +151,14 @@ export default async function ProductsPage({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">
+          <label
+            htmlFor="maxPrice"
+            className="mb-1 block text-xs font-medium text-gray-500"
+          >
             {t("maxPrice")}
           </label>
           <input
+            id="maxPrice"
             type="number"
             name="maxPrice"
             min="0"

@@ -1,0 +1,43 @@
+# ============================================================================
+#  Config de gitleaks para el job "Secret scanning" de CI (.github/workflows/ci.yml).
+#
+#  Extiende el ruleset por defecto de gitleaks (detección real de secretos) y
+#  añade un allowlist ACOTADO para falsos positivos conocidos: valores de
+#  ejemplo/placeholder y secretos dummy usados solo en CI, nunca credenciales
+#  reales. No excluye directorios completos "por si acaso" — cada entrada
+#  apunta a un archivo/patrón concreto con justificación.
+# ============================================================================
+
+[extend]
+useDefault = true
+
+[allowlist]
+regexTarget = "match"
+paths = [
+  # Placeholders documentados para que el operador los rellene al desplegar
+  # (no son secretos, son la plantilla de qué secreto generar).
+  '''\.env\.example$''',
+  '''\.env\.prod\.example$''',
+
+  # Fixture de test: valor fijo usado para probar la validación de CSRF_SECRET,
+  # nunca se usa fuera de tests/unit/csrf.test.ts.
+  '''frontend/tests/unit/csrf\.test\.ts$''',
+
+  # Doc de planificación: menciona el mismo placeholder de .env.example, no
+  # una credencial real.
+  '''docs/PRODUCTION-PLAN\.md$''',
+]
+
+regexes = [
+  # Secretos dummy inyectados como env vars en el job "e2e" de ci.yml para
+  # satisfacer secret-guard.ts (ver AGENTS.md §9): no son credenciales reales,
+  # solo strings largos que gitleaks confunde con secretos por su entropía.
+  '''dummy-ci-[a-z-]+-secret[a-z0-9-]*''',
+  '''ck_dummy_ci_key''',
+  '''cs_dummy_ci_secret''',
+
+  # Checksums SHA256 de integridad de plugins descargados (backend/scripts/setup.sh):
+  # no son secretos, son hashes públicos para verificar el binario descargado.
+  '''JWT_AUTH_SHA256="[a-f0-9]{64}"''',
+  '''WOOGRAPHQL_SHA256="[a-f0-9]{64}"''',
+]

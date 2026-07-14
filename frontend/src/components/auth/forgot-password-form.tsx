@@ -54,8 +54,11 @@ export function ForgotPasswordForm({ email: initialEmail }: Props) {
         </p>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">{tForm("email")}</label>
+        <label htmlFor="email" className="mb-1 block text-sm font-medium">
+          {tForm("email")}
+        </label>
         <input
+          id="email"
           name="email"
           type="email"
           required

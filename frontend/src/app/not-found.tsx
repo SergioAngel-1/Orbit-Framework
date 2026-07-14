@@ -10,6 +10,9 @@ import { routing } from "@/i18n/routing";
 export default function GlobalNotFound() {
   return (
     <html lang={routing.defaultLocale}>
+      <head>
+        <title>404 — Page not found</title>
+      </head>
       <body
         style={{
           fontFamily: "system-ui, sans-serif",

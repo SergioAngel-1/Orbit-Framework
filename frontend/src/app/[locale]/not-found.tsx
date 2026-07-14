@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+
+export const metadata: Metadata = { title: "404" };
 
 export default async function LocaleNotFound() {
   const t = await getTranslations("notFound");

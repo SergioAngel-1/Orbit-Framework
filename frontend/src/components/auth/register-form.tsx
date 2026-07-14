@@ -47,8 +47,11 @@ export function RegisterForm() {
         </p>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">{tForm("username")}</label>
+        <label htmlFor="username" className="mb-1 block text-sm font-medium">
+          {tForm("username")}
+        </label>
         <input
+          id="username"
           name="username"
           required
           minLength={3}
@@ -57,8 +60,11 @@ export function RegisterForm() {
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">{tForm("email")}</label>
+        <label htmlFor="email" className="mb-1 block text-sm font-medium">
+          {tForm("email")}
+        </label>
         <input
+          id="email"
           name="email"
           type="email"
           required
@@ -67,8 +73,11 @@ export function RegisterForm() {
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">{tForm("password")}</label>
+        <label htmlFor="password" className="mb-1 block text-sm font-medium">
+          {tForm("password")}
+        </label>
         <input
+          id="password"
           name="password"
           type="password"
           required
@@ -91,7 +100,7 @@ export function RegisterForm() {
           {tRegister("login")}
         </Link>
       </p>
-      <p className="text-center text-xs text-gray-400">
+      <p className="text-center text-xs text-gray-500">
         {tRegister("verificationNotice")}
       </p>
     </form>

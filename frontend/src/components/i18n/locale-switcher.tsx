@@ -18,7 +18,7 @@ export function LocaleSwitcher() {
           disabled={l === locale}
           aria-current={l === locale ? "true" : undefined}
           className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase transition-colors ${
-            l === locale ? "bg-brand text-white" : "text-gray-400 hover:text-brand"
+            l === locale ? "bg-brand text-white" : "text-gray-600 hover:text-brand"
           }`}
         >
           {l}
