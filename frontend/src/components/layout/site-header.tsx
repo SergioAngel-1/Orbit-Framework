@@ -7,6 +7,7 @@ import { CartIndicator } from "@/components/cart/cart-indicator";
 import { LocaleSwitcher } from "@/components/i18n/locale-switcher";
 import { DarkModeToggle } from "@/components/ui/dark-mode-toggle";
 import { cn } from "@/lib/utils";
+import type { MenuLink } from "@/lib/navigation/types";
 
 interface NavChild {
   key: string;
@@ -50,12 +51,25 @@ function ChevronDown({ open }: { open: boolean }) {
 export interface SiteHeaderProps {
   /** URL del logo (config.brand.logo). Vacío/undefined = nombre del sitio como texto. */
   logoUrl?: string;
+  /** Menú resuelto desde WP (getMenu). undefined/null = fallback NAV_ITEMS + i18n. */
+  items?: MenuLink[] | null;
 }
 
-export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
+export function SiteHeader({ logoUrl, items }: SiteHeaderProps = {}) {
   const t = useTranslations("nav");
   const tSite = useTranslations("site");
   const pathname = usePathname();
+
+  const navItems: MenuLink[] =
+    items ??
+    NAV_ITEMS.map((item) => ({
+      label: t(item.key),
+      href: item.href,
+      children: item.children?.map((child) => ({
+        label: t(child.key),
+        href: child.href,
+      })),
+    }));
 
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -93,15 +107,16 @@ export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
 
           {/* Navegación desktop */}
           <nav className="hidden items-center gap-1 lg:flex">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const isActive = pathname === item.href;
+              const itemId = item.href + item.label;
 
-              if (item.children) {
+              if (item.children && item.children.length > 0) {
                 return (
                   <div
-                    key={item.key}
+                    key={itemId}
                     className="relative"
-                    onMouseEnter={() => setOpenDropdown(item.key)}
+                    onMouseEnter={() => setOpenDropdown(itemId)}
                     onMouseLeave={() => setOpenDropdown(null)}
                   >
                     <button
@@ -113,13 +128,13 @@ export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
                           : "text-[--foreground]/60 hover:text-brand",
                       )}
                     >
-                      {t(item.key)}
-                      <ChevronDown open={openDropdown === item.key} />
+                      {item.label}
+                      <ChevronDown open={openDropdown === itemId} />
                     </button>
                     <div
                       className={cn(
                         "absolute left-0 top-full z-[60] pt-2 transition-all duration-200",
-                        openDropdown === item.key
+                        openDropdown === itemId
                           ? "pointer-events-auto translate-y-0 opacity-100"
                           : "pointer-events-none -translate-y-2 opacity-0",
                       )}
@@ -127,11 +142,11 @@ export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
                       <div className="min-w-[200px] rounded-xl border border-gray-200 bg-white py-2 shadow-lg dark:border-gray-800 dark:bg-gray-900">
                         {item.children.map((child) => (
                           <Link
-                            key={child.key}
+                            key={child.href + child.label}
                             href={child.href}
                             className="block px-4 py-2.5 text-[13px] text-[--foreground]/70 transition-colors duration-150 hover:bg-surface hover:text-brand dark:hover:bg-gray-800"
                           >
-                            {t(child.key)}
+                            {child.label}
                           </Link>
                         ))}
                       </div>
@@ -142,7 +157,7 @@ export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
 
               return (
                 <Link
-                  key={item.key}
+                  key={itemId}
                   href={item.href}
                   className={cn(
                     "relative px-3 py-1 text-[13px] tracking-wide transition-colors duration-200",
@@ -151,7 +166,7 @@ export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
                       : "text-[--foreground]/60 hover:text-brand",
                   )}
                 >
-                  {t(item.key)}
+                  {item.label}
                 </Link>
               );
             })}
@@ -212,12 +227,13 @@ export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
       >
         <div className="border-t border-gray-200 px-6 pb-6 pt-2 dark:border-gray-800">
           <div className="flex flex-col gap-1">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const isActive = pathname === item.href;
+              const itemId = item.href + item.label;
 
-              if (item.children) {
+              if (item.children && item.children.length > 0) {
                 return (
-                  <div key={item.key}>
+                  <div key={itemId}>
                     <button
                       type="button"
                       className={cn(
@@ -227,16 +243,16 @@ export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
                           : "text-[--foreground]/60 hover:bg-surface hover:text-[--foreground] dark:hover:bg-gray-800",
                       )}
                       onClick={() =>
-                        setOpenDropdown(openDropdown === item.key ? null : item.key)
+                        setOpenDropdown(openDropdown === itemId ? null : itemId)
                       }
                     >
-                      {t(item.key)}
-                      <ChevronDown open={openDropdown === item.key} />
+                      {item.label}
+                      <ChevronDown open={openDropdown === itemId} />
                     </button>
                     <div
                       className={cn(
                         "overflow-hidden transition-all duration-200",
-                        openDropdown === item.key
+                        openDropdown === itemId
                           ? "max-h-48 opacity-100"
                           : "max-h-0 opacity-0",
                       )}
@@ -244,12 +260,12 @@ export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
                       <div className="py-1 pl-4">
                         {item.children.map((child) => (
                           <Link
-                            key={child.key}
+                            key={child.href + child.label}
                             href={child.href}
                             className="block rounded-lg px-4 py-2 text-[13px] text-[--foreground]/50 transition-colors duration-150 hover:bg-surface hover:text-[--foreground] dark:hover:bg-gray-800"
                             onClick={() => setIsOpen(false)}
                           >
-                            {t(child.key)}
+                            {child.label}
                           </Link>
                         ))}
                       </div>
@@ -260,7 +276,7 @@ export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
 
               return (
                 <Link
-                  key={item.key}
+                  key={itemId}
                   href={item.href}
                   className={cn(
                     "rounded-lg px-4 py-3 text-[14px] tracking-wide transition-all duration-200",
@@ -270,7 +286,7 @@ export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
                   )}
                   onClick={() => setIsOpen(false)}
                 >
-                  {t(item.key)}
+                  {item.label}
                 </Link>
               );
             })}

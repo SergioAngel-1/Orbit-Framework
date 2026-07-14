@@ -13,6 +13,7 @@ import { ThemeTokens } from "@/components/ui/theme-tokens";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { getSiteConfig } from "@/lib/config";
+import { getMenu } from "@/lib/navigation/menu";
 import { buildSiteGraph } from "@/lib/seo/jsonld";
 
 const inter = Inter({
@@ -114,6 +115,7 @@ export default async function LocaleLayout({
   const messages = await getMessages();
   const tNav = await getTranslations("nav");
   const config = await getSiteConfig();
+  const primaryMenu = await getMenu("primary", locale);
 
   return (
     // suppressHydrationWarning necesario para el script de modo oscuro que
@@ -138,7 +140,10 @@ export default async function LocaleLayout({
               </a>
 
               {/* Navegación */}
-              <SiteHeader logoUrl={config.brand.logo || undefined} />
+              <SiteHeader
+                logoUrl={config.brand.logo || undefined}
+                items={primaryMenu}
+              />
 
               <main id="main-content" className="mx-auto max-w-5xl px-6 py-12">
                 {children}
