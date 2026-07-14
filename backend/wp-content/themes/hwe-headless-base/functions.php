@@ -16,5 +16,17 @@ add_action(
 		add_theme_support( 'post-thumbnails' );
 		add_theme_support( 'woocommerce' );
 		add_theme_support( 'title-tag' );
+
+		// Locations de menú para el frontend headless (WPGraphQL las expone
+		// vía menuItems(where:{location:…})). Convención: sin sufijo = locale
+		// por defecto (es); sufijo _en = versión en inglés del menú.
+		register_nav_menus(
+			[
+				'primary'    => 'Navegación principal',
+				'primary_en' => 'Navegación principal (EN)',
+				'footer'     => 'Pie de página',
+				'footer_en'  => 'Pie de página (EN)',
+			]
+		);
 	}
 );

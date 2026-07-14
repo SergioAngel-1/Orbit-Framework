@@ -189,6 +189,20 @@ for t in twentytwentysix twentytwentyfive twentytwentyfour twentytwentythree twe
 	$WP theme delete "$t" 2>/dev/null || true
 done
 
+# ── Menú de navegación por defecto ─────────────────────────────────────────
+# Gestionable después desde wp-admin → Apariencia → Menús. Los items son
+# "enlaces personalizados" con rutas RELATIVAS del frontend (contrato en
+# docs/FRONTEND_CONNECT.md §A.6).
+if ! $WP menu list --fields=slug --format=csv 2>/dev/null | grep -q "^principal$"; then
+	echo "==> Creando menú de navegación por defecto (Principal)..."
+	$WP menu create "Principal" 2>/dev/null || true
+	$WP menu item add-custom principal "Inicio" "/" 2>/dev/null || true
+	$WP menu item add-custom principal "Tienda" "/products" 2>/dev/null || true
+	$WP menu item add-custom principal "Blog" "/blog" 2>/dev/null || true
+	$WP menu item add-custom principal "Sobre nosotros" "/about" 2>/dev/null || true
+	$WP menu location assign principal primary 2>/dev/null || true
+fi
+
 # ----------------------------------------------------------------------------
 # 6) Webhooks de WooCommerce (pedido creado/actualizado)
 #     Se crean apuntando al BFF para futuras integraciones (notificaciones,
