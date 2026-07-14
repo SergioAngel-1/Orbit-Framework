@@ -76,6 +76,16 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    env:
+      # La validación de secretos en producción (secret-guard.ts, §9 del AGENTS)
+      # exige estos valores; se pasan dummy porque en CI no hay WP ni Redis reales.
+      NEXT_PUBLIC_WORDPRESS_API_URL: http://localhost:8080/graphql
+      GRAPHQL_JWT_AUTH_SECRET_KEY: dummy-ci-jwt-secret-key-at-least-24-chars
+      CSRF_SECRET: dummy-ci-csrf-secret-at-least-24-characters-len
+      WC_WEBHOOK_SECRET: dummy-ci-webhook-secret-at-least-24-characters
+      HWE_REVALIDATION_SECRET: dummy-ci-revalidation-secret-24-chars
+      WC_CONSUMER_KEY: ck_dummy_ci_key
+      WC_CONSUMER_SECRET: cs_dummy_ci_secret
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -87,22 +97,14 @@ jobs:
         run: npm ci
       - name: Instalar navegadores Playwright
         run: npx playwright install --with-deps chromium
-      # `next start` REQUIERE un build de producción previo: sin este paso el
-      # servidor no arranca y el job daría un falso verde / fallo intermitente.
       - name: Build de producción
         run: npm run build
-        env:
-          NEXT_PUBLIC_WORDPRESS_API_URL: http://localhost:8080/graphql
       - name: Arrancar servidor
         run: npx next start --port 3000 &
-        env:
-          NEXT_PUBLIC_WORDPRESS_API_URL: http://localhost:8080/graphql
       - name: Esperar servidor listo
-        run: npx wait-on http://localhost:3000/api/health --timeout 60000
+        run: npx wait-on http://localhost:3000/api/health/live --timeout 60000
       - name: Tests e2e
         run: npx playwright test
-        env:
-          NEXT_PUBLIC_WORDPRESS_API_URL: http://localhost:8080/graphql
       - name: Subir report HTML
         if: always()
         uses: actions/upload-artifact@v4
