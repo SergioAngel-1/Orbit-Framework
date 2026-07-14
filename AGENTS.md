@@ -137,8 +137,8 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por dominio
 (`auth/` —incl. `revocation.ts`—, `woocommerce/` —incl. `order-events.ts`—, `security/`
 —`csrf`, `rate-limit`, `idempotency`, `lock`, `replay`, `secret-guard`, `webhook`, `origin`,
-`cookies`, `sanitize`—, `catalog/`, `account/`, `payments/`, `config/`, `http/`, `redis/`,
-`observability/`, `validation/`, `client/`).
+`cookies`, `sanitize`—, `catalog/`, `account/`, `payments/`, `config/`, `navigation/`,
+`http/`, `redis/`, `observability/`, `validation/`, `client/`).
 
 ---
 
@@ -157,7 +157,9 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 
 ## 5. Estado del proyecto
 
-> Actualizado: **2026-06-18**. Estados realistas (✅ completo · 🟡 parcial · 🧪 stub).
+> Esta tabla se congela en cada release; el estado vivo entre releases está en
+> `CHANGELOG.md` (`[Sin publicar]`). Actualizada por última vez: **v1.0.0**.
+> Estados realistas (✅ completo · 🟡 parcial · 🧪 stub).
 
 | Área | Estado |
 |------|--------|
@@ -176,6 +178,8 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 | Pagos: pasarelas reales (Wompi/PayU/Bold) | 🧪 stubs (pendiente integrar 1 real) |
 | Webhooks de pedido (transición real + dispatcher de efectos) | 🟡 (email al cliente lo hace Woo; ganchos ERP por conectar) |
 | HWE Control Center (config central + secretos cifrados) | ✅ |
+| Menús + logo + banners administrables desde WP (contrato §A.6 / config pública) | ✅ |
+| Frontera núcleo/instancia (regla de lint) + estrategia de actualización (UPGRADE.md) | ✅ |
 | Calidad / CI/CD (unit de seguridad/auth + e2e de compra opt-in) | ✅ |
 | Observabilidad (Sentry + pino + correlación request-id + alertas) | ✅ (métricas OTel pendientes) |
 | Empaquetado comercial (licencia, docs, white-label) | ✅ |
@@ -324,6 +328,10 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   `app/[locale]/products/[slug]/page.tsx`, el cupón en `cart-drawer.tsx`/`checkout-form.tsx`,
   el enlace de wishlist en `account/layout.tsx`. Si añades una vista nueva que use una de
   estas funcionalidades, replica el patrón — no la muestres incondicionalmente.
+- **Menús**: se gestionan en WP (Apariencia → Menús) y se leen con `getMenu(area, locale)`
+  (`lib/navigation/menu.ts`, fail-soft a `null` → fallback local del componente). **Banners**:
+  `config.banners.*` + `parseBanners` (`lib/config/banners.ts`), gateados por `banners.enabled`.
+  **Logo**: `config.brand.logo` (vacío = nombre del sitio como texto).
 - **Recuerda §1.1**: todo lo de esta sección que vive en `components/**` (salvo `ui/`) y en
   `app/[locale]/*` es código **heredado, no núcleo del framework**. `docs/FRONTEND_CONNECT.md`
   documenta el contrato backend/BFF estable y, aparte, un inventario de ese código heredado tal

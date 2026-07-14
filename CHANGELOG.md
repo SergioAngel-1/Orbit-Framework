@@ -6,6 +6,8 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [1.0.0] — 2026-07-14
+
 ### Añadido
 - **Logo de marca** administrable desde HWE Control Center (`brand.logo`), consumido por el
   header heredado y expuesto en `/wp-json/hwe/v1/config`.
@@ -20,6 +22,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 - **Banner Manager**: banners de portada administrables desde HWE Config (sección Banners),
   expuestos en la config pública, con parser en el núcleo (`parseBanners`) y el carrusel
   heredado (`HeroCarousel`) conectado como implementación de referencia.
+- **Frontera núcleo/instancia ejecutable** (AGENTS.md §1.1): regla de lint que prohíbe que
+  `lib/`, `app/api/` y `proxy.ts` importen de `components/**` (salvo `ui/`).
+- **`docs/UPGRADE.md`**: procedimiento de actualización de instancias (remote `framework` +
+  merge de tags de release), enlazado desde `README.md` y `docs/CREATE_INSTANCE.md`.
 
 ## [0.9.0] — 2026-07-14
 
