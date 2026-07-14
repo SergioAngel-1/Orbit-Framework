@@ -16,6 +16,10 @@ Este documento tiene dos partes con garantías muy distintas:
   escribió esto — no hay promesa de que el framework la actualice. Trátalo como el punto de
   partida de TU proyecto, no como una librería externa.
 
+> **Smoke test del contrato:** `examples/minimal-consumer/` (script Node sin dependencias)
+> ejercita la Parte A de punta a punta contra una pila levantada — útil para verificar una
+> integración nueva o una actualización del framework.
+
 ---
 
 # Parte A — El contrato backend/BFF (estable, mantenido por el framework)

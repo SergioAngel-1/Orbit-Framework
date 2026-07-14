@@ -13,6 +13,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   tema headless, siembra de menú por defecto en `setup.sh`, helper de núcleo
   `lib/navigation/menu.ts` (`getMenu`) y consumo de referencia en header/footer heredados con
   fallback local. Contrato documentado en `docs/FRONTEND_CONNECT.md §A.6`.
+- **Errores tipados** en el cliente GraphQL (`GraphQLClientError`: network/http/graphql/empty).
+- **Guía de desarrollo de plugins** (`docs/PLUGIN_DEVELOPMENT.md`).
+- **Ejemplo mínimo de integración** (`examples/minimal-consumer/`): consumidor Node del
+  contrato (config pública + GraphQL + BFF) sin framework.
 
 ## [0.9.0] — 2026-07-14
 
