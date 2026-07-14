@@ -47,7 +47,12 @@ function ChevronDown({ open }: { open: boolean }) {
   );
 }
 
-export function SiteHeader() {
+export interface SiteHeaderProps {
+  /** URL del logo (config.brand.logo). Vacío/undefined = nombre del sitio como texto. */
+  logoUrl?: string;
+}
+
+export function SiteHeader({ logoUrl }: SiteHeaderProps = {}) {
   const t = useTranslations("nav");
   const tSite = useTranslations("site");
   const pathname = usePathname();
@@ -75,10 +80,15 @@ export function SiteHeader() {
         <div className="flex h-16 items-center justify-between lg:h-[72px]">
           <Link
             href="/"
-            className="text-lg font-bold tracking-tight text-[--foreground]"
+            className="flex items-center text-lg font-bold tracking-tight text-[--foreground]"
             aria-label={tSite("name")}
           >
-            {tSite("name")}
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- URL remota definida por la instancia (medioteca WP); no se conocen los dominios en build.
+              <img src={logoUrl} alt={tSite("name")} className="h-8 w-auto" />
+            ) : (
+              tSite("name")
+            )}
           </Link>
 
           {/* Navegación desktop */}

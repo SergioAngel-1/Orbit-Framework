@@ -5,6 +5,8 @@ export interface SiteConfig {
     tagline: string;
     description: string;
     url: string;
+    /** URL del logo de cabecera. Vacío = mostrar el nombre del sitio como texto. */
+    logo: string;
     locale: string;
     og_image: string;
   };

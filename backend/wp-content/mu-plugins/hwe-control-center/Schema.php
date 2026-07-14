@@ -60,6 +60,12 @@ class Schema {
                         'label'  => 'URL pública del frontend',
                         'public' => true,
                     ],
+                    'logo'        => [
+                        'type'        => 'url',
+                        'label'       => 'Logo (URL)',
+                        'public'      => true,
+                        'description' => 'URL del logo de cabecera (súbelo a la medioteca y pega aquí su URL). Vacío = se muestra el nombre del sitio como texto.',
+                    ],
                     'locale'      => [
                         'type'    => 'select',
                         'label'   => 'Idioma por defecto',

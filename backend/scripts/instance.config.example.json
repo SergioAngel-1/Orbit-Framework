@@ -6,6 +6,7 @@
     "tagline": "Tagline corta de la marca",
     "description": "Descripción breve de la tienda (1-2 frases).",
     "url": "https://midominio.com",
+    "logo": "",
     "locale": "es",
     "og_image": "https://midominio.com/og-default.jpg"
   },

@@ -138,7 +138,7 @@ export default async function LocaleLayout({
               </a>
 
               {/* Navegación */}
-              <SiteHeader />
+              <SiteHeader logoUrl={config.brand.logo || undefined} />
 
               <main id="main-content" className="mx-auto max-w-5xl px-6 py-12">
                 {children}

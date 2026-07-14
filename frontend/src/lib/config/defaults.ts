@@ -11,6 +11,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     tagline: "Headless WooCommerce Template",
     description: "Tienda headless construida con Next.js y WooCommerce.",
     url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+    logo: "",
     locale: "es",
     og_image: "/og-default.jpg",
   },
