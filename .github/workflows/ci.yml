@@ -72,7 +72,6 @@ jobs:
 
   e2e:
     name: E2E (Playwright)
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -135,6 +134,8 @@ jobs:
           GRAPHQL_JWT_AUTH_SECRET_KEY: dummy-validation-value
           HWE_REVALIDATION_SECRET: dummy-validation-value
           CSRF_SECRET: dummy-validation-value
+          HWE_SECRETS_KEY: dummy-validation-value
+          HWE_2FA_KEY: dummy-validation-value
         run: docker compose -f docker-compose.prod.yml config --quiet
 
       - name: Validar Caddyfile
