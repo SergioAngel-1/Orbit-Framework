@@ -6,6 +6,16 @@ import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
 
+const ALLOWED_HWE_TAGS = ["site-config", "banners"] as const;
+type HweTag = (typeof ALLOWED_HWE_TAGS)[number];
+
+export function resolveHweTag(raw: unknown): HweTag | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const tag = (raw as Record<string, unknown>).tag;
+  if (tag === undefined) return "site-config";
+  return ALLOWED_HWE_TAGS.includes(tag as HweTag) ? (tag as HweTag) : null;
+}
+
 // ============================================================================
 //  POST /api/revalidate
 //  Acepta dos tipos de webhook:
@@ -46,19 +56,25 @@ export async function POST(request: Request) {
         { status: 401 },
       );
     }
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      parsed = null;
+    }
+    const tag = resolveHweTag(parsed);
+    if (tag === null) {
+      return NextResponse.json(
+        { error: "Tag de revalidación no soportado." },
+        { status: 400 },
+      );
+    }
     // Next 16: revalidateTag requiere un perfil de cacheLife. "max" marca el
     // tag como obsoleto y revalida en segundo plano (stale-while-revalidate),
     // acorde al modelo ISR + webhook de esta plantilla.
-    revalidateTag("site-config", "max");
-    logger.info(
-      { event: "revalidate.site_config" },
-      "Configuración del sitio revalidada",
-    );
-    return NextResponse.json({
-      revalidated: true,
-      tag: "site-config",
-      now: Date.now(),
-    });
+    revalidateTag(tag, "max");
+    logger.info({ event: "revalidate.hwe", tag }, "Tag HWE revalidado");
+    return NextResponse.json({ revalidated: true, tag, now: Date.now() });
   }
 
   // ── Rama 2: revalidación del catálogo WooCommerce ────────────────────────

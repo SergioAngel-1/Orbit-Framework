@@ -113,6 +113,10 @@ Reglas de oro (no las rompas — `AGENTS.md §2, §7`):
   Wompi/PayU/Bold son stubs. Añadir pasarela = implementar `PaymentProvider` sin tocar el checkout.
 - **Secreto interno del BFF** para llamadas server-to-server (p. ej. `2fa-status`) es
   `HWE_REVALIDATION_SECRET`, en la cabecera `X-HWE-Internal-Secret`.
+- **Banners**: los administra el plugin **HWE Banners** (regular, activable), no el
+  Control Center. CPT `hwe_banner` → REST `hwe-banners/v1/banners` → lector core
+  `lib/banners/getBannerPlacement()` (ISR tag `banners`), gateado por `config.banners.enabled`.
+  Extensible por hooks (`hwe_banners_placements`, `hwe_banners_slide_visible`, `hwe_banners_slide`).
 
 ## Documentación
 

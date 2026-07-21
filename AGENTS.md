@@ -178,7 +178,8 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 | Pagos: pasarelas reales (Wompi/PayU/Bold) | 🧪 stubs (pendiente integrar 1 real) |
 | Webhooks de pedido (transición real + dispatcher de efectos) | 🟡 (email al cliente lo hace Woo; ganchos ERP por conectar) |
 | HWE Control Center (config central + secretos cifrados) | ✅ |
-| Menús + logo + banners administrables desde WP (contrato §A.6 / config pública) | ✅ |
+| Menús + logo administrables desde WP (config pública) | ✅ |
+| Banners administrables (plugin HWE Banners: CPT multi-posición + REST + lector BFF) | ✅ |
 | Frontera núcleo/instancia (regla de lint) + estrategia de actualización (UPGRADE.md) | ✅ |
 | Calidad / CI/CD (unit de seguridad/auth + e2e de compra opt-in) | ✅ |
 | Observabilidad (Sentry + pino + correlación request-id + alertas) | ✅ (métricas OTel pendientes) |
@@ -329,8 +330,10 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   el enlace de wishlist en `account/layout.tsx`. Si añades una vista nueva que use una de
   estas funcionalidades, replica el patrón — no la muestres incondicionalmente.
 - **Menús**: se gestionan en WP (Apariencia → Menús) y se leen con `getMenu(area, locale)`
-  (`lib/navigation/menu.ts`, fail-soft a `null` → fallback local del componente). **Banners**:
-  `config.banners.*` + `parseBanners` (`lib/config/banners.ts`), gateados por `banners.enabled`.
+  (`lib/navigation/menu.ts`, fail-soft a `null` → fallback local del componente).   **Banners**: los gestiona el plugin **HWE Banners** (CPT `hwe_banner`, REST
+  `hwe-banners/v1/banners`). El lector core `lib/banners/` (`getBannerPlacement`) los
+  consume con ISR (tag `banners`), gateado por `config.banners.enabled`. Desde el HWE
+  Control Center solo se activa/desactiva; la autoría vive en el plugin.
   **Logo**: `config.brand.logo` (vacío = nombre del sitio como texto).
 - **Recuerda §1.1**: todo lo de esta sección que vive en `components/**` (salvo `ui/`) y en
   `app/[locale]/*` es código **heredado, no núcleo del framework**. `docs/FRONTEND_CONNECT.md`

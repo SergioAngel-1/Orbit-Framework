@@ -95,6 +95,11 @@ class AdminPage {
         // Inject SMTP test into integrations tab.
         $sections['integrations'] .= self::renderSmtpTest();
 
+        // Inyecta el estado del plugin de banners en el tab "banners".
+        if ( isset( $sections['banners'] ) ) {
+            $sections['banners'] .= self::renderBannerStatus();
+        }
+
         // Build tabs from sections.
         $tabs = [];
         $tabIcons = [
@@ -109,6 +114,7 @@ class AdminPage {
             'seo'          => 'dashicons-search',
             'shipping'     => 'dashicons-store',
             'geo'          => 'dashicons-location',
+            'banners'      => 'dashicons-images-alt2',
         ];
 
         foreach ($sections as $key => $html) {
@@ -374,5 +380,50 @@ class AdminPage {
         </div>
         <?php
         return $notices . ob_get_clean();
+    }
+
+    // -------------------------------------------------------------------------
+    // Estado del plugin HWE Banners (detección; la autoría vive en el plugin)
+    // -------------------------------------------------------------------------
+
+    private static function renderBannerStatus(): string {
+        if ( ! function_exists( 'is_plugin_active' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        $active   = is_plugin_active( 'hwe-banners/hwe-banners.php' );
+        $manageUrl = esc_url( admin_url( 'edit.php?post_type=hwe_banner' ) );
+
+        if ( $active ) {
+            $icon   = 'yes-alt';
+            $estado = __( 'Plugin "HWE Banners" activo. Gestiona los banners desde su menú.', 'hwe' );
+        } else {
+            $icon   = 'warning';
+            $estado = __( 'El plugin "HWE Banners" no está activo. Actívalo en Plugins para poder crear banners; el interruptor de arriba solo activa su renderizado en el frontend.', 'hwe' );
+        }
+
+        ob_start();
+        ?>
+        <div class="hwe-smtp-test">
+            <div class="hwe-panel-header">
+                <span class="dashicons dashicons-images-alt2"></span>
+                <h2><?php echo esc_html__( 'Gestión de banners', 'hwe' ); ?></h2>
+            </div>
+            <div class="hwe-panel-body">
+                <div class="hwe-smtp-status">
+                    <span class="dashicons dashicons-<?php echo esc_attr( $icon ); ?>"></span>
+                    <p><?php echo esc_html( $estado ); ?></p>
+                </div>
+                <?php if ( $active ) : ?>
+                <p class="submit">
+                    <a href="<?php echo $manageUrl; ?>" class="button button-secondary">
+                        <span class="dashicons dashicons-external"></span>
+                        <?php echo esc_html__( 'Administrar banners', 'hwe' ); ?>
+                    </a>
+                </p>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php
+        return (string) ob_get_clean();
     }
 }

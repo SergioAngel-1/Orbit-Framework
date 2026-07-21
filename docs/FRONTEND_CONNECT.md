@@ -79,7 +79,7 @@ design: {
   typography: { font_sans, font_url, font_heading, font_heading_url }
 }
 ecommerce: { currency, country, products_per_page, reviews_enabled, wishlist_enabled, coupons_enabled, search_enabled }
-banners: { enabled, interval_ms, slides }
+banners: { enabled }
 integrations: { analytics_provider, analytics_id }
 seo: { title_template, robots, google_site_verification, default_og, product_brand,
        shipping_amount, return_days, return_category, organization_logo, founding_date,
@@ -99,11 +99,23 @@ de implementación de la UI heredada.
 
 - `brand.logo` — URL del logo de cabecera (medioteca WP). Vacío = renderizar `brand.name`
   como texto.
-- `banners.enabled` / `banners.interval_ms` / `banners.slides` — Banner Manager. `slides` es un
-  textarea con una línea por banner: `imagen | título | subtítulo | texto CTA | URL CTA | badge`
-  (solo imagen y título obligatorios). Parser de referencia: `lib/config/banners.ts`
-  (`parseBanners`); consumidor de referencia: `HeroCarousel` en la home heredada, gateado por
-  `banners.enabled`.
+- `banners.enabled` — activa/desactiva el renderizado de banners. La autoría de los banners
+  vive en el plugin **HWE Banners** (CPT `hwe_banner`, REST `hwe-banners/v1/banners`). Lector
+  core: `lib/banners/getBannerPlacement(placement, locale)` con ISR tag `banners`.
+
+### Banners — `GET /wp-json/hwe-banners/v1/banners[/{placement}]`
+
+Servido por el plugin **HWE Banners** (activable/desactivable). Público y cacheable
+(el frontend lo consume con ISR, tag `banners`, invalidado por webhook al editar un
+banner). Gateado en el frontend por `config.banners.enabled`.
+
+- `GET .../banners?lang=es` → `{ "<placement>": { "intervalMs": number, "slides": Slide[] } }`
+- `GET .../banners/hero?lang=en` → `{ "intervalMs": number, "slides": Slide[] }`
+
+`Slide` (camelCase, resuelto por locale): `id, placement, order, image, imageMobile,
+title, subtitle, cta, ctaHref, badge, link, hideOverlay`. Placements por defecto:
+`hero`, `middle`, `bottom` (filtro PHP `hwe_banners_placements`). El lector core está
+en `frontend/src/lib/banners/` (`getBannerPlacement(placement, locale)`).
 
 ## A.4 Design tokens (paleta/tipografía dinámica)
 

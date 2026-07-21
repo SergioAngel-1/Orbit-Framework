@@ -1,0 +1,15 @@
+.hwe-banner-admin .hwe-field { margin: 10px 0; }
+.hwe-banner-admin .hwe-field > label { display: inline-block; font-weight: 600; margin-bottom: 3px; }
+.hwe-banner-admin input[type="text"],
+.hwe-banner-admin input[type="number"] { max-width: 480px; }
+.hwe-banner-admin input[type="text"]:not(.hwe-media-url) { width: 100%; }
+.hwe-slide { border: 1px solid #dcdcde; border-radius: 6px; padding: 14px 16px; margin: 14px 0; background: #fff; }
+.hwe-slide-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.hwe-slide-title { font-weight: 700; }
+.hwe-remove-slide { color: #b32d2e; text-decoration: none; }
+.hwe-media-row { display: flex; gap: 6px; align-items: center; }
+.hwe-media-url { flex: 1; }
+.hwe-media-preview img { max-width: 160px; max-height: 90px; margin-top: 6px; display: block; border-radius: 4px; }
+.hwe-i18n { border: 1px dashed #c3c4c7; border-radius: 6px; padding: 8px 12px; margin-top: 10px; background: #f6f7f7; }
+.hwe-i18n legend { font-weight: 700; padding: 0 6px; }
+.hwe-checkbox label { font-weight: 400; }

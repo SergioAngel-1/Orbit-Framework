@@ -2,7 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { LATEST_POSTS_QUERY } from "@/lib/queries";
 import { getSiteConfig } from "@/lib/config";
-import { parseBanners } from "@/lib/config/banners";
+import { getBannerPlacement } from "@/lib/banners";
 import { parseFaq } from "@/lib/seo/faq";
 import { PostCard } from "@/components/blog/post-card";
 import { FaqSection } from "@/components/seo/faq-section";
@@ -29,9 +29,10 @@ export default async function HomePage({
   setRequestLocale(locale);
   const [t, config] = await Promise.all([getTranslations("home"), getSiteConfig()]);
   const faqItems = parseFaq(config.geo.faq);
-  const bannerSlides = config.banners.enabled
-    ? parseBanners(config.banners.slides)
-    : [];
+  const heroBanner = config.banners.enabled
+    ? await getBannerPlacement("hero", locale)
+    : { slides: [], intervalMs: 6000 };
+  const bannerSlides = heroBanner.slides;
 
   let posts: WPPost[] = [];
   let errorMessage: string | null = null;
@@ -48,7 +49,7 @@ export default async function HomePage({
       {bannerSlides.length > 0 && (
         <HeroCarousel
           slides={bannerSlides}
-          interval={Number(config.banners.interval_ms) || 6000}
+          interval={heroBanner.intervalMs}
           className="mb-12"
         />
       )}
