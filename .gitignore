@@ -44,6 +44,11 @@ backend/wp-content/hwe-backup-config.json
 !backend/wp-content/mu-plugins/
 !backend/wp-content/mu-plugins/**
 
+# Mantén nuestro plugin de banners versionado (código propio del framework)
+!backend/wp-content/plugins/
+!backend/wp-content/plugins/hwe-banners/
+!backend/wp-content/plugins/hwe-banners/**
+
 # Mantén el tema base del framework versionado (headless: no renderiza nada
 # público, solo evita depender de un tema de wordpress.org — ver setup.sh).
 !backend/wp-content/themes/hwe-headless-base/
