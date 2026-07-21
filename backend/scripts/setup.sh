@@ -158,6 +158,10 @@ $WP plugin install wp-graphql-woocommerce --version="$WOOGRAPHQL_WPORG_VERSION" 
 	fi
 } || echo "    (aviso) WooGraphQL no instalado; instálalo manualmente."
 
+# --- HWE Banners: plugin propio del framework (ya presente en wp-content/plugins) ---
+echo "==> Activando HWE Banners..."
+$WP plugin activate hwe-banners 2>/dev/null || echo "    (aviso) hwe-banners no encontrado; ¿falta el directorio del plugin?"
+
 # ----------------------------------------------------------------------------
 # 4) Redis Object Cache (acelera el acceso a la BD de WordPress)
 # ----------------------------------------------------------------------------

@@ -6,6 +6,17 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **Plugin HWE Banners**: sistema de banners administrables desacoplado del Control
+  Center. CPT `hwe_banner` con posiciones genéricas (hero/middle/bottom), slides
+  ordenables con imagen desktop/móvil y overrides por idioma, REST pública
+  `hwe-banners/v1/banners`, y lector server-only `lib/banners/` con revalidación ISR
+  (tag `banners`). Extensible por hooks.
+
+### Changed
+- **HWE Control Center**: el grupo `banners` se reduce a `enabled` (activar/desactivar).
+  Se elimina `banners.interval_ms`, `banners.slides` y el parser `lib/config/banners.ts`.
+
 ## [1.0.0] — 2026-07-14
 
 ### Añadido
