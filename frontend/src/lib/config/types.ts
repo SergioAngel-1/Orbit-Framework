@@ -54,11 +54,8 @@ export interface SiteConfig {
     search_enabled: boolean;
   };
   banners: {
+    /** Activa el renderizado de banners en el frontend. La autoría vive en el plugin HWE Banners. */
     enabled: boolean;
-    /** Milisegundos entre transiciones del carrusel. */
-    interval_ms: string;
-    /** Líneas "imagen | título | subtítulo | cta | ctaHref | badge" (parsear con parseBanners). */
-    slides: string;
   };
   integrations: {
     analytics_provider: string;

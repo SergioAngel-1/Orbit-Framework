@@ -60,8 +60,6 @@ export const CONFIG_DEFAULTS: SiteConfig = {
   },
   banners: {
     enabled: false,
-    interval_ms: "6000",
-    slides: "",
   },
   integrations: {
     analytics_provider: "none",
