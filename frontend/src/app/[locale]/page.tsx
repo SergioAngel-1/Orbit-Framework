@@ -2,6 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { LATEST_POSTS_QUERY } from "@/lib/queries";
 import { getSiteConfig } from "@/lib/config";
+import { isModuleEnabled } from "@/lib/config/modules";
 import { getBannerPlacement } from "@/lib/banners";
 import { parseFaq } from "@/lib/seo/faq";
 import { PostCard } from "@/components/blog/post-card";
@@ -30,7 +31,9 @@ export default async function HomePage({
   const [t, config] = await Promise.all([getTranslations("home"), getSiteConfig()]);
   const faqItems = parseFaq(config.geo.faq);
   const heroBanner = config.banners.enabled
-    ? await getBannerPlacement("hero", locale)
+    ? await getBannerPlacement("hero", locale, {
+        enabled: isModuleEnabled(config, "banners"),
+      })
     : { slides: [], intervalMs: 6000 };
   const bannerSlides = heroBanner.slides;
 

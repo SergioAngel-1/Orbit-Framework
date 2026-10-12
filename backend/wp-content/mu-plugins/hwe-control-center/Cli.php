@@ -14,6 +14,12 @@ namespace HWE\ControlCenter;
  * (p. ej. para reaplicar config en un entorno reproducible/CI).
  *
  * Solo se registra si WP-CLI está presente (ver hwe-control-center.php).
+ *
+ * Clave `modules` (opcional): lista de ids de módulo a dejar ACTIVOS
+ * (`["banners"]`). `Modules::applySetup()` activa los listados y desactiva los
+ * demás del catálogo. Sin esta clave no se toca ningún plugin. El estado de los
+ * módulos no se guarda en la config: la fuente de verdad es si el plugin está
+ * activo (ver `Modules` y `RestApi`).
  */
 class Cli {
 
@@ -64,6 +70,25 @@ class Cli {
         // $publicData['backups'] directamente: si el JSON no trae ese bloque,
         // esto evita sobreescribir con un array vacío la config existente.
         BackupConfig::write(Storage::get(['backups'], []));
+
+        // Módulos opcionales: solo si el JSON trae la clave. `activate_plugin` vive en
+        // wp-admin/includes/plugin.php, que WP-CLI no siempre tiene cargado.
+        if (array_key_exists('modules', $data)) {
+            if (!function_exists('activate_plugin') && defined('ABSPATH')) {
+                $pluginApi = ABSPATH . 'wp-admin/includes/plugin.php';
+                if (is_readable($pluginApi)) {
+                    require_once $pluginApi;
+                }
+            }
+            $modules = is_array($data['modules']) ? array_values($data['modules']) : [];
+            $applied = Modules::applySetup($modules);
+            \WP_CLI::log(sprintf(
+                'Módulos: activados [%s], desactivados [%s].',
+                implode(', ', $applied['activated']),
+                implode(', ', $applied['deactivated'])
+            ));
+        }
+
         Revalidation::trigger();
 
         \WP_CLI::success("Configuración de instancia aplicada desde {$path}.");

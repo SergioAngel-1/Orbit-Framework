@@ -13,7 +13,9 @@ use HWE\ControlCenter\Walkers\PublicConfigWalker;
  * con ISR (Next.js `fetch` + `revalidate` + tag `site-config`).
  *
  * No requiere autenticación: solo expone datos marcados como `'public' => true`
- * en el esquema, nunca secretos.
+ * en el esquema, nunca secretos. Además incluye `modules` (id → activo), calculado
+ * al vuelo según si cada plugin del catálogo está activo: es la fuente de verdad
+ * que usa el frontend para gatear la UI y las rutas de cada módulo.
  */
 class RestApi {
 
@@ -41,6 +43,10 @@ class RestApi {
 
         // Extraemos solo campos públicos (nunca secretos).
         $public   = (new PublicConfigWalker())->walk($schema, $merged);
+
+        // Estado de los módulos (calculado, no almacenado): el frontend lo usa para
+        // gatear la UI y las rutas BFF de cada módulo (`isModuleEnabled`/`requireModule`).
+        $public['modules'] = Modules::activeMap();
 
         $response = new \WP_REST_Response($public, 200);
 

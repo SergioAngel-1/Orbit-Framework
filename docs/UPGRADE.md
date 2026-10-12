@@ -244,6 +244,12 @@ git fetch framework --tags
 - **Corregido: la config pública devolvía un marcador interno** (`"\u0000hwe_skip\u0000"`) en cualquier grupo raíz sin campos
   públicos; en la v1.0 era el caso de `backups`. Ahora esas claves se omiten. Si tu frontend leía `config.backups`, no tenía
   un valor útil; ya no existe.
+- **Nuevo: módulos opcionales.** `instance.config.json` acepta `modules: [<id>…]` (`wp hwe setup` activa los listados y
+  desactiva los demás del catálogo; sin la clave no toca ningún plugin). La config pública incluye `modules: { <id>:
+  boolean }` calculado según si cada plugin está activo. En el frontend, `SiteConfig` gana `modules` (todo `false` por
+  defecto) e `instance` (vacío en el núcleo): si construyes un `SiteConfig` literal en tus tests, añade ambas claves. El
+  lector de banners devuelve vacío con el módulo apagado, aunque `banners.enabled` sea `true`: revisa que tu
+  `instance.config.json` incluya `"banners"` si usas banners.
 
 ### Operación (F1)
 

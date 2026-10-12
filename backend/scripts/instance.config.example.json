@@ -1,6 +1,8 @@
 {
   "_comment": "Plantilla para 'wp hwe setup <archivo>'. Copia este archivo a instance.config.json (no versionado), rellena los valores de la instancia y ejecútalo (automáticamente desde setup.sh, o a mano con: docker compose run --rm wpcli wp hwe setup /scripts/instance.config.json --path=/var/www/html --allow-root). No incluyas credenciales de pago/SMTP aquí: esos campos son 'secret' y se configuran desde wp-admin → HWE Config o por variable de entorno. Los grupos/campos deben coincidir con backend/wp-content/mu-plugins/hwe-control-center/Schema.php.",
 
+  "modules": ["banners"],
+
   "brand": {
     "name": "Mi Marca",
     "tagline": "Tagline corta de la marca",

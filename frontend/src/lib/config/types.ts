@@ -93,4 +93,31 @@ export interface SiteConfig {
     /** Emitir directiva Content-Signal en robots.txt. */
     content_signal: boolean;
   };
+  /**
+   * Módulos opcionales (id → activo), calculados en WordPress según si cada
+   * plugin del catálogo está activo. Es la fuente de verdad para gatear la UI
+   * y las rutas BFF de cada módulo. Ver `lib/config/modules.ts`.
+   */
+  modules: Record<ModuleId, boolean>;
+  /** Ajustes propios de la instancia (grupo `instance` del Control Center). Vacío en el núcleo. */
+  instance: InstanceConfig;
 }
+
+/** Ids del catálogo de módulos (spec §4.1). Debe coincidir con `Modules::CORE_IDS` en PHP. */
+export type ModuleId =
+  | "banners"
+  | "shipping"
+  | "product-landing"
+  | "landings"
+  | "consent-log"
+  | "site-reviews"
+  | "coupon-rules"
+  | "customer-identity"
+  | "external-integration";
+
+/**
+ * Ajustes propios de la instancia. Vacía en el framework: cada instancia la
+ * amplía por *module augmentation* en `src/instance/config.d.ts`.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface InstanceConfig {}

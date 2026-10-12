@@ -87,4 +87,16 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     faq: "",
     content_signal: true,
   },
+  modules: {
+    banners: false,
+    shipping: false,
+    "product-landing": false,
+    landings: false,
+    "consent-log": false,
+    "site-reviews": false,
+    "coupon-rules": false,
+    "customer-identity": false,
+    "external-integration": false,
+  },
+  instance: {},
 };
