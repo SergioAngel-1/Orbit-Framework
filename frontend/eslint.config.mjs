@@ -20,6 +20,12 @@ const eslintConfig = [
       "next-env.d.ts",
       "coverage/**",
       "tests/stubs/**",
+      // Informes generados por Playwright (ignorados por git): el visor de
+      // trazas es JS minificado y, sin esto, el lint LOCAL daba cientos de
+      // errores que el CI —que nunca tiene estas carpetas— no ve.
+      "playwright-report/**",
+      "test-results/**",
+      "blob-report/**",
     ],
   },
   ...coreWebVitals,
