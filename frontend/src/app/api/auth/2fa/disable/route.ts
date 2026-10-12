@@ -3,6 +3,7 @@ import { verify as verifyTotp } from "otplib";
 import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
 import { twoFactorCodeSchema } from "@/lib/validation/auth";
+import { delPending2faSecret } from "@/lib/auth/two-factor-pending";
 import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
@@ -116,6 +117,11 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
+
+    // Defensivo: si había un intento de re-alta a medias (POST /2fa/setup
+    // llamado de nuevo con 2FA ya activo), su secreto pendiente no debe seguir
+    // vivo tras desactivar.
+    await delPending2faSecret(session.userId);
 
     logger.info({ event: "2fa.disable.success", userId: session.userId });
     return NextResponse.json({ ok: true }, { status: 200 });

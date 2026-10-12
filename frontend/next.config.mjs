@@ -83,7 +83,9 @@ function buildContentSecurityPolicy() {
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}${ANALYTICS.script.length ? " " + ANALYTICS.script.join(" ") : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data: blob: ${WP_ORIGIN} https://api.qrserver.com`,
+    // Sin generadores de QR externos: el QR del alta de 2FA lo sirve nuestro BFF
+    // (/api/auth/2fa/qr) y el secreto TOTP no debe salir del dominio.
+    `img-src 'self' data: blob: ${WP_ORIGIN}`,
     "font-src 'self' data:",
     `connect-src 'self' ${WP_ORIGIN}${ANALYTICS.connect.length ? " " + ANALYTICS.connect.join(" ") : ""}${isProd ? "" : " ws: wss:"}`,
     "frame-ancestors 'none'",

@@ -2,13 +2,19 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
+import { Alert } from "@/components/ui/alert";
 
-export function TwoFactorSetup() {
+export function TwoFactorSetup({
+  emailVerified = false,
+}: {
+  /** Sin email verificado no se puede iniciar la activación de 2FA. */
+  emailVerified?: boolean;
+}) {
   const t = useTranslations("twoFactor");
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [secret, setSecret] = useState<string | null>(null);
-  const [siteName, setSiteName] = useState("");
+  const [qrError, setQrError] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -27,12 +33,19 @@ export function TwoFactorSetup() {
   async function startSetup() {
     setError(null);
     setMessage(null);
+    setQrError(false);
+    if (!emailVerified) {
+      setError(t("emailRequired"));
+      return;
+    }
     try {
       const res = await csrfFetch("/api/auth/2fa/setup", { method: "POST" });
-      if (!res.ok) throw new Error(t("setupError"));
-      const data = (await res.json()) as { secret: string; site_name: string };
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error || t("setupError"));
+      }
+      const data = (await res.json()) as { secret: string };
       setSecret(data.secret);
-      setSiteName(data.site_name);
       setStep("setup");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("setupError"));
@@ -105,16 +118,6 @@ export function TwoFactorSetup() {
   if (loading) {
     return <p className="text-sm text-gray-500">{t("loading")}</p>;
   }
-
-  const username =
-    typeof window !== "undefined"
-      ? document.cookie
-          .replace(/(?:(?:^|.*;\s*)hwe_at\s*=\s*([^;]*).*$)|^.*$/, "$1")
-          .slice(0, 20)
-      : "";
-  const otpauth = secret
-    ? `otpauth://totp/${encodeURIComponent(siteName)}:${encodeURIComponent(username || "user")}?secret=${secret}&issuer=${encodeURIComponent(siteName)}`
-    : "";
 
   return (
     <div className="space-y-4">
@@ -190,15 +193,27 @@ export function TwoFactorSetup() {
       {step === "setup" && secret && (
         <div className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
           <p className="mb-2 text-sm font-medium">{t("scanInstructions")}</p>
-          <div className="mb-4 flex justify-center">
-            <div className="inline-block rounded-lg border bg-white p-2">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauth)}`}
-                alt={t("qrcode")}
-                className="h-48 w-48"
-              />
+          {qrError ? (
+            // Sin Redis (o si el QR falla) no hay imagen: el código manual de
+            // abajo permite continuar igualmente.
+            <Alert variant="warning" className="mb-4">
+              {t("qrLoadError")}
+            </Alert>
+          ) : (
+            <div className="mb-4 flex justify-center">
+              {/* QR conserva fondo blanco por escaneabilidad. */}
+              <div className="inline-block rounded-lg border bg-white p-2">
+                {/* El QR lo genera nuestro BFF por sesión y lleva el secreto: no pasa por el optimizador de imágenes ni por ninguna URL externa. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/api/auth/2fa/qr"
+                  alt={t("qrcode")}
+                  className="h-48 w-48"
+                  onError={() => setQrError(true)}
+                />
+              </div>
             </div>
-          </div>
+          )}
           <p className="mb-1 text-xs text-gray-400">{t("orManual")}</p>
           <code className="block select-all rounded bg-gray-100 p-2 text-xs dark:bg-gray-800">
             {secret}

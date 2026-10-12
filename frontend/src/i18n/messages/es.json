@@ -348,6 +348,8 @@
     "verify": "Verificar",
     "verifying": "Verificando…",
     "qrcode": "Código QR",
+    "qrLoadError": "No se pudo cargar el código QR, usa el código manual de abajo.",
+    "emailRequired": "Verifica tu email antes de activar 2FA.",
     "verifyError": "Código inválido. Intenta de nuevo.",
     "activated": "2FA activado correctamente.",
     "recoveryTitle": "Códigos de recuperación",

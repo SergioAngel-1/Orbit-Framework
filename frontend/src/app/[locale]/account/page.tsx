@@ -72,7 +72,7 @@ export default async function AccountPage() {
               <h2 className="mb-4 text-lg font-semibold">
                 Autenticación en dos pasos (2FA)
               </h2>
-              <TwoFactorSetup />
+              <TwoFactorSetup emailVerified={emailVerified} />
             </section>
           </div>
         )

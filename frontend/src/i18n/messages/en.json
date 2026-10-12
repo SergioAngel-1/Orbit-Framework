@@ -343,6 +343,8 @@
     "verify": "Verify",
     "verifying": "Verifying…",
     "qrcode": "QR code",
+    "qrLoadError": "Could not load the QR code, use the manual code below.",
+    "emailRequired": "Verify your email before enabling 2FA.",
     "verifyError": "Invalid code. Try again.",
     "activated": "2FA activated successfully.",
     "recoveryTitle": "Recovery codes",
