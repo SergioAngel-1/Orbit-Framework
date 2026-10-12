@@ -44,6 +44,20 @@ abstract class Walker {
             }
         }
 
+        return $this->finalize($result);
+    }
+
+    /**
+     * Último paso de cada nivel del recorrido. Por defecto no cambia nada.
+     *
+     * Existe porque `visitGroup` solo puede limpiar a sus HIJOS: lo que un nodo devuelve para
+     * decir «no me incluyas» lo ve el nivel de arriba, y en la raíz no hay nadie arriba. Un
+     * walker que use ese tipo de marcador lo quita aquí, o acaba en la salida.
+     *
+     * @param array<string,mixed> $result Resultados de este nivel, indexados por clave.
+     * @return array<string,mixed>
+     */
+    protected function finalize(array $result): array {
         return $result;
     }
 

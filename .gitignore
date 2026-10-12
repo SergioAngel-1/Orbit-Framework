@@ -48,6 +48,20 @@ backend/wp-content/hwe-backup-config.json
 !backend/wp-content/mu-plugins/
 !backend/wp-content/mu-plugins/**
 
+# ── Contrato de instancia ────────────────────────────────────────────────────
+# `mu-plugins/instance/` es el código de LA INSTANCIA: el framework nunca lo toca, así que
+# solo versiona el README (que explica el contrato). Debe ir DESPUÉS del `!mu-plugins/**` de
+# arriba: en .gitignore gana la última regla que casa.
+# Una instancia clonada quiere versionar su propio código: borra estas dos líneas.
+backend/wp-content/mu-plugins/instance/*
+!backend/wp-content/mu-plugins/instance/README.md
+
+# Plugins grandes de la instancia (`hwe-instance-<slug>`, p. ej. un CPT con tablas propias).
+# Los plugins ya están ignorados por defecto (`plugins/*`); una instancia descomenta estas dos
+# líneas para versionar los suyos.
+# !backend/wp-content/plugins/hwe-instance-*/
+# !backend/wp-content/plugins/hwe-instance-*/**
+
 # Mantén nuestro plugin de banners versionado (código propio del framework)
 !backend/wp-content/plugins/
 !backend/wp-content/plugins/hwe-banners/

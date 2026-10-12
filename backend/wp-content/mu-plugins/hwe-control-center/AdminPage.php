@@ -100,28 +100,7 @@ class AdminPage {
             $sections['banners'] .= self::renderBannerStatus();
         }
 
-        // Build tabs from sections.
-        $tabs = [];
-        $tabIcons = [
-            'brand'        => 'dashicons-admin-home',
-            'social'       => 'dashicons-share',
-            'legal'        => 'dashicons-media-document',
-            'design'       => 'dashicons-admin-appearance',
-            'ecommerce'    => 'dashicons-cart',
-            'payments'     => 'dashicons-money',
-            'integrations' => 'dashicons-admin-plugins',
-            'backups'      => 'dashicons-backup',
-            'seo'          => 'dashicons-search',
-            'shipping'     => 'dashicons-store',
-            'geo'          => 'dashicons-location',
-            'banners'      => 'dashicons-images-alt2',
-        ];
-
-        foreach ($sections as $key => $html) {
-            $label = $schema[$key]['label'] ?? $key;
-            $icon  = $tabIcons[$key] ?? 'dashicons-admin-generic';
-            $tabs[$key] = ['label' => $label, 'icon' => $icon, 'content' => $html];
-        }
+        $tabs = self::buildTabs($schema, $sections);
 
         $formUrl = esc_url(admin_url('admin.php?page=' . self::MENU_SLUG));
 
@@ -200,6 +179,48 @@ class AdminPage {
         echo '</div>';
     }
 
+    /**
+     * Pestañas del panel: una por sección del esquema.
+     *
+     * La pestaña «Instancia» (grupo raíz `instance`) solo aparece cuando la instancia le ha
+     * añadido campos: vacía no tiene nada que mostrar, y una pestaña muerta en todo panel
+     * estropearía la plantilla.
+     *
+     * @param array<string,array>  $schema   Esquema efectivo (Schema::get()).
+     * @param array<string,string> $sections HTML de cada sección, por clave raíz.
+     * @return array<string,array{label:string,icon:string,content:string}>
+     */
+    public static function buildTabs(array $schema, array $sections): array {
+        $tabIcons = [
+            'brand'        => 'dashicons-admin-home',
+            'social'       => 'dashicons-share',
+            'legal'        => 'dashicons-media-document',
+            'design'       => 'dashicons-admin-appearance',
+            'ecommerce'    => 'dashicons-cart',
+            'payments'     => 'dashicons-money',
+            'integrations' => 'dashicons-admin-plugins',
+            'backups'      => 'dashicons-backup',
+            'seo'          => 'dashicons-search',
+            'shipping'     => 'dashicons-store',
+            'geo'          => 'dashicons-location',
+            'banners'      => 'dashicons-images-alt2',
+            'instance'     => 'dashicons-admin-tools',
+        ];
+
+        $tabs = [];
+        foreach ($sections as $key => $html) {
+            if ($key === 'instance' && empty($schema['instance']['children'] ?? [])) {
+                continue;
+            }
+            $tabs[$key] = [
+                'label'   => (string) ($schema[$key]['label'] ?? $key),
+                'icon'    => $tabIcons[$key] ?? 'dashicons-admin-generic',
+                'content' => $html,
+            ];
+        }
+        return $tabs;
+    }
+
     // -------------------------------------------------------------------------
     // Guardado
     // -------------------------------------------------------------------------
@@ -218,6 +239,15 @@ class AdminPage {
         Storage::setAll($publicData);
         SecretsStorage::mergeNonEmpty($secretData);
         BackupConfig::write($publicData['backups'] ?? []);
+
+        // Contrato con la instancia y los módulos: UNA acción genérica con la configuración
+        // pública ya saneada y guardada, y el árbol `hwe_config` tal como llegó (sin sanear).
+        // Sustituye a las acciones con nombre de instancia (`hwe_control_center_<cosa>_save`),
+        // que obligaban a este archivo a leer sus claves del POST. Nonce y capacidad ya están
+        // comprobados. Va ANTES de revalidar: un handler que cambie datos propios debe haber
+        // terminado cuando el frontend vuelva a leer.
+        do_action('hwe_control_center_saved', $publicData, (array) $raw);
+
         Revalidation::trigger();
 
         return self::notice('success', __('Configuración guardada correctamente.', 'hwe'));

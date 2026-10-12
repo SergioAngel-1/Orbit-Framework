@@ -36,4 +36,14 @@ class PublicConfigWalker extends Walker {
         );
         return empty($filtered) ? self::SKIP : $filtered;
     }
+
+    /**
+     * Quita los marcadores SKIP también en la RAÍZ. `visitGroup` los quita de los hijos de
+     * cada grupo, pero un grupo raíz sin campos públicos (p. ej. `instance` mientras la
+     * instancia no añade nada, o uno con solo secretos) devolvía el marcador y llegaba tal
+     * cual al JSON de /wp-json/hwe/v1/config.
+     */
+    protected function finalize(array $result): array {
+        return array_filter($result, static fn($v) => $v !== self::SKIP);
+    }
 }

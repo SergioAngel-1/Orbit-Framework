@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -49,5 +50,38 @@ describe(".gitignore", () => {
     ["backend/scripts/backup.sh", "el propio script de copias"],
   ])("NO ignora %s (%s)", (file) => {
     expect(ignored(file)).toBe(false);
+  });
+});
+
+// El contrato de instancia: `mu-plugins/instance/` es del usuario de la instancia. El framework
+// solo versiona su README; el resto de lo que haya ahí no entra en un commit del framework.
+describe(".gitignore: carpeta de la instancia", () => {
+  it.each([
+    ["backend/wp-content/mu-plugins/instance/10-campos.php", "código de la instancia"],
+    [
+      "backend/wp-content/mu-plugins/instance/lib/ayuda.php",
+      "subcarpeta de la instancia",
+    ],
+    ["backend/wp-content/mu-plugins/instance/notas.txt", "cualquier otro archivo"],
+  ])("ignora %s (%s)", (file) => {
+    expect(ignored(file)).toBe(true);
+  });
+
+  it.each([
+    ["backend/wp-content/mu-plugins/instance/README.md", "el contrato documentado"],
+    [
+      "backend/wp-content/mu-plugins/hwe-instance-loader.php",
+      "el cargador, que es del núcleo",
+    ],
+    ["backend/wp-content/mu-plugins/hwe-bff-only.php", "otro mu-plugin del núcleo"],
+  ])("NO ignora %s (%s)", (file) => {
+    expect(ignored(file)).toBe(false);
+  });
+
+  it("el patrón de plugins de instancia queda preparado pero comentado", () => {
+    const gitignore = readFileSync(path.join(ROOT, ".gitignore"), "utf8");
+
+    expect(gitignore).toContain("# !backend/wp-content/plugins/hwe-instance-*/");
+    expect(gitignore).not.toMatch(/^!backend\/wp-content\/plugins\/hwe-instance-/m);
   });
 });

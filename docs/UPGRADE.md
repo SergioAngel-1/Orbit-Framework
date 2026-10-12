@@ -223,6 +223,28 @@ git fetch framework --tags
   nada, así que devolvía los primeros 100 productos de cualquier estado. Sin ningún id válido responde una
   lista vacía sin consultar WooCommerce.
 
+### Contrato de instancia (F2)
+
+- **Nuevo: el código de tu instancia va en `backend/wp-content/mu-plugins/instance/`**, que el framework no toca nunca
+  (solo versiona su README). El mu-plugin `hwe-instance-loader.php` carga sus `.php` de primer nivel en orden
+  alfabético; un archivo roto se registra (`[hwe] instance-loader: …`) y no tumba el sitio. Si tu instancia ya tenía
+  código mezclado con el del núcleo, muévelo ahí: así las próximas actualizaciones no generan conflictos. El `.gitignore`
+  del framework ignora esa carpeta (salvo el README); en una instancia, borra esas dos líneas para versionar la tuya.
+- **Nuevo grupo raíz `instance` en el schema del Control Center** (pestaña «Instancia», visible solo cuando tiene campos).
+  Añade tus ajustes con el filtro `hwe_control_center_schema` **dentro de ese grupo**. Una clave raíz nueva se descarta y
+  se registra, y un grupo del núcleo que un filtro elimine se restaura. Los campos `public` salen por
+  `/wp-json/hwe/v1/config` en `instance.*`.
+- **Nueva acción `hwe_control_center_saved($publicData, $rawPost)`**, que se dispara tras guardar y antes de revalidar.
+  Sustituye a las acciones con nombre de instancia (`hwe_control_center_<cosa>_save`): `AdminPage` ya no lee ninguna clave
+  del POST que no cuelgue del schema. Si tu código dependía de alguna, pasa a engancharse a esta (ver el README de
+  `instance/`).
+- **Nuevo filtro `hwe_revalidation_tags`** y `Revalidation::trigger($tag)`: WordPress solo envía tags registrados (formato
+  `[a-z0-9._-]`, hasta 64 caracteres). La revalidación ya no se omite en silencio si falta `HWE_REVALIDATION_SECRET`: se
+  registra.
+- **Corregido: la config pública devolvía un marcador interno** (`"\u0000hwe_skip\u0000"`) en cualquier grupo raíz sin campos
+  públicos; en la v1.0 era el caso de `backups`. Ahora esas claves se omiten. Si tu frontend leía `config.backups`, no tenía
+  un valor útil; ya no existe.
+
 ### Operación (F1)
 
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor

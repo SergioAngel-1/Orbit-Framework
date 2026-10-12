@@ -23,11 +23,101 @@ namespace HWE\ControlCenter;
  *   'token'       → nombre de la propiedad CSS (p. ej. '--color-brand').
  *   'options'     → ['value' => 'Etiqueta'] para el tipo 'select'.
  *   'description' → texto de ayuda mostrado en la UI de admin.
+ *
+ * CONTRATO CON LA INSTANCIA
+ * -------------------------
+ * `get()` devuelve el esquema del núcleo tras aplicar el filtro `hwe_control_center_schema`,
+ * con el que una instancia añade sus ajustes. El filtro solo puede poblar el grupo raíz
+ * `instance` (la pestaña «Instancia»):
+ *   · una clave raíz que no sea del núcleo ni `instance` se descarta y se registra;
+ *   · un grupo del núcleo que el filtro elimine se restaura y se registra;
+ *   · si `instance` deja de ser un grupo, o el filtro no devuelve un array, se descarta lo que
+ *     devolvió y se registra.
+ * Los avisos salen UNA vez por problema y proceso: el esquema se evalúa varias veces por
+ * petición. Ver mu-plugins/instance/README.md.
  */
 class Schema {
 
-    /** @return array<string,array> */
+    /**
+     * Esquema efectivo: el del núcleo más lo que aporte la instancia, ya validado.
+     *
+     * @return array<string,array>
+     */
     public static function get(): array {
+        $core     = self::core();
+        $filtered = apply_filters('hwe_control_center_schema', $core);
+
+        if (!is_array($filtered)) {
+            Log::once(
+                'schema:not-array',
+                sprintf(
+                    'el filtro hwe_control_center_schema debe devolver un array (devolvió %s); se usa el esquema del núcleo.',
+                    get_debug_type($filtered)
+                )
+            );
+            return $core;
+        }
+
+        return self::enforceContract($core, $filtered);
+    }
+
+    /**
+     * Aplica las reglas del contrato (ver el docblock de la clase) a lo que devolvió el filtro.
+     *
+     * @param array<string,array> $core
+     * @param array<mixed>        $filtered
+     * @return array<string,array>
+     */
+    private static function enforceContract(array $core, array $filtered): array {
+        foreach (array_keys($filtered) as $key) {
+            if (!array_key_exists($key, $core)) {
+                Log::once(
+                    'schema:root:' . (string) $key,
+                    sprintf(
+                        'clave raíz «%s» descartada de hwe_control_center_schema: los ajustes de la instancia van dentro del grupo «instance» ($schema[\'instance\'][\'children\'][\'%s\']).',
+                        (string) $key,
+                        (string) $key
+                    )
+                );
+            }
+        }
+
+        $result = [];
+        foreach ($core as $key => $coreNode) {
+            if (!array_key_exists($key, $filtered)) {
+                Log::once(
+                    'schema:removed:' . $key,
+                    sprintf('el grupo «%s» del núcleo fue eliminado por un filtro de hwe_control_center_schema; se restaura (el núcleo no se puede quitar).', $key)
+                );
+                $result[$key] = $coreNode;
+                continue;
+            }
+            $result[$key] = $filtered[$key];
+        }
+
+        if (!self::isGroup($result['instance'])) {
+            Log::once(
+                'schema:instance-invalid',
+                'el nodo «instance» de hwe_control_center_schema debe seguir siendo un grupo con «children» (array); se restaura vacío.'
+            );
+            $result['instance'] = $core['instance'];
+        }
+
+        return $result;
+    }
+
+    private static function isGroup(mixed $node): bool {
+        return is_array($node)
+            && ($node['type'] ?? null) === 'group'
+            && is_array($node['children'] ?? null);
+    }
+
+    /**
+     * El esquema del NÚCLEO, sin filtros: la fuente única de todos los campos.
+     *
+     * @return array<string,array>
+     */
+    public static function core(): array {
         return [
 
             /* ------------------------------------------------------------------ */
@@ -604,6 +694,18 @@ class Schema {
                         'description' => 'Una pregunta y respuesta por línea, separadas por "|". Se muestran en la home y se publican como JSON-LD FAQPage (muy citado por la IA). Ej.: ¿Hacéis envíos internacionales? | Sí, enviamos a toda Europa.',
                     ],
                 ],
+            ],
+
+            /* ------------------------------------------------------------------ */
+            /* INSTANCIA                                                           */
+            /* Vacío en el núcleo. Una instancia añade aquí sus ajustes con el      */
+            /* filtro `hwe_control_center_schema` (ver «CONTRATO CON LA INSTANCIA»). */
+            /* El panel lo pinta como la pestaña «Instancia» en cuanto tiene hijos.  */
+            /* ------------------------------------------------------------------ */
+            'instance' => [
+                'type'     => 'group',
+                'label'    => 'Instancia',
+                'children' => [],
             ],
 
         ];

@@ -20,6 +20,8 @@ paquete multi-clase.
 |---|---|---|
 | `hwe-control-center.php` | loader | Registra el autoloader PSR-4 de `HWE\ControlCenter\*` y arranca el panel en `init`. |
 | `hwe-control-center/` | paquete | Clases del panel: `Schema`, `Storage`, `SecretsStorage`, `RestApi`, `AdminPage`, `Revalidation`, `BackupConfig`, `Walker`, `Walkers/`. Expone `/wp-json/hwe/v1/config`. |
+| `hwe-instance-loader.php` | mu-plugin | Cargador del código de la **instancia**: hace `require` de los `.php` de primer nivel de `instance/` en orden alfabético (un archivo roto se registra y no tumba el sitio) y define `HWE_CORE_CONTRACT_VERSION`. |
+| `instance/` | carpeta de la instancia | **Del usuario de la instancia; el framework nunca la toca** (solo versiona su `README.md`, que explica el contrato de hooks). |
 | `hwe-auth.php` | mu-plugin | Endpoints REST `hwe/v1`: reset de contraseña, verificación de email, 2FA (secreto cifrado + códigos de recuperación). |
 | `hwe-smtp.php` | mu-plugin | Transporte SMTP de todo el correo (lee config del Control Center; secreto cifrado AES-256-GCM). |
 | `external-plugin-update-guard.php` | mu-plugin | Evita falsas actualizaciones de wordpress.org para plugins externos (GitHub), p. ej. la colisión de slug `jwt-auth`. |
