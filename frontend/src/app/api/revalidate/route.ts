@@ -4,17 +4,23 @@ import { verifyHmacSignature, verifyWooWebhook } from "@/lib/security/webhook";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/http/request-ip";
 import { logger } from "@/lib/observability/logger";
+import { instanceRegistry } from "@/instance/registry";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED_HWE_TAGS = ["site-config", "banners"] as const;
-type HweTag = (typeof ALLOWED_HWE_TAGS)[number];
+/** Tags del núcleo. La instancia añade los suyos en `instanceRegistry.revalidationTags`. */
+const CORE_HWE_TAGS = ["site-config", "banners"] as const;
 
-export function resolveHweTag(raw: unknown): HweTag | null {
+export function resolveHweTag(raw: unknown): string | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const tag = (raw as Record<string, unknown>).tag;
   if (tag === undefined) return "site-config";
-  return ALLOWED_HWE_TAGS.includes(tag as HweTag) ? (tag as HweTag) : null;
+  if (typeof tag !== "string") return null;
+  const allowed = new Set<string>([
+    ...CORE_HWE_TAGS,
+    ...instanceRegistry.revalidationTags.filter((t) => typeof t === "string"),
+  ]);
+  return allowed.has(tag) ? tag : null;
 }
 
 // ============================================================================

@@ -56,11 +56,18 @@ const eslintConfig = [
     },
   },
   // ── Frontera núcleo/instancia (AGENTS.md §1.1) ─────────────────────────────
-  // El núcleo del framework (lib/, app/api/, proxy) NO puede depender de código
-  // de instancia (components/**, salvo las primitivas ui/). Los `import type`
-  // también cuentan: el contrato de tipos del núcleo debe vivir en el núcleo.
+  // El núcleo del framework (lib/, app/api/, proxy, primitivas ui/) NO puede
+  // depender de código de instancia (components/** salvo ui/, instance/** salvo
+  // su registro). Los `import type` también cuentan: el contrato de tipos del
+  // núcleo debe vivir en el núcleo. La única puerta es `@/instance/registry`
+  // (datos del `InstanceRegistry`, nunca componentes).
   {
-    files: ["src/lib/**/*.{ts,tsx}", "src/app/api/**/*.{ts,tsx}", "src/proxy.ts"],
+    files: [
+      "src/lib/**/*.{ts,tsx}",
+      "src/app/api/**/*.{ts,tsx}",
+      "src/proxy.ts",
+      "src/components/ui/**/*.{ts,tsx}",
+    ],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -70,6 +77,11 @@ const eslintConfig = [
               group: ["@/components/**", "!@/components/ui", "!@/components/ui/**"],
               message:
                 "El núcleo del framework no puede importar código de instancia (components/**, salvo ui/). Mueve el tipo/lógica a lib/ o invierte la dependencia.",
+            },
+            {
+              group: ["@/instance/**", "!@/instance/registry"],
+              message:
+                "El núcleo solo puede leer la instancia vía @/instance/registry (InstanceRegistry). Importa el dato desde lib/ o declara el campo en el registro.",
             },
           ],
         },
