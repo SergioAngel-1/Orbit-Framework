@@ -7,12 +7,33 @@ import type { StoreCart } from "@/types/woocommerce";
 //  directamente. Las escrituras incluyen el token CSRF automáticamente.
 // ============================================================================
 
+/**
+ * ¿Tiene la forma mínima de un carrito? Es lo que la UI lee sin comprobar
+ * (`items`, `items_count` y `totals`); no valida cada campo de la Store API.
+ */
+function isStoreCart(value: unknown): value is StoreCart {
+  if (value === null || typeof value !== "object") return false;
+  const cart = value as Record<string, unknown>;
+  return (
+    Array.isArray(cart.items) &&
+    typeof cart.items_count === "number" &&
+    cart.totals !== null &&
+    typeof cart.totals === "object"
+  );
+}
+
 async function parseCart(res: Response): Promise<StoreCart> {
   if (!res.ok) {
     const data = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(data.error || `Error ${res.status}`);
   }
-  return res.json() as Promise<StoreCart>;
+  // No se fía de la forma: un 200 con un cuerpo que no es un carrito dejaba
+  // `cart = {…}` en el contexto y el cajón reventaba al leer `totals.total_price`
+  // (pantalla de error 500 de toda la página). Se trata como "carrito no
+  // disponible", que es lo que el contexto ya sabe manejar.
+  const body: unknown = await res.json().catch(() => null);
+  if (!isStoreCart(body)) throw new Error("La respuesta del carrito no es válida.");
+  return body;
 }
 
 export const cartApi = {
