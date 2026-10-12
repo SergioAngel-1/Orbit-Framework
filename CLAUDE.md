@@ -40,12 +40,21 @@ npm run type-check     # tsc --noEmit
 npm run lint           # ESLint flat config (next lint se eliminó en Next 16)
 npm run test           # unit (Vitest): seguridad, auth, pagos, validación
 npm run test:watch     # Vitest en watch
-npx vitest run <ruta>  # un solo archivo de test (p. ej. src/lib/security/csrf.test.ts)
+npx vitest run tests/unit/csrf.test.ts   # un solo archivo de test
+npx vitest run -t "<nombre>"             # un solo test por nombre
 npm run test:coverage  # cobertura (umbrales en vitest.config.ts)
-npm run e2e            # Playwright (smoke + axe)
+npm run format         # Prettier (src/ y tests/)
+npm run format:check   # lo que corre CI — falla si hay archivos sin formatear
+npm run e2e            # Playwright (smoke + axe) contra una app YA levantada (E2E_BASE_URL, def. :3000)
 npx next build         # ⭐ la verificación definitiva antes de dar por terminado un cambio
 ```
 
+- **Tests unitarios viven en `frontend/tests/unit/*.test.ts`** (no colocados junto al código;
+  Vitest solo incluye esa carpeta). Cubren `src/lib/**`; `server-only` se neutraliza con un
+  alias a `tests/stubs/server-only.ts`, así que los módulos de servidor se pueden testear directo.
+- **CI** (`.github/workflows/ci.yml`) corre en este orden: `lint` → `type-check` →
+  `format:check` → `test` → `test:coverage` → `build`, más gitleaks, e2e (build + `next start`)
+  y validación de `docker compose config` (dev y prod). Reproduce eso localmente antes de pushear.
 - **`next build` es obligatorio antes de declarar terminado un cambio de frontend**: atrapa
   límites server/client, RSC, edge runtime y prerender por locale que `tsc`/`lint` no ven.
 - **E2E de compra completa** (`tests/e2e/purchase.spec.ts`) es opt-in: requiere la pila Docker
@@ -54,8 +63,20 @@ npx next build         # ⭐ la verificación definitiva antes de dar por termin
   WP real levantada; si no la levantaste, dilo.
 
 **Pila completa:** Docker puro (`docker compose up -d` + `docker compose run --rm wpcli` en el
-primer arranque) o híbrido recomendado (`docker compose up -d db redis` + WP nativo + `npm run dev`).
+primer arranque) o híbrido recomendado (`docker compose up -d db redis` + WP nativo con
+`php -S 0.0.0.0:8080 -t <ruta-wp>` contra la DB en `127.0.0.1:3307` + `npm run dev`).
 Pasos exactos en `README.md` y `docs/INSTALL.md`.
+
+## Backend: qué es código propio
+
+En `backend/wp-content/` solo se versiona lo nuestro (ver `.gitignore`): `mu-plugins/*`, el tema
+vacío `themes/hwe-headless-base/` y el plugin `plugins/hwe-banners/`. WooCommerce, WPGraphQL,
+JWT, etc. los instala `backend/scripts/setup.sh` — **no edites plugins de terceros** en
+`plugins/`. La config de negocio la gestiona el mu-plugin **HWE Control Center**: `Schema.php`
+es la fuente única de todos los campos (los `public` salen por `/wp-json/hwe/v1/config`) y
+`Cli.php` implementa `wp hwe setup <instance.config.json>` (ver `docs/CREATE_INSTANCE.md`).
+Un campo de config nuevo se declara en `Schema.php` y se consume en el frontend vía `getSiteConfig()`,
+con su valor por defecto en `lib/config/defaults.ts` (`CONFIG_DEFAULTS`, fallback si WP no responde).
 
 ## El principio que lo explica todo: el BFF
 
