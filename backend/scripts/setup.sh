@@ -128,7 +128,7 @@ $WP option update users_can_register 1
 $WP option update default_role subscriber
 
 # ----------------------------------------------------------------------------
-# 3) Plugins esenciales para el ecosistema headless
+# 3) Plugins necesarios para el ecosistema headless
 #    ⚠️  Todas las versiones están FIJADAS a releases concretos para evitar
 #        riesgos de cadena de suministro (issue C.1 del plan de auditoría).
 #        Las descargas desde GitHub verifican checksum SHA256 cuando está

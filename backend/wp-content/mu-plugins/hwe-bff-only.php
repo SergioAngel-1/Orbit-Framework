@@ -33,7 +33,7 @@
  * Con un secreto compartido: el BFF añade `X-HWE-Internal-Secret` con el valor de
  * `HWE_REVALIDATION_SECRET` (la misma constante que ya usa el Control Center para firmar la
  * revalidación) en TODAS sus llamadas a WordPress. Es una credencial, no una suposición
- * sobre la red: la heurística de Siu (sin X-Forwarded-For y desde una IP privada) confía en
+ * sobre la red: la heurística de red privada (sin X-Forwarded-For y desde una IP privada) confía en
  * cualquier contenedor, VPN o proxy mal configurado que comparta red con WordPress.
  *
  * Si `HWE_REVALIDATION_SECRET` no está definida no hay forma de identificar al BFF: FALLA

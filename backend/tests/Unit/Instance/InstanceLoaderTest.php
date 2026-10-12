@@ -164,13 +164,17 @@ final class InstanceLoaderTest extends TestCase
         $this->assertSame(['una-vez.php'], $this->loadedNames());
     }
 
-    public function testTheRealInstanceFolderShipsOnlyItsReadme(): void
+    public function testTheRealInstanceFolderLoadsWithoutErrors(): void
     {
-        // El framework solo versiona el README de la carpeta: el cargador no carga nada de aquí.
+        // El framework solo versiona el README de la carpeta, pero el job «contrato» de CI
+        // superpone aquí el ejemplo vivo: así que no se exige que esté vacía, sino que todo
+        // lo que haya cargue sin errores (un archivo roto de instancia no tumba el sitio,
+        // pero en el repo no queremos ni el aviso en el log).
         $real = HWE_WP_CONTENT_DIR . '/mu-plugins/instance';
 
         $this->assertDirectoryExists($real);
-        $this->assertSame(['README.md'], array_values(array_diff(scandir($real) ?: [], ['.', '..'])));
-        $this->assertSame([], hwe_instance_load($real));
+        $this->assertFileExists($real . '/README.md');
+        hwe_instance_load($real);
+        $this->assertSame([], $this->logged);
     }
 }

@@ -154,7 +154,7 @@ final class AdminPageSavedTest extends TestCase
 
     public function testThePanelDoesNotReadAnyPostKeyOutsideTheSchema(): void
     {
-        // Las acciones con nombre de instancia leían claves como `hwe_essence_copy`. Ya no:
+        // Las acciones con nombre de instancia leían claves como `hwe_example_copy`. Ya no:
         // lo que no cuelga de `hwe_config` no llega a nadie.
         $captured = null;
         Actions\expectDone('hwe_control_center_saved')->once()->whenHappen(function (...$args) use (&$captured): void {
@@ -162,7 +162,7 @@ final class AdminPageSavedTest extends TestCase
         });
 
         $this->save($this->postWithNonce(['brand' => ['name' => 'T']], [
-            'hwe_essence_copy' => ['x' => 'secreto'],
+            'hwe_example_copy' => ['x' => 'secreto'],
             'otra_clave' => 'valor',
         ]));
 

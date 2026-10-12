@@ -115,6 +115,79 @@ jobs:
         run: composer test
 
   # --------------------------------------------------------------------------
+  # Puerta anti-instancia: el núcleo no conoce a ninguna instancia concreta.
+  # Falla si en las rutas de núcleo aparece cualquier resto de una instancia.
+  # --------------------------------------------------------------------------
+  anti-instance:
+    name: Puerta anti-instancia
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Grep anti-instancia en rutas de núcleo
+        run: bash .github/scripts/check-anti-instance.sh
+
+  # --------------------------------------------------------------------------
+  # Contrato núcleo ↔ instancia: el ejemplo vivo se superpone al repo y debe
+  # pasar la batería (tests PHP y TS, tipos y build). Si el contrato se rompe,
+  # este job lo dice sin ensuciar el framework.
+  # --------------------------------------------------------------------------
+  contract:
+    name: Contrato de instancia (ejemplo vivo)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Superponer el ejemplo vivo
+        run: |
+          cp -r examples/instance-minimal/backend/. backend/
+          cp -r examples/instance-minimal/frontend/. frontend/
+          git status --short
+
+      - name: Instalar dependencias PHP
+        run: composer install --no-interaction --no-progress --prefer-dist
+        working-directory: backend
+
+      - name: Tests PHP (con el ejemplo)
+        run: composer test
+        working-directory: backend
+
+      - name: Instalar dependencias del frontend
+        run: npm ci
+        working-directory: frontend
+
+      - name: Tests unitarios (con el ejemplo)
+        run: npm run test
+        working-directory: frontend
+
+      - name: Type-check (con el ejemplo)
+        run: npm run type-check
+        working-directory: frontend
+
+      - name: Levantar endpoint GraphQL de pega
+        run: |
+          node .github/scripts/stub-graphql.mjs &
+          npx --prefix frontend wait-on http://127.0.0.1:8080 --timeout 30000
+
+      - name: Build de producción (con el ejemplo)
+        run: npm run build
+        working-directory: frontend
+        env:
+          WORDPRESS_INTERNAL_API_URL: http://127.0.0.1:8080/graphql
+
+  # --------------------------------------------------------------------------
   # Secret scanning: ningún secreto debe entrar al repositorio.
   # --------------------------------------------------------------------------
   secret-scan:
