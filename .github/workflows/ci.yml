@@ -42,18 +42,32 @@ jobs:
       - name: Formato (Prettier)
         run: npm run format:check
 
+      # Sin este paso, una clave añadida solo a es.json llega a producción y /en
+      # pinta la CLAVE CRUDA en pantalla, sin error de build ni de tipos.
+      - name: Paridad i18n (es ↔ en)
+        run: npm run i18n:check
+
       - name: Tests unitarios
         run: npm run test
 
       - name: Cobertura
         run: npm run test:coverage
 
+      # `next build` prerenderiza y consulta GraphQL durante el build; un runner
+      # no tiene WordPress. El stub responde `{"data":{}}` a todo, así que se
+      # construye con el CMS VACÍO: además de no necesitar WP, ejercita las ramas
+      # de fallback y null-handling en cada build. Ver el encabezado del script.
+      - name: Levantar endpoint GraphQL de pega
+        run: |
+          node ../.github/scripts/stub-graphql.mjs &
+          npx wait-on http://127.0.0.1:8080 --timeout 30000
+
       - name: Build de producción
         run: npm run build
         env:
-          # El build usa los fallbacks de desarrollo; ningún secreto real es
-          # necesario para compilar (las llamadas a WP/WC ocurren en runtime).
-          NEXT_PUBLIC_WORDPRESS_API_URL: http://localhost:8080/graphql
+          # Ningún secreto real es necesario para compilar: las llamadas a WP/WC
+          # que no son del prerender ocurren en runtime.
+          NEXT_PUBLIC_WORDPRESS_API_URL: http://127.0.0.1:8080/graphql
 
       # Falla ante avisos high/critical de TODO el árbol de dependencias salvo la
       # allowlist justificada de scripts/audit-gate.mjs (ver su cabecera). Va al
@@ -124,13 +138,17 @@ jobs:
     env:
       # La validación de secretos en producción (secret-guard.ts, §9 del AGENTS)
       # exige estos valores; se pasan dummy porque en CI no hay WP ni Redis reales.
-      NEXT_PUBLIC_WORDPRESS_API_URL: http://localhost:8080/graphql
+      NEXT_PUBLIC_WORDPRESS_API_URL: http://127.0.0.1:8080/graphql
       GRAPHQL_JWT_AUTH_SECRET_KEY: dummy-ci-jwt-secret-key-at-least-24-chars
       CSRF_SECRET: dummy-ci-csrf-secret-at-least-24-characters-len
       WC_WEBHOOK_SECRET: dummy-ci-webhook-secret-at-least-24-characters
       HWE_REVALIDATION_SECRET: dummy-ci-revalidation-secret-24-chars
       WC_CONSUMER_KEY: ck_dummy_ci_key
       WC_CONSUMER_SECRET: cs_dummy_ci_secret
+      # Tiene que coincidir con el Origin que manda Playwright (baseURL) o toda
+      # escritura responde 403. `next start` fija NODE_ENV=production, así que
+      # el servidor pasa por las reglas de producción de secret-guard.ts.
+      ALLOWED_ORIGIN: http://localhost:3000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -142,6 +160,13 @@ jobs:
         run: npm ci
       - name: Instalar navegadores Playwright
         run: npx playwright install --with-deps chromium
+      # Mismo stub que en el job `frontend`: el build lo necesita igual, y
+      # `next start` sirve páginas que consultan GraphQL en runtime — sin él, los
+      # specs verían errores de red en vez de la página vacía que esperan.
+      - name: Levantar endpoint GraphQL de pega
+        run: |
+          node ../.github/scripts/stub-graphql.mjs &
+          npx wait-on http://127.0.0.1:8080 --timeout 30000
       - name: Build de producción
         run: npm run build
       - name: Arrancar servidor

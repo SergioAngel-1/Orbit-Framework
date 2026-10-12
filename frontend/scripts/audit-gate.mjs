@@ -101,7 +101,8 @@ export function parseAuditOutput(stdout) {
  * }}
  */
 export function evaluateAudit(report, allowlist) {
-  const vulns = report && typeof report === "object" ? report.vulnerabilities : undefined;
+  const vulns =
+    report && typeof report === "object" ? report.vulnerabilities : undefined;
   if (!vulns || typeof vulns !== "object") {
     throw new Error("Informe de npm audit inválido: falta `vulnerabilities`.");
   }
@@ -133,7 +134,9 @@ export function evaluateAudit(report, allowlist) {
     else allowed.push({ ...advisory, reason });
   }
 
-  const staleAllowlist = allowlist.map((entry) => entry.id).filter((id) => !seen.has(id));
+  const staleAllowlist = allowlist
+    .map((entry) => entry.id)
+    .filter((id) => !seen.has(id));
   return { blocking, allowed, staleAllowlist };
 }
 
@@ -197,7 +200,9 @@ function main() {
     process.exitCode = result.blocking.length > 0 ? 1 : 0;
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
-    console.error(`✖ audit-gate: no se pudo evaluar npm audit (falla cerrado). ${detail}`);
+    console.error(
+      `✖ audit-gate: no se pudo evaluar npm audit (falla cerrado). ${detail}`,
+    );
     process.exitCode = 2;
   }
 }
