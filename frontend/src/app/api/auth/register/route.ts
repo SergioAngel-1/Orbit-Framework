@@ -29,7 +29,7 @@ const FRONTEND_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
  */
 async function sendVerificationEmail(authToken: string): Promise<void> {
   try {
-    await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/send-verification`, {
+    const res = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/send-verification`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -37,6 +37,14 @@ async function sendVerificationEmail(authToken: string): Promise<void> {
       },
       body: JSON.stringify({ verification_url: `${FRONTEND_URL}/verify-email` }),
     });
+    // WordPress contesta 502 si wp_mail() falla (SMTP caído o mal configurado):
+    // no rompe el registro, pero tampoco pasa en silencio.
+    if (!res.ok) {
+      logger.warn(
+        { event: "auth.register.send_verification_failed", status: res.status },
+        "WordPress no pudo enviar el email de verificación tras el registro",
+      );
+    }
   } catch (error) {
     logger.warn(
       {

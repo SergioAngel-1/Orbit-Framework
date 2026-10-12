@@ -27,7 +27,14 @@ class HWE_Auth_Endpoints {
             'permission_callback' => '__return_true',
             'args'                => [
                 'user_login'   => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'sanitize_text_field'],
-                'frontend_url' => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
+                // Solo orígenes de la allowlist headless: sin esto el enlace de
+                // reseteo (con una clave REAL) podía apuntar al dominio de un atacante.
+                'frontend_url' => [
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'esc_url_raw',
+                    'validate_callback' => [self::class, 'isAllowedFrontendOrigin'],
+                ],
             ],
         ]);
 
@@ -49,7 +56,12 @@ class HWE_Auth_Endpoints {
             'callback'            => [self::class, 'handleSendVerification'],
             'permission_callback' => function () { return is_user_logged_in(); },
             'args'                => [
-                'verification_url' => ['required' => true, 'type' => 'string', 'sanitize_callback' => 'esc_url_raw'],
+                'verification_url' => [
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'esc_url_raw',
+                    'validate_callback' => [self::class, 'isAllowedFrontendOrigin'],
+                ],
             ],
         ]);
 
@@ -84,12 +96,17 @@ class HWE_Auth_Endpoints {
 
         // 7. Update 2FA secret (authenticated) — cifra antes de guardar y, al
         //    activar, genera y DEVUELVE (una sola vez) los códigos de recuperación.
+        //    Activar y desactivar exigen PRUEBA de posesión: `code` (TOTP) y, para
+        //    desactivar, alternativamente `recovery_code`. Este endpoint es
+        //    alcanzable sin pasar por el BFF, así que un token robado no basta.
         register_rest_route(self::NAMESPACE, '/auth/2fa-secret', [
             'methods'             => 'PUT',
             'callback'            => [self::class, 'handleUpdate2faSecret'],
             'permission_callback' => function () { return is_user_logged_in(); },
             'args'                => [
-                'secret' => ['required' => false, 'type' => 'string'],
+                'secret'        => ['required' => false, 'type' => 'string'],
+                'code'          => ['required' => false, 'type' => 'string'],
+                'recovery_code' => ['required' => false, 'type' => 'string'],
             ],
         ]);
 
@@ -149,9 +166,53 @@ class HWE_Auth_Endpoints {
     }
 
     // ------------------------------------------------------------------------
+    //  Origen del frontend (anti envenenamiento de enlaces)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Solo permite URLs cuyo origen (esquema + host + puerto) esté en la allowlist
+     * de frontends headless (`hwe_allowed_origins()`: HEADLESS_ALLOWED_ORIGINS /
+     * HEADLESS_FRONTEND_URL).
+     *
+     * Evita que /forgot-password y /send-verification sirvan para enviar enlaces de
+     * reseteo o de verificación REALES hacia un dominio arbitrario controlado por un
+     * atacante: pedir el reseteo de la víctima con un `frontend_url` propio hacía que
+     * WordPress generase la clave y la enviase al correo legítimo con el enlace
+     * apuntando al atacante (toma de cuenta).
+     *
+     * Las URLs con credenciales (`https://usuario@host/…`) se rechazan: es el truco
+     * habitual para disfrazar el destino real de un enlace.
+     *
+     * @param mixed $url
+     */
+    public static function isAllowedFrontendOrigin($url): bool {
+        if (!is_string($url) || $url === '') {
+            return false;
+        }
+        $parts = wp_parse_url($url);
+        if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+            return false;
+        }
+        if (isset($parts['user']) || isset($parts['pass'])) {
+            return false;
+        }
+        $origin = strtolower($parts['scheme']) . '://' . strtolower($parts['host'])
+            . (isset($parts['port']) ? ':' . $parts['port'] : '');
+
+        return in_array($origin, array_map('strtolower', hwe_allowed_origins()), true);
+    }
+
+    // ------------------------------------------------------------------------
     //  Cifrado en reposo del secreto 2FA (AES-256-GCM autenticado)
     // ------------------------------------------------------------------------
 
+    /**
+     * Deriva la clave de cifrado de una constante de wp-config.php. SIN clave de
+     * reserva: si ninguna está definida devuelve '' (falla cerrado) y lo registra.
+     * Antes degradaba en silencio a una literal escrita en el código fuente, es
+     * decir, pública e idéntica en cualquier instalación que cayera ahí, con lo que
+     * el secreto TOTP quedaba cifrado con una clave predecible.
+     */
     private static function cryptoKey(): string {
         if (defined('HWE_2FA_KEY') && HWE_2FA_KEY) {
             $src = HWE_2FA_KEY;
@@ -160,7 +221,8 @@ class HWE_Auth_Endpoints {
         } elseif (defined('GRAPHQL_JWT_AUTH_SECRET_KEY') && GRAPHQL_JWT_AUTH_SECRET_KEY) {
             $src = GRAPHQL_JWT_AUTH_SECRET_KEY;
         } else {
-            $src = 'hwe-insecure-2fa-key';
+            error_log('[hwe] auth: no hay ninguna clave definida (HWE_2FA_KEY, AUTH_KEY o GRAPHQL_JWT_AUTH_SECRET_KEY): el secreto 2FA no se puede cifrar ni descifrar y la operación falla.');
+            return '';
         }
         return hash('sha256', 'hwe-2fa:' . $src, true); // 32 bytes
     }
@@ -169,9 +231,13 @@ class HWE_Auth_Endpoints {
         if ($plain === '') {
             return '';
         }
+        $key = self::cryptoKey();
+        if ($key === '') {
+            return '';
+        }
         $iv  = random_bytes(12);
         $tag = '';
-        $ct  = openssl_encrypt($plain, 'aes-256-gcm', self::cryptoKey(), OPENSSL_RAW_DATA, $iv, $tag);
+        $ct  = openssl_encrypt($plain, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
         if ($ct === false) {
             return '';
         }
@@ -190,10 +256,14 @@ class HWE_Auth_Endpoints {
         if ($raw === false || strlen($raw) < 29) {
             return '';
         }
+        $key = self::cryptoKey();
+        if ($key === '') {
+            return '';
+        }
         $iv  = substr($raw, 0, 12);
         $tag = substr($raw, 12, 16);
         $ct  = substr($raw, 28);
-        $pt  = openssl_decrypt($ct, 'aes-256-gcm', self::cryptoKey(), OPENSSL_RAW_DATA, $iv, $tag);
+        $pt  = openssl_decrypt($ct, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
         return ($pt === false) ? '' : $pt;
     }
 
@@ -231,7 +301,11 @@ class HWE_Auth_Endpoints {
         $message .= "Si no solicitaste este cambio, ignora este mensaje.\n";
         $message .= "Este enlace expirará en 24 horas.\n";
 
-        wp_mail($user->user_email, $subject, $message);
+        // Se responde 200 igualmente (no se revela si la cuenta existe), pero el
+        // fallo queda en el log: sin esto un SMTP caído no se veía en ningún sitio.
+        if (!wp_mail($user->user_email, $subject, $message)) {
+            error_log('[hwe] auth: forgot-password: wp_mail falló al enviar el enlace de reseteo (revisa el log del SMTP).');
+        }
 
         return new WP_REST_Response(['ok' => true], 200);
     }
@@ -282,7 +356,12 @@ class HWE_Auth_Endpoints {
         $message .= "Este enlace expirará en 24 horas.\n";
         $message .= "Si no creaste esta cuenta, ignora este mensaje.\n";
 
-        wp_mail($user->user_email, $subject, $message);
+        // Un envío fallido (SMTP caído o mal configurado) se DICE: antes se
+        // respondía 200 y el usuario esperaba un correo que nunca existió.
+        if (!wp_mail($user->user_email, $subject, $message)) {
+            error_log('[hwe] auth: send-verification: wp_mail falló al enviar el correo de verificación (revisa el log del SMTP).');
+            return new WP_REST_Response(['error' => 'No se pudo enviar el email.'], 502);
+        }
 
         return new WP_REST_Response(['ok' => true], 200);
     }
@@ -331,11 +410,37 @@ class HWE_Auth_Endpoints {
         ], 200);
     }
 
+    /**
+     * Activa o desactiva el 2FA. Ambas operaciones exigen PRUEBA de posesión del
+     * segundo factor: este endpoint es alcanzable sin pasar por el BFF
+     * (`/wp-json/hwe/v1/*` va directo a WordPress), así que sin ella un access-token
+     * robado bastaba por sí solo para activar o desactivar el 2FA de la víctima.
+     *
+     *  - Activar: `code` TOTP válido para el `secret` que se guarda.
+     *  - Desactivar (`secret` vacío): `code` válido para el secreto YA activo, o un
+     *    `recovery_code` sin consumir.
+     */
     public static function handleUpdate2faSecret(WP_REST_Request $request): WP_REST_Response {
         $user_id = get_current_user_id();
         $secret  = $request->get_param('secret');
+        $code    = $request->get_param('code');
+        $stored  = (string) get_user_meta($user_id, 'hwe_2fa_secret', true);
 
         if ($secret === null || $secret === '') {
+            $recovery_code = $request->get_param('recovery_code');
+
+            $reauthed = false;
+            if (is_string($recovery_code) && $recovery_code !== '') {
+                $reauthed = self::verifyAndConsumeRecoveryCode($user_id, $recovery_code);
+            } elseif (is_string($code) && $code !== '') {
+                $active   = self::decryptSecret($stored);
+                $reauthed = $active !== '' && self::verifyTotp($active, $code);
+            }
+
+            if (!$reauthed) {
+                return new WP_REST_Response(['error' => 'Código de verificación inválido.'], 403);
+            }
+
             // Desactivar 2FA: limpiar secreto y códigos de recuperación.
             delete_user_meta($user_id, 'hwe_2fa_secret');
             delete_user_meta($user_id, 'hwe_2fa_recovery');
@@ -343,16 +448,35 @@ class HWE_Auth_Endpoints {
             return new WP_REST_Response(['ok' => true], 200);
         }
 
-        // Activar: cifrar el secreto y generar códigos de recuperación.
-        update_user_meta($user_id, 'hwe_2fa_secret', self::encryptSecret(sanitize_text_field($secret)));
+        // Con el 2FA ya activo NO se puede registrar otro secreto encima: con un
+        // token robado, el atacante aportaría SU secreto (y su código válido) y se
+        // quedaría con el segundo factor de la víctima. Para cambiarlo hay que
+        // desactivarlo antes, lo que sí exige prueba del factor actual.
+        if ($stored !== '') {
+            return new WP_REST_Response(['error' => 'El 2FA ya está activo. Desactívalo antes de volver a configurarlo.'], 409);
+        }
+
+        // Activar: prueba de que quien llama controla el autenticador, no solo un
+        // access-token robado.
+        $secret = sanitize_text_field((string) $secret);
+        if (!is_string($code) || $code === '' || !self::verifyTotp($secret, $code)) {
+            return new WP_REST_Response(['error' => 'Código de verificación inválido.'], 403);
+        }
+
+        $encrypted = self::encryptSecret($secret);
+        if ($encrypted === '') {
+            // No se guarda un secreto "cifrado" vacío como si fuera válido.
+            return new WP_REST_Response(['error' => 'No se pudo activar 2FA: falta configurar una clave de cifrado en el servidor.'], 500);
+        }
+        update_user_meta($user_id, 'hwe_2fa_secret', $encrypted);
         update_user_meta($user_id, 'hwe_2fa_enabled', '1');
 
         $codes  = [];
         $hashes = [];
         for ($i = 0; $i < self::RECOVERY_CODES_COUNT; $i++) {
-            $code     = strtolower(bin2hex(random_bytes(5))); // 10 hex chars
-            $codes[]  = substr($code, 0, 5) . '-' . substr($code, 5);
-            $hashes[] = hash('sha256', $code);
+            $recovery = strtolower(bin2hex(random_bytes(5))); // 10 hex chars
+            $codes[]  = substr($recovery, 0, 5) . '-' . substr($recovery, 5);
+            $hashes[] = hash('sha256', $recovery);
         }
         update_user_meta($user_id, 'hwe_2fa_recovery', $hashes);
 
@@ -362,11 +486,33 @@ class HWE_Auth_Endpoints {
 
     public static function handleConsumeRecoveryCode(WP_REST_Request $request): WP_REST_Response {
         $user_id = get_current_user_id();
-        $raw     = strtolower(str_replace('-', '', (string) $request->get_param('code')));
+        $raw     = (string) $request->get_param('code');
+
+        if (!self::verifyAndConsumeRecoveryCode($user_id, $raw)) {
+            $hashes = get_user_meta($user_id, 'hwe_2fa_recovery', true);
+            if (!is_array($hashes) || empty($hashes)) {
+                return new WP_REST_Response(['error' => 'No hay códigos de recuperación.'], 400);
+            }
+            return new WP_REST_Response(['error' => 'Código de recuperación inválido.'], 401);
+        }
+
+        $remaining = get_user_meta($user_id, 'hwe_2fa_recovery', true);
+        return new WP_REST_Response(['ok' => true, 'remaining' => is_array($remaining) ? count($remaining) : 0], 200);
+    }
+
+    /**
+     * Verifica un código de recuperación 2FA y, si es válido, lo consume (lo
+     * elimina de la lista para que no pueda reutilizarse).
+     */
+    private static function verifyAndConsumeRecoveryCode(int $user_id, string $raw): bool {
+        $raw = strtolower(str_replace('-', '', $raw));
+        if ($raw === '') {
+            return false;
+        }
 
         $hashes = get_user_meta($user_id, 'hwe_2fa_recovery', true);
         if (!is_array($hashes) || empty($hashes)) {
-            return new WP_REST_Response(['error' => 'No hay códigos de recuperación.'], 400);
+            return false;
         }
 
         $candidate = hash('sha256', $raw);
@@ -381,11 +527,78 @@ class HWE_Auth_Endpoints {
         }
 
         if (!$matched) {
-            return new WP_REST_Response(['error' => 'Código de recuperación inválido.'], 401);
+            return false;
         }
 
         update_user_meta($user_id, 'hwe_2fa_recovery', $remaining);
-        return new WP_REST_Response(['ok' => true, 'remaining' => count($remaining)], 200);
+        return true;
+    }
+
+    // ------------------------------------------------------------------------
+    //  TOTP (RFC 6238)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Verifica un código TOTP (RFC 6238: HMAC-SHA1, pasos de 30 s, 6 dígitos: los
+     * mismos parámetros que `otplib` en el frontend) contra un secreto base32, con
+     * una ventana de ±1 paso para tolerar el desfase de reloj del cliente.
+     *
+     * Público para poder probarlo con los vectores oficiales; `$at` fija la hora
+     * (segundos Unix) y por defecto es la actual.
+     */
+    public static function verifyTotp(string $secretBase32, string $code, ?int $at = null): bool {
+        $code = preg_replace('/\s+/', '', $code);
+        if (!is_string($code) || !preg_match('/^\d{6}$/', $code)) {
+            return false;
+        }
+        $key = self::base32Decode($secretBase32);
+        if ($key === '') {
+            return false;
+        }
+        $step = (int) floor(($at ?? time()) / 30);
+        for ($offset = -1; $offset <= 1; $offset++) {
+            if ($step + $offset < 0) {
+                continue;
+            }
+            if (hash_equals(self::totpAt($key, $step + $offset), $code)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Código TOTP de 6 dígitos para un contador (paso de 30 s) y una clave binaria. */
+    public static function totpAt(string $key, int $counter): string {
+        $hash = hash_hmac('sha1', pack('J', $counter), $key, true); // contador de 8 bytes, big-endian
+        $off  = ord($hash[19]) & 0x0F;
+        $truncated = (
+            ((ord($hash[$off]) & 0x7F) << 24) |
+            ((ord($hash[$off + 1]) & 0xFF) << 16) |
+            ((ord($hash[$off + 2]) & 0xFF) << 8) |
+            (ord($hash[$off + 3]) & 0xFF)
+        );
+        return str_pad((string) ($truncated % 1000000), 6, '0', STR_PAD_LEFT);
+    }
+
+    /** Decodifica base32 (RFC 4648): ignora mayúsculas, espacios y relleno. */
+    public static function base32Decode(string $b32): string {
+        $b32 = strtoupper((string) preg_replace('/[^A-Za-z2-7]/', '', $b32));
+        if ($b32 === '') {
+            return '';
+        }
+        $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        $bits = '';
+        foreach (str_split($b32) as $char) {
+            $bits .= str_pad(decbin((int) strpos($alphabet, $char)), 5, '0', STR_PAD_LEFT);
+        }
+        $bytes = '';
+        foreach (str_split($bits, 8) as $byte) {
+            if (strlen($byte) < 8) {
+                continue;
+            }
+            $bytes .= chr((int) bindec($byte));
+        }
+        return $bytes;
     }
 
     public static function handleLogoutAll(WP_REST_Request $request): WP_REST_Response {

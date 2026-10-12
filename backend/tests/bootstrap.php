@@ -15,8 +15,10 @@
  *   funciones globales solo puede cargarse una vez por proceso; si dos tests
  *   lo necesitan, márcalos con `#[RunInSeparateProcess]`.
  * - Las funciones de WordPress que el código llame se simulan por test con
- *   `Brain\Monkey\Functions\when()/expect()`. Las clases de WordPress
- *   (`WP_Error`…) se añaden a tests/Stubs/ cuando una tarea las necesita.
+ *   `Brain\Monkey\Functions\when()/expect()`. Las clases de WordPress se
+ *   simulan en tests/Stubs/ (hoy `WP_REST_Request` y `WP_REST_Response`); si un
+ *   test necesita otra (`WP_Error`…), añádela allí y cárgala al final de este
+ *   archivo.
  * - Las constantes (`AUTH_KEY`, `HWE_SECRETS_KEY`…) NO se definen aquí a
  *   propósito: son globales al proceso y no se pueden deshacer, así que los
  *   tests que dependen de ellas (con y sin ellas) usan
@@ -53,3 +55,6 @@ define('DAY_IN_SECONDS', 86400);
 define('WEEK_IN_SECONDS', 604800);
 define('MONTH_IN_SECONDS', 2592000);
 define('YEAR_IN_SECONDS', 31536000);
+
+// Clases de WordPress simuladas (ver tests/Stubs/).
+require_once __DIR__ . '/Stubs/wp-rest.php';

@@ -17,6 +17,14 @@ const WP_INTERNAL =
  * Desactiva 2FA. Exige RE-VERIFICACIÓN con un código TOTP vigente (o, si se
  * envía, un código de recuperación) para que un robo de sesión no baste para
  * quitar el segundo factor.
+ *
+ * La prueba se reenvía a WordPress, que la exige por su cuenta: el endpoint
+ * `hwe/v1/auth/2fa-secret` es alcanzable sin pasar por este BFF, así que no
+ * puede fiarse de las comprobaciones de aquí.
+ *
+ * Con un código de recuperación NO se llama antes a `2fa-recovery/verify`: ese
+ * endpoint lo CONSUME, y el PUT de abajo lo encontraría ya gastado. Es WordPress
+ * quien lo verifica y consume, una sola vez, al desactivar.
  */
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
@@ -31,42 +39,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
 
-  let body: { code?: string; recoveryCode?: string };
+  let body: { code?: unknown; recoveryCode?: unknown };
   try {
-    body = (await request.json()) as { code?: string; recoveryCode?: string };
+    body = (await request.json()) as { code?: unknown; recoveryCode?: unknown };
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  // Re-verificación obligatoria antes de desactivar.
-  try {
-    if (body.recoveryCode) {
-      const recRes = await fetch(
-        `${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-recovery/verify`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.token}`,
-          },
-          body: JSON.stringify({ code: body.recoveryCode }),
-          cache: "no-store",
-        },
+  if (body.recoveryCode !== undefined && typeof body.recoveryCode !== "string") {
+    return NextResponse.json(
+      { error: "Código de recuperación inválido." },
+      { status: 422 },
+    );
+  }
+  const recoveryCode =
+    typeof body.recoveryCode === "string" ? body.recoveryCode.trim() : "";
+
+  // La prueba que se enviará a WordPress junto con el borrado del secreto.
+  let proof: { code: string } | { recovery_code: string };
+
+  if (recoveryCode) {
+    proof = { recovery_code: recoveryCode };
+  } else {
+    const parsed = twoFactorCodeSchema.safeParse({ code: body.code });
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Código requerido para desactivar 2FA." },
+        { status: 422 },
       );
-      if (!recRes.ok) {
-        return NextResponse.json(
-          { error: "Código de recuperación inválido." },
-          { status: 401 },
-        );
-      }
-    } else {
-      const parsed = twoFactorCodeSchema.safeParse({ code: body.code });
-      if (!parsed.success) {
-        return NextResponse.json(
-          { error: "Código requerido para desactivar 2FA." },
-          { status: 422 },
-        );
-      }
+    }
+    // Se comprueba aquí para no molestar a WordPress con códigos que ya sabemos
+    // inválidos; WP lo vuelve a verificar al desactivar.
+    try {
       const secretRes = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-secret`, {
         headers: { Authorization: `Bearer ${session.token}` },
         cache: "no-store",
@@ -91,16 +95,17 @@ export async function POST(request: Request) {
       if (!totpResult.valid) {
         return NextResponse.json({ error: "Código inválido." }, { status: 401 });
       }
+    } catch (error) {
+      logger.error({
+        event: "2fa.disable.verify_error",
+        err: error instanceof Error ? error.message : error,
+      });
+      return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
     }
-  } catch (error) {
-    logger.error({
-      event: "2fa.disable.verify_error",
-      err: error instanceof Error ? error.message : error,
-    });
-    return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
+    proof = { code: parsed.data.code };
   }
 
-  // Verificado: limpiar el secreto (y los códigos de recuperación en WP).
+  // Limpiar el secreto (y los códigos de recuperación en WP), con la prueba.
   try {
     const res = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-secret`, {
       method: "PUT",
@@ -108,9 +113,19 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session.token}`,
       },
-      body: JSON.stringify({ secret: null }),
+      body: JSON.stringify({ secret: null, ...proof }),
     });
 
+    if (res.status === 403) {
+      // WP rechazó la prueba (código incorrecto, o de recuperación ya usado).
+      logger.warn({ event: "2fa.disable.proof_rejected", userId: session.userId });
+      return NextResponse.json(
+        {
+          error: recoveryCode ? "Código de recuperación inválido." : "Código inválido.",
+        },
+        { status: 401 },
+      );
+    }
     if (!res.ok) {
       return NextResponse.json(
         { error: "No se pudo desactivar 2FA." },

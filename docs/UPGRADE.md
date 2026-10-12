@@ -59,3 +59,53 @@ git fetch framework --tags
   instrucción de migración.
 - El núcleo no importa código de instancia (regla de lint en `eslint.config.mjs`) — esto es lo
   que hace que los merges de arriba sean limpios.
+
+## 5. v1 → v2: registro de cambios incompatibles
+
+> **Borrador en curso.** Se anota aquí, **una línea por cambio**, a medida que se hace. La
+> guía definitiva —qué cambia, por qué y los pasos de migración de cada punto, más la tabla
+> «Migrar Siu Tutuava»— se redacta al final de la v2.0.0. Una entrada marcada **(contrato)**
+> afecta a un frontend que llame directamente al BFF o a WordPress sin usar el de este repo.
+
+### Seguridad (F1)
+
+- **Next 16.4.0 y React 19.3.0.** Tras actualizar, `npm install` en `frontend/`; las instancias
+  que fijaban `next` por debajo de 16.3.3 estaban expuestas a una ejecución remota sin
+  autenticar en `/_next/image`.
+- **La config remota ahora se aplica de verdad.** El `deepMerge` de la v1.0 descartaba todo
+  valor remoto escalar: una instancia clonada renderizaba siempre los valores por defecto. Tras
+  actualizar, el sitio pasa a mostrar la marca, la paleta, la moneda y los flags **reales** del
+  Control Center: revísalos antes de desplegar. Un campo remoto con la forma equivocada (objeto
+  frente a lista o texto) se ignora y se registra `site_config.shape_mismatch`.
+- **Los webhooks firmados dejan de recibir 403** con `ALLOWED_ORIGIN` configurado. La barrera
+  de Origin exime una **lista cerrada** (`lib/security/signed-routes.ts`): `/api/revalidate`,
+  `/api/webhooks/woocommerce/order-{created,updated}` y `/api/payments/webhook/<proveedor>`. Un
+  webhook propio nuevo debe añadirse a esa lista y verificar su firma antes de actuar.
+- **(contrato) `ephemeralToken` de `POST /api/auth/login` ya no es un JWT**, sino un id opaco
+  de un solo uso: las credenciales se quedan en Redis hasta verificar el segundo factor. Sin
+  Redis, el login de un usuario con 2FA responde 503 (falla cerrado). `verify-2fa` invalida el
+  id tras 5 códigos incorrectos (429).
+- **(contrato) El alta de 2FA ya no envía el secreto a ningún tercero.** `GET /api/auth/2fa/qr`
+  lo genera el BFF por sesión (no acepta parámetros); `api.qrserver.com` sale de la CSP. Si tu
+  frontend pintaba el QR por su cuenta, usa ese endpoint o muestra solo el código manual.
+- **(contrato) `POST /api/auth/2fa/setup` y `activate` exigen el email verificado** (403).
+- **(contrato) WordPress `PUT hwe/v1/auth/2fa-secret` exige prueba de posesión.** Activar pide
+  `code` (TOTP del secreto que se guarda); desactivar, `code` del secreto activo o
+  `recovery_code`. Con el 2FA ya activo, registrar otro secreto responde 409. El BFF ya lo
+  reenvía; un cliente propio que llamara al endpoint sin código recibirá 403.
+- **(contrato) WordPress `forgot-password` y `send-verification` solo aceptan `frontend_url` y
+  `verification_url` de un origen de `HEADLESS_ALLOWED_ORIGINS`/`HEADLESS_FRONTEND_URL`** (400
+  si no). Comprueba que coincide con `NEXT_PUBLIC_SITE_URL` en cada entorno.
+- **(contrato) `send-verification` responde 502 si `wp_mail()` falla** (antes, 200).
+- **Sin clave de cifrado de reserva.** Si no hay `HWE_2FA_KEY`, `AUTH_KEY` ni
+  `GRAPHQL_JWT_AUTH_SECRET_KEY`, activar 2FA responde 500 y se registra `[hwe] auth:`; un
+  secreto cifrado antes con la clave literal pública (`hwe-insecure-2fa-key`) deja de poder
+  descifrarse: desactiva y vuelve a activar el 2FA con una clave real.
+
+### Tooling
+
+- **CI:** nuevo paso `npm run audit:gate` (falla ante avisos `high`/`critical`, con una allowlist
+  justificada en `frontend/scripts/audit-gate.mjs`), `npm run i18n:check` y el job `phpunit`.
+  Las pruebas de PHP se ejecutan con `composer test` desde `backend/` (PHP 8.4).
+- **ESLint:** se activa el preset `recommended` de `eslint-plugin-jsx-a11y`; el código de
+  instancia con problemas de accesibilidad pasará a dar error de lint.
