@@ -9,6 +9,32 @@ import DOMPurify from "isomorphic-dompurify";
 //  Úsalo SIEMPRE que vayas a inyectar HTML del CMS en el DOM (Fase 5).
 // ============================================================================
 
+// Un enlace que abre otra ventana conserva `window.opener` si no lleva
+// `rel="noopener noreferrer"`: la página abierta podría redirigir la nuestra
+// (reverse tabnabbing). Esto cubre `target="_blank"` en cualquier grafía y también
+// los nombres de ventana (`target="x"`), que los navegadores NO protegen por
+// defecto; solo `_self` navega en la misma pestaña.
+//
+// Se FUSIONA con el `rel` que traiga el CMS (p. ej. `nofollow`) en vez de
+// sobrescribirlo, y se quita `opener`, que contradice a `noopener`.
+//
+// El hook se registra UNA vez al importar el módulo: registrarlo dentro de
+// `sanitizeHtml` añadía uno más por cada llamada y los acumulaba durante toda la
+// vida del proceso del servidor.
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  if (node.tagName !== "A") return;
+  const target = node.getAttribute("target");
+  if (!target || target.toLowerCase() === "_self") return;
+
+  const tokens = new Set(
+    (node.getAttribute("rel") ?? "").toLowerCase().split(/\s+/).filter(Boolean),
+  );
+  tokens.delete("opener");
+  tokens.add("noopener");
+  tokens.add("noreferrer");
+  node.setAttribute("rel", Array.from(tokens).join(" "));
+});
+
 const ALLOWED_TAGS = [
   "p",
   "br",
@@ -51,7 +77,7 @@ export function sanitizeHtml(dirty: string): string {
   return DOMPurify.sanitize(dirty, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
-    // Fuerza enlaces externos seguros.
+    // `target` y `rel` se conservan; el hook de arriba fuerza el `rel` seguro.
     ADD_ATTR: ["target", "rel"],
     FORBID_TAGS: ["style", "script", "iframe", "form", "input"],
     FORBID_ATTR: ["onerror", "onload", "onclick", "style"],

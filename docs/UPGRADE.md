@@ -146,6 +146,19 @@ git fetch framework --tags
   WooCommerce (base64) y de HWE (hex con `sha256=`, prefijo obligatorio). Compara la firma
   codificada tal como llega, no los bytes decodificados, y falla cerrado con un secreto vacío. Un
   webhook propio nuevo debe usarlo en vez de reimplementar el HMAC.
+- **Los tokens de diseño se validan por tipo antes de inyectarse en el `<style>`.** Antes, un
+  valor como `red; } </style><script>…` en un color o una fuente del Control Center cerraba el
+  `<style>` e inyectaba HTML/JS. Ahora un color solo puede ser `#rrggbb` (lo mismo que ya
+  guardaba el panel) y un nombre de fuente solo letras, dígitos, espacios, guiones y apóstrofes
+  (máx. 100); el que no cumple cae al valor por defecto de `CONFIG_DEFAULTS` y se registra
+  `design.token_invalid` (una vez por valor y proceso). Si tu config tenía un color en otro
+  formato (`rgb()`, `#fff`), pasará a mostrarse con el valor por defecto: corrígelo en el panel.
+  Cada entrada de `TOKEN_MAP` declara su `kind` (`color`, `font` o `length`); una instancia que
+  amplíe `lib/config/tokens.ts` debe indicarlo.
+- **`sanitizeHtml` fuerza `rel="noopener noreferrer"` en todo enlace que abre otra ventana**
+  (`target="_blank"` en cualquier grafía y nombres de ventana; solo `_self` queda exento). Se
+  fusiona con el `rel` del CMS (p. ej. `nofollow`) y se elimina `opener`. El hook se registra una
+  vez al importar el módulo.
 
 ### Tooling
 
