@@ -25,6 +25,7 @@ paquete multi-clase.
 | `external-plugin-update-guard.php` | mu-plugin | Evita falsas actualizaciones de wordpress.org para plugins externos (GitHub), p. ej. la colisión de slug `jwt-auth`. |
 | `headless-config.php` | mu-plugin | Bloquea el frontend nativo (redirige a `/wp-admin`) y aplica CORS a `/graphql`. |
 | `security.php` | mu-plugin | Hardening: bloquea enumeración de usuarios, pingbacks, oculta versión, etc. |
+| `hwe-bff-only.php` | mu-plugin | GraphQL, la Store API (`wc/store`) y `hwe/v1/auth|consent` solo atienden al BFF: exige el secreto interno (`X-HWE-Internal-Secret` = `HWE_REVALIDATION_SECRET`, comparación en tiempo constante) o WP-CLI; si no, 404 por ruta y por parámetro. Falla cerrado sin secreto configurado. |
 | `rate-limit.php` | mu-plugin | Rate-limit de `/graphql` y `/wp-json` (XFF de confianza). |
 | `graphql-protection.php` | mu-plugin | Límites de profundidad/complejidad de GraphQL e introspección off. |
 | `woocommerce-headless.php` | mu-plugin | Ajustes de la Store API (desactiva el nonce; seguro porque el BFF impone Origin + CSRF). |

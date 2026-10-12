@@ -2,12 +2,9 @@ import { NextResponse } from "next/server";
 import { resetPasswordSchema } from "@/lib/validation/auth";
 import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
-
-const WP_INTERNAL =
-  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
-  "http://wordpress:80";
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
@@ -31,7 +28,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const res = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/reset-password`, {
+    const res = await wpFetch(`/wp-json/hwe/v1/auth/reset-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

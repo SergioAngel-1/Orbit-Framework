@@ -44,8 +44,10 @@ trabajas fuera de Docker, en `frontend/.env.local`.
 
 | Variable | Lado | Descripción |
 |----------|------|-------------|
-| `NEXT_PUBLIC_WORDPRESS_API_URL` | navegador | Endpoint GraphQL público |
-| `WORDPRESS_INTERNAL_API_URL` | servidor | Endpoint GraphQL por red interna Docker |
+| `WORDPRESS_INTERNAL_API_URL` | servidor | Endpoint GraphQL por red interna Docker. El navegador no habla con WordPress: ya no hay `NEXT_PUBLIC_WORDPRESS_API_URL` |
+| `WORDPRESS_PUBLIC_URL` | servidor (build) | Origen público de WordPress, solo para autorizar sus imágenes (CSP y `next/image`). Opcional en desarrollo |
+| `HWE_REVALIDATION_SECRET` | servidor + WordPress | Secreto compartido: firma la revalidación y es el **secreto interno** (`X-HWE-Internal-Secret`) que el BFF presenta en cada llamada a WordPress. Debe coincidir en ambos lados (`define('HWE_REVALIDATION_SECRET', …)` en `wp-config.php`) |
+| `HWE_BFF_TRUST_PRIVATE_NETWORK` | WordPress (constante PHP) | Opcional, **desactivada por defecto**. Con `define('HWE_BFF_TRUST_PRIVATE_NETWORK', true)` `hwe-bff-only` vuelve a aceptar como BFF una petición sin `X-Forwarded-For` desde una IP privada. Es una suposición sobre la red, no una credencial: úsala solo en redes cerradas |
 
 ## WooCommerce (BFF, server-only)
 

@@ -10,8 +10,13 @@ cualquier frontend que no herede el de la plantilla.
 Con la pila levantada (`docker compose up -d` + frontend, o modo híbrido):
 
 ```bash
-WP_URL=http://localhost:8080 BFF_URL=http://localhost:3000 node index.mjs
+WP_URL=http://localhost:8080 BFF_URL=http://localhost:3000 \
+HWE_REVALIDATION_SECRET=<el valor de tu .env> node index.mjs
 ```
+
+`HWE_REVALIDATION_SECRET` es el secreto interno compartido: WordPress solo atiende a GraphQL
+si la petición lo trae en `X-HWE-Internal-Secret` (o viene de WP-CLI). Es una llamada de
+servidor a servidor; un navegador no puede ni debe hacerla.
 
 Salida esperada: la marca configurada, hasta 3 productos y el estado del BFF con un token
 CSRF emitido. Cualquier `✘` indica qué superficie del contrato no responde.

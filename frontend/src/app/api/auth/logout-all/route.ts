@@ -6,12 +6,9 @@ import { guardMutation } from "@/lib/api/guard";
 import { requireSession } from "@/lib/auth/session";
 import { revokeToken } from "@/lib/auth/revocation";
 import { logger } from "@/lib/observability/logger";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
-
-const WP_INTERNAL =
-  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
-  "http://wordpress:80";
 
 /**
  * POST /api/auth/logout-all
@@ -33,7 +30,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const res = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/logout-all`, {
+    const res = await wpFetch(`/wp-json/hwe/v1/auth/logout-all`, {
       method: "POST",
       headers: { Authorization: `Bearer ${session.token}` },
       cache: "no-store",

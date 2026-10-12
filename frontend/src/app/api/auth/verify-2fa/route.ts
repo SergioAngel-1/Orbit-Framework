@@ -16,12 +16,9 @@ import {
   recordFailedAttempt,
 } from "@/lib/auth/pending-login";
 import { logger } from "@/lib/observability/logger";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
-
-const WP_INTERNAL =
-  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
-  "http://wordpress:80";
 
 const SESSION_EXPIRED = { error: "Sesión expirada. Inicia sesión de nuevo." };
 
@@ -95,11 +92,10 @@ export async function POST(request: Request) {
 
   // Check if 2FA is enabled
   try {
-    const statusRes = await fetch(
-      `${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-status/${ephemeral.userId}`,
+    const statusRes = await wpFetch(
+      `/wp-json/hwe/v1/auth/2fa-status/${ephemeral.userId}`,
       {
         cache: "no-store",
-        headers: { "X-HWE-Internal-Secret": process.env.HWE_REVALIDATION_SECRET ?? "" },
       },
     );
     if (!statusRes.ok) {
@@ -115,18 +111,15 @@ export async function POST(request: Request) {
 
     if (usingRecovery) {
       // Vía código de recuperación: WP valida y CONSUME el código (un solo uso).
-      const recRes = await fetch(
-        `${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-recovery/verify`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${ephemeral.authToken}`,
-          },
-          body: JSON.stringify({ code: body.recoveryCode }),
-          cache: "no-store",
+      const recRes = await wpFetch(`/wp-json/hwe/v1/auth/2fa-recovery/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ephemeral.authToken}`,
         },
-      );
+        body: JSON.stringify({ code: body.recoveryCode }),
+        cache: "no-store",
+      });
       if (!recRes.ok) {
         logger.warn(
           { event: "2fa.verify_login.invalid_recovery", userId: ephemeral.userId },
@@ -136,7 +129,7 @@ export async function POST(request: Request) {
       }
     } else {
       // Vía TOTP: obtener el secreto (descifrado por WP) y verificar.
-      const secretRes = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-secret`, {
+      const secretRes = await wpFetch(`/wp-json/hwe/v1/auth/2fa-secret`, {
         headers: {
           Authorization: `Bearer ${ephemeral.authToken}`,
         },

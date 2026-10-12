@@ -7,10 +7,7 @@ import { AUTH_COOKIE } from "./constants";
 import { verifyAuthToken } from "./jwt";
 import { isTokenRevoked } from "./revocation";
 import type { Session } from "@/types/auth";
-
-const WP_INTERNAL =
-  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
-  "http://wordpress:80";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 // ============================================================================
 //  Acceso a la sesión desde Server Components y Route Handlers.
@@ -80,7 +77,7 @@ export async function fetchGraphQLAsViewer<TData>(
  */
 export async function revokeAllSessions(accessToken: string): Promise<boolean> {
   try {
-    const res = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/logout-all`, {
+    const res = await wpFetch(`/wp-json/hwe/v1/auth/logout-all`, {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",

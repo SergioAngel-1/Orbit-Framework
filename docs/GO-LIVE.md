@@ -25,7 +25,8 @@
 
 - [ ] `PUBLIC_DOMAIN` y `ACME_EMAIL` definidos (Caddy emitirá TLS automático).
 - [ ] `ALLOWED_ORIGIN`, `NEXT_PUBLIC_SITE_URL`, `HEADLESS_ALLOWED_ORIGINS` → tu dominio real.
-- [ ] `NEXT_PUBLIC_WORDPRESS_API_URL` apunta al dominio público; el servidor usa la red interna.
+- [ ] `HWE_REVALIDATION_SECRET` es el mismo en el frontend y en WordPress (secreto interno BFF ↔ WP): sin él, GraphQL y la Store API responden 404.
+- [ ] `WORDPRESS_PUBLIC_URL` (origen público de WordPress, para sus imágenes) está en el build de la imagen del frontend; no existe URL pública de GraphQL.
 - [ ] `TRUSTED_PROXY_COUNT=1` (Caddy delante) y, en WP, `HWE_TRUSTED_PROXY_COUNT=1`.
 - [ ] DNS `A`/`AAAA` del dominio (y `www`) apuntando al servidor.
 

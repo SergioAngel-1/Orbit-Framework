@@ -1,6 +1,7 @@
 import "server-only";
 import { WooCommerceError } from "./client";
 import { currentRequestId } from "@/lib/observability/request-context";
+import { internalSecretHeaders } from "@/lib/security/internal-secret";
 
 // ============================================================================
 //  Cliente de la WooCommerce Store API (wc/store/v1) — SOLO servidor.
@@ -50,6 +51,8 @@ export async function storeFetch<T>(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
+    // `hwe-bff-only` solo deja pasar a la Store API a quien presente el secreto.
+    ...internalSecretHeaders(),
   };
   if (cartToken) {
     headers["Cart-Token"] = cartToken;

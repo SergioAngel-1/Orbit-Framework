@@ -9,13 +9,17 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const isProd = process.env.NODE_ENV === "production";
 
 /**
- * Origen público del CMS (WordPress), derivado del endpoint de GraphQL.
- * Se usa para autorizarlo en `connect-src` / `img-src` de la CSP y en
- * los `remotePatterns` de next/image.
+ * Origen público del CMS (WordPress) desde el que se sirven sus imágenes
+ * (`/wp-content/uploads`). Se usa para autorizarlo en `img-src` de la CSP y en los
+ * `remotePatterns` de next/image.
+ *
+ * Viene de `WORDPRESS_PUBLIC_URL`, una variable de SERVIDOR (sin `NEXT_PUBLIC_`): el
+ * navegador no habla con WordPress —todo pasa por el BFF—, así que ya no hay una URL
+ * pública de GraphQL ni `connect-src` hacia el CMS. Esta config se evalúa al construir,
+ * así que la variable debe estar presente en el BUILD de la imagen.
  */
 function getWordPressOrigin() {
-  const raw =
-    process.env.NEXT_PUBLIC_WORDPRESS_API_URL ?? "http://localhost:8080/graphql";
+  const raw = process.env.WORDPRESS_PUBLIC_URL ?? "http://localhost:8080";
   try {
     return new URL(raw).origin;
   } catch {
@@ -40,7 +44,10 @@ function getAnalyticsHosts() {
   if (provider === "ga4") {
     return {
       script: ["https://www.googletagmanager.com"],
-      connect: ["https://www.google-analytics.com", "https://region1.google-analytics.com"],
+      connect: [
+        "https://www.google-analytics.com",
+        "https://region1.google-analytics.com",
+      ],
     };
   }
   return { script: [], connect: [] };
@@ -87,7 +94,8 @@ function buildContentSecurityPolicy() {
     // (/api/auth/2fa/qr) y el secreto TOTP no debe salir del dominio.
     `img-src 'self' data: blob: ${WP_ORIGIN}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${WP_ORIGIN}${ANALYTICS.connect.length ? " " + ANALYTICS.connect.join(" ") : ""}${isProd ? "" : " ws: wss:"}`,
+    // Sin el CMS: el navegador solo llama al BFF (mismo origen).
+    `connect-src 'self'${ANALYTICS.connect.length ? " " + ANALYTICS.connect.join(" ") : ""}${isProd ? "" : " ws: wss:"}`,
     "frame-ancestors 'none'",
     "frame-src 'none'",
     "object-src 'none'",
@@ -159,7 +167,7 @@ const nextConfig = withNextIntl({
         port: "80",
         pathname: "/wp-content/uploads/**",
       },
-      // Dominio de producción derivado de NEXT_PUBLIC_WORDPRESS_API_URL.
+      // Dominio de producción: WORDPRESS_PUBLIC_URL.
       ...wordpressImagePattern(),
     ],
   },

@@ -14,12 +14,9 @@ import { createPendingLogin } from "@/lib/auth/pending-login";
 import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
 import type { LoginResponse } from "@/types/auth";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
-
-const WP_INTERNAL =
-  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
-  "http://wordpress:80";
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
@@ -73,11 +70,10 @@ export async function POST(request: Request) {
   // Check if 2FA is enabled for this user — fail-closed: any failure blocks login.
   let twoFactorEnabled: boolean;
   try {
-    const statusRes = await fetch(
-      `${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-status/${user.databaseId}`,
+    const statusRes = await wpFetch(
+      `/wp-json/hwe/v1/auth/2fa-status/${user.databaseId}`,
       {
         cache: "no-store",
-        headers: { "X-HWE-Internal-Secret": process.env.HWE_REVALIDATION_SECRET ?? "" },
       },
     );
     if (!statusRes.ok) {

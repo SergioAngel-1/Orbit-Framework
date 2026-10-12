@@ -1,10 +1,7 @@
 import "server-only";
 import { logger } from "@/lib/observability/logger";
 import type { Session } from "@/types/auth";
-
-const WP_INTERNAL =
-  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
-  "http://wordpress:80";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 /**
  * ¿El email del usuario de la sesión está verificado en WordPress?
@@ -14,7 +11,7 @@ const WP_INTERNAL =
  */
 export async function isEmailVerified(session: Session): Promise<boolean> {
   try {
-    const res = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/me`, {
+    const res = await wpFetch(`/wp-json/hwe/v1/auth/me`, {
       headers: { Authorization: `Bearer ${session.token}` },
       cache: "no-store",
     });

@@ -2,6 +2,7 @@ import "server-only";
 import type { SiteConfig } from "./types";
 import { CONFIG_DEFAULTS } from "./defaults";
 import { logger } from "@/lib/observability/logger";
+import { wpBaseUrl, wpFetch } from "@/lib/wordpress/internal-fetch";
 
 // ============================================================================
 //  Carga remota de configuración desde WordPress.
@@ -10,15 +11,6 @@ import { logger } from "@/lib/observability/logger";
 // ============================================================================
 
 const REVALIDATE_SECONDS = 300;
-
-/** Deriva la URL base de WordPress sin el path /graphql. */
-function getWpBase(): string {
-  const raw =
-    process.env.WORDPRESS_INTERNAL_API_URL ??
-    process.env.NEXT_PUBLIC_WORDPRESS_API_URL ??
-    "http://wordpress:80";
-  return raw.replace(/\/graphql$/, "").replace(/\/$/, "");
-}
 
 type Kind = "object" | "array" | "scalar";
 
@@ -82,7 +74,8 @@ export function deepMerge(base: unknown, override: unknown, path = ""): unknown 
  * Solo debe llamarse desde el servidor (Server Components, Route Handlers).
  */
 export async function fetchRemoteConfig(): Promise<SiteConfig> {
-  const url = `${getWpBase()}/wp-json/hwe/v1/config`;
+  const path = "/wp-json/hwe/v1/config";
+  const url = `${wpBaseUrl()}${path}`;
 
   // El fallback mantiene la web en pie, pero es un incidente: marca, URL y
   // moneda degradan a los defaults de código. No se traga en silencio.
@@ -95,7 +88,7 @@ export async function fetchRemoteConfig(): Promise<SiteConfig> {
   };
 
   try {
-    const res = await fetch(url, {
+    const res = await wpFetch(path, {
       next: { revalidate: REVALIDATE_SECONDS, tags: ["site-config"] },
     });
 

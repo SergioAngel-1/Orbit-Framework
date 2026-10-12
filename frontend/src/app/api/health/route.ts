@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getRedis } from "@/lib/redis/client";
 import { logger } from "@/lib/observability/logger";
+import { wpGraphqlUrl, wpIsConfigured } from "@/lib/wordpress/internal-fetch";
+import { internalSecretHeaders } from "@/lib/security/internal-secret";
 
 export const dynamic = "force-dynamic";
 
@@ -25,14 +27,14 @@ async function checkRedis(): Promise<"ok" | "down" | "disabled"> {
 }
 
 async function checkWordPress(): Promise<"ok" | "down" | "unknown"> {
-  const url =
-    process.env.WORDPRESS_INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_WORDPRESS_API_URL;
-  if (!url) return "unknown";
+  if (!wpIsConfigured()) return "unknown";
+  const url = wpGraphqlUrl();
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 3000);
     const res = await fetch(url, {
       method: "OPTIONS",
+      headers: internalSecretHeaders(),
       signal: controller.signal,
       cache: "no-store",
     });

@@ -182,9 +182,8 @@ services:
       start_period: 40s
       retries: 3
     environment:
-      # El navegador del usuario llama a WP por su URL pública...
-      NEXT_PUBLIC_WORDPRESS_API_URL: "${NEXT_PUBLIC_WORDPRESS_API_URL:-http://localhost:8080/graphql}"
-      # ...pero el servidor Next (SSR/ISR) lo resuelve por la red interna de Docker.
+      # El navegador NO habla con WordPress (todo pasa por el BFF): el servidor Next
+      # (SSR/ISR y Route Handlers) lo resuelve por la red interna de Docker.
       WORDPRESS_INTERNAL_API_URL: "${WORDPRESS_INTERNAL_API_URL:-http://wordpress:80/graphql}"
       # Origen autorizado para CSRF / verificación de Origin (Fases 1 y 4).
       ALLOWED_ORIGIN: "${ALLOWED_ORIGIN:-http://localhost:3000}"
@@ -201,7 +200,8 @@ services:
       WC_CONSUMER_SECRET: "${WC_CONSUMER_SECRET:-}"
       # Secreto del webhook de WooCommerce (revalidación on-demand del catálogo).
       WC_WEBHOOK_SECRET: "${WC_WEBHOOK_SECRET:-changeme-super-secret-webhook-key}"
-      # Secreto para que el plugin HWE Control Center dispare revalidación de site-config.
+      # Secreto compartido con WordPress: firma la revalidación de site-config Y es el secreto
+      # interno (X-HWE-Internal-Secret) que el BFF presenta a `hwe-bff-only` en cada llamada.
       HWE_REVALIDATION_SECRET: "${HWE_REVALIDATION_SECRET:-changeme-hwe-revalidation-secret}"
       # Conexión a Redis por la red interna de Docker.
       REDIS_URL: "${REDIS_URL:-redis://redis:6379}"

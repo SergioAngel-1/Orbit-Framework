@@ -6,6 +6,7 @@ import { ProfileForm } from "@/components/account/profile-form";
 import { LogoutButton } from "@/components/account/logout-button";
 import { EmailVerificationBanner } from "@/components/account/email-verification-banner";
 import { TwoFactorSetup } from "@/components/account/two-factor-setup";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("account");
@@ -24,10 +25,10 @@ export default async function AccountPage() {
     customer = await getCustomer();
     const session = await getSession();
     if (session) {
-      const res = await fetch(
-        `${process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ?? "http://wordpress:80"}/wp-json/hwe/v1/auth/me`,
-        { headers: { Authorization: `Bearer ${session.token}` }, cache: "no-store" },
-      );
+      const res = await wpFetch("/wp-json/hwe/v1/auth/me", {
+        headers: { Authorization: `Bearer ${session.token}` },
+        cache: "no-store",
+      });
       if (res.ok) {
         const data = (await res.json()) as { email_verified: boolean };
         emailVerified = data.email_verified;

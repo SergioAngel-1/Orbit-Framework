@@ -172,6 +172,33 @@ git fetch framework --tags
 - **`change-password` verifica la contraseña actual con el email de la cuenta**, no con el id
   numérico de la sesión, que `wp_authenticate` no acepta (la verificación fallaba siempre). Un
   fallo de red o HTTP al verificar responde 502 en vez de «contraseña incorrecta».
+- **(contrato) GraphQL, la Store API y `hwe/v1/auth|consent` solo atienden al BFF, con un secreto
+  compartido.** El nuevo mu-plugin `hwe-bff-only` responde **404** a `/graphql`, `?graphql`,
+  `wc/store/*`, `hwe/v1/auth/*` y `hwe/v1/consent/*` (por ruta y por `?rest_route=`) salvo que la
+  petición traiga `X-HWE-Internal-Secret` con el valor de `HWE_REVALIDATION_SECRET`
+  (comparación en tiempo constante) o venga de WP-CLI. El BFF lo envía en **todas** sus llamadas
+  a WordPress (`internalSecretHeaders()` en los clientes de GraphQL, wc/v3 y Store API; `wpFetch`
+  para el resto). Sin `HWE_REVALIDATION_SECRET` en `wp-config.php` falla cerrado y lo registra
+  (`[hwe] bff-only: …`). Qué debes hacer:
+  - **WordPress nativo (modo híbrido):** define `HWE_REVALIDATION_SECRET` en su `wp-config.php`
+    con el mismo valor que `frontend/.env.local` (en Docker ya lo hace `docker-compose*.yml`).
+  - **Consumidores propios del lado servidor** (un script, otro BFF, `examples/minimal-consumer`):
+    envía la cabecera en cada llamada. Un navegador ya no puede llamar a estas rutas.
+  - Dejan de funcionar el IDE GraphiQL de WPGraphQL y los bloques de carrito de WooCommerce en el
+    editor, que llamaban a estas rutas desde el navegador.
+  - La heurística de red de versiones anteriores (sin `X-Forwarded-For` + IP privada) queda
+    detrás de `HWE_BFF_TRUST_PRIVATE_NETWORK` (constante PHP), **desactivada por defecto**.
+- **(contrato) Se elimina `NEXT_PUBLIC_WORDPRESS_API_URL`** y la rama de navegador de
+  `lib/graphql-client.ts`, que ahora es `server-only`: el navegador no habla con WordPress. Quita la
+  variable de tus `.env*`, `docker-compose*.yml`, CI y del build de la imagen; si un componente de
+  cliente importaba `fetchGraphQL`, el build fallará y debe pasar por un Route Handler. Para
+  autorizar las imágenes de WordPress (CSP y `next/image`) ahora se usa `WORDPRESS_PUBLIC_URL`
+  (variable de servidor, presente en el **build**; por defecto `http://localhost:8080`). El CSP ya
+  no incluye el CMS en `connect-src`. Los workflows de CI pasan a definir
+  `WORDPRESS_INTERNAL_API_URL`.
+- **Toda llamada a WordPress pasa por un cliente que añade el secreto.** Una rutina nueva no debe
+  construir URLs de WordPress ni llamar a `fetch` por su cuenta: usa `wpFetch` (`lib/wordpress/
+  internal-fetch`). El test `lib/security/wordpress-calls.test.ts` lo impone sobre todo el código.
 
 ### Tooling
 

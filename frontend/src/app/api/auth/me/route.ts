@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/session";
 import { logger } from "@/lib/observability/logger";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
-
-const WP_INTERNAL =
-  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
-  "http://wordpress:80";
 
 export async function GET() {
   let session;
@@ -17,7 +14,7 @@ export async function GET() {
   }
 
   try {
-    const res = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/me`, {
+    const res = await wpFetch(`/wp-json/hwe/v1/auth/me`, {
       headers: {
         Authorization: `Bearer ${session.token}`,
       },

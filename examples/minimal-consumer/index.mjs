@@ -6,11 +6,17 @@
 //   2. Catálogo (lectura)       → POST {WP}/graphql        (WPGraphQL/WooGraphQL)
 //   3. BFF                      → GET  {BFF}/api/health  +  GET {BFF}/api/csrf
 //
-//  Uso:  WP_URL=http://localhost:8080 BFF_URL=http://localhost:3000 node index.mjs
+//  El paso 2 es una llamada de SERVIDOR a servidor: WordPress solo atiende a GraphQL si la
+//  petición trae el secreto interno compartido (`X-HWE-Internal-Secret` =
+//  HWE_REVALIDATION_SECRET) o viene de WP-CLI; un navegador no puede ni debe llamarlo.
+//
+//  Uso:  WP_URL=http://localhost:8080 BFF_URL=http://localhost:3000 \
+//        HWE_REVALIDATION_SECRET=<el de tu .env> node index.mjs
 // ============================================================================
 
 const WP = (process.env.WP_URL ?? "http://localhost:8080").replace(/\/$/, "");
 const BFF = (process.env.BFF_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const INTERNAL_SECRET = process.env.HWE_REVALIDATION_SECRET?.trim() ?? "";
 
 const PRODUCTS_QUERY = /* GraphQL */ `
   query LatestProducts($first: Int!) {
@@ -40,9 +46,14 @@ async function main() {
   );
 
   // 2. Catálogo por GraphQL ---------------------------------------------------
+  if (!INTERNAL_SECRET) {
+    throw new Error(
+      "falta HWE_REVALIDATION_SECRET: WordPress responde 404 a GraphQL sin el secreto interno",
+    );
+  }
   const gqlRes = await fetch(`${WP}/graphql`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-HWE-Internal-Secret": INTERNAL_SECRET },
     body: JSON.stringify({ query: PRODUCTS_QUERY, variables: { first: 3 } }),
   });
   if (!gqlRes.ok) throw new Error(`graphql: HTTP ${gqlRes.status}`);

@@ -17,16 +17,25 @@ if (!class_exists('WP_REST_Request')) {
         /** @var array<string, string> */
         private array $headers = [];
 
+        private string $route;
+
         /**
          * @param array<string, mixed>  $params  Parámetros (cuerpo, query y ruta).
          * @param array<string, string> $headers Cabeceras (cualquier capitalización).
+         * @param string                $route   Ruta ya resuelta (p. ej. `/wc/store/v1/cart`).
          */
-        public function __construct(array $params = [], array $headers = [])
+        public function __construct(array $params = [], array $headers = [], string $route = '')
         {
             $this->params = $params;
+            $this->route = $route;
             foreach ($headers as $name => $value) {
                 $this->headers[self::normalizeHeader($name)] = $value;
             }
+        }
+
+        public function get_route(): string
+        {
+            return $this->route;
         }
 
         public function get_param($key)

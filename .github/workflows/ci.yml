@@ -67,7 +67,7 @@ jobs:
         env:
           # Ningún secreto real es necesario para compilar: las llamadas a WP/WC
           # que no son del prerender ocurren en runtime.
-          NEXT_PUBLIC_WORDPRESS_API_URL: http://127.0.0.1:8080/graphql
+          WORDPRESS_INTERNAL_API_URL: http://127.0.0.1:8080/graphql
 
       # Falla ante avisos high/critical de TODO el árbol de dependencias salvo la
       # allowlist justificada de scripts/audit-gate.mjs (ver su cabecera). Va al
@@ -138,7 +138,7 @@ jobs:
     env:
       # La validación de secretos en producción (secret-guard.ts, §9 del AGENTS)
       # exige estos valores; se pasan dummy porque en CI no hay WP ni Redis reales.
-      NEXT_PUBLIC_WORDPRESS_API_URL: http://127.0.0.1:8080/graphql
+      WORDPRESS_INTERNAL_API_URL: http://127.0.0.1:8080/graphql
       GRAPHQL_JWT_AUTH_SECRET_KEY: dummy-ci-jwt-secret-key-at-least-24-chars
       CSRF_SECRET: dummy-ci-csrf-secret-at-least-24-characters-len
       WC_WEBHOOK_SECRET: dummy-ci-webhook-secret-at-least-24-characters

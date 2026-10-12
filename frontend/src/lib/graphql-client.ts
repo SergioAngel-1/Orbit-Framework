@@ -1,31 +1,22 @@
+import "server-only";
+import { internalSecretHeaders } from "@/lib/security/internal-secret";
+import { wpGraphqlUrl } from "@/lib/wordpress/internal-fetch";
+
 // ============================================================================
-//  Cliente GraphQL ligero basado en `fetch` nativo.
+//  Cliente GraphQL ligero basado en `fetch` nativo — SOLO servidor.
 //
 //  ¿Por qué fetch y no Apollo Client?
 //   - El App Router de Next.js extiende `fetch` con su capa de caché/ISR
 //     (`next: { revalidate }`), lo que permite Incremental Static Regeneration
-//     sin librerías adicionales ni "use client".
+//     sin librerías adicionales.
 //   - Funciona de forma nativa en React Server Components.
-//   - Cero peso extra en el bundle del cliente.
+//   - Cero peso extra en el bundle del cliente: aquí no hay "use client".
 //
-//  Resolución de URL:
-//   - En el SERVIDOR (SSR/ISR/RSC) usamos la red interna de Docker
-//     (`WORDPRESS_INTERNAL_API_URL` -> http://wordpress:80/graphql).
-//   - En el NAVEGADOR usamos la URL pública (`NEXT_PUBLIC_WORDPRESS_API_URL`).
+//  El navegador NUNCA habla con WordPress: todo pasa por el BFF (`/api/*`). Por
+//  eso este cliente ya no tiene rama de navegador ni URL pública, y siempre
+//  presenta el secreto interno: el mu-plugin `hwe-bff-only` de WordPress responde
+//  404 a GraphQL sin él. El endpoint es `WORDPRESS_INTERNAL_API_URL` (red interna).
 // ============================================================================
-
-const SERVER_ENDPOINT =
-  process.env.WORDPRESS_INTERNAL_API_URL ??
-  process.env.NEXT_PUBLIC_WORDPRESS_API_URL ??
-  "http://localhost:8080/graphql";
-
-const CLIENT_ENDPOINT =
-  process.env.NEXT_PUBLIC_WORDPRESS_API_URL ?? "http://localhost:8080/graphql";
-
-/** Devuelve el endpoint adecuado según el entorno de ejecución. */
-function getEndpoint(): string {
-  return typeof window === "undefined" ? SERVER_ENDPOINT : CLIENT_ENDPOINT;
-}
 
 export interface GraphQLRequestOptions {
   /** Variables de la query/mutation. */
@@ -91,24 +82,21 @@ export async function fetchGraphQL<TData>(
     headers.Authorization = `Bearer ${authToken}`;
   }
 
-  // Propaga el request-id (si hay contexto en el servidor) para correlacionar
-  // este request con los logs de WordPress. Import dinámico: el contexto es
-  // server-only y no debe entrar en el bundle del navegador.
-  if (typeof window === "undefined") {
-    try {
-      const { currentRequestId } = await import("@/lib/observability/request-context");
-      const rid = currentRequestId();
-      if (rid) headers["X-Request-Id"] = rid;
-    } catch {
-      /* sin contexto: no añadimos cabecera */
-    }
+  // Propaga el request-id (si hay contexto) para correlacionar este request con los
+  // logs de WordPress.
+  try {
+    const { currentRequestId } = await import("@/lib/observability/request-context");
+    const rid = currentRequestId();
+    if (rid) headers["X-Request-Id"] = rid;
+  } catch {
+    /* sin contexto: no añadimos cabecera */
   }
 
   let response: Response;
   try {
-    response = await fetch(getEndpoint(), {
+    response = await fetch(wpGraphqlUrl(), {
       method: "POST",
-      headers,
+      headers: { ...headers, ...internalSecretHeaders() },
       body: JSON.stringify({ query, variables }),
       // Integración con la caché de Next.js (ISR / revalidación on-demand).
       next: {

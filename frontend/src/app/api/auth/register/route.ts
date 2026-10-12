@@ -13,12 +13,10 @@ import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
 import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
 import type { RegisterResponse, LoginResponse } from "@/types/auth";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
 
-const WP_INTERNAL =
-  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
-  "http://wordpress:80";
 const FRONTEND_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 /**
@@ -29,7 +27,7 @@ const FRONTEND_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
  */
 async function sendVerificationEmail(authToken: string): Promise<void> {
   try {
-    const res = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/send-verification`, {
+    const res = await wpFetch(`/wp-json/hwe/v1/auth/send-verification`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

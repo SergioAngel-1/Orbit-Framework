@@ -26,8 +26,15 @@ Este documento tiene dos partes con garantías muy distintas:
 
 ## A.1 Lectura de catálogo/contenido: WPGraphQL + WooGraphQL
 
-- Endpoint: `${WORDPRESS_INTERNAL_API_URL}` (servidor, red interna Docker) o
-  `${NEXT_PUBLIC_WORDPRESS_API_URL}` (navegador) + `/graphql`.
+- Endpoint: `${WORDPRESS_INTERNAL_API_URL}` (servidor, red interna Docker). **El navegador no
+  habla con WordPress**: no hay URL pública de GraphQL; todo pasa por el BFF (`/api/*`).
+- **Secreto interno.** WordPress solo atiende a GraphQL, la Store API (`wc/store`) y
+  `hwe/v1/auth|consent` si la petición trae `X-HWE-Internal-Secret` con el valor de
+  `HWE_REVALIDATION_SECRET` (comparación en tiempo constante), o viene de WP-CLI; cualquier otra
+  recibe un **404**, llegue por la ruta o por parámetro (`?graphql`, `?rest_route=`). Un
+  consumidor propio del lado servidor (un BFF distinto del de este repo, un script) debe enviarlo
+  en todas sus llamadas; el secreto no debe salir nunca a un navegador. `wc/v3` sigue
+  autenticándose con `ck/cs`.
 - Queries de catálogo/posts son **públicas** (sin auth) — WooGraphQL para productos/
   categorías/variaciones, WPGraphQL nativo para posts. CORS restringido por
   `HEADLESS_ALLOWED_ORIGINS` (mu-plugin `headless-config.php`).

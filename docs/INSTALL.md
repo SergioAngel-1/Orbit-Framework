@@ -123,6 +123,13 @@ npm install
 npm run dev
 ```
 
+> **Secreto interno.** El mu-plugin `hwe-bff-only` solo atiende a GraphQL, la Store API y
+> `hwe/v1/auth|consent` si la petición trae `X-HWE-Internal-Secret` (el BFF lo envía con el valor
+> de `HWE_REVALIDATION_SECRET`) o viene de WP-CLI. En este modo, define el **mismo valor** que
+> tienes en `frontend/.env.local` en el `wp-config.php` del WordPress nativo:
+> `define( 'HWE_REVALIDATION_SECRET', '…' );`. Sin él, el catálogo, el carrito y el login
+> responden 404 y el log de PHP registra `[hwe] bff-only: …`.
+
 | Servicio   | Dónde corre     | Puerto | URL                   |
 |------------|-----------------|--------|-----------------------|
 | **MariaDB**| Docker          | `3307` | (interno)             |
@@ -153,6 +160,7 @@ npm run build        # verificación definitiva
 | `wc_no_credentials` en `/api/store/*` | Falta `ck/cs` en `.env` o `.env.local` | Repite el paso 4 y reinicia el frontend |
 | 403 en escrituras (`/api/*`) | `ALLOWED_ORIGIN` no coincide | Ajusta `ALLOWED_ORIGIN` al origen real |
 | Imágenes de producto rotas | Dominio no permitido en `next/image` | Revisa `remotePatterns` en `next.config.mjs` |
+| Catálogo, carrito o login responden 404 aunque WordPress funciona | El secreto interno no coincide (o falta) entre el frontend y WordPress | Mismo `HWE_REVALIDATION_SECRET` en `frontend/.env.local` y en `wp-config.php`; mira el log de PHP (`[hwe] bff-only: …`) |
 | MySQL connection error (WP nativo) | `WORDPRESS_DB_HOST` incorrecto | Asegura `127.0.0.1:3307` y que MariaDB esté levantada |
 
 Más detalle de despliegue en producción: [DEPLOYMENT.md](./DEPLOYMENT.md).

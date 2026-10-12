@@ -257,7 +257,6 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_WORDPRESS_API_URL:    "${NEXT_PUBLIC_WORDPRESS_API_URL}"
       NEXT_PUBLIC_SITE_URL:             "https://${PUBLIC_DOMAIN}"
       WORDPRESS_INTERNAL_API_URL:       "http://wordpress:80/graphql"
       ALLOWED_ORIGIN:                   "https://${PUBLIC_DOMAIN}"

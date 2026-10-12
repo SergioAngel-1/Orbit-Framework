@@ -16,12 +16,9 @@ import { sessionCookieOptions, refreshCookieOptions } from "@/lib/security/cooki
 import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
 import type { LoginResponse } from "@/types/auth";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
-
-const WP_INTERNAL =
-  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
-  "http://wordpress:80";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Contraseña actual requerida").max(200),
@@ -153,17 +150,14 @@ export async function POST(request: Request) {
 
   try {
     // 2. Cambiar la contraseña en WordPress.
-    const updateRes = await fetch(
-      `${WP_INTERNAL}/wp-json/wp/v2/users/${session.userId}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${verifiedAuthToken}`,
-        },
-        body: JSON.stringify({ password: parsed.data.newPassword }),
+    const updateRes = await wpFetch(`/wp-json/wp/v2/users/${session.userId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${verifiedAuthToken}`,
       },
-    );
+      body: JSON.stringify({ password: parsed.data.newPassword }),
+    });
 
     if (!updateRes.ok) {
       logger.warn({ event: "auth.change_password.wp_error", status: updateRes.status });

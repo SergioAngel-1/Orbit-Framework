@@ -177,14 +177,21 @@ docker compose run --rm wpcli wp --path=/var/www/html --allow-root plugin list
 El cliente GraphQL (`frontend/src/lib/graphql-client.ts`) resuelve el endpoint
 según **quién hace la petición**:
 
-- **Servidor Next (SSR / ISR / RSC):** usa la red interna de Docker o local
+- **Servidor Next (SSR / ISR / RSC y Route Handlers):** usa la red interna de Docker o local
   → `WORDPRESS_INTERNAL_API_URL` = `http://wordpress:80/graphql` (Docker) o
   `http://localhost:8080/graphql` (nativo).
-- **Navegador del usuario (componentes cliente):** usa la URL pública
-  → `NEXT_PUBLIC_WORDPRESS_API_URL` = `http://localhost:8080/graphql`.
+- **Navegador del usuario:** **no habla con WordPress**. Todo pasa por el BFF (`/api/*`);
+  no existe una URL pública de GraphQL.
 
-Ambos modos (`frontend/.env.local`) apuntan a `localhost:8080` cuando se
-trabaja fuera de Docker.
+Fuera de Docker, `frontend/.env.local` apunta a `localhost:8080`.
+
+> **Secreto interno (WordPress nativo).** El mu-plugin `hwe-bff-only` solo atiende a GraphQL,
+> la Store API y `hwe/v1/auth|consent` si la petición trae `X-HWE-Internal-Secret` (que el BFF
+> envía con el valor de `HWE_REVALIDATION_SECRET`) o viene de WP-CLI. En el modo híbrido hay que
+> definir ese mismo valor en el `wp-config.php` del WordPress nativo:
+> `define( 'HWE_REVALIDATION_SECRET', '<el mismo valor que en frontend/.env.local>' );`
+> Sin él, todo responde 404 y el log de PHP avisa (`[hwe] bff-only: …`). En Docker ya lo hace
+> `docker-compose.yml`.
 
 La home (`page.tsx`) usa **ISR** con `export const revalidate = 60`: se sirve
 estática y se regenera, como máximo, cada 60 segundos.

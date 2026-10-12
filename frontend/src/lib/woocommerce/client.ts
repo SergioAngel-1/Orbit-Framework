@@ -1,5 +1,6 @@
 import "server-only";
 import { currentRequestId } from "@/lib/observability/request-context";
+import { internalSecretHeaders } from "@/lib/security/internal-secret";
 
 // ============================================================================
 //  Cliente de la WooCommerce REST API (wc/v3) — SOLO servidor.
@@ -89,6 +90,7 @@ export async function wcFetch<T>(
           "Content-Type": "application/json",
           Accept: "application/json",
           ...(rid ? { "X-Request-Id": rid } : {}),
+          ...internalSecretHeaders(),
         },
         body: body !== undefined ? JSON.stringify(body) : undefined,
         signal: controller.signal,

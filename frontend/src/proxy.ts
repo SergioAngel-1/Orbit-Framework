@@ -14,6 +14,7 @@ import {
   REQUEST_ID_HEADER,
 } from "@/lib/observability/request-id";
 import { isSignedRoute } from "@/lib/security/signed-routes";
+import { internalSecretHeaders } from "@/lib/security/internal-secret";
 
 // ============================================================================
 //  Proxy compuesto (antes "middleware"; Next 16 renombró el convenio a `proxy`,
@@ -85,13 +86,12 @@ function logEdgeWarning(event: string, fields: Record<string, unknown>): void {
 
 async function refreshAuthToken(refreshToken: string): Promise<string | null> {
   const endpoint =
-    process.env.WORDPRESS_INTERNAL_API_URL ??
-    process.env.NEXT_PUBLIC_WORDPRESS_API_URL ??
-    "http://localhost:8080/graphql";
+    process.env.WORDPRESS_INTERNAL_API_URL ?? "http://localhost:8080/graphql";
   try {
     const res = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // `hwe-bff-only` solo deja pasar a GraphQL a quien presente el secreto interno.
+      headers: { "Content-Type": "application/json", ...internalSecretHeaders() },
       body: JSON.stringify({
         query: REFRESH_TOKEN_MUTATION,
         variables: { refreshToken },

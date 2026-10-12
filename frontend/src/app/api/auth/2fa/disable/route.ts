@@ -5,12 +5,9 @@ import { guardMutation } from "@/lib/api/guard";
 import { disable2faBodySchema } from "@/lib/validation/auth";
 import { delPending2faSecret } from "@/lib/auth/two-factor-pending";
 import { logger } from "@/lib/observability/logger";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
-
-const WP_INTERNAL =
-  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
-  "http://wordpress:80";
 
 /**
  * POST /api/auth/2fa/disable
@@ -69,7 +66,7 @@ export async function POST(request: Request) {
     // Se comprueba aquí para no molestar a WordPress con códigos que ya sabemos
     // inválidos; WP lo vuelve a verificar al desactivar.
     try {
-      const secretRes = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-secret`, {
+      const secretRes = await wpFetch(`/wp-json/hwe/v1/auth/2fa-secret`, {
         headers: { Authorization: `Bearer ${session.token}` },
         cache: "no-store",
       });
@@ -109,7 +106,7 @@ export async function POST(request: Request) {
 
   // Limpiar el secreto (y los códigos de recuperación en WP), con la prueba.
   try {
-    const res = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/2fa-secret`, {
+    const res = await wpFetch(`/wp-json/hwe/v1/auth/2fa-secret`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

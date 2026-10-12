@@ -2,12 +2,10 @@ import { NextResponse } from "next/server";
 import { forgotPasswordSchema } from "@/lib/validation/auth";
 import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
+import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
 
-const WP_INTERNAL =
-  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
-  "http://wordpress:80";
 const FRONTEND_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export async function POST(request: Request) {
@@ -32,7 +30,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const res = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/forgot-password`, {
+    const res = await wpFetch(`/wp-json/hwe/v1/auth/forgot-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
