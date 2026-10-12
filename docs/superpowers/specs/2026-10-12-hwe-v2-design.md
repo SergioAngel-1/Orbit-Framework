@@ -460,7 +460,51 @@ Las primitivas genéricas de `components/ui/` de Siu se portan si el starter las
   - `mandala_presets` pasa a `decor_presets` (*breaking*).
   - `Placements.php` del framework se retira en favor de `Locations`.
 
-### 8.4 Mecanismos declarativos del núcleo
+### 8.4 Anatomía de un módulo y su mitad de frontend
+
+**Regla común.** Todo módulo del catálogo (§4.1), los de F4 incluidos, se entrega completo:
+- **Plugin.** Plugin regular con `README.md` técnico y `MANUAL.md` para editores.
+- **Revalidación.** Al cambiar sus datos dispara la revalidación ISR de su propio tag, que se
+  registra en `hwe_revalidation_tags`.
+- **Lector y rutas.** Lector server-only en el núcleo (`lib/<módulo>/`) y rutas BFF propias.
+  Ambos comprueban `modules.<id>`: si el módulo está apagado, el lector devuelve vacío o nulo
+  y las rutas responden 404.
+- **UI.** Parte del starter neutro (§7.3).
+- **Activación.** Por `modules` en `wp hwe setup`.
+
+**Por módulo:**
+- **`shipping`**:
+  - `lib/shipping/` (destino, envío gratis, alcance del envío gratis, normalización) con sus
+    tests;
+  - rutas `/api/store/shipping`, `/api/store/shipping/destination` y
+    `/api/store/free-shipping/scope`;
+  - el destino usa el paquete de país (§8.2) para las ciudades;
+  - el destino del cliente con sesión se fija fuera del checkout (`3fb1f330`);
+  - el aviso de envío gratis en el carrito, el cajón y el checkout (`f41fec46`, `3bd1d7e6`,
+    `24f09ca8`) va en el starter;
+  - tag `shipping`.
+- **`banners`**:
+  - se reconcilia el `lib/banners/` actual del framework con el de Siu;
+  - `localize` se generaliza a N idiomas (§8.1) y reemplaza el filtro de idioma secundario
+    único;
+  - `mandala-presets` pasa a `decor-presets`: un resolvedor en el núcleo cuyos presets aporta
+    `InstanceRegistry`, con paridad comprobada por test frente a `decor_presets` del plugin;
+  - tag `banners`.
+- **`product-landing`**:
+  - `getProductLanding` (nulo salvo publicada), `product-bound-landings` y
+    `related-product-landings` (anillo round-robin con semilla fija) en `lib/landings/`;
+  - `generateStaticParams` solo con las landings publicadas;
+  - entrada en el sitemap;
+  - el JSON-LD (`FAQPage` solo si hay consejos con encabezado) va en el núcleo SEO;
+  - el starter trae una vista genérica de landing de producto;
+  - tag `products`.
+- **`landings`**: ver §8.3. El starter trae las dos rutas, la del área y la de raíz, delegando
+  en una vista compartida.
+- **`consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`,
+  `external-integration`**: cumplen la regla común con las piezas de frontend listadas en §7.2
+  y §8.3.
+
+### 8.5 Mecanismos declarativos del núcleo
 
 - **`hwe-product-fields`**: registro (`hwe_product_fields`) con clave, etiqueta, tipo (los del
   §6.1 aplicables), si es traducible y en qué caja va.
@@ -478,6 +522,9 @@ Las primitivas genéricas de `components/ui/` de Siu se portan si el starter las
   `resolveSections` (varias secciones únicas con el mismo `after`) y de `findEditorialByPath`;
 - el ejemplo vivo ampliado (campo de producto, detalle de línea, landing estática con una
   sección única);
+- cada módulo, activado y desactivado: con `modules.<id> = false` sus rutas responden 404 y su
+  UI no se pinta (test del BFF y e2e contra el stub);
+- `README.md` y `MANUAL.md` presentes en cada plugin de módulo;
 - `verify-*.sh` para las traducciones, el paquete de país y la política de integración.
 
 ---
