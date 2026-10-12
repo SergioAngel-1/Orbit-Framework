@@ -1,5 +1,6 @@
 import "server-only";
 import { getRedis } from "@/lib/redis/client";
+import { logger } from "@/lib/observability/logger";
 
 // ============================================================================
 //  Idempotencia para operaciones críticas (checkout): evita pedidos duplicados
@@ -9,6 +10,15 @@ import { getRedis } from "@/lib/redis/client";
 //  reserva la clave (estado "processing"); al completarse, se guarda la
 //  respuesta. Reintentos con la misma clave reciben la respuesta cacheada
 //  (replay) o un 409 si la primera sigue en curso.
+//
+//  Qué pasa cuando Redis falla (la propiedad que NO se negocia es la primera):
+//  · Un duplicado YA DETECTADO nunca vuelve a proceder. Si `SET NX` confirma que
+//    la clave existe y la lectura posterior falla o devuelve algo ilegible, se
+//    responde `conflict` (reintentable), no `proceed`: `proceed` crearía el
+//    segundo pedido justo cuando Redis ya demostró que el primero existe.
+//  · Solo el fallo del `SET NX` inicial, o no tener Redis, deja pasar: ahí no
+//    sabemos si hay duplicado, y bloquear todo el checkout por una caída de
+//    Redis cuesta más que el riesgo de un doble envío. Se registra siempre.
 // ============================================================================
 
 const PREFIX = "idem:";
@@ -18,6 +28,18 @@ export type IdempotencyState =
   | { status: "proceed" }
   | { status: "replay"; body: unknown; statusCode: number }
   | { status: "conflict" };
+
+/** Un fallo de Redis degrada la idempotencia, pero nunca en silencio. */
+function logRedisError(op: string, error: unknown): void {
+  logger.error(
+    {
+      event: "idempotency.redis_error",
+      op,
+      err: error instanceof Error ? error.message : String(error),
+    },
+    "Fallo de Redis en la idempotencia del checkout",
+  );
+}
 
 /** Valida el formato de la clave (longitud razonable). */
 export function isValidIdempotencyKey(key: string | null): key is string {
@@ -57,23 +79,31 @@ export async function reserveIdempotencyKey(
     }
 
     // La clave ya existía: ¿completada o en curso?
-    const existing = await redis.get(redisKey);
-    if (existing) {
-      const parsed = JSON.parse(existing) as {
-        state: string;
-        body?: unknown;
-        statusCode?: number;
-      };
-      if (parsed.state === "done") {
-        return {
-          status: "replay",
-          body: parsed.body,
-          statusCode: parsed.statusCode ?? 200,
+    try {
+      const existing = await redis.get(redisKey);
+      if (existing) {
+        const parsed = JSON.parse(existing) as {
+          state: string;
+          body?: unknown;
+          statusCode?: number;
         };
+        if (parsed.state === "done") {
+          return {
+            status: "replay",
+            body: parsed.body,
+            statusCode: parsed.statusCode ?? 200,
+          };
+        }
       }
+      return { status: "conflict" };
+    } catch (error) {
+      // El SET NX ya confirmó el duplicado: `conflict` (reintentable), nunca `proceed`.
+      logRedisError("read_duplicate", error);
+      return { status: "conflict" };
     }
-    return { status: "conflict" };
-  } catch {
+  } catch (error) {
+    // Falló el propio SET NX: no sabemos si hay duplicado (ver cabecera).
+    logRedisError("reserve", error);
     return { status: "proceed" };
   }
 }
@@ -94,8 +124,9 @@ export async function storeIdempotentResult(
       "EX",
       ttlSeconds,
     );
-  } catch {
-    /* mejor esfuerzo */
+  } catch (error) {
+    // Mejor esfuerzo: sin el resultado guardado, un reintento verá `conflict` hasta el TTL.
+    logRedisError("store", error);
   }
 }
 
@@ -105,7 +136,8 @@ export async function releaseIdempotencyKey(key: string): Promise<void> {
   if (!redis) return;
   try {
     await redis.del(PREFIX + key);
-  } catch {
-    /* mejor esfuerzo */
+  } catch (error) {
+    // Mejor esfuerzo: si no se libera, el reintento verá `conflict` hasta el TTL.
+    logRedisError("release", error);
   }
 }
