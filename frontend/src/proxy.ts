@@ -13,6 +13,7 @@ import {
   getOrCreateRequestId,
   REQUEST_ID_HEADER,
 } from "@/lib/observability/request-id";
+import { isSignedRoute } from "@/lib/security/signed-routes";
 
 // ============================================================================
 //  Proxy compuesto (antes "middleware"; Next 16 renombró el convenio a `proxy`,
@@ -52,6 +53,36 @@ function maxAgeFromToken(token: string): number {
   return DEFAULT_AUTH_TOKEN_MAX_AGE;
 }
 
+/**
+ * Timeout del refresh, en ms.
+ *
+ * Sin él esta petición no tenía techo, y está en el camino de TODA petición de
+ * página: el JWT de acceso dura ~5 min (`DEFAULT_AUTH_TOKEN_MAX_AGE`), así que
+ * cualquier visitante con sesión pasa por aquí varias veces por sesión. Un
+ * WordPress que acepta la conexión y no responde —saturado, con una query
+ * bloqueada en MySQL— dejaba colgada la navegación entera, en el edge, antes de
+ * que ningún Route Handler pudiera degradar nada.
+ *
+ * Más corto que el timeout del cliente GraphQL a propósito: esto no es una
+ * consulta de datos que alguien esté esperando ver, es un trámite de sesión con
+ * degradado limpio. Si no responde a tiempo se sigue sin token renovado —el
+ * visitante se ve como anónimo en esa respuesta y la siguiente lo reintenta,
+ * porque la cookie de refresco sobrevive—, que es infinitamente preferible a
+ * una página que no carga.
+ */
+const REFRESH_TIMEOUT_MS = 3_000;
+
+/**
+ * Evento estructurado desde el edge. Aquí no hay pino (es de Node), pero un fallo
+ * que se traga debe dejar rastro: una línea JSON por stdout, con la misma forma
+ * (`event`, `service`) que el resto de logs.
+ */
+function logEdgeWarning(event: string, fields: Record<string, unknown>): void {
+  console.warn(
+    JSON.stringify({ level: "warn", service: "hwe-frontend", event, ...fields }),
+  );
+}
+
 async function refreshAuthToken(refreshToken: string): Promise<string | null> {
   const endpoint =
     process.env.WORDPRESS_INTERNAL_API_URL ??
@@ -65,21 +96,34 @@ async function refreshAuthToken(refreshToken: string): Promise<string | null> {
         query: REFRESH_TOKEN_MUTATION,
         variables: { refreshToken },
       }),
+      signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      logEdgeWarning("proxy.refresh_failed", { reason: `HTTP ${res.status}` });
+      return null;
+    }
     const json = (await res.json()) as {
       data?: { refreshJwtAuthToken?: { authToken?: string } };
     };
     const token = json.data?.refreshJwtAuthToken?.authToken;
-    return typeof token === "string" && token.length > 0 ? token : null;
-  } catch {
+    if (typeof token === "string" && token.length > 0) return token;
+    logEdgeWarning("proxy.refresh_failed", { reason: "respuesta sin authToken" });
+    return null;
+  } catch (error) {
+    logEdgeWarning("proxy.refresh_failed", {
+      reason: error instanceof Error ? `${error.name}: ${error.message}` : "error",
+    });
     return null;
   }
 }
 
 function originBlocked(request: NextRequest): boolean {
-  if (!request.nextUrl.pathname.startsWith("/api/")) return false;
+  const { pathname } = request.nextUrl;
+  if (!pathname.startsWith("/api/")) return false;
   if (!UNSAFE_METHODS.has(request.method)) return false;
+  // Webhooks y revalidación: los llama otro servidor (no traen Origin) y se
+  // autentican por firma. Lista cerrada; ver lib/security/signed-routes.ts.
+  if (isSignedRoute(pathname)) return false;
 
   const allowed = process.env.ALLOWED_ORIGIN;
   if (!allowed) return false;

@@ -24,6 +24,18 @@ export default defineConfig({
     environment: "node",
     include: ["tests/unit/**/*.test.ts", "src/**/*.test.ts", "src/**/*.test.tsx"],
     globals: true,
+    // next-intl (su middleware, y `createNavigation`) importa "next/server" y
+    // "next/navigation" sin extensión. Next no declara "exports" en su
+    // package.json, así que bajo la resolución ESM nativa de Node —la que usa
+    // Vitest para las dependencias externas— esos imports no se encuentran
+    // ("Did you mean next/server.js?"). Con `inline` pasan por el resolvedor de
+    // Vite, que sí completa la extensión. Lo necesitan los tests que importan
+    // `@/proxy` (tests/unit/proxy-*.test.ts).
+    server: {
+      deps: {
+        inline: ["next-intl"],
+      },
+    },
     coverage: {
       provider: "v8",
       include: ["src/lib/**/*.ts"],
