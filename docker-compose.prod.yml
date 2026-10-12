@@ -154,6 +154,12 @@ services:
       # OPcache optimizado para producción (validate_timestamps=0): tras
       # actualizar mu-plugins/plugins hay que reiniciar este contenedor.
       - ./backend/config/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
+      # Techo de procesos de Apache. Va en `conf-enabled/`, que se lee DESPUÉS de
+      # `mods-enabled/mpm_prefork.conf`, así que gana sin pisar el archivo de la
+      # distribución; el prefijo `zz-` fija el orden alfabético de inclusión. Sin esto
+      # la imagen permite 150 workers y el contenedor muere por OOM bajo carga (ver el
+      # propio archivo, que explica cómo dimensionarlo respecto al límite de memoria).
+      - ./backend/config/apache-mpm.conf:/etc/apache2/conf-enabled/zz-hwe-mpm.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/wp-json/ || exit 1"]
       interval: 30s
@@ -301,6 +307,14 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # `crond` (busybox) fija usuario y grupos ANTES de lanzar cada tarea, aunque ya sea
+    # root. Sin estas dos capacidades falla con «can't set groups: Operation not
+    # permitted» y descarta la tarea EN SILENCIO: el contenedor sale sano, el cron está
+    # programado y no se hace ninguna copia (reproducido con alpine:3.23; con las dos
+    # capacidades la tarea corre). Es lo único que se devuelve tras `cap_drop: ALL`.
+    cap_add:
+      - SETUID
+      - SETGID
     depends_on:
       db:
         condition: service_healthy

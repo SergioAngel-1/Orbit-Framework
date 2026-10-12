@@ -76,16 +76,6 @@ class BackupConfig {
         }
     }
 
-    /** Ejecuta un backup ahora mismo desde PHP (útil para botón "Backup manual"). */
-    public static function triggerNow(): bool {
-        $script = ABSPATH . '../scripts/backup-cron.sh'; // ruta aproximada; ajustar si cambia.
-        if (!file_exists($script)) {
-            return false;
-        }
-        exec("sh " . escapeshellarg($script) . " >> /var/log/hwe-backup.log 2>&1 &");
-        return true;
-    }
-
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

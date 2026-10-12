@@ -215,6 +215,49 @@ git fetch framework --tags
   (generación de tipos, herramientas de desarrollo), define `WP_ENVIRONMENT_TYPE` como `local` o
   `development`; `docker-compose.yml` ya lo hace (`local`).
 
+### Operación (F1)
+
+- **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor
+  `backup`:** `docker compose -f docker-compose.prod.yml up -d --force-recreate backup`. Eran dos
+  fallos encadenados, reproducidos con Docker: (1) el entrypoint hacía `chmod +x` sobre un script
+  montado `:ro`, que falla siempre (EROFS) y, con `set -e`, dejaba el contenedor en **bucle de
+  reinicios**; (2) con `cap_drop: ALL`, `crond` no puede lanzar ninguna tarea y la descarta en
+  silencio. Ahora el job se lanza con `/bin/sh`, el servicio recupera solo `SETUID` y `SETGID`, y
+  la salida de cada copia (resultado y fallos) va a `docker logs hwe_backup` en vez de a un archivo
+  interno. Comprueba tras desplegar: `docker logs hwe_backup` y `ls backups/`.
+- **Los scripts de copia y restauración ya no ponen la contraseña de MySQL en la línea de
+  comandos** (`-p…` se veía en `ps aux` y `/proc/<pid>/cmdline`): va por `MYSQL_PWD`. Además
+  vuelcan a un archivo intermedio y comprueban cada paso (en `/bin/sh` no hay `pipefail`, así que
+  `mariadb-dump | gzip` daba por bueno un volcado que fallaba a medias), no dejan ninguna copia
+  parcial si algo falla, y `restore.sh` verifica la integridad del volcado **antes** de pedir la
+  confirmación destructiva. La retención ya no traga sus errores.
+- **`backup.sh` y `restore.sh` leen el `.env` como datos, no con `source`**
+  (`scripts/lib/load-env.sh`): un valor con espacios sin comillas ya no los rompe y una línea con
+  `$(…)` ya no se ejecuta. Como en Docker Compose, una variable ya definida en el entorno gana
+  sobre el `.env`.
+- **Apache tiene techo de procesos en producción** (`backend/config/apache-mpm.conf`, montado en
+  `conf-enabled/`): la imagen permitía 150 workers y los hijos no se reciclaban, así que bajo carga
+  el contenedor moría por OOM. Va calibrado al límite de 512 MB de la plantilla (6 workers); si
+  subes `deploy.resources.limits.memory` del servicio `wordpress`, sube también
+  `MaxRequestWorkers` (el archivo explica la fórmula). Reinicia el contenedor `wordpress`.
+- **Caddy manda cabeceras de seguridad en las rutas que sirve WordPress** (`/wp-admin`,
+  `/wp-login.php`, `/wp-json`, `/wp-content`), que no pasan por Next: HSTS, `X-Content-Type-Options`
+  y `Referrer-Policy` con el mismo valor que `next.config.mjs`, y `X-Frame-Options: SAMEORIGIN`
+  (el frontend sigue con `DENY`).
+- **`setup.sh` ya no instala un plugin cuya descarga no coincide con su SHA-256.** Antes, con un
+  hash distinto, instalaba igualmente desde la URL directa (JWT Auth y WooGraphQL), y
+  wp-graphql-cors no se verificaba. Ahora: JWT Auth (imprescindible) **aborta**; CORS y WooGraphQL
+  desde GitHub (opcionales) se omiten con aviso. Los hashes se pueden sobrescribir por entorno
+  (`JWT_AUTH_SHA256`, `WOOGRAPHQL_SHA256`, `WPGRAPHQL_CORS_SHA256`) para subir de versión; cambia
+  siempre versión y hash a la vez.
+- **`generate-woo-keys.sh` no imprime las claves completas si ya las escribió** en
+  `.env`/`frontend/.env.local` (solo una confirmación truncada); con `--print-only`, o si la
+  escritura falla, sí las muestra.
+- **Se elimina `BackupConfig::triggerNow()`**: un `exec()` sin llamadores y sin comprobación de
+  capacidad. Un test impide que el código PHP propio ejecute procesos del sistema.
+- **`.gitignore` cubre `.env.prod`, `*.tar.gz` y `/backups/`.** Si tu instancia versionó alguno,
+  retíralo del índice (`git rm --cached`) y rota los secretos que contuviera.
+
 ### Tooling
 
 - **CI:** nuevo paso `npm run audit:gate` (falla ante avisos `high`/`critical`, con una allowlist

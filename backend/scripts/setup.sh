@@ -19,10 +19,17 @@
 
 set -e
 
+HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+# shellcheck source=lib/verified-download.sh
+. "$HERE/lib/verified-download.sh"
+
 WP="wp --path=/var/www/html --allow-root"
-# SHA256 checksums para verificar integridad de plugins descargados de GitHub
-JWT_AUTH_SHA256="37e7bcc573fdd74a6cf60475b01285e62e62fa9bd5684c1f6a365a6e2bce47d8"
-WOOGRAPHQL_SHA256="15e9b320114349cc5213f7245d93985d45def4bbe27d9a1850a3a49c7f4f9e58"
+# SHA256 de los plugins descargados de GitHub. Una descarga cuyo hash NO coincide no se
+# instala (ver lib/verified-download.sh). Como las versiones, se pueden sobrescribir por
+# entorno para subir de versión de forma controlada: cambia SIEMPRE ambos a la vez.
+JWT_AUTH_SHA256="${JWT_AUTH_SHA256:-37e7bcc573fdd74a6cf60475b01285e62e62fa9bd5684c1f6a365a6e2bce47d8}"
+WOOGRAPHQL_SHA256="${WOOGRAPHQL_SHA256:-15e9b320114349cc5213f7245d93985d45def4bbe27d9a1850a3a49c7f4f9e58}"
+WPGRAPHQL_CORS_SHA256="${WPGRAPHQL_CORS_SHA256:-64b2593644dd08859ac3654a9c2f260e31238aa94258210b35b3c7248411c1b6}"
 
 # ----------------------------------------------------------------------------
 #  VERSIONES FIJADAS de los plugins de wp.org (fuente única de verdad).
@@ -36,6 +43,24 @@ WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-2.17.0}"
 WOOCOMMERCE_VERSION="${WOOCOMMERCE_VERSION:-10.8.1}"
 WOOGRAPHQL_WPORG_VERSION="${WOOGRAPHQL_WPORG_VERSION:-1.0.2}"
 REDISCACHE_VERSION="${REDISCACHE_VERSION:-2.8.0}"
+
+# Instala un plugin desde un .zip de GitHub SOLO si su SHA-256 coincide con el fijado.
+# Descarga a un directorio temporal propio (WP-CLI reconoce un archivo local por su
+# extensión .zip). Devuelve 0 si lo instaló; distinto de 0 si no, sin instalar NADA.
+install_github_zip_verified() {
+	_gh_name="$1"
+	_gh_url="$2"
+	_gh_sha="$3"
+	_gh_dir="$(mktemp -d)"
+	_gh_zip="$_gh_dir/$_gh_name.zip"
+	_gh_rc=1
+	if hwe_download_verified "$_gh_url" "$_gh_sha" "$_gh_zip"; then
+		$WP plugin install "$_gh_zip" --activate --force && _gh_rc=0 || _gh_rc=$?
+	fi
+	rm -f "$_gh_zip"
+	rmdir "$_gh_dir" 2>/dev/null || true
+	return "$_gh_rc"
+}
 
 # Instala un plugin de wp.org fijando la versión; si esa versión no existe,
 # degrada a la última estable con aviso (reproducible por defecto, resiliente).
@@ -117,26 +142,21 @@ install_wporg_pinned wp-graphql "$WPGRAPHQL_VERSION"
 # no es necesario limpiar legacy jwt-auth/.
 echo "==> Instalando WPGraphQL JWT Authentication v0.7.2 (desde GitHub)..."
 JWT_URL="https://github.com/wp-graphql/wp-graphql-jwt-authentication/releases/download/v0.7.2/wp-graphql-jwt-authentication.zip"
-JWT_TMP="/tmp/jwt-auth.zip"
-if command -v curl >/dev/null 2>&1; then
-	curl -sL -o "$JWT_TMP" "$JWT_URL"
-	COMPUTED=$(sha256sum "$JWT_TMP" | cut -d' ' -f1)
-	if [ "$COMPUTED" = "$JWT_AUTH_SHA256" ]; then
-		$WP plugin install "$JWT_TMP" --activate --force
-	else
-		echo "    ⚠️  Checksum SHA256 de JWT Auth no coincide (esperado $JWT_AUTH_SHA256, obtenido $COMPUTED). Usando URL directa."
-		$WP plugin install "$JWT_URL" --activate --force
-	fi
-	rm -f "$JWT_TMP"
-else
-	$WP plugin install "$JWT_URL" --activate --force
-fi
+# IMPRESCINDIBLE (toda la autenticación): sin la descarga verificada se ABORTA, no se
+# instala nada sin verificar.
+install_github_zip_verified jwt "$JWT_URL" "$JWT_AUTH_SHA256" || {
+	echo "ERROR: no se pudo instalar WPGraphQL JWT Authentication con checksum verificado." >&2
+	echo "       Sin él no hay autenticación. Revisa el hash (JWT_AUTH_SHA256) y la red." >&2
+	exit 1
+}
 
 # --- WPGraphQL CORS — v2.1.1 (release fijado, no tiene .zip en assets) ---
 echo "==> Instalando WPGraphQL CORS v2.1.1 (desde GitHub)..."
-$WP plugin install \
-	"https://github.com/funkhaus/wp-graphql-cors/zipball/2.1.1" \
-	--activate --force || echo "    (aviso) wp-graphql-cors opcional no instalado; el mu-plugin ya cubre CORS."
+# OPCIONAL: el mu-plugin headless-config.php ya cubre CORS. Antes se instalaba sin
+# verificar nada; ahora, con el hash fijado, y si no coincide se omite.
+install_github_zip_verified wp-graphql-cors \
+	"https://github.com/funkhaus/wp-graphql-cors/zipball/2.1.1" "$WPGRAPHQL_CORS_SHA256" \
+	|| echo "    (aviso) wp-graphql-cors opcional no instalado; el mu-plugin ya cubre CORS."
 
 # --- WooCommerce — desde wp.org (versión fijada; ver COMPATIBILITY.md) ---
 echo "==> Instalando WooCommerce v${WOOCOMMERCE_VERSION} (catálogo, carrito, pedidos)..."
@@ -152,20 +172,7 @@ $WP plugin install wp-graphql-woocommerce --version="$WOOGRAPHQL_WPORG_VERSION" 
 	echo "    (WooGraphQL v${WOOGRAPHQL_WPORG_VERSION} instalado desde wp.org)" || {
 	echo "    (WooGraphQL v${WOOGRAPHQL_WPORG_VERSION} no disponible en wp.org; descargando release fijado v1.0.2 de GitHub)..."
 	WOO_URL="https://github.com/wp-graphql/wp-graphql-woocommerce/releases/download/v1.0.2/wp-graphql-woocommerce.zip"
-	WOO_TMP="/tmp/woo-graphql.zip"
-	if command -v curl >/dev/null 2>&1; then
-		curl -sL -o "$WOO_TMP" "$WOO_URL"
-		COMPUTED=$(sha256sum "$WOO_TMP" | cut -d' ' -f1)
-		if [ "$COMPUTED" = "$WOOGRAPHQL_SHA256" ]; then
-			$WP plugin install "$WOO_TMP" --activate --force
-		else
-			echo "    ⚠️  Checksum SHA256 de WooGraphQL no coincide. Usando URL directa."
-			$WP plugin install "$WOO_URL" --activate --force
-		fi
-		rm -f "$WOO_TMP"
-	else
-		$WP plugin install "$WOO_URL" --activate --force
-	fi
+	install_github_zip_verified wp-graphql-woocommerce "$WOO_URL" "$WOOGRAPHQL_SHA256"
 } || echo "    (aviso) WooGraphQL no instalado; instálalo manualmente."
 
 # --- HWE Banners: plugin propio del framework (ya presente en wp-content/plugins) ---

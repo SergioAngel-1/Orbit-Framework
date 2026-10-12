@@ -23,13 +23,35 @@
     # Permite seguir una misma petición a través de los tres logs.
     request_header X-Request-Id {http.request.uuid}
 
+    # ── Cabeceras de seguridad base para TODA respuesta ───────────────────────
+    # El frontend (next.config.mjs) ya manda estas mismas tres para sus propias
+    # rutas; aquí se replican a nivel de Caddy porque /wp-admin/*, /wp-json/* y
+    # /wp-content/* de abajo van DIRECTO a WordPress sin pasar por Next.js, así que
+    # nunca las recibían. Mismo valor en ambos sitios (lo comprueba
+    # tests/unit/caddyfile.test.ts): duplicarlas es inocuo. El prefijo `>` las aplica
+    # al final, después del proxy, y pisa las del upstream.
+    # HSTS no se condiciona a producción como hace next.config.mjs: los navegadores
+    # ignoran la cabecera si no llega por TLS (RFC 6797), así que es inofensiva en
+    # HTTP local.
+    header >Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+    header >X-Content-Type-Options "nosniff"
+    header >Referrer-Policy "strict-origin-when-cross-origin"
+
     # ── WordPress: admin, login y webhooks REST ──────────────────────────────
     # Estos paths van directamente a WordPress. El BFF Next.js llama a
     # WordPress por la red interna Docker; aquí solo exponemos lo necesario.
+    #
+    # X-Frame-Options se declara en cada ruta de WordPress y NO arriba con las demás:
+    # el frontend usa "DENY" para sí mismo, y WordPress no debe heredar ese valor más
+    # estricto (rompería iframes propios de wp-admin, p. ej. la vista previa del
+    # Customizer). "SAMEORIGIN" es lo que WP core ya manda en wp-login.php; aquí se
+    # asegura también en el resto de rutas que el core no cubre (REST, medios).
     handle /wp-admin/* {
+        header >X-Frame-Options "SAMEORIGIN"
         reverse_proxy wordpress:80
     }
     handle /wp-login.php {
+        header >X-Frame-Options "SAMEORIGIN"
         reverse_proxy wordpress:80
     }
     handle /wp-cron.php {
@@ -55,6 +77,7 @@
     # El resto de /wp-json/* (wp/v2…) sigue accesible porque wp-admin lo requiere.
     # Para un endurecimiento mayor, restríngelo por IP de oficina o detrás de auth.
     handle /wp-json/* {
+        header >X-Frame-Options "SAMEORIGIN"
         reverse_proxy wordpress:80
     }
 
@@ -79,6 +102,7 @@
     handle /wp-content/* {
         reverse_proxy wordpress:80
         header >Cache-Control "public, max-age=31536000, stale-while-revalidate=86400"
+        header >X-Frame-Options "SAMEORIGIN"
     }
 
     # ── Frontend (Next.js) ── todo lo demás ─────────────────────────────────

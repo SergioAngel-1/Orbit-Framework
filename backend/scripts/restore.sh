@@ -15,26 +15,45 @@
 #
 #  SEGURIDAD: la restauración SOBREESCRIBE datos. Pide confirmación explícita.
 #  Probar SIEMPRE en un entorno de staging antes de producción (ver RUNBOOK.md).
+#
+#  Garantías (ver backup.sh): la contraseña va por MYSQL_PWD, no por `-p…`; el volcado
+#  se descomprime a un archivo temporal y se comprueba ANTES de tocar la base de datos
+#  (en `gunzip | mariadb`, sin `pipefail`, un archivo corrupto o truncado «restauraba»
+#  con éxito sin importar nada); y la integridad de los archivos se verifica antes de
+#  pedir la confirmación destructiva.
 # ============================================================================
 set -eu
 
+HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+# shellcheck source=lib/load-env.sh
+. "$HERE/lib/load-env.sh"
+
 DB_DUMP="${1:-}"
 UPLOADS_TAR="${2:-}"
+
+fail() {
+  echo "✗ $*" >&2
+  exit 1
+}
 
 if [ -z "$DB_DUMP" ]; then
   echo "Uso: sh backend/scripts/restore.sh <db-....sql.gz> [uploads-....tar.gz]" >&2
   exit 1
 fi
-if [ ! -f "$DB_DUMP" ]; then
-  echo "✗ No existe el volcado de DB: $DB_DUMP" >&2
-  exit 1
+[ -f "$DB_DUMP" ] || fail "No existe el volcado de DB: $DB_DUMP"
+if [ -n "$UPLOADS_TAR" ]; then
+  [ -f "$UPLOADS_TAR" ] || fail "No existe el archivo de uploads: $UPLOADS_TAR"
 fi
 
-# Carga variables del .env si existe.
-if [ -f .env ]; then
-  # shellcheck disable=SC1091
-  . ./.env
+# Integridad ANTES de pedir confirmación: un archivo corrupto o truncado se descubre aquí,
+# no a mitad de una restauración que ya ha empezado a sobrescribir datos.
+gzip -t "$DB_DUMP" || fail "El volcado está corrupto o truncado: $DB_DUMP"
+if [ -n "$UPLOADS_TAR" ]; then
+  gzip -t "$UPLOADS_TAR" || fail "El archivo de uploads está corrupto o truncado: $UPLOADS_TAR"
 fi
+
+# MYSQL_USER, MYSQL_PASSWORD y MYSQL_DATABASE del .env, leído como datos (no `. ./.env`).
+hwe_load_env .env
 DB_USER="${MYSQL_USER:-wordpress}"
 DB_PASS="${MYSQL_PASSWORD:-wordpress}"
 DB_NAME="${MYSQL_DATABASE:-wordpress}"
@@ -56,20 +75,22 @@ if [ "$CONFIRM" != "restore" ]; then
 fi
 
 echo "→ Verificando que el contenedor 'db' está arriba…"
-$COMPOSE ps db >/dev/null 2>&1 || { echo "✗ El servicio 'db' no está corriendo."; exit 1; }
+$COMPOSE ps db >/dev/null 2>&1 || fail "El servicio 'db' no está corriendo."
 
 echo "→ Restaurando base de datos…"
-# --force para continuar ante objetos preexistentes; el dump recrea las tablas.
-gunzip -c "$DB_DUMP" | $COMPOSE exec -T db \
-  mariadb -u"$DB_USER" -p"$DB_PASS" "$DB_NAME"
+TMP_SQL="$(mktemp)"
+trap 'rm -f "$TMP_SQL"' EXIT
+gunzip -c "$DB_DUMP" > "$TMP_SQL" || fail "No se pudo descomprimir el volcado: $DB_DUMP"
+[ -s "$TMP_SQL" ] || fail "El volcado está vacío: $DB_DUMP"
+# MYSQL_PWD (no -p…): ver backup.sh. El dump recrea las tablas.
+export MYSQL_PWD="$DB_PASS"
+$COMPOSE exec -T -e MYSQL_PWD db \
+  mariadb -u"$DB_USER" "$DB_NAME" < "$TMP_SQL" \
+  || fail "La importación en la base de datos falló; el estado de '$DB_NAME' es incierto."
 
 if [ -n "$UPLOADS_TAR" ]; then
-  if [ ! -f "$UPLOADS_TAR" ]; then
-    echo "✗ No existe el archivo de uploads: $UPLOADS_TAR" >&2
-    exit 1
-  fi
   echo "→ Restaurando uploads…"
-  tar -xzf "$UPLOADS_TAR" -C backend/wp-content
+  tar -xzf "$UPLOADS_TAR" -C backend/wp-content || fail "No se pudieron extraer los uploads."
 fi
 
 echo "→ Limpiando caché de objetos (Redis) para evitar datos obsoletos…"

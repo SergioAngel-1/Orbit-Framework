@@ -67,8 +67,10 @@ echo "WC_CONSUMER_SECRET=" . $consumer_secret . "\n";
 CK=$(echo "$KEYS" | grep '^WC_CONSUMER_KEY=' | cut -d= -f2-)
 CS=$(echo "$KEYS" | grep '^WC_CONSUMER_SECRET=' | cut -d= -f2-)
 
-echo "$KEYS"
-echo ""
+# El valor completo solo se imprime cuando hace falta copiarlo a mano (--print-only, o si
+# la escritura automática de abajo falla / no aplica): si queda persistido en .env, no
+# hace falta exponerlo también en la consola y en los registros de esta sesión (CI,
+# terminal grabada con `script`…).
 
 # Escribe una variable en un archivo SIN `sed -i` (que crea un temp file en el
 # MISMO directorio para el rename — el bind mount de un solo archivo expone
@@ -96,6 +98,8 @@ set_env_var() {
 # Si no está disponible (--print-only, o compose antiguo sin esos mounts),
 # cae de vuelta al comportamiento original: solo imprimir.
 if [ "$PRINT_ONLY" = "1" ]; then
+	echo "$KEYS"
+	echo ""
 	echo "↑ (--print-only) Copia estas dos líneas en tu .env y reinicia el frontend."
 elif [ -f "$WORKSPACE_DIR/.env" ] && [ -f "$WORKSPACE_DIR/frontend/.env.local" ]; then
 	WRITE_FAILED=0
@@ -104,14 +108,22 @@ elif [ -f "$WORKSPACE_DIR/.env" ] && [ -f "$WORKSPACE_DIR/frontend/.env.local" ]
 		set_env_var "$f" "WC_CONSUMER_SECRET" "$CS" || WRITE_FAILED=1
 	done
 	if [ "$WRITE_FAILED" = "1" ]; then
+		echo "$KEYS"
+		echo ""
 		echo "⚠️  No se pudo escribir en $WORKSPACE_DIR/.env o frontend/.env.local." >&2
 		echo "    ¿Corriste el comando con --user \"\$(id -u):\$(id -g)\"? (ver cabecera del script)" >&2
 		echo "↑ Copia las dos líneas de arriba a mano en tu .env y reinicia el frontend."
 	else
+		# Ya quedaron persistidas: solo una confirmación truncada (primeros 7 caracteres).
+		echo "WC_CONSUMER_KEY=$(echo "$CK" | cut -c1-7)…(truncado)"
+		echo "WC_CONSUMER_SECRET=$(echo "$CS" | cut -c1-7)…(truncado)"
+		echo ""
 		echo "✔ Escritas en $WORKSPACE_DIR/.env y $WORKSPACE_DIR/frontend/.env.local."
 		echo "  Reinicia el frontend: docker compose up -d frontend"
 	fi
 else
+	echo "$KEYS"
+	echo ""
 	echo "↑ Copia estas dos líneas en tu .env y reinicia el frontend."
 	echo "  (escritura automática desactivada: $WORKSPACE_DIR/.env no está montado en este contenedor)"
 fi

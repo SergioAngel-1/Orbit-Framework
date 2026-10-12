@@ -76,3 +76,80 @@ describe("Caddyfile: wc/store y wc/v3 cerrados", () => {
     expect(proxiedWc).toBeNull();
   });
 });
+
+// ============================================================================
+//  Cabeceras de seguridad en las rutas que Caddy sirve DIRECTO desde WordPress.
+//
+//  /wp-admin/*, /wp-login.php, /wp-json/* y /wp-content/* no pasan por Next.js, así
+//  que nunca recibían las cabeceras que `next.config.mjs` manda para el frontend.
+//  HSTS, X-Content-Type-Options y Referrer-Policy van a nivel de sitio con el MISMO
+//  valor que Next (duplicarlas es inocuo). X-Frame-Options va por ruta y como
+//  SAMEORIGIN: el frontend usa DENY para sí mismo y WordPress no debe heredar ese
+//  valor más estricto (rompería los iframes propios de wp-admin, p. ej. la vista
+//  previa del Customizer).
+// ============================================================================
+
+const nextConfig = readFileSync(
+  fileURLToPath(new URL("../../next.config.mjs", import.meta.url)),
+  "utf8",
+);
+
+/** Parte del sitio anterior al primer `handle`: las directivas globales a toda respuesta. */
+const siteLevel = code.slice(0, code.indexOf("handle "));
+
+/** Valor que `next.config.mjs` da a una cabecera. */
+function nextHeaderValue(key: string): string {
+  const match = nextConfig.match(
+    new RegExp(`key:\\s*"${key}",\\s*value:\\s*"([^"]+)"`),
+  );
+  expect(match, `${key} en next.config.mjs`).not.toBeNull();
+  return match![1]!;
+}
+
+describe("Caddyfile: cabeceras de seguridad base", () => {
+  it.each(["Strict-Transport-Security", "X-Content-Type-Options", "Referrer-Policy"])(
+    "%s va a nivel de sitio y con el mismo valor que next.config.mjs",
+    (name) => {
+      const value = nextHeaderValue(name);
+
+      expect(siteLevel).toContain(`header >${name} "${value}"`);
+    },
+  );
+
+  it("las cabeceras con `>` se aplican después del proxy, así que pisan las del upstream", () => {
+    for (const name of [
+      "Strict-Transport-Security",
+      "X-Content-Type-Options",
+      "Referrer-Policy",
+    ]) {
+      expect(siteLevel).toMatch(new RegExp(`header\\s+>${name}\\s`));
+    }
+  });
+
+  it("X-Frame-Options NO es global: el frontend usa DENY y no debe pisarse", () => {
+    expect(siteLevel).not.toContain("X-Frame-Options");
+  });
+});
+
+describe("Caddyfile: X-Frame-Options SAMEORIGIN en lo que sirve WordPress", () => {
+  it.each(["/wp-admin/*", "/wp-login.php", "/wp-json/*", "/wp-content/*"])(
+    "%s manda X-Frame-Options SAMEORIGIN y sigue proxyando",
+    (matcher) => {
+      const block = handleBlock(matcher);
+
+      expect(block, `falta el bloque handle ${matcher}`).toBeDefined();
+      expect(block).toContain('header >X-Frame-Options "SAMEORIGIN"');
+      expect(block).toContain("reverse_proxy wordpress:80");
+    },
+  );
+
+  it("el frontend (catch-all) no define X-Frame-Options: lo manda Next con DENY", () => {
+    const frontend = code.slice(
+      code.indexOf("reverse_proxy frontend:3000") - 40,
+      code.indexOf("reverse_proxy frontend:3000") + 40,
+    );
+
+    expect(frontend).not.toContain("X-Frame-Options");
+    expect(nextHeaderValue("X-Frame-Options")).toBe("DENY");
+  });
+});
