@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getProducts } from "@/lib/catalog/products";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { logger } from "@/lib/observability/logger";
+import { rateLimit } from "@/lib/security/rate-limit";
+import { getClientIp } from "@/lib/http/request-ip";
 import type { CatalogProduct } from "@/types/catalog";
 
 export const dynamic = "force-dynamic";
@@ -60,9 +62,27 @@ export async function GET(request: Request) {
     }
   }
 
+  // La búsqueda es la parte cara y abusable de este endpoint público (un recorrido
+  // por el catálogo por cada pulsación); el listado normal es cacheable y no se
+  // limita. Fail-open si Redis no responde, como todo rate-limit no estricto.
+  const searchQuery = searchParams.get("search")?.trim() ?? "";
+  if (searchQuery) {
+    const rl = await rateLimit(`products-search:${getClientIp(request)}`, 20, 60);
+    if (!rl.success) {
+      logger.warn(
+        { event: "api.products.search_rate_limited" },
+        "Rate-limit en la búsqueda de productos",
+      );
+      return NextResponse.json(
+        { error: "Demasiadas búsquedas." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      );
+    }
+  }
+
   try {
     const result = await getProducts({
-      search: searchParams.get("search") || undefined,
+      search: searchQuery || undefined,
       after: searchParams.get("after") || undefined,
       category: searchParams.get("category") || undefined,
       minPrice: searchParams.get("minPrice") || undefined,

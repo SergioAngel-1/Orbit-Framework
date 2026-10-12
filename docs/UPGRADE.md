@@ -134,6 +134,18 @@ git fetch framework --tags
   entero positivo (antes se aceptaba `-3` o `1.5`); `recoveryCode` en blanco ya no cae al TOTP
   (422); un `token` de `verify-email` de más de 200 caracteres se rechaza; y un cuerpo `null`
   pasa de 500 a 422.
+- **(contrato) Rate-limit en tres lecturas/entradas que no lo tenían** (429 con `Retry-After`;
+  fail-open si Redis no responde): `POST /api/revalidate` (120/min por IP, el mismo techo que los
+  webhooks de pedido), la **búsqueda** de `GET /api/store/products?search=` (20/min por IP; el
+  listado sin búsqueda no se limita) y `GET /api/store/cart` (30/min por IP y carrito). El cliente
+  del carrito ya trata un error como «carrito no disponible».
+- **(contrato) Los webhooks de pedido (`order-created`/`order-updated`) rechazan un `payload.id`
+  que no sea un id de pedido** (entero positivo, número o texto numérico) con 400, en lugar de
+  usarlo tal cual en la clave de Redis del estado.
+- **Un único `verifyHmacSignature`** (`lib/security/webhook.ts`) verifica las firmas de
+  WooCommerce (base64) y de HWE (hex con `sha256=`, prefijo obligatorio). Compara la firma
+  codificada tal como llega, no los bytes decodificados, y falla cerrado con un secreto vacío. Un
+  webhook propio nuevo debe usarlo en vez de reimplementar el HMAC.
 
 ### Tooling
 

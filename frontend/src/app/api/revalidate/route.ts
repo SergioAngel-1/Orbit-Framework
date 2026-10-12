@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { createHmac, timingSafeEqual } from "crypto";
-import { verifyWooWebhook } from "@/lib/security/webhook";
+import { verifyHmacSignature, verifyWooWebhook } from "@/lib/security/webhook";
+import { rateLimit } from "@/lib/security/rate-limit";
+import { getClientIp } from "@/lib/http/request-ip";
 import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
@@ -31,16 +32,36 @@ export function resolveHweTag(raw: unknown): HweTag | null {
 function verifyHweSignature(rawBody: string, signature: string | null): boolean {
   const secret = process.env.HWE_REVALIDATION_SECRET;
   if (!signature || !secret) return false;
-  const expected =
-    "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
-  try {
-    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
-  } catch {
-    return false;
-  }
+  return verifyHmacSignature(rawBody, signature, secret, {
+    encoding: "hex",
+    prefix: "sha256=",
+  });
 }
 
+/**
+ * Peticiones por ventana y por IP. Va ANTES de leer el cuerpo y de verificar la
+ * firma: sin él, cualquiera podía martillear el endpoint (HMAC + log por petición)
+ * sin coste. El techo es el de los demás webhooks de WooCommerce (120/min) y no más
+ * bajo porque una importación o edición masiva de productos dispara un
+ * `product.updated` por producto desde la misma IP del WordPress.
+ */
+const REVALIDATE_LIMIT = 120;
+const REVALIDATE_WINDOW_SECONDS = 60;
+
 export async function POST(request: Request) {
+  const rl = await rateLimit(
+    `revalidate:${getClientIp(request)}`,
+    REVALIDATE_LIMIT,
+    REVALIDATE_WINDOW_SECONDS,
+  );
+  if (!rl.success) {
+    logger.warn({ event: "revalidate.rate_limited" }, "Rate-limit en /api/revalidate");
+    return NextResponse.json(
+      { error: "Demasiadas solicitudes." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
+  }
+
   const rawBody = await request.text();
 
   // ── Rama 1: revalidación de configuración del plugin ─────────────────────

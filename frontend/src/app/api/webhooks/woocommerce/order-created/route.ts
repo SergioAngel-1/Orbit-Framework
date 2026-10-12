@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyWooWebhook } from "@/lib/security/webhook";
 import { markEventOnce } from "@/lib/security/replay";
 import { rateLimit } from "@/lib/security/rate-limit";
+import { parseWebhookOrderId } from "@/lib/woocommerce/order-id";
 import { getClientIp } from "@/lib/http/request-ip";
 import {
   recordAndDiffStatus,
@@ -51,12 +52,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  const orderId = payload.id as number | string | undefined;
+  // El id se interpola en una clave de Redis y llega a los efectos: solo se admite
+  // un id de pedido válido (ver `order-id.ts`), no el cast de lo que mande el emisor.
+  const orderId = parseWebhookOrderId(payload.id);
   const status = String(payload.status ?? "");
 
-  if (orderId == null || status === "") {
+  if (orderId === null || status === "") {
+    logger.warn(
+      { event: "webhook.order-created.invalid_payload" },
+      "Payload de pedido sin id válido o sin estado",
+    );
     return NextResponse.json(
-      { error: "Payload de pedido incompleto." },
+      { error: "Payload de pedido incompleto o con id inválido." },
       { status: 400 },
     );
   }
