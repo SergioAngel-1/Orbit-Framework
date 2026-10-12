@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PHPUnit para el código PHP propio de HWE (sin WordPress: las funciones de WP
+  se simulan con Brain Monkey). Se ejecuta con `composer test` desde backend/.
+
+  - Las pruebas viven SOLO en tests/ (tests/Unit/).
+  - `<source>` limita la cobertura al código propio: mu-plugins, plugins hwe-*
+    y el tema base. WooCommerce, WPGraphQL, etc. quedan fuera.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         cacheDirectory=".phpunit.cache"
+         colors="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         beStrictAboutOutputDuringTests="true"
+         displayDetailsOnTestsThatTriggerWarnings="true">
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>wp-content/mu-plugins</directory>
+            <directory>wp-content/plugins/hwe-banners</directory>
+            <directory>wp-content/themes/hwe-headless-base</directory>
+        </include>
+    </source>
+</phpunit>

@@ -54,6 +54,12 @@ backend/wp-content/hwe-backup-config.json
 !backend/wp-content/themes/hwe-headless-base/
 !backend/wp-content/themes/hwe-headless-base/**
 
+# Tests PHP (PHPUnit + Brain Monkey): dependencias y cachés locales.
+# composer.lock SÍ se versiona (CI instala exactamente lo mismo).
+backend/vendor/
+backend/.phpunit.cache/
+backend/.phpunit.result.cache
+
 # ============================================================================
 #  FRONTEND — Next.js
 # ============================================================================

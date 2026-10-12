@@ -62,6 +62,45 @@ jobs:
         run: npm run audit:gate
 
   # --------------------------------------------------------------------------
+  # Tests PHP del backend (PHPUnit + Brain Monkey): el código propio de WordPress
+  # (mu-plugins, plugins hwe-*, tema base) se prueba sin levantar WordPress; las
+  # funciones de WP se simulan. PHP 8.4 = el de la imagen de producción.
+  # --------------------------------------------------------------------------
+  phpunit:
+    name: PHPUnit (PHP 8.4)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+
+      - name: Ruta de la caché de Composer
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Validar composer.json y composer.lock
+        run: composer validate --strict --no-interaction
+
+      - name: Instalar dependencias
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Tests PHP
+        run: composer test
+
+  # --------------------------------------------------------------------------
   # Secret scanning: ningún secreto debe entrar al repositorio.
   # --------------------------------------------------------------------------
   secret-scan:

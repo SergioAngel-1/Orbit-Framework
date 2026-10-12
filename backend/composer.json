@@ -1,0 +1,29 @@
+{
+    "name": "hwe/backend",
+    "description": "Tests unitarios (PHPUnit + Brain Monkey) del código PHP propio de Headless Web Ecosystem. No es un paquete: WordPress carga mu-plugins y plugins sin Composer.",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.3"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "HWE\\ControlCenter\\": "wp-content/mu-plugins/hwe-control-center/",
+            "HWE\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "config": {
+        "platform": {
+            "php": "8.4.0"
+        },
+        "sort-packages": true,
+        "optimize-autoloader": true
+    },
+    "require-dev": {
+        "brain/monkey": "^2.7",
+        "phpunit/phpunit": "^12.5"
+    }
+}
