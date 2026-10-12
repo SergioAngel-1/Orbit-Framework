@@ -12,43 +12,49 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "audit:gate": "node scripts/audit-gate.mjs",
     "e2e": "playwright test",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\""
   },
   "dependencies": {
-    "@emnapi/core": "^1.11.1",
-    "@emnapi/runtime": "^1.11.1",
-    "@sentry/nextjs": "^10.59.0",
+    "@sentry/nextjs": "^10.76.2",
     "@swc/helpers": "^0.5.23",
     "country-flag-icons": "^1.6.20",
     "ioredis": "5.11.1",
-    "isomorphic-dompurify": "3.18.0",
-    "jose": "6.2.3",
-    "next": "16.2.9",
-    "next-intl": "^4.13.0",
+    "isomorphic-dompurify": "^3.23.0",
+    "jose": "^6.2.12",
+    "next": "16.4.0",
+    "next-intl": "^4.14.9",
     "otplib": "^13.4.1",
     "pino": "^10.3.1",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
+    "qrcode": "^1.5.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
     "zod": "4.4.3"
   },
+  "overrides": {
+    "postcss": "^8.5.25",
+    "sharp": "^0.35.4"
+  },
   "devDependencies": {
-    "@axe-core/playwright": "^4.11.3",
-    "@playwright/test": "^1.61.0",
-    "@tailwindcss/postcss": "^4.3.1",
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.64.0",
+    "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/typography": "^0.5.20",
-    "@types/node": "^24.0.0",
-    "@types/react": "19.2.17",
-    "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "^6.0.2",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@types/node": "^24.19.2",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9.39.5",
-    "eslint-config-next": "16.2.9",
-    "prettier": "^3.8.4",
-    "tailwindcss": "^4.3.1",
+    "eslint-config-next": "16.4.0",
+    "prettier": "^3.9.10",
+    "tailwindcss": "^4.3.3",
     "typescript": "6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=20.18.0"
@@ -56,8 +62,6 @@
   "allowScripts": {
     "@parcel/watcher@2.5.6": true,
     "@sentry/cli@2.58.6": true,
-    "@swc/core@1.15.41": true,
-    "sharp@0.34.5": true,
     "unrs-resolver@1.12.2": true
   }
 }

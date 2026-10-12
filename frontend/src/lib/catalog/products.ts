@@ -205,8 +205,7 @@ export async function getCategory(
 ): Promise<{ category: ProductCategory; products: CatalogProduct[] } | null> {
   const data = await fetchGraphQL<{
     productCategory:
-      | (ProductCategory & { products: { nodes: RawProductNode[] } })
-      | null;
+      (ProductCategory & { products: { nodes: RawProductNode[] } }) | null;
   }>(CATEGORY_BY_SLUG_QUERY, {
     variables: { slug, first: 24 },
     revalidate: CATALOG_REVALIDATE,

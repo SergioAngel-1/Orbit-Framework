@@ -85,8 +85,7 @@ export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
         },
       });
       const data = (await res.json().catch(() => ({}))) as
-        | CheckoutResult
-        | { error?: string };
+        CheckoutResult | { error?: string };
       if (!res.ok) {
         throw new Error(("error" in data && data.error) || tCheckout.emptyCart);
       }

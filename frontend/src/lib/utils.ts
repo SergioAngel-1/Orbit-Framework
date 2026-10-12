@@ -1,11 +1,7 @@
 // Utilitaria `cn`: fusiona clases Tailwind sin dependencias externas.
 // Acepta strings, objetos condicionales y valores falsy (los ignora).
 type ClassInput =
-  | string
-  | undefined
-  | null
-  | false
-  | Record<string, boolean | undefined | null>;
+  string | undefined | null | false | Record<string, boolean | undefined | null>;
 
 export function cn(...inputs: ClassInput[]): string {
   const tokens: string[] = [];

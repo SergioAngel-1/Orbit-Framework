@@ -3,13 +3,7 @@ import { cn } from "@/lib/utils";
 
 type Variant = "solid" | "outline" | "soft";
 type Color =
-  | "brand"
-  | "secondary"
-  | "accent"
-  | "success"
-  | "warning"
-  | "error"
-  | "gray";
+  "brand" | "secondary" | "accent" | "success" | "warning" | "error" | "gray";
 type Size = "sm" | "md";
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {

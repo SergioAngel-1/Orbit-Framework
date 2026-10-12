@@ -55,6 +55,12 @@ jobs:
           # necesario para compilar (las llamadas a WP/WC ocurren en runtime).
           NEXT_PUBLIC_WORDPRESS_API_URL: http://localhost:8080/graphql
 
+      # Falla ante avisos high/critical de TODO el árbol de dependencias salvo la
+      # allowlist justificada de scripts/audit-gate.mjs (ver su cabecera). Va al
+      # final porque un aviso nuevo no debe ocultar fallos de calidad del código.
+      - name: Auditoría de dependencias (npm audit)
+        run: npm run audit:gate
+
   # --------------------------------------------------------------------------
   # Secret scanning: ningún secreto debe entrar al repositorio.
   # --------------------------------------------------------------------------

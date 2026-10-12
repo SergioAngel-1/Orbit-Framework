@@ -49,9 +49,7 @@ describe("normalizePlacement", () => {
       ],
     });
     expect(result.intervalMs).toBe(4000);
-    expect(result.slides).toEqual([
-      { id: 1, image: "https://x/a.jpg", title: "Ok" },
-    ]);
+    expect(result.slides).toEqual([{ id: 1, image: "https://x/a.jpg", title: "Ok" }]);
   });
 
   it("usa defaults seguros ante entrada inválida", () => {
