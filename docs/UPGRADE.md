@@ -159,6 +159,19 @@ git fetch framework --tags
   (`target="_blank"` en cualquier grafía y nombres de ventana; solo `_self` queda exento). Se
   fusiona con el `rel` del CMS (p. ej. `nofollow`) y se elimina `opener`. El hook se registra una
   vez al importar el módulo.
+- **(contrato) Cambiar la contraseña cierra las demás sesiones y conserva la actual.**
+  `POST /api/auth/change-password` rota el secreto JWT del usuario en WordPress (`logout-all`),
+  lo que invalida todos sus refresh tokens, también el de este dispositivo; por eso reemite la
+  sesión actual iniciando sesión con la contraseña nueva, guarda las cookies nuevas y revoca el
+  access token anterior. Los access tokens de otros dispositivos caducan solos (~5 min). La
+  respuesta pasa de `{ ok }` a `{ ok, otherSessionsRevoked, sessionKept }`: si alguno es `false` la
+  contraseña **sí** cambió, pero hay que avisar al usuario (`otherSessionsRevoked: false` = sus
+  otras sesiones siguen abiertas; `sessionKept: false` = debe volver a iniciar sesión). El
+  `ChangePasswordForm` del starter ya lo hace (claves `changePassword.successSessionsPending` y
+  `successReloginNeeded`); `revokeAllSessions` devuelve ahora un booleano.
+- **`change-password` verifica la contraseña actual con el email de la cuenta**, no con el id
+  numérico de la sesión, que `wp_authenticate` no acepta (la verificación fallaba siempre). Un
+  fallo de red o HTTP al verificar responde 502 en vez de «contraseña incorrecta».
 
 ### Tooling
 

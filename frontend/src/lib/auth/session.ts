@@ -2,10 +2,15 @@ import "server-only";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { fetchGraphQL, type GraphQLRequestOptions } from "@/lib/graphql-client";
+import { logger } from "@/lib/observability/logger";
 import { AUTH_COOKIE } from "./constants";
 import { verifyAuthToken } from "./jwt";
 import { isTokenRevoked } from "./revocation";
 import type { Session } from "@/types/auth";
+
+const WP_INTERNAL =
+  process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
+  "http://wordpress:80";
 
 // ============================================================================
 //  Acceso a la sesión desde Server Components y Route Handlers.
@@ -62,4 +67,40 @@ export async function fetchGraphQLAsViewer<TData>(
 ): Promise<TData> {
   const token = await getAuthToken();
   return fetchGraphQL<TData>(query, { ...options, authToken: token ?? undefined });
+}
+
+/**
+ * Rota el secreto JWT del usuario en WordPress: invalida TODOS sus refresh tokens,
+ * también el de este dispositivo (los access tokens vivos caducan solos, ~5 min).
+ * Quien llame y quiera conservar la sesión actual debe reemitirla después.
+ *
+ * @returns `true` si WordPress lo confirmó. Un fallo se registra y devuelve `false`
+ * en vez de lanzar, pero el llamador DEBE tenerlo en cuenta: darlo por hecho dejaría
+ * al usuario creyendo que cerró sus otras sesiones cuando no es así.
+ */
+export async function revokeAllSessions(accessToken: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${WP_INTERNAL}/wp-json/hwe/v1/auth/logout-all`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      logger.error(
+        { event: "auth.revoke_all_sessions.wp_error", status: res.status },
+        "WordPress no pudo revocar las sesiones",
+      );
+      return false;
+    }
+    return true;
+  } catch (error) {
+    logger.error(
+      {
+        event: "auth.revoke_all_sessions.error",
+        err: error instanceof Error ? error.message : String(error),
+      },
+      "No se pudo contactar con WordPress para revocar las sesiones",
+    );
+    return false;
+  }
 }

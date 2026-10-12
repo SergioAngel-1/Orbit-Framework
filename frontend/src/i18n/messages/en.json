@@ -280,7 +280,9 @@
     "submit": "Change password",
     "submitting": "Changing…",
     "mismatch": "Passwords do not match.",
-    "success": "Password changed successfully.",
+    "success": "Password changed successfully. We have signed out your other sessions.",
+    "successSessionsPending": "Password changed, but we could not sign out your other sessions. Change it again in a few minutes to sign them out.",
+    "successReloginNeeded": "Password changed and other sessions signed out. Sign in again to continue.",
     "error": "Could not change password."
   },
   "verifyEmail": {

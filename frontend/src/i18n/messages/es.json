@@ -285,7 +285,9 @@
     "submit": "Cambiar contraseña",
     "submitting": "Cambiando…",
     "mismatch": "Las contraseñas no coinciden.",
-    "success": "Contraseña cambiada correctamente.",
+    "success": "Contraseña cambiada correctamente. Hemos cerrado tus otras sesiones.",
+    "successSessionsPending": "Contraseña cambiada, pero no pudimos cerrar tus otras sesiones. Vuelve a cambiarla en unos minutos para cerrarlas.",
+    "successReloginNeeded": "Contraseña cambiada y otras sesiones cerradas. Vuelve a iniciar sesión para continuar.",
     "error": "No se pudo cambiar la contraseña."
   },
   "verifyEmail": {

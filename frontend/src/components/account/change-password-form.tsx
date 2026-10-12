@@ -35,7 +35,20 @@ export function ChangePasswordForm() {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error || t("error"));
       }
-      setMessage(t("success"));
+      // El servidor informa de qué pasó con las demás sesiones: no se da por cerradas
+      // unas sesiones que siguen abiertas (`=== false`: una respuesta antigua sin esos
+      // campos se trata como correcta).
+      const result = (await res.json().catch(() => ({}))) as {
+        otherSessionsRevoked?: boolean;
+        sessionKept?: boolean;
+      };
+      setMessage(
+        result.otherSessionsRevoked === false
+          ? t("successSessionsPending")
+          : result.sessionKept === false
+            ? t("successReloginNeeded")
+            : t("success"),
+      );
       (e.target as HTMLFormElement).reset();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error.");
