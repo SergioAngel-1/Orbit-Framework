@@ -208,6 +208,7 @@ jobs:
           CSRF_SECRET: dummy-validation-value
           HWE_SECRETS_KEY: dummy-validation-value
           HWE_2FA_KEY: dummy-validation-value
+          WP_ADMIN_PASSWORD: dummy-validation-value
         run: docker compose -f docker-compose.prod.yml config --quiet
 
       - name: Validar Caddyfile

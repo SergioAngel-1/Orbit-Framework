@@ -48,13 +48,18 @@ add_filter(
  *    La introspección revela el esquema completo (tipos, campos, argumentos).
  *    Es útil en desarrollo pero en producción expone toda la superficie de la API.
  *
- *    Se desactiva automáticamente cuando WP_ENVIRONMENT_TYPE === 'production'.
+ *    Se desactiva SALVO que el entorno sea explícitamente no productivo. Usa
+ *    wp_get_environment_type() y no la constante cruda: WordPress ya considera
+ *    «production» por defecto cuando WP_ENVIRONMENT_TYPE no está definida, así que
+ *    comprobar solo `defined('WP_ENVIRONMENT_TYPE')` fallaba ABIERTO (introspección
+ *    activa) precisamente en ese caso —el despliegue más común si se olvida fijar la
+ *    constante—. Falla cerrado por defecto.
  *    Compatible con WPGraphQL 1.14+ (filter) y versiones anteriores (constante).
  * ------------------------------------------------------------------------ */
 add_filter(
 	'graphql_introspection_enabled',
 	static function ( bool $enabled ): bool {
-		if ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE === 'production' ) {
+		if ( 'production' === wp_get_environment_type() ) {
 			return false;
 		}
 		return $enabled;
@@ -62,10 +67,8 @@ add_filter(
 );
 
 // Fallback para WPGraphQL < 1.14: constante global.
-if ( defined( 'WP_ENVIRONMENT_TYPE' ) && WP_ENVIRONMENT_TYPE === 'production' ) {
-	if ( ! defined( 'GRAPHQL_INTROSPECTION_ENABLED' ) ) {
-		define( 'GRAPHQL_INTROSPECTION_ENABLED', false );
-	}
+if ( 'production' === wp_get_environment_type() && ! defined( 'GRAPHQL_INTROSPECTION_ENABLED' ) ) {
+	define( 'GRAPHQL_INTROSPECTION_ENABLED', false );
 }
 
 /* ---------------------------------------------------------------------------

@@ -17,7 +17,8 @@
   - [ ] `WC_WEBHOOK_SECRET` — `openssl rand -hex 32` (y configurarlo en el webhook de Woo).
   - [ ] `HWE_REVALIDATION_SECRET` — `openssl rand -hex 32` (idéntico en WP y frontend).
   - [ ] `HWE_SECRETS_KEY` — `openssl rand -base64 48` (cifrado de secretos del Control Center).
-  - [ ] Contraseñas de DB (`MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD`) y admin de WP.
+  - [ ] Contraseñas de DB (`MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD`).
+  - [ ] `WP_ADMIN_PASSWORD` — fuerte y única, **obligatoria**: `setup.sh` ya no cae en `admin` y el compose de producción no arranca sin ella. `wp-login.php` limita a 5 intentos cada 5 min por IP.
 - [ ] `WC_CONSUMER_KEY` / `WC_CONSUMER_SECRET` generados con `generate-woo-keys.sh`.
 - [ ] Verificar que **ningún** secreto está en el repo (`gitleaks` corre en CI).
 

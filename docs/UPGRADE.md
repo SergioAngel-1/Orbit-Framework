@@ -199,6 +199,21 @@ git fetch framework --tags
 - **Toda llamada a WordPress pasa por un cliente que añade el secreto.** Una rutina nueva no debe
   construir URLs de WordPress ni llamar a `fetch` por su cuenta: usa `wpFetch` (`lib/wordpress/
   internal-fetch`). El test `lib/security/wordpress-calls.test.ts` lo impone sobre todo el código.
+- **`wp-login.php` tiene rate-limit: 5 intentos (POST) cada 5 minutos por IP.** El mu-plugin
+  `rate-limit.php` solo cubría `/graphql` y `/wp-json/`, y `wp-login.php` es el único login humano
+  permitido: sin límite se podían probar contraseñas sin fricción. Superarlo responde 429 con
+  `Retry-After`; cargar la página (GET) no cuenta. También limita el envío de «he olvidado mi
+  contraseña» de WordPress. Presupuesto propio: no compite con la API.
+- **(contrato) `WP_ADMIN_PASSWORD` es obligatoria al instalar.** `setup.sh` ya no cae en `admin`
+  (junto a `WP_ADMIN_USER=admin` por defecto dejaba credenciales públicas) y aborta con error si
+  falta; `docker-compose.prod.yml` se niega a arrancar sin ella (`:?`). El `docker-compose.yml` de
+  desarrollo sigue dando un valor local explícito. Si validas el compose de producción en tu CI,
+  añade `WP_ADMIN_PASSWORD` a las variables ficticias.
+- **La introspección de GraphQL falla cerrado.** Se apagaba solo si `WP_ENVIRONMENT_TYPE` estaba
+  *definida* como `production`; sin la constante (WordPress asume `production`) quedaba activa. Ahora
+  se pregunta a `wp_get_environment_type()`. Si usabas introspección en un entorno sin la constante
+  (generación de tipos, herramientas de desarrollo), define `WP_ENVIRONMENT_TYPE` como `local` o
+  `development`; `docker-compose.yml` ya lo hace (`local`).
 
 ### Tooling
 

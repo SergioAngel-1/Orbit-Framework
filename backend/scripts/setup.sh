@@ -68,12 +68,22 @@ done
 if $WP core is-installed >/dev/null 2>&1; then
 	echo "==> WordPress ya está instalado. Omitiendo instalación del core."
 else
+	# Sin contraseña NO se instala: caer en un valor por defecto ('admin') dejaría el
+	# usuario administrador con una credencial pública y predecible (junto a
+	# WP_ADMIN_USER=admin por defecto), y wp-login.php es el único login humano.
+	if [ -z "${WP_ADMIN_PASSWORD:-}" ]; then
+		echo "ERROR: WP_ADMIN_PASSWORD no está definida. Este script no cae en un valor" >&2
+		echo "       por defecto ('admin') para no crear el usuario administrador con una" >&2
+		echo "       contraseña débil y predecible. Defínela (docker-compose.yml en" >&2
+		echo "       desarrollo, .env.prod en producción) y vuelve a ejecutarlo." >&2
+		exit 1
+	fi
 	echo "==> Instalando WordPress core..."
 	$WP core install \
 		--url="${WP_URL:-http://localhost:8080}" \
 		--title="${WP_TITLE:-Headless Web Ecosystem}" \
 		--admin_user="${WP_ADMIN_USER:-admin}" \
-		--admin_password="${WP_ADMIN_PASSWORD:-admin}" \
+		--admin_password="${WP_ADMIN_PASSWORD}" \
 		--admin_email="${WP_ADMIN_EMAIL:-admin@example.com}" \
 		--skip-email
 fi

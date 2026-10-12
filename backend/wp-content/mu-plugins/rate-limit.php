@@ -1,9 +1,10 @@
 <?php
 /**
  * Plugin Name: Rate-Limit para WordPress
- * Description: Defensa en profundidad contra abusos en endpoints de API.
- *              Limita peticiones a /graphql y /wp-json por IP usando transients
- *              de WordPress (respaldados por Redis cuando está disponible).
+ * Description: Defensa en profundidad contra abusos en endpoints de API y en el
+ *              login nativo. Limita peticiones a /graphql, /wp-json y los intentos
+ *              de POST a wp-login.php por IP usando transients de WordPress
+ *              (respaldados por Redis cuando está disponible).
  *
  *              Es una capa complementaria al rate-limit del BFF (Next.js):
  *              mientras el BFF protege las llamadas desde el frontend, este
@@ -32,6 +33,17 @@ const HWE_RL_REST = [
 	'prefix'    => 'hwe_rl_rest_',
 ];
 
+// wp-login.php es el único login humano permitido (headless-config.php) y no tenía
+// ninguna defensa contra fuerza bruta ni credential-stuffing: este archivo solo cubría
+// /graphql y /wp-json/. Con WP_ADMIN_USER=admin por defecto el usuario ya se conoce.
+// Limita INTENTOS (POST con credenciales, incluida la acción lostpassword), no vistas
+// de la página (GET). Presupuesto propio: no compite con la API.
+const HWE_RL_LOGIN = [
+	'limit'     => 5,
+	'window'    => 300, // 5 min
+	'prefix'    => 'hwe_rl_login_',
+];
+
 /* ---------------------------------------------------------------------------
  * Arranque: hookeamos init con prioridad alta para interceptar antes de que
  * WPGraphQL o la REST API procesen la petición.
@@ -41,13 +53,18 @@ add_action( 'init', 'hwe_rate_limit_init', 1 );
 function hwe_rate_limit_init(): void {
 	$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
 
-	// Solo aplicamos rate-limit a los endpoints de API.
+	// Solo aplicamos rate-limit a los endpoints de API y a los intentos de login.
 	if ( str_contains( $uri, '/graphql' ) ) {
 		hwe_check_rate_limit( HWE_RL_GRAPHQL );
 	} elseif ( str_contains( $uri, '/wp-json/' ) ) {
 		hwe_check_rate_limit( HWE_RL_REST );
+	} elseif ( str_contains( $uri, 'wp-login.php' )
+		&& 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+		// Solo el envío de credenciales (POST): cargar la página (GET) no cuenta, para
+		// no bloquear a quien solo la visita.
+		hwe_check_rate_limit( HWE_RL_LOGIN );
 	}
-	// El resto de rutas (admin, login, etc.) no tienen rate-limit aquí.
+	// El resto de rutas (admin, etc.) no tienen rate-limit aquí.
 }
 
 /* ---------------------------------------------------------------------------
