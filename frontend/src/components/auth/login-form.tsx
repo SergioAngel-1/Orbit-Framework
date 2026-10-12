@@ -5,6 +5,17 @@ import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 
+/**
+ * Mueve el foco al campo del código cuando aparece el paso de 2FA. Es la gestión
+ * de foco que se espera al revelar contenido tras una acción del usuario, no un
+ * `autoFocus` de carga de página (por eso no usamos la prop, que jsx-a11y veta).
+ * Vive fuera del componente para que su identidad sea estable: un ref inline
+ * se re-ejecutaría en cada render y robaría el foco al escribir.
+ */
+function focusOnMount(el: HTMLInputElement | null) {
+  el?.focus();
+}
+
 export function LoginForm() {
   const router = useRouter();
   const tLogin = useTranslations("login");
@@ -88,7 +99,7 @@ export function LoginForm() {
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           placeholder="000000"
           maxLength={6}
-          autoFocus
+          ref={focusOnMount}
           className="w-full rounded-lg border border-gray-300 px-4 py-2 text-center text-lg tracking-widest dark:border-gray-700 dark:bg-gray-900"
         />
         <button

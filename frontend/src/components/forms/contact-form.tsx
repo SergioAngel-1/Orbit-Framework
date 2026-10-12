@@ -1,6 +1,7 @@
 "use client";
 import { useState, type ReactNode, type SVGProps } from "react";
 import { Input, Select, Textarea, Checkbox, Button } from "@/components/ui";
+import { Link } from "@/i18n/navigation";
 import { csrfFetch } from "@/lib/client/csrf";
 import { cn } from "@/lib/utils";
 import { CountrySelector } from "./country-selector";
@@ -340,7 +341,10 @@ export function ContactForm({
               />
 
               <div className="flex flex-col gap-1.5">
-                <label className="font-sans text-sm font-medium text-[--foreground]">
+                <label
+                  htmlFor="contact-phone"
+                  className="font-sans text-sm font-medium text-[--foreground]"
+                >
                   Teléfono de contacto
                 </label>
                 <div className="flex gap-2">
@@ -350,6 +354,7 @@ export function ContactForm({
                   />
                   <div className="flex-1">
                     <Input
+                      id="contact-phone"
                       placeholder="300 123 4567"
                       value={formData.phone}
                       onChange={(e) => setField("phone", e.target.value)}
@@ -380,9 +385,15 @@ export function ContactForm({
                 label={
                   <span className="text-[12px] text-[--foreground]/60">
                     Acepto la{" "}
-                    <a href="#" className="text-brand underline">
+                    {/* Pestaña nueva: no se pierde lo ya escrito en el formulario. */}
+                    <Link
+                      href="/legal/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand underline"
+                    >
                       política de Privacidad
-                    </a>
+                    </Link>
                   </span>
                 }
                 checked={formData.terms}

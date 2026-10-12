@@ -68,12 +68,18 @@ export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElemen
   );
 }
 
-export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
+export function CardTitle({
+  className,
+  children,
+  ...props
+}: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
       className={cn("font-semibold text-gray-900 dark:text-gray-100", className)}
       {...props}
-    />
+    >
+      {children}
+    </h3>
   );
 }
 

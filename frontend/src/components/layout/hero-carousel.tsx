@@ -174,7 +174,6 @@ export function HeroCarousel({
       onPointerCancel={handlePointerUp}
       role="region"
       aria-label="Carrusel de banners"
-      tabIndex={0}
     >
       <div
         className="flex"

@@ -50,9 +50,15 @@ export function Modal({
     }
   }, [open]);
 
-  // Cerrar con Escape ya es nativo en <dialog>, pero también manejamos backdrop click
+  // Cerrar con Escape ya es nativo en <dialog> (y el botón «Cerrar» se alcanza con
+  // teclado): el click en el backdrop es solo un atajo de ratón.
   const handleBackdropClick = (e: React.MouseEvent<HTMLDialogElement>) => {
     if (preventBackdropClose) return;
+    // Solo cuenta el click que cae sobre el propio <dialog> (su ::backdrop): un
+    // click dentro del contenido tiene otro `target`. Esto cubre también el
+    // «click» que el navegador sintetiza con Enter/Espacio sobre un botón del
+    // modal, que llega con clientX/Y = 0 y caería «fuera» del rectángulo.
+    if (e.target !== e.currentTarget) return;
     // Detección de click en el backdrop (fuera del contenido)
     const rect = (e.currentTarget as HTMLDialogElement).getBoundingClientRect();
     const clickedBackdrop =
@@ -64,6 +70,7 @@ export function Modal({
   };
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- cierre por click en el backdrop: atajo de ratón; el equivalente de teclado (Escape nativo y el botón «Cerrar») ya existe
     <dialog
       ref={dialogRef}
       onClose={onClose}
@@ -77,8 +84,7 @@ export function Modal({
         className,
       )}
     >
-      {/* Contenido: evita que clicks en él cierren el modal */}
-      <div className="flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-4 dark:border-gray-800">
           <div>

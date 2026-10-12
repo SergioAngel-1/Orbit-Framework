@@ -8,7 +8,8 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <html>
+    // El texto de esta pantalla es fijo en español (idioma canónico del sitio).
+    <html lang="es">
       <body className="flex min-h-screen items-center justify-center bg-white p-8 dark:bg-gray-950">
         <div className="max-w-md text-center">
           <h1 className="mb-4 text-6xl font-extrabold text-gray-200 dark:text-gray-800">
