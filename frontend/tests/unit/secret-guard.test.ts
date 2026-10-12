@@ -11,6 +11,7 @@ const KEYS = [
   "HWE_REVALIDATION_SECRET",
   "WC_CONSUMER_KEY",
   "WC_CONSUMER_SECRET",
+  "ALLOWED_ORIGIN", // obligatoria; su validación detallada está en secret-guard-origin.test.ts
 ] as const;
 
 describe("findSecretProblems", () => {
@@ -19,7 +20,7 @@ describe("findSecretProblems", () => {
   beforeEach(() => {
     for (const k of KEYS) {
       saved[k] = process.env[k];
-      process.env[k] = GOOD;
+      process.env[k] = k === "ALLOWED_ORIGIN" ? "https://tienda.example" : GOOD;
     }
   });
 

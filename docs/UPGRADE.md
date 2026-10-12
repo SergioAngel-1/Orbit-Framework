@@ -108,6 +108,17 @@ git fetch framework --tags
   Una instalación que cifró con la clave literal `hwe-fallback-insecure-key` debe definir una
   clave real y **volver a introducir** las credenciales.
 
+- **`CSRF_SECRET` es obligatorio y sin reserva.** Ya no se degrada a `GRAPHQL_JWT_AUTH_SECRET_KEY`
+  ni a la literal `insecure-dev-csrf-secret`: sin él, `/api/csrf` y toda escritura devuelven 500.
+  Una instancia que no lo tuviera definido (y viviera de la reserva) debe añadirlo. Un token
+  firmado con cualquiera de las reservas antiguas deja de ser válido: los usuarios obtienen uno
+  nuevo al recargar.
+- **`ALLOWED_ORIGIN` es obligatoria y el guard de arranque la comprueba** (en producción aborta;
+  en desarrollo avisa): URL absoluta **https** (solo `localhost`/`127.0.0.1`/`[::1]` pueden ir
+  por http, porque `next start` fija `NODE_ENV=production` y así arrancan el e2e y la pila local)
+  y **exactamente** el `Origin` del navegador: sin barra final, ruta, credenciales, mayúsculas ni
+  `:443`. La comparación es literal; con otra forma, toda escritura respondía 403 sin aviso.
+
 ### Tooling
 
 - **CI:** nuevo paso `npm run audit:gate` (falla ante avisos `high`/`critical`, con una allowlist

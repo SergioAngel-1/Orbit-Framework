@@ -17,12 +17,20 @@ export const CSRF_COOKIE = process.env.CSRF_COOKIE_NAME || "hwe_csrf";
 export const CSRF_HEADER = "x-csrf-token";
 export const CSRF_TOKEN_MAX_AGE = 60 * 60 * 2; // 2 horas
 
+/**
+ * Secreto de firma. Obligatorio y SIN reserva: antes degradaba a
+ * GRAPHQL_JWT_AUTH_SECRET_KEY y, si tampoco estaba, a la literal pública
+ * `insecure-dev-csrf-secret`. Con una clave pública cualquiera podía firmar un
+ * token "auténtico" y la protección desaparecía sin que nada fallara; y
+ * reutilizar el secreto JWT acoplaba dos dominios de seguridad (rotar uno rompía
+ * el otro). Sin `CSRF_SECRET` se falla cerrado: nada se emite ni se acepta.
+ */
 function getSecret(): string {
-  return (
-    process.env.CSRF_SECRET ||
-    process.env.GRAPHQL_JWT_AUTH_SECRET_KEY ||
-    "insecure-dev-csrf-secret"
-  );
+  const secret = process.env.CSRF_SECRET;
+  if (!secret) {
+    throw new Error("CSRF_SECRET no está definido en el servidor.");
+  }
+  return secret;
 }
 
 function sign(value: string): string {

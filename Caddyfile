@@ -37,9 +37,23 @@
     }
 
     # API REST de WordPress: la usa el panel /wp-admin (editor de bloques, etc.).
-    # El BFF NO la necesita por aquí (habla con WP por la red interna Docker).
-    # Para un endurecimiento mayor, restringe /wp-json/* por IP de oficina o
-    # detrás de auth; aquí se deja accesible porque wp-admin lo requiere.
+    # Las rutas de COMERCIO no se exponen: el navegador debe pasar SIEMPRE por el
+    # BFF (Origin + CSRF + rate-limit + sesión). Con /wp-json/wc/* abierto se podía
+    # operar carrito y checkout (wc/store) saltándose esas barreras, y wc/v3 queda
+    # a un paso de las claves de consumidor.
+    #
+    # El ORDEN importa: en Caddy gana el PRIMER `handle` que casa, así que estos dos
+    # bloques deben ir antes del genérico /wp-json/*. El BFF no se ve afectado:
+    # habla con WordPress por la red interna Docker (wordpress:80), no por Caddy.
+    # (tests/unit/caddyfile.test.ts comprueba el orden.)
+    handle /wp-json/wc/store/* {
+        respond "Not Found" 404
+    }
+    handle /wp-json/wc/v3/* {
+        respond "Not Found" 404
+    }
+    # El resto de /wp-json/* (wp/v2…) sigue accesible porque wp-admin lo requiere.
+    # Para un endurecimiento mayor, restríngelo por IP de oficina o detrás de auth.
     handle /wp-json/* {
         reverse_proxy wordpress:80
     }

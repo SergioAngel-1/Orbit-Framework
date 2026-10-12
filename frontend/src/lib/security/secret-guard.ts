@@ -23,12 +23,30 @@ const FORBIDDEN_DEFAULTS = new Set([
 /** Longitud mínima aceptable para un secreto en producción. */
 const MIN_SECRET_LENGTH = 24;
 
+/**
+ * Hosts de loopback, exentos de la exigencia de `https` en producción.
+ *
+ * `next start` fija `NODE_ENV=production`, así que cualquier arranque local o de
+ * CI pasa por las reglas de producción aunque sirva por http en localhost. Sin
+ * esta excepción el job e2e de CI no podía arrancar el servidor NUNCA: el guard
+ * abortaba el arranque y `wait-on` agotaba su espera.
+ *
+ * No debilita nada: un origen de loopback no es alcanzable desde fuera de la
+ * máquina, así que no puede ser el despliegue real que este guard protege. Un host
+ * público por http (`http://tienda.example`) se sigue rechazando, y la comparación
+ * es contra el HOSTNAME exacto, no un `includes`, para que
+ * `http://localhost.tienda.example` —un dominio real— no se cuele.
+ */
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
 interface SecretRule {
   name: string;
   /** Obligatorio (debe existir y ser válido). Si false, solo se valida si existe. */
   required: boolean;
   /** Exigir longitud mínima (secretos largos). */
   checkLength?: boolean;
+  /** Exigir que el valor sea un ORIGEN exacto (esquema://host[:puerto]). */
+  checkOrigin?: boolean;
 }
 
 const RULES: SecretRule[] = [
@@ -38,17 +56,60 @@ const RULES: SecretRule[] = [
   { name: "HWE_REVALIDATION_SECRET", required: true, checkLength: true },
   { name: "WC_CONSUMER_KEY", required: true },
   { name: "WC_CONSUMER_SECRET", required: true },
+  // Sin ALLOWED_ORIGIN, `assertAllowedOrigin` devuelve true y la verificación de
+  // Origin de `guardMutation` queda desactivada en silencio: es obligatoria.
+  { name: "ALLOWED_ORIGIN", required: true, checkOrigin: true },
 ];
+
+/**
+ * Comprueba que `value` es un origen válido y devuelve el problema, o `null`.
+ *
+ * La comparación contra la cabecera `Origin` del navegador es IGUALDAD de cadenas,
+ * así que el valor tiene que ser exactamente el origen que el navegador envía
+ * (`https://tienda.example`, sin barra final, ruta, credenciales ni el puerto por
+ * defecto): con cualquier otra forma TODA escritura respondería 403 sin ningún
+ * aviso.
+ */
+function originProblem(name: string, value: string, isProd: boolean): string | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return `${name} debe ser un origen absoluto (p. ej. https://tienda.example).`;
+  }
+
+  if (isProd && !LOOPBACK_HOSTNAMES.has(url.hostname)) {
+    if (url.protocol !== "https:") {
+      return `${name} debe ser una URL https:// válida en producción.`;
+    }
+  } else if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return `${name} debe ser una URL http(s).`;
+  }
+
+  if (url.origin !== value) {
+    return (
+      `${name} debe ser el origen exacto (esquema://host[:puerto], sin ruta, barra final, ` +
+      `credenciales, mayúsculas ni el puerto por defecto): el navegador envía «${url.origin}» ` +
+      `y la comparación es literal, así que con «${value}» toda escritura recibiría 403.`
+    );
+  }
+  return null;
+}
 
 /**
  * Valida los secretos. Devuelve la lista de problemas (vacía = todo correcto).
  * No lanza: el llamador decide qué hacer (abortar en prod).
+ *
+ * @param env Entorno a comprobar (para tests). Por defecto, `process.env`.
  */
-export function findSecretProblems(): string[] {
+export function findSecretProblems(
+  env: Record<string, string | undefined> = process.env,
+): string[] {
   const problems: string[] = [];
+  const isProd = env.NODE_ENV === "production";
 
   for (const rule of RULES) {
-    const value = process.env[rule.name];
+    const value = env[rule.name];
 
     if (!value) {
       if (rule.required) problems.push(`${rule.name} no está definido.`);
@@ -62,6 +123,10 @@ export function findSecretProblems(): string[] {
       problems.push(
         `${rule.name} es demasiado corto (mínimo ${MIN_SECRET_LENGTH} caracteres).`,
       );
+    }
+    if (rule.checkOrigin) {
+      const problem = originProblem(rule.name, value, isProd);
+      if (problem) problems.push(problem);
     }
   }
 
