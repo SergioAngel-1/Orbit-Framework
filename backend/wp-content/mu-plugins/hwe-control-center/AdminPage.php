@@ -2,6 +2,8 @@
 
 namespace HWE\ControlCenter;
 
+use HWE\ControlCenter\FieldTypes\FieldType;
+use HWE\ControlCenter\FieldTypes\Registry;
 use HWE\ControlCenter\Walkers\AdminFormWalker;
 use HWE\ControlCenter\Walkers\DefaultsWalker;
 
@@ -256,59 +258,59 @@ class AdminPage {
     /**
      * Recorre el esquema y los datos enviados de forma recursiva.
      * Devuelve [publicData, secretData] separados.
+     *
+     * El saneado de cada campo lo hace su tipo (`FieldTypes\Registry`); la persistencia
+     * (`config`/`secret`/`external`) decide en qué cubo cae. Los `external` no se persisten
+     * aquí: los guarda su módulo al recibir `hwe_control_center_saved`.
+     *
+     * Modo `$sparse` (para `wp hwe setup` con un JSON parcial): las claves que NO llegaron
+     * se omiten en vez de sanearse a vacío, así un JSON con solo `brand` no borra el resto.
+     * El formulario de admin siempre envía el árbol completo, así que guarda en modo normal.
      */
     /**
      * Público para que Cli::setup() reutilice la misma sanitización/validación
      * por tipo de campo que usa el guardado desde wp-admin.
      */
-    public static function sanitizeAndSplit(array $schema, array $submitted, array $path = []): array {
+    public static function sanitizeAndSplit(array $schema, array $submitted, array $path = [], bool $sparse = false): array {
         $publicData = [];
         $secretData = [];
 
         foreach ($schema as $key => $node) {
             $currentPath = array_merge($path, [$key]);
+            $present     = array_key_exists($key, $submitted);
             $rawValue    = $submitted[$key] ?? null;
             $nodeType    = $node['type'] ?? 'text';
 
             if ($nodeType === 'group') {
                 $groupRaw = is_array($rawValue) ? $rawValue : [];
-                [$gPublic, $gSecrets] = self::sanitizeAndSplit($node['children'] ?? [], $groupRaw, $currentPath);
+                [$gPublic, $gSecrets] = self::sanitizeAndSplit($node['children'] ?? [], $groupRaw, $currentPath, $sparse);
                 if (!empty($gPublic))   $publicData[$key]  = $gPublic;
-                if (!empty($gSecrets))  $secretData[$key]  = $gSecrets;
+                if (!empty($gSecrets))   $secretData[$key]  = $gSecrets;
+                continue;
+            }
 
-            } elseif ($nodeType === 'secret') {
-                $val = sanitize_text_field((string) ($rawValue ?? ''));
-                if ($val !== '') {
-                    $secretData[$key] = $val;
+            $type = Registry::get($nodeType);
+            if ($type->persistence() === FieldType::EXTERNAL) {
+                continue;
+            }
+            if ($sparse && !$present) {
+                continue;
+            }
+            $clean = $type->sanitize($node, $rawValue);
+            if ($clean === FieldType::SKIP) {
+                continue;
+            }
+
+            if ($type->persistence() === FieldType::SECRET) {
+                if ($clean !== '') {
+                    $secretData[$key] = $clean;
                 }
-
             } else {
-                $publicData[$key] = self::sanitizeField($node, $rawValue);
+                $publicData[$key] = $clean;
             }
         }
 
         return [$publicData, $secretData];
-    }
-
-    private static function sanitizeField(array $field, mixed $value): mixed {
-        return match ($field['type']) {
-            'textarea' => sanitize_textarea_field((string) ($value ?? '')),
-            'url'      => esc_url_raw((string) ($value ?? '')),
-            'email'    => sanitize_email((string) ($value ?? '')),
-            'color'    => self::sanitizeColor((string) ($value ?? '')),
-            'boolean'  => !empty($value) && $value !== '0',
-            'select'   => self::sanitizeSelect($field, (string) ($value ?? '')),
-            default    => sanitize_text_field((string) ($value ?? '')),
-        };
-    }
-
-    private static function sanitizeColor(string $value): string {
-        return (bool) preg_match('/^#[0-9a-fA-F]{6}$/', $value) ? $value : '';
-    }
-
-    private static function sanitizeSelect(array $field, string $value): string {
-        $options = $field['options'] ?? [];
-        return array_key_exists($value, $options) ? $value : (string) ($field['default'] ?? '');
     }
 
     // -------------------------------------------------------------------------

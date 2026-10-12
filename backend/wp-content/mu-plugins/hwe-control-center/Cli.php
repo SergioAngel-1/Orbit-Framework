@@ -59,7 +59,9 @@ class Cli {
             \WP_CLI::error("El archivo {$path} debe contener un objeto JSON en su raíz.");
         }
 
-        [$publicData, $secretData] = AdminPage::sanitizeAndSplit(Schema::get(), $data);
+        // Modo *sparse*: el JSON trae solo lo que la instancia quiere fijar; lo que no
+        // trae se omite (no se sanea a vacío), así un JSON parcial no borra el resto.
+        [$publicData, $secretData] = AdminPage::sanitizeAndSplit(Schema::get(), $data, [], true);
 
         Storage::merge($publicData);
         if (!empty($secretData)) {

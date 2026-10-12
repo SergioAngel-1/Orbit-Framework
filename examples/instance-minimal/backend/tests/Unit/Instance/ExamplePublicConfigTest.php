@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace HWE\Tests\Unit\Instance;
 
 use Brain\Monkey\Functions;
+use HWE\ControlCenter\FieldTypes\Registry;
 use HWE\ControlCenter\Revalidation;
 use HWE\ControlCenter\Schema;
 use HWE\ControlCenter\Walkers\DefaultsWalker;
@@ -41,6 +42,10 @@ final class ExamplePublicConfigTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Functions\stubs([
+            'sanitize_text_field' => static fn ($v) => is_string($v) ? trim(strip_tags($v)) : '',
+            'esc_attr' => static fn ($v) => (string) $v,
+        ]);
         Functions\when('error_log')->alias(function (string $message): bool {
             $this->logged[] = $message;
             return true;
@@ -76,5 +81,16 @@ final class ExamplePublicConfigTest extends TestCase
     public function testTheExampleTagCanBeRevalidated(): void
     {
         $this->assertContains('example', hwe_example_tags(Revalidation::allowedTags()));
+    }
+
+    public function testTheExampleFieldTypeRendersAndSanitizes(): void
+    {
+        $types = hwe_example_field_types(Registry::all());
+
+        $this->assertArrayHasKey('example_upper', $types);
+        $type = $types['example_upper'];
+        $this->assertSame('config', $type->persistence());
+        $this->assertSame('HOLA', $type->sanitize([], 'hola'));
+        $this->assertStringContainsString('hwe-example-upper', $type->render([], 'id', 'name', 'x', []));
     }
 }

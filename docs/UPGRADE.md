@@ -251,6 +251,16 @@ git fetch framework --tags
   lector de banners devuelve vacío con el módulo apagado, aunque `banners.enabled` sea `true`: revisa que tu
   `instance.config.json` incluya `"banners"` si usas banners.
 
+### Control Center (F3)
+
+- **`wp hwe setup` ya no borra lo que el JSON no trae.** Antes, un JSON parcial saneaba las claves
+  ausentes a vacío y `Storage::merge` las pisaba; ahora el setup trabaja en modo *sparse* y omite
+  lo ausente. Si dependías del borrado (p. ej. para vaciar un campo), ponlo explícito en el JSON.
+- **Nuevo filtro `hwe_control_center_field_types`** para registrar tipos de campo propios (pintar,
+  sanear, persistencia `config`/`secret`/`external`). El filtro puede añadir ids, pero no
+  sobrescribir ni eliminar los del núcleo; un tipo desconocido se pinta deshabilitado en vez de
+  romper el panel.
+
 ### Operación (F1)
 
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor

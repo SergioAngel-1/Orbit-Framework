@@ -9,7 +9,7 @@ tienda real).
 | Ruta en este ejemplo | Se superpone a | Qué demuestra |
 |---|---|---|
 | `backend/wp-content/mu-plugins/instance/10-example-schema.php` | `backend/wp-content/mu-plugins/instance/` | El campo `instance.example.greeting` vía `hwe_control_center_schema` |
-| `…/instance/20-example-field-type.php` | (misma carpeta) | Hueco **preparado** para un tipo de campo propio (se activa en la tarea 26) |
+| `…/instance/20-example-field-type.php` | (misma carpeta) | El tipo propio `example_upper` vía `hwe_control_center_field_types` |
 | `…/instance/30-example-revalidation.php` | (misma carpeta) | El tag `example` vía `hwe_revalidation_tags` |
 | `backend/tests/Unit/Instance/ExamplePublicConfigTest.php` | `backend/tests/Unit/Instance/` | El campo sale por la config pública y el tag se acepta |
 | `frontend/src/instance/registry.ts` | `frontend/src/instance/registry.ts` | `revalidationTags: ["example"]` |
