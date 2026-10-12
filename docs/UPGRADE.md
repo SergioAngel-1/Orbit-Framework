@@ -118,6 +118,11 @@ git fetch framework --tags
   por http, porque `next start` fija `NODE_ENV=production` y así arrancan el e2e y la pila local)
   y **exactamente** el `Origin` del navegador: sin barra final, ruta, credenciales, mayúsculas ni
   `:443`. La comparación es literal; con otra forma, toda escritura respondía 403 sin aviso.
+- **(contrato) `POST /api/payments/create` solo acepta un `returnUrl` del propio sitio** (422
+  si su origen no es `ALLOWED_ORIGIN`). Se entrega a la pasarela como destino del redirect
+  post-pago, y sin esta barrera el endpoint era un redirect abierto vía un tercero. El frontend de
+  este repo ya compone la URL con `window.location.origin`; si el tuyo enviaba otra, omite el
+  campo (se usa `NEXT_PUBLIC_PAYMENT_RETURN_URL` o `/checkout/return`).
 
 ### Tooling
 
