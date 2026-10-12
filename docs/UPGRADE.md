@@ -101,6 +101,12 @@ git fetch framework --tags
   `GRAPHQL_JWT_AUTH_SECRET_KEY`, activar 2FA responde 500 y se registra `[hwe] auth:`; un
   secreto cifrado antes con la clave literal pública (`hwe-insecure-2fa-key`) deja de poder
   descifrarse: desactiva y vuelve a activar el 2FA con una clave real.
+- **Los secretos del Control Center (pasarelas, SMTP) tampoco tienen clave de reserva.** Sin
+  `HWE_SECRETS_KEY`, `AUTH_KEY` ni `SECURE_AUTH_KEY` se tratan como vacíos y se registra
+  `[hwe] control-center:`; **sin clave no se guarda nada** (`SecretsStorage::setAll()` pasa a
+  devolver `bool`, `false` = no se escribió), para no destruir los secretos ya guardados.
+  Una instalación que cifró con la clave literal `hwe-fallback-insecure-key` debe definir una
+  clave real y **volver a introducir** las credenciales.
 
 ### Tooling
 
