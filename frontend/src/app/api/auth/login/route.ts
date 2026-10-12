@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { SignJWT } from "jose";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { LOGIN_MUTATION } from "@/lib/auth/mutations";
 import { loginSchema } from "@/lib/validation/auth";
@@ -11,6 +10,7 @@ import {
 } from "@/lib/auth/constants";
 import { sessionCookieOptions, refreshCookieOptions } from "@/lib/security/cookies";
 import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
+import { createPendingLogin } from "@/lib/auth/pending-login";
 import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
 import type { LoginResponse } from "@/types/auth";
@@ -20,9 +20,6 @@ export const dynamic = "force-dynamic";
 const WP_INTERNAL =
   process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
   "http://wordpress:80";
-const EPHEMERAL_SECRET = new TextEncoder().encode(
-  process.env.GRAPHQL_JWT_AUTH_SECRET_KEY || "fallback-dev-secret-change-in-prod",
-);
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
@@ -107,16 +104,27 @@ export async function POST(request: Request) {
   }
 
   if (twoFactorEnabled) {
-    // Create ephemeral token with the real tokens
-    const ephemeralToken = await new SignJWT({
+    // Las credenciales reales se guardan en el servidor (Redis); el cliente solo
+    // recibe un id opaco de un solo uso para reclamarlas tras verificar el
+    // segundo factor. NUNCA viajan tokens reales al navegador antes del 2FA: un
+    // JWT firmado no oculta su contenido, y bastaba decodificarlo en base64 para
+    // obtener la sesión completa saltándose el TOTP.
+    const ephemeralToken = await createPendingLogin({
       authToken,
       refreshToken,
       userId: String(user.databaseId),
-    })
-      .setProtectedHeader({ alg: "HS256" })
-      .setExpirationTime("5m")
-      .setIssuedAt()
-      .sign(EPHEMERAL_SECRET);
+    });
+    if (!ephemeralToken) {
+      // Fail-closed: sin dónde guardarlas con seguridad no se emite el login.
+      logger.error(
+        { event: "auth.login.pending_login_unavailable" },
+        "No se pudo iniciar el login pendiente de 2FA (Redis no disponible)",
+      );
+      return NextResponse.json(
+        { error: "Servicio de autenticación temporalmente no disponible." },
+        { status: 503 },
+      );
+    }
 
     logger.info({ event: "auth.login.2fa_required", userId: user.id }, "2FA requerido");
     return NextResponse.json({ requires_2fa: true, ephemeralToken }, { status: 200 });

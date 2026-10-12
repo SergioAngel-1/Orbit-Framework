@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { jwtVerify } from "jose";
 import { verify as verifyTotp } from "otplib";
 import { twoFactorCodeSchema } from "@/lib/validation/auth";
 import { guardMutation } from "@/lib/api/guard";
@@ -11,6 +10,11 @@ import {
 } from "@/lib/auth/constants";
 import { sessionCookieOptions, refreshCookieOptions } from "@/lib/security/cookies";
 import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
+import {
+  getPendingLogin,
+  consumePendingLogin,
+  recordFailedAttempt,
+} from "@/lib/auth/pending-login";
 import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
@@ -18,14 +22,29 @@ export const dynamic = "force-dynamic";
 const WP_INTERNAL =
   process.env.WORDPRESS_INTERNAL_API_URL?.replace("/graphql", "") ??
   "http://wordpress:80";
-const EPHEMERAL_SECRET = new TextEncoder().encode(
-  process.env.GRAPHQL_JWT_AUTH_SECRET_KEY || "fallback-dev-secret-change-in-prod",
-);
 
-interface EphemeralPayload {
-  authToken: string;
-  refreshToken: string;
-  userId: string;
+const SESSION_EXPIRED = { error: "Sesión expirada. Inicia sesión de nuevo." };
+
+/**
+ * Responde a un código 2FA incorrecto y lo cuenta contra el login pendiente: al
+ * agotarse el cupo el login queda invalidado (hay que volver a iniciar sesión).
+ */
+async function rejectBadCode(
+  pendingId: string,
+  message: string,
+): Promise<NextResponse> {
+  const locked = await recordFailedAttempt(pendingId);
+  if (locked) {
+    logger.warn(
+      { event: "2fa.verify_login.locked" },
+      "Intentos 2FA agotados en el login",
+    );
+    return NextResponse.json(
+      { error: "Demasiados intentos. Inicia sesión de nuevo." },
+      { status: 429 },
+    );
+  }
+  return NextResponse.json({ error: message }, { status: 401 });
 }
 
 export async function POST(request: Request) {
@@ -60,22 +79,18 @@ export async function POST(request: Request) {
     totpCode = parsed.data.code;
   }
 
-  // Verify ephemeral token
-  let ephemeral: EphemeralPayload;
-  try {
-    const { payload } = await jwtVerify(body.ephemeralToken, EPHEMERAL_SECRET, {
-      algorithms: ["HS256"],
-    });
-    ephemeral = payload as unknown as EphemeralPayload;
-  } catch {
+  // Recupera el login pendiente: las credenciales reales nunca viajaron al
+  // cliente, solo este id opaco. NO se consume aquí: un código mal tecleado se
+  // puede reintentar con el mismo id hasta que expire o se agote el cupo de
+  // intentos (`recordFailedAttempt`). Se reclama al final, de forma atómica.
+  const pendingId = body.ephemeralToken;
+  const ephemeral = await getPendingLogin(pendingId);
+  if (!ephemeral) {
     logger.warn(
       { event: "2fa.verify_login.invalid_ephemeral" },
-      "Token efímero inválido",
+      "Id de login pendiente inválido, caducado o ya usado",
     );
-    return NextResponse.json(
-      { error: "Sesión expirada. Inicia sesión de nuevo." },
-      { status: 401 },
-    );
+    return NextResponse.json(SESSION_EXPIRED, { status: 401 });
   }
 
   // Check if 2FA is enabled
@@ -117,10 +132,7 @@ export async function POST(request: Request) {
           { event: "2fa.verify_login.invalid_recovery", userId: ephemeral.userId },
           "Código de recuperación inválido",
         );
-        return NextResponse.json(
-          { error: "Código de recuperación inválido." },
-          { status: 401 },
-        );
+        return rejectBadCode(pendingId, "Código de recuperación inválido.");
       }
     } else {
       // Vía TOTP: obtener el secreto (descifrado por WP) y verificar.
@@ -157,20 +169,32 @@ export async function POST(request: Request) {
           { event: "2fa.verify_login.invalid_code" },
           "Código 2FA inválido en login",
         );
-        return NextResponse.json({ error: "Código inválido." }, { status: 401 });
+        return rejectBadCode(pendingId, "Código inválido.");
       }
+    }
+
+    // Segundo factor verificado: se RECLAMA el login pendiente (lectura y borrado
+    // atómicos). Si otra petición simultánea ya lo reclamó, esta no abre sesión:
+    // el id es de un solo uso.
+    const session = await consumePendingLogin(pendingId);
+    if (!session) {
+      logger.warn(
+        { event: "2fa.verify_login.already_claimed", userId: ephemeral.userId },
+        "El login pendiente ya se había reclamado",
+      );
+      return NextResponse.json(SESSION_EXPIRED, { status: 401 });
     }
 
     // Set session cookies
     const store = await cookies();
     store.set(
       AUTH_COOKIE,
-      ephemeral.authToken,
-      sessionCookieOptions(getTokenMaxAgeSeconds(ephemeral.authToken)),
+      session.authToken,
+      sessionCookieOptions(getTokenMaxAgeSeconds(session.authToken)),
     );
     store.set(
       REFRESH_COOKIE,
-      ephemeral.refreshToken,
+      session.refreshToken,
       refreshCookieOptions(REFRESH_TOKEN_MAX_AGE),
     );
 

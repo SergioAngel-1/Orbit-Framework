@@ -270,7 +270,11 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 #### 6.4.2 2FA (TOTP)
 - Flujo: `2fa/setup` (genera secreto) → `2fa/activate` (verifica código y **devuelve los
   códigos de recuperación UNA vez**) → en login, si está activo, `login` responde
-  `requires_2fa` + token efímero (5 min) y el cliente completa en `verify-2fa`.
+  `requires_2fa` + un **id opaco de un solo uso** (5 min; campo `ephemeralToken`, que NO es
+  un JWT) y el cliente completa en `verify-2fa`. Las credenciales reales NUNCA viajan al
+  navegador antes del segundo factor: viven en Redis (`lib/auth/pending-login.ts`). Sin
+  Redis, el login con 2FA **falla cerrado** (503). El id se reclama con `GETDEL` atómico y
+  se invalida tras 5 códigos incorrectos (hay que volver a iniciar sesión).
 - El **secreto TOTP se cifra en reposo** en WP con **AES-256-GCM** (`hwe-auth.php`,
   clave dedicada `HWE_2FA_KEY` con fallback a `AUTH_KEY`). Verificación TOTP con `otplib` v13.
 - **Códigos de recuperación**: 10 por usuario, guardados **hasheados**; se consumen de uno
