@@ -215,6 +215,14 @@ git fetch framework --tags
   (generación de tipos, herramientas de desarrollo), define `WP_ENVIRONMENT_TYPE` como `local` o
   `development`; `docker-compose.yml` ya lo hace (`local`).
 
+- **`GET /api/store/products?include=` ya no expone productos sin publicar.** Esa rama consulta
+  `wc/v3/products` con las credenciales del servidor, y WooCommerce devuelve por defecto productos de
+  cualquier estado: un anónimo podía leer nombre, precio y descripción de un borrador, un pendiente o un
+  privado pidiéndolo por id. Ahora pide `status=publish`. Además solo acepta ids enteros positivos (sin
+  duplicados, máximo 100): antes `?include=abc` dejaba la lista vacía y un `include` vacío no filtra
+  nada, así que devolvía los primeros 100 productos de cualquier estado. Sin ningún id válido responde una
+  lista vacía sin consultar WooCommerce.
+
 ### Operación (F1)
 
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor

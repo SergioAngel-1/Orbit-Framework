@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getProducts } from "@/lib/catalog/products";
 import { rateLimit } from "@/lib/security/rate-limit";
+import { wcFetch } from "@/lib/woocommerce/client";
 import { GET } from "./route";
 
 // ============================================================================
@@ -61,6 +62,80 @@ describe("listado sin búsqueda", () => {
     const res = await GET(request("?category=ropa&first=12"));
 
     expect(res.status).toBe(200);
+    expect(rateLimit).not.toHaveBeenCalled();
+  });
+});
+
+// ============================================================================
+//  GET /api/store/products?include=1,2,3 (la página de la wishlist).
+//
+//  Esta rama llama a `wc/v3/products` con las credenciales del SERVIDOR, y WooCommerce
+//  devuelve por defecto productos de CUALQUIER estado (`status=any`): un anónimo podía
+//  leer nombre, precio y descripción de productos en borrador, pendientes o privados
+//  pidiéndolos por id. Además, `?include=abc` dejaba la lista de ids vacía, y un
+//  `include` vacío no filtra nada: devolvía los primeros 100 productos.
+// ============================================================================
+
+describe("include (ids concretos)", () => {
+  beforeEach(() => {
+    vi.mocked(wcFetch).mockResolvedValue([
+      { id: 1, name: "Publicado", slug: "publicado", images: [] },
+    ] as never);
+  });
+
+  const lastQuery = () =>
+    vi.mocked(wcFetch).mock.calls.at(-1)![1]!.query as Record<string, unknown>;
+
+  it("pide SOLO productos publicados", async () => {
+    await GET(request("?include=1,2,3"));
+
+    expect(wcFetch).toHaveBeenCalledWith("/products", expect.anything());
+    expect(lastQuery()).toMatchObject({ include: "1,2,3", status: "publish" });
+  });
+
+  it("devuelve los productos en la forma del catálogo", async () => {
+    const res = await GET(request("?include=1"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.products).toHaveLength(1);
+    expect(json.products[0]).toMatchObject({ databaseId: 1, name: "Publicado" });
+  });
+
+  it.each([
+    ["texto", "?include=abc"],
+    ["vacío", "?include="],
+    ["solo separadores", "?include=,,,"],
+    ["ids negativos o cero", "?include=-3,0"],
+    ["decimales", "?include=1.5,2.7"],
+  ])(
+    "sin ningún id válido (%s) no consulta WooCommerce y devuelve una lista vacía",
+    async (_caso, query) => {
+      const res = await GET(request(query));
+      const json = await res.json();
+
+      expect(wcFetch).not.toHaveBeenCalled();
+      expect(json.products).toEqual([]);
+    },
+  );
+
+  it("descarta lo que no es un id positivo y quita duplicados", async () => {
+    await GET(request("?include=3,abc,-5,2.5,3,7"));
+
+    expect(lastQuery().include).toBe("3,7");
+  });
+
+  it("acota la lista a 100 ids (el per_page de WooCommerce)", async () => {
+    const ids = Array.from({ length: 150 }, (_, i) => i + 1).join(",");
+
+    await GET(request(`?include=${ids}`));
+
+    expect(String(lastQuery().include).split(",")).toHaveLength(100);
+  });
+
+  it("no pasa por el rate-limit de la búsqueda", async () => {
+    await GET(request("?include=1"));
+
     expect(rateLimit).not.toHaveBeenCalled();
   });
 });

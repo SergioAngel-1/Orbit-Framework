@@ -8,6 +8,21 @@ import type { CatalogProduct } from "@/types/catalog";
 
 export const dynamic = "force-dynamic";
 
+/** Tope de ids por petición: el `per_page` máximo de WooCommerce. */
+const MAX_INCLUDE_IDS = 100;
+
+/** Ids de producto válidos de `?include=1,2,3`: enteros positivos, sin duplicados, acotados. */
+function parseProductIds(raw: string): number[] {
+  const ids = new Set<number>();
+  for (const part of raw.split(",")) {
+    if (!/^\d+$/.test(part.trim())) continue;
+    const id = Number(part);
+    if (Number.isSafeInteger(id) && id > 0) ids.add(id);
+    if (ids.size >= MAX_INCLUDE_IDS) break;
+  }
+  return [...ids];
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const includeParam = searchParams.get("include");
@@ -15,12 +30,21 @@ export async function GET(request: Request) {
   // Support fetching by specific IDs (for wishlist page)
   if (includeParam) {
     try {
-      const ids = includeParam
-        .split(",")
-        .map(Number)
-        .filter((n) => !isNaN(n));
+      const ids = parseProductIds(includeParam);
+      // Sin ningún id válido no se consulta: un `include` vacío NO filtra nada para
+      // WooCommerce y devolvería los primeros 100 productos.
+      if (ids.length === 0) {
+        return NextResponse.json({
+          products: [],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        });
+      }
+      // `status: "publish"` es imprescindible: esta llamada usa las credenciales del
+      // SERVIDOR y WooCommerce devuelve por defecto productos de cualquier estado
+      // (borrador, pendiente, privado). El endpoint es público: sin él, cualquiera
+      // podía leer un producto sin publicar pidiéndolo por id.
       const raw = await wcFetch<Record<string, unknown>[]>("/products", {
-        query: { include: ids.join(","), per_page: 100 },
+        query: { include: ids.join(","), per_page: MAX_INCLUDE_IDS, status: "publish" },
       });
       const products: CatalogProduct[] = raw.map((p) => {
         const images = Array.isArray(p.images)
