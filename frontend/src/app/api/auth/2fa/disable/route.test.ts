@@ -160,3 +160,50 @@ describe("la prueba de posesión llega a WordPress", () => {
     expect(putCalls()).toHaveLength(0);
   });
 });
+
+// El cuerpo se leía con un cast manual: un cuerpo `null` reventaba con un
+// TypeError (500) y los errores de validación no decían qué campo fallaba. Ahora
+// lo valida un schema Zod y todo lo inválido es 422 con el detalle.
+describe("validación del cuerpo", () => {
+  it.each([
+    ["sin ninguna prueba", {}],
+    ["código con menos de 6 dígitos", { code: "12345" }],
+    ["código con letras", { code: "12345a" }],
+    ["código numérico en lugar de texto", { code: 123456 }],
+    ["código de recuperación solo espacios", { recoveryCode: "   " }],
+    ["código de recuperación que no es texto", { recoveryCode: { $ne: "" } }],
+  ])("%s: 422 con el detalle y sin llamar a WordPress", async (_caso, body) => {
+    const res = await POST(request(body));
+    const json = await res.json();
+
+    expect(res.status).toBe(422);
+    expect(json.details).toBeDefined();
+    expect(wpCalls).toHaveLength(0);
+  });
+
+  it("un cuerpo `null` es 422 y no revienta con un TypeError", async () => {
+    const res = await POST(request(null));
+
+    expect(res.status).toBe(422);
+    expect(wpCalls).toHaveLength(0);
+  });
+
+  it("un JSON ilegible sigue siendo 400", async () => {
+    const res = await POST(
+      new Request("https://tienda.example/api/auth/2fa/disable", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{no es json",
+      }),
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  it("con código TOTP y de recuperación a la vez, manda el de recuperación", async () => {
+    const res = await POST(request({ code: "123456", recoveryCode: "  aaaaa-bbbbb " }));
+
+    expect(res.status).toBe(200);
+    expect(putCalls()[0]!.body).toEqual({ secret: null, recovery_code: "aaaaa-bbbbb" });
+  });
+});

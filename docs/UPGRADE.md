@@ -123,6 +123,17 @@ git fetch framework --tags
   post-pago, y sin esta barrera el endpoint era un redirect abierto vía un tercero. El frontend de
   este repo ya compone la URL con `window.location.origin`; si el tuyo enviaba otra, omite el
   campo (se usa `NEXT_PUBLIC_PAYMENT_RETURN_URL` o `/checkout/return`).
+- **(contrato) `POST /api/store/reviews/[productId]` ya no acepta `name` ni `email`.** El autor
+  (`reviewer` y `reviewer_email`) sale siempre del perfil WooCommerce de la sesión; si lo envías,
+  se ignora. Antes cualquier petición directa podía publicar una reseña atribuida a un tercero.
+  Si tu perfil no tiene nombre se publica como «Cliente». El `ReviewForm` del starter pierde esos
+  dos campos (y las claves `products.reviewName`/`reviewEmail` de los mensajes, sustituidas por
+  `reviewAuthorNote`); `reviewApi.create` ya no los admite.
+- **(contrato) Wishlist, `2fa/disable` y `verify-email` validan el cuerpo con Zod y responden
+  422 con `{ error, details }`.** Cambios de comportamiento: un `productId` de wishlist debe ser
+  entero positivo (antes se aceptaba `-3` o `1.5`); `recoveryCode` en blanco ya no cae al TOTP
+  (422); un `token` de `verify-email` de más de 200 caracteres se rechaza; y un cuerpo `null`
+  pasa de 500 a 422.
 
 ### Tooling
 

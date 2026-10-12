@@ -63,6 +63,11 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
    rechaza la petición (también verifica `Origin` y aplica rate-limit).
 3. Los importes de la Store API vienen en **unidades menores** (céntimos); los de WooGraphQL
    ya vienen formateados. No los mezcles sin convertir.
+4. Un cuerpo inválido responde **422** con `{ error, details }`, donde `details` mapea cada
+   campo a sus errores (`{ productId: ["…"] }`); un JSON ilegible responde 400. Las claves que el
+   schema de la ruta no declara se ignoran (salvo en `PUT /api/store/customer`, que es
+   estricto). Así, `POST /api/store/reviews/[productId]` solo lee `rating` y `content`: el nombre
+   y el email del autor salen **siempre** de la cuenta autenticada, nunca del cuerpo.
 
 ## A.3 Config pública dinámica: `GET /wp-json/hwe/v1/config`
 

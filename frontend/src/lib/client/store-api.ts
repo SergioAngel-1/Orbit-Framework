@@ -88,7 +88,9 @@ export const cartApi = {
 export const reviewApi = {
   async create(
     productId: number,
-    data: { rating: number; content: string; name: string; email: string },
+    // El nombre y el email de la reseña los fija el servidor desde la cuenta
+    // autenticada (ver POST /api/store/reviews/[productId]): no se envían.
+    data: { rating: number; content: string },
   ): Promise<{ id: number }> {
     const res = await csrfFetch(`/api/store/reviews/${productId}`, {
       method: "POST",

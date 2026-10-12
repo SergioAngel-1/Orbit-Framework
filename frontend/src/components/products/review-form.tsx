@@ -16,11 +16,10 @@ export function ReviewForm({ productId }: { productId: number }) {
     setError(null);
     const form = new FormData(e.currentTarget);
     try {
+      // El servidor fija el nombre y el email desde la cuenta: no se envían.
       await reviewApi.create(productId, {
         rating: Number(form.get("rating")),
         content: String(form.get("content") ?? ""),
-        name: String(form.get("name") ?? ""),
-        email: String(form.get("email") ?? ""),
       });
       setSubmitted(true);
     } catch (err) {
@@ -45,21 +44,7 @@ export function ReviewForm({ productId }: { productId: number }) {
     >
       <h3 className="font-semibold text-sm">{t("writeReview")}</h3>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <input
-          name="name"
-          required
-          placeholder={t("reviewName")}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-        />
-        <input
-          name="email"
-          type="email"
-          required
-          placeholder={t("reviewEmail")}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-        />
-      </div>
+      <p className="text-xs text-gray-500">{t("reviewAuthorNote")}</p>
       <div>
         <label className="mb-1 block text-sm text-gray-500">{t("reviewRating")}</label>
         <select

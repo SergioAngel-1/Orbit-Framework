@@ -5,7 +5,7 @@ import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { createReviewSchema } from "@/lib/validation/store";
 import { logger } from "@/lib/observability/logger";
-import type { WooProductReview } from "@/types/woocommerce";
+import type { WooCustomer, WooProductReview } from "@/types/woocommerce";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +13,11 @@ export const dynamic = "force-dynamic";
  * POST /api/store/reviews/[productId]
  * Crea una reseña de producto autenticada.
  *
- * La reseña usa el nombre/email del input, no de la cuenta del usuario, lo
- * que permite que el usuario publique con su nombre real. El campo `reviewer_email`
- * no se expone públicamente en WooCommerce.
+ * La identidad del autor (`reviewer` y `reviewer_email`) sale SIEMPRE del perfil
+ * WooCommerce del usuario autenticado, nunca del cuerpo: si no, cualquier petición
+ * directa podría publicar una reseña atribuida al nombre o al email de un tercero.
+ * Un `name`/`email` enviado se ignora. El campo `reviewer_email` no se expone
+ * públicamente en WooCommerce.
  *
  * Por defecto se crean con status "hold" (pendiente de moderación). Cambia a
  * "approved" si confías en los usuarios autenticados.
@@ -30,8 +32,9 @@ export async function POST(
   if (blocked) return blocked;
 
   // Requerir sesión para crear reseñas (evita spam).
+  let session;
   try {
-    await requireSession();
+    session = await requireSession();
   } catch {
     logger.warn(
       { event: "reviews.create.unauthorized" },
@@ -73,13 +76,19 @@ export async function POST(
   }
 
   try {
+    // Identidad fija del perfil autenticado (anti-suplantación).
+    const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+    const reviewerName =
+      [customer.first_name, customer.last_name].filter(Boolean).join(" ").trim() ||
+      "Cliente";
+
     const review = await wcFetch<WooProductReview>("/products/reviews", {
       method: "POST",
       body: {
         product_id: pid,
         review: parsed.data.content,
-        reviewer: parsed.data.name,
-        reviewer_email: parsed.data.email,
+        reviewer: reviewerName,
+        reviewer_email: customer.email,
         rating: parsed.data.rating,
         status: "hold",
       },

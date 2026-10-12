@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { withLock } from "@/lib/security/lock";
+import { wishlistBodySchema } from "@/lib/validation/store";
 import { logger } from "@/lib/observability/logger";
 import type { WooCustomer } from "@/types/woocommerce";
 
@@ -39,20 +40,28 @@ export async function POST(request: Request) {
   });
   if (blocked) return blocked;
 
-  let body: { productId?: number };
+  let body: unknown;
   try {
-    body = (await request.json()) as { productId?: number };
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  if (!body.productId || typeof body.productId !== "number") {
-    return NextResponse.json({ error: "productId requerido." }, { status: 422 });
+  const parsed = wishlistBodySchema.safeParse(body);
+  if (!parsed.success) {
+    logger.warn(
+      { event: "wishlist.add.validation_error" },
+      "Validación fallida en la wishlist",
+    );
+    return NextResponse.json(
+      { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
+      { status: 422 },
+    );
   }
 
   try {
     const session = await requireSession();
-    const productId = body.productId;
+    const productId = parsed.data.productId;
     // Sección crítica serializada por usuario (evita lost-update concurrente).
     await withLock(`wishlist:${session.userId}`, async () => {
       const customer = await wcFetch<WooCustomer>(
@@ -71,7 +80,7 @@ export async function POST(request: Request) {
     logger.info({
       event: "wishlist.add",
       userId: session.userId,
-      productId: body.productId,
+      productId,
     });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
@@ -89,20 +98,28 @@ export async function DELETE(request: Request) {
   });
   if (blocked) return blocked;
 
-  let body: { productId?: number };
+  let body: unknown;
   try {
-    body = (await request.json()) as { productId?: number };
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  if (!body.productId || typeof body.productId !== "number") {
-    return NextResponse.json({ error: "productId requerido." }, { status: 422 });
+  const parsed = wishlistBodySchema.safeParse(body);
+  if (!parsed.success) {
+    logger.warn(
+      { event: "wishlist.remove.validation_error" },
+      "Validación fallida en la wishlist",
+    );
+    return NextResponse.json(
+      { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
+      { status: 422 },
+    );
   }
 
   try {
     const session = await requireSession();
-    const productId = body.productId;
+    const productId = parsed.data.productId;
     await withLock(`wishlist:${session.userId}`, async () => {
       const customer = await wcFetch<WooCustomer>(
         `/customers/${Number(session.userId)}`,
@@ -117,7 +134,7 @@ export async function DELETE(request: Request) {
     logger.info({
       event: "wishlist.remove",
       userId: session.userId,
-      productId: body.productId,
+      productId,
     });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {

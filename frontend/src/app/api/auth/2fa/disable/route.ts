@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { verify as verifyTotp } from "otplib";
 import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
-import { twoFactorCodeSchema } from "@/lib/validation/auth";
+import { disable2faBodySchema } from "@/lib/validation/auth";
 import { delPending2faSecret } from "@/lib/auth/two-factor-pending";
 import { logger } from "@/lib/observability/logger";
 
@@ -39,35 +39,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
 
-  let body: { code?: unknown; recoveryCode?: unknown };
+  let body: unknown;
   try {
-    body = (await request.json()) as { code?: unknown; recoveryCode?: unknown };
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  if (body.recoveryCode !== undefined && typeof body.recoveryCode !== "string") {
+  const parsed = disable2faBodySchema.safeParse(body);
+  if (!parsed.success) {
+    logger.warn(
+      { event: "2fa.disable.validation_error" },
+      "Validación fallida al desactivar 2FA",
+    );
     return NextResponse.json(
-      { error: "Código de recuperación inválido." },
+      { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
       { status: 422 },
     );
   }
-  const recoveryCode =
-    typeof body.recoveryCode === "string" ? body.recoveryCode.trim() : "";
+  const { code, recoveryCode } = parsed.data;
 
-  // La prueba que se enviará a WordPress junto con el borrado del secreto.
+  // La prueba que se enviará a WordPress junto con el borrado del secreto. Si llegan
+  // los dos códigos manda el de recuperación.
   let proof: { code: string } | { recovery_code: string };
 
   if (recoveryCode) {
     proof = { recovery_code: recoveryCode };
-  } else {
-    const parsed = twoFactorCodeSchema.safeParse({ code: body.code });
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Código requerido para desactivar 2FA." },
-        { status: 422 },
-      );
-    }
+  } else if (code) {
     // Se comprueba aquí para no molestar a WordPress con códigos que ya sabemos
     // inválidos; WP lo vuelve a verificar al desactivar.
     try {
@@ -89,7 +87,7 @@ export async function POST(request: Request) {
         );
       }
       const totpResult = await verifyTotp({
-        token: parsed.data.code,
+        token: code,
         secret: secretData.secret,
       });
       if (!totpResult.valid) {
@@ -102,7 +100,11 @@ export async function POST(request: Request) {
       });
       return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
     }
-    proof = { code: parsed.data.code };
+    proof = { code };
+  } else {
+    // Inalcanzable: el schema exige uno de los dos. Estrecha el tipo y, si alguien
+    // relajara el schema, falla cerrado en vez de desactivar sin prueba.
+    return NextResponse.json({ error: "Datos inválidos." }, { status: 422 });
   }
 
   // Limpiar el secreto (y los códigos de recuperación en WP), con la prueba.

@@ -40,11 +40,19 @@ export const selectShippingRateSchema = z.object({
 
 /* ------------------------------ Reseñas ------------------------------- */
 
+// El nombre y el email del autor se derivan SIEMPRE del perfil autenticado (ver
+// POST /api/store/reviews/[productId]), nunca del cuerpo: si no, cualquier petición
+// directa podría publicar una reseña atribuida al nombre o al email de un tercero.
+// Zod descarta las claves que no declara, así que un `name`/`email` enviado se ignora.
 export const createReviewSchema = z.object({
   rating: z.number().int().min(1).max(5),
   content: z.string().min(10).max(3000).trim(),
-  name: z.string().min(1).max(100).trim(),
-  email: z.email().max(200).trim(),
+});
+
+/* ------------------------------ Wishlist ------------------------------ */
+
+export const wishlistBodySchema = z.object({
+  productId: z.number().int().positive(),
 });
 
 /* ------------------------------ Dirección ----------------------------- */

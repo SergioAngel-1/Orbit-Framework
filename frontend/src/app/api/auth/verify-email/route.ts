@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
+import { verifyEmailBodySchema } from "@/lib/validation/auth";
 import { logger } from "@/lib/observability/logger";
 
 export const dynamic = "force-dynamic";
@@ -15,15 +16,23 @@ export async function POST(request: Request) {
   });
   if (blocked) return blocked;
 
-  let body: { token?: string };
+  let body: unknown;
   try {
-    body = (await request.json()) as { token?: string };
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  if (!body.token || typeof body.token !== "string") {
-    return NextResponse.json({ error: "Token requerido." }, { status: 422 });
+  const parsed = verifyEmailBodySchema.safeParse(body);
+  if (!parsed.success) {
+    logger.warn(
+      { event: "auth.verify_email.validation_error" },
+      "Validación fallida al verificar el email",
+    );
+    return NextResponse.json(
+      { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
+      { status: 422 },
+    );
   }
 
   let session;
@@ -40,7 +49,7 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session.token}`,
       },
-      body: JSON.stringify({ token: body.token }),
+      body: JSON.stringify({ token: parsed.data.token }),
     });
 
     if (!res.ok) {
