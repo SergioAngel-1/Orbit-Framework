@@ -257,6 +257,9 @@ git fetch framework --tags
   capacidad. Un test impide que el código PHP propio ejecute procesos del sistema.
 - **`.gitignore` cubre `.env.prod`, `*.tar.gz` y `/backups/`.** Si tu instancia versionó alguno,
   retíralo del índice (`git rm --cached`) y rota los secretos que contuviera.
+- **Nuevo `backend/scripts/verify-security.sh`**: comprueba con tráfico HTTP real que la pila está cerrada
+  (GraphQL/Store API/`hwe/v1/auth` → 404 sin el secreto, webhooks, login con 2FA sin tokens, cabeceras).
+  Ejecútalo tras desplegar la v2 (ver `docs/SECURITY.md`); con `--strict` no omite nada en silencio.
 
 ### Tooling
 

@@ -218,7 +218,7 @@ jobs:
 
       - name: Sintaxis de scripts de shell
         run: |
-          for f in backend/scripts/*.sh; do
+          for f in backend/scripts/*.sh backend/scripts/lib/*.sh; do
             echo "· $f"
             sh -n "$f"
           done
