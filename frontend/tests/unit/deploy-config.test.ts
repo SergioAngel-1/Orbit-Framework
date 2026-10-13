@@ -186,6 +186,19 @@ describe("docker-compose.yml (desarrollo)", () => {
   });
 });
 
+describe("docker-compose.prod.yml: hardening", () => {
+  // La cabecera del compose promete `no-new-privileges` en TODOS los servicios.
+  it("todos los servicios llevan no-new-privileges", () => {
+    const top = prod.split("\nservices:\n")[1]!.split(/\nvolumes:\n|\nnetworks:\n/)[0]!;
+    const names = [...top.matchAll(/^  ([\w-]+):\s*$/gm)].map((m) => m[1]!);
+
+    expect(names.length).toBeGreaterThanOrEqual(8);
+    for (const name of names) {
+      expect(service(prod, name), name).toContain("no-new-privileges:true");
+    }
+  });
+});
+
 describe("Caddy: CI valida con la versión de producción", () => {
   it("la imagen del `caddy validate` de CI es la misma que la de docker-compose.prod.yml", () => {
     const image = (source: string) => /image:\s*(caddy:[\w.-]+)/.exec(source)?.[1];

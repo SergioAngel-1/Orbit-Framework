@@ -266,6 +266,9 @@ services:
       - ./backend/scripts:/scripts:ro
     entrypoint: ["/bin/sh"]
     command: ["/scripts/setup.sh"]
+    # Corre como 33:33 y no usa sudo/su: no necesita ganar privilegios.
+    security_opt:
+      - no-new-privileges:true
     networks:
       - hwe_net
 
