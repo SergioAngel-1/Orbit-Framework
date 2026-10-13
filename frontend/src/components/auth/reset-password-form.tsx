@@ -1,4 +1,5 @@
 "use client";
+import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
@@ -54,7 +55,7 @@ export function ResetPasswordForm({ resetKey, login }: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form {...HUBSPOT_DO_NOT_COLLECT} onSubmit={onSubmit} className="space-y-4">
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           {error}

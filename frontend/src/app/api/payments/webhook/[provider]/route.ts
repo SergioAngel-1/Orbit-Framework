@@ -1,5 +1,5 @@
 import "@/lib/payments/providers"; // efecto secundario: registra las pasarelas
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { handleApiError } from "@/lib/api/errors";
 import { acceptsWebhooksFrom, getProvider } from "@/lib/payments/registry";
 import { rateLimit } from "@/lib/security/rate-limit";
@@ -8,6 +8,7 @@ import { getClientIp } from "@/lib/http/request-ip";
 import { getOrCreateRequestId } from "@/lib/observability/request-id";
 import { runWithRequestId } from "@/lib/observability/request-context";
 import { logger } from "@/lib/observability/logger";
+import { sendPurchaseToMeta } from "@/lib/analytics/meta-capi";
 import {
   getOrder,
   isOrderPaid,
@@ -17,6 +18,28 @@ import {
 } from "@/lib/payments/orders";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Manda la compra a la Conversions API de Meta DESPUÉS de responder a la
+ * pasarela: la medición no puede retrasar ni hacer fallar el webhook. No lanza
+ * (`sendPurchaseToMeta` ya lo garantiza) y sin consentimiento, sin credenciales
+ * o con un pedido que no cuenta como compra, no hace nada.
+ */
+function measurePurchase(order: Parameters<typeof sendPurchaseToMeta>[0]): void {
+  after(async () => {
+    try {
+      await sendPurchaseToMeta(order);
+    } catch (error) {
+      logger.warn(
+        {
+          event: "payments.webhook.measure_failed",
+          err: error instanceof Error ? error.message : error,
+        },
+        "No se pudo medir la compra",
+      );
+    }
+  });
+}
 
 /**
  * POST /api/payments/webhook/[provider]
@@ -137,6 +160,9 @@ export async function POST(
           { event: "payments.webhook.already_paid", reference: verification.reference },
           "Pedido ya estaba pagado",
         );
+        // Un reintento de la pasarela: si el envío anterior no salió, la marca
+        // del pedido (`_hwe_meta_capi_purchase_sent`) evita duplicarlo.
+        measurePurchase(order);
         return NextResponse.json({ received: true, applied: "already_paid" });
       }
 
@@ -162,11 +188,15 @@ export async function POST(
         );
       }
 
-      await markOrderPaid(verification.reference, verification.providerTransactionId);
+      const paidOrder = await markOrderPaid(
+        verification.reference,
+        verification.providerTransactionId,
+      );
       logger.info(
         { event: "payments.webhook.paid", reference: verification.reference },
         "Pedido marcado como pagado",
       );
+      measurePurchase(paidOrder);
       return NextResponse.json({ received: true, applied: "paid" });
     } catch (error) {
       // El evento quedó a medias (WooCommerce caído, timeout de wc/v3…): se suelta

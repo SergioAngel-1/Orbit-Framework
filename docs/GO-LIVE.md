@@ -55,7 +55,7 @@
 
 ## 6. Analítica y legal
 
-- [ ] `NEXT_PUBLIC_ANALYTICS_PROVIDER` (+ dominio/ID) si se usa; el script carga **tras consentimiento**.
+- [ ] Servicios de analítica y publicidad configurados en Control Center → Integraciones (solo se cargan **tras consentimiento**); `CSP_ANALYTICS_PROVIDERS` estrecha la CSP a los que uses.
 - [ ] Revisar textos legales (`/[locale]/legal/*`) con tu información real.
 
 ## 7. Operación

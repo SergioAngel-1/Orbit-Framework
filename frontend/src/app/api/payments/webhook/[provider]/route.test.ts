@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import crypto from "node:crypto";
 import { markEventOnce, releaseEvent } from "@/lib/security/replay";
 import { getOrder, markOrderPaid } from "@/lib/payments/orders";
+import { sendPurchaseToMeta } from "@/lib/analytics/meta-capi";
 import { POST } from "./route";
 
 // ============================================================================
@@ -29,6 +30,14 @@ vi.mock("@/lib/payments/orders", async (importOriginal) => ({
   getOrder: vi.fn(),
   markOrderPaid: vi.fn(),
   markOrderCancelled: vi.fn(),
+}));
+// `after()` solo existe dentro de una petición de Next: aquí corre al momento.
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (callback: () => unknown) => void callback(),
+}));
+vi.mock("@/lib/analytics/meta-capi", () => ({
+  sendPurchaseToMeta: vi.fn(async () => "sent"),
 }));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -133,5 +142,51 @@ describe("anti-replay", () => {
 
     expect((await res.json()).applied).toBe("duplicate");
     expect(getOrder).not.toHaveBeenCalled();
+  });
+});
+
+describe("medición de la compra (Conversions API de Meta)", () => {
+  beforeEach(() => {
+    vi.stubEnv("PAYMENT_PROVIDER", "noop");
+    vi.mocked(markEventOnce).mockResolvedValue(true);
+    vi.mocked(sendPurchaseToMeta).mockResolvedValue("sent");
+  });
+
+  it("al marcar el pedido pagado, envía la compra desde el servidor", async () => {
+    const paid = { ...ORDER, status: "processing" };
+    vi.mocked(markOrderPaid).mockResolvedValue(paid as never);
+
+    const res = await call(noopEvent());
+
+    expect((await res.json()).applied).toBe("paid");
+    expect(sendPurchaseToMeta).toHaveBeenCalledWith(paid);
+  });
+
+  it("un reintento de la pasarela con el pedido ya pagado también lo intenta (la marca del pedido evita duplicar)", async () => {
+    const paid = { ...ORDER, status: "processing" };
+    vi.mocked(getOrder).mockResolvedValue(paid as never);
+
+    const res = await call(noopEvent());
+
+    expect((await res.json()).applied).toBe("already_paid");
+    expect(sendPurchaseToMeta).toHaveBeenCalledWith(paid);
+  });
+
+  it("si el importe no cuadra, no se envía nada", async () => {
+    await call(noopEvent({ amountMinor: 1 }));
+
+    expect(sendPurchaseToMeta).not.toHaveBeenCalled();
+  });
+
+  it("un fallo del envío no cambia la respuesta a la pasarela", async () => {
+    vi.mocked(markOrderPaid).mockResolvedValue({
+      ...ORDER,
+      status: "processing",
+    } as never);
+    vi.mocked(sendPurchaseToMeta).mockRejectedValue(new Error("meta caído"));
+
+    const res = await call(noopEvent());
+
+    expect(res.status).toBe(200);
   });
 });

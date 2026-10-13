@@ -9,7 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import { cartApi } from "@/lib/client/store-api";
-import { trackEvent } from "@/components/analytics/analytics-provider";
+import { trackEvent } from "@/components/analytics/track-event";
+import { addToCartParams } from "@/lib/analytics/ecommerce";
 import type { StoreCart } from "@/types/woocommerce";
 
 // ============================================================================
@@ -102,9 +103,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     closeDrawer: () => setDrawerOpen(false),
     toggleDrawer: () => setDrawerOpen((o) => !o),
     addItem: (id, quantity = 1) =>
-      run(() => cartApi.addItem(id, quantity)).then(() => {
-        // Evento de analítica (no-op sin consentimiento/proveedor).
-        trackEvent("add_to_cart", { product_id: id, quantity });
+      run(async () => {
+        const updated = await cartApi.addItem(id, quantity);
+        // Evento de analítica con LO AÑADIDO, leído del carrito que devolvió el
+        // servidor (no-op sin consentimiento/proveedor). Solo si la petición salió bien.
+        const params = addToCartParams(updated, id, quantity);
+        if (params) trackEvent("add_to_cart", params);
+        return updated;
+      }).then(() => {
         // Abrir el drawer automáticamente al añadir al carrito
         setDrawerOpen(true);
       }),

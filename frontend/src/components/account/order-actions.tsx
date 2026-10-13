@@ -1,4 +1,5 @@
 "use client";
+import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
@@ -145,6 +146,7 @@ export function OrderActions({
 
       {review?.mode === "rate" && rateOpen && (
         <form
+          {...HUBSPOT_DO_NOT_COLLECT}
           onSubmit={(e) => void onRate(e)}
           className="space-y-3 rounded-xl border border-gray-200 p-4 dark:border-gray-800"
         >

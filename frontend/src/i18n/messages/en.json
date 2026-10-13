@@ -497,9 +497,11 @@
     "backHome": "← Back home"
   },
   "consent": {
-    "message": "This site uses necessary technical cookies and, if you accept, analytics cookies to improve the service.",
+    "message": "This site uses necessary technical cookies and, if you accept, {kind, select, ads {advertising cookies from {providers} to show you relevant ads} both {analytics and advertising cookies from {providers} to improve the service and show you relevant ads} other {analytics cookies from {providers} to improve the service}}. <link>Cookie policy</link>",
     "necessaryOnly": "Necessary only",
-    "acceptAll": "Accept all"
+    "acceptAll": "Accept all",
+    "close": "Close",
+    "regionLabel": "Cookies"
   },
   "meta": {
     "titleTemplate": "%s · HeadlessWP"

@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { cartApi } from "@/lib/client/store-api";
+import { trackEvent } from "@/components/analytics/track-event";
 import type { StoreCart } from "@/types/woocommerce";
 import { CartProvider, useCart } from "./cart-context";
 
@@ -24,7 +25,7 @@ vi.mock("@/lib/client/store-api", () => ({
     selectShippingRate: vi.fn(),
   },
 }));
-vi.mock("@/components/analytics/analytics-provider", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/components/analytics/track-event", () => ({ trackEvent: vi.fn() }));
 
 const cartWith = (count: number) =>
   ({ items: [], items_count: count }) as unknown as StoreCart;
@@ -127,5 +128,48 @@ describe("CartProvider", () => {
 
     expect(current.loading).toBe(false);
     first.resolve(cartWith(2));
+  });
+});
+
+describe("CartProvider: medición", () => {
+  const cartWithLine = {
+    items: [
+      {
+        key: "k",
+        id: 3,
+        name: "Camiseta",
+        quantity: 3,
+        prices: { price: "2500", currency_code: "EUR", currency_minor_unit: 2 },
+      },
+    ],
+    items_count: 3,
+    totals: { currency_code: "EUR" },
+  } as unknown as StoreCart;
+
+  it("al añadir, `add_to_cart` lleva LO AÑADIDO (no la línea entera) con el precio del servidor", async () => {
+    await mount();
+    vi.mocked(cartApi.addItem).mockResolvedValue(cartWithLine);
+
+    await act(async () => {
+      await current.addItem(3, 2);
+    });
+
+    expect(trackEvent).toHaveBeenCalledWith("add_to_cart", {
+      currency: "EUR",
+      value: 50,
+      items: [{ item_id: "3", item_name: "Camiseta", price: 25, quantity: 2 }],
+    });
+  });
+
+  it("si el servidor rechaza añadir, no se mide nada", async () => {
+    await mount();
+    vi.mocked(cartApi.addItem).mockRejectedValue(new Error("sin stock"));
+
+    await act(async () => {
+      await current.addItem(3, 1);
+    });
+
+    expect(trackEvent).not.toHaveBeenCalled();
+    expect(current.error).toBe("sin stock");
   });
 });

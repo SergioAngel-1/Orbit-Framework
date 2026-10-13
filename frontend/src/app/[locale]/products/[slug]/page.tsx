@@ -14,6 +14,8 @@ import { ProductGrid } from "@/components/products/product-grid";
 import ProductActions from "@/components/products/product-actions";
 import { ReviewGate } from "@/components/products/review-gate";
 import { CouponNotices } from "@/components/coupons/coupon-notice";
+import { ViewItemTracker } from "@/components/analytics/view-item-tracker";
+import { viewItemParams } from "@/lib/analytics/ecommerce";
 import { isModuleEnabled } from "@/lib/config/modules";
 import { getProductCoupons } from "@/lib/coupons/public-coupons";
 import { getCartProductRefs } from "@/lib/catalog/coupon-refs";
@@ -109,6 +111,14 @@ export default async function ProductPage({
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+
+      {/* Medición: `view_item` una vez por ficha (la página es ISR). */}
+      <ViewItemTracker
+        params={viewItemParams(
+          { databaseId: product.databaseId, name: product.name, price: product.price },
+          config.ecommerce.currency,
+        )}
       />
 
       {/* Breadcrumb */}

@@ -358,11 +358,15 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 - **SEO**: `app/sitemap.ts` (URLs + hreflang), `app/robots.txt/route.ts`, `app/manifest.ts`,
   metadatos + JSON-LD en `app/[locale]/layout.tsx` y en la ficha de producto — todos leen
   `getSiteConfig()`, ninguno tiene la URL o la marca hardcodeada.
-- **Analítica/consentimiento**: `components/analytics/` (banner opt-in). El script se carga
-  **solo tras consentimiento**; soporta **Plausible** (recomendado) y **GA4** según
-  `NEXT_PUBLIC_ANALYTICS_PROVIDER`. Eventos e-commerce con `trackEvent()`
-  (`add_to_cart` en `cart-context`, `purchase` en `checkout/return` vía `PurchaseTracker`).
-  Los hosts del proveedor se autorizan en la CSP de `next.config.mjs` (`getAnalyticsHosts`).
+- **Analítica/consentimiento**: `components/analytics/` (banner opt-in) y `lib/analytics/`. Los
+  servicios (GA4, GTM, Plausible, Meta Pixel + Conversions API, TikTok, HubSpot) salen de
+  `config.integrations` (Control Center); `resolveTrackingServices` es la ÚNICA fuente de qué hay
+  que consentir. Los scripts cargan **solo tras «Aceptar»**. Eventos con la forma de GA4
+  (`lib/analytics/ecommerce.ts`) vía `trackEvent()` (`view_item` en la ficha, `add_to_cart` en
+  `cart-context`, `begin_checkout` en el checkout, `purchase` en `checkout/return`). La compra
+  también sale desde el servidor (`sendPurchaseToMeta`, tras el webhook verificado) con el
+  contexto que el checkout guardó en el pedido. Hosts de la CSP: `csp-analytics.mjs`
+  (`CSP_ANALYTICS_PROVIDERS` los estrecha).
 
 ### 6.8 Pagos (Fase 7 — capa de pasarelas agnóstica)
 - **Contrato e implementación** en `lib/payments/`: `types.ts` (`PaymentProvider`,

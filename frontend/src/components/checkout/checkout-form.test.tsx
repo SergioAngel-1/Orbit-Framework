@@ -6,6 +6,7 @@ import es from "@/i18n/messages/es.json";
 import { csrfFetch } from "@/lib/client/csrf";
 import type { PaymentChoice } from "@/lib/payments/checkout-options";
 import type { CheckoutCustomerSeed } from "@/lib/checkout/customer-seed";
+import { trackEvent } from "@/components/analytics/track-event";
 import { CheckoutForm } from "./checkout-form";
 
 // El formulario ofrece los medios de pago que el Control Center activa y manda
@@ -14,13 +15,26 @@ import { CheckoutForm } from "./checkout-form";
 // pedidos, y el formulario nace con los datos del cliente con sesión.
 
 vi.mock("@/lib/client/csrf", () => ({ csrfFetch: vi.fn() }));
+const tracking = vi.hoisted(() => ({ consent: false }));
+vi.mock("@/components/analytics/track-event", () => ({
+  hasTrackingConsent: () => tracking.consent,
+  trackEvent: vi.fn(),
+}));
 vi.mock("@/i18n/navigation", () => ({
   getPathname: ({ href }: { href: string }) => href,
 }));
 // El carrito que ve el formulario; cada test puede cambiarlo.
 const cartState = vi.hoisted(() => ({ cart: {} as Record<string, unknown> }));
 const baseCart = () => ({
-  items: [{ key: "a", name: "Producto", quantity: 1 }],
+  items: [
+    {
+      key: "a",
+      id: 3,
+      name: "Producto",
+      quantity: 1,
+      prices: { price: "1000", currency_code: "EUR", currency_minor_unit: 2 },
+    },
+  ],
   coupons: [],
   needs_shipping: false,
   shipping_rates: [],
@@ -106,6 +120,13 @@ const SEED: CheckoutCustomerSeed = {
 const field = (container: HTMLElement, name: string) =>
   container.querySelector<HTMLInputElement>(`input[name="${name}"]`)!;
 
+const checkoutCalls = () =>
+  vi.mocked(csrfFetch).mock.calls.filter(([url]) => url === "/api/store/checkout");
+
+function checkoutBodyFull(): { tracking: { consent: boolean; locale: string } } {
+  return (checkoutCalls()[0]![1] as { body: { tracking: never } }).body;
+}
+
 const paymentCalls = () =>
   vi.mocked(csrfFetch).mock.calls.filter(([url]) => url === "/api/payments/create");
 
@@ -118,6 +139,7 @@ const ALL: PaymentChoice[] = ["online", "whatsapp", "cash"];
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+  tracking.consent = false;
   cartState.cart = baseCart();
   Object.defineProperty(window, "location", {
     value: {
@@ -366,5 +388,50 @@ describe("guard de envío", () => {
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(false);
+  });
+});
+
+describe("medición", () => {
+  it("al abrir el checkout con carrito, mide `begin_checkout` una sola vez", () => {
+    const { rerender } = renderForm();
+    rerender(
+      <NextIntlClientProvider locale="es" messages={es}>
+        <CheckoutForm />
+      </NextIntlClientProvider>,
+    );
+
+    expect(trackEvent).toHaveBeenCalledTimes(1);
+    expect(trackEvent).toHaveBeenCalledWith(
+      "begin_checkout",
+      expect.objectContaining({ currency: "EUR", value: 10 }),
+    );
+  });
+
+  it("con el carrito vacío no mide nada", () => {
+    cartState.cart = { ...baseCart(), items: [] };
+    renderForm();
+
+    expect(trackEvent).not.toHaveBeenCalled();
+  });
+
+  it("manda al servidor el consentimiento y el idioma, para el contexto del pedido", async () => {
+    tracking.consent = true;
+    bff();
+    const { container } = renderForm({ paymentChoices: ["cash"] });
+
+    await submit(container);
+
+    await waitFor(() => expect(checkoutCalls()).toHaveLength(1));
+    expect(checkoutBodyFull().tracking).toEqual({ consent: true, locale: "es" });
+  });
+
+  it("sin consentimiento manda `consent: false`", async () => {
+    bff();
+    const { container } = renderForm({ paymentChoices: ["cash"] });
+
+    await submit(container);
+
+    await waitFor(() => expect(checkoutCalls()).toHaveLength(1));
+    expect(checkoutBodyFull().tracking).toEqual({ consent: false, locale: "es" });
   });
 });

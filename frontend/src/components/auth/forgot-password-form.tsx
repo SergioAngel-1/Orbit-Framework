@@ -1,4 +1,5 @@
 "use client";
+import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
@@ -47,7 +48,7 @@ export function ForgotPasswordForm({ email: initialEmail }: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form {...HUBSPOT_DO_NOT_COLLECT} onSubmit={onSubmit} className="space-y-4">
       <p className="text-sm text-gray-500 dark:text-gray-400">{t("instructions")}</p>
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">

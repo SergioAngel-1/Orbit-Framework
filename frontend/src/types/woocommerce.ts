@@ -193,6 +193,8 @@ export interface WooOrder {
   customer_note?: string;
   date_created: string;
   date_modified: string;
+  /** Hora del pago en GMT, sin zona (`2026-09-27T15:05:00`); `null` si no está pagado. */
+  date_paid_gmt?: string | null;
   billing: WooAddress;
   shipping: WooAddress;
   line_items: WooOrderLineItem[];

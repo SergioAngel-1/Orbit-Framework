@@ -1,3 +1,4 @@
+import { analyticsCspHosts } from "./csp-analytics.mjs";
 import createNextIntlPlugin from "next-intl/plugin";
 import path from "path";
 import fs from "fs";
@@ -30,30 +31,10 @@ function getWordPressOrigin() {
 const WP_ORIGIN = getWordPressOrigin();
 
 /**
- * Orígenes del proveedor de analítica para autorizarlos en la CSP
- * (`script-src` para cargar el script; `connect-src` para sus beacons).
- * Solo se añaden si hay un proveedor configurado y con consentimiento real
- * en runtime; en CSP listamos el host para que el navegador no bloquee.
+ * Hosts de analítica que la CSP autoriza (ver `csp-analytics.mjs`): el máximo
+ * permitido, que un despliegue estrecha con `CSP_ANALYTICS_PROVIDERS`.
  */
-function getAnalyticsHosts() {
-  const provider = process.env.NEXT_PUBLIC_ANALYTICS_PROVIDER;
-  if (provider === "plausible") {
-    const host = process.env.NEXT_PUBLIC_PLAUSIBLE_HOST || "https://plausible.io";
-    return { script: [host], connect: [host] };
-  }
-  if (provider === "ga4") {
-    return {
-      script: ["https://www.googletagmanager.com"],
-      connect: [
-        "https://www.google-analytics.com",
-        "https://region1.google-analytics.com",
-      ],
-    };
-  }
-  return { script: [], connect: [] };
-}
-
-const ANALYTICS = getAnalyticsHosts();
+const ANALYTICS = analyticsCspHosts();
 
 /**
  * Construye un `remotePattern` de next/image a partir del origen del CMS,
@@ -92,7 +73,7 @@ function buildContentSecurityPolicy() {
     "style-src 'self' 'unsafe-inline'",
     // Sin generadores de QR externos: el QR del alta de 2FA lo sirve nuestro BFF
     // (/api/auth/2fa/qr) y el secreto TOTP no debe salir del dominio.
-    `img-src 'self' data: blob: ${WP_ORIGIN}`,
+    `img-src 'self' data: blob: ${WP_ORIGIN}${ANALYTICS.img.length ? " " + ANALYTICS.img.join(" ") : ""}`,
     "font-src 'self' data:",
     // Sin el CMS: el navegador solo llama al BFF (mismo origen).
     `connect-src 'self'${ANALYTICS.connect.length ? " " + ANALYTICS.connect.join(" ") : ""}${isProd ? "" : " ws: wss:"}`,

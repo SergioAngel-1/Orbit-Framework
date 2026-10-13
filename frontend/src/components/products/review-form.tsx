@@ -1,4 +1,5 @@
 "use client";
+import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { reviewApi } from "@/lib/client/store-api";
@@ -52,6 +53,7 @@ export function ReviewForm({
 
   return (
     <form
+      {...HUBSPOT_DO_NOT_COLLECT}
       onSubmit={onSubmit}
       className="space-y-3 rounded-xl border border-gray-200 p-4 dark:border-gray-800"
     >

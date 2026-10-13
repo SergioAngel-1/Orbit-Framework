@@ -1,4 +1,5 @@
 "use client";
+import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
@@ -12,6 +13,8 @@ import {
 } from "@/lib/payments/checkout-options";
 import { checkoutReturnUrl } from "@/lib/checkout/return-url";
 import { canSubmitCheckout } from "@/lib/validation/checkout-guard";
+import { beginCheckoutParams } from "@/lib/analytics/ecommerce";
+import { hasTrackingConsent, trackEvent } from "@/components/analytics/track-event";
 import {
   checkoutSeedFromCustomer,
   type CheckoutCustomerSeed,
@@ -171,6 +174,16 @@ export function CheckoutForm({
     { name: "phone", label: tForm.phone },
   ];
 
+  // `begin_checkout` una sola vez por visita, en cuanto hay un carrito con algo.
+  const beginTracked = useRef(false);
+  useEffect(() => {
+    if (beginTracked.current || !cart) return;
+    const params = beginCheckoutParams(cart);
+    if (!params) return;
+    beginTracked.current = true;
+    trackEvent("begin_checkout", params);
+  }, [cart]);
+
   // Respaldo: el servidor no pudo leer al cliente (`customer === null`), así
   // que el formulario lo pide al BFF. Un invitado no tiene nada que pedir.
   useEffect(() => {
@@ -241,6 +254,9 @@ export function CheckoutForm({
           billing_address,
           payment_method: paymentMethodFor(effectiveChoice),
           customer_note: "",
+          // Contexto de medición del pedido: el consentimiento que rige y el
+          // idioma de la página (el servidor lo guarda solo si hay «Aceptar»).
+          tracking: { consent: hasTrackingConsent(), locale },
         },
       });
       const data = (await res.json().catch(() => ({}))) as
@@ -288,7 +304,7 @@ export function CheckoutForm({
   const noShippingRate = !empty && !canSubmitCheckout(cart);
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
+    <form {...HUBSPOT_DO_NOT_COLLECT} onSubmit={onSubmit} className="space-y-6">
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           {error}

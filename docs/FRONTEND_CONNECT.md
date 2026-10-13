@@ -198,6 +198,35 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   carrito cuando el módulo y los cupones están activos: es lo que usa «Cupones disponibles»
   (`CartCouponOffers`) para filtrar por alcance y gasto mínimo/máximo.
 
+### Analítica y medición
+
+- **Servicios** (`config.integrations`: `analytics_provider` + `analytics_id`, `gtm_id`,
+  `meta_pixel_id`, `tiktok_pixel_id`, `hubspot_portal_id`): cada uno se activa solo si su id no
+  está vacío **y** tiene la forma esperada (`G-…`, `GTM-…`, dígitos…, o el dominio con Plausible);
+  lo que no encaja no llega a ningún script. Con GTM, GA4 directo no se carga. Sin ningún
+  servicio no hay banner ni «Preferencias de cookies». `lib/analytics/services.ts` es la fuente
+  única: scripts, banner y qué dice.
+- **Consentimiento:** ningún script carga sin «Aceptar» (`localStorage`, clave `cookie-consent`).
+  Retirarlo borra las cookies de seguimiento y recarga. Los eventos se retienen (hasta 20) solo
+  en el hueco de hidratación y solo con un «Aceptar» guardado; si no, se descartan.
+- **Eventos** (forma de GA4: `currency`, `value`, `items[]`, `transaction_id`): `view_item`,
+  `add_to_cart` (lo añadido, leído del carrito del servidor), `begin_checkout`, `purchase`. Se
+  traducen a cada proveedor (Meta: `ViewContent`/`AddToCart`/`InitiateCheckout`/`Purchase`;
+  TikTok; Plausible como objetivos con ingresos). Nunca llevan el nombre del producto a Meta ni
+  a TikTok.
+- **Compra:** solo cuenta un pedido **pagado en línea** (`countsAsPurchase`); efectivo y link
+  por WhatsApp no. El navegador y la Conversions API comparten `event_id = purchase_<pedido>`
+  y Meta la cuenta una vez.
+- **Conversions API** (servidor): `sendPurchaseToMeta` tras el webhook de pago verificado. Solo
+  con el consentimiento que el pedido guardó al crearse (`_hwe_tracking_consent`, más cookies
+  `_fbp`/`_fbc`, IP, navegador y URL de «gracias» solo si aceptó). Token y código de prueba por
+  el canal interno `hwe/v1/integrations/meta-capi`; correo y teléfono van con SHA-256; una vez
+  por pedido (`_hwe_meta_capi_purchase_sent`).
+- **Formularios y HubSpot:** todo `<form>` lleva `data-hs-do-not-collect` salvo los que deben
+  llegar al CRM (contacto); un test lo impone.
+- **CSP:** `CSP_ANALYTICS_PROVIDERS` (lista o `none`) estrecha los hosts autorizados; por defecto
+  están todos los que el framework sabe cargar.
+
 ## A.3 Config pública dinámica: `GET /wp-json/hwe/v1/config`
 
 Fuente única de verdad de marca/negocio, sin auth, cacheable. Forma exacta (ver

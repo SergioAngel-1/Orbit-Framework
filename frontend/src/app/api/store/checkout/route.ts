@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { getSession } from "@/lib/auth/session";
@@ -21,6 +22,13 @@ import {
   paymentChoiceFor,
 } from "@/lib/payments/checkout-options";
 import { markOrderAwaitingPaymentLink } from "@/lib/payments/orders";
+import { getClientIp } from "@/lib/http/request-ip";
+import { routing } from "@/i18n/routing";
+import { checkoutReturnUrl } from "@/lib/checkout/return-url";
+import {
+  orderTrackingMetaData,
+  type OrderTrackingContext,
+} from "@/lib/analytics/order-tracking";
 import {
   isValidIdempotencyKey,
   reserveIdempotencyKey,
@@ -229,6 +237,33 @@ export async function POST(request: Request) {
       }
     }
 
+    // Contexto de medición: lo que hace falta para mandar la compra desde el
+    // servidor cuando la pasarela confirme (consentimiento, cookies del píxel,
+    // IP y navegador del comprador). Va ANTES del paso a «En espera», que es el
+    // que dispara los correos. Un fallo aquí no pierde el pedido.
+    if (data.order_id) {
+      try {
+        const context = await trackingContext(
+          request,
+          parsed.data.tracking,
+          data.order_id,
+        );
+        await wcFetch(`/orders/${data.order_id}`, {
+          method: "PUT",
+          body: { meta_data: orderTrackingMetaData(context) },
+        });
+      } catch (trackingError) {
+        logger.error(
+          {
+            event: "checkout.order_tracking_failed",
+            order_id: data.order_id,
+            err: trackingError instanceof Error ? trackingError.message : trackingError,
+          },
+          "No se pudo guardar el contexto de medición en el pedido",
+        );
+      }
+    }
+
     // Link de pago por WhatsApp: el pedido pasa a «En espera» (ver
     // `markOrderAwaitingPaymentLink`), que es lo que dispara los correos. Un
     // fallo aquí no invalida el pedido ya creado: se registra para conciliar.
@@ -308,4 +343,28 @@ class PaymentMethodUnavailableError extends Error {
   constructor() {
     super("payment_method_unavailable");
   }
+}
+
+/**
+ * Lo que necesita la Conversions API para mandar la compra cuando la pasarela
+ * la confirme: el consentimiento que declara el navegador y, solo con él, las
+ * cookies del píxel, la IP y el navegador del comprador (el pedido lo crea el
+ * BFF, así que WooCommerce guarda la IP del servidor, no la suya) y la URL de
+ * «gracias» en su idioma.
+ */
+async function trackingContext(
+  request: Request,
+  tracking: { consent: boolean; locale: (typeof routing.locales)[number] } | undefined,
+  orderId: number,
+): Promise<OrderTrackingContext> {
+  if (!tracking?.consent) return { consent: false };
+  const [jar, config] = await Promise.all([cookies(), getSiteConfig()]);
+  return {
+    consent: true,
+    fbp: jar.get("_fbp")?.value,
+    fbc: jar.get("_fbc")?.value,
+    ip: getClientIp(request),
+    userAgent: request.headers.get("user-agent") ?? undefined,
+    sourceUrl: checkoutReturnUrl(config.brand.url, tracking.locale, orderId),
+  };
 }

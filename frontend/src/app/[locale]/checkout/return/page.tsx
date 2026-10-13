@@ -11,6 +11,8 @@ import {
 } from "@/lib/payments/checkout-options";
 import { formatPrice } from "@/lib/format";
 import { PurchaseTracker } from "@/components/analytics/purchase-tracker";
+import { purchaseParams } from "@/lib/analytics/ecommerce";
+import { countsAsPurchase } from "@/lib/analytics/purchase";
 import { PaymentStatusWatcher } from "@/components/checkout/payment-status-watcher";
 import { GuestAccountInvite } from "@/components/checkout/guest-account-invite";
 import { PayOrderButton } from "@/components/checkout/pay-order-button";
@@ -63,6 +65,8 @@ export default async function CheckoutReturnPage({
   let total: string | null = null;
   let currency = "";
   let method = "";
+  let lineItems: Awaited<ReturnType<typeof getOrder>>["line_items"] = [];
+  let measured = false;
   let notFound = false;
 
   if (ref && /^\d+$/.test(ref)) {
@@ -74,6 +78,10 @@ export default async function CheckoutReturnPage({
         total = order.total;
         currency = order.currency;
         method = order.payment_method;
+        lineItems = order.line_items ?? [];
+        // Solo un pedido PAGADO EN LÍNEA cuenta como compra para la medición:
+        // el efectivo y el link por WhatsApp no han cobrado nada.
+        measured = countsAsPurchase(order);
       } else {
         notFound = true;
       }
@@ -84,6 +92,9 @@ export default async function CheckoutReturnPage({
     notFound = true;
   }
 
+  const purchaseTrackerParams = measured
+    ? purchaseParams(ref!, total, currency, lineItems)
+    : null;
   const choice = paymentChoiceFor(method);
   // Solo el pago en línea espera a la pasarela: el efectivo y el link por
   // WhatsApp no la tienen detrás.
@@ -99,7 +110,9 @@ export default async function CheckoutReturnPage({
         </p>
       ) : paid ? (
         <div className="rounded-xl border border-green-200 bg-green-50 p-8 dark:border-green-900 dark:bg-green-950">
-          <PurchaseTracker orderId={ref!} amount={Number(total)} currency={currency} />
+          {measured && purchaseTrackerParams && (
+            <PurchaseTracker params={purchaseTrackerParams} />
+          )}
           <h2 className="text-xl font-bold text-green-800 dark:text-green-200">
             {t("return.paid")}
           </h2>

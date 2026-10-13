@@ -497,9 +497,11 @@
     "backHome": "← Volver al inicio"
   },
   "consent": {
-    "message": "Esta web usa cookies técnicas necesarias y, si aceptas, cookies de analytics para mejorar el servicio.",
+    "message": "Esta web usa cookies técnicas necesarias y, si aceptas, {kind, select, ads {cookies publicitarias de {providers} para mostrarte anuncios relevantes} both {cookies de analítica y publicitarias de {providers} para mejorar el servicio y mostrarte anuncios relevantes} other {cookies de analítica de {providers} para mejorar el servicio}}. <link>Política de cookies</link>",
     "necessaryOnly": "Solo necesarias",
-    "acceptAll": "Aceptar todas"
+    "acceptAll": "Aceptar todas",
+    "close": "Cerrar",
+    "regionLabel": "Cookies"
   },
   "meta": {
     "titleTemplate": "%s · HeadlessWP"

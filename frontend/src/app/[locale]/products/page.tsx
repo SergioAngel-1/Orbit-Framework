@@ -1,3 +1,4 @@
+import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
@@ -67,6 +68,7 @@ export default async function ProductsPage({
       <h1 className="mb-6 text-3xl font-extrabold tracking-tight">{t("title")}</h1>
 
       <form
+        {...HUBSPOT_DO_NOT_COLLECT}
         action="/products"
         method="get"
         className="mb-8 flex flex-wrap items-end gap-3"

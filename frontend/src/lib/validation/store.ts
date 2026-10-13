@@ -1,3 +1,4 @@
+import { routing } from "@/i18n/routing";
 import { z } from "zod";
 
 // ============================================================================
@@ -91,6 +92,17 @@ const addressSchema = z.object({
 
 export const checkoutSchema = z.object({
   billing_address: addressSchema,
+  /**
+   * Medición: lo que declara el navegador sobre el consentimiento y el idioma
+   * de la página (para la URL de «gracias» de la Conversions API). Se valida y,
+   * sin `consent`, no se guarda nada más del contexto.
+   */
+  tracking: z
+    .object({
+      consent: z.boolean(),
+      locale: z.enum(routing.locales),
+    })
+    .optional(),
   shipping_address: addressSchema.optional(),
   payment_method: z.string().min(1).max(100),
   payment_data: z

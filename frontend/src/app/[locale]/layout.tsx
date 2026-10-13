@@ -130,7 +130,10 @@ export default async function LocaleLayout({
         {/* Design tokens dinámicos desde el panel de configuración */}
         <ThemeTokens />
         <NextIntlClientProvider messages={messages}>
-          <AnalyticsProvider>
+          <AnalyticsProvider
+            config={config.integrations}
+            plausibleHost={process.env.PLAUSIBLE_HOST || undefined}
+          >
             <CurrencyProvider
               currency={config.ecommerce.currency || "EUR"}
               decimals={config.ecommerce.price_decimals}

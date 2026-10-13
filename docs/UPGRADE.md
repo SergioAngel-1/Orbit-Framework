@@ -432,6 +432,27 @@ git fetch framework --tags
   el checkout muestran los avisos y «Cupones disponibles» solo con el módulo y `coupons_enabled`.
 - **Pruebas:** `backend/patchwork.json` hace redefinible `time()`; el stub del CI sirve un cupón
   público y los pedidos del cliente de prueba.
+- **Analítica por `config.integrations`.** Los servicios (GA4, GTM, Plausible, Meta Pixel y
+  Conversions API, TikTok, HubSpot) se configuran en Control Center → Integraciones y cargan tras
+  «Aceptar». **Se retiran `NEXT_PUBLIC_ANALYTICS_PROVIDER`, `NEXT_PUBLIC_GA_ID`,
+  `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` y `NEXT_PUBLIC_PLAUSIBLE_HOST`**: pasa `analytics_provider` y
+  `analytics_id` (el `G-…` o el dominio de Plausible) al panel. Quedan `PLAUSIBLE_HOST` (script
+  autoalojado) y `CSP_ANALYTICS_PROVIDERS` (estrecha la CSP; por defecto autoriza todos los
+  proveedores).
+- **`trackEvent` cambia de módulo y de firma:** ahora es
+  `import { trackEvent } from "@/components/analytics/track-event"` y recibe un evento de
+  e-commerce con la forma de GA4 (`trackEvent("purchase", purchaseParams(...))`); antes
+  `trackEvent(nombre, props, revenue)` desde `analytics-provider`. `PurchaseTracker` recibe
+  `params` en vez de `orderId`/`amount`/`currency`. `AnalyticsProvider` requiere la prop `config`.
+- **La compra solo se mide si el pedido está pagado EN LÍNEA** y sale también desde el servidor
+  (Conversions API de Meta) tras el webhook verificado. El checkout guarda el contexto de
+  medición en el pedido (`tracking` en `POST /api/store/checkout`; metas `_hwe_tracking_*`).
+- **Todo `<form>` lleva `data-hs-do-not-collect`** (HubSpot recoge formularios que no son suyos
+  si el portal lo tiene activo); el de contacto no. Un test lo exige a los formularios nuevos.
+- **El banner nombra a los terceros configurados** (`consent.message` pasa a ICU con `kind`,
+  `providers` y un enlace a `/legal/cookies`). Sin servicios configurados ya no se pide nada.
+- **No se porta `content-category`** (la línea de negocio del producto es de cada instancia):
+  `item_category` es opcional en `AnalyticsItem` y la rellena quien arma los parámetros.
 - **SEO por entidad unificado (`hwe-seo/fields.php`).** Entradas, páginas, productos y
   categorías comparten caja, límites (título 60, descripción 160), contador y columna
   «SEO». Los campos del formulario de la entrada pasan de `hwe_seo_title`/`hwe_seo_description`

@@ -1,4 +1,5 @@
 "use client";
+import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
@@ -58,7 +59,11 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="max-w-md space-y-4">
+    <form
+      {...HUBSPOT_DO_NOT_COLLECT}
+      onSubmit={onSubmit}
+      className="max-w-md space-y-4"
+    >
       {message && (
         <p className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-300">
           {message}

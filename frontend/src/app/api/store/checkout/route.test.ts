@@ -46,6 +46,16 @@ vi.mock("@/lib/security/idempotency", () => ({
   releaseIdempotencyKey: vi.fn(),
 }));
 vi.mock("@/lib/config", () => ({ getSiteConfig: vi.fn() }));
+const cookieJar = new Map<string, string>();
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) =>
+      cookieJar.has(name) ? { name, value: cookieJar.get(name) } : undefined,
+  }),
+}));
+vi.mock("@/i18n/navigation", () => ({
+  getPathname: ({ href }: { href: string }) => href,
+}));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
@@ -60,11 +70,19 @@ const ADDRESS = {
   email: "ana@example.com",
 };
 
-function checkout(paymentMethod: string) {
+function checkout(
+  paymentMethod: string,
+  extra: Record<string, unknown> = {},
+  headers: Record<string, string> = {},
+) {
   return new Request("https://tienda.example/api/store/checkout", {
     method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ billing_address: ADDRESS, payment_method: paymentMethod }),
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify({
+      billing_address: ADDRESS,
+      payment_method: paymentMethod,
+      ...extra,
+    }),
   });
 }
 
@@ -73,6 +91,7 @@ function payments(
   ecommerce: Record<string, boolean> = {},
 ) {
   vi.mocked(getSiteConfig).mockResolvedValue({
+    brand: { url: "https://tienda.example" },
     ecommerce: { checkout_login_required: true, ...ecommerce },
     payments: {
       gateway_enabled: true,
@@ -103,6 +122,7 @@ const orderPosts = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  cookieJar.clear();
   payments();
   vi.mocked(getSession).mockResolvedValue(SESSION as never);
   vi.mocked(isValidIdempotencyKey).mockReturnValue(false);
@@ -268,5 +288,98 @@ describe("medio de pago frente a lo que WooCommerce ofrece para este carrito", (
     expect(orderPosts()[0]![1]).toMatchObject({
       body: expect.objectContaining({ payment_method: "bacs" }),
     });
+  });
+});
+
+describe("contexto de medición del pedido", () => {
+  /** Metas que el checkout escribió en el pedido (PUT con `meta_data`). */
+  const trackingMeta = () => {
+    const put = vi
+      .mocked(wcFetch)
+      .mock.calls.find(
+        ([path, opts]) =>
+          path === "/orders/42" &&
+          opts?.method === "PUT" &&
+          (opts.body as { meta_data?: unknown[] })?.meta_data,
+      );
+    return Object.fromEntries(
+      (
+        (put?.[1]?.body as { meta_data: { key: string; value: string }[] })
+          ?.meta_data ?? []
+      ).map((m) => [m.key, m.value]),
+    );
+  };
+
+  it("con consentimiento, guarda las cookies del píxel, la IP, el navegador y la URL de «gracias»", async () => {
+    cookieJar.set("_fbp", "fb.1.1727440000000.1234567890");
+    cookieJar.set("_fbc", "fb.1.1727440000000.IwAR0abc");
+
+    await POST(
+      checkout(
+        "hwe_offline",
+        { tracking: { consent: true, locale: "es" } },
+        { "user-agent": "Mozilla/5.0", "x-forwarded-for": "203.0.113.9" },
+      ),
+    );
+
+    expect(trackingMeta()).toMatchObject({
+      _hwe_tracking_consent: "accepted",
+      _hwe_fbp: "fb.1.1727440000000.1234567890",
+      _hwe_fbc: "fb.1.1727440000000.IwAR0abc",
+      _hwe_client_user_agent: "Mozilla/5.0",
+      _hwe_event_source_url: "https://tienda.example/checkout/return?ref=42",
+    });
+  });
+
+  it("sin consentimiento, solo constancia de que no se aceptó: ni cookies ni IP", async () => {
+    cookieJar.set("_fbp", "fb.1.1727440000000.1234567890");
+
+    await POST(
+      checkout(
+        "hwe_offline",
+        { tracking: { consent: false, locale: "es" } },
+        {
+          "user-agent": "Mozilla/5.0",
+        },
+      ),
+    );
+
+    expect(trackingMeta()).toEqual({ _hwe_tracking_consent: "declined" });
+  });
+
+  it("sin el campo `tracking` (cliente que no lo manda) cuenta como no aceptado", async () => {
+    await POST(checkout("hwe_offline"));
+
+    expect(trackingMeta()).toEqual({ _hwe_tracking_consent: "declined" });
+  });
+
+  it("una cookie que no tiene la forma del píxel no se guarda", async () => {
+    cookieJar.set("_fbp", "<script>alert(1)</script>");
+
+    await POST(checkout("hwe_offline", { tracking: { consent: true, locale: "es" } }));
+
+    expect(trackingMeta()).not.toHaveProperty("_hwe_fbp");
+  });
+
+  it("un idioma que el sitio no tiene es un 422", async () => {
+    const res = await POST(
+      checkout("hwe_offline", { tracking: { consent: true, locale: "xx" } }),
+    );
+
+    expect(res.status).toBe(422);
+  });
+
+  it("si no se puede guardar la medición, el pedido ya creado no se pierde", async () => {
+    vi.mocked(wcFetch).mockImplementation((async (
+      path: string,
+      opts?: { method?: string; body?: { meta_data?: unknown } },
+    ) => {
+      if (opts?.method === "PUT" && opts.body?.meta_data) throw new Error("woo caído");
+      return { customer_id: 7 };
+    }) as never);
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(201);
   });
 });

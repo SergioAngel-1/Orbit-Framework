@@ -1,4 +1,5 @@
 "use client";
+import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
@@ -40,7 +41,11 @@ export function ProfileForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="max-w-md space-y-4">
+    <form
+      {...HUBSPOT_DO_NOT_COLLECT}
+      onSubmit={onSubmit}
+      className="max-w-md space-y-4"
+    >
       {message && (
         <p
           className={`rounded-lg border p-3 text-sm ${
