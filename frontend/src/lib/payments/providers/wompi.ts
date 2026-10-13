@@ -30,7 +30,13 @@ import type {
 //   - las propiedades firmadas deben incluir id, estado e importe de la
 //     transacción (si no, esos datos llegarían sin firmar);
 //   - el `environment` del evento (`test`|`prod`) debe casar con el de la llave
-//     pública: un evento de sandbox no puede marcar pagado un pedido real.
+//     pública: un evento de sandbox no puede marcar pagado un pedido real;
+//   - la `reference` del evento NO va firmada (Wompi firma id, estado e importe;
+//     es su diseño): con la firma válida se consulta la transacción a la API de
+//     Wompi (GET /v1/transactions/{id}) y la referencia, el estado y el importe
+//     salen de ESA respuesta, no del cuerpo. Sin esto, reenviar un evento legítimo
+//     con la referencia de otro pedido del mismo importe lo daría por pagado.
+//     Si la API no responde se falla con 502 (Wompi reintenta), no se descarta.
 //
 //  Unidades: `amount-in-cents` siempre en céntimos (pesos × 100), aunque la
 //  moneda no tenga decimales: la verificación declara `minorUnit: 2`.
@@ -41,6 +47,12 @@ import type {
 // ============================================================================
 
 const WEB_CHECKOUT_URL = "https://checkout.wompi.co/p/";
+
+/** API de Wompi por entorno (el de la llave pública). */
+const API_URL = {
+  prod: "https://production.wompi.co/v1",
+  test: "https://sandbox.wompi.co/v1",
+} as const;
 
 /** Lo que una notificación válida tiene que firmar, como mínimo. */
 const REQUIRED_SIGNED = [
@@ -167,18 +179,73 @@ export class WompiProvider implements PaymentProvider {
         eventsSecret,
     ).toUpperCase();
 
-    const sameEnvironment = event.environment === keyEnvironment(publicKey);
-    const valid = safeEqual(checksum.toUpperCase(), expected) && sameEnvironment;
+    const environment = keyEnvironment(publicKey);
+    const signatureOk =
+      safeEqual(checksum.toUpperCase(), expected) && event.environment === environment;
+    const transactionId = typeof tx.id === "string" ? tx.id : "";
+    if (!signatureOk || transactionId === "") {
+      return { valid: false, reference, status, minorUnit: 2 };
+    }
+
+    // Consulta autoritativa (ver la cabecera): la referencia no está firmada.
+    const confirmed = await this.fetchTransaction(transactionId, environment);
+    const confirmedAmount = Number(confirmed?.amount_in_cents);
+    const confirmedReference = String(confirmed?.reference ?? "");
+    if (
+      !confirmed ||
+      confirmedReference === "" ||
+      confirmedReference !== reference ||
+      confirmedAmount !== amountMinor
+    ) {
+      return { valid: false, reference, status, minorUnit: 2 };
+    }
 
     return {
-      valid,
-      reference,
-      status,
-      providerTransactionId: typeof tx.id === "string" ? tx.id : undefined,
-      amountMinor: Number.isFinite(amountMinor) ? amountMinor : undefined,
+      valid: true,
+      reference: confirmedReference,
+      status: this.mapStatus(String(confirmed.status ?? "")),
+      providerTransactionId: transactionId,
+      amountMinor: confirmedAmount,
       minorUnit: 2,
-      currency: currency || undefined,
+      currency: String(confirmed.currency ?? "") || currency || undefined,
     };
+  }
+
+  /**
+   * `data` de GET /v1/transactions/{id}, o null si Wompi no la conoce (4xx). Un
+   * fallo de red o un 5xx lanza `PaymentError` 502: el webhook responde no-2xx y
+   * Wompi lo reintenta, en vez de descartar un cobro real.
+   */
+  private async fetchTransaction(
+    id: string,
+    environment: "prod" | "test",
+  ): Promise<Record<string, unknown> | null> {
+    const unavailable = () =>
+      new PaymentError(
+        "No se pudo confirmar la transacción con Wompi.",
+        502,
+        "provider_unavailable",
+      );
+    let res: Response;
+    try {
+      res = await fetch(
+        `${API_URL[environment]}/transactions/${encodeURIComponent(id)}`,
+        {
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(15_000),
+        },
+      );
+    } catch {
+      throw unavailable();
+    }
+    if (res.status >= 500) throw unavailable();
+    if (!res.ok) return null;
+    try {
+      const body = (await res.json()) as { data?: Record<string, unknown> };
+      return body.data && typeof body.data === "object" ? body.data : null;
+    } catch {
+      throw unavailable();
+    }
   }
 
   mapStatus(providerStatus: string): PaymentStatus {

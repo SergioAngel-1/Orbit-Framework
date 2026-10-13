@@ -615,7 +615,9 @@ demás entradas, en §6.
   Pay de punta a punta; `PaymentProvider` exige `isSandbox()`; el registro es asíncrono
   (`getActiveProvider()`). Aval Pay toma referencia, estado e importe de la consulta de la
   sesión (la referencia de la notificación no va firmada); Wompi exige que la firma cubra id,
-  estado e importe. Un fallo a medias del webhook ya no deja el evento marcado como duplicado.
+  estado e importe y, como la referencia tampoco va firmada, consulta la transacción a su API
+  (`GET /v1/transactions/{id}`; el BFF necesita salida a `production.wompi.co` o
+  `sandbox.wompi.co`) y toma la referencia de esa respuesta. Un fallo a medias del webhook ya no deja el evento marcado como duplicado.
 - **`POST /api/store/checkout` solo acepta los tres medios del checkout** (`hwe_offline`,
   `hwe_whatsapp_link`, `cod`), cada uno si está activo en Control Center → Pasarelas de pago;
   cualquier otro `payment_method` responde 422 (antes se reenviaba tal cual a la Store API: se
