@@ -4,7 +4,9 @@
 #
 #  Estrategia (ver docs/DEPLOYMENT.md §Backups):
 #    - DB: mariadb-dump del contenedor `db` -> archivo .sql.gz con marca de tiempo.
-#    - Medios/uploads: tar.gz de backend/wp-content/uploads.
+#    - Medios/uploads: tar.gz de backend/wp-content/uploads; si no están en el host (en
+#      desarrollo viven en un volumen), del contenedor `wordpress`. Si no hay en ninguno
+#      lo dice: la copia sería solo de la base de datos.
 #  Pensado para ejecutarse en el host (cron) o en CI/CD programado.
 #
 #  Uso:   sh backend/scripts/backup.sh [directorio_destino]
@@ -74,8 +76,17 @@ if [ -d backend/wp-content/uploads ]; then
   tar -czf "$UPLOADS_FILE" -C backend/wp-content uploads || fail "No se pudieron empaquetar los uploads."
   tar -tzf "$UPLOADS_FILE" >/dev/null || fail "El paquete de uploads no supera la comprobación de integridad."
   UPLOADS_DONE=1
+elif docker compose exec -T wordpress test -d /var/www/html/wp-content/uploads >/dev/null 2>&1; then
+  # Desarrollo: wp-content vive en un volumen de Docker, no en el host. Sin este camino
+  # la copia salía «completada» solo con la base de datos y sin ningún aviso.
+  echo "  (los uploads no están en el host: se toman del contenedor 'wordpress')"
+  docker compose exec -T wordpress tar -czf - -C /var/www/html/wp-content uploads > "$UPLOADS_FILE" \
+    || fail "No se pudieron empaquetar los uploads del contenedor 'wordpress'."
+  tar -tzf "$UPLOADS_FILE" >/dev/null || fail "El paquete de uploads no supera la comprobación de integridad."
+  UPLOADS_DONE=1
 else
-  echo "  (sin backend/wp-content/uploads que respaldar)"
+  echo "  ⚠ SIN uploads: ni backend/wp-content/uploads en el host ni en el contenedor 'wordpress'." \
+       "Esta copia solo tiene la base de datos."
 fi
 
 DONE=1

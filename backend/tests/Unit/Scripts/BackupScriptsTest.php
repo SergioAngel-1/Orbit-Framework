@@ -37,6 +37,14 @@ final class BackupScriptsTest extends ShellScriptTestCase
 echo "docker $*" >> "$CALLS_LOG"
 echo "MYSQL_PWD=${MYSQL_PWD-<sin definir>}" >> "$CALLS_LOG"
 case "$*" in
+  # Los uploads dentro del contenedor `wordpress` (en dev viven en un volumen, no en el host):
+  # `FAKE_CONTAINER_UPLOADS` es la carpeta que contiene `uploads/`.
+  *" test -d "*)
+    [ -n "${FAKE_CONTAINER_UPLOADS:-}" ] && exit 0
+    exit 1 ;;
+  *" tar "*)
+    [ -n "${FAKE_CONTAINER_UPLOADS:-}" ] || exit 1
+    exec tar -czf - -C "$FAKE_CONTAINER_UPLOADS" uploads ;;
   *mariadb-dump*)
     if [ "${FAKE_DUMP_FAIL:-}" = 1 ]; then
       echo "-- volcado parcial"
@@ -138,6 +146,34 @@ SH);
         $this->assertSame(0, $result['code'], $result['stderr']);
         $tars = array_values(array_filter($this->filesIn('out'), static fn ($f) => str_ends_with($f, '.tar.gz')));
         $this->assertCount(1, $tars);
+    }
+
+    public function testBackupTakesTheUploadsFromTheContainerWhenTheyAreNotOnTheHost(): void
+    {
+        // Desarrollo: wp-content vive en un volumen, no en `backend/wp-content/uploads`.
+        $this->writeEnv();
+        $this->write('container/uploads/2026/foto.txt', 'imagen');
+
+        $result = $this->sh($this->script('backup.sh'), ['out'], [
+            'FAKE_CONTAINER_UPLOADS' => $this->dir . '/container',
+        ]);
+
+        $this->assertSame(0, $result['code'], $result['stderr']);
+        $tars = array_values(array_filter($this->filesIn('out'), static fn ($f) => str_ends_with($f, '.tar.gz')));
+        $this->assertCount(1, $tars, 'La copia no incluye los uploads del contenedor.');
+        $listing = (string) shell_exec('tar -tzf ' . escapeshellarg($this->dir . '/out/' . $tars[0]));
+        $this->assertStringContainsString('uploads/2026/foto.txt', $listing);
+    }
+
+    public function testBackupSaysSoWhenThereAreNoUploadsAnywhere(): void
+    {
+        $this->writeEnv();
+
+        $result = $this->sh($this->script('backup.sh'), ['out']);
+
+        $this->assertSame(0, $result['code'], $result['stderr']);
+        $this->assertSame([], array_values(array_filter($this->filesIn('out'), static fn ($f) => str_ends_with($f, '.tar.gz'))));
+        $this->assertStringContainsString('SIN uploads', $result['stdout']);
     }
 
     public function testBackupFailsLoudAndLeavesNoPartialCopyWhenTheDumpFails(): void
