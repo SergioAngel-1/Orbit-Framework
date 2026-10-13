@@ -6,12 +6,13 @@ import type { SiteConfig } from "./types";
  * Deben coincidir con los `'default'` del Schema.php de WordPress.
  */
 export const CONFIG_DEFAULTS: SiteConfig = {
+  i18n: {
+    locales: "en",
+  },
   brand: {
     name: "HeadlessWP",
     tagline: "Headless WooCommerce Template",
-    tagline_en: "",
     description: "Tienda headless construida con Next.js y WooCommerce.",
-    description_en: "",
     url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
     logo: "",
     email_logo: "",
@@ -162,9 +163,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     ai_crawlers: "allow",
     llms_txt_enabled: true,
     faq: "",
-    faq_en: "",
     faq_payments: "",
-    faq_payments_en: "",
     content_signal: true,
   },
   modules: {

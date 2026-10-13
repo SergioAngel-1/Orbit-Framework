@@ -3,6 +3,10 @@
 
   "modules": ["banners"],
 
+  "i18n": {
+    "locales": "en"
+  },
+
   "brand": {
     "name": "Mi Marca",
     "tagline": "Tagline corta de la marca",

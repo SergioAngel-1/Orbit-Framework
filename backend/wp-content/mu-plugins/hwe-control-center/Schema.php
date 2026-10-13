@@ -23,6 +23,10 @@ namespace HWE\ControlCenter;
  *   'token'       → nombre de la propiedad CSS (p. ej. '--color-brand').
  *   'options'     → ['value' => 'Etiqueta'] para el tipo 'select'.
  *   'description' → texto de ayuda mostrado en la UI de admin.
+ *   'translatable' → bool (text, textarea, lines, richtext): el esquema efectivo añade
+ *                    un hermano `<clave>_<locale>` por cada idioma secundario de
+ *                    `i18n.locales` (vacío = se usa el texto del idioma por defecto).
+ *                    El frontend lo resuelve con `pickLocalized(entity, campo, locale)`.
  *
  * CONTRATO CON LA INSTANCIA
  * -------------------------
@@ -55,10 +59,104 @@ class Schema {
                     get_debug_type($filtered)
                 )
             );
-            return $core;
+            return self::expandTranslatable($core, self::secondaryLocales());
         }
 
-        return self::enforceContract($core, $filtered);
+        return self::expandTranslatable(self::enforceContract($core, $filtered), self::secondaryLocales());
+    }
+
+    /** Idiomas secundarios por defecto (los de `frontend/src/i18n/routing.ts` del framework). */
+    public const DEFAULT_SECONDARY_LOCALES = 'en';
+
+    /** Tipos que admiten `'translatable' => true`. */
+    private const TRANSLATABLE_TYPES = ['text', 'textarea', 'lines', 'richtext'];
+
+    /**
+     * Sufijos de los idiomas secundarios configurados (`i18n.locales`), sin el idioma por
+     * defecto (`brand.locale`) y normalizados para usarse en una clave: minúsculas y `-`
+     * → `_` (`pt-BR` → `pt_br`). El frontend aplica la misma normalización.
+     *
+     * @return list<string>
+     */
+    public static function secondaryLocales(): array {
+        $raw = Storage::get(['i18n', 'locales']);
+        if (!is_string($raw)) {
+            $raw = self::DEFAULT_SECONDARY_LOCALES;
+        }
+        $default = self::localeSuffix((string) Storage::get(['brand', 'locale'], 'es'));
+
+        $suffixes = [];
+        foreach (preg_split('/[\s,]+/', strtolower($raw)) ?: [] as $code) {
+            if ($code === '') {
+                continue;
+            }
+            if (!preg_match('/^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})?$/', $code)) {
+                Log::once(
+                    'schema:locale:' . $code,
+                    sprintf('código de idioma «%s» ignorado en i18n.locales: usa códigos como «en» o «pt-BR».', $code)
+                );
+                continue;
+            }
+            $suffix = self::localeSuffix($code);
+            if ($suffix !== $default && !in_array($suffix, $suffixes, true)) {
+                $suffixes[] = $suffix;
+            }
+        }
+        return $suffixes;
+    }
+
+    /** `pt-BR` → `pt_br`: forma del idioma dentro de una clave del esquema. */
+    public static function localeSuffix(string $locale): string {
+        return str_replace('-', '_', strtolower(trim($locale)));
+    }
+
+    /**
+     * Añade, junto a cada nodo `translatable`, una variante `<clave>_<sufijo>` por idioma
+     * secundario: mismo tipo y visibilidad, vacía por defecto (vacío = se hereda el texto
+     * del idioma por defecto). Se aplica también a los campos de la instancia.
+     *
+     * Una variante declarada a mano en el esquema manda sobre la generada. Quitar un idioma
+     * de `i18n.locales` oculta sus variantes, pero no borra lo guardado.
+     *
+     * @param array<string,mixed> $nodes
+     * @param list<string>        $locales
+     * @return array<string,mixed>
+     */
+    private static function expandTranslatable(array $nodes, array $locales): array {
+        $result = [];
+        foreach ($nodes as $key => $node) {
+            if (self::isGroup($node)) {
+                $node['children'] = self::expandTranslatable($node['children'], $locales);
+                $result[$key]     = $node;
+                continue;
+            }
+            $result[$key] = $node;
+            if (!is_array($node) || empty($node['translatable'])) {
+                continue;
+            }
+            $type = (string) ($node['type'] ?? 'text');
+            if (!in_array($type, self::TRANSLATABLE_TYPES, true)) {
+                Log::once(
+                    'schema:translatable:' . $key,
+                    sprintf('«translatable» ignorado en «%s»: solo admiten traducción los tipos %s.', (string) $key, implode(', ', self::TRANSLATABLE_TYPES))
+                );
+                continue;
+            }
+            foreach ($locales as $suffix) {
+                $variant = $key . '_' . $suffix;
+                if (array_key_exists($variant, $nodes)) {
+                    continue;
+                }
+                $copy = $node;
+                unset($copy['translatable'], $copy['token'], $copy['default'], $copy['description']);
+                $result[$variant] = [
+                    'label'       => sprintf('%s (%s)', (string) ($node['label'] ?? $key), strtoupper(str_replace('_', '-', $suffix))),
+                    'default'     => '',
+                    'description' => 'Vacío = se usa el texto del idioma por defecto.',
+                ] + $copy;
+            }
+        }
+        return $result;
     }
 
     /**
@@ -138,26 +236,14 @@ class Schema {
                         'label'   => 'Tagline',
                         'default' => 'Headless WooCommerce Template',
                         'public'  => true,
-                    ],
-                    'tagline_en'  => [
-                        'type'        => 'text',
-                        'label'       => 'Tagline (inglés)',
-                        'default'     => '',
-                        'public'      => true,
-                        'description' => 'Solo si el sitio sirve /en. Vacío = se hereda el tagline de arriba.',
+                        'translatable' => true,
                     ],
                     'description' => [
                         'type'    => 'textarea',
                         'label'   => 'Descripción breve',
                         'default' => 'Tienda headless construida con Next.js y WooCommerce.',
                         'public'  => true,
-                    ],
-                    'description_en' => [
-                        'type'        => 'textarea',
-                        'label'       => 'Descripción breve (inglés)',
-                        'default'     => '',
-                        'public'      => true,
-                        'description' => 'Solo si el sitio sirve /en. Vacío = se hereda la descripción de arriba.',
+                        'translatable' => true,
                     ],
                     'url'         => [
                         'type'   => 'url',
@@ -184,6 +270,23 @@ class Schema {
                         'default' => 'es',
                         'public'  => true,
                         'options' => ['es' => 'Español', 'en' => 'English'],
+                    ],
+                ],
+            ],
+
+            /* ------------------------------------------------------------------ */
+            /* IDIOMAS                                                             */
+            /* ------------------------------------------------------------------ */
+            'i18n' => [
+                'type'     => 'group',
+                'label'    => 'Idiomas',
+                'children' => [
+                    'locales' => [
+                        'type'        => 'text',
+                        'label'       => 'Idiomas secundarios',
+                        'default'     => self::DEFAULT_SECONDARY_LOCALES,
+                        'public'      => true,
+                        'description' => 'Códigos separados por comas (p. ej. «en, fr»), sin el idioma por defecto (Marca → Idioma por defecto). Deben coincidir con los «locales» de frontend/src/i18n/routing.ts. Cada campo traducible del panel muestra una variante por idioma tras guardar.',
                     ],
                 ],
             ],
@@ -977,28 +1080,16 @@ class Schema {
                         'type'        => 'textarea',
                         'label'       => 'Preguntas frecuentes (FAQ)',
                         'public'      => true,
+                        'translatable' => true,
                         'description' => 'Una pregunta y respuesta por línea, separadas por "|". Se publican como JSON-LD FAQPage (muy citado por la IA).',
-                    ],
-                    'faq_en'           => [
-                        'type'        => 'textarea',
-                        'label'       => 'Preguntas frecuentes (inglés)',
-                        'default'     => '',
-                        'public'      => true,
-                        'description' => 'Solo si el sitio sirve /en. Mismo formato "pregunta | respuesta". Vacío = /en muestra las preguntas en español. La traducción es por BLOQUE, no por línea: si rellenas esto, debe traer TODAS las preguntas.',
                     ],
                     'faq_payments'     => [
                         'type'        => 'textarea',
                         'label'       => 'Preguntas frecuentes sobre pagos electrónicos',
                         'default'     => '',
                         'public'      => true,
+                        'translatable' => true,
                         'description' => 'Mismo formato "pregunta | respuesta". Se muestran como segunda columna de la FAQ y entran en el mismo JSON-LD FAQPage. Vacío = una sola columna.',
-                    ],
-                    'faq_payments_en'  => [
-                        'type'        => 'textarea',
-                        'label'       => 'Preguntas frecuentes sobre pagos (inglés)',
-                        'default'     => '',
-                        'public'      => true,
-                        'description' => 'Solo si el sitio sirve /en. Vacío = /en muestra las preguntas de pagos en español. También es por bloque completo.',
                     ],
                 ],
             ],

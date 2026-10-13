@@ -7,18 +7,16 @@ import type { SiteConfig } from "./types";
 //  `brand.tagline` y `brand.description` son los únicos textos de marca que se
 //  publican tal cual en superficies por-locale: el pie de página, la meta
 //  description de la home, la descripción de Organization/WebSite en el
-//  JSON-LD y la tarjeta social. Sin traducción, todas ellas servían español
-//  dentro de páginas declaradas en inglés.
+//  JSON-LD y la tarjeta social. Son traducibles en el Control Center: cada
+//  idioma secundario tiene su variante y, vacía, hereda el idioma por defecto.
 // ============================================================================
 
-/** Tagline del locale. `_en` vacío hereda el español. */
+/** Tagline del locale. */
 export function brandTagline(config: SiteConfig, locale: string): string {
-  return pickLocalized(config.brand.tagline, config.brand.tagline_en, locale) ?? "";
+  return pickLocalized(config.brand, "tagline", locale) ?? "";
 }
 
-/** Descripción breve del locale. `_en` vacía hereda la española. */
+/** Descripción breve del locale. */
 export function brandDescription(config: SiteConfig, locale: string): string {
-  return (
-    pickLocalized(config.brand.description, config.brand.description_en, locale) ?? ""
-  );
+  return pickLocalized(config.brand, "description", locale) ?? "";
 }

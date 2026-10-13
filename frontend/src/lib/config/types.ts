@@ -1,13 +1,22 @@
+/**
+ * Variantes por idioma de los campos traducibles: `<campo>_<sufijo>` por cada
+ * idioma de `i18n.locales` (p. ej. `tagline_en`, `tagline_pt_br`). Se leen con
+ * `pickLocalized(entity, campo, locale)`, nunca a mano.
+ */
+export type Translations<K extends string> = {
+  [P in `${K}_${string}`]?: string;
+};
+
 /** Configuración pública de la plantilla, tal como la expone /wp-json/hwe/v1/config. */
 export interface SiteConfig {
-  brand: {
+  /** Idiomas secundarios del Control Center (códigos separados por comas). */
+  i18n: {
+    locales: string;
+  };
+  brand: Translations<"tagline" | "description"> & {
     name: string;
     tagline: string;
-    /** Solo si el sitio sirve /en. Vacío = se hereda el tagline. */
-    tagline_en: string;
     description: string;
-    /** Solo si el sitio sirve /en. Vacío = se hereda la descripción. */
-    description_en: string;
     url: string;
     /** URL del logo de cabecera. Vacío = mostrar el nombre del sitio como texto. */
     logo: string;
@@ -130,18 +139,14 @@ export interface SiteConfig {
     founder_role: string;
     founder_url: string;
   };
-  geo: {
+  geo: Translations<"faq" | "faq_payments"> & {
     /** 'allow' | 'search_only' | 'block' */
     ai_crawlers: string;
     llms_txt_enabled: boolean;
     /** Líneas "pregunta | respuesta". */
     faq: string;
-    /** Solo /en. Vacío = /en muestra las preguntas en español (por bloque). */
-    faq_en: string;
     /** Preguntas sobre pagos. Vacío = una sola columna. */
     faq_payments: string;
-    /** Solo /en, por bloque. */
-    faq_payments_en: string;
     /** Emitir directiva Content-Signal en robots.txt. */
     content_signal: boolean;
   };

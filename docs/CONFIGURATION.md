@@ -91,7 +91,14 @@ marca/diseño/SEO:
 | Pasarelas de pago | `provider`, `gateway_enabled`, `whatsapp_enabled`, `cash_enabled` (+ credenciales por pasarela) | Lo público lo lee el checkout; los secretos solo salen por `hwe/v1/payments/credentials` (canal interno). El efectivo usa la pasarela nativa «Contra reembolso», que se sincroniza al guardar. |
 | Integraciones | `gtm_id`, `meta_pixel_id`, `tiktok_pixel_id`, `hubspot_portal_id`, `consent_retention_years` (+ `meta_capi_*` por canal interno) | Cada id activa su proveedor; vacío = desactivado. |
 | Legal → Sedes | 4 sedes (nombre, dirección, Maps, teléfono, horario, coordenadas) | Alimentan el JSON-LD `LocalBusiness` y la página de contacto. |
-| GEO | `faq`, `faq_en`, `faq_payments`, `faq_payments_en` | Formato «pregunta \| respuesta». Las `_en` son por bloque completo. |
+| Idiomas | `i18n.locales` | Idiomas secundarios (p. ej. `en, fr`), sin el de `brand.locale`. Deben coincidir con `frontend/src/i18n/routing.ts`. |
+| GEO | `faq`, `faq_payments` (traducibles) | Formato «pregunta \| respuesta». La traducción es por bloque completo. |
+
+**Campos traducibles.** Un campo marcado `'translatable' => true` en el schema (hoy
+`brand.tagline`, `brand.description`, `geo.faq` y `geo.faq_payments`; una instancia puede
+marcar los suyos) tiene una variante `<campo>_<idioma>` por cada idioma de `i18n.locales`:
+`tagline_en`, `tagline_pt_br`… Vacía, se usa el texto del idioma por defecto. En el
+frontend se leen con `pickLocalized(entity, "tagline", locale)` (`lib/i18n/pick-localized.ts`).
 | Backups | retención, `keep_only_latest`, `exclude_thumbnails`, `include_config_export` | Ver `RUNBOOK.md` y el puente en `BackupConfig.php`. |
 
 ## Email transaccional (SMTP)

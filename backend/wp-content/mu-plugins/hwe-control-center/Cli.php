@@ -59,6 +59,14 @@ class Cli {
             \WP_CLI::error("El archivo {$path} debe contener un objeto JSON en su raíz.");
         }
 
+        // Los idiomas van primero: las variantes `<campo>_<locale>` de los campos
+        // traducibles existen en el esquema según `i18n.locales`, así que un JSON que
+        // declara idiomas y sus textos a la vez necesita los idiomas ya guardados.
+        if (isset($data['i18n']) && is_array($data['i18n'])) {
+            [$i18n] = AdminSave::sanitizeAndSplit(['i18n' => Schema::core()['i18n']], ['i18n' => $data['i18n']], [], true);
+            Storage::merge($i18n);
+        }
+
         // Modo *sparse*: el JSON trae solo lo que la instancia quiere fijar; lo que no
         // trae se omite (no se sanea a vacío), así un JSON parcial no borra el resto.
         [$publicData, $secretData] = AdminSave::sanitizeAndSplit(Schema::get(), $data, [], true);

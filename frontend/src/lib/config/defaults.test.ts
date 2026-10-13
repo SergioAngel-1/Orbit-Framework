@@ -31,8 +31,6 @@ describe("CONFIG_DEFAULTS", () => {
     const keys = leafKeys(CONFIG_DEFAULTS);
     for (const required of [
       "brand.name",
-      "brand.tagline_en",
-      "brand.description_en",
       "brand.email_logo",
       "social.whatsapp",
       "legal.phone",
@@ -55,9 +53,8 @@ describe("CONFIG_DEFAULTS", () => {
       "seo.handling_days",
       "seo.transit_days",
       "seo.alternate_names",
-      "geo.faq_en",
       "geo.faq_payments",
-      "geo.faq_payments_en",
+      "i18n.locales",
     ]) {
       expect(keys, required).toContain(required);
     }

@@ -291,6 +291,13 @@ git fetch framework --tags
   que escuchan la acción actúan también al sembrar. Revalida una sola vez, tras aplicar los
   módulos.
 
+- **Campos traducibles a N idiomas.** `brand.tagline`, `brand.description`, `geo.faq` y
+  `geo.faq_payments` dejan de tener una hermana `_en` fija: el schema los marca como
+  `translatable` y genera `<campo>_<idioma>` para cada idioma del nuevo grupo `i18n.locales`
+  (por defecto `en`, así que las claves `_en` ya guardadas siguen valiendo). **(contrato)**
+  `pickLocalized(es, en, locale)` pasa a `pickLocalized(entity, campo, locale)`, y
+  `SiteConfig` pierde las propiedades `_en` explícitas (tipadas ahora como `Translations<…>`).
+
 ### Núcleo de WordPress (F4)
 
 - **Se retira `woocommerce-shipping-config.php`.** La tarifa plana y el umbral de envío gratis

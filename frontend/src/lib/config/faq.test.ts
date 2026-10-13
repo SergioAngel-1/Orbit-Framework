@@ -13,7 +13,7 @@ describe("faqItems", () => {
     expect(items).toEqual([{ question: "¿Envíos?", answer: "A todo el país." }]);
   });
 
-  it("en inglés usa el bloque _en y cae al español si está vacío", () => {
+  it("en un idioma secundario usa su variante y cae al idioma por defecto si está vacía", () => {
     const withEn = config({ faq: "¿Envíos? | Sí.", faq_en: "Shipping? | Yes." });
     expect(faqItems(withEn, "en")).toEqual([{ question: "Shipping?", answer: "Yes." }]);
 
@@ -30,8 +30,13 @@ describe("paymentsFaqItems", () => {
   });
 
   it("resuelve al locale igual que el bloque general", () => {
-    const c = config({ faq_payments: "¿PSE? | Sí.", faq_payments_en: "PSE? | Yes." });
-    expect(paymentsFaqItems(c, "es")).toEqual([{ question: "¿PSE?", answer: "Sí." }]);
-    expect(paymentsFaqItems(c, "en")).toEqual([{ question: "PSE?", answer: "Yes." }]);
+    const c = config({
+      faq_payments: "¿Tarjeta? | Sí.",
+      faq_payments_en: "Card? | Yes.",
+    });
+    expect(paymentsFaqItems(c, "es")).toEqual([
+      { question: "¿Tarjeta?", answer: "Sí." },
+    ]);
+    expect(paymentsFaqItems(c, "en")).toEqual([{ question: "Card?", answer: "Yes." }]);
   });
 });
