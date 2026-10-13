@@ -187,6 +187,9 @@ services:
         define( 'HWE_TRUSTED_PROXY_COUNT', ${TRUSTED_PROXY_COUNT:-1} );
         // Login del panel en /<slug> en vez de /wp-login.php (hwe-login-slug.php). Vacío = sin mover.
         define( 'HWE_LOGIN_SLUG', '${HWE_LOGIN_SLUG:-}' );
+        // IPs que pueden llegar a GraphQL como integración externa (módulo
+        // `external-integration`). Vacío = nadie. Ver docs/SECURITY.md.
+        define( 'HWE_INTEGRATION_ALLOWED_IPS', '${HWE_INTEGRATION_ALLOWED_IPS:-}' );
         define( 'DISALLOW_FILE_EDIT', true );
         define( 'DISALLOW_FILE_MODS', true );
         // WP-Cron NO se dispara en cada visita (el spawn HTTP de WordPress hacia sí

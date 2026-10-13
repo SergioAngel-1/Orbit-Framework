@@ -101,6 +101,13 @@ add_filter(
 // No exponer la versión de WordPress en feeds ni en recursos encolados.
 add_filter( 'the_generator', '__return_empty_string' );
 
-// Desactiva las "Application Passwords" si no se usan para integraciones REST.
-// (El flujo de autenticación de esta plantilla es JWT vía WPGraphQL.)
-add_filter( 'wp_is_application_passwords_available', '__return_false' );
+// Desactiva las "Application Passwords". El flujo de autenticación de esta plantilla es JWT vía
+// WPGraphQL; la única excepción es el módulo `external-integration`, que las enciende con
+// `hwe_application_passwords_enabled` y las restringe a su usuario de servicio (rol, IP y solo
+// GraphQL). Sin ese módulo siguen apagadas para todos.
+add_filter(
+	'wp_is_application_passwords_available',
+	static function ( $available ) {
+		return apply_filters( 'hwe_application_passwords_enabled', false ) ? $available : false;
+	}
+);

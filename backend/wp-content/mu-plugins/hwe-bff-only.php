@@ -6,7 +6,7 @@
  *              compartido (cabecera X-HWE-Internal-Secret), o a WP-CLI. Cualquier otra
  *              petición recibe un 404, llegue por la ruta o por parámetro.
  * Author:      Headless Web Ecosystem
- * Version:     2.0.0
+ * Version:     2.1.0
  *
  * POR QUÉ AQUÍ Y NO EN CADDY
  * --------------------------
@@ -38,6 +38,14 @@
  *
  * Si `HWE_REVALIDATION_SECRET` no está definida no hay forma de identificar al BFF: FALLA
  * CERRADO (solo atiende WP-CLI) y se registra, en vez de abrir la puerta.
+ *
+ * LA EXCEPCIÓN DE LA INTEGRACIÓN
+ * -------------------------------
+ * El módulo `external-integration` abre GraphQL (y SOLO GraphQL) a las IPs de
+ * `HWE_INTEGRATION_ALLOWED_IPS`. La puerta de red vive aquí, junto a las demás; lo que puede
+ * pedir quien pasa lo decide el módulo (`hwe_integration_policy`). Falla cerrado: sin el módulo
+ * activo (`hwe_integration_gate_enabled`) una IP de la lista no abre nada, y la Store API y
+ * `hwe/v1/auth|consent` siguen cerradas también para ella.
  *
  * Qué NO cambia: el panel de administración no usa nada de esto (WooCommerce Admin es
  * `wc/v3`, `wc-admin` y `wc-analytics`, que siguen igual y se protegen con sus claves).
@@ -164,6 +172,36 @@ function hwe_bff_only_is_trusted_call(): bool
     return hwe_bff_only_trusts_private_network() && hwe_bff_only_is_private_network_call();
 }
 
+/**
+ * ¿Llama un integrador externo autorizado? = el módulo `external-integration` está activo
+ * (`hwe_integration_gate_enabled`) Y el socket viene de una IP de `HWE_INTEGRATION_ALLOWED_IPS`
+ * (IPs exactas, separadas por espacios o comas; sin CIDR).
+ *
+ * Se mira `REMOTE_ADDR` y NO `X-Forwarded-For`: el proxy (Caddy) fija este último con la IP real
+ * del cliente y `mod_remoteip` la vuelca en `REMOTE_ADDR`, mientras que una cabecera que mande
+ * el cliente a mano no pasa de ser texto. Sin la constante, o vacía, nadie entra.
+ *
+ * Esta función SOLO abre la puerta de GraphQL. Qué puede hacer quien pasa lo deciden el rol y la
+ * política del módulo.
+ */
+function hwe_bff_only_is_integration_call(): bool
+{
+    if (!apply_filters('hwe_integration_gate_enabled', false)) {
+        return false;
+    }
+    if (!defined('HWE_INTEGRATION_ALLOWED_IPS')) {
+        return false;
+    }
+    $allowed = preg_split('/[\s,]+/', trim((string) HWE_INTEGRATION_ALLOWED_IPS), -1, PREG_SPLIT_NO_EMPTY);
+    if (empty($allowed)) {
+        return false;
+    }
+    $remote = isset($_SERVER['REMOTE_ADDR'])
+        ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
+        : '';
+    return $remote !== '' && in_array($remote, $allowed, true);
+}
+
 /** ¿Es una ruta REST que solo debe atender al BFF? */
 function hwe_bff_only_is_bff_rest_route(string $route): bool
 {
@@ -194,7 +232,7 @@ function hwe_bff_only_deny_graphql(): void
 add_filter(
     'graphql_is_graphql_http_request',
     static function ($isGraphql) {
-        if (!$isGraphql || hwe_bff_only_is_trusted_call()) {
+        if (!$isGraphql || hwe_bff_only_is_trusted_call() || hwe_bff_only_is_integration_call()) {
             return $isGraphql;
         }
         hwe_bff_only_deny_graphql();

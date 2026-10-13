@@ -18,6 +18,15 @@ if (!class_exists('WP_Post')) {
     }
 }
 
+if (!class_exists('WP_User')) {
+    class WP_User
+    {
+        public int $ID = 0;
+        /** @var list<string> */
+        public array $roles = [];
+    }
+}
+
 if (!class_exists('WP_Term')) {
     class WP_Term
     {

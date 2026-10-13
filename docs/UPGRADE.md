@@ -806,6 +806,33 @@ git fetch framework --tags
   (estáticas y del panel).
 - **Revalidación:** tag `landings` (el frontend lo acepta desde esta versión).
 
+### Módulo `external-integration` (F5)
+
+- **Nuevo plugin `hwe-external-integration`** (módulo `external-integration`): sustituye a los mu-plugins
+  de acceso y de guarda de GraphQL de un integrador concreto en las instancias derivadas (`hwe-*-access.php` y
+  `hwe-*-graphql-guard.php`: **bórralos** y activa el módulo). El rol es `hwe_integration` (el mismo).
+- **(breaking) Constantes y entorno.** `<INTEGRADOR>_ALLOWED_IPS` pasa a `HWE_INTEGRATION_ALLOWED_IPS`
+  (compose, `.env` y `.env.prod`); la IP la sigue decidiendo `REMOTE_ADDR`. Los códigos de error de
+  la cuenta de servicio pasan a `hwe_integration_ip`, `hwe_integration_graphql_only` y
+  `hwe_integration_no_login`.
+- **(contrato) La puerta de red exige el módulo.** `hwe_bff_only_is_integration_call()` (en
+  `hwe-bff-only.php`) solo devuelve `true` si el módulo la enciende (`hwe_integration_gate_enabled`): sin
+  él, una IP de la lista no abre GraphQL. La Store API y `hwe/v1/auth|consent` siguen cerradas también
+  para ella. `hwe_bff_only_is_internal_call()` desaparece (el BFF se identifica con el secreto).
+- **(contrato) Application Passwords.** `security.php` las deja apagadas salvo que un módulo las
+  encienda con `hwe_application_passwords_enabled`; el módulo las limita a su usuario de servicio.
+- **(contrato) Política por filtro.** Lo que antes eran constantes del archivo de la instancia
+  (operaciones raíz, campos vetados, claves de `metaData`, estados sin pagar) es ahora el filtro
+  `hwe_integration_policy`. Por defecto: leer pedidos (`order`, `orders`), `updateOrder` solo con el
+  estado y solo las claves de seguimiento de `hwe-order-tracking`. **Suelos** que ningún filtro rebaja:
+  `login`, `registerUser`, `users`, `customers`… nunca se abren; los campos vetados del defecto no se
+  quitan; un pedido sin pagar solo se cancela.
+- **(breaking) La lista por defecto es más estrecha:** `product` y `products` ya no se pueden leer
+  (los productos de las líneas llegan por `lineItems`). Si tu integrador los lee, ábrelos con
+  `$policy['queries'][] = 'products'`.
+- **Script:** `backend/scripts/verify-integration.sh [tracking|gate|access|guard|all]` sustituye al
+  específico del integrador.
+
 ### Infraestructura y CD (F4)
 
 - **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin

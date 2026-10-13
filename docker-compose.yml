@@ -74,6 +74,9 @@ services:
         define( 'HWE_TRUSTED_PROXY_COUNT', ${TRUSTED_PROXY_COUNT:-1} );
         // Login del panel en /<slug> en vez de /wp-login.php (hwe-login-slug.php). Vacío = sin mover.
         define( 'HWE_LOGIN_SLUG', '${HWE_LOGIN_SLUG:-}' );
+        // IPs que pueden llegar a GraphQL como integración externa (módulo
+        // `external-integration`). Vacío = nadie. Ver docs/SECURITY.md.
+        define( 'HWE_INTEGRATION_ALLOWED_IPS', '${HWE_INTEGRATION_ALLOWED_IPS:-}' );
         if ( ! defined( 'WP_DEBUG_LOG' ) ) { define( 'WP_DEBUG_LOG', true ); }
         // El siteurl (host:puerto publicado, p. ej. localhost:8080) no es alcanzable
         // en loopback DESDE DENTRO del contenedor (Apache solo escucha :80 aquí): el
