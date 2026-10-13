@@ -8,6 +8,7 @@ import {
 } from "@/lib/i18n/translation";
 import { localizedUrlSlug, urlSlugsByLocale } from "@/lib/i18n/url-slug";
 import { logger } from "@/lib/observability/logger";
+import { readProductFields, type RawProductField } from "@/lib/catalog/product-fields";
 import {
   PRODUCTS_BY_IDS_QUERY,
   PRODUCTS_BY_SLUGS_QUERY,
@@ -80,6 +81,7 @@ interface RawProductNode {
   related?: { nodes: RawProductNode[] } | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
+  hweFields?: RawProductField[] | null;
 }
 
 /**
@@ -250,7 +252,7 @@ export async function getProductBySlug(
   const data = await fetchLocalizedGraphQL<{
     product: Localizable<RawProductNode> | null;
   }>(PRODUCT_BY_SLUG_QUERY, secondaryLocales(), {
-    variables: { slug },
+    variables: { slug, locale },
     revalidate: CATALOG_REVALIDATE,
     tags: ["products"],
   });
@@ -263,6 +265,7 @@ export async function getProductBySlug(
     description: pickTranslated(node, "description", locale),
     seoTitle: pickTranslated(node, "seoTitle", locale)?.trim() || null,
     seoDescription: pickTranslated(node, "seoDescription", locale)?.trim() || null,
+    fields: readProductFields(node.hweFields),
     urlSlugs: urlSlugsByLocale(node),
     locales: translatedLocales(node, "name"),
     attributes:

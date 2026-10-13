@@ -218,3 +218,31 @@ describe("getProductUrls (sitemap)", () => {
     expect(await getProductUrls()).toEqual([]);
   });
 });
+
+describe("getProductBySlug: campos de producto declarativos", () => {
+  it("pide `hweFields` con el idioma de la página y los entrega como mapa", async () => {
+    fetchGraphQL.mockResolvedValue({
+      product: {
+        ...card,
+        hweFields: [
+          { key: "dosis", value: "8 drops" },
+          { key: "vacio", value: "  " },
+        ],
+      },
+    });
+
+    const product = await getProductBySlug("camiseta", "en");
+
+    expect(fetchGraphQL.mock.calls[0]![0]).toContain("hweFields(locale: $locale)");
+    expect(fetchGraphQL.mock.calls[0]![1]).toMatchObject({
+      variables: { slug: "camiseta", locale: "en" },
+    });
+    expect(product!.fields).toEqual({ dosis: "8 drops" });
+  });
+
+  it("sin campos declarados la ficha trae un mapa vacío", async () => {
+    fetchGraphQL.mockResolvedValue({ product: { ...card } });
+
+    expect((await getProductBySlug("camiseta", "es"))!.fields).toEqual({});
+  });
+});

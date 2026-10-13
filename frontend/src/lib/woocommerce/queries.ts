@@ -121,10 +121,12 @@ export const PRODUCTS_BY_SLUGS_QUERY = /* GraphQL */ `
 
 export const PRODUCT_BY_SLUG_QUERY = /* GraphQL */ `
   ${PRODUCT_CARD_FRAGMENT}
-  query ProductBySlug($slug: ID!) {
+  query ProductBySlug($slug: ID!, $locale: String) {
     product(id: $slug, idType: SLUG) {
       id databaseId name slug type
       seoTitle seoDescription
+      # Campos de producto declarados por la instancia (hwe-product-fields), ya en el idioma.
+      hweFields(locale: $locale) { key value }
       # @translation Product
       image { sourceUrl altText isReferenceImage }
       ... on SimpleProduct {

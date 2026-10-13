@@ -258,6 +258,32 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
 - **Starter:** `FreeShippingNotice` en el cajón, `/cart` y el checkout; el checkout pinta los extras y
   comunica el destino. Cada página pasa `shipping={{ methods }}` **solo** si `modules.shipping`.
 
+### Campos de producto declarativos (`hwe-product-fields`)
+
+- **Qué es.** Un mu-plugin del núcleo que NO declara ningún campo: la instancia los declara con
+  `hwe_product_fields` (`clave => [label, type, translatable, box, description, options, max]`). El
+  núcleo pinta una caja por título en la ficha del producto de WooCommerce, sanea al guardar según el
+  tipo (`text`, `textarea`, `richtext`, `url`, `number`, `boolean`, `select`, `color`, `image`) y
+  expone los valores por WPGraphQL.
+- **GraphQL.** `Product.hweFields(locale: String)` → `[{ key, value }]` con los campos que tienen valor,
+  **ya resueltos al idioma**: la traducción si el campo es traducible y la hay; si no, el valor del idioma
+  por defecto. Un idioma que el sitio no declara devuelve el valor por defecto. La ficha lo pide con la
+  consulta `ProductBySlug` y lo entrega como `product.fields` (mapa clave → texto).
+- **Almacenamiento.** Meta `_hwe_<clave>` (idioma por defecto) y `_hwe_<clave>_<idioma>` (traducción: la
+  misma convención de `hwe-content-i18n`, así que un dato heredado con `_hwe_<clave>` y `_hwe_<clave>_en` vale
+  sin migrar). Los traducibles aparecen en la caja «Traducciones» de la ficha y en
+  `Product.translation(locale)`.
+- **Claves.** Minúsculas con guion bajo, hasta 40 caracteres. Están reservadas `name`, `short_description`,
+  `description`, `seo_title`, `seo_description`, `slug` y el prefijo `landing_` (el módulo `product-landing`).
+  Una clave que coincida con la traducción de otra (`nota` y `nota_en`) se descarta. Una declaración mal
+  formada se descarta y queda en el log (`[hwe] product-fields: …`).
+- **Frontend.** `lib/catalog/product-fields.ts`: `readProductFields`, `productFieldNumber`,
+  `productFieldBoolean` y `labelledProductFields`. La instancia declara clave → tipo y etiqueta en
+  `instanceRegistry.productFields` y tipa `product.fields` con *module augmentation* de
+  `ProductFieldValues` (`lib/instance/types.ts`). El starter lista en la ficha los campos con valor y
+  etiqueta; un `richtext` pasa por `sanitizeHtml` y una `url` solo se enlaza si es `http(s)`.
+- **Ejemplo vivo:** `examples/instance-minimal` declara `example_usage` (traducible) y `example_weight`.
+
 ### Landings editoriales (módulo `landings`)
 
 - **Qué hace el backend** (plugin `hwe-landings`): un registro de landings y, por cada una, un molde de

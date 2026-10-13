@@ -32,6 +32,7 @@ framework nunca toca, y se engancha al núcleo por hooks estables, versionados p
 | `hwe_geo_packs` | filtro | Añadir o sustituir paquetes por país (divisiones, ciudades, documentos, prefijo); ver `docs/FRONTEND_CONNECT.md` «Paquetes por país». |
 | `hwe_modules_catalog` | filtro | Añadir módulos propios (id → slug de plugin). |
 | `hwe_landings_static_entries` | filtro | Declarar las landings con **diseño propio** de la instancia (`id => ['label', 'jsonld', 'base']`): su contenido se edita en el panel del módulo `landings`. Deben coincidir con `instanceRegistry.landings.staticEntries`. |
+| `hwe_product_fields` | filtro | Declarar campos de producto (`clave => ['label', 'type', 'translatable', 'box', 'description', 'options', 'max']`): el núcleo pinta la caja en la ficha, sanea y expone `Product.hweFields(locale)`. El frontend los declara en `instanceRegistry.productFields`. |
 | `hwe_product_landing_icons` | filtro | Ampliar los íconos del selector de la landing de producto (clave en minúsculas → etiqueta); la instancia declara los mismos dibujos en su frontend. |
 
 **Grupos reservados a un módulo:** el núcleo declara vacíos los grupos raíz `shipping` y

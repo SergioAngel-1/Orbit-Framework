@@ -27,6 +27,9 @@ import { getProductCoupons } from "@/lib/coupons/public-coupons";
 import { getCartProductRefs } from "@/lib/catalog/coupon-refs";
 import { logReadFailure } from "@/lib/observability/read-failure";
 import { hasProductBoundLanding } from "@/lib/landings/product-bound-landings";
+import { labelledProductFields } from "@/lib/catalog/product-fields";
+import { resolveCmsHref } from "@/lib/landings/cms-href";
+import { instanceRegistry } from "@/instance/registry";
 import { getEditorialLandingForProduct } from "@/lib/landings/editorial-product";
 import { productLearnHref } from "@/lib/landings/product-learn-href";
 
@@ -166,6 +169,13 @@ export default async function ProductPage({
     ? ((await getEditorialLandingForProduct(route.nativeSlug, locale))?.ctaLabel ??
       t("learnMore"))
     : t("learnMore");
+
+  // Campos de producto declarados por la instancia (`hwe_product_fields`): los que tienen valor y
+  // etiqueta. El núcleo no declara ninguno, así que sin instancia no hay sección.
+  const detailFields = labelledProductFields(
+    product.fields,
+    instanceRegistry.productFields,
+  );
 
   return (
     <div>
@@ -307,6 +317,57 @@ export default async function ProductPage({
             className="prose prose-sm max-w-none dark:prose-invert"
             dangerouslySetInnerHTML={{ __html: descriptionHtml }}
           />
+        </section>
+      )}
+
+      {/* Campos declarados por la instancia (hwe-product-fields) */}
+      {detailFields.length > 0 && (
+        <section className="mt-12">
+          <h2 className="mb-4 text-xl font-bold">{t("details")}</h2>
+          <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+            {detailFields.map((field) => (
+              <div key={field.key}>
+                <dt className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                  {field.label}
+                </dt>
+                <dd className="mt-1">
+                  {field.type === "richtext" ? (
+                    <div
+                      className="prose prose-sm max-w-none dark:prose-invert"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(field.value) }}
+                    />
+                  ) : field.type === "boolean" ? (
+                    t("fieldYes")
+                  ) : field.type === "url" &&
+                    resolveCmsHref(field.value)?.startsWith("http") ? (
+                    <a
+                      href={field.value}
+                      className="text-brand hover:underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {field.value}
+                    </a>
+                  ) : field.type === "image" ? (
+                    <CmsImage
+                      src={field.value}
+                      alt=""
+                      width={240}
+                      height={240}
+                      className="rounded-lg"
+                    />
+                  ) : field.type === "select" ||
+                    field.type === "text" ||
+                    field.type === "textarea" ||
+                    field.type === "number" ||
+                    field.type === "color" ||
+                    field.type === "url" ? (
+                    <span className="whitespace-pre-line">{field.value}</span>
+                  ) : null}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </section>
       )}
 

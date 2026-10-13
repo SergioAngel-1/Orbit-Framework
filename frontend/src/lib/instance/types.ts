@@ -10,7 +10,7 @@
  * - `revalidationTags` (esta tarea): tags ISR extra para `/api/revalidate`.
  * - `decorPresets` (módulo `banners`): visuales decorativos de plantilla.
  * - `landings` (módulo `landings`): landings con diseño propio y sus secciones únicas.
- * - `productFields` (tarea 60).
+ * - `productFields` (mu-plugin `hwe-product-fields`): declaración de los campos de producto.
  */
 
 /** Política de inversión de un visual decorativo en tema oscuro (ver `lib/banners/decor-presets`). */
@@ -80,6 +80,39 @@ export interface InstanceLandings {
   productGroupOrder?: string[];
 }
 
+/** Tipos de campo de producto declarativo (`hwe_product_fields`). */
+export type ProductFieldType =
+  | "text"
+  | "textarea"
+  | "richtext"
+  | "url"
+  | "number"
+  | "boolean"
+  | "select"
+  | "color"
+  | "image";
+
+/** Cómo el frontend conoce un campo de producto declarado en el backend. */
+export interface ProductFieldDeclaration {
+  /** Debe coincidir con el `type` del filtro `hwe_product_fields`. */
+  type: ProductFieldType;
+  /** Etiqueta para pintarlo (la ficha del starter lista los campos con valor). */
+  label?: string;
+}
+
+/**
+ * Valores de los campos de producto, por clave. Vacía en el núcleo (que no declara campos): la
+ * instancia la amplía por *module augmentation* para tipar `product.fields`:
+ *
+ *     declare module "@/lib/instance/types" {
+ *       interface ProductFieldValues { dosage?: string; weight?: string }
+ *     }
+ *
+ * Lo que no llega es `undefined`: un campo sin valor no viaja.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface ProductFieldValues {}
+
 export interface InstanceRegistry {
   /** Tags ISR extra que `/api/revalidate` acepta además de los del núcleo. */
   revalidationTags: string[];
@@ -97,4 +130,10 @@ export interface InstanceRegistry {
   decorPresets?: Record<string, DecorPreset>;
   /** Landings con diseño propio y datos del motor de landings (módulo `landings`). */
   landings?: InstanceLandings;
+  /**
+   * Campos de producto declarativos (`hwe_product_fields` en el backend): clave → tipo y
+   * etiqueta. Con ella el frontend sabe qué campos existen y cómo tratarlos; los valores salen
+   * de `Product.hweFields(locale)` y se tipan con `ProductFieldValues`.
+   */
+  productFields?: Record<string, ProductFieldDeclaration>;
 }

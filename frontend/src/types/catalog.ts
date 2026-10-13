@@ -1,3 +1,4 @@
+import type { ProductFieldValues } from "@/lib/instance/types";
 // ============================================================================
 //  Tipos del catálogo (forma de WooGraphQL ya normalizada para la UI).
 // ============================================================================
@@ -71,6 +72,11 @@ export interface ProductDetail extends CatalogProduct {
   urlSlugs?: Record<string, string>;
   /** Idiomas del sitio en los que la ficha existe de verdad (el por defecto, siempre). */
   locales?: string[];
+  /**
+   * Campos de producto declarativos con valor, resueltos al idioma (`Product.hweFields`).
+   * Tipados por la instancia con `ProductFieldValues`; vacío si no declara ninguno.
+   */
+  fields: ProductFieldValues & Record<string, string | undefined>;
 }
 
 export interface ProductCategory {

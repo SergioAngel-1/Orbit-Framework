@@ -9,6 +9,12 @@ import type { InstanceRegistry } from "@/lib/instance/types";
  */
 export const instanceRegistry: InstanceRegistry = {
   revalidationTags: ["example"],
+  // Campos de producto declarativos: las mismas claves y tipos que `hwe_product_fields` del
+  // backend (`mu-plugins/instance/50-example-product-field.php`).
+  productFields: {
+    example_usage: { type: "textarea", label: "Modo de uso" },
+    example_weight: { type: "number", label: "Peso (g)" },
+  },
   landings: {
     // La ruta `/example` de este ejemplo es de UN solo tramo: una landing de raíz no puede
     // ocuparlo (el test de segmentos reservados lo exige).

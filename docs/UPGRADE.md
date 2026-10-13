@@ -833,6 +833,25 @@ git fetch framework --tags
 - **Script:** `backend/scripts/verify-integration.sh [tracking|gate|access|guard|all]` sustituye al
   específico del integrador.
 
+### Campos de producto declarativos (F5)
+
+- **Nuevo mu-plugin `hwe-product-fields`** (siempre activo; sin campos propios): sustituye a los mu-plugins
+  de una instancia derivada que añadían una caja y un campo de WPGraphQL por dato de producto (modo de uso,
+  composición, textos de la línea…). **Bórralos** y declara los campos con el filtro `hwe_product_fields`.
+- **(breaking) GraphQL.** En lugar de un campo por dato (`Product.dosage`, `dosageEn`…), una lista
+  `Product.hweFields(locale)` de pares `{ key, value }` ya resueltos al idioma. Las consultas de la instancia
+  que pedían `dosage`/`dosageEn` migran a `hweFields(locale: $locale) { key value }` y a
+  `product.fields.dosage` (tipado por *augmentation* de `ProductFieldValues`). Un `*En` desaparece: el
+  idioma lo resuelve el campo.
+- **Sin migración de datos:** la meta `_hwe_<clave>` y `_hwe_<clave>_en` es la misma que ya guardaban esos
+  mu-plugins. Si la instancia usaba otra clave de meta, el campo declarado debe llamarse igual que el sufijo
+  tras `_hwe_`.
+- **(contrato) Claves reservadas:** `name`, `short_description`, `description`, `seo_title`,
+  `seo_description`, `slug` y el prefijo `landing_`.
+- **(contrato) Frontend:** `ProductDetail.fields` (mapa clave → texto, vacío si no hay campos) y
+  `InstanceRegistry.productFields` (clave → `{ type, label? }`). La consulta `ProductBySlug` gana la variable
+  `$locale`.
+
 ### Infraestructura y CD (F4)
 
 - **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin

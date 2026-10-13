@@ -216,6 +216,8 @@
     "description": "Description",
     "related": "Related products",
     "learnMore": "Product guide",
+    "details": "Details",
+    "fieldYes": "Yes",
     "selectVariant": "Select a variation",
     "filter": "Filter",
     "allCategories": "All categories",
