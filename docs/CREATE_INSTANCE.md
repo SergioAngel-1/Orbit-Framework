@@ -41,10 +41,11 @@ sh backend/scripts/generate-secrets.sh
 
 Escribe `GRAPHQL_JWT_AUTH_SECRET_KEY`, `CSRF_SECRET`, `WC_WEBHOOK_SECRET`,
 `HWE_REVALIDATION_SECRET` y `NOOP_INTEGRITY_SECRET` directamente en `.env` y
-`frontend/.env.local` (idempotente). `HWE_SECRETS_KEY` es opcional — si se
-omite se deriva de `AUTH_KEY`; ver `docs/INSTALL.md §2` para generarla a mano
-si tu instancia la necesita explícita. Alternativa manual (`openssl rand
-...`) también en `docs/INSTALL.md §2`.
+`frontend/.env.local` (idempotente). `HWE_SECRETS_KEY` y `HWE_2FA_KEY` (claves AES-256-GCM
+de los secretos del Control Center y del TOTP) son opcionales en desarrollo, donde caen a
+`AUTH_KEY`, pero **`docker-compose.prod.yml` las exige** y deben ser estables: genéralas con
+`openssl rand -base64 48` y guárdalas con el resto de secretos (`docs/CONFIGURATION.md`,
+«Seguridad y sesión»). Alternativa manual (`openssl rand ...`) en `docs/INSTALL.md §2`.
 
 Ajusta también: `WP_TITLE`, `WORDPRESS_PORT`/`FRONTEND_PORT` (si corres varias
 instancias en la misma máquina, usa puertos distintos para no chocar),
@@ -60,15 +61,37 @@ cp backend/scripts/instance.config.example.json backend/scripts/instance.config.
 ```
 
 Edita `backend/scripts/instance.config.json` con los datos reales de la
-instancia: `brand` (nombre, tagline, descripción, URL, locale), `social`,
-`legal`, `design.colors`/`design.typography` (design tokens — ver §4),
-`ecommerce` (moneda, país, flags de reviews/wishlist/cupones/búsqueda), `seo`,
-`shipping`, `geo`, `backups` (frecuencia/retención de los backups
-automáticos — opcional, tiene defaults razonables). **No incluyas**
-credenciales de pago o SMTP en este archivo:
-esos campos son de tipo `secret` y se configuran aparte desde `wp-admin → HWE
-Config` o por variable de entorno — el comando los ignora si no vienen en el
-JSON.
+instancia:
+
+- `brand` (nombre, tagline, descripción, URL, locale; `tagline_en`… para los idiomas
+  secundarios), `social`, `legal`, `design.colors`/`design.typography` (design tokens — ver §4).
+- `i18n.locales`: los idiomas **secundarios** (p. ej. `["en", "fr"]`), sin el de `brand.locale`.
+  Deben coincidir con `frontend/src/i18n/routing.ts`: si divergen, el arranque del frontend lo
+  avisa en el log. Con ellos, los campos traducibles (`tagline`, `faq`…) ganan una variante
+  `<campo>_<idioma>`.
+- `ecommerce`: `currency` (**obligatoria**: sin moneda no hay precios ni pagos), `country`
+  (elige el paquete por país: ciudades, tipos de documento, formato de teléfono y dirección;
+  `CO` o `generic`), flags de reviews/wishlist/cupones/búsqueda, `checkout_login_required`
+  y `free_shipping`.
+- `modules`: los ids de módulo que quedan **activos** (ver abajo).
+- `auth`, `seo`, `geo` y `backups` (frecuencia/retención de los backups automáticos —
+  opcional, tiene defaults razonables).
+
+**No incluyas** credenciales de pago o SMTP en este archivo: esos campos son de tipo `secret`
+y se configuran aparte desde `wp-admin → HWE Config` o por variable de entorno — el comando
+los ignora si no vienen en el JSON.
+
+### Módulos
+
+Un módulo es un plugin del framework (`hwe-<id>`) que aporta una funcionalidad que no toda
+tienda necesita. El catálogo es: `banners`, `shipping`, `product-landing`, `landings`,
+`consent-log`, `site-reviews`, `coupon-rules`, `customer-identity` y `external-integration`
+(qué hace cada uno: `docs/CONFIGURATION.md`, «Módulos»).
+
+`wp hwe setup` **activa los listados en `modules` y desactiva los demás** del catálogo; si el
+JSON no trae la clave, no toca ningún plugin (las instalaciones anteriores conservan su estado).
+Con un módulo apagado, sus rutas del BFF responden 404 y su interfaz no se pinta. Para
+comprobarlo en una pila levantada: `sh backend/scripts/verify-modules.sh`.
 
 El archivo real `instance.config.json` **no se versiona** (está en
 `.gitignore`); solo se versiona la plantilla `instance.config.example.json`.
@@ -141,23 +164,41 @@ como `www-data:33` del contenedor. Usa `--print-only` para solo imprimirlas
 y copiarlas a mano (y omite el `--user`). Reinicia el frontend tras esto:
 `docker compose up -d frontend`.
 
-## 7. El frontend (UI y vistas) es responsabilidad de esta instancia
+## 7. Dónde va el código de tu instancia
 
 El comando `wp hwe setup` cubre la config de marca/diseño, pero **no** genera ni mantiene
-componentes de UI. Esto es intencional: el framework es backend + arquitectura
-(WordPress headless + el BFF de Next.js en `frontend/src/app/api/*` y `frontend/src/lib/*`)
-— ver `AGENTS.md §1.1`. Todo lo demás del frontend (`frontend/src/components/**` salvo
-`ui/`, y todas las vistas bajo `frontend/src/app/[locale]/*`) se **hereda una sola vez** al
-clonar y pasa a ser 100% de esta instancia desde ese momento: constrúyelo, cámbialo o
-bórralo por completo, sin necesidad de aislarlo en una carpeta separada para "no chocar con
-futuras actualizaciones del framework" — no habrá actualizaciones del framework a esa capa,
-porque el framework no la mantiene.
+componentes de UI. El framework es backend + arquitectura (WordPress headless + el BFF de
+Next.js en `frontend/src/app/api/*` y `frontend/src/lib/*`) — ver `AGENTS.md §1.1`. Lo tuyo
+vive en rutas que el framework **nunca toca**, así que `git merge` de un release nuevo no choca:
 
-Lo único que sí es un contrato estable (y a lo que cualquier vista, heredada o nueva, debe
+| Qué | Dónde |
+|---|---|
+| Campos de configuración propios, hooks, tipos de campo | `backend/wp-content/mu-plugins/instance/*.php` (el cargador `hwe-instance-loader.php` los carga en orden alfabético) |
+| Un plugin entero (CPT, tablas, UI de admin) | `backend/wp-content/plugins/hwe-instance-<slug>/` |
+| El registro de la instancia (tags ISR, landings propias, campos de producto, visuales decorativos) | `frontend/src/instance/registry.ts` — **solo datos**, nunca componentes |
+| Tipado de tus ajustes en `SiteConfig.instance` | `frontend/src/instance/config.d.ts` |
+| Tu dominio (fetchers, formato, validación) | `frontend/src/instance/lib/` |
+| La UI: componentes y vistas | `frontend/src/components/**` (salvo `ui/`) y `frontend/src/app/[locale]/*` |
+
+La UI se **hereda una sola vez** al clonar, como punto de partida neutro (clases de marca,
+textos en `es.json`/`en.json`, cada funcionalidad gateada por su flag o módulo). Desde ese
+momento es 100% de esta instancia: constrúyela, cámbiala o bórrala sin esperar actualizaciones,
+porque el framework no la mantiene. La frontera la impone una regla de ESLint: el núcleo
+(`lib/`, `app/api/`, `proxy.ts`, `components/ui/`) no importa nada de tu código salvo
+`@/instance/registry`.
+
+Para ver el contrato en pequeño, copia de `examples/instance-minimal/`: un campo
+`instance.example.*`, un tipo de campo propio, un tag ISR, una landing con sección única,
+campos de producto, un detalle de línea de pedido y una vista. Los
+hooks y sus reglas: `backend/wp-content/mu-plugins/instance/README.md`,
+`frontend/src/instance/README.md` y `docs/PLUGIN_DEVELOPMENT.md`.
+
+Lo único que es un contrato estable (y a lo que cualquier vista, heredada o nueva, debe
 ajustarse) es el backend/BFF: WPGraphQL/WooGraphQL, los endpoints REST bajo `app/api/*`, el
-endpoint de config `/wp-json/hwe/v1/config` y los flags `ecommerce.*_enabled` — documentado en
-**`docs/FRONTEND_CONNECT.md` Parte A**. Para decidir qué construir (entrevista de
-características del negocio → plan de vistas, reutilizando lo heredado o desde cero): **`docs/FRONTEND_BUILD.md`**.
+endpoint de config `/wp-json/hwe/v1/config` y los flags `ecommerce.*_enabled` y `modules.*` —
+documentado en **`docs/FRONTEND_CONNECT.md` Parte A**. Para decidir qué construir (entrevista
+de características del negocio → plan de vistas, reutilizando lo heredado o desde cero):
+**`docs/FRONTEND_BUILD.md`**.
 
 ## 8. Checklist de rebranding restante (manual)
 
@@ -167,6 +208,8 @@ config dinámica — ver `docs/CUSTOMIZATION.md` para el detalle:
 - [ ] Logo en `frontend/public/` + referencia en `layout.tsx`.
 - [ ] `frontend/src/i18n/messages/{es,en}.json` (`site.name`, `site.footer`,
       labels de navegación) — deben mantenerse paralelos entre idiomas.
+- [ ] Un `frontend/src/i18n/messages/<idioma>.json` por cada idioma de `i18n.locales` y su
+      alta en `routing.ts` (`npm run i18n:check` comprueba la paridad).
 - [ ] Páginas legales (`legal.*` en los mensajes i18n).
 - [ ] `frontend/package.json` (`name`).
 - [ ] `NEXT_PUBLIC_SITE_URL` y dominios/CORS reales antes de producción.
@@ -187,7 +230,8 @@ wp hwe setup <archivo.json>
 - `<archivo.json>`: ruta al archivo de configuración (ver
   `backend/scripts/instance.config.example.json`).
 - Aplica todos los grupos no-secretos del esquema (`brand`, `social`, `legal`,
-  `design`, `ecommerce`, `seo`, `shipping`, `geo`, `backups`) — "no-secreto"
+  `design`, `ecommerce`, `auth`, `i18n`, `seo`, `geo`, `backups`, y `instance` si tu instancia
+  lo declara) y activa/desactiva los módulos de `modules` — "no-secreto"
   no es lo mismo que "público": `backups` no se expone en la API REST pública
   pero sí se puede seedear desde este JSON. Los campos de tipo `secret`
   (dentro de `payments`/`integrations`) se ignoran si vienen en el

@@ -31,10 +31,13 @@ centra solo en las decisiones de negocio que determinan las vistas.
   completarse mientras construyes.
 - Cuando una respuesta implica un cambio de código (no solo de config), dilo explícitamente
   — algunas decisiones (p. ej. "necesitamos comparar variantes con un configurador visual")
-  no las cubre el framework base y hay que construirlas a medida, aislado en su propia carpeta
-  de instancia (nunca mezclado en el framework base — ver `docs/CREATE_INSTANCE.md §7`, y la
-  lección aprendida: este framework tuvo justamente ese problema con un mu-plugin y componentes
-  de un cliente real que quedaron mezclados en el repo base por error).
+  no las cubre el framework base y hay que construirlas a medida, en las rutas de la instancia
+  (`mu-plugins/instance/`, `src/instance/`; nunca mezclado en el núcleo — ver
+  `docs/CREATE_INSTANCE.md §7`, y la lección aprendida: este framework tuvo justamente ese
+  problema con un mu-plugin y componentes de un cliente real que quedaron mezclados en el repo
+  base. Hoy lo impide una puerta en CI y una regla de ESLint).
+- Antes de proponer trabajo a medida, comprueba si ya existe un **módulo** (§7 bis) o un
+  mecanismo declarativo (campos de producto, detalles de línea de pedido) que lo cubra.
 
 ---
 
@@ -43,14 +46,17 @@ centra solo en las decisiones de negocio que determinan las vistas.
 Preguntas:
 - Nombre del sitio, tagline corto, descripción en 1-2 frases.
 - Paleta: ¿tienen ya colores de marca definidos (hex) y tipografía? ¿o hay que proponerlos?
-- URL final del sitio, idioma principal (¿necesitan también inglés u otro idioma?).
+- URL final del sitio, idioma principal y qué otros idiomas necesitan (¿inglés, francés, portugués…?).
 - Logo, favicon/OG image.
 
 **Determina**: `brand.*`, `design.colors.*`, `design.typography.*` en `instance.config.json`.
 Si la marca tiene más matices que los 9 colores/2 tipografías del schema, documenta
 el mapeo explícito ANTES de rellenar el JSON (tabla de ejemplo en `docs/CREATE_INSTANCE.md §4`).
-Si piden un segundo idioma más allá de es/en, es trabajo de código (`i18n/routing.ts` +
-mensajes nuevos), no de config — dilo.
+Los idiomas se declaran con `i18n.locales` (los secundarios; `brand.locale` es el principal) y
+el contenido del CMS se traduce por idioma desde `wp-admin` (`hwe-content-i18n`). Eso es config;
+lo que sigue siendo código es el alta del idioma en `i18n/routing.ts` y su
+`messages/<idioma>.json` (`npm run i18n:check` exige la paridad). El arranque avisa si
+`routing.ts` e `i18n.locales` divergen.
 
 ---
 
@@ -63,13 +69,22 @@ Preguntas:
 - ¿Necesitan algo más allá de la ficha de producto estándar (comparador, configurador visual,
   contenido educativo por producto, etc.)? — esto es una señal de trabajo custom, no de config.
 - ¿Reseñas de clientes? ¿Lista de deseos/wishlist? ¿Cupones de descuento? ¿Búsqueda?
+- ¿Landing propia por producto? ¿Campos que cada producto necesita y WooCommerce no trae
+  (modo de uso, ingredientes, medidas…)? ¿Datos que el cliente debe aportar por línea de pedido
+  (dedicatoria, talla grabada…)? ¿Banners de campaña?
 
 **Determina**:
 - `ecommerce.reviews_enabled` / `wishlist_enabled` / `coupons_enabled` / `search_enabled` en
   `instance.config.json` — recuerda que estos flags **ya están conectados** a la UI (ver
   `docs/FRONTEND_CONNECT.md §A.3`), no hace falta tocar código para activarlos/desactivarlos.
 - Si piden búsqueda con resultados reales: `SearchModal` existe pero no está conectado (tiene
-  un TODO explícito) — es trabajo de código, no solo de flag.
+  un TODO explícito) — es trabajo de código, no solo de flag. El BFF ya la sirve
+  (`/api/store/products?search=`, gateada por `search_enabled`).
+- Campos de producto propios → declaración en `hwe_product_fields` (PHP) y `productFields` en
+  `src/instance/registry.ts`; detalles por línea de pedido → `hwe_order_item_details`. Son
+  mecanismos del núcleo: se **declaran**, no requieren código de plomería (ver
+  `docs/PLUGIN_DEVELOPMENT.md`).
+- Landing por producto → módulo `product-landing`; banners → módulo `banners`.
 - Vistas de `/products`: con pocas categorías, `CategoryCard` en la home puede bastar; con
   catálogo grande, conecta `FilterChips`/`SortDropdown` (ninguno está conectado hoy).
 
@@ -88,10 +103,11 @@ Preguntas:
 - `legal.email`/`legal.address`, `social.facebook`/`instagram`/`youtube`/`twitter`/`linkedin`
   en `instance.config.json` → alimentan `/contact` automáticamente (`ContactForm` ya lee
   `config.legal.email` y `config.social.*`).
-- Si hay sedes físicas: **no hay campo en el schema para esto** (es de más alta cardinalidad
-  que la config plana del Control Center) — pásalas explícitas a `<ContactForm branches={...}
-  phone={...} />` en `app/[locale]/contact/page.tsx` (prop ya soportada, ver
-  `docs/FRONTEND_CONNECT.md §B.2`).
+- Si hay sedes físicas: hasta **4** en `legal.locations` (nombre, dirección, ciudad, teléfono,
+  horario, mapa, coordenadas) y `legal.phone`/`mobile`. Ya alimentan el JSON-LD `LocalBusiness`
+  (`getConfiguredLocations`, `businessPhone`); para **mostrarlas** en `/contact` pásalas a
+  `<ContactForm branches={...} phone={...} />` en `app/[locale]/contact/page.tsx` (props ya
+  soportadas, ver `docs/FRONTEND_CONNECT.md §B.2`). Más de 4 sedes sí es trabajo de instancia.
 
 ---
 
@@ -118,13 +134,26 @@ Preguntas:
 
 Preguntas:
 - ¿País(es) donde operan? ¿Moneda?
-- ¿Tarifa de envío plana, envío gratis a partir de un monto, o algo más complejo (múltiples
-  zonas)?
-- ¿Pasarela de pago real a integrar (Wompi/PayU/Bold) o sandbox (`noop`) por ahora?
+- ¿Tarifa de envío plana, por ciudad, envío gratis a partir de un monto, extras (entrega
+  urgente, regalo)? ¿Hay una zona donde no se reparte?
+- ¿Medios de pago: pago en línea (¿qué pasarela?), pedido por WhatsApp, efectivo? ¿Compra de
+  invitado o solo con cuenta?
+- ¿Piden documento de identidad o aceptación de términos al comprar o registrarse?
+- ¿Un sistema externo (ERP, logística) que deba leer los pedidos?
 
-**Determina**: `ecommerce.currency`/`country`, `shipping.*` en `instance.config.json`.
-Pasarela real = trabajo de backend (`frontend/src/lib/payments/providers/`, ver `AGENTS.md
-§6.8`), no de frontend/vistas — coordina con quien lleve esa parte si aplica.
+**Determina**:
+- `ecommerce.currency` (obligatoria) y `ecommerce.country` (elige el paquete por país: ciudades,
+  tipos de documento, direcciones), `ecommerce.free_shipping.*` y
+  `ecommerce.checkout_login_required` en `instance.config.json`.
+- Módulos: `shipping` (tarifa por ciudad y extras; las tarifas se cargan en el menú «Envío» de
+  wp-admin, no en el JSON), `customer-identity`, `external-integration`, `coupon-rules`.
+- Pasarela: **Wompi y Aval Pay ya están de punta a punta** y se eligen desde el panel
+  (`payments.provider`, `gateway_enabled`, `whatsapp_enabled`, `cash_enabled`); PayU y Bold son
+  stubs. Otra pasarela = implementar `PaymentProvider` en `frontend/src/lib/payments/providers/`
+  (ver `AGENTS.md §6.8`): trabajo de backend/BFF, no de vistas.
+- Un país sin paquete propio: añade el suyo con el filtro `hwe_geo_packs` desde la instancia
+  (`docs/PLUGIN_DEVELOPMENT.md`); mientras tanto el paquete `generic` no fuerza ciudades ni
+  documentos.
 
 ---
 
@@ -143,21 +172,48 @@ conectado (`/about`, JSON-LD de producto, `robots.txt`, `/llms.txt`), es puramen
 
 ---
 
+## 7 bis. Bloque: módulos (qué enciende cada respuesta)
+
+Cada funcionalidad opcional de la entrevista se corresponde con un módulo. Enciende solo los
+que el negocio usa: un módulo apagado desaparece del todo (lector vacío, rutas del BFF en 404,
+interfaz sin pintar).
+
+| Si el negocio… | Módulo | Notas |
+|---|---|---|
+| Quiere banners de campaña en la home u otras zonas | `banners` | Tipo × locación; los visuales decorativos de plantilla se declaran en `registry.ts` (`decorPresets`) |
+| Cobra el envío por ciudad, con extras o con envío gratis por regla | `shipping` | Tarifas en el menú «Envío» de wp-admin |
+| Quiere una landing de venta por producto | `product-landing` | Caja «Landing del producto» en la ficha, a N idiomas |
+| Publica guías, artículos o páginas de persona con diseño editorial | `landings` | Las landings con diseño propio se declaran en `registry.ts` (`landings`) y en `hwe_landings_static_entries` |
+| Debe demostrar el consentimiento de cookies (RGPD) | `consent-log` | Retención en `integrations.consent_retention_years` |
+| Quiere que el cliente valore el servicio tras un pedido completado | `site-reviews` | Distinta de la reseña de producto (`reviews_enabled`) |
+| Usa cupones con condiciones (primera compra, ventana, alcance) | `coupon-rules` | Aparte del flag `coupons_enabled` |
+| Necesita documento de identidad o aceptación de términos | `customer-identity` | Tipos de documento y patrones del paquete de país |
+| Conecta un ERP u otro sistema que lee pedidos | `external-integration` | IP exacta + contraseña de aplicación; política cerrada |
+
+Además, dos mecanismos **siempre activos** que se declaran en la instancia, sin módulo:
+campos de producto (`hwe_product_fields`) y detalles de línea de pedido
+(`hwe_order_item_details`).
+
+---
+
 ## 8. De la entrevista a `instance.config.json`
 
 Copia `backend/scripts/instance.config.example.json` a
 `backend/scripts/instance.config.json` y rellena los grupos según las respuestas de arriba:
-`brand`, `social`, `legal`, `design`, `ecommerce`, `seo`, `shipping`, `geo`, `backups`. Aplícalo
-con:
+`brand`, `social`, `legal`, `design`, `ecommerce`, `i18n`, `modules`, `auth`, `payments`, `seo`,
+`geo`, `integrations`, `backups`. Aplícalo con:
 
 ```bash
 docker compose run --rm wpcli wp hwe setup /scripts/instance.config.json
 ```
 
-(Es idempotente — puedes reejecutarlo cuando cambien las respuestas.) Detalle completo del
-comando en `docs/CREATE_INSTANCE.md §3`.
+(Es idempotente — puedes reejecutarlo cuando cambien las respuestas. `modules` **activa los
+listados y desactiva los demás**.) Detalle completo del comando en `docs/CREATE_INSTANCE.md §3`;
+cada campo en `docs/CONFIGURATION.md`.
 
----
+Lo que **no** cabe en el JSON: credenciales (pasarelas, SMTP, Meta CAPI: campos `secret` del
+panel o variables de entorno), las tarifas de envío y los cupones (wp-admin) y el contenido
+(productos, banners, landings, traducciones).
 
 ## 9. Componentes: qué usar y de dónde
 
@@ -251,8 +307,12 @@ concreto página por página. Plantilla de razonamiento:
 - [ ] Cada funcionalidad opcional mencionada en la entrevista corresponde a un flag activado
       Y a una vista que lo respeta (§B.2 de `docs/FRONTEND_CONNECT.md`).
 - [ ] `/contact` tiene los canales reales del negocio (o se dejó vacío a propósito).
-- [ ] `i18n/messages/es.json` y `en.json` están en paralelo (si aplica un segundo idioma).
+- [ ] Hay un `i18n/messages/<idioma>.json` por cada idioma (`routing.ts` e `i18n.locales`
+      coinciden) y `npm run i18n:check` pasa.
+- [ ] Los módulos encendidos son los que el negocio usa y `sh backend/scripts/verify-modules.sh`
+      pasa contra la pila.
 - [ ] Nada de contenido de OTRO negocio (marca, categorías de ejemplo, direcciones) quedó
       hardcodeado en el código — todo lo que es específico de esta instancia sale de
       `instance.config.json`, de props, o está aislado en su propia carpeta si es código.
-- [ ] `npx tsc --noEmit`, `npm run test`, `npx next build` en verde.
+- [ ] `npm run lint`, `npm run type-check`, `npm run test`, `npm run i18n:check` y `npx next build`
+      en verde (y `composer test` desde `backend/` si añadiste PHP).

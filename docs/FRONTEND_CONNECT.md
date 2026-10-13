@@ -610,7 +610,9 @@ y `frontend/src/lib/config/types.ts` para el tipo TypeScript equivalente):
 ```
 brand:  { name, tagline, description, url, logo, locale, og_image }
 social: { twitter, instagram, facebook, linkedin, youtube, wikipedia, wikidata }
-legal:  { company, nif, email, address }
+legal:  { company, nif, email, phone, mobile, address, city, region, postal_code,
+          locations: { location_1…location_4: { label, address, city, region, postal_code,
+                       maps, phone, hours, latitude, longitude } } }   // hasta 4 sedes
 design: {
   colors:     { brand, brand_dark, brand_light, secondary, secondary_dark, accent, surface, background, foreground }
   typography: { font_sans, font_url, font_heading, font_heading_url }
@@ -777,7 +779,7 @@ Leyenda: ✅ **completa** (usa datos reales, sin componentes de relleno) · 🧱
 | `/blog` | ✅ | `PostCard` | Listado de entradas. |
 | `/blog/[slug]` | ✅ | — | Entrada individual, JSON-LD `Article`. |
 | `/about` | ✅ | — | 100% `getSiteConfig()` (descripción, fundador, áreas de expertise, JSON-LD `Person`) — sin componentes de layout nuevos, buen ejemplo de vista "de config pura". |
-| `/contact` | ✅ | `ContactForm` | Usa `config.legal.email` + `config.social.*`. Sin teléfono/sedes por defecto (el schema no tiene esos campos — pásalos como prop si el negocio los necesita, ver B.3). |
+| `/contact` | ✅ | `ContactForm` | Usa `config.legal.email` + `config.social.*`. Las sedes (`legal.locations`) y el teléfono (`businessPhone(config)`) **sí están en la config** y alimentan el JSON-LD `LocalBusiness` (`getConfiguredLocations(config)`), pero la vista no las pinta: pásalas a `ContactForm` (`branches`, `phone`) si el negocio quiere mostrarlas. |
 | `/cart` | ✅ | `CartView` | — |
 | `/checkout`, `/checkout/return` | ✅ | `CheckoutForm` | Cupón gateado por `coupons_enabled` (ver A.3). Selector de medio de pago (`paymentChoices`) y aviso de modo de pruebas (`gatewaySandbox`), ver «Pagos» en A.2. |
 | `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` | ✅ | `*-form.tsx` de `components/auth/` | Flujo de auth completo (JWT + 2FA opcional). |
@@ -856,7 +858,7 @@ Formato por componente: **qué hace** — *de dónde saca datos* — estado de c
 - **`ContactForm`** — formulario + panel de "canales de contacto". Props: `email?`, `phone?`,
   `socials?: { facebook?, instagram?, youtube? }`, `branches?: Branch[]`. **Todo opcional y
   con default vacío** (una sección se oculta si no le pasas datos). Envía a `POST /api/contact`
-  (§A.2; hoy solo loggea, tiene un TODO para reenviar a email/WordPress real). ✅ Conectado en
+  (§A.2; el BFF lo reenvía a `hwe/v1/contact`, que lo entrega por email). ✅ Conectado en
   `/contact`. `country-selector.tsx` y `contact-form.data.ts` (`REQUEST_TYPES`/`COUNTRIES`)
   son genéricos, sin datos de negocio.
 
