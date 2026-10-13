@@ -17,6 +17,10 @@ namespace HWE\Tests\Unit\Scripts;
  *     comprueba cada paso; si algo falla no queda ninguna copia a medias.
  *  3. `. ./.env` ejecutaba el archivo como shell (ver LoadEnvTest).
  *
+ * Además `backup-cron.sh` deja `hwe-backup-status.json` (lo lee el panel) y exporta la
+ * config en `config-*.json`; si el volcado falla, el status marca el fallo pero no se
+ * borra ninguna copia anterior.
+ *
  * Los scripts se EJECUTAN con `docker` y `mariadb-dump` falsos que registran lo que
  * reciben (argumentos y `MYSQL_PWD`).
  */
@@ -63,6 +67,11 @@ fi
 echo "-- MariaDB dump"
 echo "CREATE TABLE t (id int);"
 echo "-- Dump completed"
+SH);
+        // El export de configuración del panel (`config-*.json`) lee las options por SQL.
+        $this->fakeBinary('mariadb', <<<'SH'
+echo "mariadb $*" >> "$CALLS_LOG"
+echo "a:1:{s:5:\"brand\";a:1:{s:4:\"name\";s:1:\"T\";}}"
 SH);
     }
 
@@ -261,9 +270,26 @@ SH);
 
         $this->assertSame(0, $result['code'], $result['stderr']);
         $files = $this->filesIn('cron-out');
-        $this->assertCount(1, $files);
-        $this->assertMatchesRegularExpression('/^db-.*\.sql\.gz$/', $files[0]);
-        $this->assertStringContainsString('CREATE TABLE t', $this->gunzipped($this->dir . '/cron-out/' . $files[0]));
+        $dumps = array_values(array_filter($files, static fn ($f) => str_starts_with($f, 'db-') && str_ends_with($f, '.sql.gz')));
+        $this->assertCount(1, $dumps);
+        $this->assertMatchesRegularExpression('/^db-.*\.sql\.gz$/', $dumps[0]);
+        $this->assertStringContainsString('CREATE TABLE t', $this->gunzipped($this->dir . '/cron-out/' . $dumps[0]));
+    }
+
+    public function testCronWritesStatusAndConfigExport(): void
+    {
+        $result = $this->runCron();
+
+        $this->assertSame(0, $result['code'], $result['stderr']);
+        $status = json_decode((string) file_get_contents($this->dir . '/cron-out/hwe-backup-status.json'), true);
+        $this->assertTrue($status['success']);
+        $this->assertSame('scheduled', $status['trigger']);
+        $this->assertNotSame('', $status['summary']);
+        $configs = array_values(array_filter(
+            $this->filesIn('cron-out'),
+            static fn ($f) => str_starts_with($f, 'config-') && str_ends_with($f, '.json')
+        ));
+        $this->assertCount(1, $configs, 'El export de configuración acompaña a cada backup.');
     }
 
     public function testCronFailsLoudAndLeavesNoPartialCopyWhenTheDumpFails(): void
@@ -272,19 +298,29 @@ SH);
 
         $this->assertNotSame(0, $result['code']);
         $this->assertStringContainsString('✗', $result['stderr'] . $result['stdout']);
-        $this->assertSame([], $this->filesIn('cron-out'));
+        $dumps = array_values(array_filter(
+            $this->filesIn('cron-out'),
+            static fn ($f) => str_starts_with($f, 'db-') && str_ends_with($f, '.sql.gz')
+        ));
+        $this->assertSame([], $dumps, 'No debe quedar ningún volcado a medias que parezca válido.');
+        // El status SÍ se escribe aunque falle: es lo que permite al panel mostrar el fallo.
+        $status = json_decode((string) file_get_contents($this->dir . '/cron-out/hwe-backup-status.json'), true);
+        $this->assertFalse($status['success']);
     }
 
-    public function testCronReportsARetentionFailureWithoutLosingTheBackupItJustMade(): void
+    public function testCronSurvivesARetentionFailureWithoutLosingTheBackupItJustMade(): void
     {
-        // `find … -delete || true` con `2>/dev/null` se tragaba el fallo: las copias viejas
-        // se acumulaban hasta llenar el disco sin que nada lo dijera.
+        // `find … || true` con `2>/dev/null`: si la limpieza falla, la copia ya hecha
+        // no se tumba y las copias buenas anteriores tampoco se tocan.
         $this->fakeBinary('find', 'echo "find: no se puede borrar (simulado)" >&2; exit 1');
 
         $result = $this->runCron();
 
         $this->assertSame(0, $result['code'], 'La copia ya está hecha: la retención no debe tumbarla.');
-        $this->assertStringContainsString('AVISO', $result['stdout'] . $result['stderr']);
-        $this->assertCount(1, $this->filesIn('cron-out'));
+        $dumps = array_values(array_filter(
+            $this->filesIn('cron-out'),
+            static fn ($f) => str_starts_with($f, 'db-') && str_ends_with($f, '.sql.gz')
+        ));
+        $this->assertCount(1, $dumps);
     }
 }

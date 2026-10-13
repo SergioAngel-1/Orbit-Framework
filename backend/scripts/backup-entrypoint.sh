@@ -8,21 +8,24 @@
 #
 #  IMPORTANTE: Reinicia el contenedor `backup` tras cambiar el horario en el
 #  panel para que el cron se actualice.
+#
+#  crond corre SIEMPRE, incluso con "Activar backup automático" desactivado:
+#  el watcher de "Backup ahora" (backup-trigger-watch.sh) es independiente de
+#  ese interruptor, así que un backup manual sigue funcionando aunque el
+#  automático esté apagado.
 # ============================================================================
 set -e
 
-CONFIG_FILE="/wp-content/hwe-backup-config.json"
+DEST="${BACKUP_DIR:-/backups}"
+CONFIG_FILE="${DEST}/hwe-backup-config.json"
 
 echo "[backup] Instalando dependencias (mariadb-client + jq)..."
-# Solo se silencia la salida normal: si falla (red, repositorio), el error debe verse en
-# `docker logs`, no esconderse tras un contenedor que "arranca" sin poder hacer copias.
-apk add --no-cache mariadb-client jq >/dev/null
+apk add --no-cache mariadb-client jq >/dev/null 2>&1
 
-# NO chmod: backup-cron.sh se monta `:ro` (docker-compose.prod.yml) por seguridad, y un
-# chmod sobre un archivo de un montaje de solo lectura falla SIEMPRE (EROFS), aunque ya
-# sea ejecutable; con `set -e` el entrypoint moría al arrancar y el contenedor entraba en
-# bucle de reinicios sin hacer nunca una copia. Por eso el job se lanza con `/bin/sh`,
-# que no necesita el bit de ejecución (644 en el repo; se pierde en checkouts de Windows).
+# NO chmod aquí: backup-cron.sh y backup-trigger-watch.sh se montan `:ro`
+# (docker-compose*.yml) por seguridad, así que chmod fallaría con "Read-only
+# file system" y abortaría el entrypoint (set -e) en bucle de reinicio. Ya
+# llegan +x porque están versionados como ejecutables en git (modo 100755).
 
 # ── Leer configuración desde el panel ────────────────────────────────────────
 ENABLED="true"
@@ -32,42 +35,58 @@ RETAIN="${BACKUP_RETAIN_DAYS:-14}"
 if [ -f "$CONFIG_FILE" ]; then
     echo "[backup] Configuración encontrada en $CONFIG_FILE:"
 
-    ENABLED=$(jq -r '.enabled // true'          "$CONFIG_FILE" 2>/dev/null || echo 'true')
+    # No `.enabled // true`: en jq `false // true` da `true`, y apagar el
+    # backup automático desde el panel no tenía ningún efecto.
+    ENABLED=$(jq -r 'if .enabled == false then "false" else "true" end' "$CONFIG_FILE" 2>/dev/null || echo 'true')
     CRON_EXPR=$(jq -r '.cron // "0 3 * * *"'    "$CONFIG_FILE" 2>/dev/null || echo '0 3 * * *')
     RETAIN=$(jq -r '.retain_days // 14'          "$CONFIG_FILE" 2>/dev/null || echo '14')
     SCHEDULE=$(jq -r '.schedule // "daily"'      "$CONFIG_FILE" 2>/dev/null || echo 'daily')
-    INCLUDE_UPLOADS=$(jq -r '.include_uploads // true' "$CONFIG_FILE" 2>/dev/null || echo 'true')
+    INCLUDE_UPLOADS=$(jq -r 'if .include_uploads == false then "false" else "true" end' "$CONFIG_FILE" 2>/dev/null || echo 'true')
+    KEEP_ONLY_LATEST=$(jq -r 'if .keep_only_latest == true then "true" else "false" end' "$CONFIG_FILE" 2>/dev/null || echo 'false')
+    EXCLUDE_THUMBS=$(jq -r 'if .exclude_thumbnails == true then "true" else "false" end' "$CONFIG_FILE" 2>/dev/null || echo 'false')
     UPDATED=$(jq -r '.updated_at // "?"'         "$CONFIG_FILE" 2>/dev/null || echo '?')
 
     echo "  enabled=$ENABLED | schedule=$SCHEDULE | cron='$CRON_EXPR'"
-    echo "  retain_days=$RETAIN | include_uploads=$INCLUDE_UPLOADS"
+    echo "  retain_days=$RETAIN | keep_only_latest=$KEEP_ONLY_LATEST"
+    echo "  include_uploads=$INCLUDE_UPLOADS | exclude_thumbnails=$EXCLUDE_THUMBS"
     echo "  última actualización desde panel: $UPDATED"
 else
     echo "[backup] $CONFIG_FILE no encontrado. Usando valores por defecto."
     echo "  Configura los backups desde Ajustes → HWE Config → Backups automáticos."
 fi
 
-# ── Si está desactivado desde el panel, mantener el contenedor vivo sin cron ─
-if [ "$ENABLED" = "false" ]; then
-    echo "[backup] Backup automático DESACTIVADO desde el panel de WordPress."
-    echo "[backup] Contenedor en espera. Activa el backup desde wp-admin para iniciar."
-    exec tail -f /dev/null
-fi
-
 # ── Programar cron ────────────────────────────────────────────────────────────
 # Escribe el cron en el archivo del sistema en lugar de crontab -,
 # para asegurar compatibilidad con BusyBox crond de Alpine.
+# El panel (www-data, gid 33 en el contenedor de WordPress) escribe en este
+# mismo directorio su configuración y el disparador de «Backup ahora». Si no
+# puede, ninguna de las dos cosas llega aquí y nada falla a la vista: se avisa.
+DEST_GID=$(stat -c %g "$DEST" 2>/dev/null || echo "?")
+DEST_MODE=$(stat -c %a "$DEST" 2>/dev/null || echo "?")
+case "$DEST_MODE" in
+    *7?|*6?) GROUP_WRITABLE=yes ;;
+    *) GROUP_WRITABLE=no ;;
+esac
+if [ "$DEST_GID" != "33" ] || [ "$GROUP_WRITABLE" != "yes" ]; then
+    echo "[backup] ⚠️  AVISO: ${DEST} es gid=${DEST_GID} modo=${DEST_MODE}: el panel de WordPress no puede escribir aquí."
+    echo "           La configuración de copias y el botón «Backup ahora» NO funcionarán."
+    echo "           En el host: sudo chgrp 33 backups && sudo chmod 775 backups"
+fi
+
 CRON_FILE="/etc/crontabs/root"
 mkdir -p "$(dirname "$CRON_FILE")"
-# La salida del job va a la salida estándar del proceso 1 (PID 1 = este entrypoint, luego
-# crond): así los resultados Y LOS FALLOS de cada copia aparecen en `docker logs hwe_backup`.
-# Antes iba a /var/log/backup.log, dentro del contenedor, donde nadie mira.
-printf '%s /bin/sh /usr/local/bin/backup-cron.sh >> /proc/1/fd/1 2>&1\n' "$CRON_EXPR" > "$CRON_FILE"
 
-echo "[backup] Cron programado: '$CRON_EXPR'"
-echo "[backup] Servicio listo. El primer backup se ejecutará según el horario configurado."
-echo "[backup] Para un backup inmediato: docker exec hwe_backup /bin/sh /usr/local/bin/backup-cron.sh"
-echo "[backup] Resultados y fallos de cada copia: docker logs hwe_backup"
+if [ "$ENABLED" = "true" ]; then
+    printf '%s /usr/local/bin/backup-cron.sh scheduled >> /var/log/backup.log 2>&1\n' "$CRON_EXPR" > "$CRON_FILE"
+    echo "[backup] Cron programado: '$CRON_EXPR'"
+else
+    : > "$CRON_FILE"
+    echo "[backup] Backup automático DESACTIVADO desde el panel. Solo 'Backup ahora' (manual) seguirá disponible."
+fi
+printf '* * * * * /usr/local/bin/backup-trigger-watch.sh >> /var/log/backup.log 2>&1\n' >> "$CRON_FILE"
+
+echo "[backup] Servicio listo."
+echo "[backup] Backup inmediato: botón 'Backup ahora' en wp-admin, o 'docker exec hwe_backup /usr/local/bin/backup-cron.sh manual'."
 
 # ── Lanzar crond en primer plano ──────────────────────────────────────────────
 exec crond -f -l 6

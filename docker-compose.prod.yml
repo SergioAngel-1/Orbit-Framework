@@ -142,6 +142,7 @@ services:
         // Center y los secretos 2FA cifrados quedarían indescifrables.
         define( 'HWE_SECRETS_KEY', '${HWE_SECRETS_KEY:?HWE_SECRETS_KEY must be set}' );
         define( 'HWE_2FA_KEY',     '${HWE_2FA_KEY:?HWE_2FA_KEY must be set}' );
+        define( 'HWE_BACKUPS_DIR', '/var/www/hwe-backups' );
         define( 'WP_REDIS_HOST', 'redis' );
         define( 'WP_REDIS_PORT', 6379 );
         define( 'WP_CACHE', true );
@@ -151,6 +152,11 @@ services:
     volumes:
       - ./backend/wp-content:/var/www/html/wp-content
       - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
+      # Directorio de backups (dumps + archivos de control del panel de
+      # Backups), FUERA del docroot de Apache (/var/www/html) para que Caddy
+      # jamás pueda servirlo. Mismo host path que el contenedor `backup`
+      # (montado ahí en /backups).
+      - ./backups:/var/www/hwe-backups
       # OPcache optimizado para producción (validate_timestamps=0): tras
       # actualizar mu-plugins/plugins hay que reiniciar este contenedor.
       - ./backend/config/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
@@ -321,6 +327,7 @@ services:
     volumes:
       - ./backend/scripts/backup-cron.sh:/usr/local/bin/backup-cron.sh:ro
       - ./backend/scripts/backup-entrypoint.sh:/usr/local/bin/backup-entrypoint.sh:ro
+      - ./backend/scripts/backup-trigger-watch.sh:/usr/local/bin/backup-trigger-watch.sh:ro
       # wp-content completo (solo lectura): acceso a uploads + hwe-backup-config.json
       - ./backend/wp-content:/wp-content:ro
       - ./backups:/backups

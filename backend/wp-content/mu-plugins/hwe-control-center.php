@@ -45,6 +45,8 @@ add_action( 'init', static function (): void {
 	HWE\ControlCenter\WooGuestCheckoutSync::register();
 	HWE\ControlCenter\WooCashGatewaySync::register();
 	HWE\ControlCenter\FreeShippingRule::register();
+	HWE\ControlCenter\BackupActions::register();
+	HWE\ControlCenter\BackupNotify::register();
 }, 20 );
 
 // ---------------------------------------------------------------------------

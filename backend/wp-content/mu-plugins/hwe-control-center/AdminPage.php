@@ -103,6 +103,11 @@ class AdminPage {
             $sections['banners'] .= self::renderBannerStatus();
         }
 
+        // Acciones de backups (manual, recientes, export/import) en el tab "backups".
+        if ( isset( $sections['backups'] ) ) {
+            $sections['backups'] .= BackupActions::render();
+        }
+
         $tabs = self::buildTabs($schema, $sections);
 
         $formUrl = esc_url(admin_url('admin.php?page=' . self::MENU_SLUG));
@@ -179,6 +184,14 @@ class AdminPage {
         echo '</div>';
 
         echo '</form>';
+
+        // Formularios fuera del form principal: HTML prohíbe <form> anidados, y estas
+        // acciones (backup manual, import de config) van a admin-post.php, no al guardado
+        // normal del panel. Los botones de BackupActions los referencian por `form="…"`.
+        $adminPostUrl = esc_url(admin_url('admin-post.php'));
+        echo '<form id="hwe-backup-run-now-form" method="post" action="' . $adminPostUrl . '" class="hwe-smtp-form-root"></form>';
+        echo '<form id="hwe-config-import-form" method="post" enctype="multipart/form-data" action="' . $adminPostUrl . '" class="hwe-smtp-form-root"></form>';
+
         echo '</div>';
     }
 

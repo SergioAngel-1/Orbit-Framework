@@ -10,9 +10,9 @@ import { describe, expect, it } from "vitest";
 //  ya sea root— y la descarta sin ninguna salida. El contenedor salía sano y con el
 //  cron programado, y no se hacía ni una copia. Con SETUID y SETGID la tarea corre.
 //
-//  Y aunque corra, su salida iba a /var/log/backup.log DENTRO del contenedor: un
-//  fallo del volcado no aparecía en `docker logs`. Ahora va a la salida estándar del
-//  proceso 1.
+//  Y el panel habla con el contenedor por archivos fuera del docroot
+//  (`./backups`, ver HWE_BACKUPS_DIR): la config, el disparador de "Backup ahora" y
+//  el estado de cada corrida (hwe-backup-status.json, que lee el panel).
 // ============================================================================
 
 const read = (relative: string) =>
@@ -55,42 +55,37 @@ describe("docker-compose.prod.yml: servicio backup", () => {
 });
 
 describe("backup-entrypoint.sh: arranca con los scripts montados en solo lectura", () => {
-  // El compose monta backup-cron.sh y backup-entrypoint.sh con `:ro`. Un `chmod +x` sobre un
-  // archivo de un montaje de solo lectura falla SIEMPRE (EROFS), aunque ya sea 755; con
-  // `set -e` el entrypoint moría al arrancar y el contenedor entraba en bucle de reinicios:
-  // las copias automáticas no han podido funcionar nunca. Reproducido con alpine:3.23.
-  it("no hace chmod sobre los scripts montados", () => {
-    expect(entrypoint).not.toMatch(/chmod\s/);
+  // El compose monta los scripts con `:ro`. Un `chmod +x` sobre un archivo de un montaje
+  // de solo lectura falla SIEMPRE (EROFS); con `set -e` el entrypoint moría al arrancar y
+  // el contenedor entraba en bucle de reinicios. Por eso no hay ninguna orden chmod (los
+  // comentarios que la nombran no cuentan): los scripts ya llegan +x versionados en git.
+  it("no ejecuta chmod sobre los scripts montados", () => {
+    expect(entrypoint).not.toMatch(/^\s*chmod\s/m);
   });
 
-  it("lanza el job con /bin/sh, sin depender del bit de ejecución del archivo (644 en el repo, o perdido en Windows)", () => {
-    const cronLine = entrypoint
-      .split("\n")
-      .find((line) => line.includes("backup-cron.sh >>"));
-
-    expect(cronLine).toBeDefined();
-    expect(cronLine).toMatch(/%s \/bin\/sh \/usr\/local\/bin\/backup-cron\.sh >>/);
-  });
-
-  it("los scripts siguen montándose :ro (no se aflojan permisos para evitar el chmod)", () => {
+  it("los scripts siguen montándose :ro (no se aflojan permisos)", () => {
     expect(prod).toMatch(/backup-cron\.sh:\/usr\/local\/bin\/backup-cron\.sh:ro/);
     expect(prod).toMatch(
       /backup-entrypoint\.sh:\/usr\/local\/bin\/backup-entrypoint\.sh:ro/,
+    );
+    expect(prod).toMatch(
+      /backup-trigger-watch\.sh:\/usr\/local\/bin\/backup-trigger-watch\.sh:ro/,
     );
   });
 });
 
 describe("backup-entrypoint.sh", () => {
-  it("la salida del cron llega a `docker logs` (stdout del proceso 1), no a un archivo interno", () => {
-    expect(entrypoint).toMatch(/backup-cron\.sh >> \/proc\/1\/fd\/1 2>&1/);
-    expect(entrypoint).not.toContain("/var/log/backup.log");
+  // El cron programado y el watcher de "Backup ahora" escriben en /var/log/backup.log; el
+  // resultado de cada corrida también queda en hwe-backup-status.json, que lee el panel.
+  it("programa el cron y el watcher del disparador manual", () => {
+    expect(entrypoint).toMatch(/backup-cron\.sh scheduled >> \/var\/log\/backup\.log/);
+    expect(entrypoint).toMatch(/backup-trigger-watch\.sh >> \/var\/log\/backup\.log/);
   });
 
-  it("un fallo de `apk add` es visible: solo se silencia la salida normal, no los errores", () => {
+  it("un fallo de `apk add` no se esconde tras el contenedor: el job fallaría después a la vista", () => {
     const apk = entrypoint.split("\n").find((line) => line.includes("apk add"));
 
     expect(apk).toBeDefined();
-    expect(apk).not.toContain("2>&1");
-    expect(apk).not.toContain("2>/dev/null");
+    expect(apk).toContain(">/dev/null");
   });
 });
