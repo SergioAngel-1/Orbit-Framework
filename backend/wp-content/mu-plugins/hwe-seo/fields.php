@@ -141,7 +141,8 @@ function hwe_seo_save_post_fields( string $entity, int $post_id ): void {
 		if ( '' === $value ) {
 			delete_post_meta( $post_id, $meta );
 		} else {
-			update_post_meta( $post_id, $meta, $value );
+			// `update_post_meta` hace `wp_unslash`: sin `wp_slash` una `\` se pierde al guardar.
+			update_post_meta( $post_id, $meta, wp_slash( $value ) );
 		}
 	}
 }
@@ -161,7 +162,7 @@ function hwe_seo_save_term_fields( string $entity, int $term_id, string $capabil
 		if ( '' === $value ) {
 			delete_term_meta( $term_id, $meta );
 		} else {
-			update_term_meta( $term_id, $meta, $value );
+			update_term_meta( $term_id, $meta, wp_slash( $value ) );
 		}
 	}
 }

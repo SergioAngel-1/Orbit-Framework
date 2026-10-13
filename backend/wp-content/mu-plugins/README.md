@@ -38,6 +38,8 @@ paquete multi-clase.
 | `hwe-product-seo.php` | mu-plugin | Idem por producto (`Product.seoTitle`/`seoDescription`). |
 | `hwe-seo/` | carpeta | `fields.php`: caja, guardado, contador, columna y registro GraphQL comunes a los cuatro `hwe-*-seo.php` (que la incluyen con `require_once`). |
 | `hwe-category-seo.php` | mu-plugin | Idem por categoría de producto (`ProductCategory.seoTitle`/`seoDescription`). |
+| `hwe-content-i18n.php` | mu-plugin | Traducciones de contenido a N idiomas (`i18n.locales`): metas `_hwe_<campo>_<idioma>` (compatibles con las `_en`), caja «Traducciones» por pestañas, campos por idioma en los términos, `translation(locale)` y `hweSlugFrom` en GraphQL, búsqueda por lo traducido y higiene de espacios. Registro de campos por tipo con el filtro `hwe_translatable_fields`. Con un solo idioma no registra nada. |
+| `hwe-content-i18n/` | carpeta | `registry.php`, `storage.php`, `admin.php`, `graphql.php` y `search.php` (los incluye `hwe-content-i18n.php`). |
 | `hwe-featured-post.php` | mu-plugin | Selector manual de post destacado (`RootQuery.hweFeaturedPost`). |
 | `hwe-login-slug.php` | mu-plugin | Con `HWE_LOGIN_SLUG`, el login del panel pasa a `/<slug>` y `/wp-login.php` (y `/wp-admin` sin sesión) responde 404. Sin la constante, no actúa. |
 | `hwe-svg-uploads.php` | mu-plugin | Subida de SVG a la medioteca con saneado (lista de permitidos para enlaces, sin scripts, manejadores ni animaciones que reescriban enlaces). |

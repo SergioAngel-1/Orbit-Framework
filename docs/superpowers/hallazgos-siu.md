@@ -225,6 +225,17 @@ Se mantiene viva: cada tarea de la ejecución del plan añade aquí lo que encue
 - **Arreglo:** si la forma no coincide (objeto frente a array o escalar) manda el default y se
   registra `site_config.shape_mismatch` con la ruta. Commit `4a82a04`.
 
+### S-20 · Las traducciones de términos y el SEO por entidad pierden las barras invertidas
+- **Dónde:** `hwe-category-translation.php`, `hwe-tag-translation.php`,
+  `hwe-blog-category-translation.php` y `hwe-{post,page,product,category}-seo.php` (verificado
+  en Siu: ninguno llama a `wp_slash` antes de `update_term_meta` / `update_post_meta`;
+  `hwe-content-translation.php` sí, con un comentario que explica por qué).
+- **Qué pasa:** `update_*_meta` hace `wp_unslash` del valor. Un nombre, una descripción o un
+  título SEO con una `\` escrita a mano (una ruta, un `\n` literal, una expresión) la pierde en
+  cada guardado.
+- **Arreglo:** `wp_slash` al escribir, en las traducciones nuevas y en `hwe-seo/fields.php`. Se
+  reprodujo con un test en rojo contra el código anterior (`ContentSeoTest`).
+
 ---
 
 ## Avisos y riesgos residuales
@@ -262,4 +273,4 @@ el endpoint.
 
 ---
 
-*Última actualización: cierre de la F4 (tareas 40–49).*
+*Última actualización: tarea 50 (F5).*

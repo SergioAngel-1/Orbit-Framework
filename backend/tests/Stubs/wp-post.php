@@ -27,3 +27,34 @@ if (!class_exists('WP_Term')) {
         public string $slug = '';
     }
 }
+
+if (!class_exists('WP_Query')) {
+    /**
+     * `WP_Query` mínima: solo lo que leen los filtros propios sobre la búsqueda
+     * (`is_search()` y `get()` con las variables de consulta que se le dan).
+     */
+    class WP_Query
+    {
+        /** @var array<string,mixed> */
+        public array $query_vars = [];
+
+        public bool $search = false;
+
+        /** @param array<string,mixed> $vars */
+        public function __construct(array $vars = [], bool $search = false)
+        {
+            $this->query_vars = $vars;
+            $this->search = $search;
+        }
+
+        public function is_search(): bool
+        {
+            return $this->search;
+        }
+
+        public function get(string $var, mixed $default = ''): mixed
+        {
+            return $this->query_vars[$var] ?? $default;
+        }
+    }
+}

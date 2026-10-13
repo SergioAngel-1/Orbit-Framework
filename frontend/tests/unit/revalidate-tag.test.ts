@@ -9,6 +9,10 @@ describe("resolveHweTag", () => {
     expect(resolveHweTag({ tag: "menus" })).toBe("menus");
   });
 
+  it("acepta `products`: la traducción de una categoría lo invalida desde WordPress", () => {
+    expect(resolveHweTag({ tag: "products" })).toBe("products");
+  });
+
   it("usa site-config por defecto cuando falta el tag", () => {
     expect(resolveHweTag({})).toBe("site-config");
     expect(resolveHweTag({ source: "x" })).toBe("site-config");

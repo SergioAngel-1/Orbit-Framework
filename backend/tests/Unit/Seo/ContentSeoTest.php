@@ -63,6 +63,7 @@ final class ContentSeoTest extends TestCase
         parent::setUp();
         Functions\stubs([
             'wp_unslash' => static fn ($v) => $v,
+            'wp_slash' => static fn ($v) => is_string($v) ? addslashes($v) : $v,
             'wp_verify_nonce' => static fn ($nonce) => $nonce === 'valido',
             'current_user_can' => static fn () => true,
             'sanitize_text_field' => static fn ($v) => is_string($v) ? trim(strip_tags($v)) : '',
@@ -127,6 +128,23 @@ final class ContentSeoTest extends TestCase
 
         $this->assertSame('Título', $this->meta['post:11:_hwe_seo_title']);
         $this->assertSame('Descripción.', $this->meta['post:11:_hwe_seo_description']);
+    }
+
+    public function testBackslashesSurviveTheUnslashingOfUpdateMeta(): void {
+        // `update_post_meta` / `update_term_meta` hacen `wp_unslash` del valor: hay que
+        // entregarles datos con barras o una `\` escrita a mano se pierde en cada guardado.
+        $_POST = [
+            'hwe_post_seo_nonce' => 'valido',
+            'hwe_post_seo_title' => 'C:\\ruta',
+            'hwe_category_seo_nonce' => 'valido',
+            'hwe_category_seo_title' => 'A\\B',
+        ];
+
+        hwe_post_seo_save(11);
+        hwe_category_seo_save(5);
+
+        $this->assertSame(addslashes('C:\\ruta'), $this->meta['post:11:_hwe_seo_title']);
+        $this->assertSame(addslashes('A\\B'), $this->meta['term:5:_hwe_seo_title']);
     }
 
     public function testPostSaveDeletesEmptyMetas(): void {

@@ -565,6 +565,34 @@ git fetch framework --tags
   `lib/youtube`, `lib/validation/{email,form}`, `lib/prerender-budget`,
   `scripts/static-generation-options.mjs`, `lib/wordpress/media`.
 
+### Traducción de contenido (F5)
+
+- **Nuevo mu-plugin `hwe-content-i18n`** sustituye a `hwe-content-translation`,
+  `hwe-slug-translation`, `hwe-category-translation`, `hwe-tag-translation` y
+  `hwe-blog-category-translation` de las instancias derivadas de Siu: **borra esos cinco archivos**
+  de `mu-plugins/` al actualizar. Las metas (`_hwe_title_en`, `_hwe_slug_en`, `_hwe_name_en`…) son
+  las mismas: no hay migración de datos.
+- **(contrato) Nombres de GraphQL.** Los campos por idioma (`titleEn`, `excerptEn`, `contentEn`,
+  `seoTitleEn`, `seoDescriptionEn`, `nameEn`, `shortDescriptionEn`, `descriptionEn`, `slugEn`)
+  desaparecen. Pasan a `translation(locale: "en") { title excerpt content seoTitle seoDescription
+  name shortDescription description slug }` en cada tipo, con los mismos valores y null cuando no hay
+  traducción. `RootQuery.hweSlugFromEn(postType, slugEn)` pasa a
+  `hweSlugFrom(postType, locale, slug)`. Las queries del frontend se reescriben (tarea 51).
+- **El idioma sale de `i18n.locales`** (Control Center, sembrado por `wp hwe setup` desde
+  `instance.config.json`) y debe coincidir con `frontend/src/i18n/routing.ts`; con un solo idioma el
+  plugin no registra cajas ni campos de GraphQL.
+- **El slug traducido es único entre idiomas**: no puede coincidir con el slug nativo de otra ficha
+  del mismo tipo ni con el slug traducido (en cualquier idioma) de otra. Los datos que ya lo
+  incumplan no se tocan; solo se rechaza el siguiente guardado.
+- **Slug de categorías y etiquetas del blog: no se traduce** (como antes). El de las categorías de
+  producto sí.
+- **Se guarda con `wp_slash`.** El SEO por entidad (`_hwe_seo_title`, `_hwe_seo_description`) y las
+  traducciones de términos perdían una `\` escrita a mano en cada guardado, porque `update_*_meta`
+  hace `wp_unslash` del valor.
+- **El tag `products` se acepta en `POST /api/revalidate` con la firma HWE**: guardar la traducción de
+  una categoría de producto no dispara el webhook de WooCommerce, así que WordPress lo pide por esta
+  vía. El plugin lo registra en `hwe_revalidation_tags`.
+
 ### Infraestructura y CD (F4)
 
 - **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin

@@ -53,6 +53,25 @@ Este documento tiene dos partes con garantías muy distintas:
   - `MediaItem.isReferenceImage` (boolean): foto genérica compartida por varios productos;
     la ficha la etiqueta como «Imagen de referencia».
   - `RootQuery.hweFeaturedPost`: entrada destacada elegida a mano (null si no hay).
+- **Traducciones de contenido** (mu-plugin `hwe-content-i18n`, solo con idiomas secundarios en
+  `i18n.locales`; con un solo idioma no existen):
+  - `translation(locale: "en")` en `Post`, `Page`, `Product`, `ProductCategory`, `Category` y
+    `Tag`. Devuelve un objeto `Hwe<Tipo>Translation` cuyos campos son los traducibles del
+    tipo (`Post`: `title`, `excerpt`, `content`, `seoTitle`, `seoDescription`, `slug`; `Page`:
+    sin `excerpt` ni `slug`; `Product`: `name`, `shortDescription`, `description`, SEO y
+    `slug`; `ProductCategory`: `name`, `description`, SEO y `slug`; `Category`: `name` y
+    `description`; `Tag`: `name`). Cada campo es **null** si esa ficha no tiene traducción: el
+    cliente cae al texto nativo. El propio `translation` es null si `locale` no es uno de los
+    idiomas secundarios (el idioma por defecto es el contenido nativo).
+  - `hweSlugFrom(postType: "post"|"product", locale: "en", slug: "…")` → slug **nativo** de la
+    ficha publicada cuyo slug en ese idioma es `slug` (null si ninguna). Es la búsqueda inversa
+    de `/<idioma>/…/<slug>`; el slug nativo sigue siendo la identidad (carrito, wishlist,
+    overrides).
+  - El idioma `pt-BR` se escribe así en el argumento (`locale: "pt-BR"`); en las metas es
+    `_hwe_<campo>_pt_br`. Las claves `_hwe_title_en`, `_hwe_slug_en`… de instalaciones previas
+    valen tal cual.
+  - Una instancia declara campos de su propio tipo con el filtro `hwe_translatable_fields` y
+    aparecen en la caja, en GraphQL (`Hwe<Tipo>Translation`) y en la búsqueda sin más código.
 - **Endpoints internos de WordPress** (solo con `X-HWE-Internal-Secret`, nunca desde el
   navegador): `GET hwe/v1/best-sellers` (`{ items: [{ id, slug, qty }] }`, de las líneas de
   pedidos pagados), `POST hwe/v1/contact`, `GET hwe/v1/payments/credentials`,
