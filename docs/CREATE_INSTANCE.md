@@ -49,7 +49,7 @@ de los secretos del Control Center y del TOTP) son opcionales en desarrollo, don
 
 Ajusta también: `WP_TITLE`, `WORDPRESS_PORT`/`FRONTEND_PORT` (si corres varias
 instancias en la misma máquina, usa puertos distintos para no chocar),
-`NEXT_PUBLIC_SITE_NAME`, `NEXT_PUBLIC_SITE_URL`.
+`NEXT_PUBLIC_SITE_URL` (el nombre de la marca va en `instance.config.json`, no en el entorno).
 
 ## 3. Configuración de marca/diseño — `wp hwe setup`
 
