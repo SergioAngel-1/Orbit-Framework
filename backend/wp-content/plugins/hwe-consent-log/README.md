@@ -41,3 +41,16 @@ cuándo y con qué texto. Va junto a la **medición anónima** de la respuesta a
 ## Pruebas
 
 `backend/tests/Unit/ConsentLog/ConsentLogTest.php` (PHPUnit + Brain Monkey, `$wpdb` simulado).
+
+## Estructura del código
+
+`hwe-consent-log.php` es la clase `HWE_Consent_Log` (tablas, registro de hooks y utilidades) y reparte
+el resto por responsabilidad en traits de `includes/`, que usan `self::` y las constantes de la clase:
+
+| Archivo | Responsabilidad |
+|---|---|
+| `includes/Rest.php` | Rutas `consent/record`, `consent/latest` y `consent/link` (solo BFF). |
+| `includes/Retention.php` | Purga programada según los años de conservación. |
+| `includes/Privacy.php` | Desvincular, exportar y suprimir datos personales. |
+| `includes/Admin.php` | Pantalla de Ajustes, CSV y el historial del perfil de usuario. |
+| `includes/ConsentStats.php` | Medición anónima de la respuesta al banner (otra clase). |
