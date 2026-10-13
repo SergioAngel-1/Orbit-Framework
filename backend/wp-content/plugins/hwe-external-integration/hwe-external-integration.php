@@ -48,4 +48,7 @@ spl_autoload_register( static function ( string $class ): void {
 	}
 } );
 
+// La puerta se enciende al cargar el archivo: ver `Plugin::boot()` (en `plugins_loaded` llega tarde).
+\HWE\ExternalIntegration\Plugin::boot();
+
 add_action( 'plugins_loaded', array( 'HWE\\ExternalIntegration\\Plugin', 'register' ) );

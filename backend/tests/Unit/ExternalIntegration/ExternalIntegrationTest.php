@@ -83,6 +83,20 @@ final class ExternalIntegrationTest extends TestCase
         return $user;
     }
 
+    // ── Puerta ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Regresión (verificada en vivo): WPGraphQL-WooCommerce pregunta `is_graphql_http_request()`
+     * en `plugins_loaded`, antes que este plugin, y WPGraphQL cachea la respuesta. Si el filtro
+     * de la puerta se registra en `plugins_loaded`, la IP autorizada recibe 404. Debe estar
+     * puesto desde que se carga el archivo, sin que haya corrido `plugins_loaded`.
+     */
+    public function testLaPuertaSeEnciendeAlCargarElArchivoSinEsperarAPluginsLoaded(): void
+    {
+        $this->assertNotFalse(has_filter('hwe_integration_gate_enabled', '__return_true'));
+        $this->assertNotFalse(has_filter('hwe_application_passwords_enabled', '__return_true'));
+    }
+
     // ── Rol y capacidades ───────────────────────────────────────────────────────
 
     public function testElRolSoloPuedeLeerYEditarPedidos(): void
