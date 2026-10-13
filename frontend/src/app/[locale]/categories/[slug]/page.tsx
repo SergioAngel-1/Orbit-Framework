@@ -21,6 +21,7 @@ import { stripHtml } from "@/lib/format";
 import { CouponNotices } from "@/components/coupons/coupon-notice";
 import { isModuleEnabled } from "@/lib/config/modules";
 import { getCategoryCoupons } from "@/lib/coupons/public-coupons";
+import { logReadFailure } from "@/lib/observability/read-failure";
 
 export const revalidate = 300;
 
@@ -71,7 +72,13 @@ export async function generateMetadata({
       openGraph: siteOpenGraph(config, locale, canonical.canonical),
       twitter: siteTwitter(config, locale),
     };
-  } catch {
+  } catch (error) {
+    // Sin metadatos de la ficha se sirve el título genérico, pero queda en el log.
+    logReadFailure("categories.metadata_failed", error, {
+      level: "warn",
+      context: { slug, locale },
+      message: "No se pudieron leer los metadatos de la categoría",
+    });
     return { title: t("title") };
   }
 }
@@ -90,12 +97,9 @@ export default async function CategoryPage({
     getSiteConfig(),
   ]);
 
-  let route: Awaited<ReturnType<typeof loadCategoryRoute>>;
-  try {
-    route = await loadCategoryRoute(slug, locale);
-  } catch {
-    notFound();
-  }
+  // Un fallo de WordPress NO es «no existe»: se propaga (500, que ISR no cachea y
+  // `onRequestError` registra) en vez de hornear un 404 por una caída transitoria.
+  const route = await loadCategoryRoute(slug, locale);
   if (!route) notFound();
   // El tramo pedido puede ser el nativo o el de otro idioma: 308 al del idioma.
   if (!route.isCanonical) permanentRedirect({ href: route.canonicalHref, locale });

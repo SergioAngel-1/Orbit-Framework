@@ -6,6 +6,7 @@ import {
   getWordPressOrigin,
   wpMediaInternalUrl,
 } from "@/lib/wordpress/media";
+import { logReadFailure } from "@/lib/observability/read-failure";
 
 /**
  * Generadores de imágenes de marca para SEO/GEO (Open Graph + iconos).
@@ -172,7 +173,11 @@ export async function wordpressSiteIconResponse(
     return new Response(bytes, {
       headers: { "Content-Type": type, "Cache-Control": ICON_CACHE_CONTROL },
     });
-  } catch {
+  } catch (error) {
+    logReadFailure("seo.site_icon_failed", error, {
+      level: "warn",
+      message: "No se pudo leer el icono del sitio de WordPress: se usa el de la marca",
+    });
     return null;
   }
 }

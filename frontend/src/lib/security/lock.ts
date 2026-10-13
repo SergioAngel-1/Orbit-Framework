@@ -1,5 +1,7 @@
 import "server-only";
 import { getRedis } from "@/lib/redis/client";
+import { logRedisFailure } from "@/lib/redis/log";
+import { logger } from "@/lib/observability/logger";
 
 // ============================================================================
 //  Lock distribuido ligero (Redis SET NX) para serializar operaciones de
@@ -54,11 +56,23 @@ export async function withLock<T>(
         acquired = true;
         break;
       }
-    } catch {
+    } catch (error) {
       // Redis intermitente: degradamos a sin-lock.
+      logRedisFailure("lock", "acquire", error, {
+        effect: "se ejecuta sin exclusión mutua",
+      });
       return fn();
     }
     await sleep(RETRY_DELAY_MS);
+  }
+
+  if (!acquired) {
+    // Otro proceso lo retuvo todo el plazo: se ejecuta igualmente (mejor degradar
+    // que bloquear al usuario), pero la sección no quedó serializada.
+    logger.warn(
+      { event: "lock.wait_timeout", key },
+      "No se obtuvo el lock a tiempo: la sección crítica se ejecuta sin serializar",
+    );
   }
 
   try {
@@ -71,8 +85,11 @@ export async function withLock<T>(
         const release =
           "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
         await redis.eval(release, 1, redisKey, token);
-      } catch {
-        /* mejor esfuerzo: el TTL liberará el lock igualmente */
+      } catch (error) {
+        // Mejor esfuerzo: el TTL liberará el lock igualmente.
+        logRedisFailure("lock", "release", error, {
+          effect: "el lock caduca por su TTL",
+        });
       }
     }
   }

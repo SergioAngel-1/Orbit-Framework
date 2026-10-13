@@ -41,6 +41,8 @@ export class FakeRedis {
     this.store.set(key, value);
     const ex = flags.indexOf("EX");
     if (ex >= 0) this.ttls.set(key, Number(args[ex + 1]));
+    const px = flags.indexOf("PX");
+    if (px >= 0) this.ttls.set(key, Number(args[px + 1]) / 1000);
     return "OK";
   }
 
@@ -79,6 +81,34 @@ export class FakeRedis {
     this.guard();
     if (!this.store.has(key)) return 0;
     this.ttls.set(key, seconds);
+    return 1;
+  }
+
+  async ttl(key: string): Promise<number> {
+    this.guard();
+    if (!this.store.has(key)) return -2;
+    return this.ttls.get(key) ?? -1;
+  }
+
+  async exists(...keys: string[]): Promise<number> {
+    this.guard();
+    return keys.filter((key) => this.store.has(key)).length;
+  }
+
+  /**
+   * Solo el script de liberación de `withLock`: borra la clave si su valor es el
+   * token recibido. Cualquier otro script no está soportado.
+   */
+  async eval(
+    _script: string,
+    _numKeys: number,
+    key: string,
+    token: string,
+  ): Promise<number> {
+    this.guard();
+    if (this.store.get(key) !== token) return 0;
+    this.store.delete(key);
+    this.ttls.delete(key);
     return 1;
   }
 }

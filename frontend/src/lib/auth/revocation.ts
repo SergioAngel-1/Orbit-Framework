@@ -2,6 +2,7 @@ import "server-only";
 import crypto from "node:crypto";
 import { decodeJwt } from "jose";
 import { getRedis } from "@/lib/redis/client";
+import { logRedisFailure } from "@/lib/redis/log";
 
 // ============================================================================
 //  Revocación de tokens de acceso (blocklist).
@@ -44,8 +45,12 @@ export async function revokeToken(token: string): Promise<void> {
   if (ttl <= 0) return; // ya expirado: nada que revocar
   try {
     await redis.set(tokenKey(token), "1", "EX", ttl);
-  } catch {
-    /* mejor esfuerzo */
+  } catch (error) {
+    // Mejor esfuerzo, pero el token queda VIVO hasta que caduque: es `error`.
+    logRedisFailure("revocation", "revoke", error, {
+      level: "error",
+      effect: "un token revocado sigue siendo válido hasta que caduque",
+    });
   }
 }
 
@@ -55,7 +60,11 @@ export async function isTokenRevoked(token: string): Promise<boolean> {
   if (!redis) return false;
   try {
     return (await redis.exists(tokenKey(token))) === 1;
-  } catch {
+  } catch (error) {
+    logRedisFailure("revocation", "check", error, {
+      level: "error",
+      effect: "no se comprueba la revocación de tokens",
+    });
     return false;
   }
 }

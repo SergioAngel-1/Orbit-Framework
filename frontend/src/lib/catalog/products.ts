@@ -1,6 +1,5 @@
 import "server-only";
 import { routing } from "@/i18n/routing";
-import { fetchGraphQL } from "@/lib/graphql-client";
 import { fetchLocalizedGraphQL } from "@/lib/i18n/fetch-localized";
 import {
   pickTranslated,
@@ -24,6 +23,7 @@ import type {
   ProductsPage,
   ProductCategory,
 } from "@/types/catalog";
+import { logReadFailure } from "@/lib/observability/read-failure";
 
 const CATALOG_REVALIDATE = 300;
 
@@ -296,18 +296,6 @@ export async function getProductBySlug(
   };
 }
 
-export async function getProductSlugs(): Promise<string[]> {
-  try {
-    const data = await fetchGraphQL<{ products: { nodes: { slug: string }[] } }>(
-      PRODUCT_SLUGS_QUERY,
-      { variables: { first: 100 }, revalidate: CATALOG_REVALIDATE, tags: ["products"] },
-    );
-    return data.products.nodes.map((n) => n.slug);
-  } catch {
-    return [];
-  }
-}
-
 /** Una ficha publicada tal como la necesitan el sitemap y el prerender. */
 export interface ProductUrlEntry {
   /** Slug nativo (identidad de la ficha). */
@@ -419,7 +407,10 @@ export async function getCategories(
         ? { urlSlugs: urlSlugsByLocale(c), locales: translatedLocales(c, "name") }
         : {}),
     }));
-  } catch {
+  } catch (error) {
+    logReadFailure("catalog.categories_failed", error, {
+      message: "No se pudo listar las categorías del catálogo",
+    });
     return [];
   }
 }

@@ -11,6 +11,8 @@ vi.mock("@/lib/catalog/coupon-refs", () => ({
   getCartProductRefs: (...a: unknown[]) => getCartProductRefs(...a),
 }));
 const getPostBySlug = vi.fn();
+const logger = vi.hoisted(() => ({ warn: vi.fn(), error: vi.fn(), info: vi.fn() }));
+vi.mock("@/lib/observability/logger", () => ({ logger }));
 vi.mock("@/lib/blog/posts", () => ({
   getPostBySlug: (...a: unknown[]) => getPostBySlug(...a),
 }));
@@ -43,6 +45,7 @@ beforeEach(() => {
   getProducts.mockReset();
   getCartProductRefs.mockReset();
   getPostBySlug.mockReset();
+  logger.warn.mockReset();
   getProductsBySlugs.mockResolvedValue([]);
   getCartProductRefs.mockResolvedValue(new Map());
   getProducts.mockResolvedValue({ products: [], pageInfo: {} });
@@ -132,5 +135,35 @@ describe("buildPostView", () => {
     ).join("");
     await buildPostView(links, opts);
     expect(getProductsBySlugs.mock.calls[0]![0]).toHaveLength(24);
+  });
+});
+
+describe("buildPostView: un fallo del catálogo no rompe la entrada pero queda en el log", () => {
+  it("sin catálogo se pinta sin los productos mencionados", async () => {
+    getProductsBySlugs.mockRejectedValue(new Error("WordPress caído"));
+
+    const view = await buildPostView('<a href="/products/camiseta">c</a>', opts);
+
+    expect(view.mentioned.items).toEqual([]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "blog.mentioned_products_failed",
+        err: "WordPress caído",
+      }),
+      expect.any(String),
+    );
+  });
+
+  it("si falla el relleno de la franja, deja los productos mencionados", async () => {
+    getProductsBySlugs.mockResolvedValue([product("camiseta", 1)]);
+    getCartProductRefs.mockRejectedValue(new Error("refs caídas"));
+
+    const view = await buildPostView('<a href="/products/camiseta">c</a>', opts);
+
+    expect(view.mentioned.items.map((p) => p.slug)).toEqual(["camiseta"]);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "blog.mentioned_strip_failed" }),
+      expect.any(String),
+    );
   });
 });

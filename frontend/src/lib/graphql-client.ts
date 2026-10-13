@@ -1,4 +1,5 @@
 import "server-only";
+import { logger } from "@/lib/observability/logger";
 import { internalSecretHeaders } from "@/lib/security/internal-secret";
 import { wpGraphqlUrl } from "@/lib/wordpress/internal-fetch";
 
@@ -62,6 +63,11 @@ export class GraphQLClientError extends Error {
     this.status = extras.status;
     this.errors = extras.errors;
   }
+}
+
+/** Nombre de la operación (`query Product(...)` → `Product`), para el log. */
+export function operationName(query: string): string {
+  return /\b(?:query|mutation)\s+(\w+)/.exec(query)?.[1] ?? "anonymous";
 }
 
 /** Intentos totales antes de propagar el error (1 intento inicial + 2 reintentos). */
@@ -258,6 +264,19 @@ export async function fetchGraphQL<TData>(
         !isRetryable(error) ||
         isLastAttempt
       ) {
+        // Un solo registro por operación fallida, antes de propagar: muchos
+        // lectores degradan a un valor por defecto y no deben hacerlo mudos.
+        logger.warn(
+          {
+            event: "graphql.request_failed",
+            operation: operationName(query),
+            kind: error instanceof GraphQLClientError ? error.kind : "unexpected",
+            status: error instanceof GraphQLClientError ? error.status : undefined,
+            attempts: attempt + 1,
+            err: error instanceof Error ? error.message : String(error),
+          },
+          "La lectura de WordPress (GraphQL) falló",
+        );
         throw error;
       }
       await sleep(backoffMs(attempt));

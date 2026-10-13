@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { fetchGraphQL, GraphQLClientError } from "@/lib/graphql-client";
+import { fetchGraphQL, GraphQLClientError, operationName } from "@/lib/graphql-client";
+
+const logger = vi.hoisted(() => ({ warn: vi.fn(), error: vi.fn(), info: vi.fn() }));
+vi.mock("@/lib/observability/logger", () => ({ logger }));
 
 const QUERY = "query { __typename }";
 
@@ -184,5 +187,68 @@ describe("fetchGraphQL — plazo y reintentos", () => {
     vi.stubEnv("GRAPHQL_TIMEOUT_MS", "abc");
     await run();
     expect(spy).toHaveBeenLastCalledWith(10_000);
+  });
+});
+
+describe("fetchGraphQL — los fallos no son silenciosos", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    logger.warn.mockReset();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("un fallo definitivo se registra una vez, con la operación y el tipo de fallo", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ errors: [{ message: "Cannot query field X" }] }),
+        text: async () => "",
+      } as unknown as Response),
+    );
+
+    await fetchGraphQL("query ProductBySlug($slug: ID!) { product { id } }").catch(
+      () => undefined,
+    );
+
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "graphql.request_failed",
+        operation: "ProductBySlug",
+        kind: "graphql",
+        attempts: 1,
+      }),
+      expect.any(String),
+    );
+  });
+
+  it("un éxito no registra nada", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { a: 1 } }),
+        text: async () => "",
+      } as unknown as Response),
+    );
+
+    await fetchGraphQL(QUERY);
+
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+});
+
+describe("operationName", () => {
+  it("lee el nombre de la query o de la mutation", () => {
+    expect(operationName("query Foo { a }")).toBe("Foo");
+    expect(operationName("  mutation   Bar($x: Int) { b }")).toBe("Bar");
+  });
+
+  it("una operación anónima no tiene nombre", () => {
+    expect(operationName("query { a }")).toBe("anonymous");
+    expect(operationName("{ a }")).toBe("anonymous");
   });
 });

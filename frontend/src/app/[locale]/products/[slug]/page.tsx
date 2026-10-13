@@ -23,9 +23,9 @@ import { CouponNotices } from "@/components/coupons/coupon-notice";
 import { ViewItemTracker } from "@/components/analytics/view-item-tracker";
 import { viewItemParams } from "@/lib/analytics/ecommerce";
 import { isModuleEnabled } from "@/lib/config/modules";
-import type { ProductDetail } from "@/types/catalog";
 import { getProductCoupons } from "@/lib/coupons/public-coupons";
 import { getCartProductRefs } from "@/lib/catalog/coupon-refs";
+import { logReadFailure } from "@/lib/observability/read-failure";
 
 export const revalidate = 300;
 
@@ -85,7 +85,13 @@ export async function generateMetadata({
         ...(images ? { images: images.map((image) => image.url) } : {}),
       },
     };
-  } catch {
+  } catch (error) {
+    // Sin metadatos de la ficha se sirve el título genérico, pero queda en el log.
+    logReadFailure("products.metadata_failed", error, {
+      level: "warn",
+      context: { slug, locale },
+      message: "No se pudieron leer los metadatos de la ficha",
+    });
     return { title: t("title") };
   }
 }
@@ -103,14 +109,15 @@ export default async function ProductPage({
     getSiteConfig(),
   ]);
 
-  let route: Awaited<ReturnType<typeof resolveEntityRoute<ProductDetail>>>;
-  try {
-    route = await resolveEntityRoute("product", "/products", slug, locale, (native) =>
-      getProductBySlug(native, locale),
-    );
-  } catch {
-    notFound();
-  }
+  // Un fallo de WordPress NO es «no existe»: se propaga (500, que ISR no cachea y
+  // `onRequestError` registra) en vez de hornear un 404 por una caída transitoria.
+  const route = await resolveEntityRoute(
+    "product",
+    "/products",
+    slug,
+    locale,
+    (native) => getProductBySlug(native, locale),
+  );
   if (!route) notFound();
   // El tramo pedido puede ser el nativo o el de otro idioma: 308 al del idioma.
   if (!route.isCanonical) permanentRedirect({ href: route.canonicalHref, locale });

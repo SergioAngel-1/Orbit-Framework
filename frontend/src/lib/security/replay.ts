@@ -1,6 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
 import { getRedis } from "@/lib/redis/client";
+import { logRedisFailure } from "@/lib/redis/log";
 
 // ============================================================================
 //  Anti-replay para webhooks (pagos y WooCommerce).
@@ -39,8 +40,13 @@ export async function markEventOnce(
   try {
     const res = await redis.set(key, "1", "EX", ttlSeconds, "NX");
     return res === "OK";
-  } catch {
-    return true; // error transitorio: fail-open
+  } catch (error) {
+    // Error transitorio: fail-open. El anti-replay se pierde, y por eso es `error`.
+    logRedisFailure("replay", "mark", error, {
+      level: "error",
+      effect: "sin anti-replay mientras dure",
+    });
+    return true;
   }
 }
 
@@ -56,8 +62,13 @@ export async function releaseEvent(scope: string, rawBody: string): Promise<void
   const hash = crypto.createHash("sha256").update(rawBody).digest("hex");
   try {
     await redis.del(`${PREFIX}${scope}:${hash}`);
-  } catch {
+  } catch (error) {
     // Sin poder soltarla, el reintento caerá en «duplicado» hasta que caduque el
     // TTL; el pedido sigue en su estado y se puede conciliar a mano.
+    logRedisFailure("replay", "release", error, {
+      level: "error",
+      effect:
+        "el reintento de la pasarela se descartará como duplicado hasta que caduque",
+    });
   }
 }

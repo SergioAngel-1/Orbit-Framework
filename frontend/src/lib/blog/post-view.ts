@@ -20,6 +20,7 @@ import {
   MENTIONED_PRODUCTS_MAX,
 } from "@/lib/blog/related-products";
 import type { CatalogProduct } from "@/types/catalog";
+import { logReadFailure } from "@/lib/observability/read-failure";
 
 export interface PostView {
   /** Prosa y recomendaciones en orden; la prosa SIN sanear (lo hace quien la pinta). */
@@ -52,7 +53,11 @@ export async function buildPostView(
   if (slugs.length > 0) {
     try {
       mentionedProducts = await getProductsBySlugs(slugs.slice(0, 24), opts.locale);
-    } catch {
+    } catch (error) {
+      logReadFailure("blog.mentioned_products_failed", error, {
+        level: "warn",
+        message: "Sin catálogo: la entrada se pinta sin los productos mencionados",
+      });
       mentionedProducts = [];
     }
   }
@@ -117,7 +122,11 @@ async function mentionedStrip(
       items: strip.items.map((item) => bySlug.get(item.slug) ?? item),
       hasRelated: strip.hasRelated,
     };
-  } catch {
+  } catch (error) {
+    logReadFailure("blog.mentioned_strip_failed", error, {
+      level: "warn",
+      message: "No se pudo completar la franja de productos mencionados",
+    });
     return { items: mentioned, hasRelated: false };
   }
 }

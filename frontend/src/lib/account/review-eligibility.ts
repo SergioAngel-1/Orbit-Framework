@@ -1,5 +1,6 @@
 import "server-only";
 import { getRedis } from "@/lib/redis/client";
+import { logRedisFailure } from "@/lib/redis/log";
 
 // ============================================================================
 //  Caché de la elegibilidad para reseñar (por usuario y producto).
@@ -69,8 +70,10 @@ export async function readCachedEligibility(
   try {
     const raw = await redis.get(key(userId, productId));
     return raw ? (JSON.parse(raw) as ReviewEligibility) : null;
-  } catch {
-    return null; // sin caché: se recalcula
+  } catch (error) {
+    // Sin caché: se recalcula.
+    logRedisFailure("review_eligibility", "read", error, { effect: "se recalcula" });
+    return null;
   }
 }
 
@@ -83,8 +86,8 @@ export async function writeCachedEligibility(
   if (!redis) return;
   try {
     await redis.set(key(userId, productId), JSON.stringify(value), "EX", TTL_SECONDS);
-  } catch {
-    /* mejor esfuerzo */
+  } catch (error) {
+    logRedisFailure("review_eligibility", "write", error, { effect: "sin caché" });
   }
 }
 
@@ -97,7 +100,9 @@ export async function invalidateCachedEligibility(
   if (!redis) return;
   try {
     await redis.del(key(userId, productId));
-  } catch {
-    /* mejor esfuerzo */
+  } catch (error) {
+    logRedisFailure("review_eligibility", "invalidate", error, {
+      effect: "la caché puede mostrar la elegibilidad anterior hasta que caduque",
+    });
   }
 }

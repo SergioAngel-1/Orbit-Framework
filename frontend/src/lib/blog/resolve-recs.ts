@@ -4,6 +4,7 @@ import { getPostBySlug } from "@/lib/blog/posts";
 import type { RecMarker } from "@/lib/blog/post-content";
 import type { CatalogProduct } from "@/types/catalog";
 import type { WPPost } from "@/types/wordpress";
+import { logReadFailure } from "@/lib/observability/read-failure";
 
 export type ResolvedRec =
   { type: "product"; product: CatalogProduct } | { type: "post"; post: WPPost };
@@ -30,8 +31,11 @@ export async function resolveRecs(
       for (const product of await getProductsBySlugs(productSlugs, opts.locale)) {
         products.set(product.slug, product);
       }
-    } catch {
-      /* sin catálogo: las recomendaciones de producto no se pintan */
+    } catch (error) {
+      logReadFailure("blog.recs_products_failed", error, {
+        level: "warn",
+        message: "Sin catálogo: las recomendaciones de producto no se pintan",
+      });
     }
   }
 
@@ -45,7 +49,12 @@ export async function resolveRecs(
       try {
         const post = await getPostBySlug(marker.slug, opts.locale);
         return post ? { type: "post", post } : null;
-      } catch {
+      } catch (error) {
+        logReadFailure("blog.recs_post_failed", error, {
+          level: "warn",
+          context: { slug: marker.slug },
+          message: "No se pudo leer la entrada recomendada: no se pinta",
+        });
         return null;
       }
     }),

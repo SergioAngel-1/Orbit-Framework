@@ -1,6 +1,7 @@
 import "server-only";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
 import type { SiteReview } from "./order-review";
+import { logReadFailure } from "@/lib/observability/read-failure";
 
 // ============================================================================
 //  Llamada server-to-server al plugin `hwe-site-reviews` (módulo
@@ -36,7 +37,11 @@ export async function createSiteReview(input: {
         content: input.content,
       }),
     });
-  } catch {
+  } catch (error) {
+    logReadFailure("site_reviews.create_unavailable", error, {
+      message: "WordPress no respondió al guardar la calificación del pedido",
+      context: { orderId: input.orderId },
+    });
     return { ok: false, reason: "unavailable" };
   }
 

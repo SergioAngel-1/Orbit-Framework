@@ -1,5 +1,6 @@
 import "server-only";
 import Redis from "ioredis";
+import { logReadFailure } from "@/lib/observability/read-failure";
 
 // ============================================================================
 //  Cliente Redis singleton (server-only).
@@ -37,7 +38,11 @@ export function getRedis(): Redis | null {
     });
     globalForRedis.__hweRedis = client;
     return client;
-  } catch {
+  } catch (error) {
+    // Sin cliente, rate-limit, idempotencia y anti-replay degradan: que se sepa.
+    logReadFailure("redis.client_init_failed", error, {
+      message: "No se pudo crear el cliente de Redis: la degradación queda activa",
+    });
     globalForRedis.__hweRedis = null;
     return null;
   }

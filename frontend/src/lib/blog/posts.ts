@@ -27,6 +27,7 @@ import type {
   WPPostDetail,
   WPTag,
 } from "@/types/wordpress";
+import { logReadFailure } from "@/lib/observability/read-failure";
 
 const BLOG_REVALIDATE = 300;
 
@@ -196,7 +197,11 @@ export async function getFeaturedPostOverride(locale = "es"): Promise<WPPost | n
       { revalidate: BLOG_REVALIDATE, tags: ["posts"] },
     );
     return data.hweFeaturedPost ? localizePost(data.hweFeaturedPost, locale) : null;
-  } catch {
+  } catch (error) {
+    logReadFailure("blog.featured_post_failed", error, {
+      level: "warn",
+      message: "No se pudo leer la entrada destacada: el listado sigue sin ella",
+    });
     return null;
   }
 }
@@ -301,7 +306,10 @@ export async function getPostSlugs(): Promise<PostSlugEntry[]> {
       cursor = endCursor;
     }
     return slugs;
-  } catch {
+  } catch (error) {
+    logReadFailure("blog.post_slugs_failed", error, {
+      message: "No se pudo listar las entradas del blog (sitemap y prerender)",
+    });
     return [];
   }
 }

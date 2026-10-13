@@ -1,5 +1,6 @@
 import "server-only";
 import { getRedis } from "@/lib/redis/client";
+import { logRedisFailure } from "@/lib/redis/log";
 
 // ============================================================================
 //  Rate limiting por ventana fija con Redis (INCR + EXPIRE).
@@ -102,8 +103,12 @@ export async function rateLimit(
     }
 
     return { success: true, remaining: limit - count, retryAfter: 0, limit };
-  } catch {
+  } catch (error) {
     // Error transitorio de Redis: estricto → memoria; si no, fail-open.
+    logRedisFailure("rate_limit", "count", error, {
+      level: options.strict ? "warn" : "error",
+      effect: options.strict ? "contador en memoria" : "sin límite mientras dure",
+    });
     return options.strict
       ? memoryRateLimit(identifier, limit, windowSeconds)
       : { success: true, remaining: limit, retryAfter: 0, limit };

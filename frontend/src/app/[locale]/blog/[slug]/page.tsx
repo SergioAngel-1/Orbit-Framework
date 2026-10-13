@@ -23,7 +23,7 @@ import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
 import { siteTitle } from "@/lib/seo/title";
 import { metaDescription } from "@/lib/seo/meta-description";
-import type { WPPostDetail } from "@/types/wordpress";
+import { logReadFailure } from "@/lib/observability/read-failure";
 
 export const revalidate = 300;
 
@@ -78,7 +78,13 @@ export async function generateMetadata({
         ...(images ? { images: images.map((i) => i.url) } : {}),
       },
     };
-  } catch {
+  } catch (error) {
+    // Sin metadatos de la ficha se sirve el título genérico, pero queda en el log.
+    logReadFailure("blog.metadata_failed", error, {
+      level: "warn",
+      context: { slug, locale },
+      message: "No se pudieron leer los metadatos de la entrada",
+    });
     return { title: t("title") };
   }
 }
@@ -96,14 +102,11 @@ export default async function PostPage({
     getSiteConfig(),
   ]);
 
-  let route: Awaited<ReturnType<typeof resolveEntityRoute<WPPostDetail>>>;
-  try {
-    route = await resolveEntityRoute("post", "/blog", slug, locale, (native) =>
-      getPostBySlug(native, locale),
-    );
-  } catch {
-    notFound();
-  }
+  // Un fallo de WordPress NO es «no existe»: se propaga (500, que ISR no cachea y
+  // `onRequestError` registra) en vez de hornear un 404 por una caída transitoria.
+  const route = await resolveEntityRoute("post", "/blog", slug, locale, (native) =>
+    getPostBySlug(native, locale),
+  );
   if (!route) notFound();
   // El tramo pedido puede ser el nativo o el de otro idioma: 308 al del idioma.
   if (!route.isCanonical) permanentRedirect({ href: route.canonicalHref, locale });

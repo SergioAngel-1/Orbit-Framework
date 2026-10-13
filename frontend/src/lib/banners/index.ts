@@ -3,6 +3,7 @@ import { normalizePlacement } from "./normalize";
 import type { BannerPlacement } from "./types";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
 import { fetchWithRetry } from "@/lib/http/fetch-retry";
+import { logReadFailure } from "@/lib/observability/read-failure";
 
 export type { BannerSlide, BannerPlacement } from "./types";
 
@@ -37,9 +38,19 @@ export async function getBannerPlacement(
       undefined,
       { label: "banners" },
     );
-    if (!res.ok) return EMPTY;
+    if (!res.ok) {
+      logReadFailure("banners.read_failed", `HTTP ${res.status}`, {
+        context: { placement, locale },
+        message: "WordPress no sirvió los banners: se pinta sin ellos",
+      });
+      return EMPTY;
+    }
     return normalizePlacement(await res.json());
-  } catch {
+  } catch (error) {
+    logReadFailure("banners.read_failed", error, {
+      context: { placement, locale },
+      message: "No se pudieron leer los banners: se pinta sin ellos",
+    });
     return EMPTY;
   }
 }
