@@ -366,6 +366,10 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   `pageMetadata`; toda vista privada `privateMetadata` (lo impone un test sobre `PRIVATE_PATHS`);
   todo JSON-LD pasa por `safeJsonLd`. Todo lee `getSiteConfig()`, nada tiene la URL o la marca
   hardcodeada.
+- **Blog**: `lib/blog/` (lecturas, `category-format`, `post-content`, `post-view`,
+  `extract-product-links`…), `/api/blog/posts` (scroll infinito, con topes) y las vistas
+  `blog/`, `blog/category/[slug]`, `blog/archive`. Criterio único de disponibilidad de una
+  categoría: `categoryPageAvailable`. Vistas con filtro: `noindex, follow` y sin `alternates`.
 - **Analítica/consentimiento**: `components/analytics/` (banner opt-in) y `lib/analytics/`. Los
   servicios (GA4, GTM, Plausible, Meta Pixel + Conversions API, TikTok, HubSpot) salen de
   `config.integrations` (Control Center); `resolveTrackingServices` es la ÚNICA fuente de qué hay

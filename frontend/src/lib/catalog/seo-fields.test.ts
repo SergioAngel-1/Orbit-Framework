@@ -5,13 +5,15 @@ vi.mock("@/lib/graphql-client", () => ({
   fetchGraphQL: (...a: unknown[]) => fetchGraphQL(...a),
 }));
 
-import { getCategory, getProductBySlug } from "./products";
+import { getCategory, getProductBySlug, getProductsBySlugs } from "./products";
 
 // Los campos `seoTitle` / `seoDescription` son la caja SEO del editor (mu-plugin
 // hwe-seo). La query ya los pedía, pero la normalización los tiraba y el
 // override del panel nunca llegaba a `<title>` ni a la meta description.
 describe("override SEO del editor", () => {
-  beforeEach(() => fetchGraphQL.mockReset());
+  beforeEach(() => {
+    fetchGraphQL.mockReset();
+  });
 
   it("la ficha de producto conserva seoTitle y seoDescription", async () => {
     fetchGraphQL.mockResolvedValue({
@@ -67,5 +69,42 @@ describe("override SEO del editor", () => {
 
     expect(result?.category.seoTitle).toBe("Ropa de verano");
     expect(result?.category.seoDescription).toBe("Toda la ropa.");
+  });
+});
+
+describe("getProductsBySlugs", () => {
+  beforeEach(() => {
+    fetchGraphQL.mockReset();
+  });
+
+  it("devuelve en el orden pedido y omite los que no existen", async () => {
+    fetchGraphQL.mockResolvedValue({
+      products: {
+        nodes: [
+          { id: "2", databaseId: 2, name: "Gorra", slug: "gorra", type: "SIMPLE" },
+          {
+            id: "1",
+            databaseId: 1,
+            name: "Camiseta",
+            slug: "camiseta",
+            type: "SIMPLE",
+          },
+        ],
+      },
+    });
+
+    const products = await getProductsBySlugs(["camiseta", "fantasma", "gorra"]);
+
+    expect(products.map((p) => p.slug)).toEqual(["camiseta", "gorra"]);
+    expect(fetchGraphQL.mock.calls[0]![1].variables.slugs).toEqual([
+      "camiseta",
+      "fantasma",
+      "gorra",
+    ]);
+  });
+
+  it("sin slugs no consulta", async () => {
+    expect(await getProductsBySlugs([])).toEqual([]);
+    expect(fetchGraphQL).not.toHaveBeenCalled();
   });
 });

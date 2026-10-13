@@ -3,6 +3,8 @@ import { getSiteConfig, isFallbackSiteConfig } from "@/lib/config";
 import { routing } from "@/i18n/routing";
 import { getCategories, getProductSlugs } from "@/lib/catalog/products";
 import { getPostSlugs } from "@/lib/blog/posts";
+import { getBlogCategories } from "@/lib/blog/categories";
+import { categoryPageAvailable } from "@/lib/blog/category-format";
 import { hreflangLanguages, localizedPath } from "@/lib/seo/urls";
 import type { SitemapSegment } from "@/lib/seo/sitemap-segments";
 import { logger } from "@/lib/observability/logger";
@@ -143,6 +145,27 @@ export async function buildSitemapEntries(
   }
 
   if (segmento === "blog") {
+    // El archivo (lista de enlaces a TODAS las entradas) y las categorías con
+    // página propia viven con el blog porque las mueve el mismo tag `posts`.
+    paths.push({ path: "/blog/archive", changeFrequency: "weekly", priority: 0.4 });
+    try {
+      for (const category of await getBlogCategories()) {
+        // Mismo criterio que la página: lo que ella no sirve, el sitemap no lo anuncia.
+        if (!categoryPageAvailable(category)) continue;
+        paths.push({
+          path: `/blog/category/${category.slug}`,
+          changeFrequency: "weekly",
+          priority: 0.5,
+        });
+      }
+    } catch (error) {
+      // Fail-soft: un CMS caído no debe tumbar el segmento (las entradas y el
+      // archivo siguen saliendo).
+      logger.error(
+        { err: error },
+        "sitemap: no se pudo listar las categorías del blog",
+      );
+    }
     try {
       for (const { slug, modified } of await getPostSlugs()) {
         paths.push({

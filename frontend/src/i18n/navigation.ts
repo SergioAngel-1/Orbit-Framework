@@ -7,5 +7,11 @@ import { routing } from "./routing";
 //  los de `next/*` para que el prefijo de idioma (/en/...) se conserve al navegar.
 // ============================================================================
 
-export const { Link, redirect, usePathname, useRouter, getPathname } =
-  createNavigation(routing);
+export const {
+  Link,
+  redirect,
+  permanentRedirect,
+  usePathname,
+  useRouter,
+  getPathname,
+} = createNavigation(routing);

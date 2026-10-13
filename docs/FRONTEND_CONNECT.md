@@ -280,6 +280,31 @@ responden **404** y el banner no encola ni guarda comprobante.
 - **Negocio local**: una entidad `LocalBusiness` por sede (Legal → Sedes) en `/contact`, con el
   tipo de `seo.business_type`.
 
+### Blog
+
+- **Lecturas** (`lib/blog/posts.ts`, tag ISR `posts`): `getPosts({ tag, author, category, search,
+  after, first })` por cursor, `getFeaturedPostOverride` (Entradas → Post Destacado, el campo
+  GraphQL `hweFeaturedPost`), `getTopTags` (ordenadas por uso en el servidor), `getPostsIndex`
+  (archivo; un fallo del CMS se propaga) y `getPostSlugs` (recorre el cursor). Categorías:
+  `lib/blog/categories.ts`.
+- **`GET /api/blog/posts`** (scroll infinito, cacheable `public, max-age=60`): `after`, `first`
+  (tope 24), `tag` (lista con comas, tope 10), `author`, `category`, `search` (tope 100
+  caracteres, con límite de 30 por minuto y por IP), `locale`. El cursor debe ser base64 de
+  WPGraphQL; lo que no lo es se descarta. Un fallo de WordPress responde 502 sin el mensaje.
+- **Disponibilidad de una categoría** (`categoryPageAvailable`): con entradas publicadas y que no
+  sea un cajón (`uncategorized`, `sin-categoria`). Es el ÚNICO criterio: la página responde 404,
+  el sitemap no la lista y el enlace vuelve al listado cuando no se cumple.
+- **Vistas derivadas** (`?tag=`, `?author=`, `?search=`, `?after=`): `noindex, follow`, sin
+  `alternates`. `?category=x` a secas redirige (308) a `/blog/category/x` cuando esa página existe.
+- **Cuerpo de una entrada** (`lib/blog/post-view.ts`): los productos enlazados desde el cuerpo se
+  resuelven en una consulta; el enlace heredado de WooCommerce (`/producto/x/`) se reescribe a
+  `/products/x` si el producto existe; los encabezados reciben `id` y alimentan la TOC; la
+  recomendación `<!-- hwe-rec type="product|post" slug="x" -->` se sustituye por su tarjeta. La
+  prosa se sanea tramo a tramo (`sanitizeHtml`); un marcador con slug no válido se descarta.
+- **Fechas**: `date`/`modified` salen en la hora del sitio sin zona; el JSON-LD y `article:*_time`
+  usan la variante `*Gmt` con `+00:00` (`wpDateIso`). «Actualizado el…» solo con un día o más
+  de diferencia (`showUpdatedDate`).
+
 ## A.3 Config pública dinámica: `GET /wp-json/hwe/v1/config`
 
 Fuente única de verdad de marca/negocio, sin auth, cacheable. Forma exacta (ver

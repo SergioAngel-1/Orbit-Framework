@@ -2,6 +2,7 @@ import "server-only";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import {
   PRODUCTS_BY_IDS_QUERY,
+  PRODUCTS_BY_SLUGS_QUERY,
   PRODUCTS_QUERY,
   PRODUCT_BY_SLUG_QUERY,
   PRODUCT_SLUGS_QUERY,
@@ -177,6 +178,31 @@ export async function getProductsByIds(
   );
   return ids.flatMap((id) => {
     const product = byId.get(id);
+    return product ? [product] : [];
+  });
+}
+
+/**
+ * Productos publicados por slug, en el MISMO orden que `slugs` (WooGraphQL no lo
+ * garantiza). Los que no existan o no estén publicados se omiten.
+ */
+export async function getProductsBySlugs(
+  slugs: readonly string[],
+): Promise<CatalogProduct[]> {
+  if (slugs.length === 0) return [];
+  const data = await fetchGraphQL<{ products?: { nodes: RawProductNode[] } }>(
+    PRODUCTS_BY_SLUGS_QUERY,
+    {
+      variables: { slugs: [...slugs], first: slugs.length },
+      revalidate: CATALOG_REVALIDATE,
+      tags: ["products"],
+    },
+  );
+  const bySlug = new Map(
+    (data.products?.nodes ?? []).map((node) => [node.slug, normalize(node)]),
+  );
+  return slugs.flatMap((slug) => {
+    const product = bySlug.get(slug);
     return product ? [product] : [];
   });
 }

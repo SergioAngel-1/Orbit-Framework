@@ -106,6 +106,18 @@ export const PRODUCTS_BY_IDS_QUERY = /* GraphQL */ `
   }
 `;
 
+/** Productos publicados por slug (los enlazados desde el cuerpo de una entrada). */
+export const PRODUCTS_BY_SLUGS_QUERY = /* GraphQL */ `
+  ${PRODUCT_CARD_FRAGMENT}
+  query ProductsBySlugs($slugs: [String], $first: Int = 12) {
+    products(first: $first, where: { slugIn: $slugs, status: "publish" }) {
+      nodes {
+        ...ProductCard
+      }
+    }
+  }
+`;
+
 export const PRODUCT_BY_SLUG_QUERY = /* GraphQL */ `
   ${PRODUCT_CARD_FRAGMENT}
   query ProductBySlug($slug: ID!) {

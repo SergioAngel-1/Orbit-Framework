@@ -19,6 +19,13 @@ vi.mock("@/lib/blog/posts", () => ({
     { slug: "sin-fecha", modified: null },
   ],
 }));
+vi.mock("@/lib/blog/categories", () => ({
+  getBlogCategories: async () => [
+    { name: "Guías", slug: "guias", description: null, count: 4 },
+    { name: "Vacía", slug: "vacia", description: null, count: 0 },
+    { name: "Sin categoría", slug: "uncategorized", description: null, count: 9 },
+  ],
+}));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn() },
 }));
@@ -63,6 +70,14 @@ describe("buildSitemapEntries", () => {
     const undated = entries.find((e) => e.url.endsWith("/blog/sin-fecha"))!;
     expect(dated.lastModified).toBeInstanceOf(Date);
     expect(undated).not.toHaveProperty("lastModified");
+  });
+
+  it("el blog lleva el archivo y solo las categorías que su página sirve", async () => {
+    const urls = (await buildSitemapEntries("blog")).map((e) => e.url);
+    expect(urls).toContain("https://mitienda.example/blog/archive");
+    expect(urls).toContain("https://mitienda.example/blog/category/guias");
+    expect(urls.some((u) => u.includes("/category/vacia"))).toBe(false);
+    expect(urls.some((u) => u.includes("/category/uncategorized"))).toBe(false);
   });
 
   it("con la config degradada emite un urlset vacío, no URLs con el dominio por defecto", async () => {

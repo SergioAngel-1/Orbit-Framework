@@ -3,9 +3,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { getPostBySlug, getPostSlugs } from "@/lib/blog/posts";
+import { getPostBySlug, getPostSlugs, wpDateIso } from "@/lib/blog/posts";
+import { buildPostView } from "@/lib/blog/post-view";
+import { showUpdatedDate } from "@/lib/blog/updated-date";
+import { isLandingCategory } from "@/lib/blog/category-format";
+import { PostBody } from "@/components/blog/post-body";
+import { PostToc } from "@/components/blog/post-toc";
+import { TagLink } from "@/components/blog/tag-link";
+import { AuthorLink } from "@/components/blog/author-link";
+import { CategoryLink } from "@/components/blog/category-link";
+import { ProductGrid } from "@/components/products/product-grid";
 import { getSiteConfig } from "@/lib/config";
-import { sanitizeHtml } from "@/lib/security/sanitize";
 import { stripHtml, formatDate } from "@/lib/format";
 import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
 import { buildArticleJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
@@ -48,8 +56,8 @@ export async function generateMetadata({
       openGraph: {
         ...siteOpenGraph(config, locale, canonical.canonical),
         type: "article",
-        publishedTime: post.date,
-        modifiedTime: post.modified ?? post.date,
+        publishedTime: wpDateIso(post.dateGmt, post.date),
+        modifiedTime: wpDateIso(post.modifiedGmt, post.modified ?? post.date),
         ...(images ? { images } : {}),
       },
       twitter: {
@@ -77,17 +85,28 @@ export default async function PostPage({
 
   let post: Awaited<ReturnType<typeof getPostBySlug>>;
   try {
-    post = await getPostBySlug(slug);
+    post = await getPostBySlug(slug, locale);
   } catch {
     notFound();
   }
   if (!post) notFound();
 
-  const contentHtml = post.content ? sanitizeHtml(post.content) : "";
   const image = post.featuredImage?.node;
   const url = absoluteLocalized(config.brand.url, `/blog/${slug}`, locale);
   const authorNode = post.author?.node;
   const authorName = authorNode?.name ?? config.brand.name;
+  const tags = post.tags?.nodes ?? [];
+  const category = (post.categories?.nodes ?? []).find((c) =>
+    isLandingCategory(c.slug),
+  );
+
+  // Cuerpo: productos enlazados, recomendaciones y TOC (ver `buildPostView`).
+  const view = await buildPostView(post.content ?? "", {
+    locale,
+    slug,
+    siteOrigins: [config.brand.url].filter(Boolean),
+  });
+  const updated = showUpdatedDate(post.date, post.modified);
 
   const articleJsonLd = buildArticleJsonLd({
     type: "BlogPosting",
@@ -96,8 +115,8 @@ export default async function PostPage({
     config,
     image: image?.sourceUrl,
     url,
-    datePublished: post.date,
-    dateModified: post.modified ?? post.date,
+    datePublished: wpDateIso(post.dateGmt, post.date),
+    dateModified: wpDateIso(post.modifiedGmt, post.modified ?? post.date),
     // Person enriquecido con los datos del perfil de WordPress (bio, web).
     author: {
       name: authorName,
@@ -133,18 +152,42 @@ export default async function PostPage({
       </nav>
 
       <header className="mb-8">
+        {category && (
+          <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+            <CategoryLink category={category} />
+          </p>
+        )}
         <h1 className="post-headline text-3xl font-extrabold tracking-tight sm:text-4xl">
           {post.title}
         </h1>
-        <div className="mt-3 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-          <time dateTime={post.date}>{formatDate(post.date, locale)}</time>
+        <div className="mt-3 flex flex-wrap items-center gap-x-2 text-sm text-gray-500 dark:text-gray-400">
+          <time dateTime={wpDateIso(post.dateGmt, post.date)}>
+            {formatDate(post.date, locale)}
+          </time>
           {authorName && (
             <>
               <span aria-hidden>·</span>
-              <span>{authorName}</span>
+              <AuthorLink author={{ name: authorName, slug: authorNode?.slug }} />
+            </>
+          )}
+          {updated && post.modified && (
+            <>
+              <span aria-hidden>·</span>
+              <time dateTime={wpDateIso(post.modifiedGmt, post.modified)}>
+                {t("updated", { date: formatDate(post.modified, locale) })}
+              </time>
             </>
           )}
         </div>
+        {tags.length > 0 && (
+          <ul className="mt-4 flex flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <li key={tag.slug} className="min-w-0">
+                <TagLink tag={tag} size="md" />
+              </li>
+            ))}
+          </ul>
+        )}
       </header>
 
       {image?.sourceUrl && (
@@ -160,11 +203,26 @@ export default async function PostPage({
         </div>
       )}
 
-      {contentHtml && (
-        <div
-          className="post-body prose prose-lg max-w-none dark:prose-invert"
-          dangerouslySetInnerHTML={{ __html: contentHtml }}
-        />
+      <PostToc headings={view.headings} title={t("toc")} />
+
+      <PostBody
+        segments={view.segments}
+        recs={view.recs}
+        locale={locale}
+        readMore={t("readMore")}
+        recommendedLabel={t("recommendedPost")}
+        wishlistEnabled={config.ecommerce.wishlist_enabled}
+      />
+
+      {view.mentioned.items.length > 0 && (
+        <section className="mt-12">
+          <h2 className="mb-4 text-xl font-bold tracking-tight">
+            {view.mentioned.hasRelated
+              ? t("mentionedAndRelated")
+              : t("mentionedProducts")}
+          </h2>
+          <ProductGrid products={view.mentioned.items} />
+        </section>
       )}
     </article>
   );

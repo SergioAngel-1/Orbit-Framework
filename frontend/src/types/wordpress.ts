@@ -19,11 +19,27 @@ export interface WPFeaturedImage {
 export interface WPAuthor {
   node: {
     name: string;
+    /** Slug del usuario: el filtro `/blog?author=`. */
+    slug?: string | null;
     /** Biographical Info del perfil de WordPress. */
     description?: string | null;
     /** Web del autor (campo Website del perfil). */
     url?: string | null;
   } | null;
+}
+
+/** Etiqueta de una entrada. `count` = entradas publicadas con ella. */
+export interface WPTag {
+  name: string;
+  slug: string;
+  count?: number | null;
+}
+
+/** Categoría de una entrada. `count` llega null en una vacía. */
+export interface WPCategory {
+  name: string;
+  slug: string;
+  count?: number | null;
 }
 
 export interface WPPost {
@@ -39,11 +55,16 @@ export interface WPPost {
   /** Override de hwe-post-seo.php. Null = usar título/resumen nativos. */
   seoTitle?: string | null;
   seoDescription?: string | null;
+  tags?: { nodes: WPTag[] } | null;
+  categories?: { nodes: WPCategory[] } | null;
 }
 
 /** Post individual con contenido completo (página de detalle). */
 export interface WPPostDetail extends WPPost {
   content: string | null;
+  /** Fecha y hora de publicación y de modificación en UTC, sin sufijo de zona. */
+  dateGmt?: string | null;
+  modifiedGmt?: string | null;
 }
 
 export interface PostsQueryResponse {

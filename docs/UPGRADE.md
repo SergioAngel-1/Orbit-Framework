@@ -522,6 +522,20 @@ git fetch framework --tags
   `src/instance/og-cards.json`; `src/instance/registry.ts` añade `ogCards`. Sin ellas, la tarjeta
   dinámica de marca.
 
+- **Blog:** `getPosts` acepta `tag`, `author`, `category` y `search`; `getPostSlugs` recorre todas
+  las páginas (antes solo las 100 primeras); `getPostBySlug(slug, locale)`; nuevos
+  `GET /api/blog/posts` y las vistas `/blog/archive` y `/blog/category/[slug]`. Las consultas de
+  entradas piden ahora `tags`, `categories`, `author.slug`, `dateGmt` y `modifiedGmt`. La
+  paginación por «Cargar más» (`?after=`) del listado pasa a scroll infinito; `?after=` sigue
+  funcionando (`noindex`). `PostCard` ya no es un `<a>` que envuelve la tarjeta: el título es el
+  enlace estirado y la categoría, el autor y las etiquetas son enlaces propios.
+- **Marcador de recomendación en el cuerpo:** `<!-- hwe-rec type="product|post" slug="…" -->`.
+- **La caja SEO del editor (`seoTitle`, `seoDescription`) llega por fin al `<title>` y a la meta
+  description** de fichas, categorías de producto y entradas: la query ya la pedía pero la
+  normalización la descartaba. Si tu instancia tenía escritos títulos en esa caja, cambian en la
+  web al actualizar.
+- **`i18n/navigation` exporta `permanentRedirect`.**
+
 ### Operación (F1)
 
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor
