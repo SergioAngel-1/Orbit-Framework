@@ -114,6 +114,17 @@ describe("firmas", () => {
     expect(revalidateTag).toHaveBeenCalledWith("geo", "max");
   });
 
+  it("HWE: el tag del módulo shipping (tarifas, extras y alcance del envío gratis)", async () => {
+    const body = '{"tag":"shipping"}';
+
+    const res = await POST(
+      request(body, { "x-hwe-signature": `sha256=${hmac(body, HWE_SECRET, "hex")}` }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(revalidateTag).toHaveBeenCalledWith("shipping", "max");
+  });
+
   it.each([
     ["WooCommerce", { "x-wc-webhook-signature": "firma-falsa" }],
     ["HWE", { "x-hwe-signature": "sha256=deadbeef" }],
