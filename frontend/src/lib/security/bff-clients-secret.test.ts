@@ -5,7 +5,7 @@ import { fetchGraphQL } from "@/lib/graphql-client";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { fetchRemoteConfig } from "@/lib/config/remote";
-import { getBannerPlacement } from "@/lib/banners";
+import { getBanner } from "@/lib/banners";
 import { GET as health } from "@/app/api/health/route";
 
 // ============================================================================
@@ -123,10 +123,10 @@ describe("los clientes presentan X-HWE-Internal-Secret", () => {
   });
 
   it("banners (hwe-banners/v1)", async () => {
-    await getBannerPlacement("home", "es");
+    await getBanner("carousel", "home", "es");
 
     expect(String(fetchMock.mock.calls[0]![0])).toContain(
-      "/wp-json/hwe-banners/v1/banners/home",
+      "/wp-json/hwe-banners/v1/banners/carousel?lang=es&location=home",
     );
     expect(sentHeaders()[HEADER.toLowerCase()]).toBe(SECRET);
   });

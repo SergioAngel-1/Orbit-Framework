@@ -29,7 +29,8 @@
 //  ellos una dependencia de red dentro de cada spec.
 //
 //  Tampoco es «vacío» `GET /wp-json/wc/v3/orders[/{10..13}]`, `customers/7`,
-//  `hwe-shipping/v1/{methods,free-shipping/scope}` (un extra de envío y un alcance con una
+//  `hwe-banners/v1/banners/carousel` (un slide con imagen, que el propio stub sirve en
+//  `/wp-content/uploads/e2e-banner.svg`), `hwe-shipping/v1/{methods,free-shipping/scope}` (un extra de envío y un alcance con una
 //  ciudad), `hwe/v1/geo` (el paquete genérico de un país sin paquete, como el que sirve
 //  WordPress para el `ES` por defecto) ni
 //  `hwe/v1/coupons/public` (un cupón de prueba): los
@@ -91,7 +92,12 @@ export const STUB_ORDERS = [
       {
         id: 1,
         key: "_hwe_site_review",
-        value: { id: 5, rating: 4, content: "Muy buena compra.", date: "2026-10-01" },
+        value: {
+          id: 5,
+          rating: 4,
+          content: "Muy buena compra.",
+          date: "2026-10-01",
+        },
       },
     ],
   },
@@ -165,10 +171,37 @@ const STUB_GEO = {
 };
 
 /** Extras de envío del módulo `shipping` (`hwe-shipping/v1/methods`). */
-const STUB_SHIPPING_METHODS = [{ id: 3, name: "Seguro de envío", added_value: 5 }];
+const STUB_SHIPPING_METHODS = [
+  { id: 3, name: "Seguro de envío", added_value: 5 },
+];
 
 /** Alcance del envío gratis del módulo `shipping`: una ciudad, sin categorías ni productos. */
-const STUB_FREE_SHIPPING_SCOPE = { categories: [], products: [], cities: ["Madrid"] };
+const STUB_FREE_SHIPPING_SCOPE = {
+  categories: [],
+  products: [],
+  cities: ["Madrid"],
+};
+
+/** Imagen del slide de prueba de los banners: un SVG sencillo servido por el propio stub. */
+const BANNER_IMAGE_PATH = "/wp-content/uploads/e2e-banner.svg";
+const BANNER_IMAGE_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="480"><rect width="1200" height="480" fill="#1e40af"/></svg>';
+
+/** Carrusel de la portada (`hwe-banners/v1/banners/carousel`): un slide con imagen. */
+const bannerCarousel = (origin) => ({
+  intervalMs: 6000,
+  slides: [
+    {
+      id: "1-0",
+      bannerType: "carousel",
+      location: "home",
+      type: "default",
+      image: `${origin}${BANNER_IMAGE_PATH}`,
+      title: "Banner de prueba",
+      subtitle: "Un slide servido por el stub",
+    },
+  ],
+});
 
 /** Respuesta fija de la REST de WooCommerce, o `undefined` si no es una del fixture. */
 function wooFixture(path) {
@@ -176,10 +209,12 @@ function wooFixture(path) {
   if (order) return STUB_ORDERS.find((o) => o.id === Number(order[1]));
   if (path === "/wp-json/wc/v3/orders") return STUB_ORDERS;
   if (path === "/wp-json/wc/v3/products/reviews") return [];
-  if (path === "/wp-json/hwe/v1/coupons/public") return { items: [STUB_COUPON] };
+  if (path === "/wp-json/hwe/v1/coupons/public")
+    return { items: [STUB_COUPON] };
   if (path === "/wp-json/hwe/v1/geo") return STUB_GEO;
   if (path === "/wp-json/hwe-shipping/v1/methods") return STUB_SHIPPING_METHODS;
-  if (path === "/wp-json/hwe-shipping/v1/free-shipping/scope") return STUB_FREE_SHIPPING_SCOPE;
+  if (path === "/wp-json/hwe-shipping/v1/free-shipping/scope")
+    return STUB_FREE_SHIPPING_SCOPE;
   if (path === "/wp-json/wc/v3/customers/7") return STUB_CUSTOMER;
   return undefined;
 }
@@ -192,8 +227,18 @@ export function createStubServer(siteConfig) {
     req.resume();
     req.on("end", () => {
       const path = new URL(req.url ?? "/", "http://127.0.0.1").pathname;
+      if (path === BANNER_IMAGE_PATH) {
+        res.writeHead(200, { "content-type": "image/svg+xml" });
+        res.end(BANNER_IMAGE_SVG);
+        return;
+      }
+      const origin = `http://${req.headers.host ?? "127.0.0.1"}`;
       const body =
-        path === CONFIG_PATH ? siteConfig : (wooFixture(path) ?? { data: {} });
+        path === CONFIG_PATH
+          ? siteConfig
+          : path === "/wp-json/hwe-banners/v1/banners/carousel"
+            ? bannerCarousel(origin)
+            : (wooFixture(path) ?? { data: {} });
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(body));
     });
@@ -211,7 +256,11 @@ if (
   const extra = process.env.STUB_SITE_CONFIG_EXTRA
     ? JSON.parse(process.env.STUB_SITE_CONFIG_EXTRA)
     : {};
-  createStubServer(buildSiteConfig(fixture, extra)).listen(port, "127.0.0.1", () => {
-    console.log(`stub GraphQL escuchando en http://127.0.0.1:${port}`);
-  });
+  createStubServer(buildSiteConfig(fixture, extra)).listen(
+    port,
+    "127.0.0.1",
+    () => {
+      console.log(`stub GraphQL escuchando en http://127.0.0.1:${port}`);
+    },
+  );
 }

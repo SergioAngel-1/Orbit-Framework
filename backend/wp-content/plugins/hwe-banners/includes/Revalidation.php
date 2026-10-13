@@ -3,9 +3,9 @@
 namespace HWE\Banners;
 
 /**
- * Dispara la revalidación ISR del tag "banners" en el frontend Next.js cuando un
- * banner cambia. Reutiliza el mismo secreto/URL que el HWE Control Center. Si las
- * constantes no están definidas, se omite silenciosamente.
+ * Dispara la revalidación ISR del tag "banners" en el frontend Next.js cuando un banner
+ * cambia, por el mismo camino que el resto del framework (`Revalidation::trigger` del Control
+ * Center: firma, URL y aviso si falta el secreto).
  */
 class Revalidation {
 
@@ -33,26 +33,13 @@ class Revalidation {
 	}
 
 	private static function trigger(): void {
-		$secret = defined( 'HWE_REVALIDATION_SECRET' ) ? HWE_REVALIDATION_SECRET : '';
-		if ( $secret === '' ) {
-			return;
+		// Purga la caché local de Serializer::forLocation() (ver su docblock) siempre, aunque no
+		// haya secreto de revalidación configurado.
+		if ( function_exists( 'wp_cache_flush_group' ) ) {
+			wp_cache_flush_group( 'hwe_banners' );
 		}
-		$frontendUrl = defined( 'HEADLESS_FRONTEND_URL' )
-			? rtrim( HEADLESS_FRONTEND_URL, '/' )
-			: 'http://localhost:3000';
-
-		$endpoint = $frontendUrl . '/api/revalidate';
-		$body     = wp_json_encode( [ 'tag' => 'banners', 'source' => 'hwe-banners' ] );
-		$sig      = 'sha256=' . hash_hmac( 'sha256', $body, $secret );
-
-		wp_remote_post( $endpoint, [
-			'timeout'  => 8,
-			'blocking' => false,
-			'headers'  => [
-				'Content-Type'    => 'application/json',
-				'X-HWE-Signature' => $sig,
-			],
-			'body'     => $body,
-		] );
+		if ( class_exists( 'HWE\\ControlCenter\\Revalidation' ) ) {
+			\HWE\ControlCenter\Revalidation::trigger( 'banners' );
+		}
 	}
 }

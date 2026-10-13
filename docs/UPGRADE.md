@@ -693,6 +693,39 @@ git fetch framework --tags
   origen caía en silencio a una por defecto.
 - **Sin `getShippingCities`:** las ciudades salen del paquete de país.
 
+### Módulo `banners` (F5)
+
+- **Se adopta el modelo tipo × locación** de las instancias derivadas del framework v1 y se retira `Placements`:
+  las posiciones `hero` / `middle` / `bottom` desaparecen. Un banner ya no tiene `_hwe_banner_placement`:
+  tiene **tipo** (`carousel`, `band`, `allies`, `page_hero`, `landing`) y **locación** (`home` por
+  defecto). Si tenías banners del plugin v1 (`hero` → `carousel`, `middle` → `band`), vuelve a crearlos
+  eligiendo el tipo; el plugin de v1 no llegó a publicarse, así que no hay migración automática.
+- **(contrato) Filtros.** `hwe_banners_placements` desaparece. Nuevos: `hwe_banners_banner_types`,
+  `hwe_banners_locations`, `hwe_banners_slide_types`, `hwe_banners_size_guide`,
+  `hwe_banners_field_hints`. `hwe_banners_secondary_locales` desaparece: los idiomas de las
+  traducciones son los secundarios del sitio (`i18n.locales`, vía `hwe-content-i18n`), N idiomas en
+  vez de uno.
+- **(breaking) `mandala_presets` → `decor_presets`.** El filtro `hwe_banners_mandala_presets` pasa a
+  `hwe_banners_decor_presets`, y en el frontend los presets se declaran en
+  `InstanceRegistry.decorPresets` (clave → `{ src, invert? }`) en lugar de una tabla en el núcleo. Las
+  **claves** deben coincidir en los dos lados (test de paridad). El JSON del slide pasa de `mandalaMode`
+  / `mandalaSvg` / `mandalaPreset` a `decorMode` / `decorSvg` / `decorPreset`, y las etiquetas del admin
+  a «visual decorativo».
+- **Sin migración de datos:** los slides guardados con `mandala_mode` / `mandala_preset` /
+  `mandala_svg` se leen con las claves nuevas (`LegacySlide`) y se reescriben al guardar el banner.
+- **(contrato) Lector.** `getBannerPlacement(placement, locale)` desaparece: `getBanner(type, location,
+  locale, { enabled })`, `getBanners(locale, location)`, `getPageHeroSlide` y `getLandingHeroSlide`. La
+  API REST cambia a `GET /banners[/{type}]?location=&lang=` (un tipo inexistente es 404). `BannerSlide`
+  gana `imageAlt`, `cta2`, `cta2Href`, `bannerType`, `location`, `type`, `decor*`, `showCopy`; pierde
+  `placement`. La home usa `getBanner("carousel", "home", …)`.
+- **Un slide se descarta solo si no tiene nada que pintar** (sin imagen, sin visual decorativo y sin copy),
+  en el plugin y en el normalizador; un slide con titular y botones se sirve aunque aún no tenga foto
+  (el carrusel del starter lo filtra: pinta fotos).
+- **Revalidación por el núcleo** (`Revalidation::trigger('banners')`): ya no hay un POST firmado propio
+  del plugin.
+- Nuevo: página **Banners → Ayuda** con las medidas, `MANUAL.md` para editores y vistas «Landings» en el
+  listado.
+
 ### Infraestructura y CD (F4)
 
 - **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin

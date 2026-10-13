@@ -3,16 +3,13 @@
 namespace HWE\Banners;
 
 /**
- * Columnas personalizadas en el listado de banners: posición, vista previa,
- * número de slides y orden.
+ * Columnas del listado: tipo, locación, vista previa, nº de slides.
  */
 class AdminColumns {
 
 	public static function register(): void {
 		add_filter( 'manage_' . PostType::SLUG . '_posts_columns', [ self::class, 'columns' ] );
 		add_action( 'manage_' . PostType::SLUG . '_posts_custom_column', [ self::class, 'render' ], 10, 2 );
-		add_filter( 'manage_edit-' . PostType::SLUG . '_sortable_columns', [ self::class, 'sortable' ] );
-		add_action( 'pre_get_posts', [ self::class, 'orderby' ] );
 	}
 
 	/** @param array<string,string> $columns @return array<string,string> */
@@ -21,10 +18,10 @@ class AdminColumns {
 		foreach ( $columns as $key => $label ) {
 			$new[ $key ] = $label;
 			if ( $key === 'title' ) {
-				$new['hwe_placement'] = __( 'Posición', 'hwe-banners' );
-				$new['hwe_preview']   = __( 'Vista previa', 'hwe-banners' );
-				$new['hwe_slides']    = __( 'Slides', 'hwe-banners' );
-				$new['hwe_order']     = __( 'Orden', 'hwe-banners' );
+				$new['hwe_type']     = __( 'Tipo', 'hwe-banners' );
+				$new['hwe_location'] = __( 'Locación', 'hwe-banners' );
+				$new['hwe_preview']  = __( 'Vista previa', 'hwe-banners' );
+				$new['hwe_slides']   = __( 'Slides', 'hwe-banners' );
 			}
 		}
 		return $new;
@@ -32,10 +29,13 @@ class AdminColumns {
 
 	public static function render( string $column, int $postId ): void {
 		switch ( $column ) {
-			case 'hwe_placement':
-				$slug   = (string) get_post_meta( $postId, '_hwe_banner_placement', true );
-				$labels = Placements::all();
-				echo esc_html( $labels[ $slug ] ?? $slug ?: '—' );
+			case 'hwe_type':
+				$slug = (string) get_post_meta( $postId, '_hwe_banner_type', true );
+				echo esc_html( BannerTypes::labels()[ $slug ] ?? ( $slug ?: '—' ) );
+				break;
+			case 'hwe_location':
+				$slug = (string) get_post_meta( $postId, '_hwe_banner_location', true );
+				echo esc_html( $slug !== '' ? Locations::label( $slug ) : '—' );
 				break;
 			case 'hwe_preview':
 				$slides = get_post_meta( $postId, '_hwe_banner_slides', true );
@@ -48,25 +48,6 @@ class AdminColumns {
 				$slides = get_post_meta( $postId, '_hwe_banner_slides', true );
 				echo esc_html( (string) ( is_array( $slides ) ? count( $slides ) : 0 ) );
 				break;
-			case 'hwe_order':
-				echo esc_html( (string) (int) get_post_meta( $postId, '_hwe_banner_order', true ) );
-				break;
-		}
-	}
-
-	/** @param array<string,string> $columns @return array<string,string> */
-	public static function sortable( array $columns ): array {
-		$columns['hwe_order'] = 'hwe_order';
-		return $columns;
-	}
-
-	public static function orderby( \WP_Query $query ): void {
-		if ( ! is_admin() || ! $query->is_main_query() ) {
-			return;
-		}
-		if ( $query->get( 'orderby' ) === 'hwe_order' ) {
-			$query->set( 'meta_key', '_hwe_banner_order' );
-			$query->set( 'orderby', 'meta_value_num' );
 		}
 	}
 }

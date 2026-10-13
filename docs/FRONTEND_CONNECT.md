@@ -512,21 +512,43 @@ y `/api/store/products?search=` (búsqueda; el listado sin búsqueda sigue sirvi
   como texto.
 - `banners.enabled` — activa/desactiva el renderizado de banners. La autoría de los banners
   vive en el plugin **HWE Banners** (CPT `hwe_banner`, REST `hwe-banners/v1/banners`). Lector
-  core: `lib/banners/getBannerPlacement(placement, locale)` con ISR tag `banners`.
+  core: `lib/banners/getBanner(type, location, locale)` con ISR tag `banners`.
 
-### Banners — `GET /wp-json/hwe-banners/v1/banners[/{placement}]`
+### Banners — `GET /wp-json/hwe-banners/v1/banners[/{type}]` (módulo `banners`)
 
-Servido por el plugin **HWE Banners** (activable/desactivable). Público y cacheable
-(el frontend lo consume con ISR, tag `banners`, invalidado por webhook al editar un
-banner). Gateado en el frontend por `config.banners.enabled`.
+Servido por el plugin **HWE Banners** (módulo activable). Público y cacheable (el frontend lo
+consume con ISR, tag `banners`, invalidado al editar un banner). Gateado en el frontend por el
+módulo `banners` **y** por `config.banners.enabled`.
 
-- `GET .../banners?lang=es` → `{ "<placement>": { "intervalMs": number, "slides": Slide[] } }`
-- `GET .../banners/hero?lang=en` → `{ "intervalMs": number, "slides": Slide[] }`
+Cada banner ocupa una **celda** = **tipo** (`carousel`, `band`, `allies`, `page_hero`, `landing`, y los
+que añada la instancia) × **locación** (`home` por defecto, y las que añada la instancia). Solo se sirve
+**un** banner publicado por celda (gana el modificado más recientemente).
 
-`Slide` (camelCase, resuelto por locale): `id, placement, order, image, imageMobile,
-title, subtitle, cta, ctaHref, badge, link, hideOverlay`. Placements por defecto:
-`hero`, `middle`, `bottom` (filtro PHP `hwe_banners_placements`). El lector core está
-en `frontend/src/lib/banners/` (`getBannerPlacement(placement, locale)`).
+- `GET .../banners?location=home&lang=es` → `{ "<tipo>": { "intervalMs": number, "slides": Slide[] } }`
+  (`location` omitido o desconocido → la primera declarada).
+- `GET .../banners/carousel?location=home&lang=en` → `{ "intervalMs": number, "slides": Slide[] }`.
+  Un tipo inexistente es un **404** (`invalid_banner_type`); un tipo válido que la locación no admite es
+  un 200 vacío.
+
+`Slide` (camelCase, resuelto al idioma de `lang`; cualquiera de los idiomas del sitio): `id, bannerType,
+location, type` (plantilla), `order, image, imageMobile, imageAlt, title, subtitle, cta, ctaHref, cta2,
+cta2Href, badge, link, hideOverlay, showCopy`, y el visual decorativo: `decorMode` (`none|default|custom`),
+`decorSvg` (`custom`) y `decorPreset` (**clave**, no URL; `default`). Las URL (`ctaHref`, `cta2Href`,
+`link`) son **una sola ruta interna** por slide con el slug del idioma por defecto.
+
+Lector core en `frontend/src/lib/banners/`:
+
+- `getBanner(type, location, locale, { enabled })` y `getBanners(locale, location, { enabled })`;
+  `getPageHeroSlide(location, locale)` y `getLandingHeroSlide(location, locale)`. Con el módulo apagado
+  (`enabled: false`) devuelven vacío sin llamar a WordPress.
+- `localize`: lleva los enlaces `/products/<slug>` y `/categories/<slug>` al slug del idioma pedido
+  (cualquier idioma del sitio; nada que consultar en el idioma por defecto). Fail-soft y registrado.
+- `decor-presets`: `resolveDecor(slide)` resuelve la **clave** del visual decorativo al archivo y a su
+  política de inversión en tema oscuro, con los presets que la instancia declara en
+  `InstanceRegistry.decorPresets` (el primero es el respaldo). **Las claves deben coincidir con las del
+  filtro PHP `hwe_banners_decor_presets`**; un test de paridad lo comprueba con un fixture compartido.
+- El carrusel del starter (`HeroCarousel`) pinta fotos: la home descarta los slides sin imagen. Una
+  plantilla con texto solo o con visual decorativo la añade la instancia.
 
 ## A.4 Design tokens (paleta/tipografía dinámica)
 

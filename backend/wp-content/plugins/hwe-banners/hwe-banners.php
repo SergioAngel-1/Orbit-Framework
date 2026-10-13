@@ -1,7 +1,6 @@
 <?php
 /**
  * Plugin Name:  HWE Banners
- * Plugin URI:   https://headlesswebecosystem.com
  * Description:  Sistema de banners administrables para instancias del Headless Web
  *               Ecosystem. Registra un tipo de contenido "Banner" con posiciones
  *               (placements) genéricas, slides ordenables con imagen desktop/móvil

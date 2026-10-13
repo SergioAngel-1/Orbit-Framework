@@ -351,7 +351,7 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   estas funcionalidades, replica el patrón — no la muestres incondicionalmente.
 - **Menús**: se gestionan en WP (Apariencia → Menús) y se leen con `getMenu(area, locale)`
   (`lib/navigation/menu.ts`, fail-soft a `null` → fallback local del componente).   **Banners**: los gestiona el plugin **HWE Banners** (CPT `hwe_banner`, REST
-  `hwe-banners/v1/banners`). El lector core `lib/banners/` (`getBannerPlacement`) los
+  `hwe-banners/v1/banners`). El lector core `lib/banners/` (`getBanner` / `getBanners`) los
   consume con ISR (tag `banners`), gateado por `config.banners.enabled`. Desde el HWE
   Control Center solo se activa/desactiva; la autoría vive en el plugin.
   **Logo**: `config.brand.logo` (vacío = nombre del sitio como texto).

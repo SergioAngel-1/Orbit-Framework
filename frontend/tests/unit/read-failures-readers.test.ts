@@ -19,7 +19,7 @@ vi.mock("@/lib/observability/logger", () => ({ logger }));
 
 import { getCategories } from "@/lib/catalog/products";
 import { getFeaturedPostOverride, getPostSlugs } from "@/lib/blog/posts";
-import { getBannerPlacement } from "@/lib/banners";
+import { getBanner } from "@/lib/banners";
 
 beforeEach(() => {
   fetchGraphQL.mockReset();
@@ -62,12 +62,12 @@ describe("lectores del CMS que degradan sin romper", () => {
     );
   });
 
-  it("getBannerPlacement: sin banners y error en el log, con una excepción o con un HTTP 5xx", async () => {
+  it("getBanner: sin banners y error en el log, con una excepción o con un HTTP 5xx", async () => {
     wpFetch.mockRejectedValue(new Error("sin red"));
-    expect((await getBannerPlacement("hero", "es")).slides).toEqual([]);
+    expect((await getBanner("carousel", "home", "es")).slides).toEqual([]);
 
     wpFetch.mockResolvedValue({ ok: false, status: 502 });
-    expect((await getBannerPlacement("hero", "es")).slides).toEqual([]);
+    expect((await getBanner("carousel", "home", "es")).slides).toEqual([]);
 
     const events = logger.error.mock.calls
       .map(([entry]) => (entry as { event: string }).event)

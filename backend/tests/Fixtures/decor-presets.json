@@ -1,0 +1,8 @@
+{
+  "_comment": "Visuales decorativos de plantilla de un banner. Fixture COMPARTIDO: lo leen el test de PHP (filtro hwe_banners_decor_presets: clave → etiqueta) y el de TypeScript (InstanceRegistry.decorPresets: clave → archivo). Las claves y su ORDEN deben coincidir; el primero es el respaldo.",
+  "presets": [
+    { "key": "linea-oscuro", "label": "Línea · trazo oscuro", "src": "/brand/decor-linea-oscuro.svg", "invert": "theme" },
+    { "key": "linea-color", "label": "Línea · policromo", "src": "/brand/decor-linea-color.svg", "invert": "never" },
+    { "key": "linea-claro", "label": "Línea · trazo claro", "src": "/brand/decor-linea-claro.svg", "invert": "light" }
+  ]
+}

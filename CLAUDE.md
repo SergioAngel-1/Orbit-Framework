@@ -137,8 +137,10 @@ Reglas de oro (no las rompas — `AGENTS.md §2, §7`):
   `HWE_REVALIDATION_SECRET`, en la cabecera `X-HWE-Internal-Secret`.
 - **Banners**: los administra el plugin **HWE Banners** (regular, activable), no el
   Control Center. CPT `hwe_banner` → REST `hwe-banners/v1/banners` → lector core
-  `lib/banners/getBannerPlacement()` (ISR tag `banners`), gateado por `config.banners.enabled`.
-  Extensible por hooks (`hwe_banners_placements`, `hwe_banners_slide_visible`, `hwe_banners_slide`).
+  `lib/banners/getBanner(type, location, locale)` (ISR tag `banners`), gateado por el módulo
+  `banners` y por `config.banners.enabled`.
+  Celda = tipo + locación. Extensible por hooks (`hwe_banners_banner_types`, `hwe_banners_locations`,
+  `hwe_banners_slide_types`, `hwe_banners_decor_presets`, `hwe_banners_slide_visible`, `hwe_banners_slide`).
 
 ## Documentación
 

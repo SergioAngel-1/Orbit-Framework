@@ -1,4 +1,5 @@
 import { normalizeGeoPack } from "@/lib/geo/normalize";
+import { normalizePlacement } from "@/lib/banners/normalize";
 import { normalizeShippingMethods } from "@/lib/shipping/normalize";
 import { normalizeFreeShippingScope } from "@/lib/shipping/free-shipping-scope";
 import { readFileSync } from "node:fs";
@@ -187,6 +188,20 @@ describe("pedidos de prueba (wc/v3)", () => {
       { id: 3, name: "Seguro de envío", addedValue: 5 },
     ]);
     expect(normalizeFreeShippingScope(scope, "es").cities).toEqual(["Madrid"]);
+  });
+
+  it("sirve el carrusel de la portada con una imagen que el propio stub entrega", async () => {
+    const base = await startStub();
+
+    const raw = await (
+      await fetch(`${base}/wp-json/hwe-banners/v1/banners/carousel`)
+    ).json();
+    const placement = normalizePlacement(raw);
+    const image = await fetch(placement.slides[0].image);
+
+    expect(placement.slides).toHaveLength(1);
+    expect(placement.slides[0].image.startsWith(base)).toBe(true);
+    expect(image.headers.get("content-type")).toBe("image/svg+xml");
   });
 
   it("un pedido que no está en el fixture responde {data:{}} (CMS vacío)", async () => {

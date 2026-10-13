@@ -7,7 +7,7 @@ import { fetchGraphQL } from "@/lib/graphql-client";
 import { LATEST_POSTS_QUERY } from "@/lib/queries";
 import { getSiteConfig } from "@/lib/config";
 import { isModuleEnabled } from "@/lib/config/modules";
-import { getBannerPlacement } from "@/lib/banners";
+import { getBanner } from "@/lib/banners";
 import { faqItems as localizedFaqItems } from "@/lib/config/faq";
 import { getBestSellingProducts } from "@/lib/catalog/best-sellers";
 import { PostCard } from "@/components/blog/post-card";
@@ -62,11 +62,13 @@ export default async function HomePage({
   ]);
   const faqItems = localizedFaqItems(config, locale);
   const heroBanner = config.banners.enabled
-    ? await getBannerPlacement("hero", locale, {
+    ? await getBanner("carousel", "home", locale, {
         enabled: isModuleEnabled(config, "banners"),
       })
     : { slides: [], intervalMs: 6000 };
-  const bannerSlides = heroBanner.slides;
+  // El carrusel del starter es de fotos: un slide sin imagen (solo texto o con un visual
+  // decorativo) lo pinta la plantilla que la instancia añada, no este.
+  const bannerSlides = heroBanner.slides.filter((slide) => slide.image !== "");
 
   let posts: WPPost[] = [];
   let errorMessage: string | null = null;

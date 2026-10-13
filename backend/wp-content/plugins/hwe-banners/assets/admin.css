@@ -1,5 +1,6 @@
 .hwe-banner-admin .hwe-field { margin: 10px 0; }
 .hwe-banner-admin .hwe-field > label { display: inline-block; font-weight: 600; margin-bottom: 3px; }
+.hwe-banner-admin .hwe-field-hint { display: block; margin-top: 4px; line-height: 1.4; }
 .hwe-banner-admin input[type="text"],
 .hwe-banner-admin input[type="number"] { max-width: 480px; }
 .hwe-banner-admin input[type="text"]:not(.hwe-media-url) { width: 100%; }
@@ -13,3 +14,58 @@
 .hwe-i18n { border: 1px dashed #c3c4c7; border-radius: 6px; padding: 8px 12px; margin-top: 10px; background: #f6f7f7; }
 .hwe-i18n legend { font-weight: 700; padding: 0 6px; }
 .hwe-checkbox label { font-weight: 400; }
+
+/* Cabecera colapsable del slide */
+.hwe-slide-head { gap: 10px; }
+.hwe-slide-toggle {
+	display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;
+	background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+	font: inherit; color: inherit; text-align: left;
+}
+.hwe-chevron::before { content: "\25BE"; display: inline-block; transition: transform .15s ease; color: #787c82; }
+.hwe-collapsed .hwe-chevron::before { transform: rotate( -90deg ); }
+.hwe-slide-preview {
+	font-weight: 400; color: #50575e; min-width: 0;
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hwe-slide-preview:not(:empty)::before { content: "\2013\00a0"; color: #a7aaad; }
+.hwe-slide-typechip {
+	flex: none; margin-left: auto; font-size: 11px; font-weight: 600; line-height: 1.6;
+	color: #3c434a; background: #f0f0f1; border: 1px solid #dcdcde; border-radius: 10px; padding: 0 8px;
+}
+.hwe-slide.hwe-collapsed { background: #fafafa; }
+.hwe-collapsed .hwe-slide-body { display: none; }
+
+/* Selector de tipo + descripción de estructura */
+.hwe-type-desc { margin: 2px 0 12px; font-style: italic; color: #50575e; }
+.hwe-type-desc:empty { display: none; }
+
+/* Barra de acciones */
+.hwe-slides-toolbar { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+.hwe-bulk { color: #a7aaad; font-size: 13px; }
+.hwe-bulk a { text-decoration: none; }
+.hwe-bulk-sep { margin: 0 2px; }
+
+/* Flujo en dos pasos: elección de tipo y tipo bloqueado */
+.hwe-placement-option { margin: 8px 0; }
+.hwe-placement-desc { display: block; margin: 2px 0 0 24px; }
+.hwe-step-note { margin-top: 14px; font-weight: 600; color: #1d2327; }
+.hwe-placement-lock {
+	display: inline-block; font-weight: 600; background: #f0f0f1;
+	border: 1px solid #dcdcde; border-radius: 10px; padding: 1px 10px; margin-left: 4px;
+}
+.hwe-max-note { font-size: 12px; font-weight: 400; color: #787c82; margin-left: 6px; }
+#hwe-add-slide:disabled { cursor: not-allowed; }
+
+/* Guía de medidas sugeridas (admin WP — sin acento lateral tipo “side tab”). */
+.hwe-size-guide {
+	margin: 16px 0;
+	padding: 12px 14px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+.hwe-size-guide__title { margin: 0 0 6px; }
+.hwe-size-guide__summary { margin: 4px 0; color: #50575e; }
+.hwe-size-guide__table { margin-top: 10px; }
+.hwe-size-guide__table code { font-size: 12px; }

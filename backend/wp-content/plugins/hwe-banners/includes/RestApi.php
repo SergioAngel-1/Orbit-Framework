@@ -3,12 +3,9 @@
 namespace HWE\Banners;
 
 /**
- * API REST pública del plugin.
- *   GET /wp-json/hwe-banners/v1/banners            → todos los placements
- *   GET /wp-json/hwe-banners/v1/banners/<placement> → un placement
- *
- * Solo expone datos públicos de banners publicados. Cacheable (el frontend usa
- * ISR con tag "banners" e invalida vía webhook al guardar/borrar).
+ * API REST pública.
+ *   GET /wp-json/hwe-banners/v1/banners?location=&lang=
+ *   GET /wp-json/hwe-banners/v1/banners/<type>?location=&lang=
  */
 class RestApi {
 
@@ -23,16 +20,20 @@ class RestApi {
 			'methods'             => 'GET',
 			'callback'            => [ self::class, 'getAll' ],
 			'permission_callback' => '__return_true',
-			'args'                => [ 'lang' => [ 'type' => 'string', 'required' => false ] ],
+			'args'                => [
+				'lang'     => [ 'type' => 'string', 'required' => false ],
+				'location' => [ 'type' => 'string', 'required' => false ],
+			],
 		] );
 
-		register_rest_route( self::NAMESPACE, '/banners/(?P<placement>[a-z0-9_-]+)', [
+		register_rest_route( self::NAMESPACE, '/banners/(?P<type>[a-z0-9_-]+)', [
 			'methods'             => 'GET',
 			'callback'            => [ self::class, 'getOne' ],
 			'permission_callback' => '__return_true',
 			'args'                => [
-				'placement' => [ 'type' => 'string', 'required' => true ],
-				'lang'      => [ 'type' => 'string', 'required' => false ],
+				'type'     => [ 'type' => 'string', 'required' => true ],
+				'lang'     => [ 'type' => 'string', 'required' => false ],
+				'location' => [ 'type' => 'string', 'required' => false ],
 			],
 		] );
 	}
@@ -42,15 +43,42 @@ class RestApi {
 		return $lang !== '' ? $lang : Plugin::defaultLocale();
 	}
 
+	private static function location( \WP_REST_Request $request ): string {
+		$loc = sanitize_key( (string) ( $request->get_param( 'location' ) ?: Locations::defaultSlug() ) );
+		if ( ! Locations::isValid( $loc ) ) {
+			return Locations::defaultSlug();
+		}
+		return $loc;
+	}
+
 	public static function getAll( \WP_REST_Request $request ): \WP_REST_Response {
-		return new \WP_REST_Response( Serializer::all( self::lang( $request ) ), 200 );
+		return new \WP_REST_Response(
+			Serializer::forLocation( self::location( $request ), self::lang( $request ) ),
+			200
+		);
 	}
 
 	public static function getOne( \WP_REST_Request $request ): \WP_REST_Response {
-		$placement = sanitize_key( (string) $request->get_param( 'placement' ) );
-		if ( ! Placements::isValid( $placement ) ) {
+		$type = sanitize_key( (string) $request->get_param( 'type' ) );
+		// Un `type` que no existe en absoluto es un error del cliente (típico:
+		// typo en el parámetro) y antes devolvía 200 con slides vacíos igual
+		// que el caso de "tipo válido pero no permitido en esta location" —
+		// ocultando el typo en vez de que el consumidor lo detecte.
+		if ( ! BannerTypes::isValid( $type ) ) {
+			return new \WP_REST_Response(
+				[ 'code' => 'invalid_banner_type', 'message' => 'Tipo de banner no válido.' ],
+				404
+			);
+		}
+		$loc = self::location( $request );
+		if ( ! BannerTypes::isLocationAllowed( $type, $loc ) ) {
+			// Esto SÍ es un caso normal (mismo criterio que Serializer::forLocation()):
+			// un tipo válido simplemente no se muestra en esta location.
 			return new \WP_REST_Response( [ 'intervalMs' => 6000, 'slides' => [] ], 200 );
 		}
-		return new \WP_REST_Response( Serializer::placement( $placement, self::lang( $request ) ), 200 );
+		return new \WP_REST_Response(
+			Serializer::cell( $type, $loc, self::lang( $request ) ),
+			200
+		);
 	}
 }

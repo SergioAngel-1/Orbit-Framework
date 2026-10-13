@@ -39,7 +39,7 @@ test("una vista filtrada va noindex y sin canónica", async ({ page }) => {
   );
   await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
   await expect(
-    page.getByText("Ninguna entrada coincide con ese filtro."),
+    page.locator("#main-content").getByText("Ninguna entrada coincide con ese filtro."),
   ).toBeVisible();
 });
 
