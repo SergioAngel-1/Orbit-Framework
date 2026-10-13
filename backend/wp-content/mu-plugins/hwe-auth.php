@@ -160,7 +160,7 @@ class HWE_Auth_Endpoints {
             'callback'            => [self::class, 'handleUpdate2faSecret'],
             'permission_callback' => function () { return is_user_logged_in(); },
             'args'                => [
-                'secret'        => ['required' => false, 'type' => 'string'],
+                'secret'        => ['required' => false, 'type' => ['string', 'null']],
                 'code'          => ['required' => false, 'type' => 'string'],
                 'recovery_code' => ['required' => false, 'type' => 'string'],
             ],
