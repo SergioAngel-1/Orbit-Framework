@@ -3,12 +3,17 @@ export interface SiteConfig {
   brand: {
     name: string;
     tagline: string;
+    /** Solo si el sitio sirve /en. Vacío = se hereda el tagline. */
+    tagline_en: string;
     description: string;
+    /** Solo si el sitio sirve /en. Vacío = se hereda la descripción. */
+    description_en: string;
     url: string;
     /** URL del logo de cabecera. Vacío = mostrar el nombre del sitio como texto. */
     logo: string;
+    /** Variante del logo para correos. Vacío = usa el logo de cabecera. */
+    email_logo: string;
     locale: string;
-    og_image: string;
   };
   social: {
     twitter: string;
@@ -16,6 +21,8 @@ export interface SiteConfig {
     facebook: string;
     linkedin: string;
     youtube: string;
+    /** Número(s) internacional(es). El botón flotante usa el primero. */
+    whatsapp: string;
     wikipedia: string;
     wikidata: string;
   };
@@ -23,7 +30,15 @@ export interface SiteConfig {
     company: string;
     nif: string;
     email: string;
+    phone: string;
+    mobile: string;
     address: string;
+    locations: {
+      location_1: SiteConfigLocation;
+      location_2: SiteConfigLocation;
+      location_3: SiteConfigLocation;
+      location_4: SiteConfigLocation;
+    };
   };
   design: {
     colors: {
@@ -52,27 +67,58 @@ export interface SiteConfig {
     wishlist_enabled: boolean;
     coupons_enabled: boolean;
     search_enabled: boolean;
+    /** `true` = solo clientes con cuenta pueden comprar. */
+    checkout_login_required: boolean;
+    free_shipping: {
+      enabled: boolean;
+      /** En la moneda de la tienda, sin decimales. */
+      min_amount: string;
+      /** Slugs `slug-1 | slug-2`. Vacío = aplica a todo el catálogo. */
+      categories: string;
+      products: string;
+    };
   };
   banners: {
     /** Activa el renderizado de banners en el frontend. La autoría vive en el plugin HWE Banners. */
     enabled: boolean;
   };
+  /** Medios de pago que ofrece el checkout (lo secreto va por el canal interno). */
+  payments: {
+    gateway_enabled: boolean;
+    whatsapp_enabled: boolean;
+    cash_enabled: boolean;
+  };
   integrations: {
     analytics_provider: string;
     analytics_id: string;
+    gtm_id: string;
+    meta_pixel_id: string;
+    tiktok_pixel_id: string;
+    hubspot_portal_id: string;
   };
   seo: {
     title_template: string;
     robots: string;
     google_site_verification: string;
-    /** 'auto' = OG/iconos generados desde la marca · 'custom' = usar brand.og_image. */
+    /** 'auto' = OG/iconos generados desde la marca · 'custom' = usar seo.og_image. */
     default_og: string;
+    /** URL de OG cuando default_og es 'custom'. */
+    og_image: string;
     /** Datos estructurados de producto (todos opcionales; vacío = no emitir). */
     product_brand: string;
     shipping_amount: string;
     return_days: string;
     /** 'finite' | 'unlimited' | 'none' */
     return_category: string;
+    /** '' = no declarar · 'mail' | 'in_store' | 'mail_and_store' */
+    return_method: string;
+    /** '' = no declarar · 'free' | 'customer_pays' */
+    return_fees: string;
+    /** «mín-máx» o número. Vacío = no declarar. */
+    handling_days: string;
+    transit_days: string;
+    /** Otros nombres de la marca, uno por línea o con comas. */
+    alternate_names: string;
     /** Logo para el schema Organization. Vacío = icono dinámico de marca. */
     organization_logo: string;
     /** Fecha de fundación ISO 8601 (Organization.foundingDate). */
@@ -90,6 +136,12 @@ export interface SiteConfig {
     llms_txt_enabled: boolean;
     /** Líneas "pregunta | respuesta". */
     faq: string;
+    /** Solo /en. Vacío = /en muestra las preguntas en español (por bloque). */
+    faq_en: string;
+    /** Preguntas sobre pagos. Vacío = una sola columna. */
+    faq_payments: string;
+    /** Solo /en, por bloque. */
+    faq_payments_en: string;
     /** Emitir directiva Content-Signal en robots.txt. */
     content_signal: boolean;
   };
@@ -121,3 +173,17 @@ export type ModuleId =
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface InstanceConfig {}
+
+/** Una sede del grupo `legal.locations`, tal como llega de la config pública. */
+export interface SiteConfigLocation {
+  label: string;
+  address: string;
+  city: string;
+  region: string;
+  postal_code: string;
+  maps: string;
+  phone: string;
+  hours: string;
+  latitude: string;
+  longitude: string;
+}

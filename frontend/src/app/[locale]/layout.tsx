@@ -51,8 +51,8 @@ export async function generateMetadata({
 
   // Imagen OG: dinámica desde la marca (/api/og) o URL personalizada del panel.
   const ogImage =
-    config.seo.default_og === "custom" && config.brand.og_image
-      ? config.brand.og_image
+    config.seo.default_og === "custom" && config.seo.og_image
+      ? config.seo.og_image
       : "/api/og";
 
   return {

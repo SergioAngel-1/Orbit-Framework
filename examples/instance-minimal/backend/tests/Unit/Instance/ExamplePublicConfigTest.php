@@ -46,6 +46,8 @@ final class ExamplePublicConfigTest extends TestCase
             'sanitize_text_field' => static fn ($v) => is_string($v) ? trim(strip_tags($v)) : '',
             'esc_attr' => static fn ($v) => (string) $v,
         ]);
+        // El esquema resuelve opciones contra Woo: sin WP, vacías.
+        Functions\when('get_option')->alias(static fn (string $key, mixed $default = false): mixed => $default);
         Functions\when('error_log')->alias(function (string $message): bool {
             $this->logged[] = $message;
             return true;

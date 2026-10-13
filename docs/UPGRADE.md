@@ -264,6 +264,17 @@ git fetch framework --tags
   incompleto: si falta alguna pestaña de nivel superior con contenido, no guarda nada y avisa
   (antes la completaba con vacíos y la persistía). Un secreto guardado se muestra como
   «guardado» sin revelar su valor.
+- **Campos reorganizados (revisa tu `instance.config.json`):** `brand.og_image` se mueve a
+  `seo.og_image`; `social` (linkedin/wikipedia/wikidata) pasa de URLs a usuarios/slugs; las
+  credenciales de Wompi se reorganizan por pasarela (`integrity_secret`, `events_secret`) y
+  llega el grupo `avalpay`; `logo` y `organization_logo` usan el selector de medioteca;
+  `currency` es un desplegable con el catálogo de WooCommerce; `retain_days` es numérico.
+  Llegan `tagline_en`/`description_en`, `social.whatsapp`, `legal.phone`/`mobile`/`locations`,
+  `ecommerce.checkout_login_required`/`free_shipping`, medios de pago (`gateway_enabled`,
+  `whatsapp_enabled`, `cash_enabled`), integraciones de medición (GTM, Meta + CAPI, TikTok,
+  HubSpot), campos de schema SEO/GEO (devoluciones, envío, FAQ por bloques) y opciones de
+  backup (`keep_only_latest`, `exclude_thumbnails`, `include_config_export`). En el frontend,
+  `SiteConfig` gana `payments`, `modules` e `instance` (ver `lib/config/types.ts`).
 
 ### Operación (F1)
 

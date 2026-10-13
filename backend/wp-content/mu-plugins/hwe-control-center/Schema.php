@@ -139,11 +139,25 @@ class Schema {
                         'default' => 'Headless WooCommerce Template',
                         'public'  => true,
                     ],
+                    'tagline_en'  => [
+                        'type'        => 'text',
+                        'label'       => 'Tagline (inglés)',
+                        'default'     => '',
+                        'public'      => true,
+                        'description' => 'Solo si el sitio sirve /en. Vacío = se hereda el tagline de arriba.',
+                    ],
                     'description' => [
                         'type'    => 'textarea',
                         'label'   => 'Descripción breve',
                         'default' => 'Tienda headless construida con Next.js y WooCommerce.',
                         'public'  => true,
+                    ],
+                    'description_en' => [
+                        'type'        => 'textarea',
+                        'label'       => 'Descripción breve (inglés)',
+                        'default'     => '',
+                        'public'      => true,
+                        'description' => 'Solo si el sitio sirve /en. Vacío = se hereda la descripción de arriba.',
                     ],
                     'url'         => [
                         'type'   => 'url',
@@ -151,10 +165,18 @@ class Schema {
                         'public' => true,
                     ],
                     'logo'        => [
-                        'type'        => 'url',
-                        'label'       => 'Logo (URL)',
+                        'type'        => 'image',
+                        'label'       => 'Logo',
+                        'default'     => '',
                         'public'      => true,
-                        'description' => 'URL del logo de cabecera (súbelo a la medioteca y pega aquí su URL). Vacío = se muestra el nombre del sitio como texto.',
+                        'description' => 'Logo de cabecera. Usa el selector de la medioteca. Vacío = se muestra el nombre del sitio como texto.',
+                    ],
+                    'email_logo'  => [
+                        'type'        => 'image',
+                        'label'       => 'Logo para correos (opcional)',
+                        'default'     => '',
+                        'public'      => true,
+                        'description' => 'Variante del logo para el encabezado de los correos transaccionales. Vacío = usa el logo de cabecera.',
                     ],
                     'locale'      => [
                         'type'    => 'select',
@@ -162,12 +184,6 @@ class Schema {
                         'default' => 'es',
                         'public'  => true,
                         'options' => ['es' => 'Español', 'en' => 'English'],
-                    ],
-                    'og_image'    => [
-                        'type'        => 'url',
-                        'label'       => 'OG Image por defecto',
-                        'public'      => true,
-                        'description' => 'URL de la imagen usada en Open Graph / Twitter cuando no hay imagen específica.',
                     ],
                 ],
             ],
@@ -179,13 +195,54 @@ class Schema {
                 'type'     => 'group',
                 'label'    => 'Redes sociales',
                 'children' => [
-                    'twitter'   => ['type' => 'text', 'label' => 'Twitter / X (@handle)',  'public' => true],
-                    'instagram' => ['type' => 'text', 'label' => 'Instagram (@handle)',     'public' => true],
-                    'facebook'  => ['type' => 'text', 'label' => 'Facebook (slug o URL)',   'public' => true],
-                    'linkedin'  => ['type' => 'url',  'label' => 'LinkedIn (URL completa)', 'public' => true],
-                    'youtube'   => ['type' => 'text', 'label' => 'YouTube (@handle o URL)',  'public' => true],
-                    'wikipedia' => ['type' => 'url',  'label' => 'Wikipedia (URL del artículo)', 'public' => true, 'description' => 'Refuerza el reconocimiento de entidad (sameAs) por buscadores e IA.'],
-                    'wikidata'  => ['type' => 'url',  'label' => 'Wikidata (URL del ítem Q…)',   'public' => true, 'description' => 'Identificador de entidad legible por máquinas (sameAs).'],
+                    'twitter'   => [
+                        'type'        => 'text',
+                        'label'       => 'Twitter / X',
+                        'public'      => true,
+                        'description' => 'Solo usuario(s), sin URL. Varias cuentas: sepáralas con « | ». El frontend arma https://twitter.com/{usuario}.',
+                    ],
+                    'instagram' => [
+                        'type'        => 'text',
+                        'label'       => 'Instagram',
+                        'public'      => true,
+                        'description' => 'Solo usuario(s), sin URL. Varias cuentas: sepáralas con « | ». El frontend arma https://instagram.com/{usuario}.',
+                    ],
+                    'facebook'  => [
+                        'type'        => 'text',
+                        'label'       => 'Facebook',
+                        'public'      => true,
+                        'description' => 'Solo slug(s) de página, sin URL. Varios: sepáralos con « | ». El frontend arma https://facebook.com/{slug}.',
+                    ],
+                    'linkedin'  => [
+                        'type'        => 'text',
+                        'label'       => 'LinkedIn (empresa)',
+                        'public'      => true,
+                        'description' => 'Solo slug(s) de empresa, sin URL. El frontend arma https://www.linkedin.com/company/{slug}.',
+                    ],
+                    'youtube'   => [
+                        'type'        => 'text',
+                        'label'       => 'YouTube',
+                        'public'      => true,
+                        'description' => 'Solo usuario(s) de canal (@handle), sin URL. Varios canales: sepáralos con « | ». El frontend arma https://youtube.com/@{usuario}.',
+                    ],
+                    'whatsapp'  => [
+                        'type'        => 'text',
+                        'label'       => 'WhatsApp',
+                        'public'      => true,
+                        'description' => 'Solo número(s) internacional(es), sin URL. Varios: sepáralos con « | » (el botón flotante usa el primero; el resto va a sameAs). Vacío = sin botón flotante.',
+                    ],
+                    'wikipedia' => [
+                        'type'        => 'text',
+                        'label'       => 'Wikipedia',
+                        'public'      => true,
+                        'description' => 'Solo título(s) de artículo (es), sin URL. Refuerza el reconocimiento de entidad (sameAs) por buscadores e IA.',
+                    ],
+                    'wikidata'  => [
+                        'type'        => 'text',
+                        'label'       => 'Wikidata',
+                        'public'      => true,
+                        'description' => 'Solo id(s) Q…, sin URL. Identificador de entidad legible por máquinas (sameAs).',
+                    ],
                 ],
             ],
 
@@ -199,7 +256,35 @@ class Schema {
                     'company' => ['type' => 'text',  'label' => 'Razón social',       'default' => 'Headless Web Ecosystem Inc.', 'public' => true],
                     'nif'     => ['type' => 'text',  'label' => 'NIF / RUT / NIT',    'public' => true],
                     'email'   => ['type' => 'email', 'label' => 'Email de contacto',  'default' => 'hello@headlesswp.com',       'public' => true],
-                    'address' => ['type' => 'text',  'label' => 'Dirección legal',    'public' => true],
+                    'phone'   => [
+                        'type'        => 'text',
+                        'label'       => 'Teléfono fijo',
+                        'public'      => true,
+                        'description' => 'Texto visible en footer/contacto. Si no hay fijo, se usa el celular.',
+                    ],
+                    'mobile'  => [
+                        'type'        => 'text',
+                        'label'       => 'Celular',
+                        'public'      => true,
+                        'description' => 'Texto visible en footer/contacto. Distinto del WhatsApp de Redes (ese alimenta el botón flotante).',
+                    ],
+                    'address' => [
+                        'type'        => 'text',
+                        'label'       => 'Dirección legal (HQ)',
+                        'public'      => true,
+                        'description' => 'Dirección fiscal / sede principal. Los puntos de venta van en Sedes abajo.',
+                    ],
+                    ...self::addressPartFields('de la dirección legal'),
+                    'locations' => [
+                        'type'     => 'group',
+                        'label'    => 'Sedes',
+                        'children' => [
+                            'location_1' => self::locationFields('Sede 1'),
+                            'location_2' => self::locationFields('Sede 2'),
+                            'location_3' => self::locationFields('Sede 3'),
+                            'location_4' => self::locationFields('Sede 4'),
+                        ],
+                    ],
                 ],
             ],
 
@@ -324,13 +409,60 @@ class Schema {
                 'type'     => 'group',
                 'label'    => 'Tienda',
                 'children' => [
-                    'currency'          => ['type' => 'text',    'label' => 'Moneda (ISO-4217)',     'default' => 'EUR',  'public' => true],
+                    'currency'          => [
+                        'type'        => 'select',
+                        'label'       => 'Moneda',
+                        'default'     => 'EUR',
+                        'public'      => true,
+                        'options'     => self::currencyOptions(),
+                        'description' => 'Moneda de la tienda (ISO-4217). Al guardar se sincroniza con la moneda nativa de WooCommerce (Ajustes → General).',
+                    ],
                     'country'           => ['type' => 'text',    'label' => 'País por defecto',      'default' => 'ES',   'public' => true],
                     'products_per_page' => ['type' => 'text',    'label' => 'Productos por página',  'default' => '12',   'public' => true],
                     'reviews_enabled'   => ['type' => 'boolean', 'label' => 'Habilitar reseñas',    'default' => false,  'public' => true],
                     'wishlist_enabled'  => ['type' => 'boolean', 'label' => 'Habilitar wishlist',   'default' => false,  'public' => true],
                     'coupons_enabled'   => ['type' => 'boolean', 'label' => 'Habilitar cupones',    'default' => false,  'public' => true],
                     'search_enabled'    => ['type' => 'boolean', 'label' => 'Habilitar búsqueda',   'default' => true,   'public' => true],
+                    'checkout_login_required' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Exigir inicio de sesión para comprar',
+                        'default'     => true,
+                        'public'      => true,
+                        'description' => 'Activado = solo los clientes con cuenta pueden hacer un pedido. Desactivado = también se puede comprar como invitado. Al guardar se sincroniza con el ajuste nativo de WooCommerce «Permitir a los clientes realizar pedidos sin una cuenta».',
+                    ],
+                    'free_shipping' => [
+                        'type'     => 'group',
+                        'label'    => 'Envío gratis',
+                        'children' => [
+                            'enabled'    => [
+                                'type'        => 'boolean',
+                                'label'       => 'Activar envío gratis',
+                                'default'     => false,
+                                'description' => 'El envío del pedido sale gratis cuando la compra llega al valor mínimo con productos de los que aplican. Requiere el módulo `shipping` (ver `hwe_shipping_free_rule`).',
+                            ],
+                            'min_amount' => [
+                                'type'        => 'number',
+                                'label'       => 'Valor mínimo de compra',
+                                'default'     => '0',
+                                'min'         => 0,
+                                'description' => 'En la moneda de la tienda, sin puntos ni decimales. 0 = sin mínimo.',
+                            ],
+                            'categories' => [
+                                'type'        => 'product_multiselect',
+                                'label'       => 'Categorías a las que aplica',
+                                'default'     => '',
+                                'options'     => FreeShippingRule::categoryOptions(),
+                                'description' => 'Sin ninguna categoría ni producto marcado, aplica a todo el catálogo.',
+                            ],
+                            'products'   => [
+                                'type'        => 'product_multiselect',
+                                'label'       => 'Productos a los que aplica',
+                                'default'     => '',
+                                'options'     => FreeShippingRule::productOptions(),
+                                'description' => 'Productos sueltos que también suman, además de los de las categorías de arriba.',
+                            ],
+                        ],
+                    ],
                 ],
             ],
 
@@ -365,22 +497,56 @@ class Schema {
                         'default'     => 'noop',
                         'public'      => false,
                         'options'     => [
-                            'noop'  => 'Sandbox (noop) — sin cobro real',
-                            'wompi' => 'Wompi (Colombia)',
-                            'payu'  => 'PayU (LATAM)',
-                            'bold'  => 'Bold (Colombia)',
+                            'noop'    => 'Sandbox (noop) — sin cobro real',
+                            'avalpay' => 'Aval Pay (Colombia)',
+                            'wompi'   => 'Wompi (Colombia)',
+                            'payu'    => 'PayU (LATAM)',
+                            'bold'    => 'Bold (Colombia)',
                         ],
-                        'description' => 'El valor se aplica como variable de entorno PAYMENT_PROVIDER en el frontend.',
+                        'description' => 'La pasarela con la que se cobra el «Pago en línea». Si un campo de credenciales está vacío, el frontend usa su variable de entorno equivalente; la variable PAYMENT_PROVIDER del entorno, si existe, anula esta elección (solo desarrollo o emergencias).',
+                    ],
+
+                    'gateway_enabled' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Activar pago en línea',
+                        'default'     => true,
+                        'public'      => true,
+                        'description' => 'Ofrece «Pago en línea» en el checkout con la pasarela activa.',
+                    ],
+
+                    'whatsapp_enabled' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Activar link de pago por WhatsApp',
+                        'default'     => false,
+                        'public'      => true,
+                        'description' => 'Ofrece «Link de pago por WhatsApp» en el checkout, independiente de la pasarela. Sin cobro en línea: el pedido queda «En espera» y la pantalla de gracias abre WhatsApp (número de Redes → WhatsApp) con el pedido ya escrito.',
+                    ],
+
+                    'cash_enabled' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Activar pago en efectivo',
+                        'default'     => false,
+                        'public'      => true,
+                        'description' => 'Ofrece «Efectivo» en el checkout: el cliente paga al recibir el pedido. Usa la pasarela nativa de WooCommerce «Contra reembolso», que se activa o desactiva al guardar aquí.',
+                    ],
+
+                    'avalpay' => [
+                        'type'     => 'group',
+                        'label'    => 'Aval Pay',
+                        'children' => [
+                            'login'      => ['type' => 'text',   'label' => 'Login (Identificador)',         'public' => false, 'description' => 'Campo "Identificador" de la consola de Aval Pay.'],
+                            'secret_key' => ['type' => 'secret', 'label' => 'Secret Key (Llave transaccional)', 'public' => false, 'description' => 'Se almacena cifrada (AES-256-GCM). Déjalo en blanco al guardar para conservar el valor actual.'],
+                            'base_url'   => ['type' => 'text',   'label' => 'URL base de la API',            'public' => false, 'description' => 'Producción: https://checkout.avalpaycenter.com — Pruebas: https://checkout.test.avalpaycenter.com. Las credenciales son distintas en cada entorno.'],
+                        ],
                     ],
 
                     'wompi' => [
                         'type'     => 'group',
                         'label'    => 'Wompi',
                         'children' => [
-                            'public_key'     => ['type' => 'text',    'label' => 'Clave pública',      'public' => true],
-                            'secret_key'     => ['type' => 'secret',  'label' => 'Clave privada',      'public' => false],
-                            'webhook_secret' => ['type' => 'secret',  'label' => 'Secreto de webhook', 'public' => false],
-                            'sandbox'        => ['type' => 'boolean', 'label' => 'Modo sandbox',       'default' => true, 'public' => false],
+                            'public_key'       => ['type' => 'text',   'label' => 'Llave pública',       'public' => false, 'description' => 'Empieza por pub_test_ (sandbox) o pub_prod_ (producción); el prefijo decide el entorno.'],
+                            'integrity_secret' => ['type' => 'secret', 'label' => 'Secreto de integridad', 'public' => false, 'description' => 'Firma la redirección al checkout. Se almacena cifrado; déjalo en blanco al guardar para conservar el valor actual.'],
+                            'events_secret'    => ['type' => 'secret', 'label' => 'Secreto de eventos',    'public' => false, 'description' => 'Verifica cada notificación en el webhook. Se almacena cifrado; déjalo en blanco al guardar para conservar el valor actual.'],
                         ],
                     ],
 
@@ -425,6 +591,54 @@ class Schema {
                         'options' => ['none' => 'Ninguno', 'ga4' => 'Google Analytics 4', 'plausible' => 'Plausible'],
                     ],
                     'analytics_id'  => ['type' => 'text',   'label' => 'ID de analítica (G-XXXXXXXX)', 'public' => true],
+                    'gtm_id'        => [
+                        'type'        => 'text',
+                        'label'       => 'Google Tag Manager (GTM-XXXXXXX)',
+                        'public'      => true,
+                        'description' => 'Si lo activas, el contenedor de GTM gestiona el disparo de etiquetas (incluida GA4).',
+                    ],
+                    'meta_pixel_id' => [
+                        'type'        => 'text',
+                        'label'       => 'Meta Pixel ID',
+                        'public'      => true,
+                        'description' => 'ID numérico del píxel (Meta Events Manager). Vacío = desactivado.',
+                    ],
+                    // Los dos siguientes los lee solo el BFF, por el canal interno
+                    // (`IntegrationsInternalApi`): nunca van a la config pública.
+                    'meta_capi_token' => [
+                        'type'        => 'secret',
+                        'label'       => 'Meta Conversions API — token de acceso',
+                        'public'      => false,
+                        'description' => 'Con él, el servidor envía la compra cuando la pasarela confirma el pago, con el mismo event_id que el píxel del navegador. Vacío = sin envío desde el servidor. Se almacena cifrado; déjalo en blanco al guardar para conservar el valor actual.',
+                    ],
+                    'meta_capi_test_event_code' => [
+                        'type'        => 'text',
+                        'label'       => 'Meta Conversions API — código de prueba',
+                        'public'      => false,
+                        'description' => 'Solo mientras se prueba (empieza por TEST). BÓRRALO al terminar las pruebas.',
+                    ],
+                    'tiktok_pixel_id' => [
+                        'type'        => 'text',
+                        'label'       => 'TikTok Pixel ID',
+                        'public'      => true,
+                        'description' => 'Vacío = desactivado.',
+                    ],
+                    'hubspot_portal_id' => [
+                        'type'        => 'text',
+                        'label'       => 'HubSpot — ID del portal (Hub ID)',
+                        'public'      => true,
+                        'description' => 'Solo el número. El frontend carga el script de seguimiento en todas las páginas, solo con el consentimiento del sitio. Vacío = desactivado.',
+                    ],
+                    // Lo lee el módulo de registro de consentimientos (purga); no lo necesita el frontend.
+                    'consent_retention_years' => [
+                        'type'        => 'number',
+                        'label'       => 'Conservar el registro de consentimientos (años)',
+                        'default'     => '5',
+                        'min'         => 0,
+                        'max'         => 20,
+                        'public'      => false,
+                        'description' => 'Años que se conserva la prueba de cada decisión del banner de cookies. 0 = no borrar nunca. Confírmalo con el asesor legal.',
+                    ],
                     'smtp_enabled'    => ['type' => 'boolean', 'label' => 'Activar envío por SMTP', 'default' => false, 'public' => false, 'description' => 'Enruta TODO el correo (pedidos, reset de contraseña, verificación) por el SMTP de abajo. Desactivado = envío PHP por defecto (poco fiable en producción).'],
                     'smtp_host'       => ['type' => 'text',    'label' => 'SMTP Host',                'public' => false, 'description' => 'P. ej. email-smtp.eu-west-1.amazonaws.com, smtp.postmarkapp.com, smtp.resend.com.'],
                     'smtp_port'       => ['type' => 'text',    'label' => 'SMTP Puerto',              'default' => '587', 'public' => false],
@@ -475,17 +689,40 @@ class Schema {
                         'description' => 'Reinicia el contenedor `backup` tras cambiar la hora para que el cron se actualice.',
                     ],
                     'retain_days' => [
-                        'type'        => 'text',
+                        'type'        => 'number',
                         'label'       => 'Días de retención local',
                         'default'     => '14',
+                        'min'         => 1,
+                        'max'         => 365,
                         'public'      => false,
-                        'description' => 'Backups más antiguos se eliminan automáticamente. Para retención larga, sincroniza a S3/R2.',
+                        'description' => 'Tras cada backup correcto se borran los que tienen más de estos días. Si un backup falla no se borra nada. Para retención larga, sincroniza a S3/R2. No aplica si «Eliminar backup anterior» está activo.',
+                    ],
+                    'keep_only_latest' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Eliminar backup anterior (conservar solo el último)',
+                        'default'     => false,
+                        'public'      => false,
+                        'description' => 'Tras cada backup correcto se borran los anteriores y queda solo el más reciente de cada tipo. Anula los días de retención.',
                     ],
                     'include_uploads' => [
                         'type'    => 'boolean',
                         'label'   => 'Incluir archivos multimedia (wp-content/uploads)',
                         'default' => true,
                         'public'  => false,
+                    ],
+                    'exclude_thumbnails' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Excluir miniaturas regenerables de multimedia',
+                        'default'     => false,
+                        'public'      => false,
+                        'description' => 'Omite los tamaños que WordPress genera de cada imagen; los originales se guardan siempre. Tras restaurar hay que regenerarlos (wp media regenerate).',
+                    ],
+                    'include_config_export' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Incluir configuración del panel (JSON)',
+                        'default'     => true,
+                        'public'      => false,
+                        'description' => 'Guarda un export aparte de la configuración de HWE Control Center en cada backup, además de quedar ya incluida en el dump de la base de datos.',
                     ],
                     'notify_email' => [
                         'type'        => 'email',
@@ -533,9 +770,15 @@ class Schema {
                         'public'      => true,
                         'options'     => [
                             'auto'   => 'Generar dinámicamente desde la marca (recomendado)',
-                            'custom' => 'Usar la URL de "OG Image por defecto" (Identidad de marca)',
+                            'custom' => 'Usar la imagen «OG Image» (campo siguiente)',
                         ],
-                        'description' => 'En modo automático la plantilla genera la tarjeta social y los iconos a partir del nombre y los colores de marca (sin archivos estáticos). En modo personalizado usa la URL definida en Identidad de marca → OG Image.',
+                        'description' => 'En modo automático la plantilla genera la tarjeta social y los iconos a partir del nombre y los colores de marca (sin archivos estáticos). En modo personalizado usa la imagen del campo siguiente.',
+                    ],
+                    'og_image'                  => [
+                        'type'        => 'image',
+                        'label'       => 'OG Image',
+                        'public'      => true,
+                        'description' => 'Imagen usada en Open Graph / Twitter cuando el modo anterior es «personalizado». Selecciónala desde la medioteca.',
                     ],
 
                     /* Datos estructurados de producto (Merchant Listing / Rich Results).
@@ -568,13 +811,50 @@ class Schema {
                             'unlimited' => 'Ilimitada',
                             'none'      => 'No se permiten devoluciones',
                         ],
-                        'description' => 'Solo se aplica si se ha indicado un nº de días de devolución.',
+                        'description' => 'Se emite en el JSON-LD Product. «Ventana finita» requiere indicar los días arriba; «ilimitada» y «no se permiten» no.',
+                    ],
+                    'return_method'             => [
+                        'type'        => 'select',
+                        'label'       => 'Cómo se devuelve un producto (schema)',
+                        'default'     => '',
+                        'public'      => true,
+                        'options'     => [
+                            ''               => '— No declarar —',
+                            'mail'           => 'Por mensajería',
+                            'in_store'       => 'En tienda física',
+                            'mail_and_store' => 'Por mensajería o en tienda física',
+                        ],
+                        'description' => 'MerchantReturnPolicy.returnMethod. Debe coincidir con los términos de venta publicados.',
+                    ],
+                    'return_fees'               => [
+                        'type'        => 'select',
+                        'label'       => 'Quién paga la devolución (schema)',
+                        'default'     => '',
+                        'public'      => true,
+                        'options'     => [
+                            ''              => '— No declarar —',
+                            'free'          => 'Gratis para el cliente',
+                            'customer_pays' => 'El cliente paga el envío de la devolución',
+                        ],
+                        'description' => 'MerchantReturnPolicy.returnFees. Vacío = no se declara.',
+                    ],
+                    'handling_days'             => [
+                        'type'        => 'text',
+                        'label'       => 'Días de preparación del pedido (schema)',
+                        'public'      => true,
+                        'description' => 'Días hábiles desde el pago hasta que el pedido sale, como «mín-máx» (p. ej. «0-1») o un solo número. Vacío = no se declara.',
+                    ],
+                    'transit_days'              => [
+                        'type'        => 'text',
+                        'label'       => 'Días de tránsito del envío (schema)',
+                        'public'      => true,
+                        'description' => 'Días hábiles que tarda la transportadora, como «mín-máx» (p. ej. «1-5»). Vacío = no se declara.',
                     ],
                     'organization_logo'         => [
-                        'type'        => 'url',
+                        'type'        => 'image',
                         'label'       => 'Logo de la organización (JSON-LD)',
                         'public'      => true,
-                        'description' => 'URL del logo usado en el schema Organization (reconocimiento de entidad por buscadores/IA). Vacío = se usa el icono generado dinámicamente desde la marca.',
+                        'description' => 'Logo usado en el schema Organization (reconocimiento de entidad por buscadores/IA). Selecciónalo desde la medioteca. Vacío = se usa el icono generado dinámicamente desde la marca.',
                     ],
                     'founding_date'             => [
                         'type'        => 'text',
@@ -587,6 +867,12 @@ class Schema {
                         'label'       => 'Áreas de conocimiento (knowsAbout)',
                         'public'      => true,
                         'description' => 'Temas en los que la marca es experta, uno por línea o separados por comas. Señal fuerte de entidad para la IA.',
+                    ],
+                    'alternate_names'           => [
+                        'type'        => 'textarea',
+                        'label'       => 'Otros nombres de la marca',
+                        'public'      => true,
+                        'description' => 'Nombres anteriores o alternativos por los que se conoce a la marca, uno por línea o separados por comas. Se declaran en el schema Organization (alternateName).',
                     ],
                     'founder_name'              => [
                         'type'        => 'text',
@@ -691,7 +977,28 @@ class Schema {
                         'type'        => 'textarea',
                         'label'       => 'Preguntas frecuentes (FAQ)',
                         'public'      => true,
-                        'description' => 'Una pregunta y respuesta por línea, separadas por "|". Se muestran en la home y se publican como JSON-LD FAQPage (muy citado por la IA). Ej.: ¿Hacéis envíos internacionales? | Sí, enviamos a toda Europa.',
+                        'description' => 'Una pregunta y respuesta por línea, separadas por "|". Se publican como JSON-LD FAQPage (muy citado por la IA).',
+                    ],
+                    'faq_en'           => [
+                        'type'        => 'textarea',
+                        'label'       => 'Preguntas frecuentes (inglés)',
+                        'default'     => '',
+                        'public'      => true,
+                        'description' => 'Solo si el sitio sirve /en. Mismo formato "pregunta | respuesta". Vacío = /en muestra las preguntas en español. La traducción es por BLOQUE, no por línea: si rellenas esto, debe traer TODAS las preguntas.',
+                    ],
+                    'faq_payments'     => [
+                        'type'        => 'textarea',
+                        'label'       => 'Preguntas frecuentes sobre pagos electrónicos',
+                        'default'     => '',
+                        'public'      => true,
+                        'description' => 'Mismo formato "pregunta | respuesta". Se muestran como segunda columna de la FAQ y entran en el mismo JSON-LD FAQPage. Vacío = una sola columna.',
+                    ],
+                    'faq_payments_en'  => [
+                        'type'        => 'textarea',
+                        'label'       => 'Preguntas frecuentes sobre pagos (inglés)',
+                        'default'     => '',
+                        'public'      => true,
+                        'description' => 'Solo si el sitio sirve /en. Vacío = /en muestra las preguntas de pagos en español. También es por bloque completo.',
                     ],
                 ],
             ],
@@ -708,6 +1015,112 @@ class Schema {
                 'children' => [],
             ],
 
+        ];
+    }
+
+    /**
+     * Opciones del select de moneda: todas las que reconoce WooCommerce
+     * (`get_woocommerce_currencies()`, el mismo catálogo que usa internamente
+     * para checkout/pedidos/pasarelas), para que el código elegido aquí sea
+     * siempre uno que WooCommerce también entienda al sincronizarlo
+     * (ver `WooCurrencySync`).
+     *
+     * @return array<string,string> código ISO-4217 => "CÓDIGO – Nombre"
+     */
+    private static function currencyOptions(): array {
+        if (!function_exists('get_woocommerce_currencies')) {
+            return ['EUR' => 'EUR'];
+        }
+
+        $options = [];
+        foreach (get_woocommerce_currencies() as $code => $name) {
+            $options[$code] = $code . ' – ' . $name;
+        }
+        ksort($options);
+
+        return $options;
+    }
+
+    /**
+     * Partes de una dirección para datos estructurados (addressLocality…).
+     *
+     * @return array<string,array>
+     */
+    private static function addressPartFields(string $of): array {
+        return [
+            'city'        => [
+                'type'        => 'text',
+                'label'       => 'Ciudad / municipio',
+                'public'      => true,
+                'description' => "Ciudad {$of} para los datos estructurados (addressLocality).",
+            ],
+            'region'      => [
+                'type'        => 'text',
+                'label'       => 'Departamento / región',
+                'public'      => true,
+                'description' => 'Para los datos estructurados (addressRegion).',
+            ],
+            'postal_code' => [
+                'type'        => 'text',
+                'label'       => 'Código postal',
+                'public'      => true,
+                'description' => 'Para los datos estructurados (postalCode).',
+            ],
+        ];
+    }
+
+    /**
+     * Campos de una sede (nombre + dirección + Maps + contacto + horario + coordenadas).
+     *
+     * @return array{type:string,label:string,children:array<string,array>}
+     */
+    private static function locationFields(string $label): array {
+        return [
+            'type'     => 'group',
+            'label'    => $label,
+            'children' => [
+                'label'   => [
+                    'type'   => 'text',
+                    'label'  => 'Nombre',
+                    'public' => true,
+                ],
+                'address' => [
+                    'type'   => 'text',
+                    'label'  => 'Dirección',
+                    'public' => true,
+                ],
+                ...self::addressPartFields('de la sede'),
+                'maps'    => [
+                    'type'        => 'url',
+                    'label'       => 'URL de Google Maps',
+                    'public'      => true,
+                    'description' => 'Enlace «Abrir en Maps». Vacío = la sede no se enlaza.',
+                ],
+                'phone'   => [
+                    'type'   => 'text',
+                    'label'  => 'Teléfono',
+                    'public' => true,
+                ],
+                'hours'   => [
+                    'type'        => 'textarea',
+                    'label'       => 'Horario de atención',
+                    'public'      => true,
+                    'description' => 'Una franja por línea, formato schema.org: '
+                        . '"Mo-Fr 08:00-18:00" (abreviaturas en inglés: Mo,Tu,We,Th,Fr,Sa,Su).',
+                ],
+                'latitude' => [
+                    'type'        => 'text',
+                    'label'       => 'Latitud',
+                    'public'      => true,
+                    'description' => 'Se ignora si no es un número válido entre -90 y 90.',
+                ],
+                'longitude' => [
+                    'type'        => 'text',
+                    'label'       => 'Longitud',
+                    'public'      => true,
+                    'description' => 'Se ignora si no es un número válido entre -180 y 180.',
+                ],
+            ],
         ];
     }
 }

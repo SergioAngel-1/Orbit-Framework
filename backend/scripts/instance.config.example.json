@@ -6,11 +6,13 @@
   "brand": {
     "name": "Mi Marca",
     "tagline": "Tagline corta de la marca",
+    "tagline_en": "",
     "description": "Descripción breve de la tienda (1-2 frases).",
+    "description_en": "",
     "url": "https://midominio.com",
     "logo": "",
-    "locale": "es",
-    "og_image": "https://midominio.com/og-default.jpg"
+    "email_logo": "",
+    "locale": "es"
   },
 
   "social": {
@@ -19,6 +21,7 @@
     "facebook": "",
     "linkedin": "",
     "youtube": "",
+    "whatsapp": "",
     "wikipedia": "",
     "wikidata": ""
   },
@@ -27,6 +30,8 @@
     "company": "Mi Empresa S.A.S.",
     "nif": "",
     "email": "hola@midominio.com",
+    "phone": "",
+    "mobile": "",
     "address": ""
   },
 
@@ -57,13 +62,35 @@
     "reviews_enabled": false,
     "wishlist_enabled": false,
     "coupons_enabled": false,
-    "search_enabled": true
+    "search_enabled": true,
+    "checkout_login_required": true,
+    "free_shipping": {
+      "enabled": false,
+      "min_amount": "0",
+      "categories": "",
+      "products": ""
+    }
   },
 
   "banners": {
-    "enabled": false,
-    "interval_ms": "6000",
-    "slides": ""
+    "enabled": false
+  },
+
+  "payments": {
+    "provider": "noop",
+    "gateway_enabled": true,
+    "whatsapp_enabled": false,
+    "cash_enabled": false
+  },
+
+  "integrations": {
+    "analytics_provider": "none",
+    "analytics_id": "",
+    "gtm_id": "",
+    "meta_pixel_id": "",
+    "tiktok_pixel_id": "",
+    "hubspot_portal_id": "",
+    "consent_retention_years": "5"
   },
 
   "seo": {
@@ -71,10 +98,16 @@
     "robots": "index,follow",
     "google_site_verification": "",
     "default_og": "auto",
+    "og_image": "",
     "product_brand": "",
     "shipping_amount": "",
     "return_days": "",
     "return_category": "finite",
+    "return_method": "",
+    "return_fees": "",
+    "handling_days": "",
+    "transit_days": "",
+    "alternate_names": "",
     "organization_logo": "",
     "founding_date": "",
     "knows_about": "",
@@ -95,7 +128,10 @@
     "ai_crawlers": "allow",
     "llms_txt_enabled": true,
     "content_signal": true,
-    "faq": ""
+    "faq": "",
+    "faq_en": "",
+    "faq_payments": "",
+    "faq_payments_en": ""
   },
 
   "backups": {
@@ -103,7 +139,10 @@
     "schedule": "daily",
     "hour_utc": "3",
     "retain_days": "14",
+    "keep_only_latest": false,
     "include_uploads": true,
+    "exclude_thumbnails": false,
+    "include_config_export": true,
     "notify_email": ""
   }
 }

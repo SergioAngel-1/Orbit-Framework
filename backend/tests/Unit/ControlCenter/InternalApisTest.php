@@ -106,14 +106,14 @@ final class InternalApisTest extends TestCase
                 'wompi' => ['public_key' => '  pk_test  '],
             ],
         ];
-        SecretsStorage::setAll(['payments' => ['wompi' => ['secret_key' => 'sk_test', 'webhook_secret' => 'wh_test']]]);
+        SecretsStorage::setAll(['payments' => ['wompi' => ['integrity_secret' => 'sk_test', 'events_secret' => 'wh_test']]]);
 
         $data = PaymentsInternalApi::handleGet()->get_data();
 
         $this->assertSame('wompi', $data['provider']);
         $this->assertSame('pk_test', $data['wompi']['public_key']);
-        $this->assertSame('sk_test', $data['wompi']['secret_key']);
-        $this->assertSame('wh_test', $data['wompi']['webhook_secret']);
+        $this->assertSame('sk_test', $data['wompi']['integrity_secret']);
+        $this->assertSame('wh_test', $data['wompi']['events_secret']);
         $this->assertSame('', $data['payu']['api_key'], 'Lo no configurado llega vacío.');
     }
 
@@ -122,9 +122,23 @@ final class InternalApisTest extends TestCase
 
         // null, no el default del esquema: sin elección, el BFF decide con su entorno.
         $this->assertNull($data['provider']);
+        $this->assertArrayHasKey('avalpay', $data);
         $this->assertArrayHasKey('wompi', $data);
         $this->assertArrayHasKey('payu', $data);
         $this->assertArrayHasKey('bold', $data);
+    }
+
+    public function testPaymentsReturnsAvalpayCredentials(): void {
+        $this->options['hwe_config'] = [
+            'payments' => ['provider' => 'avalpay', 'avalpay' => ['login' => '  MiLogin  ']],
+        ];
+        SecretsStorage::setAll(['payments' => ['avalpay' => ['secret_key' => 'sk_aval']]]);
+
+        $data = PaymentsInternalApi::handleGet()->get_data();
+
+        $this->assertSame('avalpay', $data['provider']);
+        $this->assertSame('MiLogin', $data['avalpay']['login']);
+        $this->assertSame('sk_aval', $data['avalpay']['secret_key']);
     }
 
     public function testPaymentsResponseIsNeverCached(): void {

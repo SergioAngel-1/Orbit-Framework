@@ -33,10 +33,15 @@ class PaymentsInternalApi {
      * @var array<string,array<string,string>>
      */
     private const CREDENTIALS = [
+        'avalpay' => [
+            'login'      => 'text',
+            'secret_key' => 'secret',
+            'base_url'   => 'text',
+        ],
         'wompi' => [
-            'public_key'     => 'text',
-            'secret_key'     => 'secret',
-            'webhook_secret' => 'secret',
+            'public_key'       => 'text',
+            'integrity_secret' => 'secret',
+            'events_secret'    => 'secret',
         ],
         'payu' => [
             'merchant_id'    => 'text',

@@ -40,6 +40,9 @@ final class SchemaContractTest extends TestCase
             $this->logged[] = $message;
             return true;
         });
+        // El esquema resuelve opciones contra Woo (categorías/productos para el envío
+        // gratis): sin WP no hay nada guardado ni taxonomías, y las opciones quedan vacías.
+        Functions\when('get_option')->alias(static fn (string $key, mixed $default = false): mixed => $default);
     }
 
     /** Hace que el filtro `hwe_control_center_schema` devuelva lo que calcule $callback. */

@@ -69,7 +69,7 @@ trabajas fuera de Docker, en `frontend/.env.local`.
 
 | Variable | Descripción |
 |----------|-------------|
-| `PAYMENT_PROVIDER` | Pasarela activa: `noop` (sandbox) \| `wompi` \| `payu` \| `bold` |
+| `PAYMENT_PROVIDER` | Pasarela activa: `noop` (sandbox) \| `avalpay` \| `wompi` \| `payu` \| `bold`. Solo como anulación: manda el panel. |
 | `PAYMENT_CURRENCY` | Moneda ISO-4217 (`COP`, `USD`…) |
 | `NEXT_PUBLIC_PAYMENT_RETURN_URL` | URL de retorno tras el checkout alojado |
 | `NOOP_INTEGRITY_SECRET` | Secreto para firmar webhooks del proveedor `noop` |
@@ -77,6 +77,22 @@ trabajas fuera de Docker, en `frontend/.env.local`.
 
 > Para integrar una pasarela real, ver `lib/payments/providers/<nombre>.ts` y el
 > procedimiento en `docs/PRODUCTION-PLAN.md` §7.4.
+
+## Panel de control (HWE Config)
+
+La fuente única de los campos es `backend/wp-content/mu-plugins/hwe-control-center/Schema.php`;
+los valores de una instancia se siembran con `wp hwe setup` desde
+`backend/scripts/instance.config.example.json`. Esto es lo que el panel expone además de
+marca/diseño/SEO:
+
+| Grupo | Campos | Notas |
+|-------|--------|-------|
+| Tienda | `checkout_login_required`, `free_shipping.*` | El login se sincroniza con el ajuste nativo de Woo; el envío gratis lo aplica el módulo `shipping` (`hwe_shipping_free_rule`). |
+| Pasarelas de pago | `provider`, `gateway_enabled`, `whatsapp_enabled`, `cash_enabled` (+ credenciales por pasarela) | Lo público lo lee el checkout; los secretos solo salen por `hwe/v1/payments/credentials` (canal interno). El efectivo usa la pasarela nativa «Contra reembolso», que se sincroniza al guardar. |
+| Integraciones | `gtm_id`, `meta_pixel_id`, `tiktok_pixel_id`, `hubspot_portal_id`, `consent_retention_years` (+ `meta_capi_*` por canal interno) | Cada id activa su proveedor; vacío = desactivado. |
+| Legal → Sedes | 4 sedes (nombre, dirección, Maps, teléfono, horario, coordenadas) | Alimentan el JSON-LD `LocalBusiness` y la página de contacto. |
+| GEO | `faq`, `faq_en`, `faq_payments`, `faq_payments_en` | Formato «pregunta \| respuesta». Las `_en` son por bloque completo. |
+| Backups | retención, `keep_only_latest`, `exclude_thumbnails`, `include_config_export` | Ver `RUNBOOK.md` y el puente en `BackupConfig.php`. |
 
 ## Email transaccional (SMTP)
 
