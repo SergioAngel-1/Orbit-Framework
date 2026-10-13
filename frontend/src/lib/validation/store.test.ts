@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createReviewSchema, wishlistBodySchema } from "./store";
+import {
+  createReviewSchema,
+  orderReviewSchema,
+  productReviewSchema,
+  wishlistBodySchema,
+} from "./store";
 
 describe("createReviewSchema", () => {
   const valid = { rating: 5, content: "Muy buen producto, lo recomiendo." };
@@ -27,6 +32,37 @@ describe("createReviewSchema", () => {
     ["texto ausente", { rating: 5 }],
   ])("rechaza %s", (_caso, body) => {
     expect(createReviewSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe("productReviewSchema y orderReviewSchema", () => {
+  const valid = { rating: 5, content: "Muy buen producto, lo recomiendo." };
+
+  it("`sameForOrder` y `products` valen false si no se envían", () => {
+    expect(productReviewSchema.parse(valid).sameForOrder).toBe(false);
+    expect(orderReviewSchema.parse(valid).products).toBe(false);
+  });
+
+  it("conservan la opción y siguen sin aceptar identidad del cuerpo", () => {
+    const product = productReviewSchema.parse({
+      ...valid,
+      sameForOrder: true,
+      name: "X",
+    });
+    const order = orderReviewSchema.parse({
+      ...valid,
+      products: true,
+      email: "x@y.es",
+    });
+
+    expect(product).toEqual({ ...valid, sameForOrder: true });
+    expect(order).toEqual({ ...valid, products: true });
+  });
+
+  it("mantienen los límites de la reseña", () => {
+    expect(orderReviewSchema.safeParse({ rating: 5, content: "corto" }).success).toBe(
+      false,
+    );
   });
 });
 

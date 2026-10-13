@@ -49,6 +49,22 @@ export const createReviewSchema = z.object({
   content: z.string().min(10).max(3000).trim(),
 });
 
+/**
+ * Reseña desde la ficha. `sameForOrder`: publicar la misma reseña en los demás
+ * productos del pedido completado del que sale (los aún sin reseñar).
+ */
+export const productReviewSchema = createReviewSchema.extend({
+  sameForOrder: z.boolean().default(false),
+});
+
+/**
+ * Calificación de un pedido (reseña del sitio). `products`: publicar además el
+ * mismo texto y la misma nota en los productos del pedido.
+ */
+export const orderReviewSchema = createReviewSchema.extend({
+  products: z.boolean().default(false),
+});
+
 /* ------------------------------ Wishlist ------------------------------ */
 
 export const wishlistBodySchema = z.object({

@@ -145,6 +145,13 @@ export interface WooAddress {
   phone?: string;
 }
 
+/** Entrada de `meta_data` de wc/v3 (el valor puede ser texto, lista u objeto). */
+export interface WooMetaData {
+  id?: number;
+  key: string;
+  value: unknown;
+}
+
 export interface WooOrderLineItem {
   id: number;
   name: string;
@@ -156,6 +163,7 @@ export interface WooOrderLineItem {
   total: string;
   subtotal: string;
   image?: { src: string };
+  meta_data?: WooMetaData[];
 }
 
 export interface WooOrderCoupon {
@@ -187,6 +195,7 @@ export interface WooOrder {
   payment_method: string;
   payment_method_title: string;
   transaction_id?: string;
+  meta_data?: WooMetaData[];
 }
 
 export interface WooCustomer {
@@ -202,6 +211,7 @@ export interface WooCustomer {
 
 export interface WooProductReview {
   id: number;
+  product_id: number;
   date_created: string;
   review: string;
   rating: number;

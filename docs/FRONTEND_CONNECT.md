@@ -153,6 +153,26 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   de producto traducidos en `completeStoreCart` (i18n de contenido, tarea 51) y el contexto de
   medición del pedido (analítica, tarea 44).
 
+### Cuenta: pedidos, volver a pedir y reseñas
+
+| Ruta | Qué hace | Reglas |
+|---|---|---|
+| `POST /api/store/orders/[id]/reorder` | «Volver a pedir»: añade al carrito lo que hoy se puede comprar y devuelve `{ cart, added[], skipped[] }`. | Solo el dueño (404 si no). Recorta la cantidad al stock; `skipped[].reason` = `unavailable` \| `out_of_stock`. |
+| `POST /api/store/orders/[id]/received` | «Recibí mi pedido»: `processing` → `completed`. | Solo el dueño y solo desde `processing` (422 si no). Habilita calificar y reseñar. |
+| `POST /api/store/orders/[id]/review` | Califica el pedido (reseña del **sitio**) y, con `products: true`, publica la misma reseña en sus productos. | Módulo `site-reviews` (404 si está apagado). Solo el dueño, solo `completed`, una por pedido (409). |
+| `GET /api/store/reviews/[productId]` | Elegibilidad para reseñar el producto: `{ canReview, reason, reviewerName?, order? }`. Nunca 401. | `reason`: `auth` · `not_purchased` · `not_received` · `already_reviewed` · `null`. |
+| `POST /api/store/reviews/[productId]` | Reseña de producto. | Exige un pedido **completado** con el producto (403; `not_received` 409 si solo hay uno en preparación). Autor siempre del perfil de la sesión. Se publica aprobada y `verified`. `sameForOrder: true` la replica en los demás productos del pedido. |
+
+- **Módulo `site-reviews`** (plugin `hwe-site-reviews`): la reseña del sitio vive en el CPT
+  `hwe_site_review` y se refleja en el pedido como meta `_hwe_site_review`
+  (`{ id, rating, content, date }`), que llega en el `meta_data` de wc/v3. El frontend decide
+  qué ofrecer con `orderReviewState(order)` (`lib/account/order-review.ts`) y `isModuleEnabled`.
+- **Estado del pedido en la UI:** `lib/account/order-status.ts` (claves `account.orderStatus.*`),
+  `order-payable.ts` («Pagar ahora» solo en `pending`/`failed`/`on-hold` de pago en línea) y
+  `order-support.ts` (ayuda por WhatsApp: cancelar en espera, problema en completado).
+- Una línea de pedido con la meta `_hwe_not_reviewable` no se ofrece a reseñar (un producto
+  compuesto cuya ficha no muestra reseñas): la pone quien arma la línea.
+
 ## A.3 Config pública dinámica: `GET /wp-json/hwe/v1/config`
 
 Fuente única de verdad de marca/negocio, sin auth, cacheable. Forma exacta (ver

@@ -28,6 +28,9 @@
 //  Solo `design.colors`: `typography` traería los enlaces a Google Fonts y con
 //  ellos una dependencia de red dentro de cada spec.
 //
+//  Tampoco es «vacío» `GET /wp-json/wc/v3/orders[/{10..13}]` ni `customers/7`: los
+//  pedidos y el cliente de prueba de los e2e de la cuenta (`STUB_ORDERS`).
+//
 //  Uso:  node .github/scripts/stub-graphql.mjs   (puerto: STUB_GRAPHQL_PORT, 8080)
 //        STUB_SITE_CONFIG_EXTRA='{"payments":{"cash_enabled":true}}' añade secciones
 // ============================================================================
@@ -47,6 +50,91 @@ export function buildSiteConfig(fixture, extra = {}) {
   return { ...extra, design: { colors: fixture.design.colors } };
 }
 
+const line = (id, name, productId, quantity = 1) => ({
+  id,
+  name,
+  product_id: productId,
+  quantity,
+  price: 25,
+  total: String(25 * quantity),
+  subtotal: String(25 * quantity),
+});
+
+const billing = {
+  first_name: "Ana",
+  last_name: "Ruiz",
+  address_1: "Calle Mayor 1",
+  city: "Madrid",
+  postcode: "28001",
+  country: "ES",
+  email: "ana@example.com",
+};
+
+/**
+ * Pedidos de prueba del cliente 7 (`GET /wp-json/wc/v3/orders/<id>`): uno por
+ * estado que la vista de pedido distingue. Solo para los e2e de la cuenta.
+ */
+export const STUB_ORDERS = [
+  // Completado y sin reseña → «Calificar pedido».
+  { id: 10, status: "completed" },
+  // Procesando → «Recibí mi pedido».
+  { id: 11, status: "processing" },
+  // Completado y ya calificado (espejo `_hwe_site_review`).
+  {
+    id: 12,
+    status: "completed",
+    meta_data: [
+      {
+        id: 1,
+        key: "_hwe_site_review",
+        value: { id: 5, rating: 4, content: "Muy buena compra.", date: "2026-10-01" },
+      },
+    ],
+  },
+  // En espera, pago en línea → «Pagar ahora».
+  { id: 13, status: "on-hold", payment_method: "hwe_offline" },
+].map((order) => ({
+  number: String(order.id),
+  currency: "EUR",
+  total: "50.00",
+  subtotal: "50.00",
+  total_discount: "0.00",
+  total_shipping: "0.00",
+  total_tax: "0.00",
+  customer_id: 7,
+  date_created: "2026-09-30T10:00:00",
+  date_modified: "2026-09-30T10:00:00",
+  billing,
+  shipping: billing,
+  line_items: [line(order.id * 10 + 1, "Camiseta", 3, 2)],
+  coupon_lines: [],
+  payment_method: "cod",
+  payment_method_title: "",
+  meta_data: [],
+  ...order,
+}));
+
+const STUB_CUSTOMER = {
+  id: 7,
+  email: "ana@example.com",
+  first_name: "Ana",
+  last_name: "Ruiz",
+  username: "ana",
+  billing,
+  shipping: billing,
+  meta_data: [],
+};
+
+/** Respuesta fija de la REST de WooCommerce, o `undefined` si no es una del fixture. */
+function wooFixture(path) {
+  const order = path.match(/^\/wp-json\/wc\/v3\/orders\/(\d+)$/);
+  if (order) return STUB_ORDERS.find((o) => o.id === Number(order[1]));
+  if (path === "/wp-json/wc/v3/orders") return STUB_ORDERS;
+  if (path === "/wp-json/wc/v3/products/reviews") return [];
+  if (path === "/wp-json/wc/v3/customers/7") return STUB_CUSTOMER;
+  return undefined;
+}
+
 /** Servidor HTTP del stub (sin escuchar: quien lo usa elige el puerto). */
 export function createStubServer(siteConfig) {
   return createServer((req, res) => {
@@ -55,7 +143,8 @@ export function createStubServer(siteConfig) {
     req.resume();
     req.on("end", () => {
       const path = new URL(req.url ?? "/", "http://127.0.0.1").pathname;
-      const body = path === CONFIG_PATH ? siteConfig : { data: {} };
+      const body =
+        path === CONFIG_PATH ? siteConfig : (wooFixture(path) ?? { data: {} });
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(body));
     });

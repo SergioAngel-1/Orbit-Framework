@@ -62,10 +62,27 @@ backend/wp-content/mu-plugins/instance/*
 # !backend/wp-content/plugins/hwe-instance-*/
 # !backend/wp-content/plugins/hwe-instance-*/**
 
-# Mantén nuestro plugin de banners versionado (código propio del framework)
+# Mantén versionados los módulos del framework (plugins regulares, código propio): uno por id
+# del catálogo de `Modules::CORE_IDS`. Los de una instancia son `hwe-instance-*` (arriba).
 !backend/wp-content/plugins/
 !backend/wp-content/plugins/hwe-banners/
 !backend/wp-content/plugins/hwe-banners/**
+!backend/wp-content/plugins/hwe-shipping/
+!backend/wp-content/plugins/hwe-shipping/**
+!backend/wp-content/plugins/hwe-product-landing/
+!backend/wp-content/plugins/hwe-product-landing/**
+!backend/wp-content/plugins/hwe-landings/
+!backend/wp-content/plugins/hwe-landings/**
+!backend/wp-content/plugins/hwe-consent-log/
+!backend/wp-content/plugins/hwe-consent-log/**
+!backend/wp-content/plugins/hwe-site-reviews/
+!backend/wp-content/plugins/hwe-site-reviews/**
+!backend/wp-content/plugins/hwe-coupon-rules/
+!backend/wp-content/plugins/hwe-coupon-rules/**
+!backend/wp-content/plugins/hwe-customer-identity/
+!backend/wp-content/plugins/hwe-customer-identity/**
+!backend/wp-content/plugins/hwe-external-integration/
+!backend/wp-content/plugins/hwe-external-integration/**
 
 # Mantén el tema base del framework versionado (headless: no renderiza nada
 # público, solo evita depender de un tema de wordpress.org — ver setup.sh).

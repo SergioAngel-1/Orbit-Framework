@@ -22,7 +22,7 @@ export default async function AccountLayout({
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-[200px_1fr]">
       <aside>
-        <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-gray-400">
+        <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-gray-500">
           {t("myAccount")}
         </h2>
         <nav className="flex flex-col gap-2 text-sm">

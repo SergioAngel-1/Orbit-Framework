@@ -173,14 +173,21 @@
     "clearFilters": "Limpiar filtros",
     "reviews": "Reseñas",
     "writeReview": "Escribir reseña",
-    "reviewSubmitted": "Reseña enviada. Pendiente de moderación.",
+    "reviewSubmitted": "¡Gracias! Tu reseña ya está publicada.",
     "reviewPlaceholder": "Comparte tu opinión sobre este producto…",
     "reviewAuthorNote": "Tu reseña se publicará con el nombre de tu cuenta.",
     "reviewRating": "Puntuación",
     "reviewSubmit": "Enviar reseña",
     "noReviews": "Todavía no hay reseñas. ¡Sé el primero!",
     "by": "por",
-    "referenceImage": "Imagen de referencia"
+    "referenceImage": "Imagen de referencia",
+    "reviewLogin": "Inicia sesión para dejar una reseña",
+    "reviewNotPurchased": "Solo pueden reseñar este producto quienes lo han comprado.",
+    "reviewConfirmReceived": "Recibí mi producto",
+    "reviewNotReceived": "Cuando recibas tu pedido podrás reseñar este producto.",
+    "reviewAlready": "Ya dejaste tu reseña de este producto.",
+    "reviewPublishingAs": "Publicarás como {name}.",
+    "reviewSameForOrder": "Publicar la misma reseña en los demás productos de mi pedido ({count})"
   },
   "addToCart": {
     "add": "Añadir al carrito",
@@ -423,7 +430,50 @@
     "shippingAddress": "Dirección de envío",
     "billingAddress": "Dirección de facturación",
     "customerDetails": "Datos del cliente",
-    "email": "Email"
+    "email": "Email",
+    "orderActions": {
+      "reorder": "Volver a pedir",
+      "received": "Recibí mi pedido",
+      "rate": "Calificar pedido",
+      "rating": "Puntuación",
+      "comment": "Tu opinión sobre el pedido",
+      "submitRating": "Enviar calificación",
+      "alsoProducts": "Publicar también esta reseña en los productos del pedido ({count})",
+      "alreadyRated": "Ya calificaste este pedido.",
+      "genericError": "No se pudo completar la acción. Inténtalo de nuevo.",
+      "nothingToReorder": "No hay nada de este pedido que se pueda volver a pedir.",
+      "skippedTitle": "Algunas líneas no se añadieron:",
+      "skipped": {
+        "unavailable": "ya no está disponible",
+        "out_of_stock": "agotado"
+      }
+    },
+    "orderStatus": {
+      "pending": "Pendiente de pago",
+      "processing": "En preparación",
+      "on-hold": "En espera",
+      "completed": "Completado",
+      "cancelled": "Cancelado",
+      "refunded": "Reembolsado",
+      "failed": "Fallido"
+    },
+    "orderReview": {
+      "title": "Tu calificación",
+      "none": "Todavía no has calificado este pedido."
+    },
+    "orderSupport": {
+      "cancel": {
+        "cta": "Solicitar cancelación",
+        "message": "Hola, quiero cancelar mi pedido #{order} del {date} por {total}.\n{items}"
+      },
+      "problem": {
+        "cta": "Tuve un problema con mi pedido",
+        "message": "Hola, tuve un problema con mi pedido #{order} del {date} por {total}.\n{items}"
+      },
+      "newTab": "(se abre en una pestaña nueva)"
+    },
+    "viewOrder": "Ver pedido",
+    "payNow": "Pagar ahora"
   },
   "common": {
     "loading": "Cargando…",

@@ -1,6 +1,9 @@
 "use client";
 import { csrfFetch } from "./csrf";
 import type { StoreCart } from "@/types/woocommerce";
+import type { ReorderSummary } from "@/lib/account/reorder";
+import type { SiteReview } from "@/lib/account/order-review";
+import type { ReviewEligibility } from "@/lib/account/review-eligibility";
 
 // ============================================================================
 //  Cliente del carrito (lado navegador). Llama al BFF; nunca a WooCommerce
@@ -83,15 +86,47 @@ export const cartApi = {
       }),
     );
   },
+
+  /**
+   * «Volver a pedir»: añade al carrito lo que hoy se puede comprar de un pedido
+   * anterior. Devuelve el carrito y qué líneas entraron y cuáles no.
+   */
+  async reorder(orderId: number): Promise<{ cart: StoreCart } & ReorderSummary> {
+    const res = await csrfFetch(`/api/store/orders/${orderId}/reorder`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error || `Error ${res.status}`);
+    }
+    const body = (await res.json()) as { cart: unknown } & ReorderSummary;
+    if (!isStoreCart(body.cart))
+      throw new Error("La respuesta del carrito no es válida.");
+    return body as { cart: StoreCart } & ReorderSummary;
+  },
 };
 
 export const reviewApi = {
+  /** ¿Puede el cliente reseñar este producto? Nunca lanza: sin respuesta, «no». */
+  async eligibility(productId: number): Promise<ReviewEligibility> {
+    try {
+      const res = await fetch(`/api/store/reviews/${productId}`, {
+        credentials: "same-origin",
+      });
+      if (!res.ok) return { canReview: false, reason: null };
+      return (await res.json()) as ReviewEligibility;
+    } catch {
+      return { canReview: false, reason: null };
+    }
+  },
+
   async create(
     productId: number,
     // El nombre y el email de la reseña los fija el servidor desde la cuenta
     // autenticada (ver POST /api/store/reviews/[productId]): no se envían.
-    data: { rating: number; content: string },
-  ): Promise<{ id: number }> {
+    // `sameForOrder`: la misma reseña en los demás productos de ese pedido.
+    data: { rating: number; content: string; sameForOrder?: boolean },
+  ): Promise<{ id: number; othersReviewed: number }> {
     const res = await csrfFetch(`/api/store/reviews/${productId}`, {
       method: "POST",
       body: data,
@@ -100,6 +135,47 @@ export const reviewApi = {
       const err = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(err.error || `Error ${res.status}`);
     }
-    return res.json() as Promise<{ id: number }>;
+    const body = (await res.json()) as { id: number; othersReviewed?: number };
+    return { id: body.id, othersReviewed: body.othersReviewed ?? 0 };
+  },
+
+  /** «Recibí mi pedido»: pasa el pedido de Procesando a Completado. */
+  async confirmReceived(orderId: number): Promise<boolean> {
+    try {
+      const res = await csrfFetch(`/api/store/orders/${orderId}/received`, {
+        method: "POST",
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * Califica un pedido (reseña del sitio, módulo `site-reviews`) y, con
+   * `products`, publica la misma reseña en sus productos. No lanza: devuelve el
+   * resultado o el motivo.
+   */
+  async rateOrder(
+    orderId: number,
+    data: { rating: number; content: string; products: boolean },
+  ): Promise<
+    | { ok: true; review: SiteReview; productsReviewed: number }
+    | { ok: false; alreadyReviewed: boolean }
+  > {
+    try {
+      const res = await csrfFetch(`/api/store/orders/${orderId}/review`, {
+        method: "POST",
+        body: data,
+      });
+      if (!res.ok) return { ok: false, alreadyReviewed: res.status === 409 };
+      const body = (await res.json()) as {
+        review: SiteReview;
+        productsReviewed: number;
+      };
+      return { ok: true, ...body };
+    } catch {
+      return { ok: false, alreadyReviewed: false };
+    }
   },
 };

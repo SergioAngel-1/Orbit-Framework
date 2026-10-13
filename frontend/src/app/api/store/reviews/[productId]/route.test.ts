@@ -1,21 +1,37 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { requireSession } from "@/lib/auth/session";
+import { revalidateTag } from "next/cache";
+import { getSession } from "@/lib/auth/session";
 import { wcFetch } from "@/lib/woocommerce/client";
-import { POST } from "./route";
+import { findProductPurchase } from "@/lib/account/data";
+import {
+  readCachedEligibility,
+  writeCachedEligibility,
+  invalidateCachedEligibility,
+} from "@/lib/account/review-eligibility";
+import { rateLimit } from "@/lib/security/rate-limit";
+import { GET, POST } from "./route";
 
 // ============================================================================
-//  POST /api/store/reviews/[productId].
+//  /api/store/reviews/[productId].
 //
-//  El servidor aceptaba `name` y `email` arbitrarios del cuerpo y los usaba tal
-//  cual como autor de la reseña: cualquier petición directa al endpoint podía
-//  publicar una reseña atribuida al nombre o al email de un tercero. La UI los
-//  mostraba como datos de la cuenta, pero el servidor no lo exigía.
+//  Identidad: el autor SIEMPRE sale del perfil WooCommerce de la sesión, nunca
+//  del cuerpo (antes cualquier petición directa podía publicar una reseña
+//  «verificada» atribuida a un tercero).
 //
-//  Ahora el autor SIEMPRE sale del perfil WooCommerce del usuario autenticado.
+//  Compra: solo reseña quien tiene un pedido COMPLETADO con el producto. Uno
+//  «Procesando» responde 409 (`not_received`): primero «Recibí mi producto».
 // ============================================================================
 
-vi.mock("@/lib/auth/session", () => ({ requireSession: vi.fn() }));
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
+vi.mock("@/lib/security/rate-limit", () => ({ rateLimit: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
+vi.mock("@/lib/account/data", () => ({ findProductPurchase: vi.fn() }));
+vi.mock("@/lib/account/review-eligibility", () => ({
+  readCachedEligibility: vi.fn(),
+  writeCachedEligibility: vi.fn(),
+  invalidateCachedEligibility: vi.fn(),
+}));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
@@ -27,6 +43,7 @@ vi.mock("@/lib/woocommerce/client", async (importOriginal) => ({
 
 const PROFILE = { first_name: "Ana", last_name: "Pérez", email: "ana@example.com" };
 const VALID = { rating: 5, content: "Muy buen producto, lo recomiendo." };
+const COMPLETED = { id: 40, number: "40", productIds: [9, 12, 13] };
 
 const request = (body: unknown) =>
   new Request("https://tienda.example/api/store/reviews/9", {
@@ -34,23 +51,59 @@ const request = (body: unknown) =>
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-const call = (body: unknown, productId = "9") =>
+const post = (body: unknown, productId = "9") =>
   POST(request(body), { params: Promise.resolve({ productId }) });
+const get = (productId = "9") =>
+  GET(new Request("https://tienda.example/api/store/reviews/9"), {
+    params: Promise.resolve({ productId }),
+  });
 
-/** Llamadas a WooCommerce que NO son la lectura del perfil. */
+/** Reseñas creadas en WooCommerce (POST a /products/reviews). */
 const reviewPosts = () =>
-  vi.mocked(wcFetch).mock.calls.filter(([path]) => path === "/products/reviews");
+  vi
+    .mocked(wcFetch)
+    .mock.calls.filter(
+      ([path, opts]) => path === "/products/reviews" && opts?.method === "POST",
+    );
+
+/** Reseñas del cliente que ya existen (lectura de /products/reviews). */
+function alreadyReviewed(...productIds: number[]) {
+  vi.mocked(wcFetch).mockImplementation((async (
+    path: string,
+    opts?: { method?: string },
+  ) => {
+    if (path.startsWith("/customers/")) return PROFILE;
+    if (path === "/products/reviews" && opts?.method === "POST") {
+      return { id: 55, status: "approved" };
+    }
+    if (path === "/products/reviews/batch") return { create: [{ id: 70 }, { id: 71 }] };
+    if (path === "/products/reviews") {
+      return productIds.map((id) => ({ id: 1, product_id: id }));
+    }
+    return {};
+  }) as never);
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(requireSession).mockResolvedValue({ userId: "7", token: "JWT" });
-  vi.mocked(wcFetch).mockImplementation((async (path: string) =>
-    path.startsWith("/customers/") ? PROFILE : { id: 55, status: "hold" }) as never);
+  vi.mocked(getSession).mockResolvedValue({ userId: "7", token: "JWT" } as never);
+  vi.mocked(findProductPurchase).mockResolvedValue({
+    completed: COMPLETED,
+    processing: null,
+  });
+  vi.mocked(readCachedEligibility).mockResolvedValue(null);
+  vi.mocked(rateLimit).mockResolvedValue({
+    success: true,
+    remaining: 10,
+    retryAfter: 0,
+    limit: 60,
+  });
+  alreadyReviewed();
 });
 
-describe("la identidad del autor sale de la cuenta", () => {
+describe("POST: la identidad del autor sale de la cuenta", () => {
   it("ignora el name y el email del cuerpo y usa el perfil del usuario autenticado", async () => {
-    const res = await call({
+    const res = await post({
       ...VALID,
       name: "Víctima Suplantada",
       email: "victima@example.com",
@@ -71,48 +124,109 @@ describe("la identidad del autor sale de la cuenta", () => {
   });
 
   it("lee el perfil del usuario de la SESIÓN, no uno indicado por el cliente", async () => {
-    await call({ ...VALID, userId: 1, customer_id: 1 });
+    await post({ ...VALID, userId: 1, customer_id: 1 });
 
     expect(vi.mocked(wcFetch)).toHaveBeenCalledWith("/customers/7");
     expect(vi.mocked(wcFetch)).not.toHaveBeenCalledWith("/customers/1");
   });
 
   it("sin nombre en el perfil publica con un texto neutro, nunca con el del cuerpo", async () => {
-    vi.mocked(wcFetch).mockImplementation((async (path: string) =>
-      path.startsWith("/customers/")
-        ? { first_name: "", last_name: "", email: "ana@example.com" }
-        : { id: 55, status: "hold" }) as never);
+    vi.mocked(wcFetch).mockImplementation((async (
+      path: string,
+      opts?: { method?: string },
+    ) => {
+      if (path.startsWith("/customers/")) {
+        return { first_name: "", last_name: "", email: "ana@example.com" };
+      }
+      return opts?.method === "POST" ? { id: 55, status: "approved" } : [];
+    }) as never);
 
-    await call({ ...VALID, name: "Víctima Suplantada" });
+    await post({ ...VALID, name: "Víctima Suplantada" });
 
     expect(reviewPosts()[0]![1]).toMatchObject({
-      body: { reviewer: "Cliente", reviewer_email: "ana@example.com" },
+      body: { reviewer: "Cliente verificado", reviewer_email: "ana@example.com" },
     });
-  });
-
-  it("la reseña queda en moderación", async () => {
-    await call(VALID);
-
-    expect(reviewPosts()[0]![1]).toMatchObject({ body: { status: "hold" } });
   });
 
   it("si no se puede leer el perfil, no publica nada", async () => {
     vi.mocked(wcFetch).mockRejectedValue(new Error("woocommerce caído"));
 
-    const res = await call(VALID);
+    const res = await post(VALID);
 
     expect(res.status).toBeGreaterThanOrEqual(500);
     expect(reviewPosts()).toHaveLength(0);
   });
 });
 
-describe("validación y acceso", () => {
+describe("POST: compra verificada", () => {
+  it("con un pedido completado publica la reseña aprobada y verificada, y refresca la ficha", async () => {
+    const res = await post(VALID);
+
+    expect(res.status).toBe(201);
+    expect(reviewPosts()[0]![1]).toMatchObject({
+      body: { status: "approved", verified: true },
+    });
+    expect(revalidateTag).toHaveBeenCalledWith("products", "max");
+    expect(invalidateCachedEligibility).toHaveBeenCalled();
+  });
+
+  it("sin ninguna compra del producto, 403 y no publica", async () => {
+    vi.mocked(findProductPurchase).mockResolvedValue({
+      completed: null,
+      processing: null,
+    });
+
+    const res = await post(VALID);
+
+    expect(res.status).toBe(403);
+    expect(reviewPosts()).toHaveLength(0);
+  });
+
+  it("con el pedido todavía «Procesando», 409 not_received: primero «Recibí mi producto»", async () => {
+    vi.mocked(findProductPurchase).mockResolvedValue({
+      completed: null,
+      processing: { id: 41, number: "41", productIds: [9] },
+    });
+
+    const res = await post(VALID);
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).reason).toBe("not_received");
+    expect(reviewPosts()).toHaveLength(0);
+  });
+
+  it("una segunda reseña del mismo producto se rechaza (409), aunque la UI no la ofrezca", async () => {
+    alreadyReviewed(9);
+
+    const res = await post(VALID);
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).reason).toBe("already_reviewed");
+    expect(reviewPosts()).toHaveLength(0);
+  });
+
+  it("con `sameForOrder` publica la misma reseña en los demás productos del pedido", async () => {
+    const res = await post({ ...VALID, sameForOrder: true });
+
+    expect((await res.json()).othersReviewed).toBe(2);
+    const batch = vi
+      .mocked(wcFetch)
+      .mock.calls.find(([path]) => path === "/products/reviews/batch");
+    expect(
+      (batch![1] as { body: { create: { product_id: number }[] } }).body.create.map(
+        (r) => r.product_id,
+      ),
+    ).toEqual([12, 13]);
+  });
+});
+
+describe("POST: validación y acceso", () => {
   it.each([
     ["valoración fuera de rango", { ...VALID, rating: 9 }],
     ["texto demasiado corto", { ...VALID, content: "corto" }],
     ["cuerpo vacío", {}],
   ])("%s: 422 con el detalle y sin tocar WooCommerce", async (_caso, body) => {
-    const res = await call(body);
+    const res = await post(body);
     const json = await res.json();
 
     expect(res.status).toBe(422);
@@ -121,24 +235,101 @@ describe("validación y acceso", () => {
   });
 
   it("un cuerpo `null` es 422 y no revienta", async () => {
-    const res = await call(null);
-
-    expect(res.status).toBe(422);
+    expect((await post(null)).status).toBe(422);
   });
 
   it("sin sesión responde 401 y no toca WooCommerce", async () => {
-    vi.mocked(requireSession).mockRejectedValue(new Error("UNAUTHENTICATED"));
+    vi.mocked(getSession).mockResolvedValue(null);
 
-    const res = await call(VALID);
+    const res = await post(VALID);
 
     expect(res.status).toBe(401);
     expect(vi.mocked(wcFetch)).not.toHaveBeenCalled();
   });
 
   it("un id de producto inválido responde 400", async () => {
-    const res = await call(VALID, "abc");
+    const res = await post(VALID, "abc");
 
     expect(res.status).toBe(400);
     expect(vi.mocked(wcFetch)).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET: elegibilidad", () => {
+  it("sin sesión no es 401: dice «auth» para que la ficha ofrezca iniciar sesión", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+
+    const res = await get();
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ canReview: false, reason: "auth" });
+  });
+
+  it("sin compra: not_purchased", async () => {
+    vi.mocked(findProductPurchase).mockResolvedValue({
+      completed: null,
+      processing: null,
+    });
+
+    expect(await (await get()).json()).toEqual({
+      canReview: false,
+      reason: "not_purchased",
+    });
+  });
+
+  it("solo un pedido en preparación: not_received con ese pedido", async () => {
+    vi.mocked(findProductPurchase).mockResolvedValue({
+      completed: null,
+      processing: { id: 41, number: "41", productIds: [9] },
+    });
+
+    expect(await (await get()).json()).toEqual({
+      canReview: false,
+      reason: "not_received",
+      order: { id: 41, number: "41" },
+    });
+  });
+
+  it("pedido completado y sin reseña: puede reseñar, con el nombre y los otros productos pendientes", async () => {
+    alreadyReviewed(12);
+
+    expect(await (await get()).json()).toEqual({
+      canReview: true,
+      reason: null,
+      reviewerName: "Ana Pérez",
+      order: { id: 40, number: "40", otherProducts: 1 },
+    });
+  });
+
+  it("ya reseñado: already_reviewed (el formulario no reaparece al recargar)", async () => {
+    alreadyReviewed(9);
+
+    expect((await (await get()).json()).reason).toBe("already_reviewed");
+  });
+
+  it("una entrada cacheada se devuelve sin tocar WooCommerce", async () => {
+    vi.mocked(readCachedEligibility).mockResolvedValue({
+      canReview: false,
+      reason: "not_purchased",
+    });
+
+    await get();
+
+    expect(findProductPurchase).not.toHaveBeenCalled();
+    expect(writeCachedEligibility).not.toHaveBeenCalled();
+  });
+
+  it("el cálculo (no el acierto de caché) tiene rate-limit: 429 antes de tocar WooCommerce", async () => {
+    vi.mocked(rateLimit).mockResolvedValue({
+      success: false,
+      remaining: 0,
+      retryAfter: 30,
+      limit: 60,
+    });
+
+    const res = await get();
+
+    expect(res.status).toBe(429);
+    expect(findProductPurchase).not.toHaveBeenCalled();
   });
 });

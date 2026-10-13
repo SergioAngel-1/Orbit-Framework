@@ -81,6 +81,17 @@ describe("firmas", () => {
     expect(revalidateTag).toHaveBeenCalledWith("banners", "max");
   });
 
+  it("HWE: el tag del módulo site-reviews es de los que revalida el núcleo", async () => {
+    const body = '{"tag":"site-reviews"}';
+
+    const res = await POST(
+      request(body, { "x-hwe-signature": `sha256=${hmac(body, HWE_SECRET, "hex")}` }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(revalidateTag).toHaveBeenCalledWith("site-reviews", "max");
+  });
+
   it.each([
     ["WooCommerce", { "x-wc-webhook-signature": "firma-falsa" }],
     ["HWE", { "x-hwe-signature": "sha256=deadbeef" }],

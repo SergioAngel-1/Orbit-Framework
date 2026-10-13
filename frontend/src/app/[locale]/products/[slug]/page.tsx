@@ -12,7 +12,7 @@ import { buildProductJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { Badge } from "@/components/ui/badge";
 import { ProductGrid } from "@/components/products/product-grid";
 import ProductActions from "@/components/products/product-actions";
-import { ReviewForm } from "@/components/products/review-form";
+import { ReviewGate } from "@/components/products/review-gate";
 
 export const revalidate = 300;
 
@@ -228,7 +228,7 @@ export default async function ProductPage({
             <p className="text-gray-500">{t("noReviews")}</p>
           )}
           <div className="mt-6">
-            <ReviewForm productId={product.databaseId} />
+            <ReviewGate productId={product.databaseId} />
           </div>
         </section>
       )}

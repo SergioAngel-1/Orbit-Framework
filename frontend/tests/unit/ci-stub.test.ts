@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   buildSiteConfig,
   createStubServer,
+  STUB_ORDERS,
 } from "../../../.github/scripts/stub-graphql.mjs";
 import { CONFIG_DEFAULTS } from "@/lib/config/defaults";
 
@@ -102,5 +103,62 @@ describe("createStubServer", () => {
     expect(await get.json()).toEqual({ data: {} });
     expect(post.status).toBe(200);
     expect(await post.json()).toEqual({ data: {} });
+  });
+});
+
+describe("pedidos de prueba (wc/v3)", () => {
+  it("sirve cada pedido del fixture, del cliente 7", async () => {
+    const base = await startStub();
+
+    for (const order of STUB_ORDERS) {
+      const res = await fetch(`${base}/wp-json/wc/v3/orders/${order.id}`);
+      const body = await res.json();
+      expect(body.id).toBe(order.id);
+      expect(body.customer_id).toBe(7);
+    }
+  });
+
+  it("cubre los estados que la vista de pedido distingue", () => {
+    const statuses = STUB_ORDERS.map((o: { status: string }) => o.status);
+
+    expect(statuses).toEqual(
+      expect.arrayContaining(["completed", "processing", "on-hold"]),
+    );
+  });
+
+  it("el listado de pedidos (con su query) devuelve todos, como lista", async () => {
+    const base = await startStub();
+
+    const res = await fetch(`${base}/wp-json/wc/v3/orders?customer=7&per_page=20`);
+    const body = await res.json();
+
+    expect(Array.isArray(body)).toBe(true);
+    expect(body).toHaveLength(STUB_ORDERS.length);
+  });
+
+  it("las reseñas de producto, vacías y como lista", async () => {
+    const base = await startStub();
+
+    const body = await (
+      await fetch(`${base}/wp-json/wc/v3/products/reviews?product=3`)
+    ).json();
+
+    expect(body).toEqual([]);
+  });
+
+  it("un pedido que no está en el fixture responde {data:{}} (CMS vacío)", async () => {
+    const base = await startStub();
+
+    const res = await fetch(`${base}/wp-json/wc/v3/orders/99999`);
+
+    expect(await res.json()).toEqual({ data: {} });
+  });
+
+  it("sirve el cliente 7 con correo y sin meta ajena", async () => {
+    const base = await startStub();
+
+    const body = await (await fetch(`${base}/wp-json/wc/v3/customers/7`)).json();
+
+    expect(body).toMatchObject({ id: 7, email: "ana@example.com" });
   });
 });

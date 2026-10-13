@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getCustomerOrders } from "@/lib/account/data";
 import { formatDate } from "@/lib/format";
+import { Link } from "@/i18n/navigation";
+import { OrderStatusBadge } from "@/components/account/order-status-badge";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("account");
@@ -38,7 +40,12 @@ export default async function OrdersPage() {
             <li key={order.id} className="flex items-center justify-between py-4">
               <div>
                 <p className="font-medium">
-                  {t("orders")} #{order.id}
+                  <Link
+                    href={`/account/orders/${order.id}`}
+                    className="text-brand hover:underline"
+                  >
+                    {t("orders")} #{order.number || order.id}
+                  </Link>
                 </p>
                 <p className="text-sm text-gray-500">
                   {formatDate(order.date_created, locale)} · {order.line_items.length}{" "}
@@ -46,9 +53,7 @@ export default async function OrdersPage() {
                 </p>
               </div>
               <div className="text-right">
-                <span className="inline-block rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium capitalize text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                  {order.status}
-                </span>
+                <OrderStatusBadge status={order.status} />
                 <p className="mt-1 font-semibold">
                   {order.total} {order.currency}
                 </p>

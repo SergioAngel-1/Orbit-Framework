@@ -9,8 +9,19 @@ import { instanceRegistry } from "@/instance/registry";
 
 export const dynamic = "force-dynamic";
 
-/** Tags del núcleo: config, banners, entradas del blog y menús. La instancia añade los suyos en `instanceRegistry.revalidationTags`. */
-const CORE_HWE_TAGS = ["site-config", "banners", "posts", "menus"] as const;
+/**
+ * Tags del núcleo: config, entradas del blog, menús y los de los módulos del
+ * framework (banners, site-reviews…; cada plugin de módulo registra el suyo en
+ * WordPress con `hwe_revalidation_tags`). La instancia añade los suyos en
+ * `instanceRegistry.revalidationTags`.
+ */
+const CORE_HWE_TAGS = [
+  "site-config",
+  "banners",
+  "posts",
+  "menus",
+  "site-reviews",
+] as const;
 
 export function resolveHweTag(raw: unknown): string | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;

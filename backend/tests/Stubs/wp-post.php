@@ -14,6 +14,7 @@ if (!class_exists('WP_Post')) {
         public string $post_status = 'publish';
         public string $post_title = '';
         public string $post_name = '';
+        public string $post_content = '';
     }
 }
 

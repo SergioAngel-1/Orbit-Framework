@@ -394,6 +394,29 @@ git fetch framework --tags
   conserva el contrato.
 - **Los tests `E2E_FULL` mandan `payment_method: "hwe_offline"`** y leen `csrfToken` (antes
   `noop` y `token`: el spec estaba roto).
+- **Nuevo módulo `site-reviews`** (plugin regular `hwe-site-reviews`, ver su `README.md` y
+  `MANUAL.md`): el cliente califica su pedido completado (una vez, solo el dueño). Activa el
+  módulo con `modules: ["site-reviews", …]` en `instance.config.json` o desde Plugins. Con el
+  módulo apagado, `POST /api/store/orders/[id]/review` responde 404 y la cuenta no ofrece
+  calificar. Su tag ISR `site-reviews` lo admite `/api/revalidate`.
+- **Las reseñas de producto exigen una compra completada y salen publicadas.** Antes
+  `POST /api/store/reviews/[productId]` aceptaba a cualquier cliente con sesión y las dejaba en
+  moderación (`hold`). Ahora: 403 sin compra, 409 `not_received` con el pedido aún en
+  preparación («Recibí mi producto»), 409 si ya reseñó, y se crean `approved` + `verified` (la
+  compra es el filtro). Si tu instancia modera, cambia `status` a `hold` en la ruta y en
+  `lib/reviews/publish-product-reviews.ts`. `GET` de la misma ruta devuelve la elegibilidad
+  (caché por usuario y producto en Redis, 3 min, fail-open).
+- **Cuenta:** historial con enlace a cada pedido y estado traducido; en el detalle, «Volver a
+  pedir», «Recibí mi pedido», «Calificar pedido», «Pagar ahora» y ayuda por WhatsApp
+  (`social.whatsapp`). Textos nuevos en `account.*` y `products.review*`. `getCustomerOrders`
+  pagina (`page`, `perPage`) y ordena los más recientes primero.
+- **Claves de i18n nuevas** en `account` (`orderActions`, `orderStatus`, `orderReview`,
+  `orderSupport`) y `products` (`reviewLogin`, `reviewNotPurchased`…). `products.reviewSubmitted`
+  cambia de texto (ya no dice «pendiente de moderación»).
+- **`.gitignore` versiona los plugins de módulo** (`hwe-<id>/` de `Modules::CORE_IDS`); los de
+  una instancia siguen siendo `hwe-instance-*`.
+- **Accesibilidad:** el título «Mi cuenta» del layout de la cuenta pasa de `text-gray-400` a
+  `text-gray-500` (contraste AA).
 - **SEO por entidad unificado (`hwe-seo/fields.php`).** Entradas, páginas, productos y
   categorías comparten caja, límites (título 60, descripción 160), contador y columna
   «SEO». Los campos del formulario de la entrada pasan de `hwe_seo_title`/`hwe_seo_description`

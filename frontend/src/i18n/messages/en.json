@@ -173,14 +173,21 @@
     "clearFilters": "Clear filters",
     "reviews": "Reviews",
     "writeReview": "Write a review",
-    "reviewSubmitted": "Review submitted. Pending moderation.",
+    "reviewSubmitted": "Thanks! Your review is now published.",
     "reviewPlaceholder": "Share your thoughts about this product…",
     "reviewAuthorNote": "Your review will be published under your account name.",
     "reviewRating": "Rating",
     "reviewSubmit": "Submit review",
     "noReviews": "No reviews yet. Be the first!",
     "by": "by",
-    "referenceImage": "Reference image"
+    "referenceImage": "Reference image",
+    "reviewLogin": "Sign in to leave a review",
+    "reviewNotPurchased": "Only customers who bought this product can review it.",
+    "reviewConfirmReceived": "I received my product",
+    "reviewNotReceived": "Once you receive your order you'll be able to review this product.",
+    "reviewAlready": "You already reviewed this product.",
+    "reviewPublishingAs": "You'll publish as {name}.",
+    "reviewSameForOrder": "Publish the same review on the other products in my order ({count})"
   },
   "cart": {
     "title": "Your cart",
@@ -418,7 +425,50 @@
     "shippingAddress": "Shipping address",
     "billingAddress": "Billing address",
     "customerDetails": "Customer details",
-    "email": "Email"
+    "email": "Email",
+    "orderActions": {
+      "reorder": "Order again",
+      "received": "I received my order",
+      "rate": "Rate order",
+      "rating": "Rating",
+      "comment": "Your opinion of the order",
+      "submitRating": "Send rating",
+      "alsoProducts": "Also publish this review on the products in the order ({count})",
+      "alreadyRated": "You already rated this order.",
+      "genericError": "We couldn't complete that. Please try again.",
+      "nothingToReorder": "Nothing in this order can be ordered again.",
+      "skippedTitle": "Some lines were not added:",
+      "skipped": {
+        "unavailable": "no longer available",
+        "out_of_stock": "out of stock"
+      }
+    },
+    "orderStatus": {
+      "pending": "Pending payment",
+      "processing": "Processing",
+      "on-hold": "On hold",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "refunded": "Refunded",
+      "failed": "Failed"
+    },
+    "orderReview": {
+      "title": "Your rating",
+      "none": "You haven't rated this order yet."
+    },
+    "orderSupport": {
+      "cancel": {
+        "cta": "Request cancellation",
+        "message": "Hi, I'd like to cancel my order #{order} of {date} for {total}.\n{items}"
+      },
+      "problem": {
+        "cta": "I had a problem with my order",
+        "message": "Hi, I had a problem with my order #{order} of {date} for {total}.\n{items}"
+      },
+      "newTab": "(opens in a new tab)"
+    },
+    "viewOrder": "View order",
+    "payNow": "Pay now"
   },
   "addToCart": {
     "add": "Add to cart",
