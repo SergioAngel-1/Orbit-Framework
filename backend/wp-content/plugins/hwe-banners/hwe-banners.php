@@ -9,7 +9,7 @@
  *               con ISR. Genérico y reutilizable: no contiene lógica de negocio de
  *               ninguna instancia concreta.
  * Author:       Headless Web Ecosystem
- * Version:      1.0.0
+ * Version:      2.0.0
  * Requires PHP: 8.0
  * Text Domain:  hwe-banners
  *
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HWE_BANNERS_VERSION', '1.0.0' );
+define( 'HWE_BANNERS_VERSION', '2.0.0' );
 define( 'HWE_BANNERS_DIR', __DIR__ );
 define( 'HWE_BANNERS_URL', plugin_dir_url( __FILE__ ) );
 

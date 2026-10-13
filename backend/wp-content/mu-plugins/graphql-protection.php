@@ -5,7 +5,7 @@
  *              y complejidad de consultas, desactiva la introspección en producción,
  *              y habilita la caché de respuestas WPGraphQL (aprovecha Redis).
  * Author:      Headless Web Ecosystem
- * Version:     1.0.0
+ * Version:     2.0.0
  *
  * Forma parte del plan de hardening (Fase C.2) de la plantilla Headless Web Ecosystem.
  * Sin estos límites, /graphql es un vector de DoS por consultas deeply anidadas.

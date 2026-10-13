@@ -5,7 +5,7 @@
  *              bloquea el frontend nativo, redirige el tráfico humano a /wp-admin,
  *              mantiene viva la API de WPGraphQL y aplica cabeceras CORS al endpoint.
  * Author:      Headless Web Ecosystem
- * Version:     1.0.0
+ * Version:     2.0.0
  *
  * Al ser un "must-use plugin" (mu-plugin) se carga automáticamente y no puede
  * desactivarse desde el panel, lo que garantiza el comportamiento headless.

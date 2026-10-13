@@ -6,16 +6,121 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.0.0] — 2026-10-13
+
+Salto mayor con cambios incompatibles. **Antes de actualizar una instancia de v1, sigue la
+guía de [`docs/UPGRADE.md`](docs/UPGRADE.md) §5** (qué cambia, por qué y pasos, por cada cambio
+incompatible); el registro completo está en §6.
+
 ### Added
-- **Plugin HWE Banners**: sistema de banners administrables desacoplado del Control
-  Center. CPT `hwe_banner` con posiciones genéricas (hero/middle/bottom), slides
-  ordenables con imagen desktop/móvil y overrides por idioma, REST pública
-  `hwe-banners/v1/banners`, y lector server-only `lib/banners/` con revalidación ISR
-  (tag `banners`). Extensible por hooks.
+- **Contrato de instancia.** El código de una instancia vive en rutas que el framework nunca toca
+  (`backend/wp-content/mu-plugins/instance/`, plugins `hwe-instance-*` y `frontend/src/instance/`).
+  Hooks estables (`hwe_control_center_schema`, `hwe_control_center_field_types`,
+  `hwe_control_center_saved`, `hwe_revalidation_tags`, `hwe_geo_packs`…), `InstanceRegistry` solo
+  de datos, grupo `instance` del Control Center, `HWE_CORE_CONTRACT_VERSION`, regla de ESLint de
+  frontera y **puerta anti-instancia** en CI. Ejemplo vivo en `examples/instance-minimal/`, que el
+  job «contrato» superpone al repo.
+- **Nueve módulos opcionales** (`banners`, `shipping`, `product-landing`, `landings`,
+  `consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`, `external-integration`):
+  plugins `hwe-<id>` con `README.md` y `MANUAL.md`, que se encienden con `modules` en
+  `instance.config.json`. Apagados, su lector devuelve vacío, sus rutas del BFF responden 404
+  (`requireModule`) y su UI no se pinta.
+- **Contenido a N idiomas** (`hwe-content-i18n`): traducción de entradas, productos y términos,
+  slug por idioma con 308 a la URL canónica, `translation(locale)` en GraphQL e `i18n.locales` en
+  el Control Center.
+- **Paquetes por país** (`hwe-geo`: `CO` y `generic`): división, ciudades, tipos de documento y
+  prefijo telefónico; el checkout y la libreta de direcciones validan contra el paquete.
+- **Mecanismos declarativos:** campos de producto (`hwe_product_fields`) y detalles de línea de
+  pedido (`hwe_order_item_details`).
+- **HWE Control Center:** tipos de campo extensibles, campos traducibles, pasarelas y credenciales
+  por canal interno, backups programables desde el panel (con «Backup ahora» y descarga),
+  exportación/importación de la configuración, SMTP y registro de errores.
+- **Pagos:** Wompi y Aval Pay de punta a punta (firma, importe y moneda verificados en el webhook),
+  medios de pago configurables (en línea, WhatsApp, efectivo) y compra de invitado con cookie de
+  pedido (`hwe_guest_order`).
+- **Cuenta y tienda:** reseñas de producto solo de compradores, reglas de cupón y «Cupones
+  disponibles», identidad del cliente (documento y términos), envío por ciudad con extras y envío
+  gratis por regla, landings editoriales y de producto, y blog con categorías, archivo y scroll
+  infinito.
+- **SEO y GEO completos:** metadatos y JSON-LD por vista, sitemap segmentado, `robots.txt` y
+  `llms.txt` por idioma, y `noindex` en las vistas privadas.
+- **Analítica y consentimiento:** GA4, GTM, Plausible, Meta (con Conversions API desde el servidor),
+  TikTok y HubSpot desde `config.integrations`, con opt-in; registro del consentimiento como
+  prueba (módulo `consent-log`).
+- **Operación:** servicio `wp-cron`, Caddy sirve los medios, `warm-cache.sh`, CD con la CI en verde y
+  copia previa de la base de datos, y **verificación en vivo** (`verify-security.sh`,
+  `verify-modules.sh`, `verify-integration.sh`).
+- **Tooling:** PHPUnit + Brain Monkey (`composer test`), tests de frontend colocados con `jsdom`,
+  `npm run i18n:check`, `npm run audit:gate`, stub de WordPress para CI y e2e (smoke, axe, módulos y
+  una segunda pasada sin módulos), umbrales de cobertura de trinquete y reglas de accesibilidad.
+- **Documentación:** `docs/UPGRADE.md` (guía v1 → v2), y revisión de `CONFIGURATION`, `SECURITY`,
+  `RUNBOOK`, `COMPATIBILITY`, `CREATE_INSTANCE`, `FRONTEND_CONNECT`, `FRONTEND_BUILD`,
+  `PLUGIN_DEVELOPMENT`, `README.md`, `AGENTS.md` y `CLAUDE.md`.
 
 ### Changed
-- **HWE Control Center**: el grupo `banners` se reduce a `enabled` (activar/desactivar).
-  Se elimina `banners.interval_ms`, `banners.slides` y el parser `lib/config/banners.ts`.
+- **(BREAKING)** Código de instancia → `mu-plugins/instance/` y `src/instance/`; las acciones con
+  nombre de instancia pasan a `hwe_control_center_saved`.
+- **(BREAKING)** GraphQL: los campos `*En` desaparecen en favor de `translation(locale)`;
+  `hweSlugFromEn` pasa a `hweSlugFrom(postType, locale, slug)`; `pickLocalized` recibe la
+  entidad y el campo.
+- **(BREAKING)** `formatPrice` y `formatStoreAmount` exigen moneda y locale; no hay moneda fijada en
+  el código.
+- **(BREAKING)** WordPress solo atiende al BFF: GraphQL, Store API y `hwe/v1/auth|consent` responden
+  404 sin `X-HWE-Internal-Secret`. Se elimina `NEXT_PUBLIC_WORDPRESS_API_URL`.
+- **(BREAKING)** Funcionalidad que pasa a módulo (identidad del cliente, envío, acceso de un
+  integrador, landings…); `banners` adopta el modelo tipo × locación y `mandala_presets` pasa a
+  `decor_presets`; los campos de producto pasan a `Product.hweFields(locale)`.
+- **(BREAKING)** Despliegue: `CSRF_SECRET`, `HWE_SECRETS_KEY` y `HWE_2FA_KEY` obligatorias y sin
+  clave de reserva; `ALLOWED_ORIGIN` exacta; el `Dockerfile` del frontend exige el build-arg
+  `WORDPRESS_PUBLIC_URL`; la base de datos de producción es un volumen externo (`HWE_DB_VOLUME`).
+- Dependencias: Next 16.4.0 (versión exacta, con parche de cabeceras ISR), React 19.3.0, WPGraphQL
+  2.17.0 y el resto de la matriz de `docs/COMPATIBILITY.md`.
+- Las vistas y componentes heredados pasan a ser un starter neutro (clases de marca, textos en
+  `es.json` y `en.json`, cada funcionalidad gateada por su flag o módulo).
+- `banners.enabled` es el único campo del grupo `banners` del Control Center; la autoría vive en el
+  plugin.
+
+### Removed
+- `NEXT_PUBLIC_WORDPRESS_API_URL` y la rama de navegador del cliente GraphQL.
+- Los mu-plugins de traducción de v1 (`hwe-content-translation`, `hwe-slug-translation`,
+  `hwe-category-translation`, `hwe-tag-translation`, `hwe-blog-category-translation`), sustituidos
+  por `hwe-content-i18n`.
+- `woocommerce-email-branding.php` (lo sustituye `hwe-email-chrome` con las plantillas del tema
+  base), el parser de banners del núcleo (`lib/config/banners.ts`), `app/sitemap.ts`,
+  `BackupConfig::triggerNow()` y la carga del QR de 2FA desde un tercero.
+
+### Security
+- Login con 2FA sin tokens antes del segundo factor (id opaco de un solo uso en Redis; sin Redis,
+  falla cerrado), alta de 2FA con el secreto en el servidor y QR propio, y activar o desactivar
+  exige prueba de posesión (TOTP o código de recuperación).
+- `logout-all` y el cambio de contraseña revocan de verdad los refresh tokens; los clientes pueden
+  cambiar su contraseña.
+- Sin claves de cifrado de reserva (secretos del Control Center y TOTP); `CSRF_SECRET` sin reserva;
+  guard de arranque ampliado.
+- Origin/CSRF con lista cerrada de rutas firmadas; HMAC único con anti-replay; `returnUrl` y
+  `?return=` solo del propio sitio; idempotencia sin fallo abierto; rate-limit en lecturas y
+  `wp-login.php`.
+- Reseñas con la identidad del perfil, validación con Zod, saneado de HTML con `rel` seguro y tokens
+  de diseño validados por tipo; SVG subidos saneados.
+- `GET /api/store/products?include=` ya no expone productos sin publicar; la introspección de
+  GraphQL falla cerrada; `WP_ADMIN_PASSWORD` obligatoria al instalar.
+- Backups reales (antes las copias automáticas de producción no funcionaban), contraseña de MySQL
+  fuera de la línea de comandos, `setup.sh` verifica el SHA-256 de lo que descarga y
+  `wp cache flush` ya no borra el Redis del frontend.
+
+### Verificación y alcance
+Verificado: lint, tipos, formato, paridad i18n, tests de frontend y de PHP, puerta anti-instancia y
+`next build`; el e2e local contra el stub (con módulos encendidos y la pasada sin módulos);
+`verify-modules.sh toggle` (9 módulos), `verify-security.sh` e integración externa contra la pila de
+desarrollo en vivo; el job «contrato» reproducido en local; y `docker build --target prod`.
+
+**No verificado en vivo en esta versión:**
+- la compra completa (`E2E_FULL=1`) contra la pila sembrada;
+- `verify-security.sh --strict` y `examples/minimal-consumer` contra la pila;
+- la segunda pasada e2e y la CI completa en el servidor de CI;
+- los webhooks de Wompi y Aval Pay contra el sandbox de cada pasarela (se prueban con firmas
+  simuladas);
+- la actualización de una instancia real de v1 siguiendo `docs/UPGRADE.md`.
 
 ## [1.0.0] — 2026-07-14
 

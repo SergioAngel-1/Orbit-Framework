@@ -45,7 +45,7 @@ class Assets {
 	 * a mano). Si el archivo no se puede leer, cae a la versión del plugin.
 	 */
 	private static function assetVersion( string $relPath ): string {
-		$base = defined( 'HWE_BANNERS_VERSION' ) ? HWE_BANNERS_VERSION : '1.0.0';
+		$base = defined( 'HWE_BANNERS_VERSION' ) ? HWE_BANNERS_VERSION : '2.0.0';
 		$file = HWE_BANNERS_DIR . '/' . ltrim( $relPath, '/' );
 		if ( is_readable( $file ) ) {
 			$mtime = filemtime( $file );

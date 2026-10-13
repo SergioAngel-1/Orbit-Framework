@@ -5,7 +5,7 @@
  *              bloquea la enumeración de usuarios (REST API y ?author=N), desactiva
  *              pingbacks/trackbacks, generaliza los errores de login y reduce metadatos.
  * Author:      Headless Web Ecosystem
- * Version:     1.0.0
+ * Version:     2.0.0
  *
  * Forma parte de la Fase 1 (endurecimiento de seguridad base) del plan de producción.
  */

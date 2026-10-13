@@ -8,7 +8,7 @@
  *              cifrada (AES-256-GCM) vía SecretsStorage. Incluye un botón de
  *              "enviar email de prueba" en el propio panel.
  * Author:      Headless Web Ecosystem
- * Version:     1.0.0
+ * Version:     2.0.0
  *
  * Por qué: sin SMTP, WordPress usa el sendmail/PHP por defecto, que en
  * producción suele acabar en spam o no entregarse. Este mu-plugin es el
