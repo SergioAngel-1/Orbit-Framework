@@ -54,7 +54,7 @@ final class SchemaContractTest extends TestCase
     /** Las claves raíz que el núcleo declara hoy (sin `instance`). */
     private const CORE_ROOTS = [
         'brand', 'i18n', 'auth', 'social', 'legal', 'design', 'ecommerce', 'banners', 'payments',
-        'integrations', 'backups', 'seo', 'shipping', 'geo',
+        'integrations', 'backups', 'seo', 'shipping', 'geo', 'landings',
     ];
 
     public function testTheCoreDeclaresAnEmptyInstanceGroup(): void

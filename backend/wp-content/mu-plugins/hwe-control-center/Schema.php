@@ -6,7 +6,7 @@ namespace HWE\ControlCenter;
  * Árbol de configuración de la plantilla — fuente única de verdad.
  *
  * Los grupos del núcleo viven por tema en `SchemaGroups/` (traits de esta clase: identidad,
- * contacto, diseño, tienda, pagos, integraciones, SEO, envío y GEO); `core()` los junta en el
+ * contacto, diseño, tienda, pagos, integraciones, SEO, envío, GEO y landings); `core()` los junta en el
  * orden de las pestañas del panel y añade el grupo `instance`.
  *
  * Tipos de nodo:
@@ -54,6 +54,7 @@ class Schema {
     use SchemaGroups\Seo;
     use SchemaGroups\Shipping;
     use SchemaGroups\Geo;
+    use SchemaGroups\Landings;
 
     /**
      * Esquema efectivo: el del núcleo más lo que aporte la instancia, ya validado.
@@ -239,6 +240,7 @@ class Schema {
             ...self::seoGroups(),
             ...self::shippingGroups(),
             ...self::geoGroups(),
+            ...self::landingGroups(),
 
             /* ------------------------------------------------------------------ */
             /* INSTANCIA                                                           */

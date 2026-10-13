@@ -761,6 +761,36 @@ git fetch framework --tags
   publicación se hace con la casilla «Publicar landing» de cada ficha. El vídeo se enlaza a YouTube (la
   CSP del framework tiene `frame-src 'none'`): incrustarlo es una decisión de la instancia.
 
+### Módulo `landings` (F5)
+
+- **Nuevo plugin `hwe-landings`** (módulo `landings`): el motor de landings editoriales de las
+  instancias derivadas, **sin** sus landings estáticas. Activa el módulo con `modules` en
+  `instance.config.json`. El núcleo reserva el grupo raíz `landings` (vacío) en el Control Center, como
+  `shipping`.
+- **(breaking) `landing_pages` → `landings`.** El nodo raíz `landing_pages` (con `editorial`,
+  `editorial_registry` y `product`) de una instancia derivada pasa a `landings.registry` (el texto
+  `identificador | Nombre | tipo`) y `landings.editorial.<id>`. El identificador y su contenido se
+  conservan: hay que mover la configuración guardada (o sembrarla de nuevo con `wp hwe setup`).
+- **(breaking) Los campos `*_en` pasan a variantes por idioma.** `title_en`, `body_en`, `cta_label_en`…
+  se sustituyen por `<campo>_<idioma>` para cada idioma de `i18n.locales` (`title_en`, `title_pt_br`…).
+  La URL por idioma pasa de `url.path_en` a `url.path_<idioma>` (el de `en` se llama igual). Desaparece
+  `image_en` (una imagen por idioma): las imágenes no se traducen.
+- **(breaking) `url.base`: `learn` → `area`.** El valor `root` no cambia. El área sigue siendo
+  `/learn/<tramo>`; antes el nombre público del área lo fijaba la instancia.
+- **(contrato) Landings con diseño propio.** Las declara la instancia con `hwe_landings_static_entries`
+  en el backend (`id => ['label', 'jsonld', 'base']`) y con `instanceRegistry.landings.staticEntries` en
+  el frontend (tarea 58). Un identificador del panel que choque con una estática se ignora.
+- **(contrato) Tipos de campo.** `landing_registry` y `registry_type` salen del núcleo del Control Center
+  y los registra el módulo (`hwe_control_center_field_types`). El tipo de una fila guardada se edita en
+  el bloque de su landing y escribe en la misma fila del registro.
+- **No se porta:** las secciones y datos propios de las landings de la instancia de origen (documentos
+  descargables, tarifas, canales del hero, vídeo de la FAQ, grupos de productos de línea, categoría
+  asociada y su botón); si tu instancia los necesita, añádelos con `hwe_control_center_schema` dentro de
+  `landings` o en `instance`.
+- **Locaciones de banner:** el módulo añade `landing-<id>` a `hwe-banners` por cada landing registrada
+  (estáticas y del panel).
+- **Revalidación:** tag `landings` (el frontend lo acepta desde esta versión).
+
 ### Infraestructura y CD (F4)
 
 - **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin

@@ -31,6 +31,12 @@ framework nunca toca, y se engancha al núcleo por hooks estables, versionados p
 | `hwe_revalidation_tags` | filtro | Declarar tags ISR propios (el frontend debe declararlos también en `registry.ts`). |
 | `hwe_geo_packs` | filtro | Añadir o sustituir paquetes por país (divisiones, ciudades, documentos, prefijo); ver `docs/FRONTEND_CONNECT.md` «Paquetes por país». |
 | `hwe_modules_catalog` | filtro | Añadir módulos propios (id → slug de plugin). |
+| `hwe_landings_static_entries` | filtro | Declarar las landings con **diseño propio** de la instancia (`id => ['label', 'jsonld', 'base']`): su contenido se edita en el panel del módulo `landings`. Deben coincidir con `instanceRegistry.landings.staticEntries`. |
+| `hwe_product_landing_icons` | filtro | Ampliar los íconos del selector de la landing de producto (clave en minúsculas → etiqueta); la instancia declara los mismos dibujos en su frontend. |
+
+**Grupos reservados a un módulo:** el núcleo declara vacíos los grupos raíz `shipping` y
+`landings`; el plugin del módulo los puebla con `hwe_control_center_schema` (no van en `instance`:
+una clave raíz ajena al núcleo se descarta).
 
 **Módulos opcionales:** la instancia los elige en `instance.config.json` (`modules:
 [<id>…]`); `wp hwe setup` activa los listados y desactiva los demás del catálogo

@@ -125,6 +125,17 @@ describe("firmas", () => {
     expect(revalidateTag).toHaveBeenCalledWith("shipping", "max");
   });
 
+  it("HWE: el tag del módulo landings", async () => {
+    const body = '{"tag":"landings"}';
+
+    const res = await POST(
+      request(body, { "x-hwe-signature": `sha256=${hmac(body, HWE_SECRET, "hex")}` }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(revalidateTag).toHaveBeenCalledWith("landings", "max");
+  });
+
   it.each([
     ["WooCommerce", { "x-wc-webhook-signature": "firma-falsa" }],
     ["HWE", { "x-hwe-signature": "sha256=deadbeef" }],

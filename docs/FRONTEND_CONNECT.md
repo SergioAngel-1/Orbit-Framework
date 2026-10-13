@@ -258,6 +258,36 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
 - **Starter:** `FreeShippingNotice` en el cajón, `/cart` y el checkout; el checkout pinta los extras y
   comunica el destino. Cada página pasa `shipping={{ methods }}` **solo** si `modules.shipping`.
 
+### Landings editoriales (módulo `landings`, backend)
+
+- **Qué hace el backend** (plugin `hwe-landings`): un registro de landings y, por cada una, un molde de
+  **slots fijos** editado en Control Center → Landings. Con el módulo apagado el plugin no registra nada
+  y el frontend no lee ni pinta nada de esto. El motor del frontend (registro combinado, resolución de
+  secciones, enlaces) llega con la tarea 58; aquí está el contrato de datos.
+- **Dónde llega.** Todo sale por `GET /wp-json/hwe/v1/config` bajo `landings` (campos `public`):
+  `landings.registry` (texto `identificador | Nombre | tipo`, una landing por línea, tipo `article` o
+  `person`) y `landings.editorial.<id>.*`. El identificador es **interno e inmutable**: es la clave del
+  contenido y la locación del banner del hero (`landing-<id>`); la URL pública vive aparte.
+- **Slots** de `landings.editorial.<id>`: `published`, `url` (`base`: `area` | `root`, `path` y
+  `path_<idioma>`), `accent`, `product`, `product_cta_label`, `seo` (`title`, `description`,
+  `og_image`, `date_published`, `date_modified`, `author`, `author_landing`), `lead_enabled` /
+  `lead_body`, `sections.s1`…`s5` (`enabled`, `order`, `layout`, `kicker`, `title`, `body`, `image`,
+  `image_alt`, `image_2`, `image_2_alt`), `quote` (`enabled`, `text`, `author`, `author_photo`,
+  `background_image`, `logo`, `logo_alt`), `faq` (`enabled`, `title`, `q1`…`q6` con `question` y
+  `answer`), `products` (`enabled`, `title`, `after`, `mode`, `category`, `manual`) y `closing`
+  (`enabled`, `title`, `text`, `cta_label`, `cta_href`, `cta2_label`, `cta2_href`, `background_image`).
+- **Idiomas.** Cada texto trae un `<campo>_<idioma>` por idioma de `i18n.locales` (`title`, `title_en`,
+  `title_pt_br`…): vacío = usar el del idioma por defecto (`pickLocalized`). Las imágenes, los colores y los
+  interruptores no se traducen. Un tramo de URL vacío en un idioma es el del idioma por defecto.
+- **Identidad por slot.** Una sección es `s1`…`s5`, no una posición: `order` solo cambia dónde se
+  pinta. La disposición es una de `image-left`, `image-right`, `full`, `text-only`, `prose-blocks`,
+  `mirror-pair` o `divider`.
+- **Hero.** Es un banner de tipo `landing` en la locación `landing-<id>` (módulo `banners`).
+- **Estáticas.** Las landings con diseño propio las declara la instancia con
+  `hwe_landings_static_entries` y su contenido se edita en el mismo panel; una del panel con el mismo
+  identificador se ignora.
+- **Revalidación.** Tag ISR `landings` (y `site-config`, que el Control Center revalida en cada guardado).
+
 ### Landing de producto (módulo `product-landing`)
 
 - **Qué hace el backend** (plugin `hwe-product-landing`): una landing por producto, editada en la ficha

@@ -1,0 +1,28 @@
+.hwe-landing-registry-rows {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.hwe-landing-registry-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1.4fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.hwe-landing-registry-row--locked {
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1.4fr) auto;
+}
+
+.hwe-landing-registry-row input[readonly] {
+  background: #f6f7f7;
+  color: #50575e;
+}
+
+.hwe-landing-registry-remove {
+  color: #b32d2e;
+  font-size: 20px;
+  line-height: 1;
+  text-decoration: none;
+}
