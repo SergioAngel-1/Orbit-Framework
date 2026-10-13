@@ -9,6 +9,9 @@ import type { InstanceRegistry } from "@/lib/instance/types";
  */
 export const instanceRegistry: InstanceRegistry = {
   revalidationTags: ["example"],
+  // Sin manifiesto de tarjetas sociales (lo escribe `scripts/generate-og-images.mjs` en el
+  // registro del framework): se usa la tarjeta dinámica. El contrato espera el mapa vacío.
+  ogCards: {},
   // Campos de producto declarativos: las mismas claves y tipos que `hwe_product_fields` del
   // backend (`mu-plugins/instance/50-example-product-field.php`).
   productFields: {
