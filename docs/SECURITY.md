@@ -7,48 +7,70 @@ El sistema asume un **atacante con capacidad de red** (MITM, CSRF, replay) y un
 directa en el dominio de la tienda). No se protege contra un atacante con acceso al
 servidor o que controle la red interna de la plataforma de despliegue.
 
+El principio que lo ordena todo: **el navegador solo habla con el BFF** (Next.js), y
+WordPress **solo atiende al BFF**. Los secretos viven en el servidor y toda decisión de
+seguridad se toma ahí, **fallando cerrado** cuando falta una pieza.
+
 | Amenaza | Mitigación | Dónde |
 |---------|-----------|-------|
-| Robo de credenciales WooCommerce | Proxy BFF, `server-only`, env sin `NEXT_PUBLIC_` | Fase 3 |
-| XSS → robo de sesión | JWT en cookie `httpOnly`, CSP estricta | Fases 1,2 |
-| CSRF en escrituras | Token firmado (double-submit) + verificación Origin | Fase 4 |
-| Fuerza bruta en login | Rate-limit por IP + umbral por endpoint | Fase 4 |
-| Duplicación de pedidos | Clave de idempotencia (Redis) | Fase 4 |
-| Pago falsificado | Confirmación solo por webhook firmado + conciliación | Fase 7 |
-| Webhook falso | HMAC-SHA256 con secreto compartido | Fases 5,7 |
-| IDOR (otro usuario ve mis datos) | Autorización por propietario en handlers | Fase 3 |
-| Enumeración de usuarios WP | `/wp-json/wp/v2/users` bloqueado + `?author=N` | Fase 1 |
-| Fuga de secretos en el repo | Solo `.env.example`, secret-scanner en CI | Fase 8 |
+| Acceso directo a WordPress (GraphQL, Store API, `hwe/v1/auth\|consent`) saltándose el BFF | `hwe-bff-only`: 404 salvo `X-HWE-Internal-Secret` (comparación en tiempo constante) o WP-CLI; todo el BFF lo envía vía un único cliente (`wpFetch`/clientes de GraphQL, wc/v3 y Store API); un test impide llamadas a WordPress por otra vía | `mu-plugins/hwe-bff-only.php`, `lib/wordpress/internal-fetch.ts` |
+| Robo de credenciales WooCommerce | Proxy BFF, `server-only`, env sin `NEXT_PUBLIC_` | `lib/woocommerce/*` |
+| XSS → robo de sesión | JWT en cookie `httpOnly`, CSP, `sanitizeHtml` para HTML del CMS (fuerza `rel="noopener noreferrer"`), `safeJsonLd`, tokens de diseño validados por tipo antes de inyectarse | `next.config.mjs`, `lib/security/sanitize.ts` |
+| SVG subido con script | Allowlist de MIME y saneado al subir (sin scripts, handlers, entidades externas, `href` con esquemas peligrosos ni animaciones SMIL que los cambien); solo usuarios con `upload_files` | `mu-plugins/hwe-svg-uploads.php` |
+| CSRF en escrituras | Token firmado (double-submit) + verificación Origin; lista **cerrada** de rutas firmadas exentas | `lib/api/guard.ts`, `lib/security/signed-routes.ts` |
+| Fuerza bruta en login | Rate-limit por IP en el BFF y en `wp-login.php`; el login con 2FA pendiente tiene tope de intentos | `lib/security/rate-limit.ts`, `rate-limit.php` |
+| Robo de credenciales antes del segundo factor | El login con 2FA no entrega tokens: las credenciales se quedan en Redis hasta verificar (id opaco de un solo uso, `GETDEL`); sin Redis falla cerrado | `lib/auth/pending-login.ts` |
+| Secreto TOTP en reposo / en tránsito | AES-256-GCM con clave dedicada (`HWE_2FA_KEY`, sin clave de reserva); el QR lo genera el BFF, ningún tercero lo ve; recuperación con códigos hasheados | `mu-plugins/hwe-auth/` |
+| Sesión robada o cuenta comprometida | Blocklist de access tokens, `logout-all` que rota el secreto del usuario, cambio de contraseña que cierra las demás sesiones | `lib/auth/revocation.ts`, `hwe-auth.php` |
+| Duplicación de pedidos | Clave de idempotencia (Redis) | `lib/security/idempotency.ts` |
+| Pago falsificado | Confirmación solo por webhook firmado, con importe y moneda verificados; anti-replay | `lib/payments/*`, `lib/security/replay.ts` |
+| Webhook falso | HMAC-SHA256 con secreto compartido, un único verificador, falla cerrado con secreto vacío | `lib/security/webhook.ts` |
+| IDOR (otro usuario ve mis datos) | Autorización por propietario en handlers; el pedido de invitado solo con su cookie `order_key` | `lib/woocommerce/client.ts`, `lib/checkout/` |
+| Redirecciones abiertas | `returnUrl` de pagos solo del propio sitio; `?return=` con `safeInternalPath` | `lib/navigation/safe-return.ts` |
+| Enumeración de usuarios WP | `/wp-json/wp/v2/users` bloqueado + `?author=N`, errores de login genéricos | `mu-plugins/security.php` |
+| Integrador externo con demasiado poder | Módulo `external-integration`: IP exacta de una lista, contraseña de aplicación solo en GraphQL, rol mínimo, política **cerrada** de operaciones y campos (suelos que ningún filtro rebaja) | `plugins/hwe-external-integration/` |
+| Consentimiento no demostrable (RGPD) | Registro del consentimiento con comprobante (módulo `consent-log`), IP truncada, retención configurable | `plugins/hwe-consent-log/` |
+| Configuración con secretos por defecto | Guard de arranque: aborta en producción con secretos por defecto, cortos o `ALLOWED_ORIGIN` mal formado | `lib/security/secret-guard.ts` |
+| Fuga de secretos en el repo | Solo `.env.example`, gitleaks en CI | `.gitleaks.toml`, `.github/workflows/ci.yml` |
+| Datos de una instancia mezclados con el framework | Puerta anti-instancia en CI (regla de frontera en ESLint + grep) | `.github/scripts/check-anti-instance.sh` |
 
 ## Responsabilidades del cliente
 
 El Licenciatario es responsable de:
 
-1. **Generar secretos propios** — No usar los del `.env.example`.
-2. **HTTPS en producción** — Terminación TLS antes del proxy inverso.
-3. **Copias de seguridad** — Programar `backup.sh` con rotación externa.
+1. **Generar secretos propios** — No usar los del `.env.example` (`generate-secrets.sh`).
+2. **HTTPS en producción** — Terminación TLS antes del proxy inverso (Caddy lo hace).
+3. **Copias de seguridad** — Verificar que las del contenedor `backup` salen **fuera del
+   servidor** y probar la restauración (`docs/RUNBOOK.md`).
 4. **Protección de datos (RGPD)** — Configurar el banner de consentimiento, la
    política de cookies y las páginas legales antes de lanzar.
 5. **Pasarela de pago** — Verificar que la integración sigue las guías de seguridad
    del proveedor y que el webhook está firmado.
-6. **Actualizaciones** — Mantener al día WordPress, plugins y dependencias npm.
+6. **Actualizaciones** — Mantener al día WordPress, plugins y dependencias npm
+   (`npm run audit:gate` en CI; matriz en `docs/COMPATIBILITY.md`).
 7. **Monitorización** — Cablear Sentry (u observabilidad equivalente) y revisar
-   logs periódicamente.
+   logs periódicamente (`docs/OBSERVABILITY.md`).
+8. **Integraciones externas** — Si enciende `external-integration`: IPs mínimas,
+   contraseña de aplicación rotada y política revisada (`MANUAL.md` del plugin).
 
 ## Checklist de hardening
 
-- [ ] Secretos generados con `openssl rand` y puestos en `.env`
-- [ ] `ALLOWED_ORIGIN` ajustado al dominio real
+- [ ] Secretos generados con `openssl rand` y puestos en `.env` (incluidas `HWE_SECRETS_KEY` y `HWE_2FA_KEY`, estables)
+- [ ] `ALLOWED_ORIGIN` exactamente igual al `Origin` del dominio real
 - [ ] HTTPS forzado (HSTS + redirect 80→443)
 - [ ] Cabeceras verificadas (`securityheaders.com` ≥ A)
 - [ ] Webhooks configurados con secreto y prueba de firma
 - [ ] Rate-limit con Redis activo y umbrales ajustados
 - [ ] Cookies `Secure` + `SameSite` en producción
-- [ ] CSP revisada (`img-src` incluye `WORDPRESS_PUBLIC_URL`; `connect-src` solo `'self'`: el navegador no habla con WordPress)
+- [ ] CSP revisada (`img-src` incluye `WORDPRESS_PUBLIC_URL`; `connect-src` solo `'self'`: el navegador no habla con WordPress; `CSP_ANALYTICS_PROVIDERS` si no usas todos los proveedores)
 - [ ] `HWE_REVALIDATION_SECRET` idéntico en WordPress y frontend (secreto interno de `hwe-bff-only`)
+- [ ] `WP_ENVIRONMENT_TYPE=production` (apaga la introspección de GraphQL) y `WP_ADMIN_PASSWORD` propia
+- [ ] Login movido (`HWE_LOGIN_SLUG`) o `wp-admin` tras IP allowlist / WAF
+- [ ] `HWE_INTEGRATION_ALLOWED_IPS` vacío salvo que uses `external-integration`
 - [ ] `sh backend/scripts/verify-security.sh --strict` en verde contra la pila real
-- [ ] Backups programados y probados
-- [ ] `npm run build` y `npm run test` verdes en CI
+- [ ] `sh backend/scripts/verify-modules.sh` en verde (cada módulo apagado desaparece del todo)
+- [ ] Backups programados, copiados fuera del servidor y probados
+- [ ] `lint`, `type-check`, `test`, `build` y `phpunit` verdes en CI
 
 ## Verificar la pila con `verify-security.sh`
 
@@ -82,3 +104,14 @@ Lo que falta un secreto o un usuario se **omite y se dice** (`(omitida)`); con `
 fallo (úsalo en la aceptación de una release). Salida: `0` todo bien · `1` algún fallo · `2` la pila no
 responde. El propio script se prueba contra una pila de pega con cada fuga posible
 (`backend/tests/Unit/Scripts/VerifySecurityTest.php`): un verificador que nunca falla no verifica nada.
+
+## Otras verificaciones contra la pila
+
+| Script | Para qué |
+|--------|----------|
+| `backend/scripts/verify-modules.sh` | Que un módulo apagado no deja rutas ni configuración abiertas, y que cada plugin de módulo está completo y montado. |
+| `backend/scripts/verify-integration.sh` | La puerta de red, el rol, la contraseña de aplicación y la política cerrada del módulo `external-integration`. Crea y borra un usuario y un pedido de prueba. |
+
+Ambos se prueban a sí mismos con binarios falsos (`backend/tests/Unit/Scripts/`). Lo que
+**no** se puede verificar en local —que Caddy vea la IP real del cliente o que la cabecera
+`Authorization` atraviese Caddy → Apache— se comprueba en el despliegue.

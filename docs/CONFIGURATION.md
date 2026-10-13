@@ -1,113 +1,221 @@
-# Configuración — Variables de entorno
+# Configuración — Variables de entorno y panel de control
 
-Todas las variables viven en `.env` (raíz, las consume Docker Compose) y, si
-trabajas fuera de Docker, en `frontend/.env.local`.
+Hay **dos niveles** de configuración, y conviene no mezclarlos:
 
-> ⚡ **Modo híbrido**: WordPress nativo obtiene sus variables de DB de
-> `WORDPRESS_DB_*` del entorno (se establecen en `start-local.bat` o
-> `start-local.ps1`). MariaDB se expone en `localhost:3307` (no 3306) para
-> evitar conflictos con instalaciones locales de MySQL. **El repositorio solo contiene
-`.env.example`; nunca subas claves reales.**
+| Nivel | Dónde | Qué contiene | Quién la cambia |
+|-------|-------|--------------|-----------------|
+| **Entorno** | `.env` (raíz, la consume Docker Compose) y `frontend/.env.local` (fuera de Docker) | Secretos, URLs de infraestructura, ajustes de despliegue | Quien despliega |
+| **Negocio** | HWE Control Center (`wp-admin → HWE Config`), sembrable con `wp hwe setup` | Marca, diseño, idiomas, país, pasarela, integraciones, SEO, backups, módulos | El negocio |
 
-> **Regla de oro:** todo lo secreto va **sin** el prefijo `NEXT_PUBLIC_`. Solo las
-> variables `NEXT_PUBLIC_*` se incluyen en el bundle del navegador.
+Este documento cubre ambos. Plantillas: `.env.example` (desarrollo), `.env.prod.example`
+(producción) y `frontend/.env.example` (frontend nativo). **El repositorio solo contiene las
+plantillas; nunca subas claves reales.**
 
-## Base de datos (Docker)
+> **Regla de oro:** todo lo secreto va **sin** el prefijo `NEXT_PUBLIC_`. Solo las variables
+> `NEXT_PUBLIC_*` se incluyen en el bundle del navegador.
+
+> **En producción el arranque aborta** (`lib/security/secret-guard.ts`) si
+> `GRAPHQL_JWT_AUTH_SECRET_KEY`, `CSRF_SECRET`, `WC_WEBHOOK_SECRET` o `HWE_REVALIDATION_SECRET`
+> siguen con un valor por defecto o miden menos de 24 caracteres, o si `ALLOWED_ORIGIN` no es
+> exactamente el `Origin` del navegador. Genera los secretos con `sh backend/scripts/generate-secrets.sh`.
+
+> **Modo híbrido (WordPress nativo):** WordPress toma sus variables de base de datos de
+> `WORDPRESS_DB_*` del entorno. MariaDB se expone en `localhost:3307` (no 3306) para no chocar con
+> un MySQL local. Con WordPress nativo hay que definir `HWE_REVALIDATION_SECRET` en su
+> `wp-config.php` (ver `README.md`); en Docker lo hace `docker-compose*.yml`.
+
+---
+
+## Entorno
+
+### Compose y volúmenes (producción)
+
+| Variable | Descripción |
+|----------|-------------|
+| `COMPOSE_FILE` | `docker-compose.prod.yml` en `.env.prod`: sin `-f`, un `docker compose …` a secas usaría el de **desarrollo** y recrearía db y wordpress con otra configuración. |
+| `HWE_DB_VOLUME` | Nombre del volumen **externo** de la base de datos (se crea una vez con `docker volume create`). Si ya tenías una instalación, el nombre de tu volumen actual (`docker volume ls`). |
+| `FRONTEND_IMAGE` | Imagen del frontend construida para producción (`hwe-frontend:prod`); de aquí toma el build los *build-args*. |
+
+### Dominio y TLS (producción)
+
+| Variable | Descripción |
+|----------|-------------|
+| `PUBLIC_DOMAIN` | Dominio público. Caddy emite el certificado; `ALLOWED_ORIGIN` se deriva como `https://<dominio>`. |
+| `ACME_EMAIL` | Correo de la cuenta de Let's Encrypt. |
+| `ADMIN_DOMAIN` | (opc.) Servir `/wp-admin` y el login en su propio host. Con valor, el dominio público redirige allí. Ver `caddy/README.md` (DNS, `caddy/conf.d/admin.caddy`, `siteurl`). |
+
+### Base de datos
 
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
 | `MYSQL_DATABASE` | Nombre de la BD | `wordpress` |
-| `MYSQL_USER` / `MYSQL_PASSWORD` | Credenciales de la BD | `wordpress` |
+| `MYSQL_USER` / `MYSQL_PASSWORD` | Credenciales de la BD | *(larga y aleatoria en prod)* |
 | `MYSQL_ROOT_PASSWORD` | Clave root de MariaDB | *(aleatoria en prod)* |
+| `MYSQL_INNODB_BUFFER_POOL_SIZE` | (opc.) ≈ 50 % del límite de memoria del servicio `db` | `256M` |
+| `MYSQL_MAX_CONNECTIONS` | (opc.) | `100` |
 
-## Puertos y URLs
+### WordPress
 
 | Variable | Descripción |
 |----------|-------------|
-| `WORDPRESS_PORT` / `FRONTEND_PORT` | Puertos publicados en el host |
-| `WORDPRESS_PUBLIC_URL` | URL pública de WordPress |
-| `HEADLESS_FRONTEND_URL` | URL del frontend (redirección headless) |
-| `HEADLESS_ALLOWED_ORIGINS` | Allowlist CORS de WPGraphQL (coma-separada) |
+| `WORDPRESS_PORT` / `FRONTEND_PORT` | Puertos publicados en el host (solo desarrollo; en prod no se publican). |
+| `WORDPRESS_DEBUG` | `1` en desarrollo, `0` en producción. |
+| `WP_ENVIRONMENT_TYPE` | `local` / `development` / `staging` / `production`. **La introspección de GraphQL se apaga si vale `production`** (o si no está definida: falla cerrado). |
+| `WORDPRESS_PUBLIC_URL` | URL pública de WordPress. En el frontend, solo para autorizar sus imágenes (CSP y `next/image`); **va en el build** de la imagen. Opcional en desarrollo. |
+| `HEADLESS_FRONTEND_URL` | URL del frontend (redirección headless y respaldo de CORS). |
+| `HEADLESS_ALLOWED_ORIGINS` | Allowlist CORS de WPGraphQL (coma-separada). También acota los `frontend_url` que aceptan `forgot-password` y `send-verification`. |
+| `WP_TITLE`, `WP_ADMIN_USER`, `WP_ADMIN_PASSWORD`, `WP_ADMIN_EMAIL` | Datos del administrador que crea `setup.sh`. **`WP_ADMIN_PASSWORD` es obligatoria** (el instalador aborta sin ella; el compose de producción se niega a arrancar). |
+| `HWE_LOGIN_SLUG` | Mueve el login a `/<slug>`; `/wp-login.php` pasa a responder 404. 6–63 caracteres `[a-z0-9-]`. Vacío = sin mover. No lo publiques. |
+| `HWE_TRUSTED_PROXY_COUNT` | (constante PHP; el compose la deriva de `TRUSTED_PROXY_COUNT`) Proxies de confianza delante de WordPress, para la IP real en `rate-limit.php`. |
+| `HWE_BFF_TRUST_PRIVATE_NETWORK` | (constante PHP) **Desactivada por defecto.** Con `define('HWE_BFF_TRUST_PRIVATE_NETWORK', true)` `hwe-bff-only` vuelve a aceptar como BFF una petición sin `X-Forwarded-For` desde una IP privada. Es una suposición sobre la red, no una credencial: solo en redes cerradas. |
+| `HWE_INTEGRATION_ALLOWED_IPS` | IPs exactas (sin CIDR; espacios o comas) que pueden llegar a GraphQL como **integración externa** (módulo `external-integration`: ERP, logística). Vacío = nadie. Solo GraphQL y solo con la contraseña de aplicación del usuario de servicio: la Store API y `hwe/v1/auth\|consent` siguen cerradas. Ver el `MANUAL.md` del plugin. |
 
-## Seguridad / sesión
+### Seguridad y sesión
 
 | Variable | Descripción | Cómo generarla |
 |----------|-------------|----------------|
 | `GRAPHQL_JWT_AUTH_SECRET_KEY` | Secreto JWT compartido WP↔frontend | `openssl rand -base64 64` |
-| `CSRF_SECRET` | Firma de tokens CSRF | `openssl rand -base64 32` |
-| `ALLOWED_ORIGIN` | Origen autorizado para escrituras `/api/*` | URL del frontend |
-| `JWT_REFRESH_COOKIE_NAME`, `AUTH_COOKIE_NAME` | Nombres de cookie (opc.) | — |
-| `REFRESH_TOKEN_MAX_AGE_DAYS` | Vida del refresh token (opc., 30) | — |
-| `COOKIE_DOMAIN` | Dominio de cookie para subdominios (opc.) | `.tu-dominio.com` |
+| `CSRF_SECRET` | Firma de tokens CSRF. **Obligatorio y sin valor de reserva**: sin él toda escritura falla | `openssl rand -base64 32` |
+| `ALLOWED_ORIGIN` | Origen autorizado para escrituras `/api/*`. **Obligatorio.** Tiene que ser *exactamente* el `Origin` del navegador: `https://host[:puerto]`, sin barra final, ruta ni `:443` | URL del frontend |
+| `HWE_REVALIDATION_SECRET` | Secreto compartido WP↔BFF. Firma la revalidación y es el **secreto interno** (`X-HWE-Internal-Secret`) que el BFF presenta en cada llamada a WordPress: sin él, `hwe-bff-only` responde 404. Debe coincidir en ambos lados (`define('HWE_REVALIDATION_SECRET', …)` en `wp-config.php`) | `openssl rand -hex 32` |
+| `HWE_SECRETS_KEY` | Clave AES-256-GCM de los secretos del Control Center. **Obligatoria en producción** y estable: si cambia, lo cifrado queda indescifrable | `openssl rand -base64 32` |
+| `HWE_2FA_KEY` | Clave AES-256-GCM del secreto TOTP. Mismas reglas | `openssl rand -base64 32` |
+| `AUTH_COOKIE_NAME`, `JWT_REFRESH_COOKIE_NAME`, `CSRF_COOKIE_NAME`, `CART_COOKIE_NAME` | (opc.) Nombres de cookie (`hwe_at`, `hwe_rt`, `hwe_csrf`, `hwe_cart`) | — |
+| `REFRESH_TOKEN_MAX_AGE_DAYS`, `CART_COOKIE_MAX_AGE_DAYS` | (opc.) Vida del refresh token (30) y de la cookie del carrito (7) | — |
+| `COOKIE_DOMAIN` | (opc.) Dominio de cookie para subdominios | `.tu-dominio.com` |
+| `TRUSTED_PROXY_COUNT` | Proxies de confianza delante del BFF (Caddy = 1). Decide cómo se calcula la IP real desde `X-Forwarded-For` | `1` |
+| `WP_ADMIN_PASSWORD` y demás | Ver «WordPress» arriba | — |
 
-## WordPress / GraphQL
-
-| Variable | Lado | Descripción |
-|----------|------|-------------|
-| `WORDPRESS_INTERNAL_API_URL` | servidor | Endpoint GraphQL por red interna Docker. El navegador no habla con WordPress: ya no hay `NEXT_PUBLIC_WORDPRESS_API_URL` |
-| `WORDPRESS_PUBLIC_URL` | servidor (build) | Origen público de WordPress, solo para autorizar sus imágenes (CSP y `next/image`). Opcional en desarrollo |
-| `HWE_REVALIDATION_SECRET` | servidor + WordPress | Secreto compartido: firma la revalidación y es el **secreto interno** (`X-HWE-Internal-Secret`) que el BFF presenta en cada llamada a WordPress. Debe coincidir en ambos lados (`define('HWE_REVALIDATION_SECRET', …)` en `wp-config.php`) |
-| `HWE_BFF_TRUST_PRIVATE_NETWORK` | WordPress (constante PHP) | Opcional, **desactivada por defecto**. Con `define('HWE_BFF_TRUST_PRIVATE_NETWORK', true)` `hwe-bff-only` vuelve a aceptar como BFF una petición sin `X-Forwarded-For` desde una IP privada. Es una suposición sobre la red, no una credencial: úsala solo en redes cerradas |
-
-## WooCommerce (BFF, server-only)
+### WordPress / GraphQL (lado servidor)
 
 | Variable | Descripción |
 |----------|-------------|
-| `WC_API_URL` | REST `wc/v3` (pedidos/clientes) |
-| `WC_STORE_API_URL` | Store API `wc/store/v1` (carrito/checkout) |
-| `WC_CONSUMER_KEY` / `WC_CONSUMER_SECRET` | Claves `ck/cs` (ver INSTALL §4) |
-| `WC_WEBHOOK_SECRET` | Firma HMAC del webhook de revalidación |
+| `WORDPRESS_INTERNAL_API_URL` | Endpoint GraphQL por red interna Docker (`http://wordpress:80/graphql`). El navegador no habla con WordPress: no existe `NEXT_PUBLIC_WORDPRESS_API_URL`. |
+| `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_SITE_NAME` | URL y nombre públicos (auth y analítica). La marca *real* sale de `getSiteConfig()`; esto es el respaldo mientras WordPress no responde. |
 
-## Redis
+### WooCommerce (BFF, solo servidor)
 
 | Variable | Descripción |
 |----------|-------------|
-| `REDIS_URL` | `redis://redis:6379` (Docker) o tu Upstash/Redis |
-| `RATELIMIT_WINDOW_SECONDS` / `RATELIMIT_MAX_REQUESTS` | Ventana global de rate-limit |
+| `WC_API_URL` | REST `wc/v3` (pedidos/clientes). |
+| `WC_STORE_API_URL` | Store API `wc/store/v1` (carrito/checkout). |
+| `WC_CONSUMER_KEY` / `WC_CONSUMER_SECRET` | Claves `ck/cs` (`backend/scripts/generate-woo-keys.sh`). |
+| `WC_WEBHOOK_SECRET` | Firma HMAC de los webhooks de WooCommerce (revalidación y pedidos). |
 
-## Pagos (Fase 7 — capa agnóstica)
+### Redis
 
 | Variable | Descripción |
 |----------|-------------|
-| `PAYMENT_PROVIDER` | Pasarela activa: `noop` (sandbox) \| `avalpay` \| `wompi` \| `payu` \| `bold`. Solo como anulación: manda el panel. |
-| `PAYMENT_CURRENCY` | Moneda ISO-4217 (`COP`, `USD`…) |
-| `NEXT_PUBLIC_PAYMENT_RETURN_URL` | URL de retorno tras el checkout alojado |
-| `NOOP_INTEGRITY_SECRET` | Secreto para firmar webhooks del proveedor `noop` |
-| `WOMPI_*`, `PAYU_*`, `BOLD_*` | Credenciales server-only al integrar cada pasarela |
+| `REDIS_URL` | `redis://redis:6379` (Docker) o tu Redis gestionado. El frontend y WordPress comparten Redis: WordPress usa el prefijo `hwe-wp:` y su «flush» es selectivo (no borra revocación de sesión, rate-limit ni idempotencia del BFF). |
 
-> Para integrar una pasarela real, ver `lib/payments/providers/<nombre>.ts` y el
-> procedimiento en `docs/PRODUCTION-PLAN.md` §7.4.
+### Pagos (capa agnóstica)
 
-## Panel de control (HWE Config)
+| Variable | Descripción |
+|----------|-------------|
+| `PAYMENT_PROVIDER` | Anulación de la pasarela activa: `noop` (sandbox) \| `wompi` \| `avalpay` \| `payu` \| `bold`. **Manda el panel**; esta variable solo la anula. |
+| `PAYMENT_CURRENCY` | Moneda ISO-4217 de respaldo. La moneda de la tienda es `ecommerce.currency` del panel (obligatoria). |
+| `NEXT_PUBLIC_PAYMENT_RETURN_URL` | URL de retorno tras el checkout alojado. `POST /api/payments/create` solo acepta un `returnUrl` del propio sitio. |
+| `NOOP_INTEGRITY_SECRET` | Secreto de los webhooks del proveedor `noop`. |
+| `WOMPI_*`, `PAYU_*`, `BOLD_*` | Credenciales server-only por pasarela. Wompi y Aval Pay se configuran de punta a punta **desde el panel**; PayU y Bold son stubs (501). |
+
+Para añadir una pasarela: `lib/payments/providers/<nombre>.ts` (ver `docs/FRONTEND_CONNECT.md`, «Pagos»).
+
+### Analítica
+
+Los servicios (GA4, GTM, Plausible, Meta Pixel + Conversions API, TikTok, HubSpot) y sus ids se
+configuran en el panel (*Integraciones*); aquí solo quedan dos variables de **despliegue**:
+
+| Variable | Descripción |
+|----------|-------------|
+| `PLAUSIBLE_HOST` | Host de Plausible si es autoalojado (por defecto, el servicio alojado). |
+| `CSP_ANALYTICS_PROVIDERS` | La CSP autoriza por defecto los hosts de todos los proveedores. Si solo usas algunos, estréchala (`ga4,gtm,plausible,meta,tiktok,hubspot`; `none` = ninguno): un script de un proveedor no listado se bloquea. |
+
+### Rendimiento y resistencia del frontend (todas opcionales)
+
+| Variable | Defecto | Descripción |
+|----------|---------|-------------|
+| `GRAPHQL_TIMEOUT_MS` / `CONFIG_TIMEOUT_MS` | 10000 / 5000 | Plazo por intento de las lecturas a WordPress. Una petición abortada por plazo **no** entra en el Data Cache de Next. |
+| `BUILD_GRAPHQL_TIMEOUT_MS` / `BUILD_CONFIG_TIMEOUT_MS` | — | Paciencia **solo del build**, con WordPress cargado por el propio build. |
+| `RUNTIME_GRAPHQL_TIMEOUT_MS` / `RUNTIME_CONFIG_TIMEOUT_MS` | — | Paciencia en runtime: sin ella, la lentitud de WordPress se convierte en cascada de 500. |
+| `PRERENDER_LONG_TAIL` | `all` | Cola larga del prerender (fichas y entradas): `all` las hornea en el build; `none` las deja para ISR bajo demanda (recomendado con un catálogo grande o una máquina justa). |
+| `NEXT_STATIC_GENERATION_MAX_CONCURRENCY` / `…_MIN_PAGES_PER_WORKER` / `NEXT_STATIC_PAGE_GENERATION_TIMEOUT` | 2 / 400 / 180 | Ritmo del build en un servidor que comparte CPU con WordPress. Sus equivalentes `BUILD_STATIC_*` aplican solo al build de la imagen. |
+| `NEXT_IMAGE_MIN_CACHE_TTL` | 2592000 | Segundos que vive una imagen ya optimizada (los uploads de WordPress son inmutables). |
+
+### Operación y observabilidad
+
+| Variable | Descripción |
+|----------|-------------|
+| `BACKUP_RETAIN_DAYS` | Días de retención local de las copias (el panel puede sobrescribirlo). |
+| `ORDER_NOTIFICATION_WEBHOOK_URL` | (opc.) Webhook interno (Slack/Teams/ERP/cola) al que el BFF notifica eventos de pedido. Los correos **al cliente** los envía WooCommerce. |
+| `LOG_LEVEL` | Nivel de pino (`debug`/`info`/`warn`/`error`). |
+| `SENTRY_DSN` | DSN de Sentry (si se omite, no se envía nada). |
+
+---
+
+## Negocio: HWE Control Center
 
 La fuente única de los campos es `backend/wp-content/mu-plugins/hwe-control-center/Schema.php`
-(los grupos del núcleo, por tema, en `hwe-control-center/SchemaGroups/`);
-los valores de una instancia se siembran con `wp hwe setup` desde
-`backend/scripts/instance.config.example.json`. Esto es lo que el panel expone además de
-marca/diseño/SEO:
+(los grupos del núcleo, por tema, en `hwe-control-center/SchemaGroups/`). Los campos `public` salen
+por `GET /wp-json/hwe/v1/config`; los `secret` se cifran en reposo y no salen nunca.
+
+Los valores de una instancia se siembran con `wp hwe setup instance.config.json`
+(`docs/CREATE_INSTANCE.md`; plantilla: `backend/scripts/instance.config.example.json`).
 
 | Grupo | Campos | Notas |
 |-------|--------|-------|
-| Tienda | `checkout_login_required`, `free_shipping.*` | El login se sincroniza con el ajuste nativo de Woo; el envío gratis lo aplica el módulo `shipping` (`hwe_shipping_free_rule`). |
-| Pasarelas de pago | `provider`, `gateway_enabled`, `whatsapp_enabled`, `cash_enabled` (+ credenciales por pasarela) | Lo público lo lee el checkout; los secretos solo salen por `hwe/v1/payments/credentials` (canal interno). El efectivo usa la pasarela nativa «Contra reembolso», que se sincroniza al guardar. |
-| Integraciones | `gtm_id`, `meta_pixel_id`, `tiktok_pixel_id`, `hubspot_portal_id`, `consent_retention_years` (+ `meta_capi_*` por canal interno) | Cada id activa su proveedor; vacío = desactivado. |
-| Legal → Sedes | 4 sedes (nombre, dirección, Maps, teléfono, horario, coordenadas) | Alimentan el JSON-LD `LocalBusiness` y la página de contacto. |
-| Acceso | `auth.phone_login_enabled`, `auth.phone_default_dial_code` | Login y registro con el teléfono de la cuenta (E.164, único). Apagado por defecto. El prefijo permite escribir el número sin él. |
-| Idiomas | `i18n.locales` | Idiomas secundarios (p. ej. `en, fr`), sin el de `brand.locale`. Deben coincidir con `frontend/src/i18n/routing.ts`. |
-| GEO | `faq`, `faq_payments` (traducibles) | Formato «pregunta \| respuesta». La traducción es por bloque completo. |
+| `modules` | lista de ids en `instance.config.json` | Qué módulos quedan **activos**. La fuente de verdad en tiempo de ejecución es si el plugin está activo (`config.modules`). Ver «Módulos». |
+| `i18n` | `locales` | Idiomas secundarios (p. ej. `en, fr`), sin el de `brand.locale`. Deben coincidir con `frontend/src/i18n/routing.ts` (el arranque avisa si divergen). |
+| Marca / diseño | `brand.*`, `design.colors.*`, `design.typography.*` | Los colores solo admiten `#rrggbb` y las fuentes un nombre simple; lo que no cumple cae al valor por defecto. |
+| Tienda (`ecommerce`) | `currency` (**obligatoria**), `country`, `price_decimals` (calculado), `products_per_page`, flags `*_enabled`, `checkout_login_required`, `free_shipping.*` | `country` elige el paquete por país. El login se sincroniza con el ajuste nativo de Woo; el envío gratis lo aplica el módulo `shipping`. |
+| Pasarelas de pago | `provider`, `gateway_enabled`, `whatsapp_enabled`, `cash_enabled` (+ credenciales por pasarela) | Lo público lo lee el checkout; los secretos solo salen por `hwe/v1/payments/credentials` (canal interno). El efectivo usa «Contra reembolso», que se sincroniza al guardar. |
+| Integraciones | ids de analítica, `consent_retention_years`, SMTP (+ `meta_capi_*` por canal interno) | Cada id activa su proveedor; vacío = desactivado. |
+| Legal → Sedes | hasta 4 sedes | Alimentan el JSON-LD `LocalBusiness` y la página de contacto. |
+| Acceso (`auth`) | `phone_login_enabled`, `phone_default_dial_code` | Login y registro con el teléfono (E.164, único). Apagado por defecto. |
+| SEO / GEO | `seo.*`, `geo.*` | `faq` y `faq_payments` son traducibles (formato «pregunta \| respuesta»). |
+| Backups | frecuencia, retención, `keep_only_latest`, `exclude_thumbnails`, `include_config_export`, `notify_email` | Ver `RUNBOOK.md`: el panel escribe `hwe-backup-config.json` y el contenedor `backup` lo lee. |
+| `instance` | lo que declare la instancia | Pestaña «Instancia»; los campos `public` salen en `instance.<grupo>.<campo>`. Ver `docs/PLUGIN_DEVELOPMENT.md`. |
+| `shipping`, `landings` | los puebla el módulo | Grupos raíz reservados: solo los rellena el plugin del módulo. |
 
 **Campos traducibles.** Un campo marcado `'translatable' => true` en el schema (hoy
-`brand.tagline`, `brand.description`, `geo.faq` y `geo.faq_payments`; una instancia puede
-marcar los suyos) tiene una variante `<campo>_<idioma>` por cada idioma de `i18n.locales`:
-`tagline_en`, `tagline_pt_br`… Vacía, se usa el texto del idioma por defecto. En el
-frontend se leen con `pickLocalized(entity, "tagline", locale)` (`lib/i18n/pick-localized.ts`).
-| Backups | retención, `keep_only_latest`, `exclude_thumbnails`, `include_config_export` | Ver `RUNBOOK.md` y el puente en `BackupConfig.php`. |
+`brand.tagline`, `brand.description`, `geo.faq` y `geo.faq_payments`; una instancia puede marcar
+los suyos) tiene una variante `<campo>_<idioma>` por cada idioma de `i18n.locales`: `tagline_en`,
+`tagline_pt_br`… Vacía, se usa el texto del idioma por defecto. En el frontend se leen con
+`pickLocalized(entity, "tagline", locale)` (`lib/i18n/pick-localized.ts`).
+
+**Un campo nuevo** se declara en `Schema.php` (o en su grupo de `SchemaGroups/`), con su valor por
+defecto en `frontend/src/lib/config/defaults.ts` (`CONFIG_DEFAULTS`, respaldo si WordPress no
+responde), y se consume con `getSiteConfig()`.
+
+### Módulos
+
+Un módulo es un plugin regular `hwe-<id>` (con `README.md` y `MANUAL.md`) que aporta una
+funcionalidad que no toda instancia necesita. Se enciende con `modules` en `instance.config.json`
+(`wp hwe setup` activa los listados y **desactiva los demás** del catálogo; sin la clave no toca
+ningún plugin) o desde `wp-admin → Plugins`. Con el módulo apagado, su lector devuelve vacío o
+nulo, sus rutas del BFF responden 404 y su UI no se pinta.
+
+| Id | Qué aporta | Configuración propia |
+|----|------------|----------------------|
+| `banners` | Banners por tipo × locación, N idiomas | Plugin (CPT `hwe_banner`); `banners.enabled` |
+| `shipping` | Tarifa por ciudad, métodos extra, envío gratis por regla, zona de reserva | Menú «Envío» de wp-admin (tarifas y métodos) y Control Center → Envío |
+| `product-landing` | Una landing por producto, a N idiomas | Caja «Landing del producto» en la ficha |
+| `landings` | Landings editoriales (artículo / persona) | Control Center → Landings |
+| `consent-log` | Registro del consentimiento como prueba (RGPD) | `integrations.consent_retention_years` |
+| `site-reviews` | Reseñas del **sitio**: la calificación que un cliente da a un pedido completado (una por pedido) | WooCommerce → «Reseñas del sitio» (solo lectura) |
+| `coupon-rules` | Reglas de cupón (ventana de validez, primera compra, requiere sesión, alcance, visibilidad) y anuncio de los públicos | Marketing → Cupones |
+| `customer-identity` | Documento de identidad y aceptación de términos | Tipos y patrones del paquete de país |
+| `external-integration` | Acceso de un integrador externo a pedidos | `HWE_INTEGRATION_ALLOWED_IPS` |
+
+Comprobar que cada módulo está completo y que encender/apagar hace lo prometido:
+`sh backend/scripts/verify-modules.sh` (ver `RUNBOOK.md`).
+
+---
 
 ## Email transaccional (SMTP)
 
 El envío de correo (reset de contraseña, verificación de email y emails de pedido de
 WooCommerce) se configura **desde el panel**, no por variables de entorno:
-*wp-admin → Ajustes → HWE Config → Integraciones*.
+*wp-admin → HWE Config → Integraciones*.
 
 | Campo | Notas |
 |-------|-------|
@@ -118,20 +226,13 @@ WooCommerce) se configura **desde el panel**, no por variables de entorno:
 | Usuario / Contraseña | La **contraseña se guarda cifrada** (AES-256-GCM); déjala en blanco al guardar para conservarla. |
 | Email remitente (From) / Nombre | Usa un dominio con **SPF/DKIM** válidos. |
 
-Tras guardar, usa el botón **“Enviar email de prueba”** del propio panel para validar la
-entrega. El transporte lo implementa el mu-plugin `hwe-smtp.php` (hook `phpmailer_init`).
+Tras guardar, usa **«Enviar email de prueba»** del panel. El transporte lo implementa el mu-plugin
+`hwe-smtp.php` (hook `phpmailer_init`).
 
-Para gestionar el secreto fuera de la BD (p. ej. en `wp-config.php`), define cualquiera de
-estas constantes, que **tienen prioridad** sobre el panel: `HWE_SMTP_ENABLED`, `HWE_SMTP_HOST`,
+Para gestionar el secreto fuera de la BD (p. ej. en `wp-config.php`), define cualquiera de estas
+constantes, que **tienen prioridad** sobre el panel: `HWE_SMTP_ENABLED`, `HWE_SMTP_HOST`,
 `HWE_SMTP_PORT`, `HWE_SMTP_ENCRYPTION`, `HWE_SMTP_AUTH`, `HWE_SMTP_USER`, `HWE_SMTP_PASSWORD`,
 `HWE_SMTP_FROM`, `HWE_SMTP_FROM_NAME`.
 
-> Entregabilidad: configura **SPF, DKIM y DMARC** en el DNS del dominio remitente. Sin ellos,
-> los correos legítimos acaban en spam aunque el SMTP funcione.
-
-## Observabilidad (opcional)
-
-| Variable | Descripción |
-|----------|-------------|
-| `LOG_LEVEL` | Nivel de pino (`debug`/`info`/`warn`/`error`) |
-| `SENTRY_DSN` | DSN de Sentry (si cableas el SDK en `instrumentation.ts`) |
+> Entregabilidad: configura **SPF, DKIM y DMARC** en el DNS del dominio remitente. Sin ellos, los
+> correos legítimos acaban en spam aunque el SMTP funcione.
