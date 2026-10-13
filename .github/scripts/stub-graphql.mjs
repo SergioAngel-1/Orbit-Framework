@@ -29,7 +29,8 @@
 //  ellos una dependencia de red dentro de cada spec.
 //
 //  Tampoco es «vacío» `GET /wp-json/wc/v3/orders[/{10..13}]`, `customers/7`,
-//  `hwe/v1/geo` (el paquete genérico de un país sin paquete, como el que sirve
+//  `hwe-shipping/v1/{methods,free-shipping/scope}` (un extra de envío y un alcance con una
+//  ciudad), `hwe/v1/geo` (el paquete genérico de un país sin paquete, como el que sirve
 //  WordPress para el `ES` por defecto) ni
 //  `hwe/v1/coupons/public` (un cupón de prueba): los
 //  pedidos y el cliente de prueba de los e2e de la cuenta (`STUB_ORDERS`).
@@ -163,6 +164,12 @@ const STUB_GEO = {
   documentTypes: [],
 };
 
+/** Extras de envío del módulo `shipping` (`hwe-shipping/v1/methods`). */
+const STUB_SHIPPING_METHODS = [{ id: 3, name: "Seguro de envío", added_value: 5 }];
+
+/** Alcance del envío gratis del módulo `shipping`: una ciudad, sin categorías ni productos. */
+const STUB_FREE_SHIPPING_SCOPE = { categories: [], products: [], cities: ["Madrid"] };
+
 /** Respuesta fija de la REST de WooCommerce, o `undefined` si no es una del fixture. */
 function wooFixture(path) {
   const order = path.match(/^\/wp-json\/wc\/v3\/orders\/(\d+)$/);
@@ -171,6 +178,8 @@ function wooFixture(path) {
   if (path === "/wp-json/wc/v3/products/reviews") return [];
   if (path === "/wp-json/hwe/v1/coupons/public") return { items: [STUB_COUPON] };
   if (path === "/wp-json/hwe/v1/geo") return STUB_GEO;
+  if (path === "/wp-json/hwe-shipping/v1/methods") return STUB_SHIPPING_METHODS;
+  if (path === "/wp-json/hwe-shipping/v1/free-shipping/scope") return STUB_FREE_SHIPPING_SCOPE;
   if (path === "/wp-json/wc/v3/customers/7") return STUB_CUSTOMER;
   return undefined;
 }

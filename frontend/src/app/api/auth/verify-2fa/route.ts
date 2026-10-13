@@ -195,7 +195,7 @@ export async function POST(request: Request) {
     );
 
     // Ver `login`: carrito de la cuenta y pedido de invitado, antes de responder.
-    await syncAuthenticatedCart(session.authToken);
+    await syncAuthenticatedCart(session.authToken, ephemeral.userId);
     await claimGuestOrder(ephemeral.userId);
     // Liga el comprobante de consentimiento de este dispositivo a la cuenta
     // (módulo `consent-log`; en `after()`, no retrasa la respuesta).

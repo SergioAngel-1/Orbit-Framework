@@ -122,6 +122,13 @@ export interface StoreCart {
   payment_methods?: string[];
   shipping_rates: StoreShippingPackage[];
   totals: StoreCartTotals;
+  /** Destino de envío del carrito (el que WooCommerce usa para calcular las tarifas). */
+  shipping_address?: Partial<WooAddress>;
+  /**
+   * Datos de extensión que publican los módulos (`hwe_free_shipping` del módulo `shipping`…).
+   * Su forma no es de fiar: cada lector la valida.
+   */
+  extensions?: Record<string, unknown>;
 }
 
 export interface StoreCheckoutResponse {

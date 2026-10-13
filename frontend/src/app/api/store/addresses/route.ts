@@ -9,6 +9,9 @@ import {
   addressDeleteSchema,
 } from "@/lib/validation/address";
 import { getGeoPack } from "@/lib/geo";
+import { pushCartDestination } from "@/lib/woocommerce/cart-destination";
+import { getCartRequestAuth } from "@/lib/woocommerce/cart-session";
+import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { withLock } from "@/lib/security/lock";
 import { ADDRESSES_META_KEY, parseSavedAddresses } from "@/lib/customer/addresses";
 import { logger } from "@/lib/observability/logger";
@@ -19,6 +22,21 @@ export const dynamic = "force-dynamic";
 
 function parseAddresses(customer: WooCustomer): SavedAddress[] {
   return parseSavedAddresses(customer.meta_data);
+}
+
+/**
+ * Tras cambiar la libreta, el carrito pasa a enviarse a la dirección que quedó como
+ * predeterminada: tarifa y envío gratis dependen de esa ciudad, y Woo no lee la
+ * libreta (módulo `shipping`; sin él no hace nada). Va DESPUÉS de guardar: escribir el
+ * perfil hace que Woo descarte el destino que tenía la sesión del carrito.
+ */
+async function syncCartDestinationWith(
+  userId: string,
+  addresses: readonly SavedAddress[],
+): Promise<void> {
+  const { cartToken, authToken } = await getCartRequestAuth();
+  const result = await pushCartDestination(userId, addresses, { cartToken, authToken });
+  if (result) await writeCartToken(result.cartToken);
 }
 
 export async function GET() {
@@ -55,7 +73,7 @@ export async function POST(request: Request) {
 
   try {
     const session = await requireSession();
-    const newAddress = await withLock(`addresses:${session.userId}`, async () => {
+    const saved = await withLock(`addresses:${session.userId}`, async () => {
       const customer = await wcFetch<WooCustomer>(
         `/customers/${Number(session.userId)}`,
       );
@@ -79,11 +97,12 @@ export async function POST(request: Request) {
           meta_data: [{ key: ADDRESSES_META_KEY, value: JSON.stringify(addresses) }],
         },
       });
-      return addr;
+      return { addr, addresses };
     });
 
+    await syncCartDestinationWith(String(session.userId), saved.addresses);
     logger.info({ event: "addresses.create", userId: session.userId });
-    return NextResponse.json(newAddress, { status: 201 });
+    return NextResponse.json(saved.addr, { status: 201 });
   } catch (error) {
     logger.error({
       event: "addresses.create.error",
@@ -140,12 +159,13 @@ export async function PUT(request: Request) {
           meta_data: [{ key: ADDRESSES_META_KEY, value: JSON.stringify(addresses) }],
         },
       });
-      return { notFound: false as const, updated };
+      return { notFound: false as const, updated, addresses };
     });
 
     if (result.notFound) {
       return NextResponse.json({ error: "Dirección no encontrada." }, { status: 404 });
     }
+    await syncCartDestinationWith(String(session.userId), result.addresses);
 
     logger.info({
       event: "addresses.update",
@@ -208,12 +228,13 @@ export async function DELETE(request: Request) {
           meta_data: [{ key: ADDRESSES_META_KEY, value: JSON.stringify(addresses) }],
         },
       });
-      return { notFound: false as const };
+      return { notFound: false as const, addresses };
     });
 
     if (result.notFound) {
       return NextResponse.json({ error: "Dirección no encontrada." }, { status: 404 });
     }
+    await syncCartDestinationWith(String(session.userId), result.addresses);
 
     logger.info({
       event: "addresses.delete",

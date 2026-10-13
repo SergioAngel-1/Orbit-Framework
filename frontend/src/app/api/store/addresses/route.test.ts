@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { getGeoPack, GENERIC_PACK } from "@/lib/geo";
 import { CO_PACK } from "../../../../../tests/helpers/geo-pack";
-import { POST, PUT } from "./route";
+import { pushCartDestination } from "@/lib/woocommerce/cart-destination";
+import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
+import { POST, PUT, DELETE } from "./route";
 
 // La libreta de direcciones valida contra el paquete de país de la tienda: el
 // departamento se guarda como código, y uno que no existe o no corresponde a la
@@ -15,6 +17,17 @@ vi.mock("@/lib/auth/session", () => ({
 vi.mock("@/lib/woocommerce/client", () => ({ wcFetch: vi.fn() }));
 vi.mock("@/lib/security/lock", () => ({
   withLock: async (_key: string, fn: () => Promise<unknown>) => fn(),
+}));
+vi.mock("@/lib/woocommerce/cart-destination", () => ({ pushCartDestination: vi.fn() }));
+vi.mock("@/lib/woocommerce/cart-cookie", () => ({
+  writeCartToken: vi.fn(async () => undefined),
+}));
+vi.mock("@/lib/woocommerce/cart-session", () => ({
+  getCartRequestAuth: vi.fn(async () => ({
+    cartToken: "ct",
+    authToken: "jwt",
+    userId: "7",
+  })),
 }));
 vi.mock("@/lib/geo", async () => ({
   getGeoPack: vi.fn(),
@@ -46,6 +59,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getGeoPack).mockResolvedValue(CO_PACK);
   vi.mocked(wcFetch).mockResolvedValue({ meta_data: [] } as never);
+  vi.mocked(pushCartDestination).mockResolvedValue(null);
 });
 
 describe("POST /api/store/addresses", () => {
@@ -103,5 +117,45 @@ describe("PUT /api/store/addresses", () => {
     );
     expect(ok.status).toBe(200);
     expect(saved()[0]).toMatchObject({ city: "Bogotá", state: "CO-DC" });
+  });
+});
+
+describe("destino de envío del carrito tras cambiar la libreta (módulo shipping)", () => {
+  const saved = [{ ...ADDRESS, state: "CO-NAR", country: "CO", is_default: true }];
+  const withBook = () =>
+    vi.mocked(wcFetch).mockResolvedValue({
+      meta_data: [{ key: "hwe_addresses", value: JSON.stringify(saved) }],
+    } as never);
+
+  it("al crear una dirección empuja el destino con la libreta resultante", async () => {
+    vi.mocked(pushCartDestination).mockResolvedValue({
+      data: {},
+      cartToken: "nuevo",
+    } as never);
+
+    const res = await POST(req("POST", { ...ADDRESS, state: "Nariño" }));
+
+    expect(res.status).toBe(201);
+    const [userId, book, auth] = vi.mocked(pushCartDestination).mock.calls[0];
+    expect(userId).toBe("7");
+    expect(book).toHaveLength(1);
+    expect(auth).toEqual({ cartToken: "ct", authToken: "jwt" });
+    expect(writeCartToken).toHaveBeenCalledWith("nuevo");
+  });
+
+  it("al actualizar y al borrar también", async () => {
+    withBook();
+    await PUT(req("PUT", { index: 0, address: { ...ADDRESS, state: "CO-NAR" } }));
+    await DELETE(req("PUT", { index: 0 }));
+
+    expect(pushCartDestination).toHaveBeenCalledTimes(2);
+  });
+
+  it("sin cambio de destino (módulo apagado) no toca la cookie del carrito", async () => {
+    vi.mocked(pushCartDestination).mockResolvedValue(null);
+
+    await POST(req("POST", { ...ADDRESS, state: "Nariño" }));
+
+    expect(writeCartToken).not.toHaveBeenCalled();
   });
 });

@@ -92,6 +92,19 @@ export const cartApi = {
   },
 
   /**
+   * Fija la ciudad/país de destino del carrito (módulo `shipping`): WooCommerce
+   * recalcula las tarifas y devuelve el carrito.
+   */
+  async setShippingDestination(destination: ShippingDestination): Promise<StoreCart> {
+    return parseCart(
+      await csrfFetch("/api/store/shipping/destination", {
+        method: "PUT",
+        body: destination,
+      }),
+    );
+  },
+
+  /**
    * «Volver a pedir»: añade al carrito lo que hoy se puede comprar de un pedido
    * anterior. Devuelve el carrito y qué líneas entraron y cuáles no.
    */
@@ -109,6 +122,13 @@ export const cartApi = {
     return body as { cart: StoreCart } & ReorderSummary;
   },
 };
+
+export interface ShippingDestination {
+  city: string;
+  country: string;
+  state?: string;
+  postcode?: string;
+}
 
 export const reviewApi = {
   /** ¿Puede el cliente reseñar este producto? Nunca lanza: sin respuesta, «no». */

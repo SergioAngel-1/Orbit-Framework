@@ -26,6 +26,10 @@ import { hasDocument, type CustomerIdentity } from "@/lib/customer/identity";
 import { EMPTY_IDENTITY } from "@/lib/customer/identity";
 import type { GeoDocumentType } from "@/lib/geo/types";
 import { GENERIC_PACK } from "@/lib/geo/generic";
+import { checkAddress } from "@/lib/geo/address";
+import { FreeShippingNotice } from "@/components/cart/free-shipping-notice";
+import { cartHasDestination } from "@/lib/shipping/destination";
+import type { ShippingMethod } from "@/lib/shipping/types";
 import type { GeoPack } from "@/lib/geo/types";
 import type { WooCustomer } from "@/types/woocommerce";
 
@@ -128,6 +132,12 @@ export interface CheckoutFormProps {
    */
   identity?: { documentTypes: GeoDocumentType[] };
   /**
+   * Módulo `shipping` activo: ofrece los métodos extra (aditivos, se cobran como
+   * cargo del pedido), avisa del envío gratis y comunica el destino al carrito para
+   * que WooCommerce calcule la tarifa por ciudad. Omitido, nada de eso.
+   */
+  shipping?: { methods: ShippingMethod[] };
+  /**
    * Medios activos en el Control Center, en orden (`enabledPaymentChoices`):
    * pago en línea, link por WhatsApp y efectivo. Con uno solo no se pinta el
    * selector. Omitido, el formulario ofrece solo el pago en línea.
@@ -148,12 +158,20 @@ export function CheckoutForm({
   defaultCountry = "",
   geoPack = GENERIC_PACK,
   identity,
+  shipping,
   paymentChoices = ["online"],
   gatewaySandbox = false,
   couponsEnabled = false,
 }: CheckoutFormProps) {
-  const { cart, loading, refresh, applyCoupon, removeCoupon, selectShippingRate } =
-    useCart();
+  const {
+    cart,
+    loading,
+    refresh,
+    applyCoupon,
+    removeCoupon,
+    selectShippingRate,
+    setShippingDestination,
+  } = useCart();
   const t = useTranslations();
   const formatStoreAmount = useFormatStoreAmount();
   const tCheckout = t.raw("checkout") as unknown as Record<string, string>;
@@ -180,6 +198,21 @@ export function CheckoutForm({
     : (paymentChoices[0] ?? "online");
   const copy = CHOICE_COPY[effectiveChoice];
   const [couponCode, setCouponCode] = useState("");
+
+  // Extras de envío (módulo `shipping`): se suman al pedido como cargo DESPUÉS de crearlo
+  // (el total de la Store API no los conoce), así que aquí se suman para que lo que se
+  // muestra coincida con lo que se cobra.
+  const shippingMethods = shipping?.methods ?? [];
+  const [selectedMethodIds, setSelectedMethodIds] = useState<number[]>([]);
+  const selectedMethods = shippingMethods.filter((m) =>
+    selectedMethodIds.includes(m.id),
+  );
+  const extrasMajor = selectedMethods.reduce((sum, m) => sum + m.addedValue, 0);
+  function toggleShippingMethod(id: number) {
+    setSelectedMethodIds((ids) =>
+      ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id],
+    );
+  }
 
   // Documento y términos (módulo `customer-identity`). Lo que la cuenta ya tenga
   // manda: el documento queda bloqueado y la aceptación no se vuelve a pedir.
@@ -230,6 +263,63 @@ export function CheckoutForm({
     beginTracked.current = true;
     trackEvent("begin_checkout", params);
   }, [cart]);
+
+  // La tarifa de envío es por CIUDAD y la calcula WooCommerce con el destino del carrito:
+  // cada vez que cambia la ciudad (o el país/la división) se le comunica y el carrito vuelve
+  // con `shipping_rates` recalculadas. Con el debounce, escribir la ciudad letra a letra no
+  // dispara una petición por tecla; el ref evita reenviar el mismo destino (al volver `cart`).
+  const destinationCity = values.city.trim();
+  const destinationCountry = (values.country || defaultCountry).trim().toUpperCase();
+  const destinationState = values.state;
+  const destinationPostcode = values.postcode.trim();
+  const needsShipping = cart?.needs_shipping ?? false;
+  const lastDestinationRef = useRef<string | null>(null);
+  const checkedDestination = checkAddress(geoPack, {
+    city: destinationCity,
+    state: destinationState,
+    country: destinationCountry,
+  });
+  // El BFF ya fija el destino del cliente con sesión al abrirla: si el carrito llega con el
+  // de la dirección elegida, no hace falta otra ida a WordPress.
+  const destinationInSync = cartHasDestination(cart, {
+    city: destinationCity,
+    country: destinationCountry,
+    state: checkedDestination.state,
+    postcode: destinationPostcode,
+  });
+  const destinationValid = checkedDestination.issues.length === 0;
+  const shippingEnabled = shipping !== undefined;
+  useEffect(() => {
+    if (!shippingEnabled || !needsShipping || !destinationCity || !destinationValid)
+      return;
+    if (destinationCountry.length !== 2) return;
+    const key = [destinationCountry, destinationState, destinationCity].join("|");
+    if (lastDestinationRef.current === key) return;
+    if (destinationInSync) {
+      lastDestinationRef.current = key;
+      return;
+    }
+    const timer = setTimeout(() => {
+      lastDestinationRef.current = key;
+      void setShippingDestination({
+        city: destinationCity,
+        country: destinationCountry,
+        state: destinationState || undefined,
+        postcode: destinationPostcode || undefined,
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [
+    shippingEnabled,
+    needsShipping,
+    destinationCity,
+    destinationCountry,
+    destinationState,
+    destinationPostcode,
+    destinationInSync,
+    destinationValid,
+    setShippingDestination,
+  ]);
 
   // Respaldo: el servidor no pudo leer al cliente (`customer === null`), así
   // que el formulario lo pide al BFF. Un invitado no tiene nada que pedir.
@@ -304,6 +394,9 @@ export function CheckoutForm({
           billing_address,
           payment_method: paymentMethodFor(effectiveChoice),
           customer_note: "",
+          ...(selectedMethodIds.length > 0
+            ? { shipping_method_ids: selectedMethodIds }
+            : {}),
           ...(askDocument && !documentLocked
             ? { identity: { documentType, documentNumber } }
             : {}),
@@ -567,6 +660,42 @@ export function CheckoutForm({
         )}
       </section>
 
+      {/* Extras de envío (módulo `shipping`) */}
+      {shippingMethods.length > 0 && (
+        <fieldset className="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+          <legend className="px-1 text-sm font-semibold">
+            {tCheckout.shippingExtras}
+          </legend>
+          {shippingMethods.map((method) => (
+            <label
+              key={method.id}
+              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-900"
+            >
+              <input
+                type="checkbox"
+                checked={selectedMethodIds.includes(method.id)}
+                onChange={() => toggleShippingMethod(method.id)}
+              />
+              <span className="flex-1 text-sm">{method.name}</span>
+              {method.addedValue > 0 && cart && (
+                <span className="text-sm font-medium">
+                  +{" "}
+                  {formatStoreAmount(
+                    String(
+                      Math.round(
+                        method.addedValue * 10 ** cart.totals.currency_minor_unit,
+                      ),
+                    ),
+                    cart.totals.currency_minor_unit,
+                    cart.totals.currency_code,
+                  )}
+                </span>
+              )}
+            </label>
+          ))}
+        </fieldset>
+      )}
+
       {/* Medio de pago */}
       {paymentChoices.length > 1 && (
         <fieldset className="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
@@ -611,6 +740,7 @@ export function CheckoutForm({
       {/* Resumen */}
       <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
         <h3 className="mb-3 text-sm font-semibold">{tCart.total}</h3>
+        {shippingEnabled && <FreeShippingNotice cart={cart} className="mb-3" />}
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-500">{tCart.subtotal}</span>
@@ -648,12 +778,29 @@ export function CheckoutForm({
               </span>
             </div>
           )}
+          {cart && extrasMajor > 0 && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">{tCheckout.shippingExtras}</span>
+              <span>
+                {formatStoreAmount(
+                  String(
+                    Math.round(extrasMajor * 10 ** cart.totals.currency_minor_unit),
+                  ),
+                  cart.totals.currency_minor_unit,
+                  cart.totals.currency_code,
+                )}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between border-t border-gray-200 pt-2 font-semibold dark:border-gray-700">
             <span>{tCart.total}</span>
             <span>
               {cart &&
                 formatStoreAmount(
-                  cart.totals.total_price,
+                  String(
+                    Number(cart.totals.total_price) +
+                      Math.round(extrasMajor * 10 ** cart.totals.currency_minor_unit),
+                  ),
                   cart.totals.currency_minor_unit,
                   cart.totals.currency_code,
                 )}

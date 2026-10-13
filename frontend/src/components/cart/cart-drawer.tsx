@@ -1,4 +1,5 @@
 "use client";
+import { FreeShippingNotice } from "@/components/cart/free-shipping-notice";
 import { regularUnitAmount } from "@/lib/cart/line-price";
 import { useEffect, useState } from "react";
 import Image from "next/image";
@@ -307,6 +308,7 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
                 </span>
               </div>
             )}
+            <FreeShippingNotice cart={cart} className="mb-4" />
             <div className="mb-4 flex items-center justify-between">
               <span className="font-medium">{tCart("total")}</span>
               <span className="text-xl font-bold">{total}</span>

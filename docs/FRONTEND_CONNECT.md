@@ -180,7 +180,7 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   mutaciones concurrentes del carrito. La vuelta de la pasarela usa `checkoutReturnUrl`
   (`lib/checkout/return-url.ts`), que respeta el idioma de la página; `/checkout/return` repinta
   sola cuando el webhook confirma el pago (`PaymentStatusWatcher`) y ofrece «Pagar ahora».
-- **Puntos de extensión que otros módulos rellenan:** destino de envío del carrito (`shipping`, tarea 54), nombres
+- **Puntos de extensión que otros módulos rellenan:** (ver «Envío») destino de envío del carrito (`shipping`, tarea 54), nombres
   de producto traducidos en `completeStoreCart` (i18n de contenido, tarea 51) y el contexto de
   medición del pedido (analítica, tarea 44).
 
@@ -219,6 +219,44 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
 - **Starter:** `components/forms/geo-fields.tsx` (`CityField`, `DivisionField`) los usan el
   formulario del checkout y la libreta. Una vista propia solo necesita el paquete y estas dos
   piezas (o `divisionOptionsForCity` / `findDivision` si pinta sus propios campos).
+
+### Envío: tarifa por ciudad, extras y envío gratis (módulo `shipping`)
+
+- **Qué hace el backend** (plugin `hwe-shipping`): tarifa fija **por ciudad** que sustituye el coste del
+  `flat_rate` de WooCommerce (solo para destinos del país de la tienda, `ecommerce.country`), extras de
+  envío **aditivos**, **envío gratis por regla** (la regla la entrega el Control Center por
+  `hwe_shipping_free_rule`) y una **zona de reserva** para las ciudades sin tarifa (Control Center →
+  Envío). Con el módulo apagado nada de esto existe: las rutas de abajo responden 404 y el checkout
+  no ofrece extras.
+- **Destino del carrito:** la tarifa y el envío gratis se deciden dentro de WooCommerce con la ciudad
+  del carrito. `PUT /api/store/shipping/destination` `{ city, country, state?, postcode? }` la fija
+  (`/cart/update-customer`) y devuelve el carrito recalculado. El `state` se valida y normaliza con el
+  paquete de país (código de la división): 422 si no existe o no corresponde a la ciudad, **nunca** se
+  rellena una por defecto. El checkout lo llama (con espera) cada vez que cambia la ciudad.
+- **Destino de un cliente con sesión** (`lib/woocommerce/cart-destination.ts`): Woo no lee la libreta de
+  direcciones, así que el BFF fija el destino de la dirección **predeterminada** al abrir sesión
+  (`syncAuthenticatedCart(authToken, userId)`), al cambiar la libreta (`/api/store/addresses`) y, como
+  red, al leer un carrito con sesión que llega sin ciudad (`GET /api/store/cart`).
+- **Aviso de envío gratis:** el estado llega en `cart.extensions.hwe_free_shipping` (importes en
+  **unidades menores**: `enabled`, `threshold`, `eligible_subtotal`, `remaining`, `qualifies`, `city`
+  `eligible|not_eligible|unknown`, `all_cities`, `scoped`). `resolveFreeShippingNotice(cart)`
+  (`lib/shipping/free-shipping.ts`) lo traduce a qué pintar sin recalcular nada. Starter:
+  `components/cart/free-shipping-notice.tsx` (cajón, carrito y checkout) y su «?».
+- **«?» del alcance:** `GET /api/store/free-shipping/scope?locale=` → `{ categories: [{ name, path,
+  children }], products, cities }` en el idioma pedido (cualquiera de los del sitio: las traducciones
+  vienen en `translations` por idioma desde `hwe-content-i18n`; las categorías enlazan con la ruta de su
+  idioma). Cacheable (tags `shipping` y `site-config`).
+- **Extras de envío:** el checkout ofrece los métodos activos (`getShippingMethods()`, tag `shipping`) y
+  manda `shipping_method_ids: number[]`. El BFF los vuelve a leer **frescos** de WordPress al crear el
+  pedido y los suma como líneas de cargo (`fee_lines`) **antes** del paso a «En espera» (que dispara los
+  correos): el importe nunca sale del cliente, un id inexistente o inactivo no cuenta y un fallo no
+  pierde el pedido (se registra `checkout.shipping_fees_failed`). El total que pinta el formulario suma
+  los extras porque el carrito de la Store API no los conoce.
+- **Ciudades:** las sugerencias del selector de ciudad salen del **paquete de país** (ver «Paquetes por
+  país»), no de las tarifas. `GET /wp-json/hwe-shipping/v1/rates` sigue existiendo (solo nombres, nunca
+  importes) para otros frontends.
+- **Starter:** `FreeShippingNotice` en el cajón, `/cart` y el checkout; el checkout pinta los extras y
+  comunica el destino. Cada página pasa `shipping={{ methods }}` **solo** si `modules.shipping`.
 
 ### Documento de identidad y términos (módulo `customer-identity`)
 

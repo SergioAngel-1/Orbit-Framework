@@ -40,6 +40,23 @@ export const selectShippingRateSchema = z.object({
   rate_id: z.string().min(1).max(200),
 });
 
+/**
+ * Destino de envío del carrito: lo que necesita WooCommerce para calcular la
+ * tarifa (la del módulo `shipping` es por CIUDAD). No es la dirección completa
+ * del pedido: esa viaja en el checkout. El estado se normaliza en la ruta con el
+ * paquete de país.
+ */
+export const shippingDestinationSchema = z.object({
+  city: z.string().trim().min(1).max(100),
+  country: z
+    .string()
+    .trim()
+    .length(2)
+    .transform((c) => c.toUpperCase()),
+  state: z.string().trim().max(50).optional(),
+  postcode: z.string().trim().max(20).optional(),
+});
+
 /* ------------------------------ Reseñas ------------------------------- */
 
 // El nombre y el email del autor se derivan SIEMPRE del perfil autenticado (ver
@@ -113,6 +130,11 @@ export const checkoutSchema = z.object({
   identity: documentInputSchema.optional(),
   /** Aceptación de términos: solo vale `true`; la fecha la pone el servidor. */
   terms_accepted: termsAcceptedField.optional(),
+  /**
+   * Métodos de envío extra elegidos (módulo `shipping`): ids del CPT. Se vuelven a
+   * leer frescos de WordPress al crear el pedido: el importe cobrado es el vigente.
+   */
+  shipping_method_ids: z.array(z.number().int().positive()).max(20).optional(),
   payment_method: z.string().min(1).max(100),
   payment_data: z
     .array(z.object({ key: z.string().max(100), value: z.string().max(2000) }))

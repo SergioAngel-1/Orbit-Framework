@@ -173,7 +173,7 @@ describe("login sin 2FA", () => {
 
     await POST(loginRequest());
 
-    expect(syncAuthenticatedCart).toHaveBeenCalledWith(AUTH);
+    expect(syncAuthenticatedCart).toHaveBeenCalledWith(AUTH, 7);
     expect(claimGuestOrder).toHaveBeenCalledWith(7);
   });
 

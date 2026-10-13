@@ -111,7 +111,7 @@ describe("verify-2fa: el id opaco", () => {
 
     await POST(verifyRequest({ ephemeralToken: id, code: GOOD_TOTP }));
 
-    expect(syncAuthenticatedCart).toHaveBeenCalledWith(AUTH);
+    expect(syncAuthenticatedCart).toHaveBeenCalledWith(AUTH, "7");
     expect(claimGuestOrder).toHaveBeenCalledWith("7");
     expect(linkConsentReceipt).toHaveBeenCalledWith(expect.any(Request), "7");
   });

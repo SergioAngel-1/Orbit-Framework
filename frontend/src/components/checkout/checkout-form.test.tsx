@@ -28,7 +28,10 @@ vi.mock("@/i18n/navigation", () => ({
   ),
 }));
 // El carrito que ve el formulario; cada test puede cambiarlo.
-const cartState = vi.hoisted(() => ({ cart: {} as Record<string, unknown> }));
+const cartState = vi.hoisted(() => ({
+  cart: {} as Record<string, unknown>,
+  setDestination: vi.fn(async () => undefined),
+}));
 const baseCart = () => ({
   items: [
     {
@@ -59,6 +62,7 @@ vi.mock("@/components/cart/cart-context", () => ({
     applyCoupon: vi.fn(),
     removeCoupon: vi.fn(),
     selectShippingRate: vi.fn(),
+    setShippingDestination: cartState.setDestination,
   }),
 }));
 vi.mock("@/components/ui/currency-context", () => ({
@@ -586,5 +590,121 @@ describe("documento y términos (módulo customer-identity)", () => {
     const alerts = await screen.findAllByText(/ya está registrado en otra cuenta/);
     expect(alerts.length).toBeGreaterThan(1); // el aviso general y el del campo
     expect(docInput(container)!.getAttribute("aria-invalid")).toBe("true");
+  });
+});
+
+describe("módulo shipping: extras, aviso y destino del carrito", () => {
+  const METHODS = [
+    { id: 3, name: "Seguro", addedValue: 5 },
+    { id: 4, name: "Caja de regalo", addedValue: 0 },
+  ];
+  const shippingCart = () => ({
+    ...baseCart(),
+    needs_shipping: true,
+    shipping_address: { city: "", country: "CO" },
+  });
+
+  beforeEach(() => {
+    cartState.setDestination.mockClear();
+    cartState.cart = baseCart();
+  });
+
+  it("sin el módulo no ofrece extras ni pide destino", () => {
+    cartState.cart = shippingCart();
+    const { container } = renderForm({ geoPack: CO_PACK, defaultCountry: "CO" });
+
+    fireEvent.change(field(container, "city"), { target: { value: "Bogotá" } });
+
+    expect(screen.queryByText("Extras de envío")).toBeNull();
+    expect(cartState.setDestination).not.toHaveBeenCalled();
+  });
+
+  it("ofrece los extras, suma su importe al total y los manda al servidor", async () => {
+    bff();
+    const { container } = renderForm({
+      paymentChoices: ["cash"],
+      shipping: { methods: METHODS },
+    });
+
+    const seguro = screen.getByRole("checkbox", { name: /Seguro/ });
+    fireEvent.click(seguro);
+    await submit(container);
+    await waitFor(() => expect(csrfFetch).toHaveBeenCalled());
+
+    expect(checkoutBody()).toMatchObject({ shipping_method_ids: [3] });
+    // El resumen incluye el extra aparte y en el total (10,00 € del carrito + 5,00 €).
+    expect(screen.getAllByText("1500 €").length).toBeGreaterThan(0);
+  });
+
+  it("sin extras elegidos no manda la lista", async () => {
+    bff();
+    const { container } = renderForm({
+      paymentChoices: ["cash"],
+      shipping: { methods: METHODS },
+    });
+
+    await submit(container);
+    await waitFor(() => expect(csrfFetch).toHaveBeenCalled());
+
+    expect(checkoutBody()).not.toHaveProperty("shipping_method_ids");
+  });
+
+  it("comunica el destino al carrito cuando cambia la ciudad (con la espera de teclear)", async () => {
+    vi.useFakeTimers();
+    cartState.cart = shippingCart();
+    const { container } = renderForm({
+      geoPack: CO_PACK,
+      defaultCountry: "CO",
+      shipping: { methods: [] },
+    });
+
+    fireEvent.change(field(container, "city"), { target: { value: "Bogotá" } });
+    expect(cartState.setDestination).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(450);
+    vi.useRealTimers();
+
+    expect(cartState.setDestination).toHaveBeenCalledTimes(1);
+    // Una ciudad conocida fija su departamento (el select lo rellena solo).
+    expect(cartState.setDestination).toHaveBeenCalledWith({
+      city: "Bogotá",
+      country: "CO",
+      state: "CO-DC",
+      postcode: undefined,
+    });
+  });
+
+  it("no lo repite si el carrito ya tiene ese destino", async () => {
+    vi.useFakeTimers();
+    cartState.cart = {
+      ...shippingCart(),
+      shipping_address: { city: "Bogotá", country: "CO", state: "CO-DC" },
+    };
+    const { container } = renderForm({
+      geoPack: CO_PACK,
+      defaultCountry: "CO",
+      shipping: { methods: [] },
+    });
+
+    fireEvent.change(field(container, "city"), { target: { value: "Bogotá" } });
+    await vi.advanceTimersByTimeAsync(450);
+    vi.useRealTimers();
+
+    expect(cartState.setDestination).not.toHaveBeenCalled();
+  });
+
+  it("no lo comunica si la división no se puede resolver (nunca inventa una)", async () => {
+    vi.useFakeTimers();
+    cartState.cart = shippingCart();
+    const { container } = renderForm({
+      geoPack: CO_PACK,
+      defaultCountry: "CO",
+      shipping: { methods: [] },
+    });
+
+    fireEvent.change(field(container, "city"), { target: { value: "Pasto" } });
+    await vi.advanceTimersByTimeAsync(450);
+    vi.useRealTimers();
+
+    expect(cartState.setDestination).not.toHaveBeenCalled();
   });
 });

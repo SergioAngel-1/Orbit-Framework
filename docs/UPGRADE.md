@@ -668,6 +668,31 @@ git fetch framework --tags
 - **`/api/auth/register` consulta ahora `getSiteConfig()` siempre** (antes solo con teléfono), para
   saber si el módulo está encendido; el paquete de país solo se lee con el módulo encendido.
 
+### Módulo `shipping` (F5)
+
+- **Nuevo plugin `hwe-shipping`** (módulo `shipping`) sustituye al mu-plugin de tarifa plana y umbral
+  global de las instancias derivadas del framework v1 (`woocommerce-shipping-config.php`: **bórralo** y
+  activa el plugin con `modules`). Los CPT (`hwe_shipping_rate`, `hwe_shipping_method`) y sus metas son
+  los mismos: no hay migración de datos.
+- **(contrato) El país base es `ecommerce.country`** (Control Center), no el de WooCommerce → Ajustes →
+  General: las tarifas por ciudad y el envío gratis solo valen para destinos de ese país.
+- **(contrato) El alcance del envío gratis** (`GET /free-shipping/scope`) ya no trae `name_en` / `slug_en`:
+  trae `translations: { <idioma>: { name, slug } }` para todos los idiomas secundarios del sitio.
+  `normalizeFreeShippingScope` acepta cualquier idioma y las categorías enlazan con `categoryHref`
+  (`/categories/<slug>`), no con una ruta fija.
+- **Zona de reserva nueva:** el módulo crea y mantiene una zona de WooCommerce que cubre el país con un
+  `flat_rate` (Control Center → Envío: `reserve_enabled`, `reserve_name`, `reserve_cost`). Sustituye al
+  script de la instancia que sembraba esa zona. Si ya tienes una zona que cubre el país, apaga
+  `reserve_enabled` o tendrás dos.
+- **(contrato) Firmas.** `CheckoutForm` recibe `shipping?: { methods }` (omitido = módulo apagado);
+  `syncAuthenticatedCart(authToken, userId?)`; `getCartRequestAuth` ya devolvía `userId`;
+  `useCart().setShippingDestination`; `StoreCart` gana `shipping_address` y `extensions`.
+- **(contrato) Cuerpos.** `POST /api/store/checkout` acepta `shipping_method_ids`. Nuevas rutas
+  `PUT /api/store/shipping/destination` y `GET /api/store/free-shipping/scope` (404 con el módulo
+  apagado). Una división que el paquete no reconoce en el destino es un 422; antes la instancia de
+  origen caía en silencio a una por defecto.
+- **Sin `getShippingCities`:** las ciudades salen del paquete de país.
+
 ### Infraestructura y CD (F4)
 
 - **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin

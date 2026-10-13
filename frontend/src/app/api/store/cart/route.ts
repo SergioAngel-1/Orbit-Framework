@@ -6,6 +6,7 @@ import {
   getCartRequestAuth,
   applyCartStockAdjustments,
 } from "@/lib/woocommerce/cart-session";
+import { ensureCartDestination } from "@/lib/woocommerce/cart-destination";
 import { completeStoreCart } from "@/lib/woocommerce/complete-cart";
 import { requestLocale } from "@/lib/i18n/request-locale";
 import { guardMutation } from "@/lib/api/guard";
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { cartToken: token, authToken } = await getCartRequestAuth();
+    const { cartToken: token, authToken, userId } = await getCartRequestAuth();
     const { data, cartToken } = await storeFetch<StoreCart>("/cart", {
       cartToken: token,
       authToken,
@@ -70,12 +71,24 @@ export async function GET(request: Request) {
     // Líneas sin existencias o por encima del máximo disponible: se quitan o
     // se reducen aquí, antes de que el cliente intente pagarlas.
     const reconciled = await applyCartStockAdjustments(data, { cartToken, authToken });
+    // Un carrito con sesión que llega sin ciudad (sesión de Woo caducada o descartada)
+    // la recupera de la libreta: tarifa y envío gratis dependen de ella (módulo
+    // `shipping`). No hace nada si ya la tiene, si es de un invitado o sin el módulo.
+    const destination = await ensureCartDestination(reconciled.cart, userId, {
+      cartToken: reconciled.cartToken,
+      authToken,
+    });
+    if (destination) {
+      reconciled.cart = destination.data;
+      reconciled.cartToken = destination.cartToken;
+    }
     await writeCartToken(reconciled.cartToken);
     logger.info(
       {
         event: "cart.get",
         authenticated: Boolean(authToken),
         stockAdjusted: reconciled.adjusted,
+        destinationSet: destination !== null,
       },
       "Carrito consultado",
     );

@@ -46,6 +46,8 @@ import {
   type CustomerIdentity,
 } from "@/lib/customer/identity";
 import { attachIdentity } from "@/lib/customer/identity-api";
+import { getShippingMethods } from "@/lib/shipping";
+import { isModuleEnabled } from "@/lib/config/modules";
 import { identityPolicy } from "@/lib/customer/policy";
 import { resolveCheckoutIdentity } from "@/lib/checkout/identity";
 import type {
@@ -352,6 +354,26 @@ export async function POST(request: Request) {
       }
     }
 
+    // Extras de envío (módulo `shipping`): cargos aditivos del pedido. Van ANTES del paso a
+    // «En espera», que es el que dispara los correos, y un fallo no pierde el pedido.
+    const methodIds = isModuleEnabled(config, "shipping")
+      ? (parsed.data.shipping_method_ids ?? [])
+      : [];
+    if (data.order_id && methodIds.length > 0) {
+      try {
+        await applyShippingMethodFees(data.order_id, methodIds);
+      } catch (feeError) {
+        logger.error(
+          {
+            event: "checkout.shipping_fees_failed",
+            order_id: data.order_id,
+            err: feeError instanceof Error ? feeError.message : feeError,
+          },
+          "No se pudieron aplicar los extras de envío al pedido; requiere conciliación",
+        );
+      }
+    }
+
     // Documento y aceptación en el pedido (salvaguarda: ya llegaron en `extensions`
     // al crearlo) y contexto de medición, en una sola escritura. Lo que hace falta para mandar la compra desde el
     // servidor cuando la pasarela confirme (consentimiento, cookies del píxel,
@@ -456,6 +478,46 @@ async function ensureOrderOwner(orderId: number, userId: number): Promise<void> 
   logger.info(
     { event: "checkout.link_owner", order_id: orderId, userId },
     "Pedido ligado al cliente autenticado",
+  );
+}
+
+/**
+ * Suma al pedido los métodos de envío extra elegidos como líneas de cargo (`fee_lines`).
+ * Los importes se leen frescos de WordPress en este instante (`fresh`), no de la caché ISR:
+ * lo cobrado es lo vigente, y un id que ya no existe o está inactivo simplemente no cuenta.
+ */
+async function applyShippingMethodFees(
+  orderId: number,
+  methodIds: number[],
+): Promise<void> {
+  const methods = await getShippingMethods({ fresh: true });
+  const selected = new Set(methodIds);
+  const feeLines = methods
+    .filter((m) => selected.has(m.id))
+    .map((m) => ({ name: m.name, total: String(m.addedValue), tax_status: "none" }));
+
+  if (feeLines.length === 0) {
+    if (methods.length === 0) {
+      logger.warn(
+        {
+          event: "checkout.shipping_fees_empty_fetch",
+          order_id: orderId,
+          method_ids: methodIds,
+        },
+        "No se leyó ningún método de envío al aplicar los extras: posible fallo de WordPress",
+      );
+    }
+    return;
+  }
+
+  await wcFetch(`/orders/${orderId}`, { method: "PUT", body: { fee_lines: feeLines } });
+  logger.info(
+    {
+      event: "checkout.shipping_fees_applied",
+      order_id: orderId,
+      count: feeLines.length,
+    },
+    "Extras de envío aplicados al pedido",
   );
 }
 

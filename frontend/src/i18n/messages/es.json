@@ -244,6 +244,28 @@
       "login": "Inicia sesión",
       "loginLabel": "Inicia sesión para usar el cupón {code}",
       "accountOnly": "Requiere iniciar sesión"
+    },
+    "freeShipping": {
+      "remaining": "Te faltan {amount} para el envío gratis",
+      "pendingCity": "Tu compra alcanza el envío gratis: se confirma con tu ciudad de entrega",
+      "reached": "¡Tienes envío gratis!",
+      "hintProducts": "Suman los productos seleccionados de la tienda.",
+      "hintCities": "Aplica en ciudades seleccionadas.",
+      "hintCityList": "Aplica en {cities}.",
+      "otherCities": "El envío gratis aplica en {cities}.",
+      "citiesMore": "{count} más",
+      "citiesShowAll": "Ver todas",
+      "progressLabel": "Progreso hacia el envío gratis",
+      "scope": {
+        "button": "Ver qué productos suman para el envío gratis",
+        "title": "Suman para el envío gratis",
+        "categories": "Categorías",
+        "products": "Productos",
+        "showAll": "Ver las {count}",
+        "loading": "Cargando…",
+        "error": "No pudimos cargar la lista. Inténtalo de nuevo.",
+        "empty": "Suman todos los productos de la tienda."
+      }
     }
   },
   "checkout": {
@@ -289,7 +311,8 @@
     "resultWhatsapp": "Te enviaremos el enlace de pago por WhatsApp para completar tu pedido.",
     "resultCash": "Pagarás en efectivo cuando recibas tu pedido.",
     "paymentNotStarted": "Tu pedido se creó, pero no pudimos iniciar el pago en línea. Contáctanos o inténtalo de nuevo desde tus pedidos.",
-    "genericError": "No se pudo completar el pedido. Inténtalo de nuevo."
+    "genericError": "No se pudo completar el pedido. Inténtalo de nuevo.",
+    "shippingExtras": "Extras de envío"
   },
   "form": {
     "firstName": "Nombre",

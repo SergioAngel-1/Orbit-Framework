@@ -3,6 +3,7 @@ import { rateLimit } from "@/lib/security/rate-limit";
 import { readCartToken, writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { getSession } from "@/lib/auth/session";
+import { ensureCartDestination } from "@/lib/woocommerce/cart-destination";
 import { GET } from "./route";
 
 // ============================================================================
@@ -21,6 +22,9 @@ vi.mock("@/lib/woocommerce/cart-cookie", () => ({
   writeCartToken: vi.fn(),
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn(async () => null) }));
+vi.mock("@/lib/woocommerce/cart-destination", () => ({
+  ensureCartDestination: vi.fn(async () => null),
+}));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -132,5 +136,42 @@ describe("GET /api/store/cart — sesión y existencias", () => {
     );
     expect((await res.json()).items).toEqual([]);
     expect(writeCartToken).toHaveBeenCalledWith("t2");
+  });
+});
+
+describe("GET /api/store/cart — destino de envío (módulo shipping)", () => {
+  const WITH_CITY = { ...CART, shipping_address: { city: "Madrid", country: "ES" } };
+
+  it("pasa a ensureCartDestination el carrito reconciliado, la cuenta y las credenciales", async () => {
+    vi.mocked(getSession).mockResolvedValue({ token: "jwt", userId: "7" } as never);
+
+    await GET(request());
+
+    expect(ensureCartDestination).toHaveBeenCalledWith(
+      expect.objectContaining({ items: [] }),
+      "7",
+      { cartToken: "nuevo", authToken: "jwt" },
+    );
+  });
+
+  it("si recupera la ciudad de la libreta, devuelve ese carrito y su cookie", async () => {
+    vi.mocked(ensureCartDestination).mockResolvedValue({
+      data: WITH_CITY,
+      cartToken: "con-ciudad",
+    } as never);
+
+    const res = await GET(request());
+
+    expect(await res.json()).toEqual(WITH_CITY);
+    expect(writeCartToken).toHaveBeenCalledWith("con-ciudad");
+  });
+
+  it("si no hay nada que fijar, devuelve el carrito tal cual", async () => {
+    vi.mocked(ensureCartDestination).mockResolvedValue(null);
+
+    const res = await GET(request());
+
+    expect(await res.json()).toEqual(CART);
+    expect(writeCartToken).toHaveBeenCalledWith("nuevo");
   });
 });

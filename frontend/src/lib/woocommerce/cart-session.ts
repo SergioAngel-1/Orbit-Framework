@@ -7,6 +7,7 @@ import {
   clearCartToken,
 } from "@/lib/woocommerce/cart-cookie";
 import { planCartStockAdjustments } from "@/lib/woocommerce/cart-stock";
+import { syncCartDestination } from "@/lib/woocommerce/cart-destination";
 import { logger } from "@/lib/observability/logger";
 import type { StoreCart, StoreCartItem } from "@/types/woocommerce";
 
@@ -104,10 +105,15 @@ export async function applyCartStockAdjustments(
  * guest local. **Prevalece el de la API** — no se fusiona el Cart-Token guest.
  * Luego valida existencias y limpia líneas sin stock.
  *
- * Punto de extensión (módulo `shipping`, tarea 54): aquí es donde se fijará el
- * destino de envío del carrito con la dirección predeterminada de la cuenta.
+ * Con `userId`, fija además el destino de envío del carrito con la dirección
+ * predeterminada de la cuenta (módulo `shipping`): sin eso Woo no conoce la ciudad
+ * del cliente y el cajón le enseña tarifa y envío gratis como a un anónimo. Una
+ * cuenta recién creada no tiene libreta: el registro no lo pasa.
  */
-export async function syncAuthenticatedCart(authToken: string): Promise<void> {
+export async function syncAuthenticatedCart(
+  authToken: string,
+  userId?: string | number,
+): Promise<void> {
   try {
     const hadGuestToken = Boolean(await readCartToken());
 
@@ -122,8 +128,17 @@ export async function syncAuthenticatedCart(authToken: string): Promise<void> {
       authToken,
     });
 
-    if (reconciled.cartToken) {
-      await writeCartToken(reconciled.cartToken);
+    const destination =
+      userId != null
+        ? await syncCartDestination(userId, {
+            cartToken: reconciled.cartToken,
+            authToken,
+          })
+        : null;
+    const finalToken = destination?.cartToken ?? reconciled.cartToken;
+
+    if (finalToken) {
+      await writeCartToken(finalToken);
     } else {
       await clearCartToken();
     }
@@ -135,6 +150,7 @@ export async function syncAuthenticatedCart(authToken: string): Promise<void> {
         discardedGuest: hadGuestToken,
         apiItems: data.items_count,
         stockAdjusted: reconciled.adjusted,
+        destinationSet: destination !== null,
       },
       "Carrito del customer cargado tras autenticación (API prevalece)",
     );

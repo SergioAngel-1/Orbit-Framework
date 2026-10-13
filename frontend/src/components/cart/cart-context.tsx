@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { cartApi } from "@/lib/client/store-api";
+import { cartApi, type ShippingDestination } from "@/lib/client/store-api";
 import { trackEvent } from "@/components/analytics/track-event";
 import { addToCartParams } from "@/lib/analytics/ecommerce";
 import type { StoreCart } from "@/types/woocommerce";
@@ -36,6 +36,8 @@ interface CartState {
   applyCoupon: (code: string) => Promise<void>;
   removeCoupon: (code: string) => Promise<void>;
   selectShippingRate: (packageId: number, rateId: string) => Promise<void>;
+  /** Módulo `shipping`: fija la ciudad de destino y recalcula las tarifas. */
+  setShippingDestination: (destination: ShippingDestination) => Promise<void>;
 }
 
 const CartContext = createContext<CartState | null>(null);
@@ -121,6 +123,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     applyCoupon: (code) => run(() => cartApi.applyCoupon(code)),
     removeCoupon: (code) => run(() => cartApi.removeCoupon(code)),
     selectShippingRate: (pkg, rate) => run(() => cartApi.selectShippingRate(pkg, rate)),
+    setShippingDestination: (destination) =>
+      run(() => cartApi.setShippingDestination(destination)),
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

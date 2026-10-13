@@ -29,6 +29,7 @@
             <directory>wp-content/plugins/hwe-coupon-rules</directory>
             <directory>wp-content/plugins/hwe-consent-log</directory>
             <directory>wp-content/plugins/hwe-customer-identity</directory>
+            <directory>wp-content/plugins/hwe-shipping</directory>
             <directory>wp-content/themes/hwe-headless-base</directory>
         </include>
     </source>

@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { getSiteConfig } from "@/lib/config";
 import { redirect } from "@/i18n/navigation";
 import { getGeoPack } from "@/lib/geo";
+import { getShippingMethods } from "@/lib/shipping";
 import { CO_PACK } from "../../../../tests/helpers/geo-pack";
 import CheckoutPage from "./page";
 
@@ -24,6 +25,7 @@ vi.mock("@/i18n/navigation", () => ({
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/config", () => ({ getSiteConfig: vi.fn() }));
 vi.mock("@/lib/geo", () => ({ getGeoPack: vi.fn() }));
+vi.mock("@/lib/shipping", () => ({ getShippingMethods: vi.fn(async () => []) }));
 vi.mock("@/lib/checkout/customer-seed-server", () => ({
   getCheckoutCustomerSeed: vi.fn(async () => ({ first_name: "Ana" })),
 }));
@@ -128,5 +130,29 @@ describe("/checkout", () => {
     config(false);
     const off = await formProps();
     expect(off.identity).toBeUndefined();
+  });
+
+  it("con el módulo shipping le pasa los métodos extra; apagado, ni los lee", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    config(false);
+    vi.mocked(getSiteConfig).mockResolvedValue({
+      ...(await getSiteConfig()),
+      modules: { shipping: true },
+    } as never);
+    vi.mocked(getShippingMethods).mockResolvedValue([
+      { id: 3, name: "Seguro", addedValue: 5 },
+    ]);
+
+    const on = await formProps();
+    expect(on.shipping).toEqual({
+      methods: [{ id: 3, name: "Seguro", addedValue: 5 }],
+    });
+    expect(getShippingMethods).toHaveBeenCalledWith({ enabled: true });
+
+    config(false);
+    vi.mocked(getShippingMethods).mockClear();
+    const off = await formProps();
+    expect(off.shipping).toBeUndefined();
+    expect(getShippingMethods).toHaveBeenCalledWith({ enabled: false });
   });
 });

@@ -14,6 +14,7 @@ import { CO_PACK } from "../../../../../tests/helpers/geo-pack";
 import { attachIdentity } from "@/lib/customer/identity-api";
 import { FALLBACK_ES_PACK } from "../../../../../tests/helpers/geo-pack";
 import { logger } from "@/lib/observability/logger";
+import { getShippingMethods } from "@/lib/shipping";
 import { POST } from "./route";
 
 // ============================================================================
@@ -52,6 +53,7 @@ vi.mock("@/lib/security/idempotency", () => ({
 }));
 vi.mock("@/lib/config", () => ({ getSiteConfig: vi.fn() }));
 vi.mock("@/lib/customer/identity-api", () => ({ attachIdentity: vi.fn() }));
+vi.mock("@/lib/shipping", () => ({ getShippingMethods: vi.fn() }));
 vi.mock("@/lib/geo", async () => ({
   getGeoPack: vi.fn(),
   GENERIC_PACK: (await import("@/lib/geo/generic")).GENERIC_PACK,
@@ -664,5 +666,97 @@ describe("documento y términos (módulo customer-identity)", () => {
         "hwe-identity"
       ].document_type,
     ).toBeNull();
+  });
+});
+
+describe("extras de envío (módulo shipping)", () => {
+  const METHODS = [
+    { id: 3, name: "Seguro", addedValue: 5 },
+    { id: 4, name: "Caja de regalo", addedValue: 0 },
+  ];
+
+  function shippingOn(on: boolean) {
+    vi.mocked(getSiteConfig).mockResolvedValue({
+      brand: { url: "https://tienda.example" },
+      ecommerce: { checkout_login_required: true },
+      payments: { gateway_enabled: true, whatsapp_enabled: false, cash_enabled: false },
+      modules: { shipping: on },
+    } as never);
+    vi.mocked(getShippingMethods).mockResolvedValue(METHODS);
+  }
+  const feePut = () =>
+    vi
+      .mocked(wcFetch)
+      .mock.calls.find(
+        ([path, init]) =>
+          String(path).startsWith("/orders/") &&
+          init?.method === "PUT" &&
+          "fee_lines" in ((init.body as object) ?? {}),
+      );
+
+  it("suma los extras elegidos al pedido como cargos, con el importe vigente de WordPress", async () => {
+    shippingOn(true);
+
+    const res = await POST(checkout("hwe_offline", { shipping_method_ids: [3, 4] }));
+
+    expect(res.status).toBe(201);
+    expect(getShippingMethods).toHaveBeenCalledWith({ fresh: true });
+    expect((feePut()?.[1] as { body: unknown }).body).toEqual({
+      fee_lines: [
+        { name: "Seguro", total: "5", tax_status: "none" },
+        { name: "Caja de regalo", total: "0", tax_status: "none" },
+      ],
+    });
+  });
+
+  it("un id que ya no existe o está inactivo no cuenta, y el importe nunca sale del cliente", async () => {
+    shippingOn(true);
+
+    await POST(
+      checkout("hwe_offline", { shipping_method_ids: [3, 999], shipping_fee: 99999 }),
+    );
+
+    expect(
+      (feePut()?.[1] as { body: { fee_lines: unknown[] } }).body.fee_lines,
+    ).toEqual([{ name: "Seguro", total: "5", tax_status: "none" }]);
+  });
+
+  it("los ids no viajan a la Store API", async () => {
+    shippingOn(true);
+
+    await POST(checkout("hwe_offline", { shipping_method_ids: [3] }));
+
+    expect(JSON.stringify(orderPosts()[0][1])).not.toContain("shipping_method_ids");
+  });
+
+  it("con el módulo apagado se ignoran los extras y no se lee nada de WordPress", async () => {
+    shippingOn(false);
+
+    const res = await POST(checkout("hwe_offline", { shipping_method_ids: [3] }));
+
+    expect(res.status).toBe(201);
+    expect(getShippingMethods).not.toHaveBeenCalled();
+    expect(feePut()).toBeUndefined();
+  });
+
+  it("si no se pueden aplicar los cargos, el pedido ya creado no se pierde", async () => {
+    shippingOn(true);
+    vi.mocked(getShippingMethods).mockRejectedValue(new Error("red"));
+
+    const res = await POST(checkout("hwe_offline", { shipping_method_ids: [3] }));
+
+    expect(res.status).toBe(201);
+    expect(
+      vi.mocked(logger.error).mock.calls.map(([o]) => (o as { event: string }).event),
+    ).toContain("checkout.shipping_fees_failed");
+  });
+
+  it("rechaza una lista de ids mal formada", async () => {
+    shippingOn(true);
+
+    expect(
+      (await POST(checkout("hwe_offline", { shipping_method_ids: ["a"] }))).status,
+    ).toBe(422);
+    expect(orderPosts()).toHaveLength(0);
   });
 });

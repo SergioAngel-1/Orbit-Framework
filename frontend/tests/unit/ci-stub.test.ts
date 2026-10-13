@@ -1,4 +1,6 @@
 import { normalizeGeoPack } from "@/lib/geo/normalize";
+import { normalizeShippingMethods } from "@/lib/shipping/normalize";
+import { normalizeFreeShippingScope } from "@/lib/shipping/free-shipping-scope";
 import { readFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
@@ -169,6 +171,22 @@ describe("pedidos de prueba (wc/v3)", () => {
     // ejercitaría la rama de respaldo sin enterarse.
     expect(normalizeGeoPack(body)).toEqual(body);
     expect(body).toMatchObject({ country: "generic", requested: "ES" });
+  });
+
+  it("sirve los extras y el alcance del envío (módulo shipping)", async () => {
+    const base = await startStub();
+
+    const methods = await (
+      await fetch(`${base}/wp-json/hwe-shipping/v1/methods`)
+    ).json();
+    const scope = await (
+      await fetch(`${base}/wp-json/hwe-shipping/v1/free-shipping/scope`)
+    ).json();
+
+    expect(normalizeShippingMethods(methods)).toEqual([
+      { id: 3, name: "Seguro de envío", addedValue: 5 },
+    ]);
+    expect(normalizeFreeShippingScope(scope, "es").cities).toEqual(["Madrid"]);
   });
 
   it("un pedido que no está en el fixture responde {data:{}} (CMS vacío)", async () => {

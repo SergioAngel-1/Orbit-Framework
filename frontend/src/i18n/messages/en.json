@@ -239,6 +239,28 @@
       "login": "Log in",
       "loginLabel": "Log in to use coupon {code}",
       "accountOnly": "Requires signing in"
+    },
+    "freeShipping": {
+      "remaining": "You're {amount} away from free shipping",
+      "pendingCity": "Your order reaches free shipping: we'll confirm it with your delivery city",
+      "reached": "You've got free shipping!",
+      "hintProducts": "Selected store products count towards it.",
+      "hintCities": "Available in selected cities.",
+      "hintCityList": "Available in {cities}.",
+      "otherCities": "Free shipping is available in {cities}.",
+      "citiesMore": "{count} more",
+      "citiesShowAll": "See all",
+      "progressLabel": "Progress towards free shipping",
+      "scope": {
+        "button": "See which products count towards free shipping",
+        "title": "Counts towards free shipping",
+        "categories": "Categories",
+        "products": "Products",
+        "showAll": "See all {count}",
+        "loading": "Loading…",
+        "error": "We couldn't load the list. Please try again.",
+        "empty": "Every product in the store counts."
+      }
     }
   },
   "checkout": {
@@ -284,7 +306,8 @@
     "resultWhatsapp": "We'll send you the payment link on WhatsApp to complete your order.",
     "resultCash": "You'll pay in cash when you receive your order.",
     "paymentNotStarted": "Your order was created, but we couldn't start the online payment. Contact us or try again from your orders.",
-    "genericError": "We couldn't complete your order. Please try again."
+    "genericError": "We couldn't complete your order. Please try again.",
+    "shippingExtras": "Shipping extras"
   },
   "form": {
     "firstName": "First name",

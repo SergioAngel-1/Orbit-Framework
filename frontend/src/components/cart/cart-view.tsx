@@ -1,4 +1,5 @@
 "use client";
+import { FreeShippingNotice } from "@/components/cart/free-shipping-notice";
 import { regularUnitAmount } from "@/lib/cart/line-price";
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
@@ -109,6 +110,8 @@ export function CartView() {
           </li>
         ))}
       </ul>
+
+      <FreeShippingNotice cart={cart} />
 
       <div className="flex items-center justify-between border-t border-gray-200 pt-4 dark:border-gray-800">
         <span className="text-lg font-bold">{tCart("total")}</span>

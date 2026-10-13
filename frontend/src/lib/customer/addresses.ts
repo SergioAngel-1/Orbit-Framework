@@ -20,3 +20,10 @@ export function parseSavedAddresses(
     return [];
   }
 }
+
+/** La dirección predeterminada de la libreta, o la primera; `null` si no hay ninguna. */
+export function defaultAddress(
+  addresses: readonly SavedAddress[],
+): SavedAddress | null {
+  return addresses.find((a) => a.is_default) ?? addresses[0] ?? null;
+}

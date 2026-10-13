@@ -165,7 +165,7 @@ export async function POST(request: Request) {
   // invitado de este dispositivo pasa a la cuenta (si el correo es el mismo).
   // Van ANTES de responder: la cookie del pedido solo se retira en la respuesta
   // y «Mis pedidos» ya tiene que mostrarlo. Ninguna lanza.
-  await syncAuthenticatedCart(authToken);
+  await syncAuthenticatedCart(authToken, user.databaseId);
   await claimGuestOrder(user.databaseId);
   // Liga el comprobante de consentimiento de este dispositivo a la cuenta
   // (módulo `consent-log`; en `after()`, no retrasa la respuesta).
