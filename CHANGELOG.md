@@ -83,8 +83,8 @@ incompatible); el registro completo está en §6.
 ### Removed
 - `NEXT_PUBLIC_WORDPRESS_API_URL` y la rama de navegador del cliente GraphQL.
 - Los mu-plugins de traducción de v1 (`hwe-content-translation`, `hwe-slug-translation`,
-  `hwe-category-translation`, `hwe-tag-translation`, `hwe-blog-category-translation`), sustituidos
-  por `hwe-content-i18n`.
+  `hwe-category-translation`, `hwe-tag-translation`, `hwe-blog-category-translation`; eran de
+  instancias derivadas, el núcleo v1 no los incluía), sustituidos por `hwe-content-i18n`.
 - `woocommerce-email-branding.php` (lo sustituye `hwe-email-chrome` con las plantillas del tema
   base), el parser de banners del núcleo (`lib/config/banners.ts`), `app/sitemap.ts`,
   `BackupConfig::triggerNow()` y la carga del QR de 2FA desde un tercero.

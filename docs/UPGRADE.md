@@ -172,9 +172,10 @@ parte de `docs/CREATE_INSTANCE.md`.
 - **Pasos.**
   1. Declara `i18n.locales` en `instance.config.json` (los secundarios; `brand.locale` es el
      principal) y haz que `frontend/src/i18n/routing.ts` coincida: el arranque avisa si divergen.
-  2. Borra de `mu-plugins/` los cinco mu-plugins de traducción de v1 (`hwe-content-translation`,
-     `hwe-slug-translation`, `hwe-category-translation`, `hwe-tag-translation`,
-     `hwe-blog-category-translation`): los sustituye `hwe-content-i18n`.
+  2. Si tu instancia los trae, borra de `mu-plugins/` los cinco mu-plugins de traducción
+     (`hwe-content-translation`, `hwe-slug-translation`, `hwe-category-translation`,
+     `hwe-tag-translation`, `hwe-blog-category-translation`): los sustituye `hwe-content-i18n`.
+     Eran de instancias derivadas, no del núcleo v1: un clon sin ellos no tiene nada que borrar.
   3. Migra tus consultas GraphQL propias a `translation(locale: …)` y tus helpers
      `pickLocalized(es, en, locale)` a `pickLocalized(entity, campo, locale)`. Los lectores del
      catálogo y del blog reciben ahora el idioma; los enlaces a fichas pasan por
@@ -831,8 +832,9 @@ demás entradas, en §6.
 
 - **Nuevo mu-plugin `hwe-content-i18n`** sustituye a `hwe-content-translation`,
   `hwe-slug-translation`, `hwe-category-translation`, `hwe-tag-translation` y
-  `hwe-blog-category-translation` de las instancias derivadas del framework v1: **borra esos cinco archivos**
-  de `mu-plugins/` al actualizar. Las metas (`_hwe_title_en`, `_hwe_slug_en`, `_hwe_name_en`…) son
+  `hwe-blog-category-translation` de las instancias derivadas del framework v1: **si tu instancia
+  tiene esos cinco archivos, bórralos** de `mu-plugins/` al actualizar (el núcleo v1 no los
+  incluía: un clon sin ellos no tiene nada que borrar). Las metas (`_hwe_title_en`, `_hwe_slug_en`, `_hwe_name_en`…) son
   las mismas: no hay migración de datos.
 - **(contrato) Nombres de GraphQL.** Los campos por idioma (`titleEn`, `excerptEn`, `contentEn`,
   `seoTitleEn`, `seoDescriptionEn`, `nameEn`, `shortDescriptionEn`, `descriptionEn`, `slugEn`)
