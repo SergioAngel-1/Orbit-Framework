@@ -20,6 +20,9 @@ frontend/.env.local
 backend/scripts/instance.config.json
 !backend/scripts/instance.config.example.json
 
+# Notas de trabajo sobre la instancia de origen: se llevan aparte, fuera del repositorio.
+docs/superpowers/hallazgos-siu.md
+
 # ---------- Secretos / claves ----------
 *.pem
 *.key
