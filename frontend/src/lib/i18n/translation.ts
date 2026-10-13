@@ -93,7 +93,7 @@ export function withTranslations(document: string, locales: readonly string[]): 
 }
 
 /** `seoTitle` → `seo_title`: el nombre del campo en WordPress y en `pickLocalized`. */
-function snakeCase(camel: string): string {
+export function snakeCase(camel: string): string {
   return camel.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 

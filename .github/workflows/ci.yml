@@ -226,7 +226,7 @@ jobs:
       # línea), la compra de invitado y el módulo `site-reviews`, para que los e2e
       # del checkout y de la cuenta ejerciten el selector, el formulario sin sesión
       # y la calificación del pedido.
-      STUB_SITE_CONFIG_EXTRA: '{"payments":{"gateway_enabled":true,"whatsapp_enabled":true,"cash_enabled":true},"ecommerce":{"checkout_login_required":false,"coupons_enabled":true},"modules":{"site-reviews":true,"coupon-rules":true,"consent-log":true,"customer-identity":true,"shipping":true,"banners":true},"banners":{"enabled":true},"integrations":{"analytics_provider":"ga4","analytics_id":"G-E2ETEST01"}}'
+      STUB_SITE_CONFIG_EXTRA: '{"payments":{"gateway_enabled":true,"whatsapp_enabled":true,"cash_enabled":true},"ecommerce":{"checkout_login_required":false,"coupons_enabled":true},"modules":{"site-reviews":true,"coupon-rules":true,"consent-log":true,"customer-identity":true,"shipping":true,"banners":true,"product-landing":true},"banners":{"enabled":true},"integrations":{"analytics_provider":"ga4","analytics_id":"G-E2ETEST01"}}'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

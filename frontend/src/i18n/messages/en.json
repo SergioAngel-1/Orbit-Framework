@@ -123,6 +123,24 @@
     "faqTitle": "Frequently asked questions",
     "bestSellersTitle": "Best sellers"
   },
+  "productLanding": {
+    "kicker": "Product guide",
+    "breadcrumb": "Guide",
+    "viewProduct": "View the product",
+    "aboutTitle": "About {name}",
+    "componentsTitle": "Key components",
+    "qualitiesTitle": "Qualities",
+    "adviceTitle": "Advice",
+    "tipsTitle": "Advice",
+    "questionsTitle": "Frequently asked questions",
+    "ctaTitle": "Bring {name} home",
+    "ctaButton": "View the product",
+    "videoTitle": "Video",
+    "videoWatch": "Watch the video on YouTube",
+    "closingBack": "Back to the product",
+    "relatedTitle": "Keep learning",
+    "relatedCta": "Read the guide"
+  },
   "blog": {
     "title": "Blog",
     "description": "Articles, guides and updates published from WordPress.",
@@ -183,6 +201,7 @@
     "onSale": "Sale",
     "description": "Description",
     "related": "Related products",
+    "learnMore": "Product guide",
     "selectVariant": "Select a variation",
     "filter": "Filter",
     "allCategories": "All categories",

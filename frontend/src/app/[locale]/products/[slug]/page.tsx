@@ -26,6 +26,8 @@ import { isModuleEnabled } from "@/lib/config/modules";
 import { getProductCoupons } from "@/lib/coupons/public-coupons";
 import { getCartProductRefs } from "@/lib/catalog/coupon-refs";
 import { logReadFailure } from "@/lib/observability/read-failure";
+import { hasProductLanding } from "@/lib/landings/product-landing";
+import { productLearnHref } from "@/lib/landings/product-learn-href";
 
 export const revalidate = 300;
 
@@ -155,6 +157,10 @@ export default async function ProductPage({
         })
       : [];
 
+  // Guía del producto (módulo `product-landing`): solo si está publicada y, en un
+  // idioma secundario, traducida.
+  const hasLearnPage = await hasProductLanding(route.nativeSlug, locale);
+
   return (
     <div>
       <script
@@ -228,6 +234,15 @@ export default async function ProductPage({
               </p>
             )}
           </div>
+
+          {hasLearnPage && (
+            <Link
+              href={productLearnHref(product)}
+              className="inline-flex w-fit items-center gap-1 text-sm font-semibold text-brand hover:underline"
+            >
+              {t("learnMore")} <span aria-hidden>→</span>
+            </Link>
+          )}
 
           {productCoupons.length > 0 && (
             <CouponNotices

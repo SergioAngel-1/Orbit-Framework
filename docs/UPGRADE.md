@@ -726,6 +726,41 @@ git fetch framework --tags
 - Nuevo: página **Banners → Ayuda** con las medidas, `MANUAL.md` para editores y vistas «Landings» en el
   listado.
 
+### Módulo `product-landing` (F5)
+
+- **El plugin `hwe-product-landing` es ahora un módulo** (`product-landing`): se activa con `modules` en
+  `instance.config.json` y el frontend lo sabe por `config.modules['product-landing']`. Apagado, el
+  plugin no registra `Product.landing` y el frontend no lo consulta ni pinta nada.
+- **(breaking) Los campos `*En` desaparecen del GraphQL.** `heroSubtitleEn`, `nameEn`, `titleEn`… se
+  sustituyen por `ProductLanding.translation(locale: String!)` y, en cada fila de las listas
+  (`components`, `qualities`, `adviceItems`), `translation(locale: String!)`: devuelven los campos
+  traducibles en ese idioma, o nulo si no hay traducción. El frontend los pide con el marcador
+  `# @translation ProductLanding: …` (`lib/landings/queries.ts`) y los lee con `pickTranslated`. Una
+  consulta propia de la instancia que pida `*En` debe migrar a `translation`.
+- **Sin migración de datos:** las traducciones de los campos escalares siguen en
+  `_hwe_landing_<campo>_<idioma>` (el inglés de v1 es `_en`) y las de las listas en `i18n.<idioma>`
+  dentro de la fila. Los idiomas son los secundarios del sitio (`i18n.locales`), N en vez de solo inglés:
+  una traducción de un idioma que el sitio no declara no se guarda.
+- **(contrato) Íconos por filtro.** El set neutro (12 claves) vive en `Fields::DEFAULT_ICONS`; una
+  instancia lo amplía con `hwe_product_landing_icons` (clave en minúsculas → etiqueta) y declara los
+  mismos dibujos en su frontend. `Fields::ICONS` desaparece (era una constante; usa `Fields::icons()`).
+- **(contrato) Ruta y lectores.** La landing vive en `/products/[slug]/learn` (antes la ruta la ponía cada
+  instancia). Lectores nuevos en `lib/landings/`: `getProductLanding(slug, locale)`,
+  `getPublishedProductLandingSlugs()`, `getPublishedProductLandingLocales()`, `hasProductLanding()` y
+  `getRelatedProductLandings()`. La landing se lee en su propia consulta (no dentro de la ficha), así que
+  un WordPress sin el plugin no rompe la ficha.
+- **Sin traducción no se anuncia el idioma:** una landing solo aparece en el hreflang y el sitemap de un
+  idioma si tiene traducción de alguno de sus campos de peso (título SEO, subtítulo del hero, cuerpos
+  educativo y «sobre el producto», texto de cierre). Sin ella la dirección existe y sirve el idioma por
+  defecto con `lang` correcto.
+- **(contrato) Revalidación.** El plugin pide el tag `products` por sí mismo (y lo declara en
+  `hwe_revalidation_tags`); ya no depende solo del webhook `product.updated` de WooCommerce.
+- **Arreglado:** `video_poster` no estaba en el formulario, así que cada guardado borraba la miniatura del
+  video. El formulario ya la ofrece.
+- **No se porta el atajo de publicación en lote** del Control Center de la instancia de origen: la
+  publicación se hace con la casilla «Publicar landing» de cada ficha. El vídeo se enlaza a YouTube (la
+  CSP del framework tiene `frame-src 'none'`): incrustarlo es una decisión de la instancia.
+
 ### Infraestructura y CD (F4)
 
 - **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin

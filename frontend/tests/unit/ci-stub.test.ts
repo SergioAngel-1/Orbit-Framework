@@ -110,6 +110,81 @@ describe("createStubServer", () => {
   });
 });
 
+describe("landing de producto de prueba (GraphQL)", () => {
+  async function operation(base: string, query: string, variables: object = {}) {
+    const res = await fetch(`${base}/graphql`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query, variables }),
+    });
+    return res.json();
+  }
+
+  it("publica el producto de prueba y sirve su landing con traducción", async () => {
+    const base = await startStub();
+
+    expect(
+      await operation(
+        base,
+        "query ProductLandingsPublished { hweProductLandingsPublished }",
+      ),
+    ).toEqual({ data: { hweProductLandingsPublished: ["e2e-landing"] } });
+
+    const landing = await operation(base, "query ProductLanding($slug: ID!) { x }", {
+      slug: "e2e-landing",
+    });
+    expect(landing.data.product.landing.published).toBe(true);
+    expect(landing.data.product.landing.tr_en.heroSubtitle).toBeTruthy();
+
+    const product = await operation(base, "query ProductBySlug($slug: ID!) { x }", {
+      slug: "e2e-landing",
+    });
+    expect(product.data.product.tr_en.slug).toBe("e2e-landing-en");
+  });
+
+  it("un producto que no es el de prueba no tiene landing ni ficha", async () => {
+    const base = await startStub();
+
+    expect(
+      await operation(base, "query ProductLanding($slug: ID!) { x }", { slug: "otro" }),
+    ).toEqual({ data: { product: null } });
+    expect(
+      await operation(base, "query ProductBySlug($slug: ID!) { x }", { slug: "otro" }),
+    ).toEqual({ data: { product: null } });
+  });
+
+  it("resuelve el slug traducido y deja vacío cualquier otro", async () => {
+    const base = await startStub();
+    const query =
+      "query SlugFrom($postType: String!, $locale: String!, $slug: String!) { x }";
+
+    expect(
+      await operation(base, query, {
+        postType: "product",
+        locale: "en",
+        slug: "e2e-landing-en",
+      }),
+    ).toEqual({ data: { hweSlugFrom: "e2e-landing" } });
+    expect(
+      await operation(base, query, {
+        postType: "post",
+        locale: "en",
+        slug: "e2e-landing-en",
+      }),
+    ).toEqual({ data: { hweSlugFrom: null } });
+  });
+
+  it("una operación desconocida sigue respondiendo vacío", async () => {
+    const base = await startStub();
+
+    expect(
+      await operation(base, "query Products { products { nodes { id } } }"),
+    ).toEqual({
+      data: {},
+    });
+  });
+});
+
 describe("pedidos de prueba (wc/v3)", () => {
   it("sirve cada pedido del fixture, del cliente 7", async () => {
     const base = await startStub();

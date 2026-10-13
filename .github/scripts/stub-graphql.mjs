@@ -28,6 +28,11 @@
 //  Solo `design.colors`: `typography` traería los enlaces a Google Fonts y con
 //  ellos una dependencia de red dentro de cada spec.
 //
+//  GraphQL tampoco es siempre «vacío»: las operaciones de la landing de producto
+//  (`ProductLandingsPublished`, `ProductBySlug` y `ProductLanding` del producto de prueba
+//  `e2e-landing`, `ProductLandingLocales`, `RelatedLandingProducts` y `hweSlugFrom`) devuelven
+//  un fixture para el e2e del módulo `product-landing`. Cualquier otra operación sigue vacía.
+//
 //  Tampoco es «vacío» `GET /wp-json/wc/v3/orders[/{10..13}]`, `customers/7`,
 //  `hwe-banners/v1/banners/carousel` (un slide con imagen, que el propio stub sirve en
 //  `/wp-content/uploads/e2e-banner.svg`), `hwe-shipping/v1/{methods,free-shipping/scope}` (un extra de envío y un alcance con una
@@ -203,6 +208,136 @@ const bannerCarousel = (origin) => ({
   ],
 });
 
+/** Producto de prueba con landing publicada (módulo `product-landing`). */
+const LANDING_SLUG = "e2e-landing";
+const LANDING_SLUG_EN = "e2e-landing-en";
+
+const STUB_LANDING_PRODUCT = {
+  id: "cHJvZHVjdDo5MDE=",
+  databaseId: 901,
+  name: "Producto con guía",
+  slug: LANDING_SLUG,
+  type: "SIMPLE",
+  seoTitle: null,
+  seoDescription: null,
+  image: null,
+  onSale: false,
+  price: "25",
+  regularPrice: "25",
+  salePrice: null,
+  stockStatus: "IN_STOCK",
+  shortDescription: "Un producto de prueba",
+  description: "<p>Descripción de prueba</p>",
+  reviews: { averageRating: 0, edges: [] },
+  related: { nodes: [] },
+  tr_en: {
+    name: "Product with guide",
+    shortDescription: "A test product",
+    slug: LANDING_SLUG_EN,
+  },
+};
+
+const STUB_LANDING = {
+  published: true,
+  seoTitle: "Guía de prueba",
+  seoDescription: "Descripción SEO de la guía",
+  seoOgImage: null,
+  accent1: null,
+  accent2: null,
+  heroSubtitle: "Para empezar con calma",
+  heroImage: null,
+  sectionEduEnabled: true,
+  eduKicker: "Educativa",
+  eduTitle: "Cómo funciona",
+  eduBody: "<p>Un cuerpo de <strong>prueba</strong>.</p>",
+  eduImage: null,
+  aboutTitle: "Sobre el producto de prueba",
+  aboutBody: "<p>Cuerpo sobre el producto.</p>",
+  sectionQualitiesEnabled: true,
+  qualitiesTitle: null,
+  sectionAdviceEnabled: true,
+  adviceTitle: null,
+  adviceIntro: null,
+  ctaTitle: null,
+  ctaText: null,
+  sectionVideoEnabled: false,
+  videoUrl: null,
+  videoCaption: null,
+  videoPoster: null,
+  videoDate: null,
+  closingTitle: "Para cerrar",
+  closingText: "<p>Texto de cierre.</p>",
+  closingCtaLabel: null,
+  closingCtaHref: null,
+  components: [
+    { image: null, icon: "leaf", name: "Hoja de prueba", note: "Una nota", tr_en: { name: "Test leaf", note: "A note" } },
+  ],
+  qualities: [
+    { icon: "sun", image: null, title: "Cualidad solar", text: "Da energía", tr_en: { title: "Solar quality", text: "Gives energy" } },
+  ],
+  adviceItems: [
+    { heading: "¿Cómo se usa?", body: "Según la etiqueta.", tr_en: { heading: "How is it used?", body: "As labelled." } },
+    { heading: null, body: "Guárdalo en un lugar fresco.", tr_en: { heading: null, body: "Keep it in a cool place." } },
+  ],
+  tr_en: {
+    seoTitle: "Test guide",
+    seoDescription: "SEO description of the guide",
+    heroSubtitle: "To start calmly",
+    eduKicker: "Educational",
+    eduTitle: "How it works",
+    eduBody: "<p>A <strong>test</strong> body.</p>",
+    aboutTitle: "About the test product",
+    aboutBody: "<p>About body.</p>",
+    closingTitle: "To close",
+    closingText: "<p>Closing text.</p>",
+  },
+};
+
+/**
+ * Respuesta de GraphQL por operación para el e2e de la landing de producto, o
+ * `undefined` si la operación no es una del fixture (entonces el stub contesta vacío).
+ */
+export function graphqlFixture(body) {
+  const query = typeof body?.query === "string" ? body.query : "";
+  const variables = body?.variables ?? {};
+  const operation = query.match(/\b(?:query|mutation)\s+(\w+)/)?.[1];
+  switch (operation) {
+    case "ProductLandingsPublished":
+      return { data: { hweProductLandingsPublished: [LANDING_SLUG] } };
+    case "ProductBySlug":
+      return { data: { product: variables.slug === LANDING_SLUG ? STUB_LANDING_PRODUCT : null } };
+    case "ProductLanding":
+      return {
+        data: {
+          product: variables.slug === LANDING_SLUG ? { landing: STUB_LANDING } : null,
+        },
+      };
+    case "ProductLandingLocales":
+      return {
+        data: {
+          products: {
+            nodes: (variables.slugs ?? []).includes(LANDING_SLUG)
+              ? [{ slug: LANDING_SLUG, landing: { tr_en: STUB_LANDING.tr_en, heroSubtitle: STUB_LANDING.heroSubtitle } }]
+              : [],
+          },
+        },
+      };
+    case "RelatedLandingProducts":
+      return { data: { products: { nodes: [] } } };
+    case "SlugFrom":
+      return {
+        data: {
+          hweSlugFrom:
+            variables.postType === "product" && variables.slug === LANDING_SLUG_EN
+              ? LANDING_SLUG
+              : null,
+        },
+      };
+    default:
+      return undefined;
+  }
+}
+
 /** Respuesta fija de la REST de WooCommerce, o `undefined` si no es una del fixture. */
 function wooFixture(path) {
   const order = path.match(/^\/wp-json\/wc\/v3\/orders\/(\d+)$/);
@@ -222,9 +357,11 @@ function wooFixture(path) {
 /** Servidor HTTP del stub (sin escuchar: quien lo usa elige el puerto). */
 export function createStubServer(siteConfig) {
   return createServer((req, res) => {
-    // Se drena el cuerpo aunque no se use: sin consumirlo, el cliente puede
-    // quedarse esperando a que se libere el socket.
-    req.resume();
+    // Se lee el cuerpo (las operaciones de GraphQL se distinguen por él) y, de
+    // paso, se drena: sin consumirlo, el cliente puede quedarse esperando a que
+    // se libere el socket.
+    const chunks = [];
+    req.on("data", (chunk) => chunks.push(chunk));
     req.on("end", () => {
       const path = new URL(req.url ?? "/", "http://127.0.0.1").pathname;
       if (path === BANNER_IMAGE_PATH) {
@@ -233,12 +370,20 @@ export function createStubServer(siteConfig) {
         return;
       }
       const origin = `http://${req.headers.host ?? "127.0.0.1"}`;
+      let graphql;
+      if (req.method === "POST" && path === "/graphql") {
+        try {
+          graphql = graphqlFixture(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+        } catch {
+          graphql = undefined;
+        }
+      }
       const body =
         path === CONFIG_PATH
           ? siteConfig
           : path === "/wp-json/hwe-banners/v1/banners/carousel"
             ? bannerCarousel(origin)
-            : (wooFixture(path) ?? { data: {} });
+            : (graphql ?? wooFixture(path) ?? { data: {} });
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(body));
     });

@@ -258,6 +258,51 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
 - **Starter:** `FreeShippingNotice` en el cajón, `/cart` y el checkout; el checkout pinta los extras y
   comunica el destino. Cada página pasa `shipping={{ methods }}` **solo** si `modules.shipping`.
 
+### Landing de producto (módulo `product-landing`)
+
+- **Qué hace el backend** (plugin `hwe-product-landing`): una landing por producto, editada en la ficha
+  (caja «Landing del producto») y publicada con una casilla. Con el módulo apagado el plugin no registra
+  nada y el frontend no lee ni pinta nada de esto.
+- **GraphQL.** `Product.landing` (`ProductLanding`, **nulo salvo publicada**): escalares en camelCase en el
+  idioma por defecto (`published`, `seoTitle`, `heroSubtitle`, `eduBody`, `accent1`, `videoUrl`…) y tres
+  listas: `components` (`image icon name note`), `qualities` (`icon image title text`) y `adviceItems`
+  (`heading body`). `ProductLanding.translation(locale)` y `<Fila>.translation(locale)` devuelven los
+  campos traducibles de un idioma secundario (nulos = usar el del idioma por defecto). Los tipos son
+  `ProductLanding`, `ProductLandingTranslation`, `ProductLandingComponent|Quality|Advice` y sus
+  `…Translation`. `RootQuery.hweProductLandingsPublished: [String]` lista los slugs publicados (para
+  prerender, sitemap y enlaces, sin N+1).
+- **Límites.** `components` 11 filas, `qualities` 11 y `adviceItems` 20 (10 consejos —sin `heading`— y 10
+  preguntas —con `heading`— por separado). El cuerpo de un consejo es **texto plano**; los campos con
+  formato (`eduBody`, `aboutBody`, `adviceIntro`, `closingText`) son HTML que debe pasar por `sanitizeHtml`.
+  `accent1`/`accent2` son `#rrggbb` o nulos y se validan antes de inyectarse como propiedad CSS.
+  `closingCtaHref` es texto libre del editor: valídalo (`resolveLandingHref`: solo `/…` interno o
+  `http(s)://`).
+- **Íconos.** Las filas traen una **clave** de ícono (`icon`), no el dibujo. El set neutro tiene 12
+  (`sparkles heart leaf shield sun moon droplets wind flame anchor compass sprout`); la instancia lo
+  amplía con el filtro `hwe_product_landing_icons` y declara los mismos dibujos en su frontend.
+- **Lectores** (`lib/landings/`, con `modules.product-landing = false` devuelven vacío sin llamar a
+  WordPress): `getProductLanding(slug, locale)` → `ProductLanding | null` (modelo resuelto al idioma y
+  saneado, con `locales` y `contentLang`), `getPublishedProductLandingSlugs()`,
+  `getPublishedProductLandingLocales()`, `hasProductLanding(slug, locale)` y
+  `getRelatedProductLandings(slug, locale, limit)` («Sigue aprendiendo»: un **anillo** con semilla fija,
+  estable en ISR y con reparto uniforme). Un fallo de WordPress en `getProductLanding` se propaga (500);
+  los demás degradan y quedan en el log.
+- **Ruta y SEO.** `/products/[slug]/learn`: comparte el tramo de URL por idioma y el 308 de la ficha; 404
+  si el módulo está apagado o la landing no está publicada. JSON-LD: `BreadcrumbList`, `Article` (con
+  `about` = `#product` de la ficha), `Product` con el **mismo `@id`** que la ficha, `FAQPage` **solo** si
+  hay preguntas con encabezado y respuesta (`advicePageFaq`) y `VideoObject` si hay video (con
+  `uploadDate` solo si es una fecha válida). El sitemap la añade al segmento `catalogo`.
+- **Sin traducción no se anuncia el idioma.** `landing.locales` (y `getPublishedProductLandingLocales`)
+  dicen en qué idiomas existe: el por defecto siempre y uno secundario si trae traducción de algún campo de
+  peso. Solo esos entran en el hreflang y el sitemap; los demás sirven el idioma por defecto con `lang`
+  correcto.
+- **Revalidación.** Tag ISR `products` (lectores y plugin). El plugin lo pide al guardar y al guardar un
+  producto con landing publicada.
+- **Starter:** `components/landings/product/landing-product-view.tsx` (hero, educativa, sobre el producto
+  con componentes, cualidades, consejos y preguntas, CTA a la ficha, video como enlace, cierre y «Sigue
+  aprendiendo») y `quality-icons.tsx`. La ficha enlaza a la guía (`products.learnMore`) solo si
+  `hasProductLanding`. Es **de la instancia**: reescríbela; el contrato es el de arriba.
+
 ### Documento de identidad y términos (módulo `customer-identity`)
 
 - **Qué pide** (`identityPolicy`, `lib/customer/policy.ts`): con el módulo apagado, nada. Encendido,
@@ -623,6 +668,7 @@ Leyenda: ✅ **completa** (usa datos reales, sin componentes de relleno) · 🧱
 | `/` (home) | 🧱 | `HeroCarousel` (gateado por `banners.enabled`), `PostCard`, `FaqSection` | Título/descripción + carrusel de banners (Banner Manager, §A.3) + últimos posts + FAQ (`config.geo.faq`). No usa `PageHero`, `TrustBar`, `CategoryCard` — disponibles, no conectados aquí. Primer candidato a rediseñar por negocio. |
 | `/products` | 🧱 | `InfiniteProductGrid` | Filtro con un `<form>` HTML plano (`search`/`category`/`minPrice`/`maxPrice`/`sort` por query string). No usa `FilterChips`, `SortDropdown`, `SearchModal`, `CategoryCard` — todos disponibles, ninguno conectado. |
 | `/products/[slug]` | ✅ | `ProductActions`, `VariationSelector`, `ReviewForm` (gateado), `ProductGrid` (relacionados) | Ficha de producto completa: imagen, precio, variantes, JSON-LD `Product` + `BreadcrumbList`. |
+| `/products/[slug]/learn` | ✅ | `LandingProductView` | Landing del producto (módulo `product-landing`, §A.2): 404 con el módulo apagado o sin publicar; JSON-LD `Article` + `Product` + `FAQPage`. |
 | `/categories/[slug]` | ✅ | `ProductGrid` | Listado por categoría con JSON-LD breadcrumb. |
 | `/blog` | ✅ | `PostCard` | Listado de entradas. |
 | `/blog/[slug]` | ✅ | — | Entrada individual, JSON-LD `Article`. |

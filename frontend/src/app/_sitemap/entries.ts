@@ -5,6 +5,11 @@ import { getCategories, getProductUrls } from "@/lib/catalog/products";
 import { getPostSlugs } from "@/lib/blog/posts";
 import { getBlogCategories } from "@/lib/blog/categories";
 import { categoryPageAvailable } from "@/lib/blog/category-format";
+import {
+  getPublishedProductLandingLocales,
+  getPublishedProductLandingSlugs,
+} from "@/lib/landings/product-landing";
+import { productLearnPaths } from "@/lib/landings/product-learn-href";
 import { entityPaths, hreflangLanguages, localizedPath } from "@/lib/seo/urls";
 import type { SitemapSegment } from "@/lib/seo/sitemap-segments";
 import { logger } from "@/lib/observability/logger";
@@ -126,6 +131,12 @@ export async function buildSitemapEntries(
     // Fail-soft deliberado: un sitemap sin productos es mejor que una ruta
     // caída, pero el fallo queda visible en los logs.
     try {
+      // Landings de producto publicadas (módulo `product-landing`; vacío si está
+      // apagado). Cada una solo se anuncia en los idiomas en que la ficha Y la
+      // landing existen.
+      const learn = new Set(await getPublishedProductLandingSlugs());
+      const learnLocales =
+        learn.size > 0 ? await getPublishedProductLandingLocales() : {};
       for (const { slug, slugs, locales } of await getProductUrls()) {
         paths.push({
           path: `/products/${slug}`,
@@ -134,6 +145,16 @@ export async function buildSitemapEntries(
           changeFrequency: "weekly",
           priority: 0.7,
         });
+        if (learn.has(slug)) {
+          const translated = learnLocales[slug] ?? [routing.defaultLocale];
+          paths.push({
+            path: `/products/${slug}/learn`,
+            locales: locales.filter((locale) => translated.includes(locale)),
+            paths: productLearnPaths(slugs),
+            changeFrequency: "monthly",
+            priority: 0.5,
+          });
+        }
       }
     } catch (error) {
       logger.error(

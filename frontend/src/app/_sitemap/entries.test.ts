@@ -4,10 +4,19 @@ import type { SiteConfig } from "@/lib/config/types";
 
 let currentConfig: SiteConfig;
 let degraded = false;
+/** Landings de producto publicadas y los idiomas de cada una (módulo `product-landing`). */
+const learn = vi.hoisted(() => ({
+  slugs: [] as string[],
+  locales: {} as Record<string, string[]>,
+}));
 
 vi.mock("@/lib/config", () => ({
   getSiteConfig: async () => currentConfig,
   isFallbackSiteConfig: () => degraded,
+}));
+vi.mock("@/lib/landings/product-landing", () => ({
+  getPublishedProductLandingSlugs: async () => learn.slugs,
+  getPublishedProductLandingLocales: async () => learn.locales,
 }));
 vi.mock("@/lib/catalog/products", () => ({
   getProductUrls: async () => [
@@ -59,6 +68,8 @@ import { buildSitemapEntries } from "./entries";
 
 beforeEach(() => {
   degraded = false;
+  learn.slugs = [];
+  learn.locales = {};
   currentConfig = structuredClone(CONFIG_DEFAULTS);
   currentConfig.brand.url = "https://mitienda.example/";
 });
@@ -116,6 +127,70 @@ describe("buildSitemapEntries", () => {
     const blog = (await buildSitemapEntries("blog")).map((e) => e.url);
     expect(blog).toContain("https://mitienda.example/en/blog/with-date");
     expect(blog).not.toContain("https://mitienda.example/en/blog/sin-fecha");
+  });
+
+  describe("landings de producto (módulo product-landing)", () => {
+    const catalog = async () =>
+      (await buildSitemapEntries("catalogo")).map((entry) => entry.url);
+
+    it("sin landings publicadas no hay filas /learn", async () => {
+      expect((await catalog()).some((url) => url.includes("/learn"))).toBe(false);
+    });
+
+    it("una landing publicada y traducida se anuncia en cada idioma con su slug", async () => {
+      learn.slugs = ["camiseta"];
+      learn.locales = { camiseta: ["es", "en"] };
+
+      const entries = await buildSitemapEntries("catalogo");
+      const urls = entries.map((entry) => entry.url);
+      const es = entries.find(
+        (entry) => entry.url === "https://mitienda.example/products/camiseta/learn",
+      )!;
+
+      expect(urls).toContain("https://mitienda.example/en/products/t-shirt/learn");
+      expect(es.alternates!.languages).toEqual({
+        es: "https://mitienda.example/products/camiseta/learn",
+        en: "https://mitienda.example/en/products/t-shirt/learn",
+        "x-default": "https://mitienda.example/products/camiseta/learn",
+      });
+    });
+
+    it("sin traducción de la landing no se anuncia el idioma", async () => {
+      learn.slugs = ["camiseta"];
+      learn.locales = { camiseta: ["es"] };
+
+      const urls = await catalog();
+
+      expect(urls).toContain("https://mitienda.example/products/camiseta/learn");
+      expect(urls.some((url) => url.includes("/en/products/t-shirt/learn"))).toBe(
+        false,
+      );
+    });
+
+    it("sin idiomas verificados (lectura fallida) solo se anuncia el idioma por defecto", async () => {
+      learn.slugs = ["camiseta"];
+      learn.locales = {};
+
+      const urls = await catalog();
+
+      expect(urls).toContain("https://mitienda.example/products/camiseta/learn");
+      expect(
+        urls.some(
+          (url) =>
+            url.startsWith("https://mitienda.example/en/") && url.endsWith("/learn"),
+        ),
+      ).toBe(false);
+    });
+
+    it("el idioma debe existir también en la ficha", async () => {
+      learn.slugs = ["gorra"];
+      learn.locales = { gorra: ["es", "en"] };
+
+      const urls = await catalog();
+
+      expect(urls).toContain("https://mitienda.example/products/gorra/learn");
+      expect(urls.some((url) => url.includes("/en/products/gorra/learn"))).toBe(false);
+    });
   });
 
   it("el blog solo emite lastmod cuando hay fecha real", async () => {
