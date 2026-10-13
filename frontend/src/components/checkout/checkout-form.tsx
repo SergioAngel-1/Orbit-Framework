@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 import { useCart } from "@/components/cart/cart-context";
 import { Button } from "@/components/ui/button";
-import { formatStoreAmount } from "@/lib/format";
+import { useFormatStoreAmount } from "@/components/ui/currency-context";
 
 interface CheckoutResult {
   order_id: number;
@@ -20,6 +20,7 @@ export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
   const { cart, loading, refresh, applyCoupon, removeCoupon, selectShippingRate } =
     useCart();
   const t = useTranslations();
+  const formatStoreAmount = useFormatStoreAmount();
   const tCheckout = t.raw("checkout") as unknown as Record<string, string>;
   const tCart = t.raw("cart") as unknown as Record<string, string>;
   const tForm = t.raw("form") as unknown as Record<string, string>;

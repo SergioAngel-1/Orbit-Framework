@@ -42,51 +42,61 @@ export function parseMoneyAmount(value?: string | number | null): number | null 
 }
 
 /**
- * Formatea un importe (en unidades mayores) con Intl.
+ * Formatea un importe (en unidades mayores) con Intl, en el idioma de la página.
  *
- * COP se muestra sin decimales (convención de precios en Colombia);
- * cualquier otro código ISO-4217 usa el formato por defecto de Intl.
- * No asume ninguna moneda por defecto: el llamador siempre la pasa
- * explícitamente (vía `useCurrency()` en cliente o `getSiteConfig()` en servidor).
+ * `decimals` son los decimales de la tienda: los de WooCommerce
+ * (`config.ecommerce.price_decimals`) para precios de catálogo y el
+ * `currency_minor_unit` de la Store API para importes del carrito. Sin ellos,
+ * los de Intl para esa moneda. El núcleo no conoce ninguna moneda en concreto:
+ * una tienda que cobra sin decimales lo configura en WooCommerce.
  */
-export function formatMoney(amount: number, currencyCode: string): string {
+export function formatMoney(
+  amount: number,
+  currencyCode: string,
+  locale: string,
+  decimals?: number | null,
+): string {
   const code = currencyCode.toUpperCase();
-  if (code === "COP") {
-    try {
-      return new Intl.NumberFormat("es-CO", {
-        style: "currency",
-        currency: "COP",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(Math.round(amount));
-    } catch {
-      return `$ ${Math.round(amount).toString()}`;
-    }
-  }
-
+  const digits =
+    typeof decimals === "number" &&
+    Number.isInteger(decimals) &&
+    decimals >= 0 &&
+    decimals <= 20
+      ? decimals
+      : undefined;
+  const key = `${locale}|${code}|${digits ?? ""}`;
   try {
-    const formatter =
-      currencyFormatters.get(code) ??
-      new Intl.NumberFormat("es", { style: "currency", currency: code });
-    currencyFormatters.set(code, formatter);
+    let formatter = currencyFormatters.get(key);
+    if (!formatter) {
+      formatter = new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: code,
+        ...(digits !== undefined
+          ? { minimumFractionDigits: digits, maximumFractionDigits: digits }
+          : {}),
+      });
+      currencyFormatters.set(key, formatter);
+    }
     return formatter.format(amount);
   } catch {
-    return `${amount.toFixed(2)} ${code}`;
+    // Código de moneda o locale que Intl no conoce: mejor un importe legible que nada.
+    return `${amount.toFixed(digits ?? 2)} ${code}`;
   }
 }
 
 /**
- * Precio de catálogo / pedidos WC REST (unidades mayores).
- * Normaliza al `currencyCode` recibido vía {@link formatMoney}.
+ * Precio de catálogo / pedidos WC REST (unidades mayores), vía {@link formatMoney}.
  * Si no se puede parsear un string, devuelve el texto limpio de HTML.
  */
 export function formatPrice(
   price: string | number | null | undefined,
   currencyCode: string,
+  locale: string,
+  decimals?: number | null,
 ): string {
   if (price == null || price === "") return "";
   const n = parseMoneyAmount(price);
-  if (n != null) return formatMoney(n, currencyCode);
+  if (n != null) return formatMoney(n, currencyCode, locale, decimals);
   if (typeof price === "number") return "";
 
   return price
@@ -100,22 +110,22 @@ export function formatPrice(
 }
 
 /**
- * Importe de Store API (unidades menores / céntimos).
- * `minorUnit` solo se usa para pasar de unidades menores a mayores; el
- * formato de presentación (símbolo, decimales) lo decide {@link formatMoney}
- * a partir del `currencyCode` recibido — normalmente `cart.totals.currency_code`.
+ * Importe de Store API (unidades menores / céntimos). `minorUnit` convierte a
+ * unidades mayores y es también el número de decimales que se muestran (la
+ * Store API lo deriva de los decimales configurados en WooCommerce).
  */
 export function formatStoreAmount(
   amount: string | null | undefined,
   minorUnit: number,
   currencyCode: string,
+  locale: string,
 ): string {
   if (amount == null || amount === "") return "";
   const n = Number(amount);
   if (Number.isNaN(n)) return amount;
 
   const major = n / Math.pow(10, minorUnit);
-  return formatMoney(major, currencyCode);
+  return formatMoney(major, currencyCode, locale, minorUnit);
 }
 
 export function stripHtml(html?: string | null): string {

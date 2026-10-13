@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link, redirect } from "@/i18n/navigation";
 import { getSession } from "@/lib/auth/session";
 import { getOrder, isOrderPaid } from "@/lib/payments/orders";
-import { formatStoreAmount } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 import { PurchaseTracker } from "@/components/analytics/purchase-tracker";
 
 export const dynamic = "force-dynamic";
@@ -83,7 +83,8 @@ export default async function CheckoutReturnPage({
           </h2>
           <p className="mt-2 text-green-700 dark:text-green-300">
             {t("orderNumber")} <strong>#{ref}</strong>
-            {total ? ` · ${formatStoreAmount(total, 2, currency)}` : ""}
+            {/* `order.total` (WC REST) va en unidades mayores, no en céntimos. */}
+            {total ? ` · ${formatPrice(total, currency, locale)}` : ""}
           </p>
         </div>
       ) : (

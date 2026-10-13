@@ -13,9 +13,10 @@ use HWE\ControlCenter\Walkers\PublicConfigWalker;
  * con ISR (Next.js `fetch` + `revalidate` + tag `site-config`).
  *
  * No requiere autenticación: solo expone datos marcados como `'public' => true`
- * en el esquema, nunca secretos. Además incluye `modules` (id → activo), calculado
- * al vuelo según si cada plugin del catálogo está activo: es la fuente de verdad
- * que usa el frontend para gatear la UI y las rutas de cada módulo.
+ * en el esquema, nunca secretos. Además incluye dos valores calculados al vuelo:
+ * `modules` (id → activo, según si cada plugin del catálogo está activo: la fuente
+ * de verdad para gatear la UI y las rutas de cada módulo) y
+ * `ecommerce.price_decimals` (los decimales de precio de WooCommerce).
  */
 class RestApi {
 
@@ -24,6 +25,18 @@ class RestApi {
 
     public static function register(): void {
         add_action('rest_api_init', static fn() => self::registerRoute());
+        // Los decimales viajan en la config pública: si se cambian en WooCommerce →
+        // Ajustes → General, el frontend debe enterarse sin esperar a la ventana ISR.
+        add_action('update_option_woocommerce_price_num_decimals', static fn() => Revalidation::trigger());
+    }
+
+    /** Decimales de precio de WooCommerce, o null sin WooCommerce. */
+    public static function priceDecimals(): ?int {
+        if (!function_exists('wc_get_price_decimals')) {
+            return null;
+        }
+        $decimals = (int) wc_get_price_decimals();
+        return $decimals >= 0 && $decimals <= 20 ? $decimals : null;
     }
 
     private static function registerRoute(): void {
@@ -47,6 +60,10 @@ class RestApi {
         // Estado de los módulos (calculado, no almacenado): el frontend lo usa para
         // gatear la UI y las rutas BFF de cada módulo (`isModuleEnabled`/`requireModule`).
         $public['modules'] = Modules::activeMap();
+
+        // Decimales de precio de WooCommerce (calculados, no almacenados): el frontend
+        // formatea los precios de catálogo con ellos. Sin WooCommerce, null (los de Intl).
+        $public['ecommerce']['price_decimals'] = self::priceDecimals();
 
         $response = new \WP_REST_Response($public, 200);
 

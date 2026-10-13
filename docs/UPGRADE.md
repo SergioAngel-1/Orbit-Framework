@@ -275,10 +275,18 @@ git fetch framework --tags
   HubSpot), campos de schema SEO/GEO (devoluciones, envío, FAQ por bloques) y opciones de
   backup (`keep_only_latest`, `exclude_thumbnails`, `include_config_export`). En el frontend,
   `SiteConfig` gana `payments`, `modules` e `instance` (ver `lib/config/types.ts`).
-- **`formatPrice` y `formatStoreAmount` exigen `currencyCode`.** En servidor sale de
-  `getSiteConfig().ecommerce.currency` (o del `currency_code` que trae la Store API); en
-  cliente, de `useCurrency()` (el layout raíz monta `CurrencyProvider`). El formato usa
-  Intl (COP sin decimales).
+- **(contrato) `formatPrice` y `formatStoreAmount` exigen moneda y locale.**
+  `formatPrice(precio, moneda, locale, decimales?)` y
+  `formatStoreAmount(importe, minorUnit, moneda, locale)`. En servidor, la moneda sale de
+  `getSiteConfig().ecommerce.currency` (o del `currency_code` de la Store API) y el locale de
+  la ruta; en cliente, usa `useFormatPrice()` / `useFormatStoreAmount()` de
+  `components/ui/currency-context` (el layout raíz monta `CurrencyProvider`). El importe se
+  formatea en el idioma de la página (antes siempre en `es`) y con los decimales de
+  WooCommerce: la config pública gana `ecommerce.price_decimals` (calculado; `null` sin Woo)
+  y los importes de la Store API usan su `currency_minor_unit`. Ya no hay ninguna moneda con
+  formato fijado en el código: una tienda sin decimales lo configura en WooCommerce.
+- **La página de retorno del checkout mostraba el total dividido entre 100** (formateaba el
+  `total` de WC REST, en unidades mayores, como si fuera un importe de la Store API).
 
 - **Importar config (Backups) ya no puede borrar los secretos.** Antes, si los secretos del
   export no descifraban con la clave local, se sobrescribían y se «revertía» a vacío: importar

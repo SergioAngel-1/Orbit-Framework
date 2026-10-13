@@ -131,7 +131,10 @@ export default async function LocaleLayout({
         <ThemeTokens />
         <NextIntlClientProvider messages={messages}>
           <AnalyticsProvider>
-            <CurrencyProvider currency={config.ecommerce.currency || "EUR"}>
+            <CurrencyProvider
+              currency={config.ecommerce.currency || "EUR"}
+              decimals={config.ecommerce.price_decimals}
+            >
               <CartProvider>
                 {/* Skip link de accesibilidad */}
                 <a

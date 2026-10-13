@@ -6,7 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { useCart } from "./cart-context";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { formatStoreAmount } from "@/lib/format";
+import { useFormatStoreAmount } from "@/components/ui/currency-context";
 import { cn } from "@/lib/utils";
 
 // ============================================================================
@@ -33,6 +33,7 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
     closeDrawer,
   } = useCart();
   const tCart = useTranslations("cart");
+  const formatStoreAmount = useFormatStoreAmount();
   const [couponCode, setCouponCode] = useState("");
 
   // Cerrar con Escape

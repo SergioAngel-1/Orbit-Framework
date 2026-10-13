@@ -21,39 +21,51 @@ describe("parseMoneyAmount", () => {
   });
 });
 
+// Intl separa símbolo e importe con espacios duros (U+00A0/U+202F): se normalizan.
+const plain = (v: string) => v.replace(/[\u00a0\u202f]/g, " ");
+
 describe("formatMoney", () => {
-  it("formatea con Intl según la moneda", () => {
-    expect(formatMoney(59.99, "EUR")).toBe("59,99 €");
+  it("formatea con Intl en el idioma de la página", () => {
+    expect(plain(formatMoney(59.99, "EUR", "es"))).toBe("59,99 €");
+    expect(plain(formatMoney(59.99, "EUR", "en"))).toBe("€59.99");
   });
-  it("COP va sin decimales", () => {
-    expect(formatMoney(50000, "COP")).toBe("$ 50.000");
-    expect(formatMoney(50000.6, "cop")).toBe("$ 50.001");
+  it("usa los decimales de la tienda cuando se le dan", () => {
+    expect(plain(formatMoney(50000, "COP", "es-CO", 0))).toBe("$ 50.000");
+    expect(plain(formatMoney(50000.6, "cop", "es-CO", 0))).toBe("$ 50.001");
+    expect(plain(formatMoney(12, "USD", "en", 0))).toBe("$12");
+  });
+  it("sin decimales usa los de Intl para la moneda", () => {
+    expect(plain(formatMoney(12, "USD", "en"))).toBe("$12.00");
+  });
+  it("una moneda que Intl no conoce no rompe", () => {
+    expect(formatMoney(5, "NOPE1", "es")).toBe("5.00 NOPE1");
   });
 });
 
 describe("formatPrice", () => {
-  it("normaliza al currencyCode recibido", () => {
-    expect(formatPrice("59.99", "EUR")).toBe("59,99 €");
-    expect(formatPrice(50000, "COP")).toBe("$ 50.000");
+  it("normaliza a la moneda, el locale y los decimales recibidos", () => {
+    expect(plain(formatPrice("59.99", "EUR", "es"))).toBe("59,99 €");
+    expect(plain(formatPrice(50000, "COP", "es-CO", 0))).toBe("$ 50.000");
   });
   it("devuelve cadena vacía para nulos", () => {
-    expect(formatPrice(null, "EUR")).toBe("");
-    expect(formatPrice(undefined, "EUR")).toBe("");
+    expect(formatPrice(null, "EUR", "es")).toBe("");
+    expect(formatPrice(undefined, "EUR", "es")).toBe("");
   });
   it("si no se puede parsear, devuelve el texto limpio", () => {
-    expect(formatPrice("a consultar", "EUR")).toBe("a consultar");
+    expect(formatPrice("a consultar", "EUR", "es")).toBe("a consultar");
   });
 });
 
 describe("formatStoreAmount", () => {
-  it("convierte unidades menores a mayores con la moneda", () => {
-    expect(formatStoreAmount("5999", 2, "EUR")).toBe("59,99 €");
+  it("convierte unidades menores a mayores con la moneda y el locale", () => {
+    expect(plain(formatStoreAmount("5999", 2, "EUR", "es"))).toBe("59,99 €");
+    expect(plain(formatStoreAmount("5999", 2, "EUR", "en"))).toBe("€59.99");
   });
-  it("respeta minorUnit 0 (p. ej. COP)", () => {
-    expect(formatStoreAmount("50000", 0, "COP")).toBe("$ 50.000");
+  it("minorUnit 0 se muestra sin decimales", () => {
+    expect(plain(formatStoreAmount("50000", 0, "COP", "es-CO"))).toBe("$ 50.000");
   });
   it("devuelve el original si no es numérico", () => {
-    expect(formatStoreAmount("abc", 2, "EUR")).toBe("abc");
+    expect(formatStoreAmount("abc", 2, "EUR", "es")).toBe("abc");
   });
 });
 

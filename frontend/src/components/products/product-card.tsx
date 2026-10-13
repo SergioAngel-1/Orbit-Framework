@@ -4,8 +4,7 @@ import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 import { WishlistButton } from "@/components/products/wishlist-button";
-import { formatPrice } from "@/lib/format";
-import { useCurrency } from "@/components/ui/currency-context";
+import { useFormatPrice } from "@/components/ui/currency-context";
 import type { CatalogProduct } from "@/types/catalog";
 
 export interface ProductCardProps {
@@ -23,7 +22,7 @@ export interface ProductCardProps {
 // `wishlistEnabled` ya resuelto por props.
 export function ProductCard({ product, wishlistEnabled = false }: ProductCardProps) {
   const t = useTranslations("products");
-  const currency = useCurrency();
+  const formatPrice = useFormatPrice();
   const outOfStock = product.stockStatus === "OUT_OF_STOCK";
 
   return (
@@ -59,10 +58,10 @@ export function ProductCard({ product, wishlistEnabled = false }: ProductCardPro
           </h3>
         </Link>
         <div className="mt-2 flex items-baseline gap-2">
-          <span className="font-bold">{formatPrice(product.price, currency)}</span>
+          <span className="font-bold">{formatPrice(product.price)}</span>
           {product.onSale && product.regularPrice && (
             <span className="text-sm text-gray-400 line-through">
-              {formatPrice(product.regularPrice, currency)}
+              {formatPrice(product.regularPrice)}
             </span>
           )}
         </div>

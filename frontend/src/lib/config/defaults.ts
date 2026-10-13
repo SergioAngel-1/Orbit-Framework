@@ -107,6 +107,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
   },
   ecommerce: {
     currency: "EUR",
+    price_decimals: null,
     country: "ES",
     products_per_page: "12",
     reviews_enabled: false,

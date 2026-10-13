@@ -70,6 +70,11 @@ export interface SiteConfig {
   };
   ecommerce: {
     currency: string;
+    /**
+     * Decimales de precio de WooCommerce (Ajustes → General), calculados por
+     * WordPress al servir la config. `null` = sin WooCommerce: se usan los de Intl.
+     */
+    price_decimals: number | null;
     country: string;
     products_per_page: string;
     reviews_enabled: boolean;

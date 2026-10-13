@@ -77,7 +77,7 @@ export default async function OrderDetailPage({
                 </p>
               </div>
               <p className="text-sm font-semibold">
-                {formatPrice(String(item.price), order.currency)}
+                {formatPrice(String(item.price), order.currency, locale)}
               </p>
             </div>
           ))}

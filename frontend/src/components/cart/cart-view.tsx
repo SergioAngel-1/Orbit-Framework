@@ -3,11 +3,12 @@ import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useCart } from "./cart-context";
-import { formatStoreAmount } from "@/lib/format";
+import { useFormatStoreAmount } from "@/components/ui/currency-context";
 
 export function CartView() {
   const { cart, loading, error, updateItem, removeItem } = useCart();
   const tCart = useTranslations("cart");
+  const formatStoreAmount = useFormatStoreAmount();
 
   if (!cart) {
     return (
