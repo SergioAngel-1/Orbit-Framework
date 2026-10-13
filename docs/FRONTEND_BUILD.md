@@ -204,7 +204,7 @@ Copia `backend/scripts/instance.config.example.json` a
 `geo`, `integrations`, `backups`. Aplícalo con:
 
 ```bash
-docker compose run --rm wpcli wp hwe setup /scripts/instance.config.json
+docker compose run --rm --entrypoint wp wpcli hwe setup /scripts/instance.config.json
 ```
 
 (Es idempotente — puedes reejecutarlo cuando cambien las respuestas. `modules` **activa los

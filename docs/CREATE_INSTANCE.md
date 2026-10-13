@@ -110,7 +110,7 @@ dispara la revalidación ISR del frontend. Es idempotente: puedes reejecutarlo
 cuando quieras para reaplicar la config (p. ej. en un entorno reproducible o CI):
 
 ```bash
-docker compose run --rm wpcli wp hwe setup /scripts/instance.config.json
+docker compose run --rm --entrypoint wp wpcli hwe setup /scripts/instance.config.json
 ```
 
 Si no creas `instance.config.json`, `setup.sh` simplemente omite este paso y

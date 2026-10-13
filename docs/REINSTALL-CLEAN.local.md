@@ -194,7 +194,7 @@ npm run dev
 - Plugin JWT correcto (debe decir `wp-graphql-jwt-authentication 0.7.2`, **no** `jwt-auth`):
 
   ```powershell
-  docker compose run --rm wpcli wp --path=/var/www/html --allow-root plugin list
+  docker compose run --rm --entrypoint wp wpcli --path=/var/www/html --allow-root plugin list
   ```
 
 Calidad (con WordPress arrancado, porque el build consulta GraphQL):

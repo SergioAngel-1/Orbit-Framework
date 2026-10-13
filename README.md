@@ -186,7 +186,7 @@ WP-CLI a demanda:
 ```bash
 docker compose run --rm --entrypoint /bin/sh wpcli /scripts/generate-woo-keys.sh
 docker compose run --rm --entrypoint /bin/sh wpcli /scripts/seed-demo.sh
-docker compose run --rm wpcli wp --path=/var/www/html --allow-root plugin list
+docker compose run --rm --entrypoint wp wpcli --path=/var/www/html --allow-root plugin list
 ```
 
 ---
