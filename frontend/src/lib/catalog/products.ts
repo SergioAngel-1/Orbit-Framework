@@ -428,3 +428,22 @@ export async function getCategories(
     return [];
   }
 }
+
+/**
+ * Parámetros `{ locale, slug }` de `categories/[slug]` para `generateStaticParams`:
+ * cada categoría, solo en los idiomas en que existe y con su tramo de URL. Sin
+ * `generateStaticParams` la ruta se renderiza en cada petición (sin ISR, y un 404
+ * o un 308 salen con status 200 por el streaming), así que aunque el catálogo no
+ * responda (lista vacía) la ruta debe declararlo.
+ */
+export async function getCategoryStaticParams(): Promise<
+  { locale: string; slug: string }[]
+> {
+  const categories = await getCategories(routing.defaultLocale, { allLocales: true });
+  return categories.flatMap((category) =>
+    (category.locales ?? []).flatMap((locale) => {
+      const slug = category.urlSlugs?.[locale];
+      return slug ? [{ locale, slug }] : [];
+    }),
+  );
+}

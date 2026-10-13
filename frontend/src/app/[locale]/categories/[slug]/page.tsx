@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { permanentRedirect } from "@/i18n/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { getCategory } from "@/lib/catalog/products";
+import { getCategory, getCategoryStaticParams } from "@/lib/catalog/products";
 import { resolveEntityRoute } from "@/lib/i18n/entity-route";
 import { productHref } from "@/lib/catalog/product-href";
 import { getSiteConfig } from "@/lib/config";
@@ -24,6 +24,12 @@ import { getCategoryCoupons } from "@/lib/coupons/public-coupons";
 import { logReadFailure } from "@/lib/observability/read-failure";
 
 export const revalidate = 300;
+
+// Las categorías son pocas: se hornean todas, cada una en los idiomas en que existe.
+// Sin esto la ruta se renderiza en cada petición, sin ISR y con los 404/308 en 200.
+export async function generateStaticParams() {
+  return getCategoryStaticParams();
+}
 
 /**
  * La categoría (con sus productos) a partir del tramo de URL, en cualquier

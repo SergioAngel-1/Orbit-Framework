@@ -18,6 +18,7 @@ import {
   getCategory,
   getProductBySlug,
   getProducts,
+  getCategoryStaticParams,
   getProductUrls,
 } from "./products";
 
@@ -276,5 +277,43 @@ describe("getProductBySlug: campos de producto declarativos", () => {
     fetchGraphQL.mockResolvedValue({ product: { ...card } });
 
     expect((await getProductBySlug("camiseta", "es"))!.fields).toEqual({});
+  });
+});
+
+describe("getCategoryStaticParams", () => {
+  it("una entrada por categoría e idioma en que existe, con su tramo de URL", async () => {
+    fetchGraphQL.mockResolvedValue({
+      productCategories: {
+        nodes: [
+          {
+            id: "c1",
+            databaseId: 5,
+            name: "Amor propio",
+            slug: "amor-propio",
+            description: null,
+            tr_en: { name: "Self love", slug: "self-love" },
+          },
+          {
+            id: "c2",
+            databaseId: 6,
+            name: "Solo es",
+            slug: "solo-es",
+            description: null,
+          },
+        ],
+      },
+    });
+
+    expect(await getCategoryStaticParams()).toEqual([
+      { locale: "es", slug: "amor-propio" },
+      { locale: "en", slug: "self-love" },
+      { locale: "es", slug: "solo-es" },
+    ]);
+  });
+
+  it("un fallo del catálogo da lista vacía (la ruta sigue siendo ISR bajo demanda)", async () => {
+    fetchGraphQL.mockRejectedValue(new Error("down"));
+
+    expect(await getCategoryStaticParams()).toEqual([]);
   });
 });
