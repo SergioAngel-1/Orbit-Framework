@@ -28,9 +28,9 @@ trait HWE_Auth_TwoFactor {
 
     /**
      * Activa o desactiva el 2FA. Ambas operaciones exigen PRUEBA de posesión del
-     * segundo factor: este endpoint es alcanzable sin pasar por el BFF
-     * (`/wp-json/hwe/v1/*` va directo a WordPress), así que sin ella un access-token
-     * robado bastaba por sí solo para activar o desactivar el 2FA de la víctima.
+     * segundo factor: un access-token robado no basta por sí solo para activar o
+     * desactivar el 2FA de la víctima. (WordPress solo atiende al BFF —`hwe-bff-only`—,
+     * pero la prueba de posesión no depende de ello: es la defensa propia del endpoint.)
      *
      *  - Activar: `code` TOTP válido para el `secret` que se guarda.
      *  - Desactivar (`secret` vacío): `code` válido para el secreto YA activo, o un
