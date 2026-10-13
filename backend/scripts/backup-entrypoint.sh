@@ -16,6 +16,8 @@
 # ============================================================================
 set -e
 
+# Carpeta de scripts (montada :ro): de ahí salen el cron y el watcher del disparador.
+SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEST="${BACKUP_DIR:-/backups}"
 CONFIG_FILE="${DEST}/hwe-backup-config.json"
 
@@ -77,16 +79,16 @@ CRON_FILE="/etc/crontabs/root"
 mkdir -p "$(dirname "$CRON_FILE")"
 
 if [ "$ENABLED" = "true" ]; then
-    printf '%s /usr/local/bin/backup-cron.sh scheduled >> /var/log/backup.log 2>&1\n' "$CRON_EXPR" > "$CRON_FILE"
+    printf '%s %s/backup-cron.sh scheduled >> /var/log/backup.log 2>&1\n' "$CRON_EXPR" "$SCRIPTS_DIR" > "$CRON_FILE"
     echo "[backup] Cron programado: '$CRON_EXPR'"
 else
     : > "$CRON_FILE"
     echo "[backup] Backup automático DESACTIVADO desde el panel. Solo 'Backup ahora' (manual) seguirá disponible."
 fi
-printf '* * * * * /usr/local/bin/backup-trigger-watch.sh >> /var/log/backup.log 2>&1\n' >> "$CRON_FILE"
+printf '* * * * * %s/backup-trigger-watch.sh >> /var/log/backup.log 2>&1\n' "$SCRIPTS_DIR" >> "$CRON_FILE"
 
 echo "[backup] Servicio listo."
-echo "[backup] Backup inmediato: botón 'Backup ahora' en wp-admin, o 'docker exec hwe_backup /usr/local/bin/backup-cron.sh manual'."
+echo "[backup] Backup inmediato: botón 'Backup ahora' en wp-admin, o 'docker exec hwe_backup ${SCRIPTS_DIR}/backup-cron.sh manual'."
 
 # ── Lanzar crond en primer plano ──────────────────────────────────────────────
 exec crond -f -l 6

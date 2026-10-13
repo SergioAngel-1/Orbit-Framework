@@ -207,6 +207,19 @@ describe("CD", () => {
     expect(cd).toContain("/sitemap.xml");
   });
 
+  it("hace una copia de la base de datos ANTES de desplegar a producción y aborta si no hay", () => {
+    const backup = cd.indexOf("Copia de seguridad previa");
+    const deploy = cd.indexOf("Desplegar (SSH → pull + up -d)\n");
+    expect(backup, "paso de copia previa").toBeGreaterThan(-1);
+    expect(backup).toBeLessThan(deploy);
+    expect(cd).toContain("/opt/hwe/scripts/backup-cron.sh manual");
+    // Una corrida omitida por lock sale con éxito: se exige un volcado reciente y con contenido.
+    expect(cd).toMatch(
+      /find backups[^\n]*db-\*\.sql\.gz[^\n]*-size \+0[^\n]*-mmin -15/,
+    );
+    expect(cd).toContain("se aborta el despliegue");
+  });
+
   it("permite volver atrás sin construir", () => {
     expect(cd).toContain("image_tag:");
   });

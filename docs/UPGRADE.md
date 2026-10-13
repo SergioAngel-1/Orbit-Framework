@@ -658,6 +658,18 @@ git fetch framework --tags
 
 ### Operación (F1)
 
+- **Un backup que muere ya no deja el sitio sin copias.** `backup-cron.sh` guardaba su lock sin
+  dueño: si el proceso moría (OOM, un manual interrumpido), el lock quedaba puesto y **todas** las
+  corridas siguientes se omitían con «ya hay un backup en curso» —en la instancia donde se vio, 18
+  días sin copia automática y sin ningún aviso—. Ahora el lock guarda el PID y se retira si el
+  dueño no existe o si lleva más de 6 h (`HWE_BACKUP_LOCK_MAX_AGE_MIN`).
+- **El contenedor `backup` monta la carpeta `backend/scripts`, no tres archivos sueltos.** Un bind
+  mount de un archivo fija su inodo: `git reset --hard` lo sustituye y el contenedor seguía con la
+  versión vieja (y sin la configuración del panel) hasta recrearse. Los scripts viven ahora en
+  `/opt/hwe/scripts/` (antes `/usr/local/bin/`): actualiza cualquier comando propio. Tras
+  actualizar, `docker compose -f docker-compose.prod.yml up -d backup` recrea el contenedor.
+- **El CD de producción hace una copia de la base de datos antes de desplegar** y se detiene si no
+  hay un volcado de los últimos 15 minutos.
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor
   `backup`:** `docker compose -f docker-compose.prod.yml up -d --force-recreate backup`. Eran dos
   fallos encadenados, reproducidos con Docker: (1) el entrypoint hacía `chmod +x` sobre un script

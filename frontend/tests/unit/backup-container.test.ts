@@ -64,13 +64,21 @@ describe("backup-entrypoint.sh: arranca con los scripts montados en solo lectura
   });
 
   it("los scripts siguen montándose :ro (no se aflojan permisos)", () => {
-    expect(prod).toMatch(/backup-cron\.sh:\/usr\/local\/bin\/backup-cron\.sh:ro/);
-    expect(prod).toMatch(
-      /backup-entrypoint\.sh:\/usr\/local\/bin\/backup-entrypoint\.sh:ro/,
-    );
-    expect(prod).toMatch(
-      /backup-trigger-watch\.sh:\/usr\/local\/bin\/backup-trigger-watch\.sh:ro/,
-    );
+    expect(prod).toMatch(/\.\/backend\/scripts:\/opt\/hwe\/scripts:ro/);
+  });
+
+  // Un bind mount de un ARCHIVO fija su inodo: `git reset --hard` (el CD) lo sustituye
+  // por otro y el contenedor seguía ejecutando la versión vieja hasta recrearse (en
+  // producción, scripts de hacía semanas, sin la configuración del panel). Se monta la
+  // carpeta, que siempre ve los archivos actuales.
+  it("monta la CARPETA de scripts, no cada archivo suelto, en producción y en desarrollo", () => {
+    const dev = read("docker-compose.yml");
+    for (const compose of [prod, dev]) {
+      expect(compose).not.toMatch(/backend\/scripts\/backup-[\w-]+\.sh:/);
+      expect(compose).toContain(
+        'entrypoint: ["/bin/sh", "/opt/hwe/scripts/backup-entrypoint.sh"]',
+      );
+    }
   });
 });
 
@@ -80,6 +88,9 @@ describe("backup-entrypoint.sh", () => {
   it("programa el cron y el watcher del disparador manual", () => {
     expect(entrypoint).toMatch(/backup-cron\.sh scheduled >> \/var\/log\/backup\.log/);
     expect(entrypoint).toMatch(/backup-trigger-watch\.sh >> \/var\/log\/backup\.log/);
+    // Las rutas salen de la carpeta montada, no de un `/usr/local/bin` que ya no existe.
+    expect(entrypoint).toContain("$SCRIPTS_DIR");
+    expect(entrypoint).not.toContain("/usr/local/bin/backup");
   });
 
   it("un fallo de `apk add` no se esconde tras el contenedor: el job fallaría después a la vista", () => {

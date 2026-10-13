@@ -221,9 +221,11 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./backend/scripts/backup-cron.sh:/usr/local/bin/backup-cron.sh:ro
-      - ./backend/scripts/backup-entrypoint.sh:/usr/local/bin/backup-entrypoint.sh:ro
-      - ./backend/scripts/backup-trigger-watch.sh:/usr/local/bin/backup-trigger-watch.sh:ro
+      # La CARPETA de scripts, no un archivo suelto cada uno: un bind mount de un archivo
+      # fija su inodo, y `git reset --hard` (el CD) lo sustituye por otro nuevo, así que el
+      # contenedor seguía ejecutando la versión VIEJA hasta recrearse. El de una carpeta ve
+      # siempre los archivos actuales.
+      - ./backend/scripts:/opt/hwe/scripts:ro
       # Acceso a uploads para el tar de backup-cron.sh: en dev wp-content vive
       # en el volumen `wordpress_content` (no en el host, a diferencia de
       # prod), así que se monta el volumen directamente en vez de un bind path.
@@ -236,7 +238,7 @@ services:
       MYSQL_DATABASE:      "${MYSQL_DATABASE:-wordpress}"
       BACKUP_DIR:          "/backups"
       BACKUP_RETAIN_DAYS:  "${BACKUP_RETAIN_DAYS:-14}"
-    entrypoint: ["/bin/sh", "/usr/local/bin/backup-entrypoint.sh"]
+    entrypoint: ["/bin/sh", "/opt/hwe/scripts/backup-entrypoint.sh"]
     networks:
       - hwe_net
 

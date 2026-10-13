@@ -34,18 +34,43 @@ DEST="${BACKUP_DIR:-/backups}"
 CONFIG_FILE="${DEST}/hwe-backup-config.json"
 STATUS_FILE="${DEST}/hwe-backup-status.json"
 RUNNING_FILE="${DEST}/hwe-backup-running.json"
-LOCK_DIR="/tmp/hwe-backup.lock"
+LOCK_DIR="${HWE_BACKUP_LOCK_DIR:-/tmp/hwe-backup.lock}"
+# Un backup que muere (OOM, `docker kill`, un manual interrumpido) no ejecuta el `trap` y
+# deja el lock puesto: sin salida, TODAS las corridas siguientes se omiten («ya hay un
+# backup en curso») y el sitio se queda sin copias sin que nada lo avise. Por eso el lock
+# guarda el PID de su dueño y se retira si el dueño ya no existe o si lleva más de
+# LOCK_MAX_AGE_MIN minutos (un PID puede reutilizarse tras reiniciar el contenedor).
+LOCK_MAX_AGE_MIN="${HWE_BACKUP_LOCK_MAX_AGE_MIN:-360}"
+
+lock_is_stale() {
+    owner=$(cat "$LOCK_DIR/pid" 2>/dev/null || true)
+    case "$owner" in
+        ''|*[!0-9]*) ;;                       # sin PID válido (lock antiguo): solo cuenta la edad
+        *) kill -0 "$owner" 2>/dev/null || return 0 ;;   # el dueño ya no existe
+    esac
+    [ -n "$(find "$LOCK_DIR" -maxdepth 0 -mmin "+${LOCK_MAX_AGE_MIN}" 2>/dev/null)" ]
+}
 
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-    echo "[$(date -Iseconds)] Ya hay un backup en curso (lock activo en ${LOCK_DIR}), se omite esta corrida."
-    exit 0
+    if lock_is_stale; then
+        echo "[$(date -Iseconds)] Lock huérfano en ${LOCK_DIR} (su dueño ya no existe o supera ${LOCK_MAX_AGE_MIN} min): se retira." >&2
+        rm -rf "$LOCK_DIR"
+        mkdir "$LOCK_DIR" 2>/dev/null || {
+            echo "[$(date -Iseconds)] Otra corrida tomó el lock a la vez, se omite esta."
+            exit 0
+        }
+    else
+        echo "[$(date -Iseconds)] Ya hay un backup en curso (lock activo en ${LOCK_DIR}), se omite esta corrida."
+        exit 0
+    fi
 fi
+echo "$$" > "$LOCK_DIR/pid"
 # RUNNING_FILE vive en $DEST (compartido con el contenedor `wordpress` vía
 # HWE_BACKUPS_DIR) a diferencia del lock, que es solo interno a este
 # contenedor: es lo único que le permite a BackupConfig::readRunning() (panel
 # de wp-admin) saber que hay una corrida en curso ahora mismo.
 mkdir -p "$DEST"
-trap 'rm -f "$RUNNING_FILE"; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+trap 'rm -f "$RUNNING_FILE"; rm -rf "$LOCK_DIR"' EXIT
 jq -n --arg started_at "$(date -Iseconds)" --arg trigger "$TRIGGER" \
     '{started_at: $started_at, trigger: $trigger}' \
     > "$RUNNING_FILE"

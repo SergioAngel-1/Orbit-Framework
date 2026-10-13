@@ -24,7 +24,7 @@ externo). Un backup que vive solo en la misma máquina no protege ante su pérdi
 Backup inmediato (contenedor de producción):
 
 ```bash
-docker exec hwe_backup /bin/sh /usr/local/bin/backup-cron.sh
+docker exec hwe_backup /bin/sh /opt/hwe/scripts/backup-cron.sh
 ```
 
 Comprobar que las copias automáticas funcionan (resultado **y fallos** de cada copia salen

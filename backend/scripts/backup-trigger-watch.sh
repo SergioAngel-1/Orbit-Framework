@@ -15,4 +15,4 @@ TRIGGER_FILE="${BACKUP_DIR:-/backups}/hwe-backup-trigger.json"
 
 echo "[$(date -Iseconds)] [trigger-watch] Trigger manual detectado, ejecutando backup..."
 rm -f "$TRIGGER_FILE"
-/usr/local/bin/backup-cron.sh manual
+"$(dirname "$0")/backup-cron.sh" manual

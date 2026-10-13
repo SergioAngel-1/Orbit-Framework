@@ -237,6 +237,29 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Los datos, antes que nada: una copia de la base de datos ANTES de tocar la pila. Si
+      # no se puede hacer (contenedor caído, lock, disco lleno), NO se despliega: es mejor
+      # un despliegue parado que uno sin red de seguridad.
+      - name: Copia de seguridad previa (SSH)
+        if: steps.guard.outputs.skip != 'true'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 30m
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T backup \
+              /bin/sh /opt/hwe/scripts/backup-cron.sh manual
+            # Una corrida omitida (ya había otra en curso) también sale con éxito: se exige
+            # un volcado de los últimos 15 minutos y con contenido.
+            if [ -z "$(find backups -maxdepth 1 -name 'db-*.sql.gz' -size +0 -mmin -15 2>/dev/null)" ]; then
+              echo "::error::No hay un volcado de la base de datos de los últimos 15 minutos: se aborta el despliegue."
+              exit 1
+            fi
+
       - name: Desplegar (SSH → pull + up -d)
         if: steps.guard.outputs.skip != 'true'
         uses: appleboy/ssh-action@v1

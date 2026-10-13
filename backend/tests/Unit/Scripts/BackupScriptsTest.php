@@ -323,4 +323,117 @@ SH);
         ));
         $this->assertCount(1, $dumps);
     }
+
+    // ──────────────────── el lock de backup-cron.sh no deja el sitio sin copias ────────────────────
+
+    /** @return list<string> Volcados que dejó la corrida. */
+    private function dumps(): array
+    {
+        return array_values(array_filter(
+            $this->filesIn('cron-out'),
+            static fn ($f) => str_starts_with($f, 'db-') && str_ends_with($f, '.sql.gz')
+        ));
+    }
+
+    private function lockDir(): string
+    {
+        return $this->dir . '/hwe-backup.lock';
+    }
+
+    private function runCronWithLock(array $env = []): array
+    {
+        return $this->runCron(['HWE_BACKUP_LOCK_DIR' => $this->lockDir()] + $env);
+    }
+
+    public function testCronReleasesItsLockAtTheEnd(): void
+    {
+        $result = $this->runCronWithLock();
+
+        $this->assertSame(0, $result['code'], $result['stderr']);
+        $this->assertDirectoryDoesNotExist($this->lockDir());
+    }
+
+    public function testCronReleasesItsLockEvenWhenTheDumpFails(): void
+    {
+        $this->runCronWithLock(['FAKE_DUMP_FAIL' => '1']);
+
+        $this->assertDirectoryDoesNotExist($this->lockDir());
+    }
+
+    public function testCronSkipsWhileTheLockOwnerIsStillRunning(): void
+    {
+        $owner = proc_open(['sleep', '60'], [], $pipes);
+        try {
+            $pid = (int) (proc_get_status($owner)['pid']);
+            mkdir($this->lockDir());
+            file_put_contents($this->lockDir() . '/pid', (string) $pid);
+
+            $result = $this->runCronWithLock();
+
+            $this->assertSame(0, $result['code']);
+            $this->assertStringContainsString('Ya hay un backup en curso', $result['stdout']);
+            $this->assertSame([], $this->dumps(), 'No se pisa un backup en marcha.');
+            $this->assertDirectoryExists($this->lockDir(), 'El lock de otro no se toca.');
+        } finally {
+            proc_terminate($owner);
+            proc_close($owner);
+        }
+    }
+
+    public function testCronRecoversFromAnOrphanLockWhoseOwnerIsDead(): void
+    {
+        // El caso real: un backup manual murió empaquetando los uploads y dejó el lock;
+        // desde entonces cada corrida diaria se omitía y nadie lo supo en 18 días.
+        mkdir($this->lockDir());
+        file_put_contents($this->lockDir() . '/pid', '999999');
+
+        $result = $this->runCronWithLock();
+
+        $this->assertSame(0, $result['code'], $result['stderr']);
+        $this->assertStringContainsString('Lock huérfano', $result['stderr']);
+        $this->assertCount(1, $this->dumps(), 'La corrida diaria vuelve a hacer su copia.');
+        $this->assertDirectoryDoesNotExist($this->lockDir());
+    }
+
+    public function testCronRecoversFromAnOldLockWithoutPid(): void
+    {
+        // Lock de la versión anterior (directorio vacío): solo se puede juzgar por su edad.
+        mkdir($this->lockDir());
+        touch($this->lockDir(), time() - 7 * 3600);
+
+        $result = $this->runCronWithLock();
+
+        $this->assertSame(0, $result['code'], $result['stderr']);
+        $this->assertCount(1, $this->dumps());
+    }
+
+    public function testCronRespectsARecentLockWithoutPid(): void
+    {
+        mkdir($this->lockDir());
+
+        $result = $this->runCronWithLock();
+
+        $this->assertSame(0, $result['code']);
+        $this->assertStringContainsString('Ya hay un backup en curso', $result['stdout']);
+        $this->assertSame([], $this->dumps());
+    }
+
+    public function testCronTreatsALockOlderThanTheLimitAsOrphanEvenIfThePidLooksAlive(): void
+    {
+        // Un PID puede reutilizarse tras reiniciar el contenedor.
+        $owner = proc_open(['sleep', '60'], [], $pipes);
+        try {
+            mkdir($this->lockDir());
+            file_put_contents($this->lockDir() . '/pid', (string) (proc_get_status($owner)['pid']));
+            touch($this->lockDir(), time() - 7 * 3600);
+
+            $result = $this->runCronWithLock();
+
+            $this->assertSame(0, $result['code'], $result['stderr']);
+            $this->assertCount(1, $this->dumps());
+        } finally {
+            proc_terminate($owner);
+            proc_close($owner);
+        }
+    }
 }
