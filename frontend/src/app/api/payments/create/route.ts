@@ -4,7 +4,7 @@ import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { requireSession } from "@/lib/auth/session";
 import { createPaymentSchema } from "@/lib/validation/payments";
-import { getProvider, activeProviderId } from "@/lib/payments/registry";
+import { getActiveProvider } from "@/lib/payments/registry";
 import { getOrder, isOrderPaid, toMinorUnits } from "@/lib/payments/orders";
 import { logger } from "@/lib/observability/logger";
 
@@ -72,7 +72,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ mode: "none", alreadyPaid: true }, { status: 200 });
     }
 
-    const provider = getProvider();
+    // Pasarela del Control Center (o `PAYMENT_PROVIDER`); 503 si no hay ninguna.
+    const provider = await getActiveProvider();
     const effectiveReturnUrl =
       returnUrl ||
       process.env.NEXT_PUBLIC_PAYMENT_RETURN_URL ||
@@ -93,13 +94,10 @@ export async function POST(request: Request) {
     });
 
     logger.info(
-      { event: "payments.create.success", reference, provider: activeProviderId() },
+      { event: "payments.create.success", reference, provider: provider.id },
       "Checkout de pago creado",
     );
-    return NextResponse.json(
-      { provider: activeProviderId(), ...result },
-      { status: 200 },
-    );
+    return NextResponse.json({ provider: provider.id, ...result }, { status: 200 });
   } catch (error) {
     logger.error(
       {

@@ -25,6 +25,11 @@ import type {
 export class BoldProvider implements PaymentProvider {
   readonly id = "bold";
 
+  /** Plantilla sin integrar: no anuncia ningún entorno. */
+  async isSandbox(): Promise<boolean> {
+    return false;
+  }
+
   async createCheckout(): Promise<CreateCheckoutResult> {
     // TODO(bold): calcular integritySignature (SHA-256) y devolver widget/redirect.
     throw new PaymentError(

@@ -10,7 +10,11 @@ import type { WooOrder } from "@/types/woocommerce";
 //  moneda + referencia validados). Todo esto usa wc/v3 (ck/cs server-only).
 // ============================================================================
 
-/** Unidades menores asumidas para la conciliación (céntimos). */
+/**
+ * Unidades menores por defecto para la conciliación: céntimos. Cada pasarela
+ * declara las suyas en la verificación (`WebhookVerification.minorUnit`): Wompi
+ * habla siempre en céntimos aunque la moneda no tenga decimales.
+ */
 const MINOR_UNIT = 2;
 
 /** Estados de WooCommerce que ya cuentan como pagados / cerrados. */
@@ -40,9 +44,10 @@ export function paymentMatchesOrder(
   order: WooOrder,
   amountMinor?: number,
   currency?: string,
+  minorUnit = MINOR_UNIT,
 ): boolean {
   if (amountMinor == null || !currency) return false;
-  const expected = toMinorUnits(order.total);
+  const expected = toMinorUnits(order.total, minorUnit);
   const sameAmount = expected === amountMinor;
   const sameCurrency = order.currency.toUpperCase() === currency.toUpperCase();
   return sameAmount && sameCurrency;
@@ -67,6 +72,22 @@ export async function markOrderPaid(
       set_paid: true,
       ...(transactionId ? { transaction_id: transactionId } : {}),
     },
+  });
+}
+
+/**
+ * Pedido con «link de pago por WhatsApp» (`hwe_whatsapp_link`): sin cobro en
+ * línea. En `pending` WooCommerce no manda NINGÚN correo y el pedido cuenta como
+ * carrito abandonado que «mantener inventario» puede cancelar solo. `on-hold`
+ * («En espera») es «pedido recibido, falta confirmar el pago»: dispara los
+ * correos y el pedido sigue siendo pagable.
+ */
+export function markOrderAwaitingPaymentLink(
+  reference: string | number,
+): Promise<WooOrder> {
+  return wcFetch<WooOrder>(`/orders/${reference}`, {
+    method: "PUT",
+    body: { status: "on-hold" },
   });
 }
 

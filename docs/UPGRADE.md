@@ -346,6 +346,16 @@ git fetch framework --tags
   resolve-login,attach-profile}`), solo con el secreto interno y el flag.
 - **El registro pide confirmar la contraseña** (componente `PasswordField`, compartido con
   restablecer y cambiar contraseña).
+- **Seguridad crítica: el webhook de la pasarela de pruebas `noop` marcaba pedidos pagados en
+  cualquier entorno.** Firmaba con un secreto público (`noop-sandbox-secret`) y se atendía
+  siempre. Ahora solo existe si `noop` es la pasarela activa; en producción sin pasarela
+  decidida no hay ninguna (antes, `noop` por defecto). Actualiza ya.
+- **(contrato) Pasarela y credenciales desde el Control Center** (`hwe/v1/payments/credentials`,
+  caché en memoria del proceso; `PAYMENT_PROVIDER` del entorno solo como anulación). Wompi y Aval
+  Pay de punta a punta; `PaymentProvider` exige `isSandbox()`; el registro es asíncrono
+  (`getActiveProvider()`). Aval Pay toma referencia, estado e importe de la consulta de la
+  sesión (la referencia de la notificación no va firmada); Wompi exige que la firma cubra id,
+  estado e importe. Un fallo a medias del webhook ya no deja el evento marcado como duplicado.
 - **SEO por entidad unificado (`hwe-seo/fields.php`).** Entradas, páginas, productos y
   categorías comparten caja, límites (título 60, descripción 160), contador y columna
   «SEO». Los campos del formulario de la entrada pasan de `hwe_seo_title`/`hwe_seo_description`

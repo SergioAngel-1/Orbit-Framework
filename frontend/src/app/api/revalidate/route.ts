@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { clearPaymentSettingsCache } from "@/lib/payments/credentials";
 import { verifyHmacSignature, verifyWooWebhook } from "@/lib/security/webhook";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/http/request-ip";
@@ -100,6 +101,9 @@ export async function POST(request: Request) {
     // tag como obsoleto y revalida en segundo plano (stale-while-revalidate),
     // acorde al modelo ISR + webhook de esta plantilla.
     revalidateTag(tag, "max");
+    // Guardar el Control Center cambia también la pasarela y sus credenciales,
+    // que viven en memoria del proceso (nunca en la Data Cache): se olvidan.
+    if (tag === "site-config") clearPaymentSettingsCache();
     logger.info({ event: "revalidate.hwe", tag }, "Tag HWE revalidado");
     return NextResponse.json({ revalidated: true, tag, now: Date.now() });
   }

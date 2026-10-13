@@ -39,6 +39,11 @@ interface NoopEvent {
 export class NoopProvider implements PaymentProvider {
   readonly id = "noop";
 
+  /** Nunca cobra dinero real. */
+  async isSandbox(): Promise<boolean> {
+    return true;
+  }
+
   async createCheckout(input: CreateCheckoutInput): Promise<CreateCheckoutResult> {
     const url = new URL(input.returnUrl);
     url.searchParams.set("ref", input.reference);

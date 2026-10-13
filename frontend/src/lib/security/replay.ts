@@ -43,3 +43,21 @@ export async function markEventOnce(
     return true; // error transitorio: fail-open
   }
 }
+
+/**
+ * Suelta la marca de un evento: el siguiente intento con el mismo cuerpo vuelve
+ * a procesarse. Para todo camino que NO deja el evento resuelto (fallo
+ * transitorio, respuesta no-2xx que la pasarela reintentará): si no, el
+ * reintento se descartaría como duplicado y el cobro no se aplicaría jamás.
+ */
+export async function releaseEvent(scope: string, rawBody: string): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  const hash = crypto.createHash("sha256").update(rawBody).digest("hex");
+  try {
+    await redis.del(`${PREFIX}${scope}:${hash}`);
+  } catch {
+    // Sin poder soltarla, el reintento caerá en «duplicado» hasta que caduque el
+    // TTL; el pedido sigue en su estado y se puede conciliar a mano.
+  }
+}

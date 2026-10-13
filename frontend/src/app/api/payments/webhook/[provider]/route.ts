@@ -1,9 +1,9 @@
 import "@/lib/payments/providers"; // efecto secundario: registra las pasarelas
 import { NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api/errors";
-import { getProvider } from "@/lib/payments/registry";
+import { acceptsWebhooksFrom, getProvider } from "@/lib/payments/registry";
 import { rateLimit } from "@/lib/security/rate-limit";
-import { markEventOnce } from "@/lib/security/replay";
+import { markEventOnce, releaseEvent } from "@/lib/security/replay";
 import { getClientIp } from "@/lib/http/request-ip";
 import { getOrCreateRequestId } from "@/lib/observability/request-id";
 import { runWithRequestId } from "@/lib/observability/request-context";
@@ -31,12 +31,20 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ provider: string }> },
 ) {
-  const { provider: providerId } = await params;
-
-  // Rate-limit por IP (defensa en profundidad; el endpoint es server-to-server).
-  const rl = await rateLimit(`pay_webhook:${getClientIp(request)}`, 60, 60);
+  // params + rate-limit por IP (defensa en profundidad), en paralelo.
+  const [{ provider: providerId }, rl] = await Promise.all([
+    params,
+    rateLimit(`pay_webhook:${getClientIp(request)}`, 60, 60),
+  ]);
   if (!rl.success) {
     return NextResponse.json({ error: "Demasiadas peticiones." }, { status: 429 });
+  }
+
+  // La pasarela de pruebas firma con un secreto público: fuera de su uso (activa
+  // en desarrollo/CI) no existe para el exterior. Una pasarela no registrada,
+  // tampoco.
+  if (!(await acceptsWebhooksFrom(providerId))) {
+    return NextResponse.json({ error: "No encontrado." }, { status: 404 });
   }
 
   // Cuerpo CRUDO: la firma se calcula sobre los bytes exactos recibidos.
@@ -50,6 +58,13 @@ export async function POST(
       { event: "payments.webhook.received", provider: providerId, requestId },
       "Webhook recibido",
     );
+
+    // Ámbito del anti-replay. La marca se pone antes de tocar el pedido (hace
+    // también de cerrojo entre entregas simultáneas), así que se suelta en todo
+    // camino que NO deja el evento resuelto: si no, el reintento de la pasarela
+    // se descarta como duplicado y el cobro no se aplica jamás.
+    const replayScope = `payments:${providerId}`;
+    let markedFresh = false;
 
     try {
       const provider = getProvider(providerId);
@@ -77,7 +92,8 @@ export async function POST(
       );
 
       // Anti-replay: descartar reenvíos del MISMO evento firmado (ACK idempotente).
-      const fresh = await markEventOnce(`payments:${providerId}`, rawBody);
+      const fresh = await markEventOnce(replayScope, rawBody);
+      markedFresh = fresh;
       if (!fresh) {
         logger.info(
           {
@@ -126,8 +142,16 @@ export async function POST(
 
       // Conciliación: el importe y la moneda DEBEN coincidir con el pedido.
       if (
-        !paymentMatchesOrder(order, verification.amountMinor, verification.currency)
+        !paymentMatchesOrder(
+          order,
+          verification.amountMinor,
+          verification.currency,
+          verification.minorUnit,
+        )
       ) {
+        // 422 (no-2xx): la pasarela reintentará; se suelta la marca para que ese
+        // reintento se evalúe de verdad en vez de recibir «duplicado».
+        await releaseEvent(replayScope, rawBody);
         logger.warn(
           { event: "payments.webhook.mismatch", reference: verification.reference },
           "El importe/moneda no coincide con el pedido",
@@ -145,6 +169,11 @@ export async function POST(
       );
       return NextResponse.json({ received: true, applied: "paid" });
     } catch (error) {
+      // El evento quedó a medias (WooCommerce caído, timeout de wc/v3…): se suelta
+      // la marca para que el reintento de la pasarela pueda aplicarlo.
+      if (markedFresh) {
+        await releaseEvent(replayScope, rawBody);
+      }
       logger.error(
         {
           event: "payments.webhook.error",

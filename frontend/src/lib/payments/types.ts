@@ -21,7 +21,17 @@ export interface CreateCheckoutInput {
   amountMinor: number;
   /** Moneda ISO-4217 (COP, USD…). */
   currency: string;
-  customer: { email: string; fullName: string; phone?: string };
+  customer: {
+    email: string;
+    fullName: string;
+    phone?: string;
+    /**
+     * Documento del comprador, si el pedido lo trae (módulo customer-identity).
+     * `type` es el código del país/pasarela (CC, NIT, DNI…); cada proveedor lo
+     * traduce al suyo.
+     */
+    document?: { type: string; number: string };
+  };
   /** URL de retorno del usuario (solo UX, NO prueba de pago). */
   returnUrl: string;
   metadata?: Record<string, string>;
@@ -48,6 +58,12 @@ export interface WebhookVerification {
   providerTransactionId?: string;
   /** Importe reportado, para validar contra el pedido (unidades menores). */
   amountMinor?: number;
+  /**
+   * Decimales de `amountMinor` (por defecto 2: céntimos). Wompi siempre habla en
+   * céntimos aunque la moneda no tenga decimales; otra pasarela puede declarar
+   * los suyos.
+   */
+  minorUnit?: number;
   currency?: string;
 }
 
@@ -61,6 +77,12 @@ export interface PaymentProvider {
   verifyWebhook(rawBody: string, headers: Headers): Promise<WebhookVerification>;
   /** Traduce el estado nativo de la pasarela al estado normalizado. */
   mapStatus(providerStatus: string): PaymentStatus;
+  /**
+   * ¿Cobra en el entorno de PRUEBAS de la pasarela? Se deduce de sus propias
+   * credenciales (nunca de un ajuste a mano que pueda contradecirlas) y solo
+   * decide el indicador «Modo de pruebas» del checkout.
+   */
+  isSandbox(): Promise<boolean>;
 }
 
 /** Error de la capa de pagos con código HTTP sugerido. */

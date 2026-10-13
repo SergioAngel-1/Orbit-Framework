@@ -28,6 +28,11 @@ import type {
 export class PayUProvider implements PaymentProvider {
   readonly id = "payu";
 
+  /** Plantilla sin integrar: no anuncia ningún entorno. */
+  async isSandbox(): Promise<boolean> {
+    return false;
+  }
+
   async createCheckout(): Promise<CreateCheckoutResult> {
     // TODO(payu): firmar con MD5 y construir el formulario/URL de WebCheckout.
     throw new PaymentError(
