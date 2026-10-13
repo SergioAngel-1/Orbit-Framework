@@ -587,7 +587,7 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
   hace cosas edge-compatibles (Origin, locale, refresh JWT vía fetch).
 - **CSP usa `'unsafe-inline'` en scripts** a propósito: una CSP con nonce obligaría a render
   dinámico y rompería el ISR/SSG. Documentado como endurecimiento opcional (Fase 8).
-- **Rate-limit es fail-open por defecto**, pero los endpoints de auth usan `strict: true`,
+- **Rate-limit es fail-open por defecto**, pero los endpoints de escritura de auth (`guardMutation`) usan `strict: true`,
   que degrada a un **contador en memoria** si Redis cae (no se queda sin límite).
 - **Sesión revocable**: `logout` revoca el access token (blocklist en `lib/auth/revocation.ts`,
   consultada en `getSession`); `/api/auth/logout-all` y el **cambio de contraseña** rotan el "user

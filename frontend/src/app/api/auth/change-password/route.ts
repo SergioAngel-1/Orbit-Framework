@@ -72,7 +72,7 @@ async function reissueCurrentSession(
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
-    rateLimit: { name: "change_password", limit: 5, windowSeconds: 60 },
+    rateLimit: { name: "change_password", limit: 5, windowSeconds: 60, strict: true },
   });
   if (blocked) return blocked;
 

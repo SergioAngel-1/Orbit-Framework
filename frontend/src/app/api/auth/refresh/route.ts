@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
-    rateLimit: { name: "refresh", limit: 30, windowSeconds: 60 },
+    rateLimit: { name: "refresh", limit: 30, windowSeconds: 60, strict: true },
   });
   if (blocked) return blocked;
 
