@@ -3,7 +3,7 @@
 Ecosistema web **Headless / JAMstack** completo y contenedorizado:
 
 - **Backend (CMS):** WordPress configurado **exclusivamente como Headless CMS**, exponiendo su contenido vía **WPGraphQL** (con JWT Auth y CORS).
-- **Frontend:** **Next.js 15** (App Router) + **React 19** + **TypeScript** + **Tailwind CSS v4** (config CSS-first), con **ISR** (Incremental Static Regeneration).
+- **Frontend:** **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript** + **Tailwind CSS v4** (config CSS-first), con **ISR** (Incremental Static Regeneration). Además de la web pública, es el **BFF**: toda operación sensible pasa por sus Route Handlers (`/api/*`).
 - **Infraestructura:** **Docker Compose** en producción (MariaDB + WordPress + Next.js); en desarrollo, **modo híbrido** (WordPress + frontend nativos, DB/Redis en Docker) para máximo rendimiento.
 
 > **Alcance del framework:** el núcleo reutilizable es el backend (WordPress headless) y el
@@ -12,6 +12,11 @@ Ecosistema web **Headless / JAMstack** completo y contenedorizado:
 > páginas de `frontend/src/app/[locale]/*`) se hereda una sola vez al clonar y pasa a ser
 > responsabilidad de cada instancia — el framework no la mantiene ni la actualiza. Ver
 > `AGENTS.md §1.1` y `docs/FRONTEND_CONNECT.md`.
+>
+> **v2.0:** el framework trae un **contrato de instancia** (tu código vive en rutas que el
+> framework nunca toca: `backend/wp-content/mu-plugins/instance/` y `frontend/src/instance/`),
+> **nueve módulos opcionales** que se activan por instancia, contenido a **N idiomas**, paquetes
+> **por país** y seguridad reforzada (WordPress solo atiende al BFF). Venir de v1: `docs/UPGRADE.md`.
 
 ---
 
@@ -19,24 +24,28 @@ Ecosistema web **Headless / JAMstack** completo y contenedorizado:
 
 ```
 Headless Web Ecosystem/
-├── docker-compose.yml          # Orquesta servicios para Docker puro
-├── docker-compose.prod.yml     # Producción: + Caddy TLS, backup, sin puertos expuestos
-├── Caddyfile                   # Reverse proxy de producción (TLS automático)
+├── docker-compose.yml          # Orquesta servicios para Docker puro (desarrollo)
+├── docker-compose.prod.yml     # Producción: + Caddy TLS, backup, wp-cron, sin puertos expuestos
+├── Caddyfile  caddy/           # Reverse proxy de producción (TLS automático) y sitios opcionales
 ├── .env.example / .env.prod.example
+├── docs/                       # instalación, operación, contrato frontend, actualización…
+├── examples/                   # instance-minimal (ejemplo vivo del contrato), minimal-consumer
 ├── backend/                    # WordPress (Headless CMS)
-│   ├── scripts/
-│   │   ├── setup.sh            # Instalación automática vía WP-CLI
-│   │   ├── generate-woo-keys.sh
-│   │   └── seed-demo.sh
-│   └── wp-content/mu-plugins/  # ⭐ comportamiento headless + endpoints propios
+│   ├── scripts/                # setup.sh, generate-secrets/woo-keys, backup/restore, verify-*.sh
+│   ├── tests/                  # PHPUnit + Brain Monkey (`composer test`)
+│   └── wp-content/
+│       ├── mu-plugins/         # ⭐ núcleo: headless, seguridad, auth, Control Center, SEO, i18n, geo…
+│       │   └── instance/       # 🧩 TU código de instancia (el framework no lo toca)
+│       └── plugins/            # los 9 módulos del framework (hwe-banners, hwe-shipping…)
 └── frontend/                   # Next.js (App Router) — web pública + BFF
     ├── src/
     │   ├── app/
     │   │   ├── [locale]/       # ⚠️ vistas heredadas al clonar — responsabilidad de la instancia
     │   │   └── api/            # ⭐ el BFF (núcleo del framework): auth, store, payments, webhooks…
     │   ├── components/         # ⚠️ heredado (salvo ui/, que sí es núcleo): cart, products, auth…
+    │   ├── instance/           # 🧩 TU código de instancia: registry.ts, config.d.ts, lib/
     │   └── lib/                # ⭐ toda la lógica (núcleo del framework): auth, woocommerce, security…
-    └── tests/                  # unit (Vitest) + e2e (Playwright)
+    └── tests/                  # e2e (Playwright) y unit sueltos; los tests de `src/` van colocados
 ```
 
 ---
@@ -63,11 +72,12 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env.local
 ```
 
-> 🔐 **Importante:** edita `.env` y cambia `GRAPHQL_JWT_AUTH_SECRET_KEY` por una
-> clave aleatoria larga. Genérala con:
+> 🔐 **Importante:** genera secretos propios (JWT, CSRF, webhooks…); nunca uses los de la plantilla.
 > ```bash
-> openssl rand -base64 64
+> sh backend/scripts/generate-secrets.sh   # los escribe en .env y frontend/.env.local
 > ```
+> En producción el arranque **aborta** si siguen con valores por defecto
+> (`docs/CONFIGURATION.md`).
 
 ### 1. Primer arranque (WP-CLI) — una sola vez
 
@@ -144,13 +154,22 @@ npm run dev
 
 ```bash
 cd frontend
-npm run dev          # Desarrollo (frontend nativo)
-npm run build        # Build de producción
-npx tsc --noEmit     # Comprobación de tipos
-npx next lint        # ESLint
-npm run test         # Tests unitarios (Vitest)
-npm run build        # ⭐ verificación definitiva (prerender + tipos + edge)
+npm run dev            # Desarrollo (frontend nativo)
+npm run lint           # ESLint (flat config)
+npm run type-check     # tsc --noEmit
+npm run format:check   # Prettier
+npm run i18n:check     # paridad de mensajes entre idiomas
+npm run test           # Tests unitarios (Vitest)
+npm run e2e            # Playwright (smoke + axe) contra una app ya levantada
+npx next build         # ⭐ verificación definitiva (prerender + tipos + edge)
+
+cd ../backend
+composer test          # PHPUnit + Brain Monkey (mu-plugins y plugins propios)
 ```
+
+Contra la pila levantada (no sustituyen a los tests; ven lo que un mock no ve):
+`sh backend/scripts/verify-security.sh`, `verify-modules.sh` y `verify-integration.sh`
+(ver `docs/RUNBOOK.md`).
 
 ### Docker
 
@@ -322,7 +341,10 @@ El endpoint verifica la firma HMAC y ejecuta `revalidateTag('products')`.
 | Documento | Para qué |
 |-----------|----------|
 | [`docs/INSTALL.md`](docs/INSTALL.md) | Instalación paso a paso. |
-| [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Variables de entorno. |
+| [`docs/CREATE_INSTANCE.md`](docs/CREATE_INSTANCE.md) | **Crear una instancia nueva** (clonar, `wp hwe setup`, módulos, idiomas, país). |
+| [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Variables de entorno, panel de control y módulos. |
+| [`docs/FRONTEND_CONNECT.md`](docs/FRONTEND_CONNECT.md) | **El contrato backend/BFF** que cualquier frontend debe respetar. |
+| [`docs/FRONTEND_BUILD.md`](docs/FRONTEND_BUILD.md) | Entrevista de negocio → plan de vistas de la instancia. |
 | [`docs/CUSTOMIZATION.md`](docs/CUSTOMIZATION.md) | White-label / rebranding. |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Despliegue en producción. |
 | [`docs/GO-LIVE.md`](docs/GO-LIVE.md) | **Checklist de cero a producción.** |
@@ -330,8 +352,8 @@ El endpoint verifica la firma HMAC y ejecuta `revalidateTag('products')`.
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Modelo de amenazas y hardening. |
 | [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) | Correlación request-id, alertas, retención/PII. |
 | [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) | Matriz de versiones soportadas. |
-| [`docs/UPGRADE.md`](docs/UPGRADE.md) | **Actualizar una instancia con los cambios del framework.** |
-| [`docs/PLUGIN_DEVELOPMENT.md`](docs/PLUGIN_DEVELOPMENT.md) | Desarrollar plugins del framework. |
+| [`docs/UPGRADE.md`](docs/UPGRADE.md) | **Actualizar una instancia con los cambios del framework** y cambios incompatibles v1 → v2. |
+| [`docs/PLUGIN_DEVELOPMENT.md`](docs/PLUGIN_DEVELOPMENT.md) | Hooks del contrato y desarrollo de plugins y módulos. |
 | [`docs/ACCESIBILIDAD.md`](docs/ACCESIBILIDAD.md) | Auditoría WCAG 2.2 AA. |
 | [`CHANGELOG.md`](CHANGELOG.md) | Novedades por versión. |
 
@@ -341,21 +363,24 @@ El endpoint verifica la firma HMAC y ejecuta `revalidateTag('products')`.
 > El endurecimiento base **y** el del plan de auditoría (guard de secretos, revocación de
 > sesión, anti-replay de webhooks, cifrado GCM, etc.) ya están implementados.
 
-**Ya incluido (Fase 1):**
+**Ya incluido:**
 
+- **WordPress solo atiende al BFF** (`hwe-bff-only`): GraphQL, Store API y los endpoints
+  `hwe/v1` sensibles responden 404 sin el secreto interno; el navegador nunca habla con WordPress.
 - **Cabeceras de seguridad** en todas las rutas del frontend (`next.config.mjs`):
   CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy`,
   `Permissions-Policy`, COOP/CORP y HSTS (en producción). Sin `X-Powered-By`.
-- **CORS con allowlist estricta** en WPGraphQL: solo responden los orígenes de
-  `HEADLESS_ALLOWED_ORIGINS`; el resto se deniega.
-- **Hardening de WordPress** (`mu-plugins/security.php`): sin enumeración de
-  usuarios (REST y `?author=N`), sin pingbacks, errores de login genéricos.
-- **Redis** disponible para rate-limit/idempotencia de fases siguientes.
+- **Sesión**: JWT en cookies `httpOnly`, 2FA TOTP sin tokens antes del segundo factor,
+  revocación de sesiones y cierre de las demás al cambiar la contraseña.
+- **Escrituras**: Origin + CSRF + rate-limit + idempotencia; webhooks con HMAC y anti-replay.
+- **Hardening de WordPress**: sin enumeración de usuarios, sin pingbacks, errores de login
+  genéricos, SVG saneados, introspección de GraphQL apagada en producción.
+- **Guard de arranque** y **puerta anti-instancia** en CI.
 
 **A configurar en producción:**
 
-- Cambia **todas** las contraseñas y la clave JWT en `.env`; genera secretos con
-  `openssl rand -base64 64`.
+- Cambia **todas** las contraseñas y genera secretos propios (`generate-secrets.sh`),
+  incluidas `HWE_SECRETS_KEY` y `HWE_2FA_KEY`, que deben ser estables.
 - Ajusta `HEADLESS_ALLOWED_ORIGINS` y `ALLOWED_ORIGIN` a tus dominios reales (HTTPS).
 - Termina TLS y redirige HTTP→HTTPS en el proxy inverso / plataforma (HSTS ya se envía).
 - Compila el frontend con la fase `prod` del `Dockerfile` (build standalone).

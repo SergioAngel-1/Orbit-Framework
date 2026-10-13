@@ -24,11 +24,23 @@ E-commerce **headless** contenedorizado y comercializable como plantilla:
 El framework es **backend + arquitectura**, no un generador de UI. En el mismo repo conviven
 dos capas que **no debes confundir** (ver `AGENTS.md §1.1`):
 
-- **Núcleo del framework** (se versiona/actualiza como unidad reutilizable): `backend/`,
-  `frontend/src/app/api/*` (BFF), `frontend/src/lib/*` (toda la lógica), `frontend/src/components/ui/*`
-  (primitivas sin negocio).
-- **Responsabilidad de la instancia** (se hereda una vez al clonar, no se re-sincroniza):
-  `frontend/src/components/**` (salvo `ui/`) y **todas las vistas** de `frontend/src/app/[locale]/*`.
+- **Núcleo del framework** (se versiona/actualiza como unidad reutilizable): `backend/` (salvo las
+  rutas de instancia), `frontend/src/app/api/*` (BFF), `frontend/src/lib/*` (toda la lógica),
+  `frontend/src/proxy.ts`, `frontend/src/components/ui/*` (primitivas sin negocio) y los 9 módulos
+  (`backend/wp-content/plugins/hwe-*`).
+- **Responsabilidad de la instancia** — rutas **reservadas**, el framework nunca las toca:
+  `backend/wp-content/mu-plugins/instance/`, plugins `hwe-instance-*` y `frontend/src/instance/*`.
+  Además, `frontend/src/components/**` (salvo `ui/`) y **todas las vistas** de
+  `frontend/src/app/[locale]/*`, que se heredan una vez al clonar como starter neutro.
+- **El contrato de instancia:** el backend se engancha con **hooks** de nombre estable
+  (`hwe_control_center_schema`, `hwe_control_center_saved`, `hwe_revalidation_tags`,
+  `hwe_geo_packs`, `hwe_product_fields`…; `docs/PLUGIN_DEVELOPMENT.md §0`) y el frontend con
+  `src/instance/registry.ts` (**solo datos**, único módulo de instancia que el núcleo importa).
+  Una regla de ESLint impide que el núcleo importe `@/components/**` (salvo `ui/`) o
+  `@/instance/**` (salvo `registry`). **Nada de una instancia concreta entra en el núcleo**: la
+  puerta anti-instancia de CI (`.github/scripts/check-anti-instance.sh`) falla con cualquier
+  resto (nombres, slugs, dominios, y también palabras comunes que contengan un token prohibido).
+  El ejemplo vivo es `examples/instance-minimal/` (job «contrato» de CI).
 
 El contrato estable entre backend/BFF y cualquier frontend está en `docs/FRONTEND_CONNECT.md`.
 
@@ -38,7 +50,9 @@ El contrato estable entre backend/BFF y cualquier frontend está en `docs/FRONTE
 npm run dev            # desarrollo
 npm run type-check     # tsc --noEmit
 npm run lint           # ESLint flat config (next lint se eliminó en Next 16)
-npm run test           # unit (Vitest): seguridad, auth, pagos, validación
+npm run i18n:check     # paridad de mensajes entre idiomas (es/en y los de la instancia)
+npm run test           # Vitest: tests colocados junto al código + tests/unit
+npm run audit:gate     # npm audit con allowlist (el gate de CI)
 npm run test:watch     # Vitest en watch
 npx vitest run tests/unit/csrf.test.ts   # un solo archivo de test
 npx vitest run -t "<nombre>"             # un solo test por nombre
@@ -49,11 +63,17 @@ npm run e2e            # Playwright (smoke + axe) contra una app YA levantada (E
 npx next build         # ⭐ la verificación definitiva antes de dar por terminado un cambio
 ```
 
-- **Tests unitarios viven en `frontend/tests/unit/*.test.ts`** (no colocados junto al código;
-  Vitest solo incluye esa carpeta). Cubren `src/lib/**`; `server-only` se neutraliza con un
-  alias a `tests/stubs/server-only.ts`, así que los módulos de servidor se pueden testear directo.
+Desde `backend/`: `composer test` (PHPUnit 12 + Brain Monkey). Contra la pila levantada:
+`sh backend/scripts/verify-security.sh`, `verify-modules.sh` y `verify-integration.sh`.
+
+- **Los tests unitarios viven colocados** junto al código (`src/**/*.test.ts(x)`; los de
+  componentes en `jsdom`) y en `frontend/tests/unit/` (infraestructura y despliegue). `server-only`
+  se neutraliza con un alias a `tests/stubs/server-only.ts`, así que los módulos de servidor se
+  pueden testear directo. Cada fix de seguridad se prueba en rojo contra el código anterior.
 - **CI** (`.github/workflows/ci.yml`) corre en este orden: `lint` → `type-check` →
-  `format:check` → `test` → `test:coverage` → `build`, más gitleaks, e2e (build + `next start`)
+  `format:check` → `i18n:check` → `test` → `test:coverage` → `build` → `npm audit`, más `phpunit`,
+  la puerta anti-instancia, el job «contrato» (el ejemplo vivo superpuesto al repo), gitleaks,
+  e2e contra un **stub** de WordPress (build + `next start`, con una segunda pasada sin módulos)
   y validación de `docker compose config` (dev y prod). Reproduce eso localmente antes de pushear.
 - **`next build` es obligatorio antes de declarar terminado un cambio de frontend**: atrapa
   límites server/client, RSC, edge runtime y prerender por locale que `tsc`/`lint` no ven.
@@ -70,14 +90,21 @@ Pasos exactos en `README.md` y `docs/INSTALL.md`.
 ## Backend: qué es código propio
 
 En `backend/wp-content/` solo se versiona lo nuestro (ver `.gitignore`): `mu-plugins/*`, el tema
-vacío `themes/hwe-headless-base/` y el plugin `plugins/hwe-banners/`. WooCommerce, WPGraphQL,
-JWT, etc. los instala `backend/scripts/setup.sh` — **no edites plugins de terceros** en
-`plugins/`. La config de negocio la gestiona el mu-plugin **HWE Control Center**: `Schema.php`
+vacío `themes/hwe-headless-base/` y los **9 módulos** `plugins/hwe-*` (`banners`, `shipping`,
+`product-landing`, `landings`, `consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`,
+`external-integration`). WooCommerce, WPGraphQL, JWT, etc. los instala `backend/scripts/setup.sh`
+— **no edites plugins de terceros** en `plugins/`. Un módulo se enciende con la clave `modules` de
+`instance.config.json` (`wp hwe setup` activa los listados y **desactiva los demás**); con él
+apagado, su lector devuelve vacío, sus rutas BFF responden 404 (`requireModule`) y su UI no se
+pinta. Tu código de instancia va en `mu-plugins/instance/` o en un plugin `hwe-instance-*`.
+
+La config de negocio la gestiona el mu-plugin **HWE Control Center**: `Schema.php`
 es la fuente única de todos los campos (los `public` salen por `/wp-json/hwe/v1/config`) y
 `Cli.php` implementa `wp hwe setup <instance.config.json>` (ver `docs/CREATE_INSTANCE.md`).
 Un campo de config nuevo se declara en `Schema.php` (los grupos del núcleo, por tema, en
 `hwe-control-center/SchemaGroups/`) y se consume en el frontend vía `getSiteConfig()`,
 con su valor por defecto en `lib/config/defaults.ts` (`CONFIG_DEFAULTS`, fallback si WP no responde).
+Un campo **de una instancia** se declara bajo el grupo `instance` con `hwe_control_center_schema`.
 
 ## El principio que lo explica todo: el BFF
 
@@ -112,7 +139,14 @@ Reglas de oro (no las rompas — `AGENTS.md §2, §7`):
 - **La marca/URL del sitio SIEMPRE sale de `getSiteConfig()`** (`lib/config/index.ts`, fetch
   server-only a `/wp-json/hwe/v1/config`), nunca de una constante o env var leída en un componente.
 - **Flags `config.ecommerce.*_enabled`** (reviews/wishlist/coupons/search) deben gatear la UI
-  correspondiente, no solo el JSON-LD.
+  correspondiente, no solo el JSON-LD, **y las rutas del BFF** (`requireFlag`, 404). Igual con los
+  módulos (`requireModule`).
+- **Ningún fallo se traga en silencio**: lo que degrada se registra con un `event` estructurado
+  (`logReadFailure`, `logRedisFailure`; `error_log('[hwe] …')` en WP). La seguridad falla
+  cerrada; el contenido, de forma suave.
+- **Idiomas**: `i18n.locales` del Control Center (secundarios) debe coincidir con
+  `i18n/routing.ts`; el contenido del CMS se lee con `pickLocalized` / `translation(locale)` y
+  cada idioma tiene su slug (308 al canónico). Cada idioma necesita su `messages/<idioma>.json`.
 - **Tailwind v4 es CSS-first**: el tema vive en `globals.css` (`@theme`), no hay `tailwind.config`.
   Usa clases de marca (`brand`, `secondary`, `accent`, `surface`…), nunca hex hardcodeado.
 - **Importes de la Store API vienen en unidades menores** (céntimos): formatea con
@@ -126,6 +160,9 @@ Reglas de oro (no las rompas — `AGENTS.md §2, §7`):
 - **El middleware/`proxy.ts` corre en edge**: no puede abrir TCP a Redis. Por eso rate-limit e
   idempotencia viven en los Route Handlers (Node), no en el middleware. En Next 16 `middleware`
   se renombró a `proxy`.
+- **WordPress solo atiende al BFF** (`hwe-bff-only`): toda llamada del BFF a WordPress lleva
+  `X-HWE-Internal-Secret` (`HWE_REVALIDATION_SECRET`) vía `wpFetch` o los clientes de GraphQL/wc/Store
+  API; un test rompe si una ruta usa `fetch` a WordPress por su cuenta.
 - **Dos clientes de WooCommerce distintos**: `lib/woocommerce/client.ts` (WC REST `wc/v3` con
   `ck/cs`, para pedidos/cliente y autorización anti-IDOR) vs `store-client.ts` (Store API con
   `Cart-Token`, para carrito/checkout). No los confundas.
@@ -135,7 +172,7 @@ Reglas de oro (no las rompas — `AGENTS.md §2, §7`):
   credenciales desde el Control Center); `noop` es solo de pruebas y PayU/Bold son stubs (501). Añadir pasarela = implementar `PaymentProvider` sin tocar el checkout.
 - **Secreto interno del BFF** para llamadas server-to-server (p. ej. `2fa-status`) es
   `HWE_REVALIDATION_SECRET`, en la cabecera `X-HWE-Internal-Secret`.
-- **Banners**: los administra el plugin **HWE Banners** (regular, activable), no el
+- **Banners** (módulo `banners`): los administra el plugin **HWE Banners**, no el
   Control Center. CPT `hwe_banner` → REST `hwe-banners/v1/banners` → lector core
   `lib/banners/getBanner(type, location, locale)` (ISR tag `banners`), gateado por el módulo
   `banners` y por `config.banners.enabled`.
@@ -144,7 +181,9 @@ Reglas de oro (no las rompas — `AGENTS.md §2, §7`):
 
 ## Documentación
 
-`docs/` cubre instalación (`INSTALL.md`), crear instancia (`CREATE_INSTANCE.md`), el contrato
-frontend (`FRONTEND_CONNECT.md`), construir el frontend de una instancia (`FRONTEND_BUILD.md`),
-seguridad, operación (`RUNBOOK.md`), go-live, observabilidad y matriz de compatibilidad. Cambios
-en `CHANGELOG.md` (Keep a Changelog + SemVer).
+`docs/` cubre instalación (`INSTALL.md`), crear instancia (`CREATE_INSTANCE.md`), configuración y
+módulos (`CONFIGURATION.md`), el contrato frontend (`FRONTEND_CONNECT.md`), el contrato núcleo ↔
+instancia y desarrollo de plugins (`PLUGIN_DEVELOPMENT.md`), construir el frontend de una instancia
+(`FRONTEND_BUILD.md`), actualizar una instancia y migrar de v1 (`UPGRADE.md`), seguridad, operación
+(`RUNBOOK.md`), go-live, observabilidad y matriz de compatibilidad. Cambios en `CHANGELOG.md`
+(Keep a Changelog + SemVer).

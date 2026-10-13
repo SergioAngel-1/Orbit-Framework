@@ -13,7 +13,7 @@ Una **plantilla de e-commerce headless** lista para producción y comercializabl
 - **Backend = WordPress + WooCommerce**, en modo **headless** (sin frontend nativo).
   Solo expone datos vía API (GraphQL para leer, REST para escribir). El panel `/wp-admin`
   sigue siendo la herramienta de gestión de contenido/pedidos.
-- **Frontend = Next.js 16 (App Router, Turbopack) + React 19.2 + TypeScript + Tailwind v4.**
+- **Frontend = Next.js 16 (App Router, Turbopack) + React 19 + TypeScript + Tailwind v4.**
   Además de ser la web pública, actúa como **BFF (Backend-for-Frontend)**: todas las
   operaciones sensibles pasan por sus *Route Handlers* (`/api/...`), nunca directo del
   navegador a WordPress.
@@ -25,13 +25,33 @@ técnicos están en inglés. Mantén esa convención.
 ### 1.1 Qué es "el framework" y qué es "responsabilidad de cada instancia"
 
 **Decisión de arquitectura (léela antes de tocar `frontend/`):** el framework es
-**backend + arquitectura**, no un generador de UI. Dos capas muy distintas viven hoy en el
-mismo repo `frontend/` y es clave no confundirlas:
+**backend + arquitectura**, no un generador de UI. Dos capas muy distintas viven en el mismo
+repo y es clave no confundirlas:
 
 | Capa | Qué incluye | ¿Quién la mantiene? |
 |---|---|---|
-| **Núcleo del framework** | WordPress headless + WooCommerce (`backend/`), el **BFF**: `frontend/src/app/api/*` y `frontend/src/lib/*` (auth, seguridad, proxy a WooCommerce, pagos, config del HWE Control Center), `frontend/src/components/ui/*` (primitivas sin negocio: Button, Input, Modal…) | El framework. Se actualiza, se documenta, se versiona como una unidad reutilizable entre instancias. |
-| **Responsabilidad de cada proyecto/instancia** | `frontend/src/components/**` (excepto `ui/`) y **todas las vistas** bajo `frontend/src/app/[locale]/*` — layout visual, home, listados, fichas, marketing, contacto, footer/header, etc. | **La instancia.** Al clonar, este código se hereda como punto de partida único (no vuelve a sincronizarse con el framework). Cámbialo, bórralo, reescríbelo — es 100% tuyo desde el clone. |
+| **Núcleo del framework** | WordPress headless + WooCommerce (`backend/`, salvo las rutas de instancia), el **BFF**: `frontend/src/app/api/*` y `frontend/src/lib/*` (auth, seguridad, proxy a WooCommerce, pagos, config del HWE Control Center), `frontend/src/proxy.ts`, `frontend/src/components/ui/*` (primitivas sin negocio: Button, Input, Modal…) y los **9 módulos** (`backend/wp-content/plugins/hwe-*`) | El framework. Se actualiza, se documenta, se versiona como una unidad reutilizable entre instancias (`docs/UPGRADE.md`). |
+| **Responsabilidad de cada proyecto/instancia** | **Rutas reservadas** que el framework nunca toca: `backend/wp-content/mu-plugins/instance/`, los plugins `hwe-instance-*` y `frontend/src/instance/*`. Más `frontend/src/components/**` (excepto `ui/`) y **todas las vistas** bajo `frontend/src/app/[locale]/*` (layout visual, home, listados, fichas, marketing, footer…), que se heredan **una vez** al clonar como starter neutro | **La instancia.** Cámbialo, bórralo, reescríbelo — es 100% tuyo desde el clone. |
+
+**El contrato de instancia** (cómo enchufa su código sin tocar el núcleo; detalle en
+`docs/PLUGIN_DEVELOPMENT.md §0` y los `README.md` de las dos carpetas `instance/`):
+- **Backend:** `hwe-instance-loader.php` carga los `.php` de primer nivel de `mu-plugins/instance/`
+  (orden alfabético; un archivo roto se registra y no tumba el sitio). La instancia se engancha
+  con hooks de nombre estable: `hwe_control_center_schema` (campos solo bajo el grupo `instance`),
+  `hwe_control_center_field_types`, `hwe_control_center_saved`, `hwe_revalidation_tags`,
+  `hwe_geo_packs`, `hwe_product_fields`, `hwe_order_item_details`, `hwe_landings_static_entries`,
+  `hwe_banners_decor_presets`… `HWE_CORE_CONTRACT_VERSION` es la versión del contrato.
+- **Frontend:** `src/instance/registry.ts` exporta un `InstanceRegistry` (**solo datos**, nunca
+  componentes: tags ISR, landings con sección única, campos de producto, visuales decorativos) y es
+  el **único** módulo de instancia que el núcleo importa. Una regla de ESLint impide que
+  `lib/`, `app/api/`, `proxy.ts` y `components/ui/` importen `@/components/**` (salvo `ui/`) o
+  `@/instance/**` (salvo `@/instance/registry`). `config.d.ts` tipa `SiteConfig.instance`.
+- **Puerta anti-instancia** (`.github/scripts/check-anti-instance.sh`, job de CI): el repo no puede
+  contener nombres, slugs ni supuestos de ninguna instancia concreta (se escanea todo salvo
+  `examples/` y `docs/superpowers/`). El patrón también caza palabras comunes del español que
+  contienen un token prohibido: usa sinónimos y no escribas nombres de instancia en ningún archivo.
+- **Ejemplo vivo:** `examples/instance-minimal/` se superpone al repo en el job «contrato» de CI
+  (tests PHP y TS, tipos y build). Si cambias el contrato, ese job es el que lo dice.
 
 **Por qué:** la UI de e-commerce siempre termina con decisiones de un negocio concreto
 (categorías, tono de marca, qué secciones tiene el footer…). Si el framework la "posee", esas
@@ -75,8 +95,8 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 ```
 /
 ├── docker-compose.yml          # dev: db + wordpress + redis + wpcli + frontend (todo en contenedores)
-├── docker-compose.prod.yml     # prod: + caddy (TLS) + backup; sin puertos WP/Redis al host
-├── Caddyfile                   # reverse proxy prod (TLS, HTTP/3); /graphql público restringido
+├── docker-compose.prod.yml     # prod: + caddy (TLS) + backup + wp-cron; sin puertos WP/Redis al host
+├── Caddyfile  caddy/           # reverse proxy prod (TLS, HTTP/3); /graphql público restringido; sitios opcionales
 ├── .env.example / .env.prod.example  # TODAS las variables. Copiar a .env / .env.prod
 ├── README.md  AGENTS.md  CHANGELOG.md  LICENSE  EULA.md
 ├── docs/                        # documentación de cliente y operaciones
@@ -84,7 +104,7 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 │   ├── CREATE_INSTANCE.md       # ⭐ crear una instancia nueva (clonar + `wp hwe setup`)
 │   ├── FRONTEND_CONNECT.md      # ⭐ el CONTRATO backend/BFF (estable) + inventario de lo heredado (no estable)
 │   ├── FRONTEND_BUILD.md        # ⭐ para agentes: entrevista de negocio → plan de vistas (responsabilidad de la instancia)
-│   ├── SECURITY.md  ACCESIBILIDAD.md
+│   ├── SECURITY.md  ACCESIBILIDAD.md  UPGRADE.md  PLUGIN_DEVELOPMENT.md
 │   ├── RUNBOOK.md               # ⭐ operación: backup/restore, rotación de secretos, incidentes
 │   ├── GO-LIVE.md               # ⭐ checklist "de cero a producción"
 │   └── COMPATIBILITY.md         # matriz de versiones (WP/Woo/PHP/Node/Next…)
@@ -95,12 +115,22 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 │   ├── scripts/generate-woo-keys.sh  # genera y escribe las claves ck/cs de WooCommerce
 │   ├── scripts/instance.config.example.json  # plantilla de `wp hwe setup` (marca/diseño/ecommerce/seo…)
 │   ├── scripts/backup.sh  scripts/restore.sh  # ⭐ copia y restauración (DB + uploads)
+│   ├── scripts/verify-security.sh  verify-modules.sh  verify-integration.sh  # ⭐ verificación EN VIVO contra la pila
+│   ├── scripts/warm-cache.sh                 # calienta la caché tras desplegar
+│   ├── tests/                   # PHPUnit + Brain Monkey (`composer test`); dobles de WP en tests/Stubs/
 │   ├── scripts/backup-entrypoint.sh  backup-cron.sh  seed-demo.sh
 │   ├── config/uploads.ini
 │   └── wp-content/
 │       ├── themes/hwe-headless-base/  # ⭐ único tema versionado: sin funcionalidad real (headless),
 │       │                              #    evita depender de un tema de wordpress.org (ver setup.sh)
+│       ├── plugins/              # ⭐ los 9 módulos opcionales `hwe-<id>` (ver §6.9); WooCommerce y demás los instala setup.sh
 │       └── mu-plugins/           # ⭐ comportamiento headless + endpoints propios (ver §6.2/§6.4)
+│           ├── hwe-instance-loader.php  # carga `instance/*.php` (TU código; ver §1.1)
+│           ├── instance/                #   rutas de la instancia: el framework solo versiona su README
+│           ├── hwe-bff-only.php         # ⭐ WordPress solo atiende al BFF (secreto interno)
+│           ├── hwe-content-i18n/        # traducción de contenido a N idiomas (ver §6.10)
+│           ├── hwe-geo/                 # paquetes por país (ver §6.11)
+│           ├── hwe-seo/  hwe-product-fields/  hwe-order-item-details.php  hwe-smtp.php  hwe-svg-uploads.php …
 │           ├── headless-config.php      # bloqueo del frontend nativo + CORS de GraphQL
 │           ├── security.php             # hardening (enumeración de usuarios, pingbacks…)
 │           ├── woocommerce-headless.php # ajustes Store API (nonce) + CORS
@@ -117,11 +147,12 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 │
 └── frontend/                   # Next.js (web pública + BFF)
     ├── next.config.mjs          # cabeceras de seguridad + CSP (incl. hosts analítica) + i18n
-    ├── tests/                   # unit (Vitest) + e2e (Playwright: smoke, axe, purchase opt-in)
+    ├── tests/                   # e2e (Playwright: smoke, axe, módulos, purchase opt-in) + unit sueltos; los tests de `src/` van COLOCADOS junto al código
     ├── src/
     │   ├── instrumentation.ts   # arranque: guard de secretos + Sentry + log de inicio
     │   ├── proxy.ts             # ⭐ i18n + barrera de Origin + refresh JWT (ver §6). Next 16 renombró middleware→proxy
-    │   ├── i18n/                # routing, request, navigation, messages (es/en)
+    │   ├── i18n/                # routing, request, navigation, messages (es/en + los idiomas de la instancia)
+    │   ├── instance/            # 🧩 TU código de instancia: registry.ts, config.d.ts, lib/ (ver §1.1)
     │   ├── app/
     │   │   ├── [locale]/        # ⚠️ NO es núcleo del framework (ver §1.1) — vistas heredadas
     │   │   │                    #    una vez al clonar, responsabilidad de cada instancia
@@ -140,8 +171,11 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por dominio
 (`auth/` —incl. `revocation.ts`—, `woocommerce/` —incl. `order-events.ts`—, `security/`
 —`csrf`, `rate-limit`, `idempotency`, `lock`, `replay`, `secret-guard`, `webhook`, `origin`,
-`cookies`, `sanitize`—, `catalog/`, `account/`, `payments/`, `config/`, `navigation/`,
-`http/`, `redis/`, `observability/`, `validation/`, `client/`).
+`cookies`, `sanitize`, `internal-secret`, `signed-routes`—, `catalog/`, `account/`, `payments/`,
+`config/` —incl. `modules.ts`—, `api/` —`guard`, `flags`, `modules`—, `navigation/`, `http/`,
+`redis/`, `observability/`, `validation/`, `client/`, `instance/` (tipos del contrato),
+`i18n/` (`pickLocalized`, slugs por idioma), `geo/`, `shipping/`, `landings/`, `seo/`,
+`analytics/`, `checkout/`, `blog/`, `wordpress/` —`wpFetch`—).
 
 ---
 
@@ -161,37 +195,40 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 ## 5. Estado del proyecto
 
 > Esta tabla se congela en cada release; el estado vivo entre releases está en
-> `CHANGELOG.md` (`[Sin publicar]`). Actualizada por última vez: **v1.0.0**.
+> `CHANGELOG.md` (`[Sin publicar]`). Actualizada por última vez: **v2.0.0**.
 > Estados realistas (✅ completo · 🟡 parcial · 🧪 stub).
 
 | Área | Estado |
 |------|--------|
-| Seguridad base (cabeceras, CORS, hardening, Redis) | ✅ |
-| Autenticación JWT (cookies httpOnly + refresh) | ✅ |
-| Proxy inverso a WooCommerce (BFF, ck/cs server-only) | ✅ |
-| CSRF + rate-limit + idempotencia | ✅ |
-| E-commerce (catálogo, carrito, **checkout ligado a cliente**, cuenta) | ✅ |
+| Seguridad (cabeceras, CORS, hardening, `hwe-bff-only` con secreto, guard de arranque) | ✅ |
+| Autenticación JWT (cookies httpOnly + refresh + revocación + cambio de contraseña) | ✅ |
+| Proxy inverso a WooCommerce (BFF, ck/cs server-only, `wpFetch` único) | ✅ |
+| CSRF + rate-limit + idempotencia (con fallo cerrado) | ✅ |
+| E-commerce (catálogo, carrito, checkout ligado a cliente **o de invitado**, cuenta) | ✅ |
 | Cuenta avanzada (wishlist, reseñas, direcciones — **meta atómica con lock**) | ✅ |
-| Cupones y envío (Store API) | ✅ |
+| Cupones (reglas, avisos) y envío (por ciudad, extras, gratis por regla) | ✅ (módulos `coupon-rules` y `shipping`) |
 | Verificación de email (**opcional**, con expiración de token) | 🟡 (no bloqueante) |
-| 2FA TOTP (**secreto cifrado AES-GCM + códigos de recuperación**) | ✅ |
-| SEO + i18n (next-intl, sitemap, hreflang, JSON-LD) | ✅ |
-| Analítica + consentimiento (Plausible/GA4 con opt-in + eventos e-commerce) | ✅ |
-| Pagos: capa agnóstica + `noop` funcional | ✅ |
-| Pagos: pasarelas reales (Wompi/PayU/Bold) | 🧪 stubs (pendiente integrar 1 real) |
+| 2FA TOTP (secreto cifrado AES-GCM, recuperación, **sin tokens antes del segundo factor**) | ✅ |
+| SEO + GEO (metadatos, JSON-LD, sitemap segmentado, robots y llms.txt por idioma) | ✅ |
+| i18n: contenido del CMS a N idiomas (`hwe-content-i18n`) + slugs por idioma | ✅ |
+| Paquetes por país (`hwe-geo`: dirección, documento, teléfono) | ✅ (`CO` y `generic`) |
+| Analítica + consentimiento (GA4/GTM/Plausible/Meta/TikTok/HubSpot con opt-in, CAPI) | ✅ |
+| Pagos: capa agnóstica + Wompi y Aval Pay de punta a punta + `noop` de pruebas | ✅ |
+| Pagos: PayU y Bold | 🧪 stubs (501) |
 | Webhooks de pedido (transición real + dispatcher de efectos) | 🟡 (email al cliente lo hace Woo; ganchos ERP por conectar) |
-| HWE Control Center (config central + secretos cifrados) | ✅ |
-| Menús + logo administrables desde WP (config pública) | ✅ |
-| Banners administrables (plugin HWE Banners: CPT multi-posición + REST + lector BFF) | ✅ |
-| Frontera núcleo/instancia (regla de lint) + estrategia de actualización (UPGRADE.md) | ✅ |
-| Calidad / CI/CD (unit de seguridad/auth + e2e de compra opt-in) | ✅ |
+| HWE Control Center (config central, tipos de campo extensibles, secretos cifrados, backups desde el panel) | ✅ |
+| Contrato de instancia (`mu-plugins/instance/`, `src/instance/`, registro, ejemplo vivo) + puerta anti-instancia | ✅ |
+| 9 módulos opcionales (`banners`, `shipping`, `product-landing`, `landings`, `consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`, `external-integration`) | ✅ |
+| Campos de producto y detalles de línea de pedido declarativos | ✅ |
+| Calidad / CI (lint, tipos, formato, i18n, Vitest, PHPUnit, build, audit, gitleaks, e2e con stub, «contrato», anti-instancia) | ✅ |
+| Verificación en vivo (`verify-security/modules/integration.sh`) | ✅ (la compra completa `E2E_FULL` es opt-in) |
 | Observabilidad (Sentry + pino + correlación request-id + alertas) | ✅ (métricas OTel pendientes) |
 | Empaquetado comercial (licencia, docs, white-label) | ✅ |
 
-El núcleo está **listo para producción**. Lo pendiente es endurecimiento adicional,
-una pasarela real, cobertura de tests e2e con la pila WP, y mejoras puntuales descritas
-en el plan. El flujo crítico de compra (login → carrito → checkout → pago → pedido en
-cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
+El núcleo está **listo para producción**. Lo pendiente es endurecimiento adicional, más
+paquetes de país, las pasarelas PayU/Bold, y verificar en vivo lo que el CI solo prueba con el
+stub (compra completa, segunda pasada e2e sin módulos). El flujo crítico de compra (login o
+invitado → carrito → checkout → pago por webhook → pedido en cuenta) está **íntegro**.
 
 ---
 
@@ -251,6 +288,13 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 - **Revocación de sesión**: `lib/auth/revocation.ts` (blocklist en Redis). `logout` revoca el
   access token; `getSession` lo comprueba. `app/api/auth/logout-all` rota el secreto JWT del
   usuario en WP (invalida refresh tokens). Fail-open si Redis no responde.
+- **WordPress solo atiende al BFF**: el mu-plugin `hwe-bff-only` responde 404 a GraphQL, la Store
+  API y `hwe/v1/auth|consent` salvo con `X-HWE-Internal-Secret` (= `HWE_REVALIDATION_SECRET`,
+  comparación en tiempo constante) o desde WP-CLI. **Toda** llamada del BFF a WordPress pasa por un
+  cliente que lo añade (`wpFetch` en `lib/wordpress/internal-fetch.ts`, o los clientes de GraphQL,
+  wc/v3 y Store API); un test (`lib/security/wordpress-calls.test.ts`) rompe si una ruta nueva usa
+  `fetch` a WordPress por su cuenta. `proxy.ts` es la única excepción (edge). Verificación en vivo:
+  `sh backend/scripts/verify-security.sh`.
 - **Anti-replay de webhooks**: `lib/security/replay.ts` (`markEventOnce`) en los webhooks de
   pago y de Woo (`order-created/updated`), más rate-limit por IP. Defensa frente a reenvío de
   eventos firmados capturados.
@@ -417,6 +461,43 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   `providers/<nombre>.ts`, registrarlo en `providers/index.ts`, poner sus credenciales
   server-only y `PAYMENT_PROVIDER=<nombre>`. **Sin tocar el checkout.**
 
+### 6.9 Módulos opcionales
+- Un módulo es un plugin regular `backend/wp-content/plugins/hwe-<id>/` (con `README.md` técnico
+  y `MANUAL.md` para editores). Catálogo: `banners`, `shipping`, `product-landing`, `landings`,
+  `consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`, `external-integration`
+  (qué hace cada uno: `docs/CONFIGURATION.md`, «Módulos»).
+- Se encienden con la clave `modules` de `instance.config.json` (`wp hwe setup` activa los
+  listados y **desactiva los demás**) o desde `wp-admin → Plugins`. La config pública expone
+  `modules: { <id>: boolean }`, calculado según si el plugin está activo.
+- **Con el módulo apagado**: el lector devuelve vacío o nulo, sus rutas BFF responden 404
+  (`requireModule(config, id)` en `lib/api/modules.ts`, igual que `requireFlag` para los flags de
+  la tienda) y su UI no se pinta (`isModuleEnabled`). Cada módulo registra su tag ISR en
+  `hwe_revalidation_tags`. Comprobación en vivo: `sh backend/scripts/verify-modules.sh`; en CI hay
+  una segunda pasada e2e sin módulos (`tests/e2e/modules-off.spec.ts`).
+- Añadir un módulo: ver `docs/PLUGIN_DEVELOPMENT.md` (README + MANUAL, tag ISR, lector con
+  `requireModule`, tests PHPUnit con dobles en `backend/tests/Stubs/`, stub de CI y
+  `STUB_SITE_CONFIG_EXTRA`).
+
+### 6.10 Contenido a N idiomas
+- Backend: mu-plugin `hwe-content-i18n`. Un campo declarado en el registro `hwe_translatable_fields`
+  guarda su traducción en metas `_hwe_<campo>_<sufijo>` (`pt-BR` → `pt_br`) y GraphQL expone
+  `translation(locale)` y `hweSlugFrom(postType, locale, slug)`. Los idiomas son `i18n.locales`
+  del Control Center (los secundarios; `brand.locale` es el principal).
+- Frontend: `pickLocalized(entity, field, locale)` (`lib/i18n/`) y los lectores leen
+  `translation(locale)`; cada idioma tiene su **slug** y la URL con otro slug responde **308** a la
+  canónica. Sin traducción no hay hreflang ni entrada en el sitemap. `routing.ts` debe coincidir
+  con `i18n.locales` (`instrumentation.ts` lo avisa) y cada idioma necesita su
+  `messages/<idioma>.json` (`npm run i18n:check`).
+
+### 6.11 Paquetes por país
+- `hwe-geo` (mu-plugin) sirve el paquete del país de `ecommerce.country` en `GET hwe/v1/geo`
+  (ignora parámetros): divisiones, ciudades, tipos de documento y patrones, prefijo telefónico y
+  forma de la dirección. Paquetes: `CO` y `generic` (todo texto libre); se añaden o sustituyen
+  con el filtro `hwe_geo_packs`.
+- Frontend: `getGeoPack()` (`lib/geo/`, tag ISR `geo`). Checkout, cliente y libreta de
+  direcciones validan el estado contra el paquete y responden **422** si no resuelve (no caen a
+  un valor por defecto). El módulo `customer-identity` usa los tipos de documento del paquete.
+
 ---
 
 ## 7. Convenciones que NO debes romper
@@ -438,6 +519,15 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 - **Tailwind v4 es CSS-first**: el tema vive en `globals.css` (`@theme`), no hay
   `tailwind.config`. Colores de marca (clases utilitarias, nunca hex hardcodeado):
   `brand`, `brand-dark`, `brand-light`, `secondary`, `secondary-dark`, `accent`, `surface`.
+- **Módulos y flags se respetan en el BFF**, no solo en la UI: `requireModule` / `requireFlag`
+  al inicio de la ruta (404). Un campo, ruta o texto de **una instancia concreta** no entra en el
+  núcleo: va en `mu-plugins/instance/`, `src/instance/` o un plugin `hwe-instance-*` (§1.1).
+- **Ningún fallo se traga en silencio**: lo que degrada se registra con un `event` estructurado
+  (`logReadFailure`, `logRedisFailure`, `graphql.request_failed`; `error_log('[hwe] <módulo>: …')`
+  en WordPress). Un control de seguridad que falla abierto se registra como `error`.
+- **Seguridad falla cerrada, contenido falla suave**: sin secreto/Redis/salts el control responde
+  cerrado; una lectura de contenido cae a su valor por defecto. Las fichas propagan un fallo de
+  WordPress (500) y no lo convierten en `notFound()`.
 - **La marca/URL del sitio SIEMPRE sale de `getSiteConfig()`**, nunca de una constante o env
   var leída directamente en un componente. **Los flags `config.ecommerce.*_enabled` deben
   gatear la UI correspondiente** (no solo afectar JSON-LD). Ver §6.7 y `docs/FRONTEND_CONNECT.md`.
@@ -448,13 +538,18 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 
 Desde `frontend/`:
 ```bash
-npm run dev          # desarrollo
-npx tsc --noEmit     # tipos
-npm run lint         # ESLint (flat config; `next lint` se eliminó en Next 16)
-npm run test         # tests unitarios (Vitest): seguridad, auth, pagos, validación
-npm run test:coverage# cobertura (umbrales en vitest.config.ts)
-npx next build       # ⭐ la verificación definitiva (prerender + tipos + middleware edge)
+npm run dev            # desarrollo
+npm run type-check     # tsc --noEmit
+npm run lint           # ESLint (flat config; `next lint` se eliminó en Next 16)
+npm run format:check   # Prettier (src/ y tests/); `npm run format` lo aplica
+npm run i18n:check     # paridad de mensajes entre idiomas (claves, forma, argumentos)
+npm run test           # Vitest: tests COLOCADOS junto al código + tests/unit
+npm run test:coverage  # umbrales de trinquete en vitest.config.ts (se suben, nunca se bajan)
+npm run audit:gate     # npm audit con allowlist (el gate de CI)
+npx next build         # ⭐ la verificación definitiva (prerender + tipos + middleware edge)
 ```
+Desde `backend/`: `composer test` (PHPUnit 12 + Brain Monkey; los dobles de WordPress viven en
+`tests/Stubs/`; Brain Monkey no ejecuta los callbacks de `add_filter`, usa `expectApplied`).
 
 **Pila completa — dos modos:**
 
@@ -467,9 +562,14 @@ Para desarrollo pesado, el **modo híbrido** evita la latencia de bind mounts Do
 (WordPress nativo con `php -S 0.0.0.0:8080`, DB en puerto `3307`, frontend con `npm run dev`).
 Ver `docs/INSTALL.md` y `README.md` para instrucciones detalladas.
 
-E2E (Playwright): `npx playwright test` (smoke + accesibilidad axe). El e2e de **compra
-completa** (`tests/e2e/purchase.spec.ts`) es opt-in: requiere la pila sembrada y
-`E2E_FULL=1` (opcionalmente `E2E_PRODUCT_ID`).
+E2E (Playwright): `npx playwright test` (smoke + accesibilidad axe + módulos) contra una app ya
+levantada. En CI y en local corre contra un **stub** de GraphQL/WordPress
+(`.github/scripts/stub-graphql.mjs`; la config pública del stub se amplía con
+`STUB_SITE_CONFIG_EXTRA`). El e2e de **compra completa** (`tests/e2e/purchase.spec.ts`) es
+opt-in: requiere la pila sembrada y `E2E_FULL=1` (opcionalmente `E2E_PRODUCT_ID`).
+
+**Verificación en vivo contra la pila** (lo que un mock no ve; ejecútalos al cerrar una fase):
+`sh backend/scripts/verify-security.sh`, `verify-modules.sh` y `verify-integration.sh`.
 
 **Antes de dar por terminado un cambio en el frontend, corre `next build`.** Atrapa la
 mayoría de problemas (límites server/client, RSC, edge runtime, prerender por locale).
@@ -490,12 +590,33 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 - **Rate-limit es fail-open por defecto**, pero los endpoints de auth usan `strict: true`,
   que degrada a un **contador en memoria** si Redis cae (no se queda sin límite).
 - **Sesión revocable**: `logout` revoca el access token (blocklist en `lib/auth/revocation.ts`,
-  consultada en `getSession`); `/api/auth/logout-all` rota el "user secret" en WP e invalida los
-  refresh tokens. El refresh **no rota en cada uso** (limitación del plugin WPGraphQL JWT).
+  consultada en `getSession`); `/api/auth/logout-all` y el **cambio de contraseña** rotan el "user
+  secret" en WP e invalidan de verdad los refresh tokens (el plugin JWT 0.7 no compara ese secreto
+  por sí solo: lo impone un filtro propio, `enforceRefreshTokenSecret`). El refresh **no rota en
+  cada uso** (limitación del plugin WPGraphQL JWT).
 - **`@tailwindcss/typography` YA está instalado** (en `devDependencies`): `prose` está
   disponible para las descripciones de producto. *(Corrige una nota antigua que decía lo contrario.)*
 - **Sentry YA está cableado**: `sentry.{client,server,edge}.config.ts` + `src/instrumentation.ts`.
   El logger usa `pino` con eventos estructurados.
+- **Redis es compartido entre WordPress y el BFF**: WordPress usa el prefijo `hwe-wp:` y un flush
+  *selectivo*; un `wp cache flush` a secas borraría las listas de revocación, el rate-limit y la
+  idempotencia del BFF.
+- **Un route handler solo puede exportar métodos HTTP**: la lógica pura de sitemap/robots/llms.txt
+  vive en carpetas privadas `_x/` (`app/_sitemap`, `_robots`, `_llms`).
+- **Fichas y listas con Suspense duplican texto en los tests e2e** (marcador oculto del streaming):
+  acota los `getByText` a `#main-content`. Los status HTTP de `notFound()` en vistas en streaming
+  son 200: comprueba el contenido.
+- **Tras cambiar la config del stub de CI** borra `frontend/.next/cache` y recompila: la caché de
+  datos de Next conserva la config vieja entre builds.
+- **`next` va con versión exacta**: el parche de cabeceras ISR (`scripts/patch-next-isr-headers.mjs`,
+  `postinstall`) comprueba la versión y falla ruidosamente si cambia; súbela a propósito.
+- **`WORDPRESS_PUBLIC_URL` es build-arg obligatorio** del `Dockerfile` del frontend (CSP y
+  `remotePatterns` se congelan al construir): sin ella la imagen no se construye.
+- **Tests**: los de `src/` van colocados; cada fix de seguridad se prueba en rojo contra el
+  código anterior y, si es una propiedad crítica, con una mutación. En PHPUnit 12 usa
+  `#[RunTestsInSeparateProcesses]` a nivel de clase si el test define constantes. Los tests con
+  `fetch` simulado no ven que una ruta no exista o rechace un argumento: añade la verificación en
+  vivo (`verify-*.sh`).
 - **Stripe/PayPal NO se usan**: la capa de pagos es agnóstica para pasarelas LATAM; solo
   `wompi` y `avalpay` están de punta a punta; `noop` es solo de pruebas (su webhook solo se
   atiende si es la activa) y PayU/Bold siguen siendo stubs (501).
@@ -520,7 +641,8 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 1. **Ubica el flujo** con el §6 de este documento.
 2. **Respeta el patrón BFF** y las convenciones del §7 (secretos server-only, guard en
    escrituras, navegación locale-aware, i18n paralelo).
-3. **Verifica con `next build`** (y `tsc`/`lint`) antes de declarar algo terminado.
+3. **Verifica con `next build`** (y `tsc`/`lint`/`i18n:check`, y `composer test` si tocaste PHP)
+   antes de declarar algo terminado. El CI además falla si aparece un resto de instancia (§1.1).
 4. **Sé honesto sobre lo no verificado en vivo**: muchas cosas requieren la pila Docker con
    WordPress real (login, carrito, checkout, webhooks). Si no la levantaste, dilo.
 5. **No metas secretos en el repo**: solo `.env.example` con placeholders.
@@ -532,7 +654,9 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 - **Cliente/instalación**: `docs/INSTALL.md`, `docs/CREATE_INSTANCE.md` (crear una instancia
   nueva: clonar + `wp hwe setup` + `generate-secrets.sh`), `docs/CONFIGURATION.md`,
   `docs/CUSTOMIZATION.md`, `docs/DEPLOYMENT.md`, `docs/SECURITY.md`, `docs/ACCESIBILIDAD.md`,
-  `docs/PLUGIN_DEVELOPMENT.md` (desarrollar plugins del framework).
+  `docs/PLUGIN_DEVELOPMENT.md` (el contrato núcleo ↔ instancia y desarrollar plugins y módulos).
+- **Actualizar**: `docs/UPGRADE.md` (procedimiento de actualización de una instancia y registro de
+  cambios incompatibles v1 → v2).
 - **Para agentes que van a tocar el frontend de una instancia** (recuerda §1.1: UI/vistas NO
   son núcleo del framework):
   - `docs/FRONTEND_CONNECT.md` — el contrato backend/BFF estable (GraphQL, REST del BFF,
