@@ -47,6 +47,16 @@ Este documento tiene dos partes con garantías muy distintas:
   `lib/queries.ts` como referencia del schema real en uso.
 - Caché: ISR con `revalidateTag`, invalidado on-demand por webhook de WooCommerce contra
   `POST /api/revalidate` (firma HMAC, `lib/security/webhook.ts`).
+- **Campos propios en el schema GraphQL** (mu-plugins del núcleo):
+  - `Post`, `Page`, `Product`, `ProductCategory` → `seoTitle`, `seoDescription` (null = sin
+    override; usa el título/resumen nativos).
+  - `MediaItem.isReferenceImage` (boolean): foto genérica compartida por varios productos;
+    la ficha la etiqueta como «Imagen de referencia».
+  - `RootQuery.hweFeaturedPost`: entrada destacada elegida a mano (null si no hay).
+- **Endpoints internos de WordPress** (solo con `X-HWE-Internal-Secret`, nunca desde el
+  navegador): `GET hwe/v1/best-sellers` (`{ items: [{ id, slug, qty }] }`, de las líneas de
+  pedidos pagados), `POST hwe/v1/contact`, `GET hwe/v1/payments/credentials`,
+  `GET hwe/v1/integrations/<id>`.
 
 ## A.2 Escritura y datos privados: el BFF (`app/api/*`)
 
@@ -60,7 +70,7 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
 | Tienda | `GET/POST /api/store/cart`, `POST /api/store/cart/items`, `POST /api/store/checkout`, `GET/PUT /api/store/customer`, `GET/POST/DELETE /api/store/coupons`, `GET /api/store/orders/[id]`, `GET /api/store/products`, `GET/POST/DELETE /api/store/wishlist`, `GET/POST /api/store/reviews/[productId]`, `GET/PUT /api/store/addresses`, `GET /api/store/shipping` | Proxy autorizado a la Store API / WC REST v3 de WooCommerce. |
 | Pagos | `POST /api/payments/create`, `POST /api/payments/webhook/[provider]`, `GET /api/payments/return` | Capa agnóstica de pasarela (`lib/payments/`). **La prueba de pago es el webhook verificado, nunca el `return`.** El `returnUrl` opcional de `create` debe ser del propio sitio (origen = `ALLOWED_ORIGIN`; si no, 422). |
 | Webhooks de Woo | `POST /api/webhooks/woocommerce/{order-created,order-updated}` | Firma HMAC verificada, dispara efectos (`lib/woocommerce/order-events.ts`). |
-| Utilidad | `GET /api/csrf`, `GET /api/health` (+`/live`), `POST /api/contact`, `GET /api/og`, `GET /api/icon`, `POST /api/revalidate` | Token CSRF, sondas de salud, formulario de contacto, imágenes OG/icon dinámicas, revalidación on-demand. |
+| Utilidad | `GET /api/csrf`, `GET /api/health` (+`/live`), `POST /api/contact`, `GET /api/og`, `GET /api/icon`, `POST /api/revalidate` | Token CSRF, sondas de salud, formulario de contacto (se entrega por email desde WordPress; con sesión, la identidad sale de la cuenta), imágenes OG/icon dinámicas, revalidación on-demand. |
 
 **Contrato de auth/CSRF** (aplica a cualquier frontend que consuma este BFF):
 1. Sesión en **cookies httpOnly** (nunca `localStorage` ni body) — el frontend no maneja el
@@ -90,7 +100,12 @@ design: {
   colors:     { brand, brand_dark, brand_light, secondary, secondary_dark, accent, surface, background, foreground }
   typography: { font_sans, font_url, font_heading, font_heading_url }
 }
-ecommerce: { currency, country, products_per_page, reviews_enabled, wishlist_enabled, coupons_enabled, search_enabled }
+ecommerce: { currency, price_decimals, country, products_per_page, reviews_enabled, wishlist_enabled,
+             coupons_enabled, search_enabled, checkout_login_required, free_shipping, … }
+i18n:    { locales }                      // idiomas secundarios, p. ej. "en, fr"
+modules: { banners, shipping, product-landing, landings, consent-log, site-reviews,
+           coupon-rules, customer-identity, external-integration }   // boolean cada uno
+instance: { … }                           // lo que añada la instancia (vacío en el framework)
 banners: { enabled }
 integrations: { analytics_provider, analytics_id }
 seo: { title_template, robots, google_site_verification, default_og, product_brand,
@@ -98,6 +113,16 @@ seo: { title_template, robots, google_site_verification, default_og, product_bra
        knows_about, founder_name, founder_role, founder_url }
 geo: { ai_crawlers, llms_txt_enabled, faq, content_signal }
 ```
+
+Valores **calculados** (no se guardan en el panel): `modules.<id>` es `true` si el plugin
+del módulo está activo, y `ecommerce.price_decimals` son los decimales de precio de
+WooCommerce (`null` sin Woo). Con un módulo en `false`, su UI no se pinta y sus rutas del BFF
+responden 404.
+
+**Campos traducibles.** Los marcados como traducibles (`brand.tagline`, `brand.description`,
+`geo.faq`, `geo.faq_payments` y los que marque la instancia) llegan con una variante por
+idioma de `i18n.locales`: `tagline_en`, `tagline_pt_br`… Vacía = usa el texto del idioma por
+defecto. Léelos con `pickLocalized(entity, "tagline", locale)`.
 
 Solo se exponen aquí los campos marcados `'public' => true` en `Schema.php` — los grupos
 `payments`/`integrations.smtp_*`/`backups` con campos `secret` **nunca** aparecen en esta

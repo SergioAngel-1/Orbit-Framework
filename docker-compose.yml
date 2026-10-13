@@ -65,6 +65,8 @@ services:
         define( 'WP_REDIS_PORT', 6379 );
         define( 'WP_CACHE', true );
         define( 'HWE_TRUSTED_PROXY_COUNT', ${TRUSTED_PROXY_COUNT:-1} );
+        // Login del panel en /<slug> en vez de /wp-login.php (hwe-login-slug.php). Vacío = sin mover.
+        define( 'HWE_LOGIN_SLUG', '${HWE_LOGIN_SLUG:-}' );
         if ( ! defined( 'WP_DEBUG_LOG' ) ) { define( 'WP_DEBUG_LOG', true ); }
     healthcheck:
       # Endpoint ligero (categorías con 1 post) en lugar de /wp-json/ que devuelve >1MB con WooCommerce

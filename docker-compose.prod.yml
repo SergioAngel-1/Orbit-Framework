@@ -70,6 +70,8 @@ services:
       - caddy_config:/config      # configuración Caddy persistente
     environment:
       PUBLIC_DOMAIN: "${PUBLIC_DOMAIN:?PUBLIC_DOMAIN must be set}"
+      # Mismo valor que en WordPress: Caddy enruta /<slug> al panel.
+      HWE_LOGIN_SLUG: "${HWE_LOGIN_SLUG:-}"
       ACME_EMAIL:    "${ACME_EMAIL:?ACME_EMAIL must be set}"
     depends_on:
       frontend:
@@ -147,6 +149,8 @@ services:
         define( 'WP_REDIS_PORT', 6379 );
         define( 'WP_CACHE', true );
         define( 'HWE_TRUSTED_PROXY_COUNT', ${TRUSTED_PROXY_COUNT:-1} );
+        // Login del panel en /<slug> en vez de /wp-login.php (hwe-login-slug.php). Vacío = sin mover.
+        define( 'HWE_LOGIN_SLUG', '${HWE_LOGIN_SLUG:-}' );
         define( 'DISALLOW_FILE_EDIT', true );
         define( 'DISALLOW_FILE_MODS', true );
     volumes:

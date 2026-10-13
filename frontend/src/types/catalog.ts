@@ -5,6 +5,12 @@
 export interface ProductImage {
   sourceUrl: string;
   altText: string;
+  /**
+   * Foto genérica compartida por varios productos, no la del producto
+   * (`MediaItem.isReferenceImage`, mu-plugin hwe-media-reference). Solo la trae
+   * la ficha de producto.
+   */
+  isReference?: boolean;
 }
 
 export interface CatalogProduct {

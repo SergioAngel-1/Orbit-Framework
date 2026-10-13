@@ -120,7 +120,8 @@
     "errorTitle": "No se pudieron cargar los posts.",
     "errorDescription": "Comprueba que WordPress está levantado y que WPGraphQL responde en /graphql.",
     "empty": "Todavía no hay publicaciones. Crea contenido en el panel de WordPress.",
-    "faqTitle": "Preguntas frecuentes"
+    "faqTitle": "Preguntas frecuentes",
+    "bestSellersTitle": "Más vendidos"
   },
   "blog": {
     "title": "Blog",
@@ -178,12 +179,13 @@
     "reviewRating": "Puntuación",
     "reviewSubmit": "Enviar reseña",
     "noReviews": "Todavía no hay reseñas. ¡Sé el primero!",
-    "by": "por"
+    "by": "por",
+    "referenceImage": "Imagen de referencia"
   },
   "addToCart": {
     "add": "Añadir al carrito",
     "adding": "Añadiendo…",
-    "added": "¡Añadido!"
+    "added": "✓ Añadido"
   },
   "cart": {
     "title": "Tu carrito",
@@ -391,11 +393,6 @@
     "billingAddress": "Dirección de facturación",
     "customerDetails": "Datos del cliente",
     "email": "Email"
-  },
-  "addToCart": {
-    "add": "Añadir al carrito",
-    "adding": "Añadiendo…",
-    "added": "✓ Añadido"
   },
   "common": {
     "loading": "Cargando…",

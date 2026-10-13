@@ -43,6 +43,12 @@ if (!class_exists('WP_REST_Request')) {
             return $this->params[$key] ?? null;
         }
 
+        /** Cuerpo JSON: en el stub, los mismos parámetros que se pasaron al construir. */
+        public function get_json_params(): array
+        {
+            return $this->params;
+        }
+
         public function get_header($key)
         {
             return $this->headers[self::normalizeHeader($key)] ?? null;

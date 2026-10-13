@@ -94,13 +94,25 @@ export const PRODUCTS_QUERY = /* GraphQL */ `
   }
 `;
 
+/** Productos publicados por id (p. ej. los del ranking de más vendidos). */
+export const PRODUCTS_BY_IDS_QUERY = /* GraphQL */ `
+  ${PRODUCT_CARD_FRAGMENT}
+  query ProductsByIds($ids: [Int], $first: Int = 12) {
+    products(first: $first, where: { include: $ids, status: "publish" }) {
+      nodes {
+        ...ProductCard
+      }
+    }
+  }
+`;
+
 export const PRODUCT_BY_SLUG_QUERY = /* GraphQL */ `
   ${PRODUCT_CARD_FRAGMENT}
   query ProductBySlug($slug: ID!) {
     product(id: $slug, idType: SLUG) {
       id databaseId name slug type
       seoTitle seoDescription
-      image { sourceUrl altText }
+      image { sourceUrl altText isReferenceImage }
       ... on SimpleProduct {
         onSale price regularPrice salePrice stockStatus
         shortDescription description

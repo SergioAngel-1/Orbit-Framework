@@ -39,6 +39,16 @@ paquete multi-clase.
 | `hwe-seo/` | carpeta | `fields.php`: caja, guardado, contador, columna y registro GraphQL comunes a los cuatro `hwe-*-seo.php` (que la incluyen con `require_once`). |
 | `hwe-category-seo.php` | mu-plugin | Idem por categoría de producto (`ProductCategory.seoTitle`/`seoDescription`). |
 | `hwe-featured-post.php` | mu-plugin | Selector manual de post destacado (`RootQuery.hweFeaturedPost`). |
+| `hwe-login-slug.php` | mu-plugin | Con `HWE_LOGIN_SLUG`, el login del panel pasa a `/<slug>` y `/wp-login.php` (y `/wp-admin` sin sesión) responde 404. Sin la constante, no actúa. |
+| `hwe-svg-uploads.php` | mu-plugin | Subida de SVG a la medioteca con saneado (lista de permitidos para enlaces, sin scripts, manejadores ni animaciones que reescriban enlaces). |
+| `hwe-space-hygiene.php` | mu-plugin | Al guardar, cambia los espacios duros entre palabras por normales (títulos, cuerpo de entradas y metas del filtro `hwe_hygiene_meta_keys`). |
+| `hwe-link-hygiene.php` | mu-plugin | Al guardar, quita `utm_source=chatgpt.com` (lista ampliable con `hwe_link_hygiene_utm_sources`) de los enlaces. |
+| `hwe-media-reference.php` | mu-plugin | Casilla «Imagen de referencia» en la medioteca → `MediaItem.isReferenceImage`. |
+| `hwe-admin-product-image.php` | mu-plugin | Lista de productos: filtro «Sin imagen / Con imagen» y columna de imagen ordenable. |
+| `hwe-guest-order-badge.php` | mu-plugin | Marca «Invitado» en los pedidos sin cuenta (listado y ficha). |
+| `hwe-best-sellers.php` | mu-plugin | `GET hwe/v1/best-sellers` (secreto interno): ranking desde las líneas de pedidos pagados. |
+| `hwe-order-tracking.php` | mu-plugin | Transportadora, guía y enlace de seguimiento en el pedido (`_carrier`, `_tracking_number`, `_tracking_url`). |
+| `hwe-contact.php` | mu-plugin | `POST hwe/v1/contact` (secreto interno): entrega por email el formulario de contacto del BFF. |
 | `woocommerce-email-branding.php` | mu-plugin | Branding de los emails transaccionales de WooCommerce. |
 
 ## Convención para añadir uno nuevo

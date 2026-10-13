@@ -122,6 +122,11 @@ export default async function ProductPage({
               {product.name.charAt(0)}
             </div>
           )}
+          {product.image?.isReference && (
+            <p className="absolute bottom-3 left-3 rounded-md bg-surface/90 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-900/90 dark:text-gray-200">
+              {t("referenceImage")}
+            </p>
+          )}
           {product.onSale && (
             <div className="absolute left-3 top-3">
               <Badge color="brand" variant="solid">

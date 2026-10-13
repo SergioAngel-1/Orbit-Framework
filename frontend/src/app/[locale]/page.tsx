@@ -4,10 +4,12 @@ import { LATEST_POSTS_QUERY } from "@/lib/queries";
 import { getSiteConfig } from "@/lib/config";
 import { isModuleEnabled } from "@/lib/config/modules";
 import { getBannerPlacement } from "@/lib/banners";
-import { parseFaq } from "@/lib/seo/faq";
+import { faqItems as localizedFaqItems } from "@/lib/config/faq";
+import { getBestSellingProducts } from "@/lib/catalog/best-sellers";
 import { PostCard } from "@/components/blog/post-card";
 import { FaqSection } from "@/components/seo/faq-section";
 import { HeroCarousel } from "@/components/layout/hero-carousel";
+import { ProductGrid } from "@/components/products/product-grid";
 import type { PostsQueryResponse, WPPost } from "@/types/wordpress";
 
 export const revalidate = 60;
@@ -28,8 +30,12 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [t, config] = await Promise.all([getTranslations("home"), getSiteConfig()]);
-  const faqItems = parseFaq(config.geo.faq);
+  const [t, config, bestSellers] = await Promise.all([
+    getTranslations("home"),
+    getSiteConfig(),
+    getBestSellingProducts(4),
+  ]);
+  const faqItems = localizedFaqItems(config, locale);
   const heroBanner = config.banners.enabled
     ? await getBannerPlacement("hero", locale, {
         enabled: isModuleEnabled(config, "banners"),
@@ -65,6 +71,15 @@ export default async function HomePage({
           {t("description")}
         </p>
       </section>
+
+      {bestSellers.length > 0 && (
+        <section className="mb-12" aria-labelledby="best-sellers-title">
+          <h2 id="best-sellers-title" className="mb-6 text-2xl font-bold">
+            {t("bestSellersTitle")}
+          </h2>
+          <ProductGrid products={bestSellers} />
+        </section>
+      )}
 
       {errorMessage ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">

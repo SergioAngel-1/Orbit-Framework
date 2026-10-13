@@ -1,6 +1,7 @@
 import "server-only";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import {
+  PRODUCTS_BY_IDS_QUERY,
   PRODUCTS_QUERY,
   PRODUCT_BY_SLUG_QUERY,
   PRODUCT_SLUGS_QUERY,
@@ -58,7 +59,11 @@ interface RawProductNode {
   stockStatus?: string | null;
   shortDescription?: string | null;
   description?: string | null;
-  image?: { sourceUrl: string; altText: string | null } | null;
+  image?: {
+    sourceUrl: string;
+    altText: string | null;
+    isReferenceImage?: boolean;
+  } | null;
   attributes?: { nodes: RawAttribute[] } | null;
   variations?: { nodes: RawVariation[] } | null;
   reviews?: { averageRating: number; edges: RawReview[] } | null;
@@ -81,7 +86,11 @@ function normalize(node: RawProductNode): CatalogProduct {
     stockStatus: node.stockStatus ?? null,
     shortDescription: node.shortDescription ?? null,
     image: node.image
-      ? { sourceUrl: node.image.sourceUrl, altText: node.image.altText ?? "" }
+      ? {
+          sourceUrl: node.image.sourceUrl,
+          altText: node.image.altText ?? "",
+          ...(node.image.isReferenceImage ? { isReference: true } : {}),
+        }
       : null,
   };
 }
@@ -143,6 +152,31 @@ export async function getProducts(
     products: data.products.nodes.map(normalize),
     pageInfo: data.products.pageInfo,
   };
+}
+
+/**
+ * Productos publicados por id, en el MISMO orden que `ids` (WooGraphQL no lo
+ * garantiza). Los que no existan o no estén publicados se omiten.
+ */
+export async function getProductsByIds(
+  ids: readonly number[],
+): Promise<CatalogProduct[]> {
+  if (ids.length === 0) return [];
+  const data = await fetchGraphQL<{ products: { nodes: RawProductNode[] } }>(
+    PRODUCTS_BY_IDS_QUERY,
+    {
+      variables: { ids: [...ids], first: ids.length },
+      revalidate: CATALOG_REVALIDATE,
+      tags: ["products"],
+    },
+  );
+  const byId = new Map(
+    (data.products?.nodes ?? []).map((node) => [node.databaseId, normalize(node)]),
+  );
+  return ids.flatMap((id) => {
+    const product = byId.get(id);
+    return product ? [product] : [];
+  });
 }
 
 export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {

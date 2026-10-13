@@ -58,8 +58,11 @@ function hwe_rate_limit_init(): void {
 		hwe_check_rate_limit( HWE_RL_GRAPHQL );
 	} elseif ( str_contains( $uri, '/wp-json/' ) ) {
 		hwe_check_rate_limit( HWE_RL_REST );
-	} elseif ( str_contains( $uri, 'wp-login.php' )
+	} elseif ( ( str_contains( $uri, 'wp-login.php' )
+			|| ( class_exists( 'HWE_Login_Slug' ) && HWE_Login_Slug::isLoginRequest() ) )
 		&& 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+		// `HWE_Login_Slug`: el login movido a su propia ruta (hwe-login-slug.php)
+		// tiene que seguir contando intentos, o moverlo lo dejaría sin defensa.
 		// Solo el envío de credenciales (POST): cargar la página (GET) no cuenta, para
 		// no bloquear a quien solo la visita.
 		hwe_check_rate_limit( HWE_RL_LOGIN );

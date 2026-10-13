@@ -54,6 +54,12 @@
         header >X-Frame-Options "SAMEORIGIN"
         reverse_proxy wordpress:80
     }
+    # Login movido (HWE_LOGIN_SLUG, ver hwe-login-slug.php). Sin la variable, la ruta
+    # cae en /wp-login.php y este bloque repite el anterior sin efecto.
+    handle /{$HWE_LOGIN_SLUG:wp-login.php} {
+        header >X-Frame-Options "SAMEORIGIN"
+        reverse_proxy wordpress:80
+    }
     handle /wp-cron.php {
         reverse_proxy wordpress:80
     }
