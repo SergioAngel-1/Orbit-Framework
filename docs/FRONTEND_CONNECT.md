@@ -398,7 +398,11 @@ respuesta (se gestionan aparte, ver `docs/CONFIGURATION.md`).
 `coupons_enabled`, `search_enabled`, configurables desde `wp-admin → HWE Config`): **cualquier
 frontend que los consuma debe ocultar la funcionalidad correspondiente cuando el flag es
 `false`**, no solo dejar de anunciarla en metadatos. Esto es parte del contrato, no un detalle
-de implementación de la UI heredada.
+de implementación de la UI heredada. El BFF también los respeta (`requireFlag`, como
+`requireModule` con los módulos): con el flag apagado responden **404** `/api/store/reviews/*`
+(reseñas de producto), `/api/store/wishlist` y `/api/store/products?include=` (lista de deseos),
+y `/api/store/products?search=` (búsqueda; el listado sin búsqueda sigue sirviéndose). El 403 de
+`/api/store/coupons` con `coupons_enabled` apagado se mantiene.
 
 - `brand.logo` — URL del logo de cabecera (medioteca WP). Vacío = renderizar `brand.name`
   como texto.

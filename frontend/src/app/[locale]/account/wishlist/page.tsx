@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { getSiteConfig } from "@/lib/config";
 import { requireSession } from "@/lib/auth/session";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { WishlistPageClient } from "./wishlist-page-client";
@@ -13,6 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export const dynamic = "force-dynamic";
 
 export default async function WishlistPage() {
+  // Lista de deseos apagada en el Control Center: la vista no existe.
+  if (!(await getSiteConfig()).ecommerce.wishlist_enabled) notFound();
   const t = await getTranslations("wishlist");
 
   let productIds: number[] = [];

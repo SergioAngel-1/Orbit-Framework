@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireSession } from "@/lib/auth/session";
 import { wcFetch } from "@/lib/woocommerce/client";
-import { DELETE, POST } from "./route";
+import { DELETE, GET, POST } from "./route";
 
 // ============================================================================
 //  POST / DELETE /api/store/wishlist.
@@ -14,6 +14,17 @@ import { DELETE, POST } from "./route";
 
 vi.mock("@/lib/auth/session", () => ({ requireSession: vi.fn() }));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
+// Flags de la tienda (`config.ecommerce`): por defecto, todo encendido.
+const flags = vi.hoisted(() => ({
+  reviews_enabled: true,
+  wishlist_enabled: true,
+  search_enabled: true,
+  coupons_enabled: true,
+}));
+vi.mock("@/lib/config", () => ({
+  getSiteConfig: vi.fn(async () => ({ ecommerce: flags })),
+}));
+
 vi.mock("@/lib/security/lock", () => ({
   withLock: vi.fn(async (_key: string, fn: () => Promise<unknown>) => fn()),
 }));
@@ -41,6 +52,12 @@ const puts = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  Object.assign(flags, {
+    reviews_enabled: true,
+    wishlist_enabled: true,
+    search_enabled: true,
+    coupons_enabled: true,
+  });
   vi.mocked(requireSession).mockResolvedValue({ userId: "7", token: "JWT" });
   vi.mocked(wcFetch).mockResolvedValue(wishlistMeta([1, 2]) as never);
 });
@@ -111,5 +128,30 @@ describe("comportamiento válido", () => {
     const res = await POST(request("POST", { productId: 3 }));
 
     expect(res.status).toBe(401);
+  });
+});
+
+describe("con la lista de deseos apagada en el Control Center", () => {
+  it.each(["POST", "DELETE"] as const)(
+    "%s responde 404 y no toca WooCommerce",
+    async (method) => {
+      flags.wishlist_enabled = false;
+
+      const res = await (method === "POST" ? POST : DELETE)(
+        request(method, { productId: 3 }),
+      );
+
+      expect(res.status).toBe(404);
+      expect(wcFetch).not.toHaveBeenCalled();
+    },
+  );
+
+  it("GET responde 404 aunque haya sesión", async () => {
+    flags.wishlist_enabled = false;
+
+    const res = await GET();
+
+    expect(res.status).toBe(404);
+    expect(requireSession).not.toHaveBeenCalled();
   });
 });

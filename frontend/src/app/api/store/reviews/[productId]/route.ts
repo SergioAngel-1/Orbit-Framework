@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getSiteConfig } from "@/lib/config";
+import { requireFlag } from "@/lib/api/flags";
 import { revalidateTag } from "next/cache";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { getSession } from "@/lib/auth/session";
@@ -45,6 +47,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ productId: string }> },
 ) {
+  const disabled = requireFlag(await getSiteConfig(), "reviews_enabled");
+  if (disabled) return disabled;
   const { productId } = await params;
   const pid = Number(productId);
   if (!Number.isInteger(pid) || pid <= 0) {
@@ -153,6 +157,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ productId: string }> },
 ) {
+  const disabled = requireFlag(await getSiteConfig(), "reviews_enabled");
+  if (disabled) return disabled;
   // Se resuelve la sesión ANTES del guard (no lanza, a diferencia de
   // requireSession) para poder acotar el rate-limit también por usuario vía
   // `extraId` — si no, "review:${ip}" se comparte entre TODOS los usuarios

@@ -13,6 +13,17 @@ import { GET } from "./route";
 
 vi.mock("@/lib/catalog/products", () => ({ getProducts: vi.fn() }));
 vi.mock("@/lib/security/rate-limit", () => ({ rateLimit: vi.fn() }));
+// Flags de la tienda (`config.ecommerce`): por defecto, todo encendido.
+const flags = vi.hoisted(() => ({
+  reviews_enabled: true,
+  wishlist_enabled: true,
+  search_enabled: true,
+  coupons_enabled: true,
+}));
+vi.mock("@/lib/config", () => ({
+  getSiteConfig: vi.fn(async () => ({ ecommerce: flags })),
+}));
+
 vi.mock("@/lib/woocommerce/client", () => ({ wcFetch: vi.fn() }));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -28,6 +39,12 @@ const request = (query: string, ip = "203.0.113.5") =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  Object.assign(flags, {
+    reviews_enabled: true,
+    wishlist_enabled: true,
+    search_enabled: true,
+    coupons_enabled: true,
+  });
   vi.mocked(rateLimit).mockResolvedValue(OK);
   vi.mocked(getProducts).mockResolvedValue(EMPTY as never);
 });
@@ -137,5 +154,33 @@ describe("include (ids concretos)", () => {
     await GET(request("?include=1"));
 
     expect(rateLimit).not.toHaveBeenCalled();
+  });
+});
+
+describe("con las funciones apagadas en el Control Center", () => {
+  it("búsqueda apagada: ?search= responde 404 y no consulta el catálogo", async () => {
+    flags.search_enabled = false;
+
+    const res = await GET(request("?search=camiseta"));
+
+    expect(res.status).toBe(404);
+    expect(getProducts).not.toHaveBeenCalled();
+    expect(rateLimit).not.toHaveBeenCalled();
+  });
+
+  it("búsqueda apagada: el listado sin búsqueda sigue sirviéndose", async () => {
+    flags.search_enabled = false;
+
+    expect((await GET(request("?sort=price-asc"))).status).toBe(200);
+    expect((await GET(request("?search=%20"))).status).toBe(200);
+  });
+
+  it("lista de deseos apagada: ?include= responde 404 y no consulta WooCommerce", async () => {
+    flags.wishlist_enabled = false;
+
+    const res = await GET(request("?include=1,2"));
+
+    expect(res.status).toBe(404);
+    expect(wcFetch).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getSiteConfig } from "@/lib/config";
+import { requireFlag } from "@/lib/api/flags";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
@@ -24,6 +26,8 @@ function parseWishlist(customer: WooCustomer): number[] {
 }
 
 export async function GET() {
+  const disabled = requireFlag(await getSiteConfig(), "wishlist_enabled");
+  if (disabled) return disabled;
   try {
     const session = await requireSession();
     const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
@@ -35,6 +39,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const disabled = requireFlag(await getSiteConfig(), "wishlist_enabled");
+  if (disabled) return disabled;
   const blocked = await guardMutation(request, {
     rateLimit: { name: "wishlist", limit: 30, windowSeconds: 60 },
   });
@@ -93,6 +99,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const disabled = requireFlag(await getSiteConfig(), "wishlist_enabled");
+  if (disabled) return disabled;
   const blocked = await guardMutation(request, {
     rateLimit: { name: "wishlist", limit: 30, windowSeconds: 60 },
   });

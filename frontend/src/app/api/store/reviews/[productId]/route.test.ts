@@ -24,6 +24,17 @@ import { GET, POST } from "./route";
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
+// Flags de la tienda (`config.ecommerce`): por defecto, todo encendido.
+const flags = vi.hoisted(() => ({
+  reviews_enabled: true,
+  wishlist_enabled: true,
+  search_enabled: true,
+  coupons_enabled: true,
+}));
+vi.mock("@/lib/config", () => ({
+  getSiteConfig: vi.fn(async () => ({ ecommerce: flags })),
+}));
+
 vi.mock("@/lib/security/rate-limit", () => ({ rateLimit: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
 vi.mock("@/lib/account/data", () => ({ findProductPurchase: vi.fn() }));
@@ -86,6 +97,12 @@ function alreadyReviewed(...productIds: number[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  Object.assign(flags, {
+    reviews_enabled: true,
+    wishlist_enabled: true,
+    search_enabled: true,
+    coupons_enabled: true,
+  });
   vi.mocked(getSession).mockResolvedValue({ userId: "7", token: "JWT" } as never);
   vi.mocked(findProductPurchase).mockResolvedValue({
     completed: COMPLETED,
@@ -331,5 +348,38 @@ describe("GET: elegibilidad", () => {
 
     expect(res.status).toBe(429);
     expect(findProductPurchase).not.toHaveBeenCalled();
+  });
+});
+
+describe("con las reseñas apagadas en el Control Center", () => {
+  const params = { params: Promise.resolve({ productId: "5" }) };
+
+  it("GET responde 404 y no consulta nada", async () => {
+    flags.reviews_enabled = false;
+
+    const res = await GET(
+      new Request("https://tienda.example/api/store/reviews/5"),
+      params,
+    );
+
+    expect(res.status).toBe(404);
+    expect(getSession).not.toHaveBeenCalled();
+    expect(findProductPurchase).not.toHaveBeenCalled();
+  });
+
+  it("POST responde 404 y no publica", async () => {
+    flags.reviews_enabled = false;
+
+    const res = await POST(
+      new Request("https://tienda.example/api/store/reviews/5", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(VALID),
+      }),
+      params,
+    );
+
+    expect(res.status).toBe(404);
+    expect(wcFetch).not.toHaveBeenCalled();
   });
 });

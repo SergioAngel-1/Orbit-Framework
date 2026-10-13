@@ -84,7 +84,17 @@ export default async function ProductsPage({
     getTranslations("nav"),
     getSiteConfig(),
   ]);
-  const { search, after, category, minPrice, maxPrice, sort } = await searchParams;
+  const {
+    search: requestedSearch,
+    after,
+    category,
+    minPrice,
+    maxPrice,
+    sort,
+  } = await searchParams;
+  // Búsqueda apagada en el Control Center: ni el campo ni un `?search=` a mano.
+  const searchEnabled = config.ecommerce.search_enabled;
+  const search = searchEnabled ? requestedSearch : undefined;
   const locale = await getLocale();
 
   const filters = { search, category, minPrice, maxPrice, sort };
@@ -158,22 +168,24 @@ export default async function ProductsPage({
         method="get"
         className="mb-8 flex flex-wrap items-end gap-3"
       >
-        <div>
-          <label
-            htmlFor="search"
-            className="mb-1 block text-xs font-medium text-gray-500"
-          >
-            {t("searchPlaceholder")}
-          </label>
-          <input
-            id="search"
-            type="search"
-            name="search"
-            defaultValue={search ?? ""}
-            placeholder={t("searchPlaceholder")}
-            className="w-full max-w-xs rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
-          />
-        </div>
+        {searchEnabled && (
+          <div>
+            <label
+              htmlFor="search"
+              className="mb-1 block text-xs font-medium text-gray-500"
+            >
+              {t("searchPlaceholder")}
+            </label>
+            <input
+              id="search"
+              type="search"
+              name="search"
+              defaultValue={search ?? ""}
+              placeholder={t("searchPlaceholder")}
+              className="w-full max-w-xs rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
+            />
+          </div>
+        )}
 
         <div>
           <label

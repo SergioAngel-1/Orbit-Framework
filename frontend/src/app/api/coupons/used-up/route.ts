@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { getSiteConfig } from "@/lib/config";
 import { requireModule } from "@/lib/api/modules";
+import { requireFlag } from "@/lib/api/flags";
 import { getUsedUpCouponCodes } from "@/lib/coupons/public-coupons";
 
 export const dynamic = "force-dynamic";
@@ -24,9 +25,8 @@ export async function GET() {
   const config = await getSiteConfig();
   const disabled = requireModule(config, "coupon-rules");
   if (disabled) return disabled;
-  if (!config.ecommerce.coupons_enabled) {
-    return NextResponse.json({ error: "No encontrado." }, { status: 404 });
-  }
+  const noCoupons = requireFlag(config, "coupons_enabled");
+  if (noCoupons) return noCoupons;
 
   const session = await getSession();
   const codes = session ? [...(await getUsedUpCouponCodes(session.userId))] : [];

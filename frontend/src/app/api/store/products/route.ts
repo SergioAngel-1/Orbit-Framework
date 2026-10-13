@@ -1,5 +1,7 @@
 import { routing } from "@/i18n/routing";
 import { NextResponse } from "next/server";
+import { getSiteConfig } from "@/lib/config";
+import { requireFlag } from "@/lib/api/flags";
 import { getProducts } from "@/lib/catalog/products";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { logger } from "@/lib/observability/logger";
@@ -27,6 +29,18 @@ function parseProductIds(raw: string): number[] {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const includeParam = searchParams.get("include");
+  const config = await getSiteConfig();
+
+  // `?include=` es la lista de deseos; `?search=` es la búsqueda. Apagadas en el
+  // Control Center, esas formas de la ruta no existen (el listado normal sí).
+  if (includeParam) {
+    const disabled = requireFlag(config, "wishlist_enabled");
+    if (disabled) return disabled;
+  }
+  if (searchParams.get("search")?.trim()) {
+    const disabled = requireFlag(config, "search_enabled");
+    if (disabled) return disabled;
+  }
 
   // Support fetching by specific IDs (for wishlist page)
   if (includeParam) {
