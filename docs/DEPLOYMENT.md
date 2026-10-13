@@ -200,9 +200,11 @@ a las **03:00 UTC** via cron. Respaldo:
 - `backups/uploads-YYYYMMDD-HHmmss.tar.gz` — medios de `wp-content/uploads`.
 - Retención: `BACKUP_RETAIN_DAYS` días (por defecto 14 en prod, configurable en `.env.prod`).
 
-Ver logs del backup (cada copia deja ahí su resultado **y sus fallos**):
+Ver logs del backup (cada copia, programada o manual, deja ahí su resultado **y sus fallos**;
+el cron escribe al stdout del contenedor, no a un archivo interno):
 ```bash
 docker logs hwe_backup
+ls -lt backups/ | head   # una copia nueva por día: si no aparece, el cron no corrió
 ```
 
 El contenedor `backup` conserva `cap_drop: ALL` salvo `SETUID` y `SETGID`, que `crond` necesita

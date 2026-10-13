@@ -83,14 +83,20 @@ describe("backup-entrypoint.sh: arranca con los scripts montados en solo lectura
 });
 
 describe("backup-entrypoint.sh", () => {
-  // El cron programado y el watcher de "Backup ahora" escriben en /var/log/backup.log; el
+  // El cron programado y el watcher de "Backup ahora" escriben al stdout del proceso 1, que
+  // es lo que lee `docker logs hwe_backup` (un archivo interno sería invisible y efímero); el
   // resultado de cada corrida también queda en hwe-backup-status.json, que lee el panel.
   it("programa el cron y el watcher del disparador manual", () => {
-    expect(entrypoint).toMatch(/backup-cron\.sh scheduled >> \/var\/log\/backup\.log/);
-    expect(entrypoint).toMatch(/backup-trigger-watch\.sh >> \/var\/log\/backup\.log/);
+    expect(entrypoint).toMatch(/backup-cron\.sh scheduled %s/);
+    expect(entrypoint).toMatch(/backup-trigger-watch\.sh %s/);
+    expect(entrypoint).toContain("CRON_LOG='>> /proc/1/fd/1 2>&1'");
     // Las rutas salen de la carpeta montada, no de un `/usr/local/bin` que ya no existe.
     expect(entrypoint).toContain("$SCRIPTS_DIR");
     expect(entrypoint).not.toContain("/usr/local/bin/backup");
+  });
+
+  it("la salida de las copias NO va a un archivo interno del contenedor", () => {
+    expect(entrypoint).not.toMatch(/>>\s*\/var\/log\/backup\.log/);
   });
 
   it("un fallo de `apk add` no se esconde tras el contenedor: el job fallaría después a la vista", () => {
