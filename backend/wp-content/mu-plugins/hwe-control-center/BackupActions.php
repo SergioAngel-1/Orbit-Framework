@@ -364,47 +364,41 @@ class BackupActions {
             self::redirect('import', 'invalid');
         }
 
-        Storage::setAll($decoded['hwe_config']);
-
-        $secretsImported = self::maybeImportSecrets($decoded['hwe_config_secrets'] ?? null);
-
-        self::redirect('import', $secretsImported ? 'ok' : 'ok_no_secrets');
+        $status = self::importConfig($decoded['hwe_config'], $decoded['hwe_config_secrets'] ?? null);
+        self::redirect('import', $status);
     }
 
     /**
-     * Solo instala los secretos importados si todos los que traían contenido
-     * no vacío en el export logran desencriptar con la clave local de ESTA
-     * instalación (si no había ninguno con contenido, no hay nada que
-     * verificar y no es un fallo). Si ninguno desencripta, se asume que el
-     * export viene de otro servidor (otra HWE_SECRETS_KEY) y se revierte
-     * por completo, para no dejar hwe_config_secrets con ciphertext
-     * indescifrable.
+     * Aplica un export de config. Público para poder probarlo; quien llama ya
+     * comprobó capacidad y nonce.
      *
-     * @return bool true si se importaron los secretos (o no había ninguno
-     *              que importar); false si se omitieron por no desencriptar.
+     *  · La config pasa por el saneado del schema (modo *sparse*: lo que el export
+     *    no trae se conserva) y por el mismo camino que un guardado del panel
+     *    (`AdminSave::persist`): sincroniza Woo, avisa a los módulos y revalida.
+     *    Un export manipulado no mete en `hwe_config` nada que el panel no aceptaría.
+     *  · Los secretos se descifran ANTES de escribir nada: solo se instalan si TODOS
+     *    los no vacíos descifran con la clave local, y se fusionan sin pisar con
+     *    vacíos. Si no, los secretos guardados quedan intactos (antes se
+     *    sobrescribían y, al «revertir», se vaciaban).
+     *
+     * @return 'ok'|'ok_no_secrets'
      */
-    private static function maybeImportSecrets(mixed $secretsTree): bool {
-        if (!is_array($secretsTree) || $secretsTree === []) {
-            return true;
+    public static function importConfig(array $config, mixed $secretsTree): string {
+        [$publicData] = AdminSave::sanitizeAndSplit(Schema::get(), $config, [], true);
+
+        $secrets = null;
+        if (is_array($secretsTree) && $secretsTree !== []) {
+            $secrets = SecretsStorage::decryptImported($secretsTree);
+            if ($secrets === null) {
+                error_log('[hwe] control-center: importación de config sin secretos: no descifran con la clave de este servidor; los guardados no se han tocado.');
+            }
         }
 
-        $nonEmptyCiphertexts = self::collectNonEmptyStrings($secretsTree);
-        if ($nonEmptyCiphertexts === []) {
-            update_option('hwe_config_secrets', $secretsTree, false);
-            return true;
-        }
+        AdminSave::persist($publicData, $secrets ?? [], $config);
 
-        update_option('hwe_config_secrets', $secretsTree, false);
-        $decrypted         = SecretsStorage::getAll();
-        $decryptedNonEmpty = self::collectNonEmptyStrings($decrypted);
-
-        if ($decryptedNonEmpty === []) {
-            // Ninguno desencriptó: probablemente otra clave. Revertir.
-            update_option('hwe_config_secrets', [], false);
-            return false;
-        }
-
-        return true;
+        return ($secrets === null && is_array($secretsTree) && self::collectNonEmptyStrings($secretsTree) !== [])
+            ? 'ok_no_secrets'
+            : 'ok';
     }
 
     /** @return list<string> */

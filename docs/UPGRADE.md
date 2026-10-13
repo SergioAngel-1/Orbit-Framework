@@ -280,6 +280,17 @@ git fetch framework --tags
   cliente, de `useCurrency()` (el layout raíz monta `CurrencyProvider`). El formato usa
   Intl (COP sin decimales).
 
+- **Importar config (Backups) ya no puede borrar los secretos.** Antes, si los secretos del
+  export no descifraban con la clave local, se sobrescribían y se «revertía» a vacío: importar
+  un export de otro servidor dejaba sin credenciales de pago. Ahora se verifican antes de
+  escribir nada y, si no descifran, los guardados quedan intactos. Además la config importada
+  pasa por el saneado del schema (lo que el panel no aceptaría se descarta), se fusiona (lo que
+  el export no trae se conserva) y sincroniza Woo y revalida como un guardado del panel.
+- **`wp hwe setup` dispara `hwe_control_center_saved`** (con el JSON como `$rawPost`): la
+  moneda, el checkout de invitados y el efectivo sembrados llegan a WooCommerce, y los módulos
+  que escuchan la acción actúan también al sembrar. Revalida una sola vez, tras aplicar los
+  módulos.
+
 ### Núcleo de WordPress (F4)
 
 - **Se retira `woocommerce-shipping-config.php`.** La tarifa plana y el umbral de envío gratis

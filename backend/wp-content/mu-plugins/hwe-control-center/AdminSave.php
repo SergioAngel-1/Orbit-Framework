@@ -55,21 +55,40 @@ final class AdminSave {
 
         [$publicData, $secretData] = self::sanitizeAndSplit($schema, $raw);
 
-        Storage::merge($publicData);
-        SecretsStorage::mergeNonEmpty($secretData);
-        BackupConfig::write($publicData['backups'] ?? []);
+        self::persist($publicData, $secretData, $raw);
 
-        // Contrato con la instancia y los módulos: UNA acción genérica con la configuración
-        // pública ya saneada y guardada, y el árbol `hwe_config` tal como llegó (sin sanear).
-        // Sustituye a las acciones con nombre de instancia (`hwe_control_center_<cosa>_save`),
-        // que obligaban a este archivo a leer sus claves del POST. Nonce y capacidad ya están
-        // comprobados. Va ANTES de revalidar: un handler que cambie datos propios debe haber
-        // terminado cuando el frontend vuelva a leer.
+        return AdminNotices::notice('success', __('Configuración guardada correctamente.', 'hwe'));
+    }
+
+    /**
+     * Persiste un guardado ya saneado y avisa a quien escuche. Camino ÚNICO para el
+     * formulario de wp-admin, `wp hwe setup` y la importación de config: así los tres
+     * sincronizan Woo, guardan los `external` de los módulos y revalidan igual.
+     *
+     *  · `merge` de lo público (nunca `setAll`) y secretos sin pisar con vacíos;
+     *  · la config de backups se relee ya fusionada (un guardado *sparse* sin
+     *    `backups` no debe vaciarla);
+     *  · `hwe_control_center_saved($publicData, $raw)`: contrato con la instancia y
+     *    los módulos. Sustituye a las acciones con nombre de instancia, que obligaban
+     *    a leer sus claves del POST. Va ANTES de revalidar: un handler que cambie
+     *    datos propios debe haber terminado cuando el frontend vuelva a leer.
+     *
+     * Quien llama ya comprobó permisos (nonce y capacidad, o WP-CLI).
+     *
+     * @param array<string,mixed> $publicData Saneado por `sanitizeAndSplit`.
+     * @param array<string,mixed> $secretData Saneado por `sanitizeAndSplit`.
+     * @param array<string,mixed> $raw        Árbol `hwe_config` tal como llegó.
+     */
+    public static function persist(array $publicData, array $secretData, array $raw): void {
+        Storage::merge($publicData);
+        if ($secretData !== []) {
+            SecretsStorage::mergeNonEmpty($secretData);
+        }
+        BackupConfig::write((array) Storage::get(['backups'], []));
+
         do_action('hwe_control_center_saved', $publicData, $raw);
 
         Revalidation::trigger();
-
-        return AdminNotices::notice('success', __('Configuración guardada correctamente.', 'hwe'));
     }
 
     /**

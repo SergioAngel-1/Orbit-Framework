@@ -69,14 +69,16 @@ add_action(
 // ---------------------------------------------------------------------------
 add_action(
     'hwe_control_center_saved',
-    static function ( array $publicData ): void {
-        HWE\ControlCenter\WooCurrencySync::sync( (string) ( $publicData['ecommerce']['currency'] ?? '' ) );
+    static function (): void {
+        // Se lee lo YA persistido, no `$publicData`: un `wp hwe setup` *sparse* o una
+        // importación pueden no traer la moneda y la sincronización no debe depender de eso.
+        HWE\ControlCenter\WooCurrencySync::sync( (string) HWE\ControlCenter\Storage::get( [ 'ecommerce', 'currency' ], '' ) );
         HWE\ControlCenter\WooGuestCheckoutSync::sync();
         HWE\ControlCenter\WooCashGatewaySync::sync();
         HWE\ControlCenter\FreeShippingRule::flushRates();
     },
     10,
-    1
+    0
 );
 
 // ---------------------------------------------------------------------------

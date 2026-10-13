@@ -63,16 +63,6 @@ class Cli {
         // trae se omite (no se sanea a vacío), así un JSON parcial no borra el resto.
         [$publicData, $secretData] = AdminSave::sanitizeAndSplit(Schema::get(), $data, [], true);
 
-        Storage::merge($publicData);
-        if (!empty($secretData)) {
-            SecretsStorage::mergeNonEmpty($secretData);
-        }
-        // Storage::merge() es un merge profundo (no reemplaza toda la config),
-        // así que se relee el bloque 'backups' ya fusionado en vez de usar
-        // $publicData['backups'] directamente: si el JSON no trae ese bloque,
-        // esto evita sobreescribir con un array vacío la config existente.
-        BackupConfig::write(Storage::get(['backups'], []));
-
         // Módulos opcionales: solo si el JSON trae la clave. `activate_plugin` vive en
         // wp-admin/includes/plugin.php, que WP-CLI no siempre tiene cargado.
         if (array_key_exists('modules', $data)) {
@@ -91,7 +81,11 @@ class Cli {
             ));
         }
 
-        Revalidation::trigger();
+        // Mismo camino que el guardado de wp-admin: sincroniza Woo (moneda, invitados,
+        // efectivo), deja actuar a los módulos y revalida una sola vez, ya con los
+        // módulos aplicados (`config.modules` sale de ahí). Los `external` que traiga
+        // el JSON (p. ej. metas de producto) se guardan igual que desde el panel.
+        AdminSave::persist($publicData, $secretData, $data);
 
         \WP_CLI::success("Configuración de instancia aplicada desde {$path}.");
     }

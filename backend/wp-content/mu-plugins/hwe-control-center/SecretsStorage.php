@@ -83,6 +83,23 @@ class SecretsStorage {
     }
 
     /**
+     * Descifra con la clave LOCAL un árbol cifrado que viene de fuera (el
+     * `hwe_config_secrets` de un export de config). No escribe nada.
+     *
+     * Devuelve `null` si algún valor no vacío no descifra (export de otro servidor,
+     * otra clave, dato manipulado): quien importa decide qué hacer sin haber tocado
+     * los secretos guardados. Un cifrado nunca produce cadena vacía a partir de un
+     * valor no vacío, así que un resultado vacío de un valor no vacío es un fallo.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function decryptImported(array $stored): ?array {
+        $failed = false;
+        $tree   = self::decryptTreeChecked($stored, '', $failed);
+        return $failed ? null : $tree;
+    }
+
+    /**
      * Devuelve un secreto por ruta, o el fallback si no existe.
      *
      * @param list<string> $path P. ej. ['payments','wompi','secret_key'].
@@ -262,6 +279,28 @@ class SecretsStorage {
             $result[$key] = is_array($value)
                 ? self::decryptTree($value, $childPath)
                 : self::decrypt((string) $value, $childPath);
+        }
+        return $result;
+    }
+
+    /** Como `decryptTree`, pero marca `$failed` si un valor no vacío no descifra. */
+    private static function decryptTreeChecked(array $tree, string $path, bool &$failed): array {
+        $result = [];
+        foreach ($tree as $key => $value) {
+            $childPath = $path !== '' ? "{$path}.{$key}" : (string) $key;
+            if (is_array($value)) {
+                $result[$key] = self::decryptTreeChecked($value, $childPath, $failed);
+                continue;
+            }
+            $encoded = is_string($value) ? $value : '';
+            if (!is_string($value) && $value !== null) {
+                $failed = true;
+            }
+            $plain = self::decrypt($encoded, $childPath);
+            if ($encoded !== '' && $plain === '') {
+                $failed = true;
+            }
+            $result[$key] = $plain;
         }
         return $result;
     }
