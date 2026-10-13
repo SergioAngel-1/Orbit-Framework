@@ -7,7 +7,7 @@ import { trackEvent } from "./track-event";
  * `view_item` (Meta: `ViewContent`) una vez por ficha abierta. La ficha es
  * ISR, así que los parámetros los arma el servidor (`viewItemParams`) y este
  * cliente solo los envía. La dependencia es el id del producto, no el mount:
- * navegar entre dos fichas (p. ej. el cambio Gotero ↔ Spray de Mundo Mascotas)
+ * navegar entre dos fichas (p. ej. el cambio entre dos variantes de un mismo producto)
  * puede reutilizar el componente, y cada ficha es una visita.
  */
 export function ViewItemTracker({ params }: { params: EcommerceParams }) {

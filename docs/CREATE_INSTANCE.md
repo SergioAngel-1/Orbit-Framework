@@ -100,7 +100,7 @@ puedes configurar todo manualmente en `wp-admin → HWE Config` después.
 y `frontend/src/app/globals.css`). Si el sistema de diseño de la marca tiene
 más matices que estos campos (p. ej. varios tonos de un mismo color, tipografías
 adicionales), documenta el mapeo explícitamente antes de rellenar el JSON —
-por ejemplo, para la instancia "Siu":
+por ejemplo, para una instancia con un sistema de diseño propio:
 
 | Token de marca (diseño original) | Campo `design.*` de esta instancia |
 |---|---|

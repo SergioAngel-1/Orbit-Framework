@@ -10,8 +10,7 @@ import path from "node:path";
 //                                         (sobre todo componentes).
 //
 //  Entorno: `node` por defecto. Un test de componente pide el DOM con el
-//  docblock `// @vitest-environment jsdom` en su primera línea (lo mismo que
-//  hace Siu; ver button.test.tsx). Con `globals: true` Testing Library registra
+//  docblock `// @vitest-environment jsdom` en su primera línea (ver button.test.tsx). Con `globals: true` Testing Library registra
 //  su limpieza automática entre tests.
 //
 //  Solo cubre lógica pura / de servidor que no requiere la pila Docker. Los

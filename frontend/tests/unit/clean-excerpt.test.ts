@@ -54,7 +54,7 @@ describe("cleanExcerpt — resumen legible", () => {
   });
 
   it("elimina caracteres de control y de ancho cero", () => {
-    expect(cleanExcerpt("Es\u200bencia floral\ufeff", 100)).toBe("Esencia floral");
+    expect(cleanExcerpt("Es\u200bpuma floral\ufeff", 100)).toBe("Espuma floral");
   });
 
   it("trunca por palabra completa y añade puntos suspensivos", () => {

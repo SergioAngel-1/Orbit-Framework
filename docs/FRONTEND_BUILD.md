@@ -75,7 +75,7 @@ Preguntas:
 
 ---
 
-## 4. Bloque: presencia física y atención al cliente
+## 4. Bloque: sedes físicas y atención al cliente
 
 Preguntas:
 - ¿Tienda(s) física(s)? ¿Cuántas, dónde? (nombre, dirección, teléfono, horario, si quieren
@@ -200,7 +200,7 @@ Junto con estos componentes, son igual de obligatorios los **patrones** de
 | 3. Catálogo | `CategoryCard` | El negocio tiene categorías que merecen destacarse (home o cabecera de `/products`) |
 | 3. Catálogo | `FilterChips` + `SortDropdown` | Catálogo grande que necesita filtrar/ordenar en `/products` |
 | 3. Catálogo | `SearchModal` | Piden búsqueda con resultados reales — **requiere conectar `onSearch`** (tiene un TODO explícito), no es solo activar `search_enabled` |
-| 4. Presencia física / contacto | `ContactForm` (props `email`/`phone`/`socials`/`branches`) | Casi siempre — ya conectado en `/contact`; pasa `branches`/`phone` si hay sedes físicas |
+| 4. Sedes físicas / contacto | `ContactForm` (props `email`/`phone`/`socials`/`branches`) | Casi siempre — ya conectado en `/contact`; pasa `branches`/`phone` si hay sedes físicas |
 | 5. Contenido editorial | `HeroCarousel` | La home necesita un banner rotativo de campañas/producto destacado |
 | 5. Contenido editorial | `PageHero` + `Breadcrumb` | Quieres dar identidad a cabeceras de página en vez del `<h1>` plano actual |
 | 5. Contenido editorial | `TrustBar` | Franja de confianza bajo el header — **ajusta las 4 etiquetas de ejemplo al negocio real antes de conectarla** |

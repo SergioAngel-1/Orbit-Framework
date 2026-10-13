@@ -3,8 +3,8 @@
 //  Gate de `npm audit` para CI (`npm run audit:gate`).
 //
 //  Falla ante cualquier aviso `high` o `critical` del árbol COMPLETO de
-//  dependencias (también las de desarrollo: en Siu varias altas transitivas de
-//  herramientas de build se cazaron así), salvo los de la allowlist de abajo.
+//  dependencias (también las de desarrollo: así se cazaron varias altas transitivas de
+//  herramientas de build), salvo los de la allowlist de abajo.
 //
 //  Por qué no basta `npm audit --audit-level=high`: un aviso sin versión
 //  corregida publicada dejaría CI en rojo de forma permanente y bloquearía

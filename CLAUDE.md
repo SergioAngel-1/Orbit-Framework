@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 > **Empieza por `AGENTS.md`.** Es el mapa mental completo del proyecto (arquitectura, dónde
-> vive cada flujo, convenciones, gotchas). Este CLAUDE.md solo resume lo esencial y remite a
+> vive cada flujo, convenciones, gotchas). Este CLAUDE.md solo resume lo imprescindible y remite a
 > las secciones (`§`) de `AGENTS.md` para el detalle. El idioma del proyecto (docs, comentarios,
 > UI) es **español**; código y nombres técnicos en **inglés** — mantén esa convención.
 

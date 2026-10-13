@@ -64,7 +64,7 @@ git fetch framework --tags
 
 > **Borrador en curso.** Se anota aquí, **una línea por cambio**, a medida que se hace. La
 > guía definitiva —qué cambia, por qué y los pasos de migración de cada punto, más la tabla
-> «Migrar Siu Tutuava»— se redacta al final de la v2.0.0. Una entrada marcada **(contrato)**
+> de migración de una instancia derivada— se redacta al final de la v2.0.0. Una entrada marcada **(contrato)**
 > afecta a un frontend que llame directamente al BFF o a WordPress sin usar el de este repo.
 
 ### Seguridad (F1)
@@ -547,7 +547,7 @@ git fetch framework --tags
   URL de medios al origen interno (`WORDPRESS_INTERNAL_API_URL`) para que el optimizador de
   `next/image` la alcance dentro de Docker, y sirve una variante móvil como UN `<picture>`. El
   origen interno es de servidor: en un Client Component la URL se deja tal cual. La reescritura
-  solo toca medios del WordPress propio (en Siu, cualquier host con una ruta de uploads se
+  solo toca medios del WordPress propio (antes, cualquier host con una ruta de uploads se
   desviaba a la red interna). `images.qualities` pasa a `[75, 90]` y se autoriza el origen
   interno en `remotePatterns`.
 - **`PRERENDER_LONG_TAIL=none`** deja fichas y entradas para ISR bajo demanda. El defecto
@@ -569,7 +569,7 @@ git fetch framework --tags
 
 - **Nuevo mu-plugin `hwe-content-i18n`** sustituye a `hwe-content-translation`,
   `hwe-slug-translation`, `hwe-category-translation`, `hwe-tag-translation` y
-  `hwe-blog-category-translation` de las instancias derivadas de Siu: **borra esos cinco archivos**
+  `hwe-blog-category-translation` de las instancias derivadas del framework v1: **borra esos cinco archivos**
   de `mu-plugins/` al actualizar. Las metas (`_hwe_title_en`, `_hwe_slug_en`, `_hwe_name_en`…) son
   las mismas: no hay migración de datos.
 - **(contrato) Nombres de GraphQL.** Los campos por idioma (`titleEn`, `excerptEn`, `contentEn`,

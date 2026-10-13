@@ -54,10 +54,10 @@ describe("trackingCookieNames", () => {
 
 describe("cookieDomainCandidates", () => {
   it("prueba el host y cada dominio padre registrable", () => {
-    expect(cookieDomainCandidates("www.siuesencias.com")).toEqual([
+    expect(cookieDomainCandidates("www.mitienda.example")).toEqual([
       null,
-      "siuesencias.com",
-      "www.siuesencias.com",
+      "mitienda.example",
+      "www.mitienda.example",
     ]);
   });
 

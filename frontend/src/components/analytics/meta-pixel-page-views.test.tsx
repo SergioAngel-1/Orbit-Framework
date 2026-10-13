@@ -56,7 +56,7 @@ describe("MetaPixelPageViews — un PageView por vista", () => {
     rerender(<Tracker />);
     expect(fbq).toHaveBeenCalledTimes(1);
 
-    pathname = "/tienda/formulas-siu";
+    pathname = "/tienda/camisetas";
     rerender(<Tracker />);
     expect(fbq).toHaveBeenCalledTimes(2);
   });
