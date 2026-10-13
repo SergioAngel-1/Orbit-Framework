@@ -80,7 +80,8 @@ trabajas fuera de Docker, en `frontend/.env.local`.
 
 ## Panel de control (HWE Config)
 
-La fuente única de los campos es `backend/wp-content/mu-plugins/hwe-control-center/Schema.php`;
+La fuente única de los campos es `backend/wp-content/mu-plugins/hwe-control-center/Schema.php`
+(los grupos del núcleo, por tema, en `hwe-control-center/SchemaGroups/`);
 los valores de una instancia se siembran con `wp hwe setup` desde
 `backend/scripts/instance.config.example.json`. Esto es lo que el panel expone además de
 marca/diseño/SEO:

@@ -75,7 +75,8 @@ JWT, etc. los instala `backend/scripts/setup.sh` — **no edites plugins de terc
 `plugins/`. La config de negocio la gestiona el mu-plugin **HWE Control Center**: `Schema.php`
 es la fuente única de todos los campos (los `public` salen por `/wp-json/hwe/v1/config`) y
 `Cli.php` implementa `wp hwe setup <instance.config.json>` (ver `docs/CREATE_INSTANCE.md`).
-Un campo de config nuevo se declara en `Schema.php` y se consume en el frontend vía `getSiteConfig()`,
+Un campo de config nuevo se declara en `Schema.php` (los grupos del núcleo, por tema, en
+`hwe-control-center/SchemaGroups/`) y se consume en el frontend vía `getSiteConfig()`,
 con su valor por defecto en `lib/config/defaults.ts` (`CONFIG_DEFAULTS`, fallback si WP no responde).
 
 ## El principio que lo explica todo: el BFF

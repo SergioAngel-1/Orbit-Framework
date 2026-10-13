@@ -292,7 +292,7 @@ describe("postalAddress y sedes", () => {
     const schema = readFileSync(
       join(
         __dirname,
-        "../../../../backend/wp-content/mu-plugins/hwe-control-center/Schema.php",
+        "../../../../backend/wp-content/mu-plugins/hwe-control-center/SchemaGroups/Seo.php",
       ),
       "utf8",
     );
@@ -300,7 +300,7 @@ describe("postalAddress y sedes", () => {
       /'business_type'\s*=>\s*\[[\s\S]*?'options'\s*=>\s*\[([\s\S]*?)\],\s*'description'/.exec(
         schema,
       )?.[1];
-    expect(block, "business_type no encontrado en Schema.php").toBeTruthy();
+    expect(block, "business_type no encontrado en SchemaGroups/Seo.php").toBeTruthy();
     const options = [...block!.matchAll(/'([A-Za-z]+)'\s*=>/g)].map((m) => m[1]);
     expect(options.sort()).toEqual([...BUSINESS_TYPES].sort());
   });

@@ -108,8 +108,10 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 │           ├── graphql-protection.php   # límites de profundidad/complejidad + introspección off
 │           ├── rate-limit.php           # rate-limit de /graphql y /wp-json (XFF de confianza)
 │           ├── hwe-auth.php             # ⭐ REST: reset pass, verificación email, 2FA, logout-all
+│           ├── hwe-auth/                #   su lógica por responsabilidad (traits de HWE_Auth_Endpoints)
 │           └── hwe-control-center/      # ⭐ plugin de config central + secretos cifrados (AES-GCM).
 │               ├── Schema.php               # fuente única de verdad de TODOS los campos de config
+│               ├── SchemaGroups/            #   los grupos del núcleo por tema (traits de Schema)
 │               ├── Cli.php                  # comando `wp hwe setup <json>` (ver docs/CREATE_INSTANCE.md)
 │               └── RestApi.php               # expone los campos `public` en /wp-json/hwe/v1/config
 │

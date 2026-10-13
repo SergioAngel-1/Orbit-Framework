@@ -71,8 +71,8 @@ revalidación ISR del frontend.
 
 ## 2. Añadir campos al Control Center
 
-1. **`Schema.php`** (`backend/wp-content/mu-plugins/hwe-control-center/Schema.php`) es la fuente
-   única de verdad. Añade tu grupo/campos con los tipos disponibles (`text`, `textarea`, `color`,
+1. **`Schema.php`** (`backend/wp-content/mu-plugins/hwe-control-center/Schema.php`, con los
+   grupos del núcleo por tema en `SchemaGroups/`) es la fuente única de verdad. Añade tu grupo/campos con los tipos disponibles (`text`, `textarea`, `color`,
    `url`, `email`, `select`, `boolean`, `secret`). Marca `'public' => true` SOLO si el frontend
    público debe verlo; los `secret` se cifran (AES-256-GCM) y jamás salen por la API.
 2. La UI de admin (`wp-admin → HWE Config`), el comando `wp hwe setup` y el endpoint público

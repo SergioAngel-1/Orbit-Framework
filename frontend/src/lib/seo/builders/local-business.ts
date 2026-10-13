@@ -9,7 +9,7 @@ import { cleanBase, postalAddress } from "./shared";
 
 /**
  * Tipos schema.org admitidos para una sede (`seo.business_type`). La lista
- * debe coincidir con las opciones de `Schema.php` (lo comprueba
+ * debe coincidir con las opciones de `SchemaGroups/Seo.php` (lo comprueba
  * `jsonld.test.ts`): un valor que no esté aquí vuelve a `LocalBusiness`, nunca
  * se publica un `@type` que el panel no ofreció.
  */
