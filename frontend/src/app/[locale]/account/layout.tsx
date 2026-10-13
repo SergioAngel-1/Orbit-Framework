@@ -2,8 +2,14 @@ import { Link, redirect } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { getSession } from "@/lib/auth/session";
 import { getSiteConfig } from "@/lib/config";
+import type { Metadata } from "next";
+import { privateMetadata } from "@/lib/seo/page-metadata";
 
 export const dynamic = "force-dynamic";
+
+// Toda la cuenta va `noindex, nofollow`, declarado AQUÍ y no página a página:
+// una vista nueva de la cuenta nace privada sin que nadie tenga que acordarse.
+export const metadata: Metadata = privateMetadata();
 
 export default async function AccountLayout({
   children,

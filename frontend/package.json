@@ -16,7 +16,8 @@
     "e2e": "playwright test",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
-    "i18n:check": "node scripts/check-i18n-parity.mjs"
+    "i18n:check": "node scripts/check-i18n-parity.mjs",
+    "og:generate": "node scripts/generate-og-images.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.76.2",

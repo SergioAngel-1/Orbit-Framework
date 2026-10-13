@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import type { SiteConfig } from "@/lib/config";
+import { brandDescription, brandTagline } from "@/lib/config/brand";
 
 /**
  * Generadores de imágenes de marca para SEO/GEO (Open Graph + iconos).
@@ -10,7 +11,8 @@ import type { SiteConfig } from "@/lib/config";
  * obtiene sus propias imágenes sin tocar el repo.
  *
  * Consumido por:
- *   - app/api/og/route.tsx        → tarjeta Open Graph 1200×630
+ *   - app/api/og/route.tsx        → tarjeta Open Graph 1200×630 (el `locale` llega por
+ *     query: la tarjeta de `/en` lleva su propio lema)
  *   - app/api/icon/route.tsx      → iconos PWA (manifest, 192/512)
  *   - app/icon.tsx                → favicon
  *   - app/apple-icon.tsx          → apple-touch-icon
@@ -23,12 +25,13 @@ function brandInitial(name: string): string {
 }
 
 /** Tarjeta social Open Graph / Twitter (1200×630), generada desde la marca. */
-export function renderOgCard(config: SiteConfig): ImageResponse {
+export function renderOgCard(config: SiteConfig, locale: string): ImageResponse {
   const { brand, design } = config;
   const primary = design.colors.brand || "#2563eb";
   const dark = design.colors.brand_dark || "#1e40af";
   const name = brand.name || "HeadlessWP";
-  const tagline = brand.tagline || brand.description || "";
+  const tagline =
+    brandTagline(config, locale) || brandDescription(config, locale) || "";
 
   return new ImageResponse(
     <div

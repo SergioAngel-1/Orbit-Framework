@@ -4,7 +4,15 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getCategory } from "@/lib/catalog/products";
 import { getSiteConfig } from "@/lib/config";
 import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
-import { buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
+import {
+  COLLECTION_ITEM_LIST_LIMIT,
+  buildBreadcrumbJsonLd,
+  buildCollectionPageJsonLd,
+} from "@/lib/seo/jsonld";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
+import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
+import { siteTitle } from "@/lib/seo/title";
+import { metaDescription } from "@/lib/seo/meta-description";
 import { ProductGrid } from "@/components/products/product-grid";
 import { stripHtml } from "@/lib/format";
 import { CouponNotices } from "@/components/coupons/coupon-notice";
@@ -19,14 +27,21 @@ export async function generateMetadata({
   params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
   const { locale, slug } = await params;
-  const t = await getTranslations({ locale, namespace: "products" });
+  const [t, config] = await Promise.all([
+    getTranslations({ locale, namespace: "products" }),
+    getSiteConfig(),
+  ]);
   try {
     const result = await getCategory(slug);
     if (!result) return { title: t("notFound") };
+    const canonical = alternatesFor(`/categories/${slug}`, locale);
+    const description = metaDescription(result.category.description);
     return {
-      title: result.category.name,
-      description: stripHtml(result.category.description ?? "").slice(0, 160),
-      alternates: alternatesFor(`/categories/${slug}`, locale),
+      title: siteTitle(config, result.category.name),
+      ...(description ? { description } : {}),
+      alternates: canonical,
+      openGraph: siteOpenGraph(config, locale, canonical.canonical),
+      twitter: siteTwitter(config, locale),
     };
   } catch {
     return { title: t("title") };
@@ -41,7 +56,11 @@ export default async function CategoryPage({
   const { locale, slug } = await params;
   setRequestLocale(locale);
 
-  const [t, config] = await Promise.all([getTranslations("products"), getSiteConfig()]);
+  const [t, tNav, config] = await Promise.all([
+    getTranslations("products"),
+    getTranslations("nav"),
+    getSiteConfig(),
+  ]);
 
   let result: Awaited<ReturnType<typeof getCategory>>;
   try {
@@ -51,13 +70,35 @@ export default async function CategoryPage({
   }
   if (!result) notFound();
 
+  const categoryUrl = absoluteLocalized(
+    config.brand.url,
+    `/categories/${slug}`,
+    locale,
+  );
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: tNav("home"), url: absoluteLocalized(config.brand.url, "/", locale) },
     { name: t("title"), url: absoluteLocalized(config.brand.url, "/products", locale) },
-    {
-      name: result.category.name,
-      url: absoluteLocalized(config.brand.url, `/categories/${slug}`, locale),
-    },
+    { name: result.category.name, url: categoryUrl },
   ]);
+  const collectionJsonLd =
+    result.products.length > 0
+      ? buildCollectionPageJsonLd({
+          name: result.category.name,
+          description: metaDescription(result.category.description) || undefined,
+          url: categoryUrl,
+          items: result.products
+            .slice(0, COLLECTION_ITEM_LIST_LIMIT)
+            .map((product) => ({
+              name: product.name,
+              url: absoluteLocalized(
+                config.brand.url,
+                `/products/${product.slug}`,
+                locale,
+              ),
+              image: product.image?.sourceUrl ?? null,
+            })),
+        })
+      : null;
 
   // Cupones públicos que se anuncian en esta categoría (módulo `coupon-rules` y
   // `coupons_enabled`). Página ISR: `CouponGate` filtra en el navegador.
@@ -70,8 +111,14 @@ export default async function CategoryPage({
     <div>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
       />
+      {collectionJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(collectionJsonLd) }}
+        />
+      )}
       <h1 className="mb-2 text-3xl font-extrabold tracking-tight">
         {result.category.name}
       </h1>

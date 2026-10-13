@@ -1,4 +1,5 @@
 import { buildFaqJsonLd } from "@/lib/seo/jsonld";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import type { FaqItem } from "@/lib/seo/faq";
 
 /**
@@ -15,7 +16,7 @@ export function FaqSection({ items, title }: { items: FaqItem[]; title: string }
     <section className="mt-16">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <h2 className="mb-6 text-2xl font-bold tracking-tight">{title}</h2>
       <dl className="divide-y divide-gray-200 dark:divide-gray-800">

@@ -13,4 +13,10 @@
 export interface InstanceRegistry {
   /** Tags ISR extra que `/api/revalidate` acepta además de los del núcleo. */
   revalidationTags: string[];
+  /**
+   * Manifiesto de las tarjetas sociales estáticas de la instancia
+   * (`"<vista>.<idioma>" → hash`), que escribe `npm run og:generate`. Vacío =
+   * todas las vistas usan la tarjeta dinámica de marca.
+   */
+  ogCards?: Record<string, string>;
 }

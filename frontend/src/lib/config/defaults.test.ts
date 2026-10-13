@@ -53,6 +53,7 @@ describe("CONFIG_DEFAULTS", () => {
       "seo.handling_days",
       "seo.transit_days",
       "seo.alternate_names",
+      "seo.business_type",
       "geo.faq_payments",
       "i18n.locales",
     ]) {

@@ -8,7 +8,11 @@ import { getSiteConfig } from "@/lib/config";
 import { sanitizeHtml } from "@/lib/security/sanitize";
 import { stripHtml, formatDate } from "@/lib/format";
 import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
-import { buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
+import { buildArticleJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
+import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
+import { siteTitle } from "@/lib/seo/title";
+import { metaDescription } from "@/lib/seo/meta-description";
 
 export const revalidate = 300;
 
@@ -23,23 +27,33 @@ export async function generateMetadata({
   params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
   const { locale, slug } = await params;
-  const t = await getTranslations({ locale, namespace: "blog" });
+  const [t, config] = await Promise.all([
+    getTranslations({ locale, namespace: "blog" }),
+    getSiteConfig(),
+  ]);
   try {
     const post = await getPostBySlug(slug);
     if (!post) return { title: t("notFound") };
-    const description = stripHtml(post.excerpt).slice(0, 160);
+    const description = metaDescription(post.excerpt);
     const image = post.featuredImage?.node;
+    const canonical = alternatesFor(`/blog/${slug}`, locale);
+    const images = image
+      ? [{ url: image.sourceUrl, alt: image.altText || post.title }]
+      : undefined;
     return {
-      title: post.title,
-      description,
-      alternates: alternatesFor(`/blog/${slug}`, locale),
+      title: siteTitle(config, post.title),
+      ...(description ? { description } : {}),
+      alternates: canonical,
       openGraph: {
-        title: post.title,
-        description,
+        ...siteOpenGraph(config, locale, canonical.canonical),
         type: "article",
         publishedTime: post.date,
         modifiedTime: post.modified ?? post.date,
-        images: image ? [{ url: image.sourceUrl }] : [],
+        ...(images ? { images } : {}),
+      },
+      twitter: {
+        ...siteTwitter(config, locale),
+        ...(images ? { images: images.map((i) => i.url) } : {}),
       },
     };
   } catch {
@@ -54,7 +68,11 @@ export default async function PostPage({
 }) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
-  const [t, config] = await Promise.all([getTranslations("blog"), getSiteConfig()]);
+  const [t, tNav, config] = await Promise.all([
+    getTranslations("blog"),
+    getTranslations("nav"),
+    getSiteConfig(),
+  ]);
 
   let post: Awaited<ReturnType<typeof getPostBySlug>>;
   try {
@@ -66,37 +84,32 @@ export default async function PostPage({
 
   const contentHtml = post.content ? sanitizeHtml(post.content) : "";
   const image = post.featuredImage?.node;
-  const orgBase = (config.brand.url || "").replace(/\/$/, "");
   const url = absoluteLocalized(config.brand.url, `/blog/${slug}`, locale);
   const authorNode = post.author?.node;
   const authorName = authorNode?.name ?? config.brand.name;
 
-  // Person enriquecido con los datos del perfil de WordPress (bio, web).
-  const author: Record<string, unknown> = { "@type": "Person", name: authorName };
-  if (authorNode?.url) author.url = authorNode.url;
-  if (authorNode?.description) author.description = authorNode.description;
-
-  const articleJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
+  const articleJsonLd = buildArticleJsonLd({
+    type: "BlogPosting",
     headline: post.title,
-    image: image ? [image.sourceUrl] : [],
+    description: stripHtml(post.excerpt),
+    config,
+    image: image?.sourceUrl,
+    url,
     datePublished: post.date,
     dateModified: post.modified ?? post.date,
-    author,
-    publisher: orgBase
-      ? { "@id": `${orgBase}/#organization` }
-      : { "@type": "Organization", name: config.brand.name },
-    mainEntityOfPage: url,
-    description: stripHtml(post.excerpt),
-    // speakable: bloques óptimos para asistentes de voz/IA.
-    speakable: {
-      "@type": "SpeakableSpecification",
-      cssSelector: [".post-headline", ".post-body"],
+    // Person enriquecido con los datos del perfil de WordPress (bio, web).
+    author: {
+      name: authorName,
+      url: authorNode?.url || undefined,
+      description: authorNode?.description || undefined,
     },
-  };
+    inLanguage: locale,
+    // Bloques óptimos para asistentes de voz/IA.
+    speakable: [".post-headline", ".post-body"],
+  });
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: tNav("home"), url: absoluteLocalized(config.brand.url, "/", locale) },
     { name: t("title"), url: absoluteLocalized(config.brand.url, "/blog", locale) },
     { name: post.title, url },
   ]);
@@ -105,11 +118,11 @@ export default async function PostPage({
     <article>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(articleJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
       />
 
       <nav className="mb-6 text-sm text-gray-500 dark:text-gray-400">

@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getPosts } from "@/lib/blog/posts";
-import { alternatesFor } from "@/lib/seo/urls";
+import { getSiteConfig } from "@/lib/config";
+import { pageMetadata } from "@/lib/seo/page-metadata";
+import { DERIVED_LISTING_ROBOTS, hasListingState } from "@/lib/seo/listing";
+import { siteTitle } from "@/lib/seo/title";
 import { PostCard } from "@/components/blog/post-card";
 import type { WPPost } from "@/types/wordpress";
 
@@ -10,16 +13,30 @@ export const revalidate = 60;
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "blog" });
-  return {
+  const [t, config, query] = await Promise.all([
+    getTranslations({ locale, namespace: "blog" }),
+    getSiteConfig(),
+    searchParams,
+  ]);
+  // Una página paginada es una vista derivada: `noindex, follow` y sin
+  // `alternates` (ver `lib/seo/listing.ts`).
+  if (hasListingState(query, ["after"])) {
+    return { title: siteTitle(config, t("title")), robots: DERIVED_LISTING_ROBOTS };
+  }
+  return pageMetadata({
+    config,
+    locale,
+    path: "/blog",
     title: t("title"),
     description: t("description"),
-    alternates: alternatesFor("/blog", locale),
-  };
+    view: "blog",
+  });
 }
 
 export default async function BlogPage({

@@ -3,6 +3,7 @@ import { cache } from "react";
 import { fetchRemoteConfig } from "./remote";
 
 export type { SiteConfig } from "./types";
+export { isFallbackSiteConfig } from "./remote";
 export { CONFIG_DEFAULTS } from "./defaults";
 export { buildCssVars } from "./tokens";
 

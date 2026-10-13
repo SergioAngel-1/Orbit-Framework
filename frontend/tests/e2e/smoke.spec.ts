@@ -37,6 +37,65 @@ test("robots.txt y sitemap.xml están disponibles", async ({ request }) => {
   expect((await request.get("/sitemap.xml")).status()).toBe(200);
 });
 
+test("robots.txt declara Content-Signal con señales válidas y permite /api/og", async ({
+  request,
+}) => {
+  const res = await request.get("/robots.txt");
+  const body = await res.text();
+  expect(body).toMatch(
+    /^Content-Signal: ai-train=(yes|no), search=(yes|no), ai-input=(yes|no)$/m,
+  );
+  expect(body).not.toContain("ai-retrieval");
+  expect(body).toContain("Allow: /api/og");
+  expect(body).toContain("Disallow: /en/account");
+  expect(body).toContain("Sitemap: ");
+});
+
+test("/llms.txt sale en cada idioma, con URLs del idioma", async ({ request }) => {
+  const es = await request.get("/llms.txt");
+  expect(es.status()).toBe(200);
+  expect(es.headers()["content-type"]).toContain("text/plain");
+  expect(await es.text()).toContain("## Páginas principales");
+
+  const en = await request.get("/en/llms.txt");
+  expect(en.status()).toBe(200);
+  const enBody = await en.text();
+  expect(enBody).toContain("## Main pages");
+  expect(enBody).toMatch(/\]\(https?:\/\/[^)]+\/en\/blog\)/);
+});
+
+test("el sitemap es un índice con segmentos que existen", async ({ request }) => {
+  const index = await request.get("/sitemap.xml");
+  expect(index.status()).toBe(200);
+  const xml = await index.text();
+  expect(xml).toContain("<sitemapindex");
+  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]!);
+  expect(locs.length).toBeGreaterThan(0);
+  for (const loc of locs) {
+    const res = await request.get(new URL(loc).pathname);
+    expect(res.status(), loc).toBe(200);
+    expect(await res.text()).toContain("<urlset");
+  }
+  expect((await request.get("/sitemap/inventado.xml")).status()).toBe(404);
+});
+
+test("las vistas privadas van noindex y sin canónica de la home", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    /noindex/,
+  );
+  await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
+});
+
+test("la home declara su canónica, hreflang y og:locale", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
+  await expect(page.locator('link[rel="alternate"][hreflang="en"]')).toHaveCount(1);
+  await expect(page.locator('meta[property="og:site_name"]')).toHaveCount(1);
+  await expect(page.locator('meta[property="og:locale:alternate"]')).toHaveCount(1);
+});
+
 test("la sonda de salud responde", async ({ request }) => {
   const res = await request.get("/api/health");
   expect(res.status()).toBe(200);

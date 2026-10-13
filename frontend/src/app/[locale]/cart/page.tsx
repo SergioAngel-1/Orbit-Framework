@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth/session";
 import { getSiteConfig } from "@/lib/config";
 import { isModuleEnabled } from "@/lib/config/modules";
 import { getCartCoupons } from "@/lib/coupons/public-coupons";
+import { privateMetadata } from "@/lib/seo/page-metadata";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "cart" });
-  return { title: t("title") };
+  return privateMetadata(t("title"));
 }
 
 export default async function CartPage({

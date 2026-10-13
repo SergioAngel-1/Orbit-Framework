@@ -253,6 +253,33 @@ responden **404** y el banner no encola ni guarda comprobante.
 - Una instancia con su propio banner debe llamar a estas rutas con la misma forma; el hueco de
   hidratación y la cola los resuelve `lib/analytics/consent-sync.ts`.
 
+### SEO y GEO
+
+- **`/robots.txt`**: `Content-Signal` (`search`, `ai-input`, `ai-train`) coherente con
+  `geo.ai_crawlers`; veta `/api/` y las vistas privadas por idioma, pero permite `/api/og` y
+  `/api/icon`. Con la config degradada (WordPress no respondió) omite `Sitemap:` y no se cachea.
+- **`/llms.txt`** por idioma: el canónico en la raíz y `/<idioma>/llms.txt` para los demás
+  (`app/[locale]/llms.txt`, fuera del matcher del proxy). 404 si `geo.llms_txt_enabled` es falso o
+  la config está degradada. Copy en el namespace `llms`; el nombre del cargo del responsable no
+  se publica (no tiene traducción).
+- **Sitemap segmentado**: `/sitemap.xml` es el índice y cada fichero vive en
+  `/sitemap/<segmento>.xml` (`paginas`, `catalogo`, `blog`; ciclo de vida distinto, mismas fuentes
+  de invalidación que las páginas). Sin `lastmod` si no hay fecha real; vacío con la config
+  degradada; una entidad sin traducción solo emite su idioma por defecto.
+- **Open Graph**: Next REEMPLAZA `openGraph` entero en cada página que lo declara. Los campos de
+  sitio (`og:site_name`, `og:locale` con país, `og:locale:alternate`, imagen por defecto) salen de
+  `siteOpenGraph(config, locale, canónica)`; el layout no fija `title` ni `description` (los
+  resuelve cada página). La imagen por defecto es la del panel, la tarjeta de marca de la
+  instancia (`og-cards.json`, opcional: `npm run og:generate`) o la dinámica `/api/og?locale=`.
+- **Título**: `siteTitle` aplica la plantilla (`seo.title_template`), retira del final la marca
+  que el título ya trae (`seo.alternate_names`) y quita el sufijo si el título pasa de 60
+  caracteres, sin recortar nunca el texto.
+- **Vistas derivadas/privadas**: noindex declarado por la propia vista (no solo `Disallow`); el
+  layout raíz ya NO declara `alternates` (antes la canónica de la home la heredaba toda página sin
+  canónica propia).
+- **Negocio local**: una entidad `LocalBusiness` por sede (Legal → Sedes) en `/contact`, con el
+  tipo de `seo.business_type`.
+
 ## A.3 Config pública dinámica: `GET /wp-json/hwe/v1/config`
 
 Fuente única de verdad de marca/negocio, sin auth, cacheable. Forma exacta (ver
@@ -276,9 +303,10 @@ modules: { banners, shipping, product-landing, landings, consent-log, site-revie
 instance: { … }                           // lo que añada la instancia (vacío en el framework)
 banners: { enabled }
 integrations: { analytics_provider, analytics_id }
-seo: { title_template, robots, google_site_verification, default_og, product_brand,
-       shipping_amount, return_days, return_category, organization_logo, founding_date,
-       knows_about, founder_name, founder_role, founder_url }
+seo: { title_template, robots, google_site_verification, default_og, og_image, product_brand,
+       shipping_amount, return_days, return_category, return_method, return_fees,
+       handling_days, transit_days, alternate_names, organization_logo, founding_date,
+       knows_about, founder_name, founder_role, founder_url, business_type }
 geo: { ai_crawlers, llms_txt_enabled, faq, content_signal }
 ```
 
@@ -511,10 +539,14 @@ una funcionalidad de cuenta/carrito distinta al estándar.
 5. **Diseño**: usa las clases utilitarias de marca (§A.4: `brand`, `brand-dark`, `brand-light`,
    `secondary`, `secondary-dark`, `accent`, `surface`, `font-sans`, `font-heading`) en vez de
    colores/fuentes hardcodeados.
-6. **SEO** (si la página es pública e indexable): `alternates: alternatesFor(...)` en
-   `generateMetadata`, añade la ruta a `app/sitemap.ts` si debe indexarse, y JSON-LD si aplica
-   (`lib/seo/jsonld.ts` tiene builders para `Product`, `Article`, `Person`, `BreadcrumbList`,
-   `WebSite`/`Organization`).
+6. **SEO** (si la página es pública e indexable): `generateMetadata` con `pageMetadata(...)`
+   (`lib/seo/page-metadata.ts`: título con la plantilla del sitio, descripción por palabra
+   completa, canónica + hreflang y los campos de sitio de Open Graph), la ruta en
+   `app/_sitemap/entries.ts` si debe indexarse, y JSON-LD si aplica (`lib/seo/jsonld.ts`:
+   `Product`, `Article`/`BlogPosting`, `Person`, `BreadcrumbList`, `CollectionPage`,
+   `LocalBusiness`, `VideoObject`, `Service`, `WebSite`/`Organization`; siempre serializado con
+   `safeJsonLd`). Una vista privada declara `privateMetadata()`; una vista derivada de un
+   listado (`?search=`, `?after=`) va `noindex, follow` y sin `alternates`. Ver § «SEO y GEO».
 7. **`setRequestLocale(locale)`** en páginas estáticas; `force-dynamic` solo si depende del
    usuario/sesión (ver `AGENTS.md §7`).
 8. Verifica con `npx tsc --noEmit`, `npm run test`, y `npx next build` antes de dar la vista

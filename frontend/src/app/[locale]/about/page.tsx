@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getSiteConfig } from "@/lib/config";
-import { alternatesFor } from "@/lib/seo/urls";
-import { buildPersonJsonLd } from "@/lib/seo/jsonld";
+import { absoluteLocalized } from "@/lib/seo/urls";
+import { pageMetadata } from "@/lib/seo/page-metadata";
+import { buildPageBreadcrumbJsonLd } from "@/lib/seo/breadcrumbs";
+import { buildFounderPageJsonLd } from "@/lib/seo/jsonld";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 
 export const revalidate = 300;
 
@@ -23,11 +26,14 @@ export async function generateMetadata({
     getTranslations({ locale, namespace: "about" }),
     getSiteConfig(),
   ]);
-  return {
+  return pageMetadata({
+    config,
+    locale,
+    path: "/about",
     title: t("title"),
-    description: config.brand.description?.slice(0, 160),
-    alternates: alternatesFor("/about", locale),
-  };
+    description: config.brand.description,
+    view: "about",
+  });
 }
 
 export default async function AboutPage({
@@ -37,10 +43,21 @@ export default async function AboutPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [t, config] = await Promise.all([getTranslations("about"), getSiteConfig()]);
+  const [t, tNav, config] = await Promise.all([
+    getTranslations("about"),
+    getTranslations("nav"),
+    getSiteConfig(),
+  ]);
 
   const expertise = parseList(config.seo.knows_about);
-  const person = buildPersonJsonLd(config);
+  // El mismo `@id` que el nodo del `@graph` del layout: aquí va completo.
+  const person = buildFounderPageJsonLd(
+    config,
+    absoluteLocalized(config.brand.url, "/about", locale),
+  );
+  const breadcrumb = buildPageBreadcrumbJsonLd(config, locale, tNav("home"), [
+    { name: t("title"), href: "/about" },
+  ]);
   const heading = config.legal.company || config.brand.name;
 
   return (
@@ -48,9 +65,13 @@ export default async function AboutPage({
       {person && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(person) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(person) }}
         />
       )}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumb) }}
+      />
 
       <h1 className="mb-4 text-3xl font-extrabold tracking-tight">{t("title")}</h1>
 

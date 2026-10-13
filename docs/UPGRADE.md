@@ -491,6 +491,37 @@ git fetch framework --tags
   dispositivo compartido, un comprobante ya ligado a otra cuenta **no** se reasigna (queda en la
   primera), de modo que las decisiones de una persona no se atribuyen a otra.
 
+- **SEO/GEO completo.** `lib/seo/` gana `title`, `meta-description`, `opengraph`, `page-metadata`,
+  `breadcrumbs`, `listing`, `safe-json-ld` y `og-static`; `jsonld` suma `Article`/`BlogPosting`,
+  `CollectionPage`, `LocalBusiness` por sede, `VideoObject`, `Service` y el fundador como entidad
+  del `@graph`. **Rompe:** `buildSiteGraph(config, locale, options?)` exige el idioma;
+  `buildPersonJsonLd(config)` desaparece (usa `buildFounderPageJsonLd(config, pageUrl)`);
+  `renderOgCard(config, locale)` exige el idioma; `alternatesFor`/`hreflangLanguages` aceptan
+  `{ locales }` (idiomas con traducción real); `localizedPath("/", "en")` es `/en`, no `/en/`.
+- **El layout raíz ya no declara `alternates`.** Antes toda página sin canónica propia (las privadas,
+  los legales, la 404) salía con la de la home. La home la declara ahora ella misma. Una página
+  propia de la instancia que dependiera de la heredada debe usar `pageMetadata`/`alternatesFor`.
+- **Sitemap segmentado:** `app/sitemap.ts` desaparece. `/sitemap.xml` es un índice y los ficheros
+  están en `/sitemap/{paginas,catalogo,blog}.xml`. Sin `lastmod` inventado (solo con fecha real) y
+  vacío con la config degradada. Vuelve a dar de alta `/sitemap.xml` en Search Console si lo
+  habías dado de alta por segmentos propios.
+- **`/robots.txt`:** el `Content-Signal` usa `ai-input` (la señal `ai-retrieval` que emitía la v1 no
+  existe en el borrador y un parser puede descartar la línea). Permite `/api/og` y `/api/icon`.
+- **`/llms.txt` por idioma** (`/en/llms.txt`); 404 con la config degradada. Namespace `llms.*`
+  nuevo en i18n.
+- **Config:** campo nuevo `seo.business_type` (tipo schema.org de las sedes; `LocalBusiness` por
+  defecto). `fetchRemoteConfig` pasa a 3 intentos con plazo (`CONFIG_TIMEOUT_MS`, 5 s) y devuelve
+  una config marcada (`isFallbackSiteConfig`) si WordPress no responde.
+- **Seguridad:** el JSON-LD de la FAQ (texto del CMS) se serializaba con `JSON.stringify` y un
+  `</script>` en una respuesta cerraba el bloque; ahora todo JSON-LD pasa por `safeJsonLd` y un
+  test lo impone.
+- **Vistas privadas** declaran `noindex` por sí mismas (cuenta, carrito, checkout, login,
+  registro, recuperación y verificación), no solo por `Disallow`. Las vistas derivadas de un listado
+  (`?search=`, `?category=`, `?after=`…) van `noindex, follow` y sin `alternates`.
+- **Tarjetas sociales estáticas (opcional):** `npm run og:generate` escribe `public/og/*.png` y
+  `src/instance/og-cards.json`; `src/instance/registry.ts` añade `ogCards`. Sin ellas, la tarjeta
+  dinámica de marca.
+
 ### Operación (F1)
 
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor

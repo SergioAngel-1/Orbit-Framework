@@ -9,6 +9,10 @@ import { formatPrice, stripHtml, formatDate } from "@/lib/format";
 import { getSiteConfig } from "@/lib/config";
 import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
 import { buildProductJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
+import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
+import { siteTitle } from "@/lib/seo/title";
+import { metaDescription } from "@/lib/seo/meta-description";
 import { Badge } from "@/components/ui/badge";
 import { ProductGrid } from "@/components/products/product-grid";
 import ProductActions from "@/components/products/product-actions";
@@ -33,20 +37,34 @@ export async function generateMetadata({
   params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
   const { locale, slug } = await params;
-  const t = await getTranslations({ locale, namespace: "products" });
+  const [t, config] = await Promise.all([
+    getTranslations({ locale, namespace: "products" }),
+    getSiteConfig(),
+  ]);
   try {
     const product = await getProductBySlug(slug);
     if (!product) return { title: t("notFound") };
-    const description = stripHtml(product.shortDescription ?? "").slice(0, 160);
+    const description = metaDescription(
+      product.shortDescription || product.description,
+    );
+    const canonical = alternatesFor(`/products/${slug}`, locale);
+    // Next REEMPLAZA `openGraph` entero: los campos de sitio (siteName, locale,
+    // alternateLocale) salen de `siteOpenGraph`, y la foto del producto manda
+    // sobre la tarjeta por defecto.
+    const images = product.image
+      ? [{ url: product.image.sourceUrl, alt: product.image.altText || product.name }]
+      : undefined;
     return {
-      title: product.name,
-      description,
-      alternates: alternatesFor(`/products/${slug}`, locale),
+      title: siteTitle(config, product.name),
+      ...(description ? { description } : {}),
+      alternates: canonical,
       openGraph: {
-        title: product.name,
-        description,
-        type: "website",
-        images: product.image ? [{ url: product.image.sourceUrl }] : [],
+        ...siteOpenGraph(config, locale, canonical.canonical),
+        ...(images ? { images } : {}),
+      },
+      twitter: {
+        ...siteTwitter(config, locale),
+        ...(images ? { images: images.map((image) => image.url) } : {}),
       },
     };
   } catch {
@@ -61,7 +79,11 @@ export default async function ProductPage({
 }) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
-  const [t, config] = await Promise.all([getTranslations("products"), getSiteConfig()]);
+  const [t, tNav, config] = await Promise.all([
+    getTranslations("products"),
+    getTranslations("nav"),
+    getSiteConfig(),
+  ]);
 
   let product: Awaited<ReturnType<typeof getProductBySlug>>;
   try {
@@ -84,6 +106,7 @@ export default async function ProductPage({
   });
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: tNav("home"), url: absoluteLocalized(config.brand.url, "/", locale) },
     { name: t("title"), url: absoluteLocalized(config.brand.url, "/products", locale) },
     { name: product.name, url: canonicalUrl },
   ]);
@@ -106,11 +129,11 @@ export default async function ProductPage({
     <div>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
       />
 
       {/* Medición: `view_item` una vez por ficha (la página es ISR). */}

@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+import { privateMetadata } from "@/lib/seo/page-metadata";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("resetPassword");
-  return { title: t("title") };
+  return privateMetadata(t("title"));
 }
 
 export const dynamic = "force-dynamic";

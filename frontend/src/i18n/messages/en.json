@@ -520,5 +520,66 @@
     "maxSpend": "Valid on purchases up to {amount}.",
     "accountOnly": "For registered customers only.",
     "guestHint": "<login>Sign in</login> or <register>create an account</register> to use it."
+  },
+  "llms": {
+    "sections": {
+      "pages": "Main pages",
+      "categories": "Categories",
+      "legal": "Legal",
+      "facts": "Key facts",
+      "contact": "Contact",
+      "resources": "Resources"
+    },
+    "pages": {
+      "home": {
+        "label": "Home",
+        "text": "{brand} home page."
+      },
+      "store": {
+        "label": "Shop",
+        "text": "Full product catalogue, with search and filters by category and price."
+      },
+      "blog": {
+        "label": "Blog",
+        "text": "Articles, guides and news published by the brand."
+      },
+      "about": {
+        "label": "About us",
+        "text": "Who we are: the company, its owner and its specialty."
+      },
+      "contact": {
+        "label": "Contact",
+        "text": "Contact form, company details and locations."
+      }
+    },
+    "legal": {
+      "privacy": {
+        "label": "Privacy",
+        "text": "Privacy policy and processing of personal data."
+      },
+      "cookies": {
+        "label": "Cookies",
+        "text": "Cookie policy and tracking technologies."
+      },
+      "terms": {
+        "label": "Terms",
+        "text": "Terms and conditions of use and purchase."
+      },
+      "returns": {
+        "label": "Returns",
+        "text": "Returns policy and right of withdrawal."
+      }
+    },
+    "facts": {
+      "company": "Legal name",
+      "founder": "Owner",
+      "founded": "Founded",
+      "country": "Country",
+      "currency": "Currency",
+      "contact": "Contact"
+    },
+    "categoryFallback": "Products in the {name} category.",
+    "email": "Email",
+    "sitemap": "XML sitemap"
   }
 }

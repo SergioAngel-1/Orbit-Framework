@@ -149,6 +149,8 @@ export interface SiteConfig {
     founder_name: string;
     founder_role: string;
     founder_url: string;
+    /** Tipo schema.org de cada sede (`LocalBusiness` por defecto). */
+    business_type: string;
   };
   geo: Translations<"faq" | "faq_payments"> & {
     /** 'allow' | 'search_only' | 'block' */

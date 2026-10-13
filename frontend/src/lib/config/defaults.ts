@@ -163,6 +163,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     founder_name: "",
     founder_role: "",
     founder_url: "",
+    business_type: "LocalBusiness",
   },
   geo: {
     ai_crawlers: "allow",

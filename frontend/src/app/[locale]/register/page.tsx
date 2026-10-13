@@ -4,10 +4,11 @@ import { getTranslations } from "next-intl/server";
 import { getSession } from "@/lib/auth/session";
 import { RegisterForm } from "@/components/auth/register-form";
 import { getSiteConfig } from "@/lib/config";
+import { privateMetadata } from "@/lib/seo/page-metadata";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("register");
-  return { title: t("title") };
+  return privateMetadata(t("title"));
 }
 
 export const dynamic = "force-dynamic";

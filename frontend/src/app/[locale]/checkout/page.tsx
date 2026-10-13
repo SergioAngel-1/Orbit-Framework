@@ -11,6 +11,7 @@ import { getSiteConfig } from "@/lib/config";
 import "@/lib/payments/providers"; // efecto secundario: registra las pasarelas
 import { enabledPaymentChoices } from "@/lib/payments/checkout-options";
 import { isActiveGatewaySandbox } from "@/lib/payments/registry";
+import { privateMetadata } from "@/lib/seo/page-metadata";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "checkout" });
-  return { title: t("title") };
+  return privateMetadata(t("title"));
 }
 
 export default async function CheckoutPage({

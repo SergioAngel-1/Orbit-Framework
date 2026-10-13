@@ -1,26 +1,68 @@
 import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { getProducts, getCategories } from "@/lib/catalog/products";
-import { alternatesFor } from "@/lib/seo/urls";
+import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
 import { getSiteConfig } from "@/lib/config";
+import {
+  COLLECTION_ITEM_LIST_LIMIT,
+  buildCollectionPageJsonLd,
+} from "@/lib/seo/jsonld";
+import { buildPageBreadcrumbJsonLd } from "@/lib/seo/breadcrumbs";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
+import { DERIVED_LISTING_ROBOTS, hasListingState } from "@/lib/seo/listing";
+import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
+import { viewSocialImages } from "@/lib/seo/og-static";
+import { siteTitle } from "@/lib/seo/title";
+import { metaDescription } from "@/lib/seo/meta-description";
 import { InfiniteProductGrid } from "@/components/products/infinite-product-grid";
 
 export const revalidate = 300;
 
+/** Parámetros que cambian lo que lista la página (el resto, p. ej. `utm_*`, no). */
+const LISTING_PARAMS = [
+  "search",
+  "after",
+  "category",
+  "minPrice",
+  "maxPrice",
+  "sort",
+] as const;
+
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "products" });
+  const [t, config, query] = await Promise.all([
+    getTranslations({ locale, namespace: "products" }),
+    getSiteConfig(),
+    searchParams,
+  ]);
+  const title = siteTitle(config, t("title"));
+
+  // Una vista filtrada, ordenada o paginada es derivada: `noindex, follow` y
+  // SIN `alternates` (ver `lib/seo/listing.ts`). Solo el listado base compite.
+  if (hasListingState(query, LISTING_PARAMS)) {
+    return { title, robots: DERIVED_LISTING_ROBOTS };
+  }
+
+  const canonical = alternatesFor("/products", locale);
+  const description = metaDescription(config.brand.description) || undefined;
+  const cards = viewSocialImages("products", locale, t("title"));
   return {
-    title: t("title"),
-    // Canónica autorreferencial: las variantes con filtros (?search, ?category…)
-    // apuntan al listado base para evitar duplicados indexables.
-    alternates: alternatesFor("/products", locale),
+    title,
+    ...(description ? { description } : {}),
+    alternates: canonical,
+    openGraph: {
+      ...siteOpenGraph(config, locale, canonical.canonical),
+      ...cards.openGraph,
+    },
+    twitter: { ...siteTwitter(config, locale), ...cards.twitter },
   };
 }
 
@@ -36,7 +78,11 @@ export default async function ProductsPage({
     sort?: string;
   }>;
 }) {
-  const [t, config] = await Promise.all([getTranslations("products"), getSiteConfig()]);
+  const [t, tNav, config] = await Promise.all([
+    getTranslations("products"),
+    getTranslations("nav"),
+    getSiteConfig(),
+  ]);
   const { search, after, category, minPrice, maxPrice, sort } = await searchParams;
 
   const filters = { search, category, minPrice, maxPrice, sort };
@@ -63,8 +109,49 @@ export default async function ProductsPage({
 
   const categories = await getCategories();
 
+  // CollectionPage + breadcrumb solo en la vista base: las derivadas no se
+  // indexan, y un `ItemList` de resultados de búsqueda no es la colección.
+  const isBaseView = !hasListingState(
+    { search, after, category, minPrice, maxPrice, sort },
+    LISTING_PARAMS,
+  );
+  const locale = await getLocale();
+  const collectionJsonLd =
+    isBaseView && products.length > 0
+      ? buildCollectionPageJsonLd({
+          name: t("title"),
+          url: absoluteLocalized(config.brand.url, "/products", locale),
+          items: products.slice(0, COLLECTION_ITEM_LIST_LIMIT).map((product) => ({
+            name: product.name,
+            url: absoluteLocalized(
+              config.brand.url,
+              `/products/${product.slug}`,
+              locale,
+            ),
+            image: product.image?.sourceUrl ?? null,
+          })),
+        })
+      : null;
+  const breadcrumbJsonLd = isBaseView
+    ? buildPageBreadcrumbJsonLd(config, locale, tNav("home"), [
+        { name: t("title"), href: "/products" },
+      ])
+    : null;
+
   return (
     <div>
+      {collectionJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(collectionJsonLd) }}
+        />
+      )}
+      {breadcrumbJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
+        />
+      )}
       <h1 className="mb-6 text-3xl font-extrabold tracking-tight">{t("title")}</h1>
 
       <form

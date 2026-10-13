@@ -1,4 +1,8 @@
+import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { alternatesFor } from "@/lib/seo/urls";
+import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
+import { viewSocialImages } from "@/lib/seo/og-static";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { LATEST_POSTS_QUERY } from "@/lib/queries";
 import { getSiteConfig } from "@/lib/config";
@@ -13,6 +17,27 @@ import { ProductGrid } from "@/components/products/product-grid";
 import type { PostsQueryResponse, WPPost } from "@/types/wordpress";
 
 export const revalidate = 60;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const config = await getSiteConfig();
+  // El título y la descripción son los del layout (marca y descripción del
+  // CMS): aquí solo lo que es propio de la home, su canónica y su tarjeta.
+  const canonical = alternatesFor("/", locale);
+  const cards = viewSocialImages("home", locale, config.brand.name);
+  return {
+    alternates: canonical,
+    openGraph: {
+      ...siteOpenGraph(config, locale, canonical.canonical),
+      ...cards.openGraph,
+    },
+    twitter: { ...siteTwitter(config, locale), ...cards.twitter },
+  };
+}
 
 async function getLatestPosts(): Promise<WPPost[]> {
   const data = await fetchGraphQL<PostsQueryResponse>(LATEST_POSTS_QUERY, {

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { deepMerge, fetchRemoteConfig } from "./remote";
+import {
+  configTimeoutMs,
+  deepMerge,
+  fetchRemoteConfig,
+  isFallbackSiteConfig,
+} from "./remote";
 import { CONFIG_DEFAULTS } from "./defaults";
 import { logger } from "@/lib/observability/logger";
 
@@ -109,6 +114,94 @@ describe("fetchRemoteConfig — merge de config remota", () => {
       }),
       expect.any(String),
     );
+  });
+});
+
+describe("fetchRemoteConfig — reintentos y marca de fallback", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Respuestas en orden: cada una es un status o un cuerpo ok. */
+  function sequence(...steps: Array<number | Record<string, unknown>>) {
+    const fn = vi.fn(async () => {
+      const step = steps.shift() ?? 503;
+      return typeof step === "number"
+        ? ({ ok: false, status: step, json: async () => ({}) } as Response)
+        : ({ ok: true, json: async () => step } as Response);
+    });
+    vi.stubGlobal("fetch", fn as unknown as typeof fetch);
+    return fn;
+  }
+
+  async function run() {
+    vi.useFakeTimers();
+    const pending = fetchRemoteConfig();
+    await vi.runAllTimersAsync();
+    return pending;
+  }
+
+  it("reintenta un 5xx y se queda con la config real si el segundo intento responde", async () => {
+    const fn = sequence(503, { brand: { name: "Mi Tienda" } });
+
+    const config = await run();
+
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(config.brand.name).toBe("Mi Tienda");
+    expect(isFallbackSiteConfig(config)).toBe(false);
+  });
+
+  it("no reintenta un 4xx: es determinista y alargaría el render", async () => {
+    const fn = sequence(404);
+
+    const config = await run();
+
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(isFallbackSiteConfig(config)).toBe(true);
+  });
+
+  it("agota tres intentos y devuelve los defaults MARCADOS como fallback", async () => {
+    const fn = sequence(503, 503, 503);
+
+    const config = await run();
+
+    expect(fn).toHaveBeenCalledTimes(3);
+    expect(config).toEqual(CONFIG_DEFAULTS);
+    expect(isFallbackSiteConfig(config)).toBe(true);
+    // La marca no ensucia la fuente: CONFIG_DEFAULTS sigue siendo la misma.
+    expect(isFallbackSiteConfig(CONFIG_DEFAULTS)).toBe(false);
+  });
+
+  it("cada intento lleva su plazo (AbortSignal)", async () => {
+    const fn = sequence({ brand: { name: "X" } });
+
+    await run();
+
+    const init = (fn.mock.calls[0] as unknown as [string, RequestInit])[1];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe("configTimeoutMs — el plazo que decide si un build tarda minutos u horas", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("5 s por defecto, que es lo correcto SIRVIENDO", () => {
+    vi.stubEnv("CONFIG_TIMEOUT_MS", "");
+    expect(configTimeoutMs()).toBe(5000);
+  });
+
+  it("CONFIG_TIMEOUT_MS lo sube para el build", () => {
+    vi.stubEnv("CONFIG_TIMEOUT_MS", "20000");
+    expect(configTimeoutMs()).toBe(20000);
+  });
+
+  it("un valor inservible cae al default en vez de dejar el fetch sin corte", () => {
+    vi.stubEnv("CONFIG_TIMEOUT_MS", "abc");
+    expect(configTimeoutMs()).toBe(5000);
+    vi.stubEnv("CONFIG_TIMEOUT_MS", "-1");
+    expect(configTimeoutMs()).toBe(5000);
   });
 });
 

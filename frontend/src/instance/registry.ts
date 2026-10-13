@@ -1,4 +1,5 @@
 import type { InstanceRegistry } from "@/lib/instance/types";
+import ogCards from "./og-cards.json";
 
 /**
  * Registro de LA INSTANCIA (una tienda concreta construida sobre el framework).
@@ -12,7 +13,10 @@ import type { InstanceRegistry } from "@/lib/instance/types";
  * Rellena aquí los datos que el núcleo sabe leer (ver `InstanceRegistry`):
  * - `revalidationTags`: tags ISR extra para `/api/revalidate` (p. ej. `["example"]`).
  *   El plugin de WordPress debe registrar el mismo tag con `hwe_revalidation_tags`.
+ * - `ogCards`: manifiesto de las tarjetas sociales por vista (lo escribe
+ *   `npm run og:generate` en `og-cards.json`; vacío = tarjeta dinámica de marca).
  */
 export const instanceRegistry: InstanceRegistry = {
   revalidationTags: [],
+  ogCards,
 };

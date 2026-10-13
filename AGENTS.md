@@ -125,7 +125,8 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
     │   │   │                    #    una vez al clonar, responsabilidad de cada instancia
     │   │   ├── api/             # ⭐ el BFF (SÍ es núcleo): auth (+2fa,+email,+logout-all), store,
     │   │   │                    #    payments, webhooks, csrf, revalidate, health (+/live), contact
-    │   │   ├── sitemap.ts  robots.txt/route.ts  manifest.ts  not-found.tsx  layout.tsx (passthrough)
+    │   │   ├── sitemap.xml/ sitemap/[segmento]/ _sitemap/  robots.txt/ _robots/  llms.txt/ _llms/
+    │   │   ├── manifest.ts  not-found.tsx  layout.tsx (passthrough)
     │   ├── components/          # ⚠️ NO es núcleo del framework, salvo `ui/` (primitivas sin negocio).
     │   │                        #    layout/marketing/products/forms/cart/checkout/account/auth/i18n
     │   │                        #    se heredan al clonar y pasan a ser responsabilidad de la instancia.
@@ -328,8 +329,10 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   marca/negocio en el frontend: hace fetch server-only (cacheado con `cache()` de React) a
   `/wp-json/hwe/v1/config` con fallback a `CONFIG_DEFAULTS` si WP no responde. **No existe
   ningún otro sitio "estático" con la URL/marca del sitio** — si ves un valor de marca
-  hardcodeado o un import que no sea `getSiteConfig()`, es un bug (había uno: `sitemap.ts` y
-  `robots.txt` usaban una URL de build-time en vez de `config.brand.url`; corregido).
+  hardcodeado o un import que no sea `getSiteConfig()`, es un bug (había uno: el sitemap y
+  `robots.txt` usaban una URL de build-time en vez de `config.brand.url`; corregido). Si WordPress no
+  responde, `isFallbackSiteConfig(config)` lo dice: quien publica URLs absolutas (sitemap, robots,
+  llms.txt) se calla en vez de publicar el dominio por defecto.
 - **Flags de funcionalidad opcional** (`config.ecommerce.reviews_enabled`, `wishlist_enabled`,
   `coupons_enabled`, `search_enabled`, configurables desde `wp-admin → HWE Config`): **toda
   vista que renderice esa funcionalidad debe comprobar el flag primero**. Ejemplos ya
@@ -355,9 +358,14 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   `i18n/navigation.ts` (no los de `next/*`), o se pierde el idioma al navegar.
 - **Textos**: `i18n/messages/es.json` y `en.json` (mantenlos paralelos). Selector:
   `components/i18n/locale-switcher.tsx`.
-- **SEO**: `app/sitemap.ts` (URLs + hreflang), `app/robots.txt/route.ts`, `app/manifest.ts`,
-  metadatos + JSON-LD en `app/[locale]/layout.tsx` y en la ficha de producto — todos leen
-  `getSiteConfig()`, ninguno tiene la URL o la marca hardcodeada.
+- **SEO/GEO**: `lib/seo/` es la única fuente (`jsonld`, `opengraph`, `title`, `meta-description`,
+  `page-metadata`, `urls`, `breadcrumbs`, `listing`, `safe-json-ld`, `og-static`). Rutas de máquina:
+  sitemap segmentado (`app/_sitemap/entries.ts`), `robots.txt` (`app/_robots/build.ts`) y
+  `llms.txt` por idioma (`app/_llms/build.ts`); las funciones puras viven en carpetas privadas
+  `_x/` porque un route handler solo puede exportar métodos HTTP. Toda página indexable declara
+  `pageMetadata`; toda vista privada `privateMetadata` (lo impone un test sobre `PRIVATE_PATHS`);
+  todo JSON-LD pasa por `safeJsonLd`. Todo lee `getSiteConfig()`, nada tiene la URL o la marca
+  hardcodeada.
 - **Analítica/consentimiento**: `components/analytics/` (banner opt-in) y `lib/analytics/`. Los
   servicios (GA4, GTM, Plausible, Meta Pixel + Conversions API, TikTok, HubSpot) salen de
   `config.integrations` (Control Center); `resolveTrackingServices` es la ÚNICA fuente de qué hay

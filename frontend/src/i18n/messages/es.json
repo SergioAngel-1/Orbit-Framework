@@ -520,5 +520,66 @@
     "maxSpend": "Válido en compras de hasta {amount}.",
     "accountOnly": "Exclusivo para clientes con cuenta.",
     "guestHint": "<login>Inicia sesión</login> o <register>crea tu cuenta</register> para usarlo."
+  },
+  "llms": {
+    "sections": {
+      "pages": "Páginas principales",
+      "categories": "Categorías",
+      "legal": "Legal",
+      "facts": "Datos clave",
+      "contact": "Contacto",
+      "resources": "Recursos"
+    },
+    "pages": {
+      "home": {
+        "label": "Inicio",
+        "text": "Página principal de {brand}."
+      },
+      "store": {
+        "label": "Tienda",
+        "text": "Catálogo completo de productos, con búsqueda y filtros por categoría y precio."
+      },
+      "blog": {
+        "label": "Blog",
+        "text": "Artículos, guías y novedades publicados por la marca."
+      },
+      "about": {
+        "label": "Nosotros",
+        "text": "Quiénes somos: la empresa, su responsable y su especialidad."
+      },
+      "contact": {
+        "label": "Contacto",
+        "text": "Formulario de contacto, datos de la empresa y sedes."
+      }
+    },
+    "legal": {
+      "privacy": {
+        "label": "Privacidad",
+        "text": "Política de privacidad y tratamiento de datos personales."
+      },
+      "cookies": {
+        "label": "Cookies",
+        "text": "Política de cookies y tecnologías de seguimiento."
+      },
+      "terms": {
+        "label": "Términos",
+        "text": "Términos y condiciones de uso y de compra."
+      },
+      "returns": {
+        "label": "Devoluciones",
+        "text": "Política de devoluciones y derecho de desistimiento."
+      }
+    },
+    "facts": {
+      "company": "Razón social",
+      "founder": "Responsable",
+      "founded": "Fundación",
+      "country": "País",
+      "currency": "Moneda",
+      "contact": "Contacto"
+    },
+    "categoryFallback": "Productos de la categoría {name}.",
+    "email": "Email",
+    "sitemap": "Sitemap XML"
   }
 }

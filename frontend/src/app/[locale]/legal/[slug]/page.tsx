@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
+import { getSiteConfig } from "@/lib/config";
+import { pageMetadata } from "@/lib/seo/page-metadata";
+import { buildPageBreadcrumbJsonLd } from "@/lib/seo/breadcrumbs";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 
 const SLUGS = ["privacy", "cookies", "terms", "returns"] as const;
 type LegalSlug = (typeof SLUGS)[number];
@@ -27,8 +31,16 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, slug } = await params;
   if (!isLegalSlug(slug)) return {};
-  const t = await getTranslations({ locale, namespace: "legal" });
-  return { title: t(`${slug}.title`) };
+  const [t, config] = await Promise.all([
+    getTranslations({ locale, namespace: "legal" }),
+    getSiteConfig(),
+  ]);
+  return pageMetadata({
+    config,
+    locale,
+    path: `/legal/${slug}`,
+    title: t(`${slug}.title`),
+  });
 }
 
 export default async function LegalPage({
@@ -40,11 +52,22 @@ export default async function LegalPage({
   if (!isLegalSlug(slug)) notFound();
   setRequestLocale(locale);
 
-  const t = await getTranslations("legal");
+  const [t, tNav, config] = await Promise.all([
+    getTranslations("legal"),
+    getTranslations("nav"),
+    getSiteConfig(),
+  ]);
   const sections = t.raw(`${slug}.sections`) as Section[];
+  const breadcrumbJsonLd = buildPageBreadcrumbJsonLd(config, locale, tNav("home"), [
+    { name: t(`${slug}.title`), href: `/legal/${slug}` },
+  ]);
 
   return (
     <article className="mx-auto max-w-2xl">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
+      />
       <h1 className="text-3xl font-extrabold tracking-tight">{t(`${slug}.title`)}</h1>
       <p className="mt-2 text-sm text-gray-500">{t("disclaimer")}</p>
 

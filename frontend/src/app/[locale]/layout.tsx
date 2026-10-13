@@ -16,7 +16,12 @@ import { getSiteConfig } from "@/lib/config";
 import { isModuleEnabled } from "@/lib/config/modules";
 import { CurrencyProvider } from "@/components/ui/currency-context";
 import { getMenu } from "@/lib/navigation/menu";
+import { brandDescription } from "@/lib/config/brand";
 import { buildSiteGraph } from "@/lib/seo/jsonld";
+import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
+import { absoluteLocalized } from "@/lib/seo/urls";
+import { resolveTitleTemplate } from "@/lib/seo/title";
+import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -40,63 +45,62 @@ export async function generateMetadata({
   ]);
 
   const siteName = config.brand.name || t("name");
+  // La descripción de marca sale del CMS (Control Center → Marca), igual que el
+  // nombre y la URL. `site.description` de i18n es el texto de plantilla del
+  // framework: si se usara aquí, TODA página que no declare su propio
+  // `openGraph` lo heredaría al compartirse por WhatsApp o redes.
+  const siteDescription = brandDescription(config, locale) || t("description");
 
   // Plantilla de título configurable (Control Center → SEO & GEO).
   // %site% se sustituye aquí; %s lo resuelve Next con el título de cada página.
-  const titleTemplate = (config.seo.title_template || "%s · %site%").replaceAll(
-    "%site%",
-    siteName,
-  );
+  const titleTemplate = resolveTitleTemplate(config.seo.title_template, siteName);
 
   // Indexación por defecto según el módulo SEO & GEO (index/follow vs noindex).
   const noindex = config.seo.robots === "noindex,nofollow";
-
-  // Imagen OG: dinámica desde la marca (/api/og) o URL personalizada del panel.
-  const ogImage =
-    config.seo.default_og === "custom" && config.seo.og_image
-      ? config.seo.og_image
-      : "/api/og";
 
   return {
     title: {
       default: siteName,
       template: titleTemplate,
     },
-    description: t("description"),
+    description: siteDescription,
     metadataBase: new URL(config.brand.url || "http://localhost:3000"),
     robots: { index: !noindex, follow: !noindex },
-    alternates: {
-      canonical: locale === routing.defaultLocale ? "/" : `/${locale}`,
-      languages: { es: "/", en: "/en", "x-default": "/" },
-    },
-    openGraph: {
-      title: siteName,
-      description: t("description"),
-      siteName,
-      type: "website",
-      locale,
-      images: [{ url: ogImage, width: 1200, height: 630, alt: siteName }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: siteName,
-      description: t("description"),
-      creator: config.social.twitter || undefined,
-      images: [ogImage],
-    },
+    // Sin `alternates` aquí a propósito: Next los HEREDA en cada página que no
+    // declare los suyos, y todas las vistas sin canónica propia (privadas,
+    // 404) saldrían con la de la home. La home y cada página indexable la
+    // declaran con `pageMetadata` / `alternatesFor`.
+    // Los campos de SITIO (siteName, locale, alternateLocale, imagen por
+    // defecto) salen del mismo helper que usa cada página: Next reemplaza el
+    // objeto `openGraph` entero cuando una página declara el suyo, así que
+    // tenerlos en un solo sitio es lo que evita que se pierdan por el camino.
+    //
+    // Aquí NO van `title` ni `description` a propósito: Next los resuelve desde
+    // los de la propia página cuando el objeto no los trae, y este objeto lo
+    // HEREDA toda página que no declare `openGraph`. Fijándolos aquí, la tienda,
+    // el blog, el contacto y los legales se compartirían todos con el titular y
+    // la descripción de la home. Tampoco `url`: el layout no conoce la ruta;
+    // cada página indexable pasa la suya (`siteOpenGraph(config, locale, canónica)`).
+    openGraph: siteOpenGraph(config, locale),
+    twitter: siteTwitter(config, locale),
     ...(config.seo.google_site_verification && {
       verification: { google: config.seo.google_site_verification },
     }),
   };
 }
 
-async function JsonLd() {
+async function JsonLd({ locale }: { locale: string }) {
   const config = await getSiteConfig();
-  const graph = buildSiteGraph(config);
+  // El responsable/fundador es una entidad del grafo cuya `url` es la página
+  // «Sobre nosotros», donde se publica con su cargo y su perfil.
+  const founderPageUrl = (config.seo.founder_name || "").trim()
+    ? absoluteLocalized(config.brand.url, "/about", locale)
+    : null;
+  const graph = buildSiteGraph(config, locale, { founderPageUrl });
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(graph) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(graph) }}
     />
   );
 }
@@ -167,7 +171,7 @@ export default async function LocaleLayout({
             </CurrencyProvider>
           </AnalyticsProvider>
         </NextIntlClientProvider>
-        <JsonLd />
+        <JsonLd locale={locale} />
       </body>
     </html>
   );
