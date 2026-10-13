@@ -530,8 +530,10 @@ function hwe_coupon_public_used_up( int $user_id ): array {
  * Cupones públicos vigentes o a punto de empezar, con lo que el frontend
  * necesita para anunciarlos: código, descuento, alcance (por SLUG, que es la
  * identidad del catálogo en el frontend) y condiciones. `startsAt`/`endsAt`
- * son timestamps; `endsAt` es EXCLUSIVO (fin del día de caducidad, que aquí
- * es inclusiva). Un cupón agotado (`usage_limit`) no se anuncia.
+ * son timestamps. WooCommerce da la caducidad como el INICIO de su día y el
+ * cupón vale durante todo ese día (caducidad inclusiva), así que `endsAt` es el
+ * instante en que deja de valer: ese inicio + 24 h, EXCLUSIVO (`now < endsAt`).
+ * Un cupón agotado (`usage_limit`) no se anuncia.
  */
 function hwe_coupon_public_list(): array {
 	$ids = hwe_coupon_public_ids();
