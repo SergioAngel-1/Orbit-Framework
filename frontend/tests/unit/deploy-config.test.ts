@@ -23,6 +23,7 @@ const prod = code(root("docker-compose.prod.yml"));
 const dev = code(root("docker-compose.yml"));
 const caddy = code(root("Caddyfile"));
 const cd = root(".github/workflows/cd.yml");
+const ci = root(".github/workflows/ci.yml");
 
 /** El bloque de un servicio (desde `  nombre:` hasta el siguiente de primer nivel). */
 function service(compose: string, name: string): string {
@@ -182,6 +183,18 @@ describe("docker-compose.yml (desarrollo)", () => {
         `/plugins/${plugin}:/var/www/html/wp-content/plugins/${plugin}`,
       );
     }
+  });
+});
+
+describe("Caddy: CI valida con la versión de producción", () => {
+  it("la imagen del `caddy validate` de CI es la misma que la de docker-compose.prod.yml", () => {
+    const image = (source: string) => /image:\s*(caddy:[\w.-]+)/.exec(source)?.[1];
+    const inCi = /\b(caddy:[\w.-]+)/.exec(
+      ci.slice(ci.indexOf("Validar Caddyfile")),
+    )?.[1];
+
+    expect(image(prod)).toBeDefined();
+    expect(inCi).toBe(image(prod));
   });
 });
 

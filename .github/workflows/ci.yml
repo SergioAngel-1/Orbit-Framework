@@ -315,7 +315,7 @@ jobs:
 
       - name: Validar Caddyfile
         run: |
-          docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.9-alpine \
+          docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.11-alpine \
             caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile
 
       # Cada módulo tiene su entrada, README y MANUAL, está montado en los tres servicios de
