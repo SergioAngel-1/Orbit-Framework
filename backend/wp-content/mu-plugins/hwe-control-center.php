@@ -41,6 +41,10 @@ add_action( 'init', static function (): void {
 	HWE\ControlCenter\AdminPage::register();
 	HWE\ControlCenter\PaymentsInternalApi::register();
 	HWE\ControlCenter\IntegrationsInternalApi::register();
+	HWE\ControlCenter\WooCurrencySync::register();
+	HWE\ControlCenter\WooGuestCheckoutSync::register();
+	HWE\ControlCenter\WooCashGatewaySync::register();
+	HWE\ControlCenter\FreeShippingRule::register();
 }, 20 );
 
 // ---------------------------------------------------------------------------
@@ -53,6 +57,24 @@ add_action(
     [ HWE\ControlCenter\FieldTypes\ProductFieldsListType::class, 'saveAllFromSchema' ],
     10,
     2
+);
+
+// ---------------------------------------------------------------------------
+// Sincronizaciones con WooCommerce: la moneda, el checkout de invitados y el
+// efectivo nativos siguen a lo configurado aquí. Se ejecutan al guardar (la
+// acción llega con la config YA persistida) y avisan en wp-admin si un admin
+// los cambia directo en WooCommerce (ver `register()` de cada clase).
+// ---------------------------------------------------------------------------
+add_action(
+    'hwe_control_center_saved',
+    static function ( array $publicData ): void {
+        HWE\ControlCenter\WooCurrencySync::sync( (string) ( $publicData['ecommerce']['currency'] ?? '' ) );
+        HWE\ControlCenter\WooGuestCheckoutSync::sync();
+        HWE\ControlCenter\WooCashGatewaySync::sync();
+        HWE\ControlCenter\FreeShippingRule::flushRates();
+    },
+    10,
+    1
 );
 
 // ---------------------------------------------------------------------------
