@@ -87,6 +87,18 @@ describe("qué pedidos se cobran en la pasarela", () => {
     expect(createCheckout).toHaveBeenCalledTimes(1);
   });
 
+  it("no manda a la pasarela un `order_key` que en realidad es el id del pedido", async () => {
+    await POST(request());
+
+    const { metadata } = createCheckout.mock.calls[0]![0] as {
+      metadata: Record<string, string>;
+    };
+    // `order_key` es la credencial de un pedido de invitado en WooCommerce: la clave
+    // no puede llevar el id ni parecer que viaja la credencial.
+    expect(metadata).not.toHaveProperty("order_key");
+    expect(metadata).toHaveProperty("order_id");
+  });
+
   it.each(["cod", "hwe_whatsapp_link"])(
     "un pedido de %s no se cobra en la pasarela (409)",
     async (method) => {

@@ -138,7 +138,7 @@ export async function POST(request: Request) {
         document: orderDocument(order),
       },
       returnUrl: effectiveReturnUrl,
-      metadata: { order_id: reference, order_key: String(order.id) },
+      metadata: { order_id: reference },
     });
 
     logger.info(
