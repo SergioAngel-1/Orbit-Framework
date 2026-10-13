@@ -65,7 +65,8 @@ instancia:
 
 - `brand` (nombre, tagline, descripción, URL, locale; `tagline_en`… para los idiomas
   secundarios), `social`, `legal`, `design.colors`/`design.typography` (design tokens — ver §4).
-- `i18n.locales`: los idiomas **secundarios** (p. ej. `["en", "fr"]`), sin el de `brand.locale`.
+- `i18n.locales`: los idiomas **secundarios** como una cadena separada por comas (p. ej.
+  `"en, fr"`; una lista `["en", "fr"]` también se acepta y se une con comas), sin el de `brand.locale`.
   Deben coincidir con `frontend/src/i18n/routing.ts`: si divergen, el arranque del frontend lo
   avisa en el log. Con ellos, los campos traducibles (`tagline`, `faq`…) ganan una variante
   `<campo>_<idioma>`.

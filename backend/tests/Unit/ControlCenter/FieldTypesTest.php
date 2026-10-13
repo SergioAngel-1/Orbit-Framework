@@ -99,6 +99,16 @@ final class FieldTypesTest extends TestCase
         $this->assertSame(FieldType::CONFIG, $type->persistence());
     }
 
+    public function testTextJoinsAListOfScalarsInsteadOfStoringArray(): void {
+        $type = new TextType();
+
+        // `i18n.locales: ["en", "fr"]` en instance.config.json: una lista es una forma
+        // natural de escribirlo, y `(string) array` guardaría la palabra «Array».
+        $this->assertSame('en, fr', $type->sanitize([], ['en', 'fr']));
+        $this->assertSame('en', $type->sanitize([], ['en', ['x'], '']));
+        $this->assertSame('', $type->sanitize([], [['x'], new \stdClass()]));
+    }
+
     public function testColorOnlyAcceptsHex(): void {
         $type = new ColorType();
 
