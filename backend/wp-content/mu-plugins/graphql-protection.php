@@ -72,47 +72,41 @@ if ( 'production' === wp_get_environment_type() && ! defined( 'GRAPHQL_INTROSPEC
 }
 
 /* ---------------------------------------------------------------------------
- * 4) ACTIVAR CACHÉ DE RESPUESTAS WPGraphQL
- *    Cuando Redis está disponible (WP_REDIS_HOST definido), WPGraphQL puede
- *    cachear respuestas de consultas GET (consultas de lectura: catálogo, etc.)
- *    para evitar round-trips a la base de datos.
+ * 4) NO HAY CACHÉ DE RESPUESTAS WPGraphQL, y es deliberado
  *
- *    La opción 'graphql_cache_section' se activa en setup.sh.
- *    Este filtro garantiza que la constante interna se defina correctamente.
+ *    Aquí vivía un `add_filter( 'graphql_cache_active', … )` que leía la opción
+ *    `graphql_cache_section`. Era código muerto por dos motivos:
+ *
+ *      1. Ese filtro y esa opción los publica wp-graphql-smart-cache, un plugin
+ *         que `backend/scripts/setup.sh` NO instala. Sin él, nadie lee el filtro.
+ *      2. Aun instalándolo no serviría: Smart Cache cachea consultas GET y el BFF
+ *         consulta siempre por POST (`lib/graphql-client.ts`). Haría falta pasar
+ *         a queries persistidas (GET + `queryId`), un cambio de contrato.
+ *
+ *    Lo que SÍ cachea: Redis Object Cache dentro de WordPress, y en el frontend
+ *    la Data Cache de Next (con `tags` e invalidación por `/api/revalidate`) y la
+ *    Full Route Cache (ISR).
  * ------------------------------------------------------------------------ */
-add_filter(
-	'graphql_cache_active',
-	static function ( bool $active ): bool {
-		if ( defined( 'WP_CACHE' ) && WP_CACHE && defined( 'WP_REDIS_HOST' ) ) {
-			$stored = get_option( 'graphql_cache_section', 'off' );
-			return $stored === 'on';
-		}
-		return false;
-	}
-);
 
 /* ---------------------------------------------------------------------------
  * 5) REGISTRO DE CONSULTAS RECHAZADAS (log)
- *    Cada consulta que supere profundidad, complejidad o que introspección
- *    en producción queda registrada en el log de depuración de WordPress.
+ *    Cada consulta que supere profundidad o complejidad, o que pida
+ *    introspección en producción, queda registrada en el log de WordPress.
+ *
+ *    Se registra UNA sola vez a nivel de plugin. Antes se añadía dentro de
+ *    `graphql_execute_request`, que apilaba un callback nuevo por ejecución:
+ *    una petición con varias operaciones en lote duplicaba las líneas de log.
  * ------------------------------------------------------------------------ */
-add_action(
-	'graphql_execute_request',
-	static function ( $response = null ) {
-		add_filter(
-			'graphql_request_results',
-			static function ( $result ) {
-				if ( is_wp_error( $result ) || ( is_array( $result ) && isset( $result['errors'] ) ) ) {
-					$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
-					// phpcs:ignore WordPress.PHP.DevelopmentFunctions
-					error_log( sprintf(
-						'[HWE GraphQL] Consulta rechazada desde %s: %s',
-						$ip,
-						is_wp_error( $result ) ? $result->get_error_message() : wp_json_encode( $result['errors'] )
-					) );
-				}
-				return $result;
-			}
-		);
+function hwe_graphql_log_rejected( $result ) {
+	if ( is_wp_error( $result ) || ( is_array( $result ) && isset( $result['errors'] ) ) ) {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions
+		error_log( sprintf(
+			'[hwe] graphql: consulta rechazada desde %s: %s',
+			$ip,
+			is_wp_error( $result ) ? $result->get_error_message() : wp_json_encode( $result['errors'] )
+		) );
 	}
-);
+	return $result;
+}
+add_filter( 'graphql_request_results', 'hwe_graphql_log_rejected' );

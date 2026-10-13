@@ -155,7 +155,7 @@ add_action(
 		if ( $error instanceof \WP_Error ) {
 			set_transient( 'hwe_smtp_last_error', $error->get_error_message(), 300 );
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions
-			error_log( '[HWE SMTP] Fallo de envío: ' . $error->get_error_message() );
+			error_log( '[hwe] smtp: fallo de envío: ' . $error->get_error_message() );
 		}
 	}
 );
@@ -181,24 +181,43 @@ add_action(
 
 		delete_transient( 'hwe_smtp_last_error' );
 
-		$transport = hwe_smtp_is_active() ? 'SMTP' : 'PHP/sendmail (SMTP inactivo)';
-		$subject   = '[' . get_bloginfo( 'name' ) . '] Prueba de email transaccional';
-		$body      = '<p>Este es un email de prueba enviado desde el HWE Control Center.</p>'
-			. '<p>Transporte usado: <strong>' . esc_html( $transport ) . '</strong></p>'
-			. '<p>Si lo recibes, la entrega funciona. Revisa también la carpeta de spam y la '
-			. 'alineación <strong>SPF/DKIM/DMARC</strong> del dominio remitente para máxima entregabilidad.</p>';
+		$mail = hwe_smtp_basic_test_mail();
+		$ok   = wp_mail( $to, $mail['subject'], $mail['html'], array( 'Content-Type: text/html; charset=UTF-8' ) );
 
-		$ok = wp_mail( $to, $subject, $body, array( 'Content-Type: text/html; charset=UTF-8' ) );
-
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'page'          => 'hwe-config',
-					'hwe_smtp_test' => $ok ? 'sent' : 'failed',
-				),
-				admin_url( 'options-general.php' )
-			)
-		);
+		wp_safe_redirect( hwe_smtp_test_redirect_url( $ok ) );
 		exit;
 	}
 );
+
+/**
+ * Correo simple de prueba de transporte. Función aparte para que otras
+ * superficies (p. ej. una vista previa) lo muestren igual.
+ *
+ * @return array{subject:string,html:string}
+ */
+function hwe_smtp_basic_test_mail(): array {
+	$transport = hwe_smtp_is_active() ? 'SMTP' : 'PHP/sendmail (SMTP inactivo)';
+	return array(
+		'subject' => '[' . get_bloginfo( 'name' ) . '] Prueba de email transaccional',
+		'html'    => '<p>Este es un email de prueba enviado desde el HWE Control Center.</p>'
+			. '<p>Transporte usado: <strong>' . esc_html( $transport ) . '</strong></p>'
+			. '<p>Si lo recibes, la entrega funciona. Revisa también la carpeta de spam y la '
+			. 'alineación <strong>SPF/DKIM/DMARC</strong> del dominio remitente para máxima entregabilidad.</p>',
+	);
+}
+
+/**
+ * URL de vuelta al Control Center con el resultado de la prueba. El Control
+ * Center es un menú de PRIMER nivel (`admin.php?page=hwe-config`), no un
+ * submenú de Ajustes: con `options-general.php` la redirección caía al
+ * escritorio y el aviso no se veía nunca.
+ */
+function hwe_smtp_test_redirect_url( bool $ok ): string {
+	return add_query_arg(
+		array(
+			'page'          => 'hwe-config',
+			'hwe_smtp_test' => $ok ? 'sent' : 'failed',
+		),
+		admin_url( 'admin.php' )
+	);
+}

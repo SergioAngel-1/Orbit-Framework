@@ -83,8 +83,13 @@ function hwe_is_graphql_request(): bool {
 	if ( function_exists( 'is_graphql_http_request' ) && is_graphql_http_request() ) {
 		return true;
 	}
-	$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
-	return ( false !== strpos( (string) $uri, '/graphql' ) );
+	$uri  = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	$path = (string) wp_parse_url( (string) $uri, PHP_URL_PATH );
+	// Coincidencia por segmento de path (path === /graphql o empieza por
+	// /graphql/), no por subcadena: "strpos($uri, '/graphql')" daba falso
+	// positivo con cualquier URL cuyo path contuviera esa subcadena en
+	// cualquier posición (p. ej. una entrada de blog en /blog/graphql-vs-rest).
+	return (bool) preg_match( '#^/graphql(?:/|$)#', $path );
 }
 
 /* -------------------------------------------------------------------------
@@ -203,3 +208,65 @@ add_action(
 if ( ! defined( 'DISALLOW_FILE_EDIT' ) ) {
 	define( 'DISALLOW_FILE_EDIT', true );
 }
+
+/* -------------------------------------------------------------------------
+ * 5) LA API REST DEL PANEL, EN EL MISMO ORIGEN QUE EL PANEL
+ *
+ * `get_rest_url()` se construye sobre `home_url()`, NO sobre `site_url()`. En
+ * esta arquitectura son distintos a propósito cuando el panel vive en su propio
+ * host:
+ *
+ *     siteurl = https://admin.midominio.com   (el panel)
+ *     home    = https://midominio.com         (el frontend Next.js)
+ *
+ * El JavaScript de wp-admin recibía entonces `https://midominio.com/wp-json/`
+ * y llamaba a la API REST de OTRO ORIGEN: preflight en cada llamada y, como la
+ * cookie de sesión está acotada al host del panel, 403 en todas, con
+ * componentes (la medioteca, p. ej.) que reintentaban en bucle y ocupaban los
+ * workers de Apache.
+ *
+ * Se devuelven las URLs REST al host del panel cuando la petición la sirve ese
+ * host. Acotado: servida en el dominio público, se deja como está; con un único
+ * host (dominio único o desarrollo) no se toca nada; el BFF no pasa por aquí
+ * (llama por la red interna con URLs explícitas, no con `rest_url()`).
+ * ---------------------------------------------------------------------- */
+function hwe_rest_url_on_admin_host( $url ) {
+	$request_host = isset( $_SERVER['HTTP_HOST'] ) ? (string) $_SERVER['HTTP_HOST'] : '';
+	if ( '' === $request_host || ! is_string( $url ) ) {
+		return $url; // WP-CLI o cron interno: no hay host que respetar.
+	}
+
+	$admin_host = wp_parse_url( site_url(), PHP_URL_HOST );
+	$home_host  = wp_parse_url( home_url(), PHP_URL_HOST );
+	if ( ! $admin_host || ! $home_host || $admin_host === $home_host ) {
+		return $url;
+	}
+
+	// El puerto puede venir pegado en HTTP_HOST: se compara solo el host.
+	$request_host = strtolower( (string) strtok( $request_host, ':' ) );
+	if ( strtolower( $admin_host ) !== $request_host ) {
+		return $url;
+	}
+
+	return str_replace( '//' . $home_host, '//' . $admin_host, $url );
+}
+add_filter( 'rest_url', 'hwe_rest_url_on_admin_host', 10, 1 );
+
+/* -------------------------------------------------------------------------
+ * 6) LAS ACCIONES DEL PANEL VUELVEN AL PANEL
+ *
+ * `wp_safe_redirect()` solo admite por defecto el host de `home`. Con el panel
+ * en otro host, toda acción que vuelve a `admin.php?page=…` (probar SMTP,
+ * backups, importar config, HWE Logs) caía a su fallback, `admin_url()`: el
+ * escritorio, sin el aviso del resultado. Se añade solo el host de `siteurl`
+ * (el del propio panel), nada externo.
+ * ---------------------------------------------------------------------- */
+function hwe_allow_admin_redirect_host( $hosts ) {
+	$hosts      = is_array( $hosts ) ? $hosts : array();
+	$admin_host = wp_parse_url( site_url(), PHP_URL_HOST );
+	if ( is_string( $admin_host ) && '' !== $admin_host && ! in_array( $admin_host, $hosts, true ) ) {
+		$hosts[] = $admin_host;
+	}
+	return $hosts;
+}
+add_filter( 'allowed_redirect_hosts', 'hwe_allow_admin_redirect_host' );

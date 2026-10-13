@@ -28,6 +28,19 @@ function hwe_logmgr_rotated_files(): array {
 	return $files;
 }
 
+/**
+ * unlink() envuelto: registra el fallo (permisos, archivo ya borrado por otro
+ * proceso, etc.) en vez de silenciarlo con @, que dificultaba diagnosticar
+ * por qué un log rotado no se borraba.
+ */
+function hwe_logmgr_unlink( string $path ): bool {
+	$ok = @unlink( $path );
+	if ( ! $ok ) {
+		error_log( sprintf( '[hwe] log-manager: no se pudo borrar %s.', $path ) );
+	}
+	return $ok;
+}
+
 /** Últimas $n líneas de un archivo sin cargarlo entero en memoria. */
 function hwe_logmgr_tail( string $file, int $n ): string {
 	$fh = fopen( $file, 'r' );
@@ -64,12 +77,12 @@ add_action( 'shutdown', function () {
 	$list      = hwe_logmgr_rotated_files();
 
 	foreach ( $list as $f ) {
-		if ( filemtime( $f ) < $cutoff ) @unlink( $f );
+		if ( filemtime( $f ) < $cutoff ) hwe_logmgr_unlink( $f );
 	}
 
 	$list = hwe_logmgr_rotated_files();
 	while ( count( $list ) > $max_files ) {
-		@unlink( array_pop( $list ) ); // pop elimina el más antiguo (lista ordenada desc)
+		hwe_logmgr_unlink( array_pop( $list ) ); // pop elimina el más antiguo (lista ordenada desc)
 	}
 }, 999 );
 
@@ -111,13 +124,14 @@ function hwe_logmgr_render_page(): void {
 	$notices = [
 		'saved'       => [ 'success', 'Configuración guardada.' ],
 		'cleared'     => [ 'success', 'Log actual borrado.' ],
-		'deleted'     => [ 'success', 'Archivo eliminado.' ],
-		'deleted_all' => [ 'success', 'Todos los archivos rotados eliminados.' ],
+		'deleted'     => [ 'success', 'Archivo eliminado.', 'error', 'No se pudo eliminar el archivo (revisa permisos).' ],
+		'deleted_all' => [ 'success', 'Todos los archivos rotados eliminados.', 'error', 'Algún archivo no se pudo eliminar (revisa permisos).' ],
 	];
-	foreach ( $notices as $key => [ $type, $msg ] ) {
-		if ( isset( $_GET[ $key ] ) ) {
-			printf( '<div class="notice notice-%s is-dismissible"><p>%s</p></div>', esc_attr( $type ), esc_html( $msg ) );
-		}
+	foreach ( $notices as $key => $notice ) {
+		if ( ! isset( $_GET[ $key ] ) ) continue;
+		$ok = (string) $_GET[ $key ] !== '0';
+		[ $type, $msg ] = $ok ? [ $notice[0], $notice[1] ] : [ $notice[2] ?? 'error', $notice[3] ?? $notice[1] ];
+		printf( '<div class="notice notice-%s is-dismissible"><p>%s</p></div>', esc_attr( $type ), esc_html( $msg ) );
 	}
 
 	$log     = hwe_logmgr_debug_log();
@@ -265,16 +279,22 @@ add_action( 'admin_post_hwe_delete_log_file', function () {
 		wp_die( esc_html__( 'Ruta no permitida.', 'hwe' ) );
 	}
 
-	@unlink( $real );
-	wp_safe_redirect( add_query_arg( [ 'page' => 'hwe-logs', 'deleted' => 1 ], admin_url( 'options-general.php' ) ) );
+	$ok = hwe_logmgr_unlink( $real );
+	wp_safe_redirect( add_query_arg( [ 'page' => 'hwe-logs', 'deleted' => $ok ? 1 : 0 ], admin_url( 'options-general.php' ) ) );
 	exit;
 } );
 
 add_action( 'admin_post_hwe_delete_all_rotated_logs', function () {
 	if ( ! current_user_can( 'manage_options' ) ) wp_die( esc_html__( 'No autorizado.', 'hwe' ) );
 	check_admin_referer( 'hwe_delete_all_rotated_logs' );
-	foreach ( hwe_logmgr_rotated_files() as $f ) @unlink( $f );
-	wp_safe_redirect( add_query_arg( [ 'page' => 'hwe-logs', 'deleted_all' => 1 ], admin_url( 'options-general.php' ) ) );
+	$failed = 0;
+	foreach ( hwe_logmgr_rotated_files() as $f ) {
+		if ( ! hwe_logmgr_unlink( $f ) ) $failed++;
+	}
+	wp_safe_redirect( add_query_arg(
+		[ 'page' => 'hwe-logs', 'deleted_all' => $failed === 0 ? 1 : 0 ],
+		admin_url( 'options-general.php' )
+	) );
 	exit;
 } );
 

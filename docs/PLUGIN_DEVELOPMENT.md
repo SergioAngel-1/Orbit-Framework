@@ -90,7 +90,7 @@ entradas, es señal de que toca un CPT, no un campo de config.
 
 ## 3. Leer la config desde PHP (lógica de negocio)
 
-Patrón de `woocommerce-shipping-config.php` (ejemplo canónico):
+Patrón de `WooCurrencySync` (ejemplo canónico):
 
 ```php
 $value = class_exists('\\HWE\\ControlCenter\\Storage')

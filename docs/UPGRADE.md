@@ -280,6 +280,25 @@ git fetch framework --tags
   cliente, de `useCurrency()` (el layout raíz monta `CurrencyProvider`). El formato usa
   Intl (COP sin decimales).
 
+### Núcleo de WordPress (F4)
+
+- **Se retira `woocommerce-shipping-config.php`.** La tarifa plana y el umbral de envío gratis
+  del grupo `shipping` del Control Center (`flat_rate_cost`, `free_above`, `flat_label`,
+  `free_label`) **dejan de aplicarse a WooCommerce** hasta que llegue el módulo `shipping`
+  (que sustituye a este mu-plugin). Mientras tanto, configura las tarifas en WooCommerce →
+  Ajustes → Envío. Un filtro o código propio que llamara a `hwe_shipping_config()` debe dejar
+  de hacerlo.
+- **`graphql-protection.php` ya no declara el filtro `graphql_cache_active`** (era código
+  muerto: lo lee wp-graphql-smart-cache, que no se instala, y el BFF consulta por POST) y
+  `setup.sh` deja de escribir la opción `graphql_cache_section`. Las consultas rechazadas se
+  registran con el prefijo `[hwe] graphql:` (antes `[HWE GraphQL]`) y una sola vez por resultado.
+- **Las pasarelas `hwe_offline` y `hwe_whatsapp_link` siempre están disponibles en la Store
+  API**: son con las que el BFF crea el pedido. En producción, wp-admin avisa si COD o BACS
+  siguen activos (salvo el efectivo activado desde el Control Center).
+- **Panel en su propio host (`siteurl` ≠ `home`):** la API REST de wp-admin y las
+  redirecciones de las acciones del panel se quedan en el host del panel. La prueba de SMTP
+  vuelve a `admin.php?page=hwe-config`. Los fallos de envío se registran como `[hwe] smtp:`.
+
 ### Operación (F1)
 
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor

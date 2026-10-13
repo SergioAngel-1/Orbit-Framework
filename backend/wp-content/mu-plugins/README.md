@@ -19,7 +19,7 @@ paquete multi-clase.
 | Archivo / carpeta | Tipo | Responsabilidad |
 |---|---|---|
 | `hwe-control-center.php` | loader | Registra el autoloader PSR-4 de `HWE\ControlCenter\*` y arranca el panel en `init`. |
-| `hwe-control-center/` | paquete | Clases del panel: `Schema`, `Storage`, `SecretsStorage`, `RestApi`, `AdminPage`, `Revalidation`, `BackupConfig`, `Walker`, `Walkers/`. Expone `/wp-json/hwe/v1/config`. |
+| `hwe-control-center/` | paquete | Clases del panel: `Schema`, `Storage`, `SecretsStorage`, `RestApi`, `AdminPage` (render), `AdminSave` (guardado), `AdminNotices`, `Revalidation`, `BackupConfig`, `BackupActions`, `BackupNotify`, `Walker`, `Walkers/`, `FieldTypes/` (registro y tipos), `Modules`, sincronizaciones con Woo y regla de envío gratis, APIs internas de pagos/integraciones. Expone `/wp-json/hwe/v1/config`. |
 | `hwe-instance-loader.php` | mu-plugin | Cargador del código de la **instancia**: hace `require` de los `.php` de primer nivel de `instance/` en orden alfabético (un archivo roto se registra y no tumba el sitio) y define `HWE_CORE_CONTRACT_VERSION`. |
 | `instance/` | carpeta de la instancia | **Del usuario de la instancia; el framework nunca la toca** (solo versiona su `README.md`, que explica el contrato de hooks). |
 | `hwe-auth.php` | mu-plugin | Endpoints REST `hwe/v1`: reset de contraseña, verificación de email, 2FA (secreto cifrado + códigos de recuperación). |
@@ -30,7 +30,14 @@ paquete multi-clase.
 | `hwe-bff-only.php` | mu-plugin | GraphQL, la Store API (`wc/store`) y `hwe/v1/auth|consent` solo atienden al BFF: exige el secreto interno (`X-HWE-Internal-Secret` = `HWE_REVALIDATION_SECRET`, comparación en tiempo constante) o WP-CLI; si no, 404 por ruta y por parámetro. Falla cerrado sin secreto configurado. |
 | `rate-limit.php` | mu-plugin | Rate-limit de `/graphql` y `/wp-json` (XFF de confianza). |
 | `graphql-protection.php` | mu-plugin | Límites de profundidad/complejidad de GraphQL e introspección off. |
-| `woocommerce-headless.php` | mu-plugin | Ajustes de la Store API (desactiva el nonce; seguro porque el BFF impone Origin + CSRF). |
+| `woocommerce-headless.php` | mu-plugin | Ajustes de la Store API (desactiva el nonce; seguro porque el BFF impone Origin + CSRF). Pasarelas headless siempre disponibles (`hwe_offline`, `hwe_whatsapp_link`) y aviso si COD/BACS siguen activos en producción. |
+| `hwe-post-revalidate.php` | mu-plugin | Revalida el tag ISR `posts` al guardar entradas, etiquetas o categorías del blog. |
+| `hwe-menu-revalidate.php` | mu-plugin | Revalida el tag ISR `menus` al editar menús (una sola vez por petición). |
+| `hwe-post-seo.php` | mu-plugin | Título/descripción SEO por entrada + columna en el listado + `Post.seoTitle`/`seoDescription` en GraphQL. |
+| `hwe-page-seo.php` | mu-plugin | Idem por página (`Page.seoTitle`/`seoDescription`). |
+| `hwe-product-seo.php` | mu-plugin | Idem por producto (`Product.seoTitle`/`seoDescription`). |
+| `hwe-category-seo.php` | mu-plugin | Idem por categoría de producto (`ProductCategory.seoTitle`/`seoDescription`). |
+| `hwe-featured-post.php` | mu-plugin | Selector manual de post destacado (`RootQuery.hweFeaturedPost`). |
 | `woocommerce-email-branding.php` | mu-plugin | Branding de los emails transaccionales de WooCommerce. |
 
 ## Convención para añadir uno nuevo

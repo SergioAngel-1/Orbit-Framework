@@ -194,14 +194,6 @@ install_wporg_pinned redis-cache "$REDISCACHE_VERSION"
 $WP redis enable 2>/dev/null || echo "    (aviso) Redis Object Cache: enable diferido hasta que Redis esté disponible."
 
 # ----------------------------------------------------------------------------
-# 4b) Habilitar la caché de WPGraphQL (aprovecha Redis para respuestas GraphQL)
-# ----------------------------------------------------------------------------
-echo "==> Habilitando caché de respuestas WPGraphQL..."
-# La caché de WPGraphQL usa el mismo drop-in object-cache.php de Redis.
-# Se activa vía filtro 'graphql_cache_active' (manejado en mu-plugin graphql-protection.php)
-$WP option update graphql_cache_section 'on' 2>/dev/null || true
-
-# ----------------------------------------------------------------------------
 # 5) Limpieza de plugins/themes de ejemplo
 # ----------------------------------------------------------------------------
 echo "==> Limpiando plugins y temas de ejemplo..."
