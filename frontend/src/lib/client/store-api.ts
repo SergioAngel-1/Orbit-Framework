@@ -1,7 +1,7 @@
 "use client";
 import { csrfFetch } from "./csrf";
 import { pageLocaleHeaders } from "./page-locale";
-import type { StoreCart } from "@/types/woocommerce";
+import type { ItemExtensions, StoreCart } from "@/types/woocommerce";
 import type { ReorderSummary } from "@/lib/account/reorder";
 import type { SiteReview } from "@/lib/account/order-review";
 import type { ReviewEligibility } from "@/lib/account/review-eligibility";
@@ -48,11 +48,19 @@ export const cartApi = {
     });
     return parseCart(res);
   },
-  async addItem(id: number, quantity = 1): Promise<StoreCart> {
+  /**
+   * `extensions`: detalles de la línea que la instancia declaró (módulo `order-item-details`);
+   * WordPress los valida y, si no valen, el ítem no entra al carrito.
+   */
+  async addItem(
+    id: number,
+    quantity = 1,
+    extensions?: ItemExtensions,
+  ): Promise<StoreCart> {
     return parseCart(
       await csrfFetch("/api/store/cart/items", {
         method: "POST",
-        body: { id, quantity },
+        body: extensions ? { id, quantity, extensions } : { id, quantity },
       }),
     );
   },

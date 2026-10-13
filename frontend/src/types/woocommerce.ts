@@ -13,6 +13,20 @@ export interface StoreCartImage {
   alt: string;
 }
 
+/**
+ * Entrada de `item_data` de una línea del carrito. El módulo `order-item-details` añade una
+ * visible (etiqueta → valor) y una oculta `hwe_item_<clave>` con el dato máquina.
+ */
+export interface StoreCartItemData {
+  name: string;
+  value: string;
+  display?: string;
+  hidden?: boolean;
+}
+
+/** Datos de extensión de un alta al carrito, por clave de detalle. */
+export type ItemExtensions = Record<string, string | number | boolean | string[]>;
+
 export interface StoreCartItem {
   key: string;
   id: number;
@@ -37,6 +51,8 @@ export interface StoreCartItem {
    * qué cupones públicos aplican a la línea (`completeStoreCart`).
    */
   couponRef?: { slug: string; categorySlugs: string[] };
+  /** Datos extra de la línea (variaciones, detalles declarados); puede faltar. */
+  item_data?: StoreCartItemData[];
   /** Límites de cantidad de la Store API; el máximo ya refleja el stock restante. */
   quantity_limits?: {
     minimum: number;

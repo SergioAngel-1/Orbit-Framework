@@ -13,8 +13,10 @@ tienda real).
 | `…/instance/30-example-revalidation.php` | (misma carpeta) | El tag `example` vía `hwe_revalidation_tags` |
 | `…/instance/40-example-landing.php` | (misma carpeta) | Una landing con diseño propio (`example-guide`) vía `hwe_landings_static_entries` |
 | `…/instance/50-example-product-field.php` | (misma carpeta) | Dos campos de producto declarativos (`example_usage`, traducible, y `example_weight`) vía `hwe_product_fields` |
+| `…/instance/60-example-order-item-detail.php` | (misma carpeta) | Un detalle de línea obligatorio (`example_note`) con su validador vía `hwe_order_item_details` |
 | `backend/tests/Unit/Instance/ExampleProductFieldsTest.php` | `backend/tests/Unit/Instance/` | Los campos llegan al registro y el traducible a `hwe-content-i18n` |
 | `frontend/src/instance/product-fields.d.ts` | `frontend/src/instance/` | *Module augmentation* de `ProductFieldValues`: `product.fields.example_usage` tipado |
+| `backend/tests/Unit/Instance/ExampleOrderItemDetailTest.php` | `backend/tests/Unit/Instance/` | El detalle llega al registro y se valida al añadir al carrito |
 | `backend/tests/Unit/Instance/ExamplePublicConfigTest.php` | `backend/tests/Unit/Instance/` | El campo sale por la config pública y el tag se acepta |
 | `backend/tests/Unit/Instance/ExampleLandingTest.php` | `backend/tests/Unit/Instance/` | La landing del ejemplo llega al registro de `hwe-landings` y manda sobre una del panel |
 | `frontend/src/instance/registry.ts` | `frontend/src/instance/registry.ts` | `revalidationTags: ["example"]`, la landing `example-guide` (con su sección única) y `reservedRootSegments` |

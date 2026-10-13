@@ -11,7 +11,7 @@ import {
 import { cartApi, type ShippingDestination } from "@/lib/client/store-api";
 import { trackEvent } from "@/components/analytics/track-event";
 import { addToCartParams } from "@/lib/analytics/ecommerce";
-import type { StoreCart } from "@/types/woocommerce";
+import type { ItemExtensions, StoreCart } from "@/types/woocommerce";
 
 // ============================================================================
 //  Estado global del carrito (cliente). El carrito real vive en el servidor
@@ -28,7 +28,12 @@ interface CartState {
   openDrawer: () => void;
   closeDrawer: () => void;
   toggleDrawer: () => void;
-  addItem: (id: number, quantity?: number) => Promise<void>;
+  /** `extensions`: detalles de la línea declarados por la instancia (`order-item-details`). */
+  addItem: (
+    id: number,
+    quantity?: number,
+    extensions?: ItemExtensions,
+  ) => Promise<void>;
   updateItem: (key: string, quantity: number) => Promise<void>;
   removeItem: (key: string) => Promise<void>;
   clear: () => Promise<void>;
@@ -104,9 +109,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     openDrawer: () => setDrawerOpen(true),
     closeDrawer: () => setDrawerOpen(false),
     toggleDrawer: () => setDrawerOpen((o) => !o),
-    addItem: (id, quantity = 1) =>
+    addItem: (id, quantity = 1, extensions) =>
       run(async () => {
-        const updated = await cartApi.addItem(id, quantity);
+        const updated = await cartApi.addItem(id, quantity, extensions);
         // Evento de analítica con LO AÑADIDO, leído del carrito que devolvió el
         // servidor (no-op sin consentimiento/proveedor). Solo si la petición salió bien.
         const params = addToCartParams(updated, id, quantity);

@@ -284,6 +284,27 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   etiqueta; un `richtext` pasa por `sanitizeHtml` y una `url` solo se enlaza si es `http(s)`.
 - **Ejemplo vivo:** `examples/instance-minimal` declara `example_usage` (traducible) y `example_weight`.
 
+### Detalles de línea de pedido (`hwe-order-item-details`)
+
+- **Qué es.** Un mu-plugin del núcleo que NO declara ningún detalle: la instancia los declara con
+  `hwe_order_item_details` (`clave => [label, validate, applies_to, required, meta_key]`) para datos de una
+  línea además del producto (una nota, una dedicatoria, una elección). `applies_to` es obligatorio (lista de
+  slugs de producto o callable): ningún detalle aplica a todo el catálogo por descuido.
+- **Alta.** El cliente manda `extensions: { <clave>: valor }` en `POST /api/store/cart/items`
+  (`useCart().addItem(id, qty, extensions)` / `cartApi.addItem`). El BFF solo **acota** claves
+  (`^[a-z][a-z0-9_]{0,39}$`, hasta 8) y valores (texto ≤ 1000, número, booleano o hasta 20 textos); el
+  validador declarado en WordPress decide. Si el valor no vale, falta y es obligatorio, o el validador
+  lanza una excepción, la Store API responde **400** y el ítem NO entra al carrito (falla cerrado).
+- **Pago.** Una línea aplicable que no lleva el dato (un carrito anterior, un alta por otra vía) hace
+  fallar el checkout con `hwe_item_detail_missing`: no se paga.
+- **Carrito (lectura).** `StoreCartItem.item_data` lleva una entrada visible (etiqueta → valor, en el
+  idioma por defecto) y una **oculta** `hwe_item_<clave>` con el dato máquina; `lib/catalog/order-item-details.ts`
+  (`cartItemDetailData`, `cartItemDetailValue`) las lee **por clave**, nunca en bloque.
+- **Pedido.** La línea guarda la meta **visible** `meta_key` (por defecto la clave; es la que ven los
+  correos de WooCommerce, wp-admin y la API) y la oculta `_hwe_item_<clave>` con el dato máquina
+  (`orderItemDetailValue`, `orderItemDetailData`).
+- **Ejemplo vivo:** `examples/instance-minimal` declara `example_note`.
+
 ### Landings editoriales (módulo `landings`)
 
 - **Qué hace el backend** (plugin `hwe-landings`): un registro de landings y, por cada una, un molde de

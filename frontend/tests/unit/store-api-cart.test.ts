@@ -100,4 +100,17 @@ describe("las mutaciones del carrito aplican la misma validación", () => {
 
     await expect(cartApi.addItem(1)).resolves.toEqual(VALID_CART);
   });
+
+  it("al añadir lleva las extensiones solo si se pasan", async () => {
+    vi.mocked(csrfFetch).mockResolvedValue(response(VALID_CART));
+
+    await cartApi.addItem(1, 2, { note: "regalo" });
+    await cartApi.addItem(1);
+
+    const bodies = vi.mocked(csrfFetch).mock.calls.map(([, init]) => init?.body);
+    expect(bodies.slice(-2)).toEqual([
+      { id: 1, quantity: 2, extensions: { note: "regalo" } },
+      { id: 1, quantity: 1 },
+    ]);
+  });
 });

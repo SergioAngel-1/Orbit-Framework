@@ -852,6 +852,23 @@ git fetch framework --tags
   `InstanceRegistry.productFields` (clave → `{ type, label? }`). La consulta `ProductBySlug` gana la variable
   `$locale`.
 
+### Detalles de línea de pedido (F5)
+
+- **Nuevo mu-plugin `hwe-order-item-details`** (siempre activo; sin detalles propios): sustituye a los
+  mu-plugins de una instancia derivada que cableaban a mano la Store API para guardar un dato por línea
+  (filtros `woocommerce_store_api_add_to_cart_data`, `woocommerce_get_item_data`,
+  `woocommerce_checkout_create_order_line_item`…). **Bórralos** y declara el dato con
+  `hwe_order_item_details`.
+- **(contrato) Alta:** el dato viaja en `extensions.<clave>` de `cart/add-item`; el BFF acota claves y
+  tamaños y WordPress valida con el validador declarado. Un valor inválido o ausente (si es obligatorio) es
+  un 400 y no entra al carrito.
+- **(contrato) Meta del pedido:** `meta_key` (visible, llega a los correos) y `_hwe_item_<clave>` (dato
+  máquina). Si la instancia ya guardaba su dato con otra clave visible, decláralo con `meta_key` para no
+  romper pedidos anteriores ni sus plantillas de correo.
+- **(contrato) Frontend:** `cartApi.addItem(id, quantity, extensions?)`, `useCart().addItem` con el mismo
+  tercer argumento y `StoreCartItem.item_data`.
+- **No se porta** lo específico de una instancia (catálogos de una marca concreta): era una declaración, no núcleo.
+
 ### Infraestructura y CD (F4)
 
 - **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin

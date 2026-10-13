@@ -9,9 +9,31 @@ import { z } from "zod";
 
 /* ------------------------------ Carrito ------------------------------- */
 
+/** Clave de un detalle de línea: la misma regla que `hwe_order_item_details()` en WordPress. */
+export const ORDER_ITEM_DETAIL_KEY = /^[a-z][a-z0-9_]{0,39}$/;
+
+/**
+ * Datos de extensión de un `cart/add-item` (módulo `order-item-details`). El BFF solo los
+ * ACOTA —claves y tamaños—; WordPress descarta las claves que la instancia no declaró y valida
+ * el valor con el validador del detalle: nada de lo que llega aquí es de fiar por sí mismo.
+ */
+const itemExtensionValue = z.union([
+  z.string().max(1000),
+  z.number().finite(),
+  z.boolean(),
+  z.array(z.string().max(200)).max(20),
+]);
+
+export const itemExtensionsSchema = z
+  .record(z.string().regex(ORDER_ITEM_DETAIL_KEY), itemExtensionValue)
+  .refine((value) => Object.keys(value).length <= 8, {
+    message: "Demasiados datos de extensión.",
+  });
+
 export const addItemSchema = z.object({
   id: z.number().int().positive(),
   quantity: z.number().int().min(1).max(999).default(1),
+  extensions: itemExtensionsSchema.optional(),
 });
 
 export const updateItemSchema = z.object({
