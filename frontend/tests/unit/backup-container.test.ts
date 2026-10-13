@@ -63,6 +63,21 @@ describe("backup-entrypoint.sh: arranca con los scripts montados en solo lectura
     expect(entrypoint).not.toMatch(/^\s*chmod\s/m);
   });
 
+  // Las perillas que documentan UPGRADE y los scripts solo llegan al contenedor si el
+  // compose las pasa: sin esto, ponerlas en el `.env` no hacía nada.
+  it("pasa al contenedor la hora de la copia y la edad máxima del lock", () => {
+    const dev = read("docker-compose.yml");
+    for (const compose of [prod, dev]) {
+      expect(compose).toContain('BACKUP_HOUR_UTC:     "${BACKUP_HOUR_UTC:-3}"');
+      expect(compose).toContain(
+        'HWE_BACKUP_LOCK_MAX_AGE_MIN: "${HWE_BACKUP_LOCK_MAX_AGE_MIN:-360}"',
+      );
+    }
+    const envProd = read(".env.prod.example");
+    expect(envProd).toMatch(/^BACKUP_HOUR_UTC=/m);
+    expect(envProd).toMatch(/^HWE_BACKUP_LOCK_MAX_AGE_MIN=/m);
+  });
+
   it("los scripts siguen montándose :ro (no se aflojan permisos)", () => {
     expect(prod).toMatch(/\.\/backend\/scripts:\/opt\/hwe\/scripts:ro/);
   });
