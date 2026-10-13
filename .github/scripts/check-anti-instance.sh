@@ -17,11 +17,15 @@ set -euo pipefail
 
 PATTERN='siu|sheilak|mascota|essence|esencia|dormilab|atlas'
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
 
 mapfile -t PATHS < <(
   cd "$ROOT" &&
     find backend/wp-content/mu-plugins -type f -not -path '*/instance/*' &&
-    find backend/wp-content/plugins/hwe-banners backend/wp-content/themes/hwe-headless-base -type f 2>/dev/null &&
+    # Todos los plugins del framework (módulos hwe-*), salvo los de instancia (hwe-instance-*).
+    find backend/wp-content/plugins -mindepth 1 -maxdepth 1 -type d -name 'hwe-*' -not -name 'hwe-instance-*' \
+      -exec find {} -type f \; 2>/dev/null &&
+    find backend/wp-content/themes/hwe-headless-base -type f 2>/dev/null &&
     find backend/scripts backend/tests -type f -not -path '*/vendor/*' &&
     find frontend/src/lib frontend/src/app/api frontend/src/components/ui -type f -not -path '*/node_modules/*' &&
     printf '%s\n' frontend/src/proxy.ts
