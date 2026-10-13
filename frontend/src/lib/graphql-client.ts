@@ -43,14 +43,16 @@ interface GraphQLResponse<T> {
   errors?: GraphQLErrorShape[];
 }
 
+export type GraphQLErrorKind = "network" | "timeout" | "http" | "graphql" | "empty";
+
 /** Error tipado del cliente GraphQL: permite distinguir red / HTTP / GraphQL sin parsear mensajes. */
 export class GraphQLClientError extends Error {
-  readonly kind: "network" | "http" | "graphql" | "empty";
+  readonly kind: GraphQLErrorKind;
   readonly status?: number;
   readonly errors?: GraphQLErrorShape[];
 
   constructor(
-    kind: "network" | "http" | "graphql" | "empty",
+    kind: GraphQLErrorKind,
     message: string,
     extras: { status?: number; errors?: GraphQLErrorShape[]; cause?: unknown } = {},
   ) {
@@ -62,10 +64,146 @@ export class GraphQLClientError extends Error {
   }
 }
 
+/** Intentos totales antes de propagar el error (1 intento inicial + 2 reintentos). */
+const MAX_ATTEMPTS = 3;
+
+/**
+ * Plazo POR INTENTO, en ms.
+ *
+ * Sin él, un WordPress que acepta la conexión pero no responde (saturado, con
+ * una query bloqueada en MySQL) deja el render del RSC colgado para siempre:
+ * WPGraphQL es la fuente de datos de TODA la web, así que unas pocas peticiones
+ * así agotan el pool de Next sin que ningún healthcheck se entere. Con el plazo,
+ * el fallo es acotado y además *reintentable* (ver `isRetryable`).
+ *
+ * Ajustable con `GRAPHQL_TIMEOUT_MS` para builds grandes o backends lentos. Una
+ * petición abortada por plazo NO entra en el Data Cache de Next: si WordPress
+ * tarda más que esto, no falla una página sino todas.
+ */
+const DEFAULT_TIMEOUT_MS = 10_000;
+
+function requestTimeoutMs(): number {
+  const raw = Number(process.env.GRAPHQL_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_TIMEOUT_MS;
+}
+
+/** ¿El fallo del `fetch` fue nuestro propio plazo (o una cancelación)? */
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error.name === "TimeoutError" || error.name === "AbortError")
+  );
+}
+
+/** Backoff exponencial entre intentos: 250 ms, 500 ms. */
+function backoffMs(attemptIndex: number): number {
+  return 250 * 2 ** attemptIndex;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Solo tiene sentido reintentar fallos transitorios: caída de red, plazo vencido
+ * o un 5xx (WordPress saturado). Un error GraphQL de validación o un 4xx son
+ * deterministas — reintentarlos solo alarga el build sin cambiar el resultado.
+ */
+function isRetryable(error: GraphQLClientError): boolean {
+  if (error.kind === "network" || error.kind === "timeout") return true;
+  return error.kind === "http" && (error.status ?? 0) >= 500;
+}
+
+/**
+ * Un único intento de petición + parseo. Lanza `GraphQLClientError` tipado.
+ *
+ * El `AbortSignal` se crea AQUÍ (uno por intento, no uno compartido en el
+ * `init`): un signal ya disparado aborta instantáneamente todos los reintentos
+ * posteriores, que es justo lo contrario de lo que se busca.
+ */
+async function attemptFetchGraphQL<TData>(
+  endpoint: string,
+  init: RequestInit,
+): Promise<TData> {
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      ...init,
+      signal: AbortSignal.timeout(requestTimeoutMs()),
+    });
+  } catch (cause) {
+    if (isAbortError(cause)) {
+      throw new GraphQLClientError(
+        "timeout",
+        `El endpoint GraphQL no respondió en ${requestTimeoutMs()} ms.`,
+        { cause },
+      );
+    }
+    throw new GraphQLClientError(
+      "network",
+      "No se pudo conectar con el endpoint GraphQL.",
+      { cause },
+    );
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new GraphQLClientError(
+      "http",
+      `Error HTTP de GraphQL: ${response.status} ${response.statusText}. ${text}`,
+      { status: response.status },
+    );
+  }
+
+  // El plazo también cubre la LECTURA del cuerpo (undici aborta el stream), así
+  // que este parseo puede fallar por corte a mitad, no solo por JSON malformado.
+  // Se clasifica igual que el fetch para que un corte sea reintentable.
+  let json: GraphQLResponse<TData>;
+  try {
+    json = (await response.json()) as GraphQLResponse<TData>;
+  } catch (cause) {
+    if (isAbortError(cause)) {
+      throw new GraphQLClientError(
+        "timeout",
+        `El endpoint GraphQL cortó la respuesta a los ${requestTimeoutMs()} ms.`,
+        { cause },
+      );
+    }
+    throw new GraphQLClientError(
+      "empty",
+      "La respuesta de GraphQL no es JSON válido.",
+      {
+        cause,
+      },
+    );
+  }
+
+  if (json.errors && json.errors.length > 0) {
+    const message = json.errors.map((e) => e.message).join(" | ");
+    throw new GraphQLClientError("graphql", `Error de GraphQL: ${message}`, {
+      errors: json.errors,
+    });
+  }
+
+  if (!json.data) {
+    throw new GraphQLClientError("empty", "La respuesta de GraphQL no contiene datos.");
+  }
+
+  return json.data;
+}
+
 /**
  * Ejecuta una operación GraphQL contra WordPress (WPGraphQL).
  *
- * @throws Error si la respuesta HTTP no es OK o si GraphQL devuelve `errors`.
+ * Reintenta hasta {@link MAX_ATTEMPTS} veces (con backoff exponencial) los
+ * fallos transitorios (red, plazo o HTTP 5xx): un WordPress momentáneamente
+ * saturado durante el build no hornea páginas rotas. Los errores
+ * deterministas (GraphQL, 4xx, respuesta vacía) se propagan al primer intento.
+ *
+ * @throws GraphQLClientError si, agotados los intentos, la petición sigue sin
+ *   poder completarse.
  */
 export async function fetchGraphQL<TData>(
   query: string,
@@ -92,49 +230,40 @@ export async function fetchGraphQL<TData>(
     /* sin contexto: no añadimos cabecera */
   }
 
-  let response: Response;
-  try {
-    response = await fetch(wpGraphqlUrl(), {
-      method: "POST",
-      headers: { ...headers, ...internalSecretHeaders() },
-      body: JSON.stringify({ query, variables }),
-      // Integración con la caché de Next.js (ISR / revalidación on-demand).
-      next: {
-        ...(typeof revalidate === "number" ? { revalidate } : {}),
-        ...(tags && tags.length > 0 ? { tags } : {}),
-      },
-    });
-  } catch (cause) {
-    throw new GraphQLClientError(
-      "network",
-      "No se pudo conectar con el endpoint GraphQL.",
-      {
-        cause,
-      },
-    );
+  const init: RequestInit = {
+    method: "POST",
+    headers: { ...headers, ...internalSecretHeaders() },
+    body: JSON.stringify({ query, variables }),
+    // Integración con la caché de Next.js (ISR / revalidación on-demand).
+    next: {
+      ...(typeof revalidate === "number" ? { revalidate } : {}),
+      ...(tags && tags.length > 0 ? { tags } : {}),
+    },
+  } as RequestInit;
+
+  // Las mutations no son idempotentes de forma segura: un 5xx después de que
+  // WordPress ya persistió la escritura no debe reintentarse (podría parecer un
+  // fallo cuando en realidad ya se aplicó). Solo las lecturas se reintentan.
+  const isMutation = /^\s*mutation\b/i.test(query);
+  const maxAttempts = isMutation ? 1 : MAX_ATTEMPTS;
+  const endpoint = wpGraphqlUrl();
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await attemptFetchGraphQL<TData>(endpoint, init);
+    } catch (error) {
+      const isLastAttempt = attempt === maxAttempts - 1;
+      if (
+        !(error instanceof GraphQLClientError) ||
+        !isRetryable(error) ||
+        isLastAttempt
+      ) {
+        throw error;
+      }
+      await sleep(backoffMs(attempt));
+    }
   }
 
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    throw new GraphQLClientError(
-      "http",
-      `Error HTTP de GraphQL: ${response.status} ${response.statusText}. ${text}`,
-      { status: response.status },
-    );
-  }
-
-  const json = (await response.json()) as GraphQLResponse<TData>;
-
-  if (json.errors && json.errors.length > 0) {
-    const message = json.errors.map((e) => e.message).join(" | ");
-    throw new GraphQLClientError("graphql", `Error de GraphQL: ${message}`, {
-      errors: json.errors,
-    });
-  }
-
-  if (!json.data) {
-    throw new GraphQLClientError("empty", "La respuesta de GraphQL no contiene datos.");
-  }
-
-  return json.data;
+  // Inalcanzable: el bucle siempre retorna o lanza en su última iteración.
+  throw new GraphQLClientError("network", "fetchGraphQL: reintentos agotados.");
 }

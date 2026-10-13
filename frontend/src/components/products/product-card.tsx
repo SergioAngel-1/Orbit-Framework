@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import { CmsImage } from "@/components/ui/cms-image";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
@@ -30,12 +30,12 @@ export function ProductCard({ product, wishlistEnabled = false }: ProductCardPro
       <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800">
         <Link href={`/products/${product.slug}`} className="block h-full w-full">
           {product.image?.sourceUrl ? (
-            <Image
+            <CmsImage
               src={product.image.sourceUrl}
               alt={product.image.altText || product.name}
               fill
               sizes="(max-width: 768px) 50vw, 25vw"
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              className="transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-3xl font-bold text-gray-300">

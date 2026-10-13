@@ -7,17 +7,21 @@ import { useLocale, useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 import { normalizePhoneE164 } from "@/lib/auth/phone";
 import { PasswordField } from "./password-field";
+import { withReturn } from "@/lib/navigation/safe-return";
 
 interface RegisterFormProps {
   /** `auth.phone_login_enabled`: pide el teléfono (opcional) para poder entrar con él. */
   phoneEnabled?: boolean;
   /** `auth.phone_default_dial_code`: prefijo inicial del teléfono. */
   defaultDialCode?: string;
+  /** Ruta interna a la que se vuelve al registrarse (`?return=` ya validado). */
+  returnTo?: string;
 }
 
 export function RegisterForm({
   phoneEnabled = false,
   defaultDialCode = "",
+  returnTo = "/account",
 }: RegisterFormProps) {
   const router = useRouter();
   const tRegister = useTranslations("register");
@@ -62,7 +66,7 @@ export function RegisterForm({
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error || tRegister("error"));
       }
-      router.push("/account");
+      router.push(returnTo);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error.");
@@ -152,7 +156,10 @@ export function RegisterForm({
       </button>
       <p className="text-center text-sm text-gray-500">
         {tRegister("hasAccount")}{" "}
-        <Link href="/login" className="font-medium text-brand hover:underline">
+        <Link
+          href={withReturn("/login", returnTo)}
+          className="font-medium text-brand hover:underline"
+        >
           {tRegister("login")}
         </Link>
       </p>

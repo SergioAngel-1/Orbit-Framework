@@ -2,6 +2,10 @@ import { analyticsCspHosts } from "./csp-analytics.mjs";
 import createNextIntlPlugin from "next-intl/plugin";
 import path from "path";
 import fs from "fs";
+import {
+  staticGenerationOptions,
+  staticPageGenerationTimeout,
+} from "./scripts/static-generation-options.mjs";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -41,19 +45,32 @@ const ANALYTICS = analyticsCspHosts();
  * para permitir imágenes alojadas en el dominio de producción sin hardcodearlo.
  */
 function wordpressImagePattern() {
-  try {
-    const u = new URL(WP_ORIGIN);
-    return [
-      {
-        protocol: u.protocol.replace(":", ""),
+  const patterns = [];
+  const seen = new Set();
+  const push = (origin) => {
+    try {
+      const u = new URL(origin);
+      const protocol = u.protocol.replace(":", "");
+      const key = `${protocol}|${u.hostname}|${u.port}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      patterns.push({
+        protocol,
         hostname: u.hostname,
         port: u.port || "",
         pathname: "/wp-content/uploads/**",
-      },
-    ];
-  } catch {
-    return [];
-  }
+      });
+    } catch {
+      /* origen no válido: sin patrón */
+    }
+  };
+  push(WP_ORIGIN);
+  // El optimizador hace el fetch en el SERVIDOR: `CmsImage` reescribe las URLs
+  // de medios al origen interno (`lib/wordpress/media.ts`), que también debe
+  // estar en la lista.
+  if (process.env.WORDPRESS_INTERNAL_API_URL)
+    push(process.env.WORDPRESS_INTERNAL_API_URL);
+  return patterns;
 }
 
 /**
@@ -124,6 +141,13 @@ const nextConfig = withNextIntl({
   // copia solo el server.js + node_modules mínimos trazados. Inocuo en dev.
   output: "standalone",
 
+  // Ritmo del prerender por variable de entorno: sin ellas, la config queda
+  // como estaba (ver `scripts/static-generation-options.mjs`).
+  experimental: staticGenerationOptions(process.env),
+  ...(staticPageGenerationTimeout(process.env) !== undefined
+    ? { staticPageGenerationTimeout: staticPageGenerationTimeout(process.env) }
+    : {}),
+
   async headers() {
     return [
       {
@@ -148,9 +172,24 @@ const nextConfig = withNextIntl({
         port: "80",
         pathname: "/wp-content/uploads/**",
       },
-      // Dominio de producción: WORDPRESS_PUBLIC_URL.
+      // Dominio de producción (WORDPRESS_PUBLIC_URL) y origen interno.
       ...wordpressImagePattern(),
     ],
+    // Next 16 solo sirve las calidades declaradas aquí: un `quality` fuera de la
+    // lista responde 400. 75 es el defecto de `next/image`; 90 para donde la
+    // compresión se VE (degradados amplios, ilustración plana).
+    qualities: [75, 90],
+    // Next 16+ bloquea por defecto el fetch a IPs privadas (defensa SSRF). El
+    // origen interno (`http://wordpress`) y `localhost` en desarrollo resuelven a
+    // una IP privada: sin esto, `_next/image` responde 400. `remotePatterns`
+    // sigue siendo la allowlist de hosts y rutas.
+    dangerouslyAllowLocalIP: !isProd || Boolean(process.env.WORDPRESS_INTERNAL_API_URL),
+    // Cuánto vive una imagen YA optimizada antes de que sharp la rehaga. Los
+    // uploads de WordPress son inmutables (al resubir con el mismo nombre WP
+    // versiona el archivo), así que un valor largo es correcto; el origen interno
+    // no manda `Cache-Control` y Next aplicaría su defecto de 4 h, reoptimizando
+    // cada variante del catálogo seis veces al día.
+    minimumCacheTTL: Number(process.env.NEXT_IMAGE_MIN_CACHE_TTL) || 2592000,
   },
 });
 

@@ -65,6 +65,12 @@ class RestApi {
         // formatea los precios de catálogo con ellos. Sin WooCommerce, null (los de Intl).
         $public['ecommerce']['price_decimals'] = self::priceDecimals();
 
+        // Icono del sitio de WordPress (Ajustes → Generales → Icono del sitio):
+        // calculado, no almacenado. El frontend lo sirve como favicon, icono de
+        // PWA y apple-touch; sin él, genera uno desde la marca.
+        $siteIcon = function_exists('get_site_icon_url') ? get_site_icon_url() : '';
+        $public['brand']['icon_url'] = is_string($siteIcon) && $siteIcon !== '' ? $siteIcon : null;
+
         $response = new \WP_REST_Response($public, 200);
 
         // Cabeceras de caché: ISR + CDN puede cachear 5 min; el tag invalidará.

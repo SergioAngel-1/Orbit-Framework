@@ -24,6 +24,9 @@ final class RestApiTest extends TestCase
         parent::setUp();
         Functions\when('get_option')->alias(fn (string $key, mixed $default = false): mixed => $this->options[$key] ?? $default);
         Functions\when('error_log')->justReturn(true);
+        // Brain Monkey define las funciones de verdad: una vez simulada, existe para
+        // el resto de tests del proceso. Por defecto, sin icono del sitio.
+        Functions\when('get_site_icon_url')->justReturn('');
     }
 
     /** @return array<string,mixed> */
@@ -52,6 +55,19 @@ final class RestApiTest extends TestCase
         Functions\when('wc_get_price_decimals')->justReturn(0);
 
         $this->assertSame(0, $this->publicConfig()['ecommerce']['price_decimals']);
+    }
+
+    public function testWithoutASiteIconTheBrandIconIsNull(): void {
+        $this->assertNull($this->publicConfig()['brand']['icon_url']);
+    }
+
+    public function testItExposesTheWordPressSiteIconAsBrandIcon(): void {
+        Functions\when('get_site_icon_url')->justReturn('https://wp.example/wp-content/uploads/icon.png');
+
+        $this->assertSame(
+            'https://wp.example/wp-content/uploads/icon.png',
+            $this->publicConfig()['brand']['icon_url'],
+        );
     }
 
     public function testItNeverExposesSecrets(): void {

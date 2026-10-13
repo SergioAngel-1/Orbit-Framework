@@ -28,6 +28,11 @@ export interface SiteConfig {
     logo: string;
     /** Variante del logo para correos. Vacío = usa el logo de cabecera. */
     email_logo: string;
+    /**
+     * Icono del sitio de WordPress (Ajustes → Generales), calculado por el
+     * backend. Null = el frontend genera uno desde la marca.
+     */
+    icon_url: string | null;
     locale: string;
   };
   social: {

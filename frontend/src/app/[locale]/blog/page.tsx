@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import { CmsImage } from "@/components/ui/cms-image";
 import { Link, permanentRedirect } from "@/i18n/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
@@ -199,12 +199,11 @@ export default async function BlogPage({
             <div className="group relative grid overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm md:grid-cols-2 dark:border-gray-800 dark:bg-gray-900">
               {featuredImage?.sourceUrl && (
                 <div className="relative aspect-[16/9] bg-gray-100 md:aspect-auto md:min-h-[260px] dark:bg-gray-800">
-                  <Image
+                  <CmsImage
                     src={featuredImage.sourceUrl}
                     alt={featuredImage.altText || ""}
                     fill
                     sizes="(max-width: 768px) 100vw, 50vw"
-                    className="object-cover"
                     priority
                   />
                 </div>

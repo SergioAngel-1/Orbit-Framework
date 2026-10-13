@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { CmsImage } from "@/components/ui/cms-image";
 import { Link } from "@/i18n/navigation";
 import { cleanExcerpt, formatDate } from "@/lib/format";
 import { blogPostHref } from "@/lib/blog/post-href";
@@ -40,12 +40,12 @@ export function PostCard({
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow focus-within:shadow-md hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
       {image?.sourceUrl ? (
         <div className="relative aspect-[16/9] w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
-          <Image
+          <CmsImage
             src={image.sourceUrl}
             alt={image.altText || ""}
             fill
             sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="transition-transform duration-300 group-hover:scale-105"
           />
         </div>
       ) : (

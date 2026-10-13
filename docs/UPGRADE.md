@@ -536,6 +536,35 @@ git fetch framework --tags
   web al actualizar.
 - **`i18n/navigation` exporta `permanentRedirect`.**
 
+- **El cliente GraphQL tiene plazo y reintentos.** Cada intento corta a los 10 s
+  (`GRAPHQL_TIMEOUT_MS`) y se reintenta hasta 3 veces un fallo de red, un plazo vencido o un 5xx;
+  una mutation no se reintenta. Nuevo `kind: "timeout"` en `GraphQLClientError`. Un código que
+  distinguía `network` de otros fallos debe contemplar `timeout`.
+- **`brand.icon_url`** (calculado en el backend, no almacenado): el icono del sitio de WordPress.
+  El favicon, el `apple-touch-icon` y los iconos de la PWA lo usan si se puede servir (mismo
+  origen de WordPress, imagen raster de menos de 1 MB) y, si no, el generado desde la marca.
+- **`CmsImage`** (`components/ui/cms-image.tsx`) es la vía de las imágenes del CMS: reescribe la
+  URL de medios al origen interno (`WORDPRESS_INTERNAL_API_URL`) para que el optimizador de
+  `next/image` la alcance dentro de Docker, y sirve una variante móvil como UN `<picture>`. El
+  origen interno es de servidor: en un Client Component la URL se deja tal cual. La reescritura
+  solo toca medios del WordPress propio (en Siu, cualquier host con una ruta de uploads se
+  desviaba a la red interna). `images.qualities` pasa a `[75, 90]` y se autoriza el origen
+  interno en `remotePatterns`.
+- **`PRERENDER_LONG_TAIL=none`** deja fichas y entradas para ISR bajo demanda. El defecto
+  (`all`) conserva el comportamiento anterior.
+- **`?return=` en login y registro** vuelve a la ruta de origen (solo rutas internas; se rechazan
+  URLs absolutas, `//`, `\\`, esquemas, `/api` y cualquier carácter de control: un tabulador
+  dentro de la ruta se reconstruye como protocolo relativo en el navegador). El checkout sin
+  sesión y la invitación de «gracias» lo usan. `next-intl`: `permanentRedirect` se exporta de
+  `@/i18n/navigation`.
+- **Mensajes de i18n:** el cliente recibe solo los namespaces que usan los Client Components
+  (`lib/i18n/client-messages.ts`, con un test que lo impone). Un Client Component nuevo que lea
+  un namespace nuevo debe añadirlo a `CLIENT_NAMESPACES`; los fallos de next-intl se registran
+  (`i18n.message_error`).
+- **Nuevo:** `lib/http/fetch-retry` (lecturas del CMS con reintentos; lo usan los banners),
+  `lib/youtube`, `lib/validation/{email,form}`, `lib/prerender-budget`,
+  `scripts/static-generation-options.mjs`, `lib/wordpress/media`.
+
 ### Operación (F1)
 
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor

@@ -88,6 +88,20 @@ test("las vistas privadas van noindex y sin canónica de la home", async ({ page
   await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
 });
 
+test("el login lleva la ruta de vuelta solo si es interna", async ({ page }) => {
+  await page.goto("/login?return=/checkout");
+  await expect(
+    page.getByRole("link", { name: /cuenta|account|register|registr/i }).first(),
+  ).toBeVisible();
+  await expect(page.locator('a[href*="/register?return=%2Fcheckout"]')).toHaveCount(1);
+
+  // Un destino ajeno (o con un tabulador que reconstruye `//`) no viaja.
+  await page.goto("/login?return=//evil.example");
+  await expect(page.locator('a[href*="evil.example"]')).toHaveCount(0);
+  await page.goto("/login?return=/%09/evil.example");
+  await expect(page.locator('a[href*="evil.example"]')).toHaveCount(0);
+});
+
 test("la home declara su canónica, hreflang y og:locale", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);

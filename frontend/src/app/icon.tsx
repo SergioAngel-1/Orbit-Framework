@@ -1,5 +1,5 @@
 import { getSiteConfig } from "@/lib/config";
-import { renderBrandIcon } from "@/lib/seo/brand-image";
+import { resolveIconResponse } from "@/lib/seo/brand-image";
 
 // Favicon generado dinámicamente desde la marca (Control Center).
 // Convención de Next: se inyecta automáticamente en <head>. Sin .ico estático.
@@ -11,5 +11,5 @@ export const contentType = "image/png";
 
 export default async function Icon() {
   const config = await getSiteConfig();
-  return renderBrandIcon(config, 32);
+  return resolveIconResponse(config, 32);
 }

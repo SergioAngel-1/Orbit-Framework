@@ -72,7 +72,10 @@ describe("/checkout", () => {
 
     await expect(render()).rejects.toThrow("NEXT_REDIRECT");
 
-    expect(redirect).toHaveBeenCalledWith({ href: "/login", locale: "es" });
+    expect(redirect).toHaveBeenCalledWith({
+      href: { pathname: "/login", query: { return: "/checkout" } },
+      locale: "es",
+    });
   });
 
   it("sin sesión y con compra de invitado, muestra el formulario como invitado", async () => {

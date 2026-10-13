@@ -366,6 +366,10 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   `pageMetadata`; toda vista privada `privateMetadata` (lo impone un test sobre `PRIVATE_PATHS`);
   todo JSON-LD pasa por `safeJsonLd`. Todo lee `getSiteConfig()`, nada tiene la URL o la marca
   hardcodeada.
+- **Utilidades de resistencia/rendimiento**: `lib/http/fetch-retry`, `lib/wordpress/media` +
+  `components/ui/cms-image`, `lib/prerender-budget`, `scripts/static-generation-options.mjs`,
+  `lib/navigation/safe-return` (`?return=` anti open-redirect) y `lib/i18n/client-messages`
+  (solo viajan al navegador los namespaces de los Client Components).
 - **Blog**: `lib/blog/` (lecturas, `category-format`, `post-content`, `post-view`,
   `extract-product-links`…), `/api/blog/posts` (scroll infinito, con topes) y las vistas
   `blog/`, `blog/category/[slug]`, `blog/archive`. Criterio único de disponibilidad de una

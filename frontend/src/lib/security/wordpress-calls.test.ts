@@ -25,6 +25,13 @@ const WORDPRESS_CLIENTS = new Set([
   "proxy.ts", // refresh del JWT (edge: no puede importar el cliente de servidor)
 ]);
 
+/**
+ * Módulos que LEEN la URL de WordPress solo para componer la URL de una imagen
+ * (la que `next/image` pedirá al optimizador): no hacen ninguna petición, así
+ * que no necesitan el secreto. Cualquier otro uso de la URL sigue prohibido.
+ */
+const URL_ONLY_HELPERS = new Set(["lib/wordpress/media.ts"]);
+
 function sourceFiles(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name);
@@ -66,7 +73,10 @@ describe("llamadas del BFF a WordPress", () => {
   it("solo los clientes conocen las URLs de WordPress", () => {
     const urlVars = /WORDPRESS_INTERNAL_API_URL|WC_API_URL|WC_STORE_API_URL/;
     const offenders = files.filter(
-      (f) => urlVars.test(f.code) && !WORDPRESS_CLIENTS.has(f.rel),
+      (f) =>
+        urlVars.test(f.code) &&
+        !WORDPRESS_CLIENTS.has(f.rel) &&
+        !URL_ONLY_HELPERS.has(f.rel),
     );
 
     expect(offenders.map((f) => f.rel)).toEqual([]);
@@ -82,6 +92,14 @@ describe("llamadas del BFF a WordPress", () => {
     );
 
     expect(offenders.map((f) => f.rel)).toEqual([]);
+  });
+
+  it("los ayudantes que solo componen URLs no hacen peticiones", () => {
+    for (const rel of URL_ONLY_HELPERS) {
+      const file = files.find((f) => f.rel === rel);
+      expect(file, rel).toBeDefined();
+      expect(file!.code, rel).not.toMatch(/\bfetch\s*\(/);
+    }
   });
 
   it("todo cliente añade internalSecretHeaders()", () => {

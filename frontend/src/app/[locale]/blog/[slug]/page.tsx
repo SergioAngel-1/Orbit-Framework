@@ -1,9 +1,10 @@
-import Image from "next/image";
+import { CmsImage } from "@/components/ui/cms-image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getPostBySlug, getPostSlugs, wpDateIso } from "@/lib/blog/posts";
+import { prerenderLongTail } from "@/lib/prerender-budget";
 import { buildPostView } from "@/lib/blog/post-view";
 import { showUpdatedDate } from "@/lib/blog/updated-date";
 import { isLandingCategory } from "@/lib/blog/category-format";
@@ -25,7 +26,8 @@ import { metaDescription } from "@/lib/seo/meta-description";
 export const revalidate = 300;
 
 export async function generateStaticParams() {
-  const slugs = await getPostSlugs();
+  // La cola larga se hornea o se deja para ISR según `PRERENDER_LONG_TAIL`.
+  const slugs = await prerenderLongTail(getPostSlugs);
   return slugs.map(({ slug }) => ({ slug }));
 }
 
@@ -192,12 +194,11 @@ export default async function PostPage({
 
       {image?.sourceUrl && (
         <div className="relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800">
-          <Image
+          <CmsImage
             src={image.sourceUrl}
             alt={image.altText || post.title}
             fill
             sizes="(max-width: 768px) 100vw, 768px"
-            className="object-cover"
             priority
           />
         </div>

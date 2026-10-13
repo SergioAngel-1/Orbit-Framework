@@ -2,6 +2,7 @@ import "server-only";
 import { normalizePlacement } from "./normalize";
 import type { BannerPlacement } from "./types";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
+import { fetchWithRetry } from "@/lib/http/fetch-retry";
 
 export type { BannerSlide, BannerPlacement } from "./types";
 
@@ -26,9 +27,16 @@ export async function getBannerPlacement(
   )}?lang=${encodeURIComponent(locale)}`;
 
   try {
-    const res = await wpFetch(path, {
-      next: { revalidate: REVALIDATE_SECONDS, tags: ["banners"] },
-    });
+    // Con reintentos: un hipo de WordPress durante el prerender horneaba la
+    // home SIN hero (la lectura es fail-soft y el build salía en verde).
+    const res = await fetchWithRetry(
+      () =>
+        wpFetch(path, {
+          next: { revalidate: REVALIDATE_SECONDS, tags: ["banners"] },
+        }),
+      undefined,
+      { label: "banners" },
+    );
     if (!res.ok) return EMPTY;
     return normalizePlacement(await res.json());
   } catch {

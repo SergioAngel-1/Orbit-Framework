@@ -5,6 +5,7 @@ import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
+import { withReturn } from "@/lib/navigation/safe-return";
 
 /**
  * Mueve el foco al campo del código cuando aparece el paso de 2FA. Es la gestión
@@ -20,9 +21,17 @@ function focusOnMount(el: HTMLInputElement | null) {
 interface LoginFormProps {
   /** `auth.phone_login_enabled`: el usuario también puede ser el teléfono. */
   phoneEnabled?: boolean;
+  /**
+   * Ruta interna a la que se vuelve al entrar (`?return=` ya validado en el
+   * servidor con `safeInternalPath`). Por defecto, la cuenta.
+   */
+  returnTo?: string;
 }
 
-export function LoginForm({ phoneEnabled = false }: LoginFormProps) {
+export function LoginForm({
+  phoneEnabled = false,
+  returnTo = "/account",
+}: LoginFormProps) {
   const router = useRouter();
   const tLogin = useTranslations("login");
   const t2fa = useTranslations("twoFactor");
@@ -60,7 +69,7 @@ export function LoginForm({ phoneEnabled = false }: LoginFormProps) {
         setEphemeralToken(data.ephemeralToken);
         return;
       }
-      router.push("/account");
+      router.push(returnTo);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error.");
@@ -82,7 +91,7 @@ export function LoginForm({ phoneEnabled = false }: LoginFormProps) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(data.error || t2fa("verifyError"));
       }
-      router.push("/account");
+      router.push(returnTo);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : t2fa("verifyError"));
@@ -166,7 +175,10 @@ export function LoginForm({ phoneEnabled = false }: LoginFormProps) {
       </p>
       <p className="text-center text-sm text-gray-500">
         {tLogin("noAccount")}{" "}
-        <Link href="/register" className="font-medium text-brand hover:underline">
+        <Link
+          href={withReturn("/register", returnTo)}
+          className="font-medium text-brand hover:underline"
+        >
           {tLogin("register")}
         </Link>
       </p>

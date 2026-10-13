@@ -1,9 +1,10 @@
-import Image from "next/image";
+import { CmsImage } from "@/components/ui/cms-image";
 import { Link } from "@/i18n/navigation";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getProductBySlug, getProductSlugs } from "@/lib/catalog/products";
+import { prerenderLongTail } from "@/lib/prerender-budget";
 import { sanitizeHtml } from "@/lib/security/sanitize";
 import { formatPrice, stripHtml, formatDate } from "@/lib/format";
 import { getSiteConfig } from "@/lib/config";
@@ -27,7 +28,8 @@ import { getCartProductRefs } from "@/lib/catalog/coupon-refs";
 export const revalidate = 300;
 
 export async function generateStaticParams() {
-  const slugs = await getProductSlugs();
+  // La cola larga se hornea o se deja para ISR según `PRERENDER_LONG_TAIL`.
+  const slugs = await prerenderLongTail(getProductSlugs);
   return slugs.map((slug) => ({ slug }));
 }
 
@@ -161,12 +163,11 @@ export default async function ProductPage({
         {/* Imagen */}
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-gray-100 dark:bg-gray-800">
           {product.image?.sourceUrl ? (
-            <Image
+            <CmsImage
               src={product.image.sourceUrl}
               alt={product.image.altText || product.name}
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
-              className="object-cover"
               priority
             />
           ) : (

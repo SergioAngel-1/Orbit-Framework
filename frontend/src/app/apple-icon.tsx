@@ -1,8 +1,9 @@
 import { getSiteConfig } from "@/lib/config";
-import { renderBrandIcon } from "@/lib/seo/brand-image";
+import { resolveIconResponse } from "@/lib/seo/brand-image";
 
-// Apple touch icon generado dinámicamente desde la marca (Control Center).
-// Convención de Next: se inyecta automáticamente en <head>. Sin PNG estático.
+// Apple touch icon: el icono del sitio de WordPress si lo hay y, si no, uno
+// generado desde la marca (Control Center). Convención de Next: se inyecta
+// automáticamente en <head>. Sin PNG estático.
 export const runtime = "nodejs";
 export const revalidate = 300;
 
@@ -11,5 +12,5 @@ export const contentType = "image/png";
 
 export default async function AppleIcon() {
   const config = await getSiteConfig();
-  return renderBrandIcon(config, 180);
+  return resolveIconResponse(config, 180);
 }

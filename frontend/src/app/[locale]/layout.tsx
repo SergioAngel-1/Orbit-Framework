@@ -22,6 +22,7 @@ import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
 import { absoluteLocalized } from "@/lib/seo/urls";
 import { resolveTitleTemplate } from "@/lib/seo/title";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
+import { pickClientMessages } from "@/lib/i18n/client-messages";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -134,7 +135,7 @@ export default async function LocaleLayout({
       <body className="min-h-screen bg-[--background] font-sans text-[--foreground] antialiased">
         {/* Design tokens dinámicos desde el panel de configuración */}
         <ThemeTokens />
-        <NextIntlClientProvider messages={messages}>
+        <NextIntlClientProvider messages={pickClientMessages(messages)}>
           <AnalyticsProvider
             config={config.integrations}
             plausibleHost={process.env.PLAUSIBLE_HOST || undefined}

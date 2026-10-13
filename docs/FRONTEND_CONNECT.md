@@ -280,6 +280,19 @@ responden **404** y el banner no encola ni guarda comprobante.
 - **Negocio local**: una entidad `LocalBusiness` por sede (Legal → Sedes) en `/contact`, con el
   tipo de `seo.business_type`.
 
+### Utilidades y rendimiento
+
+- **Lecturas a WordPress** (`fetchGraphQL`, `fetchRemoteConfig`): plazo por intento y hasta 3
+  intentos ante red / plazo / 5xx; un 4xx o un error de GraphQL no se reintenta. Una lectura
+  fail-soft del CMS (banners) usa `fetchWithRetry`. Variables: `GRAPHQL_TIMEOUT_MS`,
+  `CONFIG_TIMEOUT_MS`.
+- **Imágenes del CMS**: `CmsImage` + `lib/wordpress/media` (`wpUploadsUrl`, `resolveCmsAssetUrl`,
+  `wpMediaInternalUrl`, `isSvgAsset`). Un SVG no pasa por el optimizador (`<img>` tal cual).
+- **Prerender**: `PRERENDER_LONG_TAIL=all|none`; `NEXT_STATIC_GENERATION_MAX_CONCURRENCY`,
+  `NEXT_STATIC_GENERATION_MIN_PAGES_PER_WORKER`, `NEXT_STATIC_PAGE_GENERATION_TIMEOUT`.
+- **`?return=`**: `safeInternalPath` valida la ruta de vuelta tras el login; `loginHref(ruta)` /
+  `withReturn("/register", ruta)` construyen el enlace.
+
 ### Blog
 
 - **Lecturas** (`lib/blog/posts.ts`, tag ISR `posts`): `getPosts({ tag, author, category, search,

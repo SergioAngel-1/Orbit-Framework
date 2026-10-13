@@ -1,4 +1,5 @@
 import { Link } from "@/i18n/navigation";
+import { loginHref, withReturn } from "@/lib/navigation/safe-return";
 
 /**
  * Invitación a iniciar sesión (o crear cuenta) en la pantalla de «gracias»
@@ -24,10 +25,18 @@ export function GuestAccountInvite({
       </h2>
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{copy.body}</p>
       <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium">
-        <Link href="/login" className="text-brand hover:underline">
+        {/* Al abrir sesión, `claimGuestOrder` pasa el pedido a la cuenta: se
+            vuelve a su lista, donde ya aparece. */}
+        <Link
+          href={loginHref("/account/orders")}
+          className="text-brand hover:underline"
+        >
           {copy.login}
         </Link>
-        <Link href="/register" className="text-brand hover:underline">
+        <Link
+          href={withReturn("/register", "/account/orders")}
+          className="text-brand hover:underline"
+        >
           {copy.register}
         </Link>
       </p>

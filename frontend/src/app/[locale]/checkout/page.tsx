@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { redirect } from "@/i18n/navigation";
+import { loginHref } from "@/lib/navigation/safe-return";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { getSession } from "@/lib/auth/session";
 import { getCheckoutCustomerSeed } from "@/lib/checkout/customer-seed-server";
@@ -39,7 +40,7 @@ export default async function CheckoutPage({
   ]);
   // Sin sesión solo se compra si la tienda admite invitados; si no, al login.
   if (!session && config.ecommerce.checkout_login_required) {
-    redirect({ href: "/login", locale });
+    redirect({ href: loginHref("/checkout"), locale });
   }
   const customer = session
     ? await getCheckoutCustomerSeed(session.userId, config.ecommerce.country)

@@ -5,8 +5,22 @@ import type { ReactNode } from "react";
 import { GuestAccountInvite } from "./guest-account-invite";
 
 vi.mock("@/i18n/navigation", () => ({
-  Link: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
-    <a href={href} {...rest}>
+  Link: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: string | { pathname: string; query: Record<string, string> };
+    children: ReactNode;
+  }) => (
+    <a
+      href={
+        typeof href === "string"
+          ? href
+          : `${href.pathname}?${new URLSearchParams(href.query).toString()}`
+      }
+      {...rest}
+    >
       {children}
     </a>
   ),
@@ -26,11 +40,11 @@ describe("GuestAccountInvite", () => {
     expect(screen.getByRole("complementary", { name: copy.title })).toBeTruthy();
   });
 
-  it("el acceso lleva al login: al abrir sesión el pedido pasa a la cuenta", () => {
+  it("el acceso lleva al login y de vuelta a «Mis pedidos», donde ya está el pedido", () => {
     render(<GuestAccountInvite copy={copy} />);
 
     expect(screen.getByRole("link", { name: copy.login }).getAttribute("href")).toBe(
-      "/login",
+      "/login?return=%2Faccount%2Forders",
     );
   });
 
@@ -38,7 +52,7 @@ describe("GuestAccountInvite", () => {
     render(<GuestAccountInvite copy={copy} />);
 
     expect(screen.getByRole("link", { name: copy.register }).getAttribute("href")).toBe(
-      "/register",
+      "/register?return=%2Faccount%2Forders",
     );
   });
 });
