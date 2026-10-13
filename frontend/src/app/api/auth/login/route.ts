@@ -15,6 +15,9 @@ import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
 import type { LoginResponse } from "@/types/auth";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
+import { getSiteConfig } from "@/lib/config";
+import { classifyLoginIdentifier } from "@/lib/auth/phone";
+import { resolvePhoneToLogin } from "@/lib/auth/phone-account";
 
 export const dynamic = "force-dynamic";
 
@@ -44,10 +47,31 @@ export async function POST(request: Request) {
     );
   }
 
+  // Con `auth.phone_login_enabled`, el «usuario» puede ser el teléfono de la
+  // cuenta: se traduce a su email antes de pedir el token. Un teléfono que no es
+  // de nadie responde como cualquier credencial inválida.
+  let username = parsed.data.username;
+  const config = await getSiteConfig();
+  const identifier = classifyLoginIdentifier(parsed.data.username, {
+    enabled: config.auth.phone_login_enabled,
+    defaultDialCode: config.auth.phone_default_dial_code,
+  });
+  if (identifier.kind === "phone") {
+    const resolved = await resolvePhoneToLogin(identifier.value);
+    if (!resolved) {
+      logger.info(
+        { event: "auth.login.failed", reason: "phone_unresolved" },
+        "Credenciales inválidas en login",
+      );
+      return NextResponse.json({ error: "Credenciales inválidas." }, { status: 401 });
+    }
+    username = resolved;
+  }
+
   let data: LoginResponse;
   try {
     data = await fetchGraphQL<LoginResponse>(LOGIN_MUTATION, {
-      variables: parsed.data,
+      variables: { username, password: parsed.data.password },
       revalidate: 0,
     });
   } catch {

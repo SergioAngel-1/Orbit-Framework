@@ -2,10 +2,10 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
+import { PasswordField } from "@/components/auth/password-field";
 
 export function ChangePasswordForm() {
   const t = useTranslations("changePassword");
-  const tForm = useTranslations("form");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -70,8 +70,11 @@ export function ChangePasswordForm() {
         </p>
       )}
       <div>
-        <label className="mb-1 block text-sm font-medium">{t("currentPassword")}</label>
+        <label htmlFor="current_password" className="mb-1 block text-sm font-medium">
+          {t("currentPassword")}
+        </label>
         <input
+          id="current_password"
           name="current_password"
           type="password"
           required
@@ -79,29 +82,12 @@ export function ChangePasswordForm() {
           className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
         />
       </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium">{t("newPassword")}</label>
-        <input
-          name="new_password"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
-        />
-        <p className="mt-1 text-xs text-gray-500">{tForm("passwordMin")}</p>
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium">{t("confirmPassword")}</label>
-        <input
-          name="confirm_password"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
-        />
-      </div>
+      <PasswordField
+        passwordName="new_password"
+        confirmName="confirm_password"
+        passwordLabel={t("newPassword")}
+        confirmLabel={t("confirmPassword")}
+      />
       <button
         type="submit"
         disabled={pending}

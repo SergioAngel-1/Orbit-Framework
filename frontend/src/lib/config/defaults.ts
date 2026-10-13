@@ -9,6 +9,10 @@ export const CONFIG_DEFAULTS: SiteConfig = {
   i18n: {
     locales: "en",
   },
+  auth: {
+    phone_login_enabled: false,
+    phone_default_dial_code: "",
+  },
   brand: {
     name: "HeadlessWP",
     tagline: "Headless WooCommerce Template",

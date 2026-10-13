@@ -91,6 +91,7 @@ marca/diseño/SEO:
 | Pasarelas de pago | `provider`, `gateway_enabled`, `whatsapp_enabled`, `cash_enabled` (+ credenciales por pasarela) | Lo público lo lee el checkout; los secretos solo salen por `hwe/v1/payments/credentials` (canal interno). El efectivo usa la pasarela nativa «Contra reembolso», que se sincroniza al guardar. |
 | Integraciones | `gtm_id`, `meta_pixel_id`, `tiktok_pixel_id`, `hubspot_portal_id`, `consent_retention_years` (+ `meta_capi_*` por canal interno) | Cada id activa su proveedor; vacío = desactivado. |
 | Legal → Sedes | 4 sedes (nombre, dirección, Maps, teléfono, horario, coordenadas) | Alimentan el JSON-LD `LocalBusiness` y la página de contacto. |
+| Acceso | `auth.phone_login_enabled`, `auth.phone_default_dial_code` | Login y registro con el teléfono de la cuenta (E.164, único). Apagado por defecto. El prefijo permite escribir el número sin él. |
 | Idiomas | `i18n.locales` | Idiomas secundarios (p. ej. `en, fr`), sin el de `brand.locale`. Deben coincidir con `frontend/src/i18n/routing.ts`. |
 | GEO | `faq`, `faq_payments` (traducibles) | Formato «pregunta \| respuesta». La traducción es por bloque completo. |
 

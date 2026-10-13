@@ -77,14 +77,42 @@ class HWE_Auth_Endpoints {
         ]);
 
         // 4. Verify email with token
+        // Sin sesión: el enlace del correo se abre muchas veces en otro navegador o
+        // dispositivo. El token (aleatorio, 256 bits) identifica al usuario. Solo el
+        // BFF llega aquí (hwe-bff-only) y el BFF lo limita por IP.
         register_rest_route(self::NAMESPACE, '/auth/verify-email', [
             'methods'             => 'POST',
             'callback'            => [self::class, 'handleVerifyEmail'],
-            'permission_callback' => function () { return is_user_logged_in(); },
+            'permission_callback' => '__return_true',
             'args'                => [
-                'token' => ['required' => true, 'type' => 'string'],
+                'token' => [
+                    'required'          => true,
+                    'type'              => 'string',
+                    'validate_callback' => static fn ($v) => is_string($v) && (bool) preg_match('/^[a-f0-9]{64}$/', $v),
+                ],
             ],
         ]);
+
+        // Login y registro por teléfono (`auth.phone_login_enabled`): solo el BFF, con
+        // el secreto interno, y solo con el flag encendido.
+        foreach ([
+            '/auth/phone-available' => 'handlePhoneAvailable',
+            '/auth/resolve-login'   => 'handleResolveLogin',
+            '/auth/attach-profile'  => 'handleAttachProfile',
+        ] as $route => $handler) {
+            register_rest_route(self::NAMESPACE, $route, [
+                'methods'             => 'POST',
+                'callback'            => [self::class, $handler],
+                'permission_callback' => [self::class, 'permitPhoneLogin'],
+                'args'                => [
+                    'phone' => [
+                        'required'          => true,
+                        'type'              => 'string',
+                        'validate_callback' => [self::class, 'isE164'],
+                    ],
+                ],
+            ]);
+        }
 
         // 5. 2FA status — solo dice si está habilitado. Protegido: requiere el
         //    secreto interno del BFF (server-to-server) para evitar enumeración
@@ -163,6 +191,21 @@ class HWE_Auth_Endpoints {
         }
         $req_id = (int) $request['user_id'];
         return is_user_logged_in() && get_current_user_id() === $req_id;
+    }
+
+    /** Endpoints de teléfono: secreto interno del BFF y flag encendido. */
+    public static function permitPhoneLogin(WP_REST_Request $request): bool {
+        return self::hasInternalSecret($request) && self::phoneLoginEnabled();
+    }
+
+    public static function phoneLoginEnabled(): bool {
+        return class_exists('HWE\\ControlCenter\\Storage')
+            && (bool) HWE\ControlCenter\Storage::get(['auth', 'phone_login_enabled'], false);
+    }
+
+    /** Teléfono en formato E.164: `+` y de 8 a 15 cifras, sin empezar por 0. */
+    public static function isE164($value): bool {
+        return is_string($value) && (bool) preg_match('/^\+[1-9]\d{7,14}$/', $value);
     }
 
     private static function hasInternalSecret(WP_REST_Request $request): bool {
@@ -428,29 +471,112 @@ class HWE_Auth_Endpoints {
     }
 
     public static function handleVerifyEmail(WP_REST_Request $request): WP_REST_Response {
-        $user_id = get_current_user_id();
+        $token = (string) $request->get_param('token');
+
+        // El dueño: el usuario de la sesión si el token es suyo; si no, el que tenga
+        // ese token guardado. Comparación en tiempo constante en ambos casos.
+        $user_id = 0;
+        $current = get_current_user_id();
+        if ($current) {
+            $stored = (string) get_user_meta($current, 'hwe_email_verification_token', true);
+            if ($stored !== '' && hash_equals($stored, $token)) {
+                $user_id = $current;
+            }
+        }
         if (!$user_id) {
-            return new WP_REST_Response(['error' => 'Usuario no autenticado.'], 401);
+            $users = get_users([
+                'meta_key'   => 'hwe_email_verification_token',
+                'meta_value' => $token,
+                'number'     => 1,
+                'fields'     => 'ID',
+            ]);
+            $candidate = (int) ($users[0] ?? 0);
+            $stored    = $candidate ? (string) get_user_meta($candidate, 'hwe_email_verification_token', true) : '';
+            if ($stored === '' || !hash_equals($stored, $token)) {
+                return new WP_REST_Response(['error' => 'Token inválido.'], 400);
+            }
+            $user_id = $candidate;
         }
 
-        $token   = $request->get_param('token');
-        $stored  = get_user_meta($user_id, 'hwe_email_verification_token', true);
-        $issued  = (int) get_user_meta($user_id, 'hwe_email_verification_token_time', true);
-
-        if (!$stored || !hash_equals($stored, (string) $token)) {
-            return new WP_REST_Response(['error' => 'Token inválido.'], 400);
+        // Enlace ya usado: el token se CONSERVA tras verificar (ver abajo), así que
+        // volver a abrirlo (otro dispositivo, doble clic, el doble efecto de React en
+        // desarrollo) responde OK en vez de «enlace no válido» sobre un email que sí
+        // quedó verificado.
+        if (get_user_meta($user_id, 'hwe_email_verified', true)) {
+            return new WP_REST_Response(['ok' => true, 'already_verified' => true], 200);
         }
 
-        // Expiración del token.
+        $issued = (int) get_user_meta($user_id, 'hwe_email_verification_token_time', true);
         if ($issued > 0 && (time() - $issued) > self::EMAIL_TOKEN_TTL) {
             delete_user_meta($user_id, 'hwe_email_verification_token');
             delete_user_meta($user_id, 'hwe_email_verification_token_time');
             return new WP_REST_Response(['error' => 'El enlace ha expirado. Solicita uno nuevo.'], 400);
         }
 
+        // El token NO se borra: ya solo sirve para reconocer el enlace usado (arriba).
+        // No da acceso a nada, y con el email verificado /send-verification no emite otro.
         update_user_meta($user_id, 'hwe_email_verified', '1');
-        delete_user_meta($user_id, 'hwe_email_verification_token');
-        delete_user_meta($user_id, 'hwe_email_verification_token_time');
+
+        return new WP_REST_Response(['ok' => true], 200);
+    }
+
+    // ------------------------------------------------------------------------
+    //  Login y registro por teléfono (`auth.phone_login_enabled`)
+    //
+    //  El teléfono de la cuenta es el `billing_phone` de WooCommerce en E.164 y es
+    //  único: el registro lo comprueba y `attach-profile` lo vuelve a comprobar.
+    // ------------------------------------------------------------------------
+
+    /** @return list<WP_User> */
+    private static function usersByBillingPhone(string $phone): array {
+        $users = get_users([
+            'meta_key'   => 'billing_phone',
+            'meta_value' => $phone,
+            'number'     => 2,
+            'fields'     => 'all',
+        ]);
+        return is_array($users) ? array_values($users) : [];
+    }
+
+    public static function handlePhoneAvailable(WP_REST_Request $request): WP_REST_Response {
+        return new WP_REST_Response(['available' => self::usersByBillingPhone((string) $request->get_param('phone')) === []], 200);
+    }
+
+    /**
+     * Teléfono → identificador de login (el email, que es el más estable). Si el
+     * teléfono no existe o lo comparten varias cuentas, 404: no se adivina.
+     */
+    public static function handleResolveLogin(WP_REST_Request $request): WP_REST_Response {
+        $users = self::usersByBillingPhone((string) $request->get_param('phone'));
+        if (count($users) !== 1) {
+            return new WP_REST_Response(['error' => 'No encontrado.'], 404);
+        }
+        $user = $users[0];
+        return new WP_REST_Response(['login' => $user->user_email ?: $user->user_login], 200);
+    }
+
+    /** Guarda teléfono y nombre de una cuenta recién creada. 409 si el teléfono ya es de otra. */
+    public static function handleAttachProfile(WP_REST_Request $request): WP_REST_Response {
+        $user_id = (int) $request->get_param('user_id');
+        $phone   = (string) $request->get_param('phone');
+        if ($user_id <= 0 || !get_userdata($user_id)) {
+            return new WP_REST_Response(['error' => 'Usuario no encontrado.'], 404);
+        }
+
+        foreach (self::usersByBillingPhone($phone) as $other) {
+            if ((int) $other->ID !== $user_id) {
+                return new WP_REST_Response(['error' => 'Teléfono en uso.'], 409);
+            }
+        }
+
+        update_user_meta($user_id, 'billing_phone', $phone);
+        $first = sanitize_text_field((string) ($request->get_param('first_name') ?? ''));
+        $last  = sanitize_text_field((string) ($request->get_param('last_name') ?? ''));
+        if ($first !== '' || $last !== '') {
+            update_user_meta($user_id, 'first_name', $first);
+            update_user_meta($user_id, 'last_name', $last);
+            wp_update_user(['ID' => $user_id, 'display_name' => trim($first . ' ' . $last)]);
+        }
 
         return new WP_REST_Response(['ok' => true], 200);
     }

@@ -23,7 +23,7 @@ export default async function ResetPasswordPage(props: {
   return (
     <div className="mx-auto max-w-sm">
       <h1 className="mb-8 text-2xl font-bold">{t("title")}</h1>
-      <ResetPasswordForm key={searchParams.key} login={searchParams.login} />
+      <ResetPasswordForm resetKey={searchParams.key} login={searchParams.login} />
     </div>
   );
 }

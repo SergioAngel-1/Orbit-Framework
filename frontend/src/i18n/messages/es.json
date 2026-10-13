@@ -242,7 +242,14 @@
     "username": "Usuario",
     "usernameOrEmail": "Usuario o email",
     "password": "Contraseña",
-    "passwordMin": "Mínimo 8 caracteres."
+    "passwordMin": "Mínimo 8 caracteres.",
+    "confirmPassword": "Confirmar contraseña",
+    "passwordsDontMatch": "Las contraseñas no coinciden.",
+    "usernameEmailOrPhone": "Usuario, email o teléfono",
+    "phoneOptional": "Teléfono (opcional)",
+    "dialCode": "Prefijo",
+    "phoneHelper": "Con él también podrás iniciar sesión.",
+    "phoneInvalid": "Teléfono no válido. Revisa el prefijo y el número."
   },
   "login": {
     "title": "Iniciar sesión",
@@ -305,7 +312,10 @@
     "errorMessage": "El enlace de verificación no es válido o ha expirado.",
     "noToken": "Enlace incompleto",
     "noTokenMessage": "El enlace de verificación no contiene un token válido.",
-    "goToAccount": "Ir a mi cuenta"
+    "goToAccount": "Ir a mi cuenta",
+    "goToLogin": "Iniciar sesión",
+    "startShopping": "Empezar a comprar",
+    "goToStore": "Ir a la tienda"
   },
   "addresses": {
     "title": "Direcciones",

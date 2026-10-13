@@ -13,6 +13,12 @@ export interface SiteConfig {
   i18n: {
     locales: string;
   };
+  /** Acceso: login y registro por teléfono (apagado por defecto). */
+  auth: {
+    phone_login_enabled: boolean;
+    /** Prefijo para números escritos sin él (p. ej. "+34"). Vacío = siempre con prefijo. */
+    phone_default_dial_code: string;
+  };
   brand: Translations<"tagline" | "description"> & {
     name: string;
     tagline: string;

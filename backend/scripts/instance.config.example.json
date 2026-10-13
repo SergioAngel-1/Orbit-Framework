@@ -7,6 +7,11 @@
     "locales": "en"
   },
 
+  "auth": {
+    "phone_login_enabled": false,
+    "phone_default_dial_code": ""
+  },
+
   "brand": {
     "name": "Mi Marca",
     "tagline": "Tagline corta de la marca",

@@ -4,8 +4,20 @@ import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
+import { normalizePhoneE164 } from "@/lib/auth/phone";
+import { PasswordField } from "./password-field";
 
-export function RegisterForm() {
+interface RegisterFormProps {
+  /** `auth.phone_login_enabled`: pide el teléfono (opcional) para poder entrar con él. */
+  phoneEnabled?: boolean;
+  /** `auth.phone_default_dial_code`: prefijo inicial del teléfono. */
+  defaultDialCode?: string;
+}
+
+export function RegisterForm({
+  phoneEnabled = false,
+  defaultDialCode = "",
+}: RegisterFormProps) {
   const router = useRouter();
   const tRegister = useTranslations("register");
   const locale = useLocale();
@@ -18,13 +30,30 @@ export function RegisterForm() {
     setPending(true);
     setError(null);
     const form = new FormData(e.currentTarget);
+    const password = String(form.get("password") ?? "");
+    if (password !== String(form.get("confirm") ?? "")) {
+      setError(tForm("passwordsDontMatch"));
+      setPending(false);
+      return;
+    }
+    const national = String(form.get("phone") ?? "").trim();
+    const phone =
+      phoneEnabled && national
+        ? normalizePhoneE164(String(form.get("dial_code") ?? ""), national)
+        : "";
+    if (phone === null) {
+      setError(tForm("phoneInvalid"));
+      setPending(false);
+      return;
+    }
     try {
       const res = await csrfFetch("/api/auth/register", {
         method: "POST",
         body: {
           username: String(form.get("username") ?? ""),
           email: String(form.get("email") ?? ""),
-          password: String(form.get("password") ?? ""),
+          password,
+          ...(phone ? { phone } : {}),
           locale,
         },
       });
@@ -74,21 +103,45 @@ export function RegisterForm() {
           className="w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
         />
       </div>
-      <div>
-        <label htmlFor="password" className="mb-1 block text-sm font-medium">
-          {tForm("password")}
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
-        />
-        <p className="mt-1 text-xs text-gray-500">{tForm("passwordMin")}</p>
-      </div>
+      {phoneEnabled && (
+        <fieldset>
+          <legend className="mb-1 block text-sm font-medium">
+            {tForm("phoneOptional")}
+          </legend>
+          <div className="flex gap-2">
+            <label htmlFor="dial_code" className="sr-only">
+              {tForm("dialCode")}
+            </label>
+            <input
+              id="dial_code"
+              name="dial_code"
+              defaultValue={defaultDialCode}
+              placeholder="+00"
+              inputMode="tel"
+              autoComplete="tel-country-code"
+              maxLength={5}
+              className="w-20 rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+            />
+            <label htmlFor="phone" className="sr-only">
+              {tForm("phone")}
+            </label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel-national"
+              maxLength={20}
+              aria-describedby="phone-help"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
+            />
+          </div>
+          <p id="phone-help" className="mt-1 text-xs text-gray-500">
+            {tForm("phoneHelper")}
+          </p>
+        </fieldset>
+      )}
+      <PasswordField />
       <button
         type="submit"
         disabled={pending}

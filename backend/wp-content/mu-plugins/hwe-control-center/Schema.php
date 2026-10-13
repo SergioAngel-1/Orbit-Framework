@@ -292,6 +292,30 @@ class Schema {
             ],
 
             /* ------------------------------------------------------------------ */
+            /* ACCESO                                                              */
+            /* ------------------------------------------------------------------ */
+            'auth' => [
+                'type'     => 'group',
+                'label'    => 'Acceso',
+                'children' => [
+                    'phone_login_enabled' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Permitir iniciar sesión y registrarse con el teléfono',
+                        'default'     => false,
+                        'public'      => true,
+                        'description' => 'El teléfono de la cuenta (el de facturación, único por cuenta) sirve como usuario. Apagado, solo email o nombre de usuario.',
+                    ],
+                    'phone_default_dial_code' => [
+                        'type'        => 'text',
+                        'label'       => 'Prefijo telefónico por defecto',
+                        'default'     => '',
+                        'public'      => true,
+                        'description' => 'P. ej. «+34». Permite escribir el número sin prefijo al iniciar sesión y es el prefijo inicial del registro. Vacío = el número se escribe siempre con su prefijo (+…).',
+                    ],
+                ],
+            ],
+
+            /* ------------------------------------------------------------------ */
             /* REDES SOCIALES                                                       */
             /* ------------------------------------------------------------------ */
             'social' => [

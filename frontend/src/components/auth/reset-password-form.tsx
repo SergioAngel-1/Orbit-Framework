@@ -3,16 +3,21 @@ import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
+import { PasswordField } from "./password-field";
 
 interface Props {
-  key: string;
+  /**
+   * Clave del enlace del correo. NO se puede llamar `key`: React se reserva esa
+   * prop y no la pasa al componente, así que el formulario enviaba `undefined` y
+   * restablecer la contraseña fallaba siempre.
+   */
+  resetKey: string;
   login: string;
 }
 
-export function ResetPasswordForm({ key: resetKey, login }: Props) {
+export function ResetPasswordForm({ resetKey, login }: Props) {
   const router = useRouter();
   const t = useTranslations("resetPassword");
-  const tForm = useTranslations("form");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -55,29 +60,7 @@ export function ResetPasswordForm({ key: resetKey, login }: Props) {
           {error}
         </p>
       )}
-      <div>
-        <label className="mb-1 block text-sm font-medium">{tForm("password")}</label>
-        <input
-          name="password"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
-        />
-        <p className="mt-1 text-xs text-gray-500">{tForm("passwordMin")}</p>
-      </div>
-      <div>
-        <label className="mb-1 block text-sm font-medium">{t("confirmPassword")}</label>
-        <input
-          name="confirm"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          className="w-full rounded-lg border border-gray-300 px-4 py-2 dark:border-gray-700 dark:bg-gray-900"
-        />
-      </div>
+      <PasswordField confirmLabel={t("confirmPassword")} />
       <button
         type="submit"
         disabled={pending}

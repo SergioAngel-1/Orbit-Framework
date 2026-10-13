@@ -14,6 +14,8 @@ import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
 import type { RegisterResponse, LoginResponse } from "@/types/auth";
 import { authEmailLocale, authEmailUrl } from "@/lib/auth/email-links";
+import { getSiteConfig } from "@/lib/config";
+import { attachPhoneToAccount, isPhoneAvailable } from "@/lib/auth/phone-account";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +89,36 @@ export async function POST(request: Request) {
     );
   }
 
+  // 0) Teléfono (opcional): solo con `auth.phone_login_enabled` y si está libre.
+  //    Se comprueba ANTES de crear la cuenta; tras crearla, WordPress lo vuelve
+  //    a comprobar al guardarlo.
+  const phone = parsed.data.phone || "";
+  if (phone !== "") {
+    const config = await getSiteConfig();
+    if (!config.auth.phone_login_enabled) {
+      return NextResponse.json(
+        { error: "Datos inválidos.", details: { phone: ["No se admite teléfono."] } },
+        { status: 422 },
+      );
+    }
+    const available = await isPhoneAvailable(phone);
+    if (available === null) {
+      return NextResponse.json(
+        { error: "No se pudo comprobar el teléfono. Inténtalo de nuevo." },
+        { status: 503 },
+      );
+    }
+    if (!available) {
+      return NextResponse.json(
+        {
+          error: "Ese teléfono ya está en uso.",
+          details: { phone: ["Ese teléfono ya está en uso."] },
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   // 1) Crear el usuario.
   try {
     await fetchGraphQL<RegisterResponse>(REGISTER_USER_MUTATION, {
@@ -137,6 +169,12 @@ export async function POST(request: Request) {
       { event: "auth.register.auto_login", userId: user.id },
       "Auto-login post-registro exitoso",
     );
+
+    // Teléfono de la cuenta: si no se pudo guardar (carrera con otro registro),
+    // la cuenta ya existe y sigue sirviendo con el email; se registra.
+    if (phone !== "") {
+      await attachPhoneToAccount(user.databaseId, phone);
+    }
 
     // Inicia el flujo de verificación de email (opcional, no bloqueante).
     if (authToken) {

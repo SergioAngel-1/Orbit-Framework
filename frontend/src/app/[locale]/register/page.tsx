@@ -3,6 +3,7 @@ import { redirect } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { getSession } from "@/lib/auth/session";
 import { RegisterForm } from "@/components/auth/register-form";
+import { getSiteConfig } from "@/lib/config";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("register");
@@ -18,13 +19,16 @@ export default async function RegisterPage({
 }) {
   const { locale } = await params;
   const t = await getTranslations("register");
-  const session = await getSession();
+  const [session, config] = await Promise.all([getSession(), getSiteConfig()]);
   if (session) redirect({ href: "/account", locale });
 
   return (
     <div className="mx-auto max-w-sm">
       <h1 className="mb-8 text-2xl font-bold">{t("title")}</h1>
-      <RegisterForm />
+      <RegisterForm
+        phoneEnabled={config.auth.phone_login_enabled}
+        defaultDialCode={config.auth.phone_default_dial_code}
+      />
     </div>
   );
 }

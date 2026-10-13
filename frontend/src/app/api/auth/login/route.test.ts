@@ -25,6 +25,12 @@ vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
 vi.mock("@/lib/graphql-client", () => ({ fetchGraphQL: vi.fn() }));
 vi.mock("@/lib/redis/client", () => ({ getRedis: vi.fn() }));
 vi.mock("@/lib/auth/jwt", () => ({ getTokenMaxAgeSeconds: () => 300 }));
+// Config del sitio con el login por teléfono apagado (el caso de estos tests).
+vi.mock("@/lib/config", () => ({
+  getSiteConfig: async () => ({
+    auth: { phone_login_enabled: false, phone_default_dial_code: "" },
+  }),
+}));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));

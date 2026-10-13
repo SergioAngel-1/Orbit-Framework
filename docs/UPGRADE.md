@@ -332,6 +332,20 @@ git fetch framework --tags
 - **El botón «Enviar email de prueba» del Control Center enviaba el formulario de
   configuración** (estaba anidado dentro de él). Ahora va en su propio formulario, deja elegir
   cualquier plantilla (pedido de ejemplo en memoria o el último real) y tiene vista previa.
+- **Restablecer contraseña no funcionaba.** La página pasaba la clave del enlace en la prop
+  `key` del formulario, que React se reserva: se enviaba `key: undefined`. Ahora es
+  `resetKey`. Si tu frontend reutiliza `ResetPasswordForm`, cambia la prop.
+- **(contrato) Verificar el email ya no exige sesión.** `POST /api/auth/verify-email` y
+  `hwe/v1/auth/verify-email` identifican al usuario por el token (64 hex; otro formato es 422);
+  reabrir un enlace ya usado responde 200 con `already_verified`. La página quita el token de la
+  URL antes de que lo vean las analíticas y tiene `noindex`.
+- **Login y registro por teléfono, apagados por defecto** (`auth.phone_login_enabled`, nuevo
+  grupo `auth` del Control Center con `phone_default_dial_code`). Con el flag, el «usuario» del
+  login puede ser el teléfono E.164 de la cuenta y el registro acepta `phone`; el teléfono es el
+  `billing_phone` y es único. Endpoints internos nuevos (`hwe/v1/auth/{phone-available,
+  resolve-login,attach-profile}`), solo con el secreto interno y el flag.
+- **El registro pide confirmar la contraseña** (componente `PasswordField`, compartido con
+  restablecer y cambiar contraseña).
 - **SEO por entidad unificado (`hwe-seo/fields.php`).** Entradas, páginas, productos y
   categorías comparten caja, límites (título 60, descripción 160), contador y columna
   «SEO». Los campos del formulario de la entrada pasan de `hwe_seo_title`/`hwe_seo_description`

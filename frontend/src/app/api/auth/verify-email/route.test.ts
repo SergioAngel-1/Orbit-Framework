@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { requireSession } from "@/lib/auth/session";
 import { POST } from "./route";
 
 // ============================================================================
@@ -9,9 +8,11 @@ import { POST } from "./route";
 //  TypeError (500) y un token desmesurado se reenviaba tal cual a WordPress.
 //  Ahora lo valida un schema Zod y todo lo inválido es 422 con el detalle, sin
 //  llamar a WordPress.
+//
+//  Y NO exige sesión: el enlace del correo se abre muchas veces en otro
+//  navegador o dispositivo; WordPress identifica al usuario por el token.
 // ============================================================================
 
-vi.mock("@/lib/auth/session", () => ({ requireSession: vi.fn() }));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -29,7 +30,6 @@ const request = (body: unknown) =>
 let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(requireSession).mockResolvedValue({ userId: "7", token: "JWT" });
   fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -41,6 +41,7 @@ describe("validación del cuerpo", () => {
     ["token numérico", { token: 123 }],
     ["token que es una lista", { token: ["a"] }],
     ["token desmesurado", { token: "a".repeat(201) }],
+    ["token que no es el de hwe-auth", { token: "z".repeat(64) }],
   ])("%s: 422 con el detalle y sin llamar a WordPress", async (_caso, body) => {
     const res = await POST(request(body));
     const json = await res.json();
@@ -71,7 +72,7 @@ describe("validación del cuerpo", () => {
 });
 
 describe("comportamiento válido", () => {
-  it("reenvía el token a WordPress con la sesión del usuario", async () => {
+  it("reenvía el token a WordPress sin necesitar sesión", async () => {
     const res = await POST(request({ token: TOKEN }));
 
     expect(res.status).toBe(200);
@@ -79,7 +80,7 @@ describe("comportamiento válido", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain("/wp-json/hwe/v1/auth/verify-email");
     expect(JSON.parse(init.body as string)).toEqual({ token: TOKEN });
-    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer JWT");
+    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
   });
 
   it("un token que WordPress rechaza es 400 con su mensaje", async () => {
@@ -93,12 +94,9 @@ describe("comportamiento válido", () => {
     expect((await res.json()).error).toBe("Token caducado.");
   });
 
-  it("sin sesión responde 401 y no llama a WordPress", async () => {
-    vi.mocked(requireSession).mockRejectedValue(new Error("UNAUTHENTICATED"));
+  it("si WordPress falla (no un 400), responde 502", async () => {
+    fetchMock.mockResolvedValue(new Response("boom", { status: 500 }));
 
-    const res = await POST(request({ token: TOKEN }));
-
-    expect(res.status).toBe(401);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect((await POST(request({ token: TOKEN }))).status).toBe(502);
   });
 });

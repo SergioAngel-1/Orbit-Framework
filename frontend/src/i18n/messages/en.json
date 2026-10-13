@@ -237,7 +237,14 @@
     "username": "Username",
     "usernameOrEmail": "Username or email",
     "password": "Password",
-    "passwordMin": "Minimum 8 characters."
+    "passwordMin": "Minimum 8 characters.",
+    "confirmPassword": "Confirm password",
+    "passwordsDontMatch": "Passwords do not match.",
+    "usernameEmailOrPhone": "Username, email or phone",
+    "phoneOptional": "Phone (optional)",
+    "dialCode": "Dial code",
+    "phoneHelper": "You will also be able to sign in with it.",
+    "phoneInvalid": "Invalid phone number. Check the dial code and the number."
   },
   "login": {
     "title": "Sign in",
@@ -300,7 +307,10 @@
     "errorMessage": "The verification link is invalid or has expired.",
     "noToken": "Incomplete link",
     "noTokenMessage": "The verification link does not contain a valid token.",
-    "goToAccount": "Go to my account"
+    "goToAccount": "Go to my account",
+    "goToLogin": "Sign in",
+    "startShopping": "Start shopping",
+    "goToStore": "Go to the store"
   },
   "addresses": {
     "title": "Addresses",

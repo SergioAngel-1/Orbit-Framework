@@ -19,6 +19,14 @@ export const registerSchema = z.object({
     .regex(/^[a-zA-Z0-9_.\-@]+$/, "Solo letras, números y los símbolos . _ - @"),
   email: z.email("Email no válido").max(200),
   password: z.string().min(8, "Mínimo 8 caracteres").max(200),
+  /**
+   * Teléfono de la cuenta en E.164 (`+34600112233`). Solo con
+   * `auth.phone_login_enabled`; vacío u omitido = sin teléfono.
+   */
+  phone: z
+    .string()
+    .regex(/^(\+[1-9]\d{7,14})?$/, "Teléfono no válido")
+    .optional(),
   /** Idioma del visitante, para el correo de verificación (ver `lib/auth/email-links`). */
   locale: z.string().max(16).optional(),
 });
@@ -74,7 +82,8 @@ export const disable2faBodySchema = z
 
 /** POST /api/auth/verify-email. El token del enlace son 64 hex; 200 deja margen. */
 export const verifyEmailBodySchema = z.object({
-  token: z.string().min(1, "Token requerido").max(200),
+  // Lo que genera hwe-auth: 32 bytes aleatorios en hexadecimal. Otra cosa no llega a WordPress.
+  token: z.string().regex(/^[a-f0-9]{64}$/, "Token no válido"),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

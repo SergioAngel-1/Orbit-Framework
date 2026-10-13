@@ -16,7 +16,12 @@ function focusOnMount(el: HTMLInputElement | null) {
   el?.focus();
 }
 
-export function LoginForm() {
+interface LoginFormProps {
+  /** `auth.phone_login_enabled`: el usuario también puede ser el teléfono. */
+  phoneEnabled?: boolean;
+}
+
+export function LoginForm({ phoneEnabled = false }: LoginFormProps) {
   const router = useRouter();
   const tLogin = useTranslations("login");
   const t2fa = useTranslations("twoFactor");
@@ -123,7 +128,7 @@ export function LoginForm() {
       )}
       <div>
         <label htmlFor="username" className="mb-1 block text-sm font-medium">
-          {tForm("usernameOrEmail")}
+          {phoneEnabled ? tForm("usernameEmailOrPhone") : tForm("usernameOrEmail")}
         </label>
         <input
           id="username"

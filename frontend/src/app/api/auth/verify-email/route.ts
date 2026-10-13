@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
 import { verifyEmailBodySchema } from "@/lib/validation/auth";
 import { logger } from "@/lib/observability/logger";
@@ -7,6 +6,13 @@ import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * POST /api/auth/verify-email
+ *
+ * Verificación por token, SIN sesión: el enlace del correo se abre muchas veces
+ * en otro navegador o dispositivo. WordPress identifica al usuario por el token
+ * (aleatorio, 256 bits). Reabrir un enlace ya usado responde OK.
+ */
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
     rateLimit: { name: "verify_email", limit: 5, windowSeconds: 60 },
@@ -32,32 +38,23 @@ export async function POST(request: Request) {
     );
   }
 
-  let session;
-  try {
-    session = await requireSession();
-  } catch {
-    return NextResponse.json({ error: "No autenticado." }, { status: 401 });
-  }
-
   try {
     const res = await wpFetch(`/wp-json/hwe/v1/auth/verify-email`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.token}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: parsed.data.token }),
+      cache: "no-store",
     });
 
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       return NextResponse.json(
         { error: data.error || "Token inválido." },
-        { status: 400 },
+        { status: res.status === 400 ? 400 : 502 },
       );
     }
 
-    logger.info({ event: "auth.verify_email.success", userId: session.userId });
+    logger.info({ event: "auth.verify_email.success" });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
     logger.error({
