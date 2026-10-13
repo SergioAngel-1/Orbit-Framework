@@ -10,6 +10,7 @@ import { isModuleEnabled } from "@/lib/config/modules";
 import { getCartCoupons } from "@/lib/coupons/public-coupons";
 import { getSiteConfig } from "@/lib/config";
 import { getGeoPack } from "@/lib/geo";
+import { identityPolicy } from "@/lib/customer/policy";
 import "@/lib/payments/providers"; // efecto secundario: registra las pasarelas
 import { enabledPaymentChoices } from "@/lib/payments/checkout-options";
 import { isActiveGatewaySandbox } from "@/lib/payments/registry";
@@ -48,6 +49,8 @@ export default async function CheckoutPage({
     ? await getCheckoutCustomerSeed(session.userId, config.ecommerce.country)
     : undefined;
   const paymentChoices = enabledPaymentChoices(config);
+  // Módulo `customer-identity`: apagado, el formulario no pide documento ni términos.
+  const identity = identityPolicy(config, geoPack);
   // El aviso de «modo de pruebas» es informativo: si no se puede leer la
   // pasarela, la página sigue sirviéndose sin él.
   const gatewaySandbox = paymentChoices.includes("online")
@@ -71,6 +74,9 @@ export default async function CheckoutPage({
         customer={customer}
         defaultCountry={config.ecommerce.country}
         geoPack={geoPack}
+        identity={
+          identity.enabled ? { documentTypes: identity.documentTypes } : undefined
+        }
         paymentChoices={paymentChoices}
         gatewaySandbox={gatewaySandbox}
         couponsEnabled={config.ecommerce.coupons_enabled}

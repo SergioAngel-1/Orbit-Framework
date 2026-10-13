@@ -109,4 +109,24 @@ describe("/checkout", () => {
 
     expect(props.geoPack).toBe(CO_PACK);
   });
+
+  it("con el módulo customer-identity le pasa los tipos de documento del país; apagado, nada", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    config(false);
+    vi.mocked(getSiteConfig).mockResolvedValue({
+      ...(await getSiteConfig()),
+      modules: { "customer-identity": true },
+    } as never);
+
+    const on = await formProps();
+    expect(
+      (on.identity as { documentTypes: { code: string }[] }).documentTypes.map(
+        (d) => d.code,
+      ),
+    ).toEqual(["CC"]);
+
+    config(false);
+    const off = await formProps();
+    expect(off.identity).toBeUndefined();
+  });
 });

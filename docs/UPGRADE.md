@@ -645,6 +645,29 @@ git fetch framework --tags
   silencio a `CO-CUN` (Cundinamarca) y el de la tabla de ciudades pisaba el escrito. Aquí no se
   inventa nada: un valor inválido o incoherente es un error del campo.
 
+### Módulo `customer-identity` (F5)
+
+- **Nuevo plugin `hwe-customer-identity`** (módulo `customer-identity`, desde el mu-plugin de las
+  instancias derivadas del framework v1): si tu instancia tenía `hwe-customer-identity.php` en
+  `mu-plugins/`, **bórralo** y activa el plugin (`wp hwe setup` con `modules`). Las metas
+  (`billing_document_type`, `billing_document`, `hwe_terms_accepted_at`, `_hwe_document_*`) son las
+  mismas: no hay migración de datos.
+- **(contrato) Los tipos de documento salen del paquete de país** (`documentTypes` de `hwe-geo`),
+  no de una lista fija `CC/CE/PP/NIT`: `DOCUMENT_TYPES`, `isDocumentType` y el tipo `DocumentType`
+  de `lib/validation/identity` desaparecen (el tipo es ahora un `string`, el código del paquete).
+  Un país sin tipos de documento no pide documento. Para otro país, añade un paquete con
+  `hwe_geo_packs`.
+- **(contrato) Firmas.** `CheckoutCustomerSeed` lleva `identity`; `CheckoutForm` y `RegisterForm`
+  reciben `identity?: { documentTypes }` y `ProfileForm` `identity?: { documentTypes, stored }`
+  (omitido = el módulo está apagado). `resolveCheckoutIdentity` recibe la política
+  (`identityPolicy`).
+- **(contrato) Cuerpos.** `POST /api/store/checkout` y `POST /api/auth/register` aceptan `identity`
+  (`{ documentType, documentNumber }`) y `terms_accepted`; `PUT /api/store/customer`, `identity`.
+  Con el módulo encendido y un paquete con documentos, el checkout y el registro **los exigen**
+  (422). `tracking`, `identity` y `terms_accepted` dejan de reenviarse a la Store API.
+- **`/api/auth/register` consulta ahora `getSiteConfig()` siempre** (antes solo con teléfono), para
+  saber si el módulo está encendido; el paquete de país solo se lee con el módulo encendido.
+
 ### Infraestructura y CD (F4)
 
 - **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin

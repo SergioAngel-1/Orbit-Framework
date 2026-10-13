@@ -20,6 +20,11 @@ import {
   type CheckoutCustomerSeed,
 } from "@/lib/checkout/customer-seed";
 import { CityField, DivisionField } from "@/components/forms/geo-fields";
+import { DocumentField } from "@/components/forms/document-field";
+import { TermsConsent } from "@/components/forms/terms-consent";
+import { hasDocument, type CustomerIdentity } from "@/lib/customer/identity";
+import { EMPTY_IDENTITY } from "@/lib/customer/identity";
+import type { GeoDocumentType } from "@/lib/geo/types";
 import { GENERIC_PACK } from "@/lib/geo/generic";
 import type { GeoPack } from "@/lib/geo/types";
 import type { WooCustomer } from "@/types/woocommerce";
@@ -118,6 +123,11 @@ export interface CheckoutFormProps {
    */
   geoPack?: GeoPack;
   /**
+   * Módulo `customer-identity` activo: pide la aceptación de términos y, si el país
+   * tiene tipos de documento, el documento. Omitido, el checkout no pide ninguno.
+   */
+  identity?: { documentTypes: GeoDocumentType[] };
+  /**
    * Medios activos en el Control Center, en orden (`enabledPaymentChoices`):
    * pago en línea, link por WhatsApp y efectivo. Con uno solo no se pinta el
    * selector. Omitido, el formulario ofrece solo el pago en línea.
@@ -137,6 +147,7 @@ export function CheckoutForm({
   guest = false,
   defaultCountry = "",
   geoPack = GENERIC_PACK,
+  identity,
   paymentChoices = ["online"],
   gatewaySandbox = false,
   couponsEnabled = false,
@@ -169,6 +180,21 @@ export function CheckoutForm({
     : (paymentChoices[0] ?? "online");
   const copy = CHOICE_COPY[effectiveChoice];
   const [couponCode, setCouponCode] = useState("");
+
+  // Documento y términos (módulo `customer-identity`). Lo que la cuenta ya tenga
+  // manda: el documento queda bloqueado y la aceptación no se vuelve a pedir.
+  const [storedIdentity, setStoredIdentity] = useState<CustomerIdentity>(
+    customer?.identity ?? EMPTY_IDENTITY,
+  );
+  const documentTypes = identity?.documentTypes ?? [];
+  const [documentType, setDocumentType] = useState(documentTypes[0]?.code ?? "");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [identityError, setIdentityError] = useState<string | null>(null);
+  const [termsError, setTermsError] = useState<string | null>(null);
+  const documentLocked = hasDocument(storedIdentity);
+  const askDocument = Boolean(identity) && documentTypes.length > 0;
+  const askTerms = Boolean(identity) && !storedIdentity.termsAcceptedAt;
 
   const FIELDS: {
     name: FieldName;
@@ -220,6 +246,7 @@ export function CheckoutForm({
         );
         if (!cancelled && !touchedRef.current) {
           setValues(initialValues(seed, defaultCountry));
+          setStoredIdentity(seed.identity);
         }
       } catch {
         /* sin precarga: el cliente escribe sus datos */
@@ -261,6 +288,8 @@ export function CheckoutForm({
     submittingRef.current = true;
     setPending(true);
     setError(null);
+    setIdentityError(null);
+    setTermsError(null);
 
     const billing_address = Object.fromEntries(
       FIELD_NAMES.map((name) => [name, values[name].trim()]),
@@ -275,6 +304,10 @@ export function CheckoutForm({
           billing_address,
           payment_method: paymentMethodFor(effectiveChoice),
           customer_note: "",
+          ...(askDocument && !documentLocked
+            ? { identity: { documentType, documentNumber } }
+            : {}),
+          ...(askTerms ? { terms_accepted: askTerms && termsAccepted } : {}),
           // Contexto de medición del pedido: el consentimiento que rige y el
           // idioma de la página (el servidor lo guarda solo si hay «Aceptar»).
           tracking: { consent: hasTrackingConsent(), locale },
@@ -283,6 +316,9 @@ export function CheckoutForm({
       const data = (await res.json().catch(() => ({}))) as
         CheckoutResult | { error?: string };
       if (!res.ok) {
+        const details = (data as { details?: Record<string, string[]> }).details;
+        setIdentityError(details?.identity?.[0] ?? null);
+        setTermsError(details?.terms_accepted ? tForm.termsRequired : null);
         throw new Error(("error" in data && data.error) || tCheckout.genericError);
       }
 
@@ -490,6 +526,45 @@ export function CheckoutForm({
             );
           })}
         </div>
+        {(askDocument || askTerms) && (
+          <div className="mt-4 space-y-4">
+            {askDocument && (
+              <DocumentField
+                documentTypes={documentTypes}
+                documentType={
+                  documentLocked ? (storedIdentity.documentType ?? "") : documentType
+                }
+                documentNumber={
+                  documentLocked
+                    ? (storedIdentity.documentNumber ?? "")
+                    : documentNumber
+                }
+                locked={documentLocked}
+                onTypeChange={(v) => {
+                  touchedRef.current = true;
+                  setDocumentType(v);
+                  setIdentityError(null);
+                }}
+                onNumberChange={(v) => {
+                  touchedRef.current = true;
+                  setDocumentNumber(v);
+                  setIdentityError(null);
+                }}
+                error={identityError ?? undefined}
+              />
+            )}
+            {askTerms && (
+              <TermsConsent
+                checked={termsAccepted}
+                onChange={(v) => {
+                  setTermsAccepted(v);
+                  setTermsError(null);
+                }}
+                error={termsError ?? undefined}
+              />
+            )}
+          </div>
+        )}
       </section>
 
       {/* Medio de pago */}

@@ -11,6 +11,9 @@ import {
 } from "@/lib/security/idempotency";
 import { getGeoPack, GENERIC_PACK } from "@/lib/geo";
 import { CO_PACK } from "../../../../../tests/helpers/geo-pack";
+import { attachIdentity } from "@/lib/customer/identity-api";
+import { FALLBACK_ES_PACK } from "../../../../../tests/helpers/geo-pack";
+import { logger } from "@/lib/observability/logger";
 import { POST } from "./route";
 
 // ============================================================================
@@ -48,6 +51,7 @@ vi.mock("@/lib/security/idempotency", () => ({
   releaseIdempotencyKey: vi.fn(),
 }));
 vi.mock("@/lib/config", () => ({ getSiteConfig: vi.fn() }));
+vi.mock("@/lib/customer/identity-api", () => ({ attachIdentity: vi.fn() }));
 vi.mock("@/lib/geo", async () => ({
   getGeoPack: vi.fn(),
   GENERIC_PACK: (await import("@/lib/geo/generic")).GENERIC_PACK,
@@ -475,5 +479,190 @@ describe("dirección según el paquete de país", () => {
 
     expect(res.status).toBe(201);
     expect(sentBilling().state).toBe("Madrid");
+  });
+});
+
+describe("documento y términos (módulo customer-identity)", () => {
+  const CO_ADDRESS = {
+    ...ADDRESS,
+    city: "Pasto",
+    country: "CO",
+    postcode: "",
+    state: "Nariño",
+  };
+  const DOC = { documentType: "CC", documentNumber: "1.012.345.678" };
+
+  /** Módulo encendido, con el país de la tienda y la cuenta que se indique. */
+  function identityOn(account: Record<string, string> = {}) {
+    vi.mocked(getSiteConfig).mockResolvedValue({
+      brand: { url: "https://tienda.example" },
+      ecommerce: { checkout_login_required: false },
+      payments: { gateway_enabled: true, whatsapp_enabled: false, cash_enabled: false },
+      modules: { "customer-identity": true },
+    } as never);
+    vi.mocked(getGeoPack).mockResolvedValue(CO_PACK);
+    vi.mocked(wcFetch).mockImplementation((async (path: string) =>
+      path.startsWith("/customers/")
+        ? { meta_data: Object.entries(account).map(([key, value]) => ({ key, value })) }
+        : { customer_id: 7 }) as never);
+    vi.mocked(attachIdentity).mockResolvedValue({
+      ok: true,
+      identity: { documentType: null, documentNumber: null, termsAcceptedAt: null },
+    });
+  }
+
+  const post = (extra: Record<string, unknown> = {}) =>
+    POST(checkout("hwe_offline", { billing_address: CO_ADDRESS, ...extra }));
+
+  const sentBody = () => (orderPosts()[0][1] as { body: Record<string, unknown> }).body;
+  const orderMetaPut = () =>
+    vi
+      .mocked(wcFetch)
+      .mock.calls.find(
+        ([path, init]) => String(path).startsWith("/orders/") && init?.method === "PUT",
+      );
+
+  const ACCOUNT = {
+    billing_document_type: "CC",
+    billing_document: "1098765432",
+    hwe_terms_accepted_at: "2025-01-01T00:00:00.000Z",
+  };
+
+  it("con el módulo apagado no pide ni envía nada de identidad", async () => {
+    vi.mocked(getGeoPack).mockResolvedValue(CO_PACK);
+
+    const res = await post({ identity: DOC, terms_accepted: true });
+
+    expect(res.status).toBe(201);
+    expect(sentBody()).not.toHaveProperty("extensions");
+    expect(attachIdentity).not.toHaveBeenCalled();
+  });
+
+  it("invitado: sin documento o sin términos no se crea el pedido (422 por campo)", async () => {
+    identityOn();
+    vi.mocked(getSession).mockResolvedValue(null);
+
+    const noDoc = await post({ terms_accepted: true });
+    expect(noDoc.status).toBe(422);
+    expect((await noDoc.json()).details).toHaveProperty("identity");
+
+    const noTerms = await post({ identity: DOC });
+    expect(noTerms.status).toBe(422);
+    expect((await noTerms.json()).details).toHaveProperty("terms_accepted");
+    expect(orderPosts()).toHaveLength(0);
+  });
+
+  it("un documento que no cuadra con el paquete de país es un 422", async () => {
+    identityOn();
+    vi.mocked(getSession).mockResolvedValue(null);
+
+    const res = await post({
+      identity: { documentType: "CC", documentNumber: "12" },
+      terms_accepted: true,
+    });
+
+    expect(res.status).toBe(422);
+    expect(orderPosts()).toHaveLength(0);
+  });
+
+  it("invitado con documento y términos: el pedido NACE con ellos (extensions) y los deja en su meta", async () => {
+    identityOn();
+    vi.mocked(getSession).mockResolvedValue(null);
+
+    const res = await post({ identity: DOC, terms_accepted: true });
+
+    expect(res.status).toBe(201);
+    expect(sentBody().extensions).toEqual({
+      "hwe-identity": {
+        document_type: "CC",
+        document_number: "1012345678",
+        terms_accepted_at: expect.any(String),
+      },
+    });
+    // `identity` y `terms_accepted` son del BFF: no viajan a la Store API tal cual.
+    expect(sentBody()).not.toHaveProperty("identity");
+    expect(sentBody()).not.toHaveProperty("terms_accepted");
+    const meta = (orderMetaPut()?.[1] as { body: { meta_data: { key: string }[] } })
+      .body.meta_data;
+    expect(meta.map((m) => m.key)).toEqual(
+      expect.arrayContaining(["_hwe_document_number", "_hwe_terms_accepted_at"]),
+    );
+    expect(attachIdentity).not.toHaveBeenCalled();
+  });
+
+  it("una cuenta con documento y términos: manda lo suyo y no se guarda nada", async () => {
+    identityOn(ACCOUNT);
+
+    const res = await post({ identity: DOC });
+
+    expect(res.status).toBe(201);
+    expect(sentBody().extensions).toMatchObject({
+      "hwe-identity": {
+        document_number: "1098765432",
+        terms_accepted_at: ACCOUNT.hwe_terms_accepted_at,
+      },
+    });
+    expect(attachIdentity).not.toHaveBeenCalled();
+  });
+
+  it("una cuenta sin documento lo guarda en la cuenta ANTES de crear el pedido", async () => {
+    identityOn({ hwe_terms_accepted_at: ACCOUNT.hwe_terms_accepted_at });
+
+    const res = await post({ identity: DOC });
+
+    expect(res.status).toBe(201);
+    expect(attachIdentity).toHaveBeenCalledWith(7, {
+      documentType: "CC",
+      documentNumber: "1012345678",
+    });
+    expect(vi.mocked(attachIdentity).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(storeFetch).mock.invocationCallOrder.at(-1)!,
+    );
+  });
+
+  it("un documento de otra cuenta es un 409 y no se crea el pedido", async () => {
+    identityOn({ hwe_terms_accepted_at: ACCOUNT.hwe_terms_accepted_at });
+    vi.mocked(attachIdentity).mockResolvedValue({
+      ok: false,
+      reason: "document_taken",
+    });
+
+    const res = await post({ identity: DOC });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).details).toHaveProperty("identity");
+    expect(orderPosts()).toHaveLength(0);
+  });
+
+  it("si WordPress no responde al guardar en la cuenta, el pedido sigue y el fallo se registra", async () => {
+    identityOn({ hwe_terms_accepted_at: ACCOUNT.hwe_terms_accepted_at });
+    vi.mocked(attachIdentity).mockResolvedValue({ ok: false, reason: "unavailable" });
+
+    const res = await post({ identity: DOC });
+
+    expect(res.status).toBe(201);
+    expect(
+      vi.mocked(logger.error).mock.calls.map(([o]) => (o as { event: string }).event),
+    ).toContain("checkout.identity_persist_failed");
+  });
+
+  it("en un país sin tipos de documento solo pide los términos", async () => {
+    identityOn();
+    vi.mocked(getSession).mockResolvedValue(null);
+    vi.mocked(getGeoPack).mockResolvedValue(FALLBACK_ES_PACK);
+
+    const billing = { ...ADDRESS };
+    const noTerms = await POST(checkout("hwe_offline", { billing_address: billing }));
+    expect(noTerms.status).toBe(422);
+
+    const res = await POST(
+      checkout("hwe_offline", { billing_address: billing, terms_accepted: true }),
+    );
+    expect(res.status).toBe(201);
+    expect(
+      (sentBody().extensions as Record<string, { document_type: unknown }>)[
+        "hwe-identity"
+      ].document_type,
+    ).toBeNull();
   });
 });

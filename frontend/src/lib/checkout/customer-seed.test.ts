@@ -42,6 +42,7 @@ describe("checkoutSeedFromCustomer", () => {
       state: "",
       country: "ES",
       addresses: [ADDRESS],
+      identity: { documentType: null, documentNumber: null, termsAcceptedAt: null },
     });
     // Solo lo que el formulario usa: el resto del meta no sale del servidor.
     expect(JSON.stringify(seed)).not.toContain("no debe viajar");

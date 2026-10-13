@@ -180,8 +180,7 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   mutaciones concurrentes del carrito. La vuelta de la pasarela usa `checkoutReturnUrl`
   (`lib/checkout/return-url.ts`), que respeta el idioma de la página; `/checkout/return` repinta
   sola cuando el webhook confirma el pago (`PaymentStatusWatcher`) y ofrece «Pagar ahora».
-- **Puntos de extensión que otros módulos rellenan:** documento de identidad en el pedido
-  (`customer-identity`, tarea 53), destino de envío del carrito (`shipping`, tarea 54), nombres
+- **Puntos de extensión que otros módulos rellenan:** destino de envío del carrito (`shipping`, tarea 54), nombres
   de producto traducidos en `completeStoreCart` (i18n de contenido, tarea 51) y el contexto de
   medición del pedido (analítica, tarea 44).
 
@@ -220,6 +219,37 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
 - **Starter:** `components/forms/geo-fields.tsx` (`CityField`, `DivisionField`) los usan el
   formulario del checkout y la libreta. Una vista propia solo necesita el paquete y estas dos
   piezas (o `divisionOptionsForCity` / `findDivision` si pinta sus propios campos).
+
+### Documento de identidad y términos (módulo `customer-identity`)
+
+- **Qué pide** (`identityPolicy`, `lib/customer/policy.ts`): con el módulo apagado, nada. Encendido,
+  siempre la aceptación de términos y, **solo si el paquete de país tiene tipos de documento**
+  (`documentTypes`, ver «Paquetes por país»), el documento. Los tipos y sus patrones salen del
+  paquete, no de una lista del framework.
+- **Checkout** (`POST /api/store/checkout`): el cuerpo lleva `identity: { documentType,
+  documentNumber }` y `terms_accepted: true`. `resolveCheckoutIdentity` decide: un **invitado**
+  debe enviar ambos; con **sesión** manda lo que la cuenta ya tiene (documento bloqueado, términos
+  no se repiten) y solo lo que falta se envía y se guarda en la cuenta **antes** de crear el pedido.
+  422 por campo (`identity`, `terms_accepted`) si falta o no cuadra con el paquete; **409** si el
+  documento es de otra cuenta o la cuenta ya tiene otro. La fecha de aceptación la pone el
+  servidor: nunca se confía en el cliente.
+- **El pedido nace con su documento:** el BFF lo manda en `extensions.hwe-identity` de la Store API
+  (con efectivo el pedido pasa a «Procesando» en esa misma petición y el correo sale antes de que
+  el BFF pueda escribir nada) y lo reescribe por wc/v3 como salvaguarda. `identity`,
+  `terms_accepted` y `tracking` **no** viajan a la Store API tal cual.
+- **Registro** (`POST /api/auth/register`): mismos campos. El documento se comprueba (único) **antes**
+  de crear el usuario: 409 si es de otra cuenta, 503 si no se pudo comprobar. Tras crear la cuenta,
+  si WordPress no guarda la identidad, la cuenta sigue siendo válida (se pedirá en el checkout o en
+  la cuenta). Con el módulo apagado, los campos se ignoran y el paquete de país ni se consulta.
+- **Cuenta** (`PUT /api/store/customer`): acepta `identity`; el documento se registra solo si la
+  cuenta no tiene uno (escritura única) y va **primero**: si se rechaza (409), no se toca nada más
+  del perfil. 422 si el módulo está apagado o el país no tiene tipos de documento.
+- **Cobro:** `POST /api/payments/create` pasa el documento del pedido a la pasarela
+  (`customer.document`, tipo en código del país; cada proveedor lo traduce).
+- **Correos:** completo en los de la tienda, enmascarado (`***050`) en los del cliente.
+- **Starter:** `components/forms/{document-field,terms-consent}.tsx`, usados por el checkout
+  (`identity`), el registro (`identity`) y la cuenta (`ProfileForm identity`). Cada página pasa la
+  prop **solo** si `identityPolicy(...).enabled`.
 
 ### Cuenta: pedidos, volver a pedir y reseñas
 

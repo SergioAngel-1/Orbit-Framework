@@ -8,6 +8,12 @@ import { readGuestOrderCredential } from "@/lib/checkout/guest-order-cookie";
 import { createPaymentSchema } from "@/lib/validation/payments";
 import { getActiveProvider } from "@/lib/payments/registry";
 import { getOrder, isOrderPaid, toMinorUnits } from "@/lib/payments/orders";
+import {
+  ORDER_IDENTITY_META,
+  hasDocument,
+  identityFromMeta,
+} from "@/lib/customer/identity";
+import type { WooOrder } from "@/types/woocommerce";
 import { logger } from "@/lib/observability/logger";
 import { getSiteConfig } from "@/lib/config";
 import {
@@ -129,6 +135,7 @@ export async function POST(request: Request) {
         fullName:
           `${order.billing.first_name ?? ""} ${order.billing.last_name ?? ""}`.trim(),
         phone: order.billing.phone,
+        document: orderDocument(order),
       },
       returnUrl: effectiveReturnUrl,
       metadata: { order_id: reference, order_key: String(order.id) },
@@ -149,4 +156,12 @@ export async function POST(request: Request) {
     );
     return handleApiError(error);
   }
+}
+
+/** Documento que el checkout dejó en el pedido (módulo `customer-identity`); los anteriores no lo traen. */
+function orderDocument(order: WooOrder) {
+  const identity = identityFromMeta(order.meta_data, ORDER_IDENTITY_META);
+  return hasDocument(identity)
+    ? { type: identity.documentType, number: identity.documentNumber }
+    : undefined;
 }

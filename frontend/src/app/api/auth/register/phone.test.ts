@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { getSiteConfig } from "@/lib/config";
 import { attachPhoneToAccount, isPhoneAvailable } from "@/lib/auth/phone-account";
+import { getGeoPack } from "@/lib/geo";
 import { POST } from "./route";
 
 // ============================================================================
@@ -16,6 +17,7 @@ vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
 vi.mock("@/lib/graphql-client", () => ({ fetchGraphQL: vi.fn() }));
 vi.mock("@/lib/auth/jwt", () => ({ getTokenMaxAgeSeconds: () => 300 }));
 vi.mock("@/lib/config", () => ({ getSiteConfig: vi.fn() }));
+vi.mock("@/lib/geo", () => ({ getGeoPack: vi.fn() }));
 vi.mock("@/lib/auth/phone-account", () => ({
   isPhoneAvailable: vi.fn(),
   attachPhoneToAccount: vi.fn(async () => true),
@@ -106,8 +108,11 @@ describe("registro con teléfono", () => {
     expect((await register("600112233")).status).toBe(422);
   });
 
-  it("sin teléfono el registro no consulta la config", async () => {
+  it("sin teléfono el registro no consulta el teléfono ni el paquete de país", async () => {
+    flag(true);
+
     expect((await register()).status).toBe(201);
-    expect(getSiteConfig).not.toHaveBeenCalled();
+    expect(isPhoneAvailable).not.toHaveBeenCalled();
+    expect(getGeoPack).not.toHaveBeenCalled();
   });
 });

@@ -312,7 +312,15 @@
     "phoneHelper": "Con él también podrás iniciar sesión.",
     "phoneInvalid": "Teléfono no válido. Revisa el prefijo y el número.",
     "state": "Departamento / provincia",
-    "select": "Selecciona…"
+    "select": "Selecciona…",
+    "document": "Documento de identidad",
+    "documentType": "Tipo de documento",
+    "documentNumber": "Número de documento",
+    "documentNumberPlaceholder": "Número de documento",
+    "documentBillingHint": "Lo pedimos para facturar tu compra.",
+    "documentLockedHint": "No se puede cambiar desde el sitio.",
+    "termsConsent": "Acepto los <terms>términos y condiciones</terms> y la <privacy>política de privacidad</privacy>, y confirmo que mis datos son veraces.",
+    "termsRequired": "Debes aceptar los términos para continuar."
   },
   "login": {
     "title": "Iniciar sesión",

@@ -4,6 +4,8 @@ import { getTranslations } from "next-intl/server";
 import { getSession } from "@/lib/auth/session";
 import { RegisterForm } from "@/components/auth/register-form";
 import { getSiteConfig } from "@/lib/config";
+import { getGeoPack } from "@/lib/geo";
+import { identityPolicy } from "@/lib/customer/policy";
 import { privateMetadata } from "@/lib/seo/page-metadata";
 import { safeInternalPath } from "@/lib/navigation/safe-return";
 
@@ -27,8 +29,14 @@ export default async function RegisterPage({
     Array.isArray(rawReturn) ? rawReturn[0] : rawReturn,
   );
   const t = await getTranslations("register");
-  const [session, config] = await Promise.all([getSession(), getSiteConfig()]);
+  const [session, config, geoPack] = await Promise.all([
+    getSession(),
+    getSiteConfig(),
+    getGeoPack(),
+  ]);
   if (session) redirect({ href: returnTo, locale });
+  // Módulo `customer-identity`: apagado, el registro no pide documento ni términos.
+  const identity = identityPolicy(config, geoPack);
 
   return (
     <div className="mx-auto max-w-sm">
@@ -37,6 +45,9 @@ export default async function RegisterPage({
         phoneEnabled={config.auth.phone_login_enabled}
         defaultDialCode={config.auth.phone_default_dial_code}
         returnTo={returnTo}
+        identity={
+          identity.enabled ? { documentTypes: identity.documentTypes } : undefined
+        }
       />
     </div>
   );

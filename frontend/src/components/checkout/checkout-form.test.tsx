@@ -23,6 +23,9 @@ vi.mock("@/components/analytics/track-event", () => ({
 }));
 vi.mock("@/i18n/navigation", () => ({
   getPathname: ({ href }: { href: string }) => href,
+  Link: ({ href, children }: { href: string; children: React.ReactNode }) => (
+    <a href={href}>{children}</a>
+  ),
 }));
 // El carrito que ve el formulario; cada test puede cambiarlo.
 const cartState = vi.hoisted(() => ({ cart: {} as Record<string, unknown> }));
@@ -101,6 +104,7 @@ const SEED: CheckoutCustomerSeed = {
   city: "Madrid",
   state: "",
   country: "ES",
+  identity: { documentType: null, documentNumber: null, termsAcceptedAt: null },
   addresses: [
     {
       first_name: "",
@@ -493,5 +497,94 @@ describe("dirección según el paquete de país", () => {
 
     expect(container.querySelector('input[name="state"]')).not.toBeNull();
     expect(select(container, "state")).toBeNull();
+  });
+});
+
+describe("documento y términos (módulo customer-identity)", () => {
+  const IDENTITY = { documentTypes: CO_PACK.documentTypes };
+  const STORED = {
+    documentType: "CC",
+    documentNumber: "1098765432",
+    termsAcceptedAt: "2025-01-01T00:00:00.000Z",
+  };
+
+  const docInput = (c: HTMLElement) =>
+    c.querySelector('input[name="documentNumber"]') as HTMLInputElement | null;
+  const terms = (c: HTMLElement) =>
+    c.querySelector('input[name="termsAccepted"]') as HTMLInputElement | null;
+
+  it("sin el módulo (prop omitida) no pide documento ni términos y no los envía", async () => {
+    bff();
+    const { container } = renderForm({ paymentChoices: ["cash"] });
+
+    expect(docInput(container)).toBeNull();
+    expect(terms(container)).toBeNull();
+    await submit(container);
+    await waitFor(() => expect(csrfFetch).toHaveBeenCalled());
+
+    expect(checkoutBody()).not.toHaveProperty("identity");
+    expect(checkoutBody()).not.toHaveProperty("terms_accepted");
+  });
+
+  it("con el módulo pide documento y términos, y los manda al servidor", async () => {
+    bff();
+    const { container } = renderForm({ paymentChoices: ["cash"], identity: IDENTITY });
+
+    fireEvent.change(docInput(container)!, { target: { value: "1.012.345.678" } });
+    fireEvent.click(terms(container)!);
+    await submit(container);
+    await waitFor(() => expect(csrfFetch).toHaveBeenCalled());
+
+    expect(checkoutBody()).toMatchObject({
+      identity: { documentType: "CC", documentNumber: "1.012.345.678" },
+      terms_accepted: true,
+    });
+  });
+
+  it("en un país sin tipos de documento solo pide los términos", () => {
+    const { container } = renderForm({ identity: { documentTypes: [] } });
+
+    expect(docInput(container)).toBeNull();
+    expect(terms(container)).not.toBeNull();
+  });
+
+  it("una cuenta con documento y términos lo ve bloqueado y no se le pide nada más", async () => {
+    bff();
+    const { container } = renderForm({
+      paymentChoices: ["cash"],
+      identity: IDENTITY,
+      customer: { ...SEED, identity: STORED },
+    });
+
+    const locked = screen.getByLabelText("Número de documento") as HTMLInputElement;
+    expect(locked.disabled).toBe(true);
+    expect(locked.value).toContain("1098765432");
+    expect(terms(container)).toBeNull();
+    await submit(container);
+    await waitFor(() => expect(csrfFetch).toHaveBeenCalled());
+
+    expect(checkoutBody()).not.toHaveProperty("identity");
+    expect(checkoutBody()).not.toHaveProperty("terms_accepted");
+  });
+
+  it("el error del servidor sobre el documento sale bajo su campo", async () => {
+    vi.mocked(csrfFetch).mockResolvedValue(
+      json(
+        {
+          error: "Este documento ya está registrado en otra cuenta.",
+          details: { identity: ["Este documento ya está registrado en otra cuenta."] },
+        },
+        409,
+      ),
+    );
+    const { container } = renderForm({ paymentChoices: ["cash"], identity: IDENTITY });
+
+    fireEvent.change(docInput(container)!, { target: { value: "1012345678" } });
+    fireEvent.click(terms(container)!);
+    await submit(container);
+
+    const alerts = await screen.findAllByText(/ya está registrado en otra cuenta/);
+    expect(alerts.length).toBeGreaterThan(1); // el aviso general y el del campo
+    expect(docInput(container)!.getAttribute("aria-invalid")).toBe("true");
   });
 });

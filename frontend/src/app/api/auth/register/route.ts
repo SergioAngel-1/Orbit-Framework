@@ -20,6 +20,11 @@ import { authEmailLocale, authEmailUrl } from "@/lib/auth/email-links";
 import { getSiteConfig } from "@/lib/config";
 import { attachPhoneToAccount, isPhoneAvailable } from "@/lib/auth/phone-account";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
+import { getGeoPack } from "@/lib/geo";
+import { isModuleEnabled } from "@/lib/config/modules";
+import { identityPolicy } from "@/lib/customer/policy";
+import { attachIdentity, isDocumentAvailable } from "@/lib/customer/identity-api";
+import { checkDocument } from "@/lib/validation/identity";
 
 export const dynamic = "force-dynamic";
 
@@ -92,12 +97,65 @@ export async function POST(request: Request) {
     );
   }
 
+  // 0a) Documento y términos (módulo `customer-identity`): con el módulo apagado no
+  //     se piden. El documento es único entre cuentas: se comprueba ANTES de crear
+  //     el usuario, igual que el teléfono, para no dejar una cuenta a medias.
+  // El paquete de país solo se lee con el módulo encendido: un registro normal no
+  // depende de él.
+  const config = await getSiteConfig();
+  const policy = identityPolicy(
+    config,
+    isModuleEnabled(config, "customer-identity")
+      ? await getGeoPack()
+      : { documentTypes: [] },
+  );
+  const identity = policy.enabled ? parsed.data.identity : undefined;
+  if (policy.enabled) {
+    const details: Record<string, string[]> = {};
+    if (parsed.data.terms_accepted !== true) {
+      details.terms_accepted = [
+        "Debes aceptar los términos y condiciones para continuar.",
+      ];
+    }
+    if (policy.documentTypes.length > 0) {
+      const invalid = identity
+        ? checkDocument(policy.documentTypes, identity)
+        : "Documento requerido.";
+      if (invalid) details.identity = [invalid];
+    }
+    if (Object.keys(details).length > 0) {
+      return NextResponse.json({ error: "Datos inválidos.", details }, { status: 422 });
+    }
+    if (identity) {
+      const free = await isDocumentAvailable(
+        identity.documentType,
+        identity.documentNumber,
+      );
+      if (free === null) {
+        logger.error(
+          { event: "auth.register.document_check_failed" },
+          "No se pudo comprobar la unicidad del documento",
+        );
+        return NextResponse.json(
+          { error: "Servicio de autenticación temporalmente no disponible." },
+          { status: 503 },
+        );
+      }
+      if (!free) {
+        const message = "Este documento ya está registrado.";
+        return NextResponse.json(
+          { error: message, details: { identity: [message] } },
+          { status: 409 },
+        );
+      }
+    }
+  }
+
   // 0) Teléfono (opcional): solo con `auth.phone_login_enabled` y si está libre.
   //    Se comprueba ANTES de crear la cuenta; tras crearla, WordPress lo vuelve
   //    a comprobar al guardarlo.
   const phone = parsed.data.phone || "";
   if (phone !== "") {
-    const config = await getSiteConfig();
     if (!config.auth.phone_login_enabled) {
       return NextResponse.json(
         { error: "Datos inválidos.", details: { phone: ["No se admite teléfono."] } },
@@ -177,6 +235,28 @@ export async function POST(request: Request) {
     // la cuenta ya existe y sigue sirviendo con el email; se registra.
     if (phone !== "") {
       await attachPhoneToAccount(user.databaseId, phone);
+    }
+
+    // Documento + aceptación de términos. Entre la comprobación de arriba y aquí otra
+    // cuenta pudo quedarse el documento: es el único fallo que se registra como tal.
+    // Si WordPress no responde, la cuenta sigue siendo válida: el documento se pedirá
+    // en la cuenta o en el checkout, que lo aceptan mientras esté vacío.
+    if (policy.enabled) {
+      const saved = await attachIdentity(user.databaseId, {
+        documentType: identity?.documentType,
+        documentNumber: identity?.documentNumber,
+        termsAccepted: true,
+      });
+      if (!saved.ok) {
+        logger.error(
+          {
+            event: "auth.register.identity_incomplete",
+            userId: user.databaseId,
+            reason: saved.reason,
+          },
+          "Usuario creado pero no se pudo guardar el documento/aceptación",
+        );
+      }
     }
 
     // Inicia el flujo de verificación de email (opcional, no bloqueante).

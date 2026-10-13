@@ -1,4 +1,5 @@
 import { parseSavedAddresses } from "@/lib/customer/addresses";
+import { identityFromMeta, type CustomerIdentity } from "@/lib/customer/identity";
 import type { SavedAddress } from "@/types/address";
 import type { WooCustomer } from "@/types/woocommerce";
 
@@ -10,8 +11,8 @@ import type { WooCustomer } from "@/types/woocommerce";
  * Puro: lo arma el servidor (`getCheckoutCustomerSeed`) y, de respaldo, el
  * propio formulario con la respuesta de `/api/store/customer`.
  *
- * Punto de extensión (módulo `customer-identity`, tarea 53): aquí se sumará el
- * documento de identidad ya registrado.
+ * `identity` es el documento ya registrado y cuándo aceptó los términos (módulo
+ * `customer-identity`); el formulario solo lo usa si el módulo está activo.
  */
 export interface CheckoutCustomerSeed {
   first_name: string;
@@ -25,6 +26,8 @@ export interface CheckoutCustomerSeed {
   country: string;
   /** Libreta de direcciones de la cuenta. */
   addresses: SavedAddress[];
+  /** Documento y aceptación de términos de la cuenta (vacío si no hay). */
+  identity: CustomerIdentity;
 }
 
 type SeedSource = Pick<
@@ -50,5 +53,6 @@ export function checkoutSeedFromCustomer(
     state: billing?.state?.trim() || shipping?.state?.trim() || "",
     country: billing?.country?.trim() || shipping?.country?.trim() || defaultCountry,
     addresses: parseSavedAddresses(customer.meta_data),
+    identity: identityFromMeta(customer.meta_data),
   };
 }

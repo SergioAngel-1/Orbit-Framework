@@ -7,6 +7,10 @@ import { LogoutButton } from "@/components/account/logout-button";
 import { EmailVerificationBanner } from "@/components/account/email-verification-banner";
 import { TwoFactorSetup } from "@/components/account/two-factor-setup";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
+import { getSiteConfig } from "@/lib/config";
+import { getGeoPack } from "@/lib/geo";
+import { identityPolicy } from "@/lib/customer/policy";
+import { identityFromMeta } from "@/lib/customer/identity";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("account");
@@ -20,9 +24,11 @@ export default async function AccountPage() {
   let customer: Awaited<ReturnType<typeof getCustomer>> | null = null;
   let error: string | null = null;
   let emailVerified = false;
+  let policy: ReturnType<typeof identityPolicy> = { enabled: false, documentTypes: [] };
 
   try {
     customer = await getCustomer();
+    policy = identityPolicy(await getSiteConfig(), await getGeoPack());
     const session = await getSession();
     if (session) {
       const res = await wpFetch("/wp-json/hwe/v1/auth/me", {
@@ -67,6 +73,14 @@ export default async function AccountPage() {
                 first_name: customer.first_name ?? "",
                 last_name: customer.last_name ?? "",
               }}
+              identity={
+                policy.enabled && policy.documentTypes.length > 0
+                  ? {
+                      documentTypes: policy.documentTypes,
+                      stored: identityFromMeta(customer.meta_data),
+                    }
+                  : undefined
+              }
             />
 
             <section>

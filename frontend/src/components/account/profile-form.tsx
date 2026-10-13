@@ -3,34 +3,71 @@ import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
+import { DocumentField } from "@/components/forms/document-field";
+import {
+  hasDocument,
+  identityFromMeta,
+  type CustomerIdentity,
+} from "@/lib/customer/identity";
+import type { GeoDocumentType } from "@/lib/geo/types";
 
 export function ProfileForm({
   initial,
+  identity,
 }: {
   initial: { first_name: string; last_name: string };
+  /**
+   * Módulo `customer-identity` con tipos de documento en el país: el documento se
+   * escribe una sola vez; mientras la cuenta no tenga uno es editable y, en cuanto
+   * se guarda, queda bloqueado (y WordPress lo impone).
+   */
+  identity?: { documentTypes: GeoDocumentType[]; stored: CustomerIdentity };
 }) {
   const tAccount = useTranslations("account");
   const tForm = useTranslations("form");
   const tCommon = useTranslations("common");
   const [status, setStatus] = useState<"idle" | "saving" | "ok" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [stored, setStored] = useState<CustomerIdentity | null>(
+    identity?.stored ?? null,
+  );
+  const documentTypes = identity?.documentTypes ?? [];
+  const [documentType, setDocumentType] = useState(documentTypes[0]?.code ?? "");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [documentError, setDocumentError] = useState<string | null>(null);
+  const documentLocked = stored !== null && hasDocument(stored);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("saving");
     setMessage(null);
+    setDocumentError(null);
     const form = new FormData(e.currentTarget);
+    // Documento vacío = no se envía (sigue pendiente, no es un error).
+    const sendDocument =
+      identity !== undefined && !documentLocked && documentNumber.trim() !== "";
     try {
       const res = await csrfFetch("/api/store/customer", {
         method: "PUT",
         body: {
           first_name: String(form.get("first_name") ?? ""),
           last_name: String(form.get("last_name") ?? ""),
+          ...(sendDocument ? { identity: { documentType, documentNumber } } : {}),
         },
       });
       if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          details?: { identity?: string[] };
+        };
+        setDocumentError(data.details?.identity?.[0] ?? null);
         throw new Error(data.error || tAccount("saveError"));
+      }
+      if (sendDocument) {
+        const saved = (await res.json().catch(() => null)) as {
+          meta_data?: { key: string; value: string }[];
+        } | null;
+        if (saved) setStored(identityFromMeta(saved.meta_data));
       }
       setStatus("ok");
       setMessage(tAccount("saveSuccess"));
@@ -75,6 +112,26 @@ export function ProfileForm({
           />
         </div>
       </div>
+      {identity && documentTypes.length > 0 && (
+        <DocumentField
+          documentTypes={documentTypes}
+          documentType={documentLocked ? (stored?.documentType ?? "") : documentType}
+          documentNumber={
+            documentLocked ? (stored?.documentNumber ?? "") : documentNumber
+          }
+          locked={documentLocked}
+          required={false}
+          onTypeChange={(v) => {
+            setDocumentType(v);
+            setDocumentError(null);
+          }}
+          onNumberChange={(v) => {
+            setDocumentNumber(v);
+            setDocumentError(null);
+          }}
+          error={documentError ?? undefined}
+        />
+      )}
       <button
         type="submit"
         disabled={status === "saving"}

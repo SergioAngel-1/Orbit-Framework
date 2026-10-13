@@ -307,7 +307,15 @@
     "phoneHelper": "You will also be able to sign in with it.",
     "phoneInvalid": "Invalid phone number. Check the dial code and the number.",
     "state": "State / province",
-    "select": "Select…"
+    "select": "Select…",
+    "document": "ID document",
+    "documentType": "Document type",
+    "documentNumber": "Document number",
+    "documentNumberPlaceholder": "Document number",
+    "documentBillingHint": "We ask for it to invoice your purchase.",
+    "documentLockedHint": "It cannot be changed from the site.",
+    "termsConsent": "I accept the <terms>terms and conditions</terms> and the <privacy>privacy policy</privacy>, and I confirm my details are accurate.",
+    "termsRequired": "You must accept the terms to continue."
   },
   "login": {
     "title": "Sign in",

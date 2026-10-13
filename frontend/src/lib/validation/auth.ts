@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { documentInputSchema, termsAcceptedField } from "./identity";
 
 // ============================================================================
 //  Esquemas de validación de entrada para los endpoints de autenticación.
@@ -29,6 +30,10 @@ export const registerSchema = z.object({
     .optional(),
   /** Idioma del visitante, para el correo de verificación (ver `lib/auth/email-links`). */
   locale: z.string().max(16).optional(),
+  /** Documento (módulo `customer-identity`); el BFF lo valida contra el paquete de país. */
+  identity: documentInputSchema.optional(),
+  /** Aceptación de términos (módulo `customer-identity`): solo vale `true`. */
+  terms_accepted: termsAcceptedField.optional(),
 });
 
 export const forgotPasswordSchema = z.object({

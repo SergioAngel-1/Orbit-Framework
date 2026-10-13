@@ -30,6 +30,12 @@ vi.mock("@/lib/analytics/consent-ledger", () => ({
   linkConsentReceipt: vi.fn(async () => undefined),
 }));
 vi.mock("@/lib/graphql-client", () => ({ fetchGraphQL: vi.fn() }));
+vi.mock("@/lib/config", () => ({
+  getSiteConfig: vi.fn(async () => ({
+    auth: { phone_login_enabled: false },
+    modules: {},
+  })),
+}));
 vi.mock("@/lib/auth/jwt", () => ({ getTokenMaxAgeSeconds: () => 300 }));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },

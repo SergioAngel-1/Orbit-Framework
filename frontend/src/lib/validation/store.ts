@@ -1,4 +1,5 @@
 import { routing } from "@/i18n/routing";
+import { documentInputSchema, termsAcceptedField } from "./identity";
 import { z } from "zod";
 
 // ============================================================================
@@ -104,6 +105,14 @@ export const checkoutSchema = z.object({
     })
     .optional(),
   shipping_address: addressSchema.optional(),
+  /**
+   * Documento del comprador (módulo `customer-identity`). Aquí solo se acota la
+   * forma; el contenido lo valida el BFF contra el paquete de país y la unicidad
+   * y la escritura única las decide WordPress (`attach-identity`, 409).
+   */
+  identity: documentInputSchema.optional(),
+  /** Aceptación de términos: solo vale `true`; la fecha la pone el servidor. */
+  terms_accepted: termsAcceptedField.optional(),
   payment_method: z.string().min(1).max(100),
   payment_data: z
     .array(z.object({ key: z.string().max(100), value: z.string().max(2000) }))
@@ -120,6 +129,8 @@ export const customerUpdateSchema = z
     last_name: z.string().max(100).optional(),
     billing: addressSchema.optional(),
     shipping: addressSchema.optional(),
+    /** Documento (módulo `customer-identity`): se registra solo si la cuenta no tiene uno. */
+    identity: documentInputSchema.optional(),
   })
   .strict();
 

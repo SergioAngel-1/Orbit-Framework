@@ -38,7 +38,21 @@ import {
   storeIdempotentResult,
   releaseIdempotencyKey,
 } from "@/lib/security/idempotency";
-import type { StoreCart, StoreCheckoutResponse } from "@/types/woocommerce";
+import {
+  STORE_API_IDENTITY_NAMESPACE,
+  identityFromMeta,
+  orderIdentityMetaData,
+  storeApiIdentityExtension,
+  type CustomerIdentity,
+} from "@/lib/customer/identity";
+import { attachIdentity } from "@/lib/customer/identity-api";
+import { identityPolicy } from "@/lib/customer/policy";
+import { resolveCheckoutIdentity } from "@/lib/checkout/identity";
+import type {
+  StoreCart,
+  StoreCheckoutResponse,
+  WooCustomer,
+} from "@/types/woocommerce";
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +115,8 @@ export async function POST(request: Request) {
   // Direcciones según el paquete de país de la tienda: el estado se valida contra
   // la lista del paquete (y contra la ciudad) y sale normalizado a lo que exige
   // WooCommerce; nunca se rellena una división por defecto.
-  const geo = applyGeoPack(await getGeoPack(), {
+  const [geoPack, config] = await Promise.all([getGeoPack(), getSiteConfig()]);
+  const geo = applyGeoPack(geoPack, {
     billing_address: parsed.data.billing_address,
     shipping_address: parsed.data.shipping_address,
   });
@@ -130,7 +145,7 @@ export async function POST(request: Request) {
     );
     return NextResponse.json({ error: "Medio de pago no válido." }, { status: 422 });
   }
-  if (!enabledPaymentChoices(await getSiteConfig()).includes(choice)) {
+  if (!enabledPaymentChoices(config).includes(choice)) {
     logger.warn(
       { event: "checkout.payment_method_disabled", paymentMethod: requestedMethod },
       "Medio de pago desactivado en checkout",
@@ -139,6 +154,67 @@ export async function POST(request: Request) {
       { error: "Ese medio de pago no está disponible." },
       { status: 422 },
     );
+  }
+
+  // --- Documento + aceptación de términos (módulo `customer-identity`) ---
+  // Con el módulo apagado no se pide nada. Con sesión, lo que la cuenta ya tenga
+  // manda (ver `resolveCheckoutIdentity`); lo que falte sale del formulario y se
+  // guarda en la cuenta ANTES de crear el pedido: un documento de otra cuenta no
+  // puede acabar en una compra.
+  const policy = identityPolicy(config, geoPack);
+  let orderIdentity: CustomerIdentity | null = null;
+  if (policy.enabled) {
+    try {
+      const stored = session
+        ? identityFromMeta(
+            (await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`))
+              .meta_data,
+          )
+        : null;
+      const resolved = resolveCheckoutIdentity(stored, parsed.data, policy);
+      if (!resolved.ok) {
+        return NextResponse.json(
+          { error: resolved.error, details: { [resolved.field]: [resolved.error] } },
+          { status: 422 },
+        );
+      }
+      orderIdentity = resolved.identity;
+
+      if (session && resolved.persist) {
+        const saved = await attachIdentity(Number(session.userId), resolved.persist);
+        if (
+          !saved.ok &&
+          (saved.reason === "document_taken" || saved.reason === "document_locked")
+        ) {
+          const message = "Este documento ya está registrado en otra cuenta.";
+          return NextResponse.json(
+            { error: message, details: { identity: [message] } },
+            { status: 409 },
+          );
+        }
+        if (!saved.ok) {
+          // WordPress no respondió: el pedido lleva igualmente su documento y su
+          // aceptación; la cuenta los volverá a pedir en la próxima compra.
+          logger.error(
+            {
+              event: "checkout.identity_persist_failed",
+              userId: session.userId,
+              reason: saved.reason,
+            },
+            "No se pudo guardar el documento/aceptación en la cuenta",
+          );
+        }
+      }
+    } catch (error) {
+      logger.error(
+        {
+          event: "checkout.identity_error",
+          err: error instanceof Error ? error.message : error,
+        },
+        "No se pudo leer la identidad del cliente",
+      );
+      return handleApiError(error);
+    }
   }
 
   // --- Idempotencia (opcional pero recomendada) ---
@@ -220,9 +296,26 @@ export async function POST(request: Request) {
       );
     }
 
+    // Campos explícitos: `identity`, `terms_accepted` y `tracking` son del BFF y no viajan
+    // a la Store API tal cual; lo que el BFF resolvió va en `extensions` para que el
+    // pedido NAZCA con su documento (ver `storeApiIdentityExtension`).
     const { data, cartToken } = await storeFetch<StoreCheckoutResponse>("/checkout", {
       method: "POST",
-      body: { ...input, payment_method: paymentMethod },
+      body: {
+        billing_address: input.billing_address,
+        shipping_address: input.shipping_address,
+        payment_data: input.payment_data,
+        customer_note: input.customer_note,
+        payment_method: paymentMethod,
+        ...(orderIdentity
+          ? {
+              extensions: {
+                [STORE_API_IDENTITY_NAMESPACE]:
+                  storeApiIdentityExtension(orderIdentity),
+              },
+            }
+          : {}),
+      },
       cartToken: token,
       // Vía 1: si hay sesión, autenticamos la creación del pedido como el usuario.
       authToken: session?.token,
@@ -259,7 +352,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // Contexto de medición: lo que hace falta para mandar la compra desde el
+    // Documento y aceptación en el pedido (salvaguarda: ya llegaron en `extensions`
+    // al crearlo) y contexto de medición, en una sola escritura. Lo que hace falta para mandar la compra desde el
     // servidor cuando la pasarela confirme (consentimiento, cookies del píxel,
     // IP y navegador del comprador). Va ANTES del paso a «En espera», que es el
     // que dispara los correos. Un fallo aquí no pierde el pedido.
@@ -272,7 +366,12 @@ export async function POST(request: Request) {
         );
         await wcFetch(`/orders/${data.order_id}`, {
           method: "PUT",
-          body: { meta_data: orderTrackingMetaData(context) },
+          body: {
+            meta_data: [
+              ...(orderIdentity ? orderIdentityMetaData(orderIdentity) : []),
+              ...orderTrackingMetaData(context),
+            ],
+          },
         });
       } catch (trackingError) {
         logger.error(
