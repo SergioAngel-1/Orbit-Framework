@@ -99,6 +99,7 @@ export const PRODUCT_BY_SLUG_QUERY = /* GraphQL */ `
   query ProductBySlug($slug: ID!) {
     product(id: $slug, idType: SLUG) {
       id databaseId name slug type
+      seoTitle seoDescription
       image { sourceUrl altText }
       ... on SimpleProduct {
         onSale price regularPrice salePrice stockStatus
@@ -144,6 +145,8 @@ export const CATEGORY_BY_SLUG_QUERY = /* GraphQL */ `
       name
       slug
       description
+      seoTitle
+      seoDescription
       products(first: $first) {
         nodes {
           ...ProductCard

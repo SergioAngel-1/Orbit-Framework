@@ -59,3 +59,4 @@ define('YEAR_IN_SECONDS', 31536000);
 // Clases de WordPress simuladas (ver tests/Stubs/).
 require_once __DIR__ . '/Stubs/wp-rest.php';
 require_once __DIR__ . '/Stubs/wp-error.php';
+require_once __DIR__ . '/Stubs/wp-graphql.php';

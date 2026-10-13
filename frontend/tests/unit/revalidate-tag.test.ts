@@ -2,9 +2,11 @@ import { describe, it, expect } from "vitest";
 import { resolveHweTag } from "@/app/api/revalidate/route";
 
 describe("resolveHweTag", () => {
-  it("acepta site-config y banners", () => {
+  it("acepta los tags del núcleo", () => {
     expect(resolveHweTag({ tag: "site-config" })).toBe("site-config");
     expect(resolveHweTag({ tag: "banners" })).toBe("banners");
+    expect(resolveHweTag({ tag: "posts" })).toBe("posts");
+    expect(resolveHweTag({ tag: "menus" })).toBe("menus");
   });
 
   it("usa site-config por defecto cuando falta el tag", () => {

@@ -61,16 +61,16 @@ final class RevalidationTest extends TestCase
 
     // ── allowedTags ───────────────────────────────────────────────────────────
 
-    public function testTheCoreAcceptsOnlySiteConfigByDefault(): void
+    public function testTheCoreAcceptsItsOwnTagsByDefault(): void
     {
-        $this->assertSame(['site-config'], Revalidation::allowedTags());
+        $this->assertSame(['site-config', 'banners', 'posts', 'menus'], Revalidation::allowedTags());
     }
 
     public function testTagsRegisteredWithTheFilterAreAccepted(): void
     {
         $this->registerTags('example', 'catalogo.v2');
 
-        $this->assertSame(['site-config', 'example', 'catalogo.v2'], Revalidation::allowedTags());
+        $this->assertSame(['site-config', 'banners', 'posts', 'menus', 'example', 'catalogo.v2'], Revalidation::allowedTags());
     }
 
     /** @return iterable<string, array{mixed}> */
@@ -92,7 +92,7 @@ final class RevalidationTest extends TestCase
     {
         Filters\expectApplied('hwe_revalidation_tags')->andReturnUsing(static fn (array $core): array => [...$core, $bad, 'valido']);
 
-        $this->assertSame(['site-config', 'valido'], Revalidation::allowedTags());
+        $this->assertSame(['site-config', 'banners', 'posts', 'menus', 'valido'], Revalidation::allowedTags());
         Revalidation::allowedTags();
         Revalidation::allowedTags();
         $this->assertCount(1, $this->logged, 'Un aviso por tag defectuoso y proceso, no uno por llamada.');
@@ -103,14 +103,14 @@ final class RevalidationTest extends TestCase
     {
         $this->registerTags('example', 'example', 'site-config');
 
-        $this->assertSame(['site-config', 'example'], Revalidation::allowedTags());
+        $this->assertSame(['site-config', 'banners', 'posts', 'menus', 'example'], Revalidation::allowedTags());
     }
 
     public function testAFilterThatDoesNotReturnAnArrayFallsBackToTheCoreTags(): void
     {
         Filters\expectApplied('hwe_revalidation_tags')->andReturnUsing(static fn () => 'no soy una lista');
 
-        $this->assertSame(['site-config'], Revalidation::allowedTags());
+        $this->assertSame(['site-config', 'banners', 'posts', 'menus'], Revalidation::allowedTags());
         $this->assertCount(1, $this->logged);
         $this->assertStringContainsString('hwe_revalidation_tags', $this->logged[0]);
     }

@@ -19,8 +19,11 @@ namespace HWE\ControlCenter;
  */
 class Revalidation {
 
-    /** Tags que acepta el núcleo (los demás los registran instancias y módulos). */
-    private const CORE_TAGS = ['site-config'];
+    /**
+     * Tags que acepta el núcleo (los demás los registran instancias y módulos): la config,
+     * los banners, las entradas del blog y los menús de navegación.
+     */
+    private const CORE_TAGS = ['site-config', 'banners', 'posts', 'menus'];
 
     /** Formato de un tag: minúsculas, dígitos, punto, guion y guion bajo; hasta 64 caracteres. */
     private const TAG_PATTERN = '/^[a-z0-9][a-z0-9._-]{0,63}$/';

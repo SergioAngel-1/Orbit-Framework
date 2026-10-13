@@ -8,8 +8,8 @@ import { instanceRegistry } from "@/instance/registry";
 
 export const dynamic = "force-dynamic";
 
-/** Tags del núcleo. La instancia añade los suyos en `instanceRegistry.revalidationTags`. */
-const CORE_HWE_TAGS = ["site-config", "banners"] as const;
+/** Tags del núcleo: config, banners, entradas del blog y menús. La instancia añade los suyos en `instanceRegistry.revalidationTags`. */
+const CORE_HWE_TAGS = ["site-config", "banners", "posts", "menus"] as const;
 
 export function resolveHweTag(raw: unknown): string | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;

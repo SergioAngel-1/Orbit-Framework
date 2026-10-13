@@ -36,6 +36,9 @@ export interface WPPost {
   excerpt: string;
   featuredImage: WPFeaturedImage | null;
   author: WPAuthor | null;
+  /** Override de hwe-post-seo.php. Null = usar título/resumen nativos. */
+  seoTitle?: string | null;
+  seoDescription?: string | null;
 }
 
 /** Post individual con contenido completo (página de detalle). */

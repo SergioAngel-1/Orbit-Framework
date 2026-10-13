@@ -19,6 +19,8 @@ export const LATEST_POSTS_QUERY = /* GraphQL */ `
         slug
         date
         excerpt
+        seoTitle
+        seoDescription
         author {
           node {
             name
@@ -61,6 +63,8 @@ export const POSTS_QUERY = /* GraphQL */ `
         date
         modified
         excerpt
+        seoTitle
+        seoDescription
         author {
           node {
             name
@@ -93,6 +97,8 @@ export const POST_BY_SLUG_QUERY = /* GraphQL */ `
       modified
       excerpt
       content
+      seoTitle
+      seoDescription
       author {
         node {
           name
