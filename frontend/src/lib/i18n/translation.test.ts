@@ -17,6 +17,20 @@ import {
   withTranslations,
 } from "./translation";
 
+describe("el idioma por defecto se compara normalizado (como pickLocalized)", () => {
+  // `pickLocalized` normaliza (`ES`, `es_ES`…) y estas dos comparaban en crudo: con otra
+  // grafía del mismo idioma por defecto se leía como secundario y caía a la variante `_es`.
+  const entity = { name: "Camiseta", name_es: "Variante es" };
+
+  it("pickTranslated devuelve el texto nativo para el idioma por defecto con otra grafía", () => {
+    expect(pickTranslated(entity, "name", "ES")).toBe("Camiseta");
+  });
+
+  it("hasTranslation da por existente la ficha en el idioma por defecto con otra grafía", () => {
+    expect(hasTranslation({}, "ES", "name")).toBe(true);
+  });
+});
+
 describe("idiomas", () => {
   it("los secundarios son los de routing sin el idioma por defecto", () => {
     expect(secondaryLocales()).toEqual(["en", "pt-BR"]);

@@ -43,9 +43,14 @@ export const TRANSLATION_FIELDS = {
   Tag: ["name"],
 } as const satisfies Record<string, readonly string[]>;
 
+/** ¿Es `locale` el idioma por defecto? Normalizado, como `pickLocalized` (`ES` = `es`). */
+function isDefaultLocale(locale: string): boolean {
+  return localeSuffix(locale) === localeSuffix(routing.defaultLocale);
+}
+
 /** Idiomas secundarios del sitio (los de `routing`, sin el idioma por defecto). */
 export function secondaryLocales(): string[] {
-  return routing.locales.filter((locale) => locale !== routing.defaultLocale);
+  return routing.locales.filter((locale) => !isDefaultLocale(locale));
 }
 
 /**
@@ -139,7 +144,7 @@ export function pickTranslated(
   if (!entity) return null;
   const record = entity as Record<string, unknown>;
   const native = typeof record[field] === "string" ? (record[field] as string) : null;
-  if (locale === routing.defaultLocale) return native;
+  if (isDefaultLocale(locale)) return native;
   const translated = record[`${snakeCase(field)}_${localeSuffix(locale)}`];
   return typeof translated === "string" && translated.trim() !== ""
     ? translated
@@ -175,7 +180,7 @@ export function stripTranslations<T>(value: T): T {
  * anuncia el idioma (ni hreflang ni sitemap).
  */
 export function hasTranslation(entity: object, locale: string, field: string): boolean {
-  if (locale === routing.defaultLocale) return true;
+  if (isDefaultLocale(locale)) return true;
   const raw = (entity as Record<string, unknown>)[`${field}_${localeSuffix(locale)}`];
   return typeof raw === "string" && raw.trim() !== "";
 }
