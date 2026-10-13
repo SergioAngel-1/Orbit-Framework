@@ -103,6 +103,17 @@ describe("firmas", () => {
     expect(revalidateTag).toHaveBeenCalledWith("coupons", "max");
   });
 
+  it("HWE: el tag del módulo hwe-geo (paquetes de país)", async () => {
+    const body = '{"tag":"geo"}';
+
+    const res = await POST(
+      request(body, { "x-hwe-signature": `sha256=${hmac(body, HWE_SECRET, "hex")}` }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(revalidateTag).toHaveBeenCalledWith("geo", "max");
+  });
+
   it.each([
     ["WooCommerce", { "x-wc-webhook-signature": "firma-falsa" }],
     ["HWE", { "x-hwe-signature": "sha256=deadbeef" }],

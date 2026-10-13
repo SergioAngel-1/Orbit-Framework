@@ -9,6 +9,7 @@ import { CartCouponOffers } from "@/components/coupons/cart-coupon-offers";
 import { isModuleEnabled } from "@/lib/config/modules";
 import { getCartCoupons } from "@/lib/coupons/public-coupons";
 import { getSiteConfig } from "@/lib/config";
+import { getGeoPack } from "@/lib/geo";
 import "@/lib/payments/providers"; // efecto secundario: registra las pasarelas
 import { enabledPaymentChoices } from "@/lib/payments/checkout-options";
 import { isActiveGatewaySandbox } from "@/lib/payments/registry";
@@ -33,10 +34,11 @@ export default async function CheckoutPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const [t, config, session] = await Promise.all([
+  const [t, config, session, geoPack] = await Promise.all([
     getTranslations("checkout"),
     getSiteConfig(),
     getSession(),
+    getGeoPack(),
   ]);
   // Sin sesión solo se compra si la tienda admite invitados; si no, al login.
   if (!session && config.ecommerce.checkout_login_required) {
@@ -68,6 +70,7 @@ export default async function CheckoutPage({
         guest={!session}
         customer={customer}
         defaultCountry={config.ecommerce.country}
+        geoPack={geoPack}
         paymentChoices={paymentChoices}
         gatewaySandbox={gatewaySandbox}
         couponsEnabled={config.ecommerce.coupons_enabled}

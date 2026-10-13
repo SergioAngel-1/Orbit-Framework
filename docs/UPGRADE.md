@@ -623,6 +623,28 @@ git fetch framework --tags
   una categoría de producto no dispara el webhook de WooCommerce, así que WordPress lo pide por esta
   vía. El plugin lo registra en `hwe_revalidation_tags`.
 
+### Paquetes por país (F5)
+
+- **Nuevo mu-plugin `hwe-geo`** (`GET /wp-json/hwe/v1/geo`, tag ISR `geo`, filtro `hwe_geo_packs`)
+  con los paquetes `CO` y `generic`. Las instancias derivadas que traían tablas de un país en
+  `lib/geo/*` las pasan a un paquete (`hwe_geo_packs`) y borran esos archivos.
+- **(contrato) `checkout` y `customer` validan la dirección.** Con un paquete de lista cerrada
+  (`CO`), `POST /api/store/checkout` y `PUT /api/store/customer` responden 422 si falta el
+  departamento y no lo fija la ciudad, si no existe o si no corresponde a la ciudad; antes pasaba
+  cualquier texto y WooCommerce lo rechazaba después. El `state` se envía como código (`CO-ANT`).
+  El formulario del checkout ahora pinta el campo `state` y manda `billing_address.state`: un
+  frontend propio debe hacer lo mismo. Con el paquete genérico nada cambia (texto libre).
+- **(contrato) Libreta de direcciones.** `addressSchema` y `addressUpdateSchema` desaparecen de
+  `lib/validation/address`: se usan `buildAddressSchema(pack)` y `buildAddressUpdateSchema(pack)`. El
+  país por defecto ya no es `ES` fijo sino el de la tienda (con el paquete genérico, el país es
+  obligatorio).
+- **(contrato) Firmas.** `CheckoutCustomerSeed` lleva `state`; `CheckoutForm` y `AddressManager`
+  reciben `geoPack` (opcional: sin él, texto libre). El teléfono de la dirección se normaliza a E.164
+  con el prefijo del paquete.
+- **Decisión que diverge de la instancia de origen:** allí un departamento irreconocible caía en
+  silencio a `CO-CUN` (Cundinamarca) y el de la tabla de ciudades pisaba el escrito. Aquí no se
+  inventa nada: un valor inválido o incoherente es un error del campo.
+
 ### Infraestructura y CD (F4)
 
 - **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin

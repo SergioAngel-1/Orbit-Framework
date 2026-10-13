@@ -14,6 +14,8 @@ import { handleApiError } from "@/lib/api/errors";
 import { checkoutSchema } from "@/lib/validation/store";
 import { logger } from "@/lib/observability/logger";
 import { getSiteConfig } from "@/lib/config";
+import { getGeoPack } from "@/lib/geo";
+import { applyGeoPack } from "@/lib/geo/address";
 import { canSubmitCheckout } from "@/lib/validation/checkout-guard";
 import {
   ONLINE_PAYMENT_METHOD,
@@ -95,6 +97,25 @@ export async function POST(request: Request) {
       { status: 422 },
     );
   }
+
+  // Direcciones según el paquete de país de la tienda: el estado se valida contra
+  // la lista del paquete (y contra la ciudad) y sale normalizado a lo que exige
+  // WooCommerce; nunca se rellena una división por defecto.
+  const geo = applyGeoPack(await getGeoPack(), {
+    billing_address: parsed.data.billing_address,
+    shipping_address: parsed.data.shipping_address,
+  });
+  if (Object.keys(geo.details).length > 0) {
+    logger.warn(
+      { event: "checkout.address_invalid" },
+      "Dirección inválida en checkout",
+    );
+    return NextResponse.json(
+      { error: "Datos inválidos.", details: geo.details },
+      { status: 422 },
+    );
+  }
+  const input = { ...parsed.data, ...geo.addresses };
 
   // Medio de pago: solo los del checkout (pago en línea, link por WhatsApp,
   // efectivo), cada uno si está activado en el Control Center. Cualquier otro
@@ -201,7 +222,7 @@ export async function POST(request: Request) {
 
     const { data, cartToken } = await storeFetch<StoreCheckoutResponse>("/checkout", {
       method: "POST",
-      body: { ...parsed.data, payment_method: paymentMethod },
+      body: { ...input, payment_method: paymentMethod },
       cartToken: token,
       // Vía 1: si hay sesión, autenticamos la creación del pedido como el usuario.
       authToken: session?.token,

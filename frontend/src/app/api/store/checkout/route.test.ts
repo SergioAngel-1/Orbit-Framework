@@ -9,6 +9,8 @@ import {
   reserveIdempotencyKey,
   releaseIdempotencyKey,
 } from "@/lib/security/idempotency";
+import { getGeoPack, GENERIC_PACK } from "@/lib/geo";
+import { CO_PACK } from "../../../../../tests/helpers/geo-pack";
 import { POST } from "./route";
 
 // ============================================================================
@@ -46,6 +48,10 @@ vi.mock("@/lib/security/idempotency", () => ({
   releaseIdempotencyKey: vi.fn(),
 }));
 vi.mock("@/lib/config", () => ({ getSiteConfig: vi.fn() }));
+vi.mock("@/lib/geo", async () => ({
+  getGeoPack: vi.fn(),
+  GENERIC_PACK: (await import("@/lib/geo/generic")).GENERIC_PACK,
+}));
 const cookieJar = new Map<string, string>();
 vi.mock("next/headers", () => ({
   cookies: async () => ({
@@ -125,6 +131,7 @@ beforeEach(() => {
   cookieJar.clear();
   payments();
   vi.mocked(getSession).mockResolvedValue(SESSION as never);
+  vi.mocked(getGeoPack).mockResolvedValue(GENERIC_PACK);
   vi.mocked(isValidIdempotencyKey).mockReturnValue(false);
   cartIs({ needs_shipping: false, shipping_rates: [] });
   vi.mocked(wcFetch).mockResolvedValue({ customer_id: 7 } as never);
@@ -393,5 +400,80 @@ describe("contexto de medición del pedido", () => {
     const res = await POST(checkout("hwe_offline"));
 
     expect(res.status).toBe(201);
+  });
+});
+
+describe("dirección según el paquete de país", () => {
+  const CO_ADDRESS = { ...ADDRESS, city: "Pasto", country: "CO", postcode: "" };
+  const sentBilling = () =>
+    (orderPosts()[0][1] as { body: { billing_address: Record<string, string> } }).body
+      .billing_address;
+
+  beforeEach(() => {
+    vi.mocked(getGeoPack).mockResolvedValue(CO_PACK);
+  });
+
+  it("el departamento por nombre llega a la Store API como código", async () => {
+    const res = await POST(
+      checkout("hwe_offline", {
+        billing_address: { ...CO_ADDRESS, state: "Nariño", phone: "300 123 4567" },
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(sentBilling()).toMatchObject({ state: "CO-NAR", phone: "+573001234567" });
+  });
+
+  it("una ciudad conocida fija el departamento que el cliente no indicó", async () => {
+    const res = await POST(
+      checkout("hwe_offline", { billing_address: { ...CO_ADDRESS, city: "Bogotá" } }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(sentBilling().state).toBe("CO-DC");
+  });
+
+  it("sin departamento (y sin ciudad que lo fije) no se crea el pedido: 422 por campo", async () => {
+    const res = await POST(checkout("hwe_offline", { billing_address: CO_ADDRESS }));
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).details).toEqual({
+      "billing_address.state": ["Departamento requerido"],
+    });
+    expect(orderPosts()).toHaveLength(0);
+  });
+
+  it("un departamento que no corresponde a la ciudad tampoco crea el pedido", async () => {
+    const res = await POST(
+      checkout("hwe_offline", {
+        billing_address: { ...CO_ADDRESS, city: "Bogotá", state: "Antioquia" },
+      }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(orderPosts()).toHaveLength(0);
+  });
+
+  it("valida también la dirección de envío", async () => {
+    const res = await POST(
+      checkout("hwe_offline", {
+        billing_address: { ...CO_ADDRESS, state: "Nariño" },
+        shipping_address: { ...CO_ADDRESS, state: "Atlantis" },
+      }),
+    );
+
+    expect(res.status).toBe(422);
+    expect(Object.keys((await res.json()).details)).toEqual(["shipping_address.state"]);
+  });
+
+  it("con el paquete genérico el estado es texto libre", async () => {
+    vi.mocked(getGeoPack).mockResolvedValue(GENERIC_PACK);
+
+    const res = await POST(
+      checkout("hwe_offline", { billing_address: { ...ADDRESS, state: "Madrid" } }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(sentBilling().state).toBe("Madrid");
   });
 });

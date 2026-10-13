@@ -19,6 +19,9 @@ import {
   checkoutSeedFromCustomer,
   type CheckoutCustomerSeed,
 } from "@/lib/checkout/customer-seed";
+import { CityField, DivisionField } from "@/components/forms/geo-fields";
+import { GENERIC_PACK } from "@/lib/geo/generic";
+import type { GeoPack } from "@/lib/geo/types";
 import type { WooCustomer } from "@/types/woocommerce";
 
 interface CheckoutResult {
@@ -32,6 +35,7 @@ const FIELD_NAMES = [
   "last_name",
   "address_1",
   "city",
+  "state",
   "postcode",
   "country",
   "email",
@@ -45,6 +49,7 @@ const EMPTY_VALUES: FieldValues = {
   last_name: "",
   address_1: "",
   city: "",
+  state: "",
   postcode: "",
   country: "",
   email: "",
@@ -66,6 +71,7 @@ function initialValues(
     last_name: address?.last_name || seed.last_name,
     address_1: address?.address_1 ?? "",
     city: address?.city || seed.city,
+    state: address ? address.state : seed.state,
     postcode: address?.postcode ?? "",
     country: address?.country || seed.country || defaultCountry,
     email: seed.email,
@@ -107,6 +113,11 @@ export interface CheckoutFormProps {
   /** País de la tienda (`config.ecommerce.country`) para el campo vacío. */
   defaultCountry?: string;
   /**
+   * Paquete de país (`getGeoPack()`): ciudades, divisiones y política de la
+   * dirección. Omitido, la dirección es texto libre.
+   */
+  geoPack?: GeoPack;
+  /**
    * Medios activos en el Control Center, en orden (`enabledPaymentChoices`):
    * pago en línea, link por WhatsApp y efectivo. Con uno solo no se pinta el
    * selector. Omitido, el formulario ofrece solo el pago en línea.
@@ -125,6 +136,7 @@ export function CheckoutForm({
   customer,
   guest = false,
   defaultCountry = "",
+  geoPack = GENERIC_PACK,
   paymentChoices = ["online"],
   gatewaySandbox = false,
   couponsEnabled = false,
@@ -168,7 +180,16 @@ export function CheckoutForm({
     { name: "last_name", label: tForm.lastName, required: true },
     { name: "address_1", label: tForm.address, required: true },
     { name: "city", label: tForm.city, required: true },
-    { name: "postcode", label: tForm.postcode, required: true },
+    { name: "state", label: tForm.state },
+    ...(geoPack.address.postcode === "none"
+      ? []
+      : [
+          {
+            name: "postcode" as const,
+            label: tForm.postcode,
+            required: geoPack.address.postcode === "required",
+          },
+        ]),
     { name: "country", label: tForm.country, required: true },
     { name: "email", label: tForm.email, type: "email", required: true },
     { name: "phone", label: tForm.phone },
@@ -413,28 +434,61 @@ export function CheckoutForm({
       <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
         <h3 className="mb-3 text-sm font-semibold">{tCheckout.shippingAddress}</h3>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {FIELDS.map((f) => (
-            <div key={f.name}>
-              <label
-                htmlFor={`checkout-${f.name}`}
-                className="mb-1 block text-sm font-medium"
-              >
-                {f.label}
-              </label>
-              <input
-                id={`checkout-${f.name}`}
-                name={f.name}
-                type={f.type ?? "text"}
-                required={f.required}
-                value={values[f.name]}
-                onChange={(e) => {
-                  touchedRef.current = true;
-                  setValues((v) => ({ ...v, [f.name]: e.target.value }));
-                }}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
-              />
-            </div>
-          ))}
+          {FIELDS.map((f) => {
+            const setField = (value: string, auto?: boolean) => {
+              if (!auto) touchedRef.current = true;
+              setValues((v) => (v[f.name] === value ? v : { ...v, [f.name]: value }));
+            };
+            const id = `checkout-${f.name}`;
+            if (f.name === "city") {
+              return (
+                <CityField
+                  key={f.name}
+                  id={id}
+                  name={f.name}
+                  label={f.label}
+                  pack={geoPack}
+                  required={f.required}
+                  value={values.city}
+                  onChange={setField}
+                />
+              );
+            }
+            if (f.name === "state") {
+              return (
+                <DivisionField
+                  key={f.name}
+                  id={id}
+                  name={f.name}
+                  label={geoPack.fallback ? f.label : geoPack.divisionLabel}
+                  pack={geoPack}
+                  city={values.city}
+                  country={values.country}
+                  value={values.state}
+                  onChange={setField}
+                />
+              );
+            }
+            return (
+              <div key={f.name}>
+                <label
+                  htmlFor={`checkout-${f.name}`}
+                  className="mb-1 block text-sm font-medium"
+                >
+                  {f.label}
+                </label>
+                <input
+                  id={`checkout-${f.name}`}
+                  name={f.name}
+                  type={f.type ?? "text"}
+                  required={f.required}
+                  value={values[f.name]}
+                  onChange={(e) => setField(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+                />
+              </div>
+            );
+          })}
         </div>
       </section>
 

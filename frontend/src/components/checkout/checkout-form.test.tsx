@@ -7,6 +7,7 @@ import { csrfFetch } from "@/lib/client/csrf";
 import type { PaymentChoice } from "@/lib/payments/checkout-options";
 import type { CheckoutCustomerSeed } from "@/lib/checkout/customer-seed";
 import { trackEvent } from "@/components/analytics/track-event";
+import { CO_PACK } from "../../../tests/helpers/geo-pack";
 import { CheckoutForm } from "./checkout-form";
 
 // El formulario ofrece los medios de pago que el Control Center activa y manda
@@ -98,6 +99,7 @@ const SEED: CheckoutCustomerSeed = {
   email: "ana@example.com",
   phone: "+34600111222",
   city: "Madrid",
+  state: "",
   country: "ES",
   addresses: [
     {
@@ -433,5 +435,63 @@ describe("medición", () => {
 
     await waitFor(() => expect(checkoutCalls()).toHaveLength(1));
     expect(checkoutBodyFull().tracking).toEqual({ consent: false, locale: "es" });
+  });
+});
+
+describe("dirección según el paquete de país", () => {
+  const select = (container: HTMLElement, name: string) =>
+    container.querySelector(`select[name="${name}"]`) as HTMLSelectElement | null;
+
+  it("con un paquete de lista cerrada, el departamento es un select y viaja como código", async () => {
+    bff();
+    const { container } = renderForm({
+      paymentChoices: ["cash"],
+      geoPack: CO_PACK,
+      defaultCountry: "CO",
+    });
+
+    const state = select(container, "state")!;
+    expect(state.required).toBe(true);
+    fireEvent.change(field(container, "city"), { target: { value: "Pasto" } });
+    fireEvent.change(state, { target: { value: "CO-NAR" } });
+    await submit(container);
+
+    await waitFor(() => expect(csrfFetch).toHaveBeenCalled());
+    const body = checkoutBody() as unknown as {
+      billing_address: Record<string, string>;
+    };
+    expect(body.billing_address).toMatchObject({
+      city: "Pasto",
+      state: "CO-NAR",
+      country: "CO",
+    });
+  });
+
+  it("una ciudad conocida deja solo su departamento", () => {
+    const { container } = renderForm({ geoPack: CO_PACK, defaultCountry: "CO" });
+
+    fireEvent.change(field(container, "city"), { target: { value: "Medellín" } });
+
+    const state = select(container, "state")!;
+    expect([...state.options].map((o) => o.value)).toEqual(["CO-ANT"]);
+    expect(state.value).toBe("CO-ANT");
+  });
+
+  it("el código postal es opcional si el paquete lo dice, y no se pinta con `none`", () => {
+    const optional = renderForm({ geoPack: CO_PACK });
+    expect(field(optional.container, "postcode").required).toBe(false);
+    cleanup();
+
+    const none = renderForm({
+      geoPack: { ...CO_PACK, address: { ...CO_PACK.address, postcode: "none" } },
+    });
+    expect(none.container.querySelector('input[name="postcode"]')).toBeNull();
+  });
+
+  it("sin paquete (texto libre) el estado es un campo de texto", () => {
+    const { container } = renderForm({});
+
+    expect(container.querySelector('input[name="state"]')).not.toBeNull();
+    expect(select(container, "state")).toBeNull();
   });
 });

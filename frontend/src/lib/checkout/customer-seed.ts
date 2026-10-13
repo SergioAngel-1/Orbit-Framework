@@ -20,6 +20,8 @@ export interface CheckoutCustomerSeed {
   phone: string;
   /** Ciudad del perfil (la del último pedido): respaldo de una dirección sin ciudad. */
   city: string;
+  /** División (departamento, provincia…) del perfil, o `""`. */
+  state: string;
   country: string;
   /** Libreta de direcciones de la cuenta. */
   addresses: SavedAddress[];
@@ -45,6 +47,7 @@ export function checkoutSeedFromCustomer(
     email: customer.email?.trim() || billing?.email?.trim() || "",
     phone: billing?.phone?.trim() || "",
     city: billing?.city?.trim() || shipping?.city?.trim() || "",
+    state: billing?.state?.trim() || shipping?.state?.trim() || "",
     country: billing?.country?.trim() || shipping?.country?.trim() || defaultCountry,
     addresses: parseSavedAddresses(customer.meta_data),
   };

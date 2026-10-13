@@ -1,0 +1,118 @@
+<?php
+/**
+ * Paquete de país: Colombia (`CO`).
+ *
+ * Divisiones con el código que exige WooCommerce (`CO-XXX`), las ciudades con tarifa de envío más
+ * habituales con su departamento (una ciudad de la lista solo admite el suyo; «otra ciudad» deja
+ * elegir cualquiera) y los documentos de identidad. Los patrones son expresiones regulares sin
+ * delimitadores, válidas en PHP y en JavaScript, y se comparan con el número NORMALIZADO (sin
+ * espacios, puntos ni guiones, en mayúsculas).
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+return array(
+	'country'       => 'CO',
+	'name'          => 'Colombia',
+	'dial_code'     => '+57',
+	'division_label' => 'Departamento',
+	'address'       => array(
+		'division'        => 'required',
+		'postcode'        => 'optional',
+		'city_division'   => true,
+	),
+	'divisions'     => array(
+		array( 'code' => 'CO-AMA', 'name' => 'Amazonas' ),
+		array( 'code' => 'CO-ANT', 'name' => 'Antioquia' ),
+		array( 'code' => 'CO-ARA', 'name' => 'Arauca' ),
+		array( 'code' => 'CO-ATL', 'name' => 'Atlántico' ),
+		array( 'code' => 'CO-BOL', 'name' => 'Bolívar' ),
+		array( 'code' => 'CO-BOY', 'name' => 'Boyacá' ),
+		array( 'code' => 'CO-CAL', 'name' => 'Caldas' ),
+		array( 'code' => 'CO-CAQ', 'name' => 'Caquetá' ),
+		array( 'code' => 'CO-CAS', 'name' => 'Casanare' ),
+		array( 'code' => 'CO-CAU', 'name' => 'Cauca' ),
+		array( 'code' => 'CO-CES', 'name' => 'Cesar' ),
+		array( 'code' => 'CO-CHO', 'name' => 'Chocó' ),
+		array( 'code' => 'CO-COR', 'name' => 'Córdoba' ),
+		array( 'code' => 'CO-CUN', 'name' => 'Cundinamarca' ),
+		array( 'code' => 'CO-DC', 'name' => 'Bogotá D.C.' ),
+		array( 'code' => 'CO-GUA', 'name' => 'Guainía' ),
+		array( 'code' => 'CO-GUV', 'name' => 'Guaviare' ),
+		array( 'code' => 'CO-HUI', 'name' => 'Huila' ),
+		array( 'code' => 'CO-LAG', 'name' => 'La Guajira' ),
+		array( 'code' => 'CO-MAG', 'name' => 'Magdalena' ),
+		array( 'code' => 'CO-MET', 'name' => 'Meta' ),
+		array( 'code' => 'CO-NAR', 'name' => 'Nariño' ),
+		array( 'code' => 'CO-NSA', 'name' => 'Norte de Santander' ),
+		array( 'code' => 'CO-PUT', 'name' => 'Putumayo' ),
+		array( 'code' => 'CO-QUI', 'name' => 'Quindío' ),
+		array( 'code' => 'CO-RIS', 'name' => 'Risaralda' ),
+		array( 'code' => 'CO-SAN', 'name' => 'Santander' ),
+		array( 'code' => 'CO-SAP', 'name' => 'San Andrés y Providencia' ),
+		array( 'code' => 'CO-SUC', 'name' => 'Sucre' ),
+		array( 'code' => 'CO-TOL', 'name' => 'Tolima' ),
+		array( 'code' => 'CO-VAC', 'name' => 'Valle del Cauca' ),
+		array( 'code' => 'CO-VAU', 'name' => 'Vaupés' ),
+		array( 'code' => 'CO-VID', 'name' => 'Vichada' ),
+	),
+	'cities'        => array(
+		array( 'name' => 'Arauca', 'division' => 'CO-ARA' ),
+		array( 'name' => 'Armenia', 'division' => 'CO-QUI' ),
+		array( 'name' => 'Barrancabermeja', 'division' => 'CO-SAN' ),
+		array( 'name' => 'Barranquilla', 'division' => 'CO-ATL' ),
+		array( 'name' => 'Bogotá', 'division' => 'CO-DC' ),
+		array( 'name' => 'Bucaramanga', 'division' => 'CO-SAN' ),
+		array( 'name' => 'Cajicá', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Cali', 'division' => 'CO-VAC' ),
+		array( 'name' => 'Cartagena', 'division' => 'CO-BOL' ),
+		array( 'name' => 'Chía', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Chiquinquirá', 'division' => 'CO-BOY' ),
+		array( 'name' => 'Circasia', 'division' => 'CO-QUI' ),
+		array( 'name' => 'Cota', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Cúcuta', 'division' => 'CO-NSA' ),
+		array( 'name' => 'Curumaní', 'division' => 'CO-CES' ),
+		array( 'name' => 'Dosquebradas', 'division' => 'CO-RIS' ),
+		array( 'name' => 'Duitama', 'division' => 'CO-BOY' ),
+		array( 'name' => 'Envigado', 'division' => 'CO-ANT' ),
+		array( 'name' => 'Facatativá', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Floridablanca', 'division' => 'CO-SAN' ),
+		array( 'name' => 'Funza', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Ginebra', 'division' => 'CO-VAC' ),
+		array( 'name' => 'Ibagué', 'division' => 'CO-TOL' ),
+		array( 'name' => 'La Calera', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Líbano', 'division' => 'CO-TOL' ),
+		array( 'name' => 'Madrid', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Manizales', 'division' => 'CO-CAL' ),
+		array( 'name' => 'Medellín', 'division' => 'CO-ANT' ),
+		array( 'name' => 'Montería', 'division' => 'CO-COR' ),
+		array( 'name' => 'Mosquera', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Neiva', 'division' => 'CO-HUI' ),
+		array( 'name' => 'Paz de Ariporo', 'division' => 'CO-CAS' ),
+		array( 'name' => 'Pereira', 'division' => 'CO-RIS' ),
+		array( 'name' => 'Popayán', 'division' => 'CO-CAU' ),
+		array( 'name' => 'Puerto Colombia', 'division' => 'CO-ATL' ),
+		array( 'name' => 'Rionegro', 'division' => 'CO-ANT' ),
+		array( 'name' => 'Sabaneta', 'division' => 'CO-ANT' ),
+		array( 'name' => 'Santa Marta', 'division' => 'CO-MAG' ),
+		array( 'name' => 'Sogamoso', 'division' => 'CO-BOY' ),
+		array( 'name' => 'Sopó', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Subachoque', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Tenjo', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Tunja', 'division' => 'CO-BOY' ),
+		array( 'name' => 'Ubaté', 'division' => 'CO-CUN' ),
+		array( 'name' => 'Valledupar', 'division' => 'CO-CES' ),
+		array( 'name' => 'Villavicencio', 'division' => 'CO-MET' ),
+		array( 'name' => 'Yopal', 'division' => 'CO-CAS' ),
+		array( 'name' => 'Zipaquirá', 'division' => 'CO-CUN' ),
+	),
+	'document_types' => array(
+		array( 'code' => 'CC', 'label' => 'Cédula de ciudadanía', 'pattern' => '^[1-9]\\d{3,9}$' ),
+		array( 'code' => 'CE', 'label' => 'Cédula de extranjería', 'pattern' => '^[A-Z0-9]{4,12}$' ),
+		array( 'code' => 'PP', 'label' => 'Pasaporte', 'pattern' => '^[A-Z0-9]{5,20}$' ),
+		// 9 dígitos, o 10 con el dígito de verificación (el guion se normaliza fuera).
+		array( 'code' => 'NIT', 'label' => 'NIT', 'pattern' => '^\\d{9,10}$' ),
+	),
+);

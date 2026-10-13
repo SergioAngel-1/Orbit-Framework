@@ -1,3 +1,4 @@
+import { normalizeGeoPack } from "@/lib/geo/normalize";
 import { readFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
@@ -157,6 +158,17 @@ describe("pedidos de prueba (wc/v3)", () => {
       scope: "all",
       perUserLimited: false,
     });
+  });
+
+  it("sirve el paquete de país genérico, con la forma del contrato de `hwe-geo`", async () => {
+    const base = await startStub();
+
+    const body = await (await fetch(`${base}/wp-json/hwe/v1/geo`)).json();
+
+    // Lo que el lector acepta: si el stub divergiera del contrato, el CI
+    // ejercitaría la rama de respaldo sin enterarse.
+    expect(normalizeGeoPack(body)).toEqual(body);
+    expect(body).toMatchObject({ country: "generic", requested: "ES" });
   });
 
   it("un pedido que no está en el fixture responde {data:{}} (CMS vacío)", async () => {

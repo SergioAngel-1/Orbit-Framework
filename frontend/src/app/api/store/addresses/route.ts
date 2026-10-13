@@ -4,10 +4,11 @@ import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import {
-  addressSchema,
-  addressUpdateSchema,
+  buildAddressSchema,
+  buildAddressUpdateSchema,
   addressDeleteSchema,
 } from "@/lib/validation/address";
+import { getGeoPack } from "@/lib/geo";
 import { withLock } from "@/lib/security/lock";
 import { ADDRESSES_META_KEY, parseSavedAddresses } from "@/lib/customer/addresses";
 import { logger } from "@/lib/observability/logger";
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  const parsed = addressSchema.safeParse(body);
+  const parsed = buildAddressSchema(await getGeoPack()).safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
@@ -105,7 +106,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  const parsed = addressUpdateSchema.safeParse(body);
+  const parsed = buildAddressUpdateSchema(await getGeoPack()).safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },

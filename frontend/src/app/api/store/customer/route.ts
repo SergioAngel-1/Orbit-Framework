@@ -4,6 +4,8 @@ import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { customerUpdateSchema } from "@/lib/validation/store";
+import { getGeoPack } from "@/lib/geo";
+import { applyGeoPack } from "@/lib/geo/address";
 import { logger } from "@/lib/observability/logger";
 import type { WooCustomer } from "@/types/woocommerce";
 
@@ -64,11 +66,22 @@ export async function PUT(request: Request) {
     );
   }
 
+  const geo = applyGeoPack(await getGeoPack(), {
+    billing: parsed.data.billing,
+    shipping: parsed.data.shipping,
+  });
+  if (Object.keys(geo.details).length > 0) {
+    return NextResponse.json(
+      { error: "Datos inválidos.", details: geo.details },
+      { status: 422 },
+    );
+  }
+
   try {
     const session = await requireSession();
     const customer = await wcFetch<WooCustomer>(
       `/customers/${Number(session.userId)}`,
-      { method: "PUT", body: parsed.data },
+      { method: "PUT", body: { ...parsed.data, ...geo.addresses } },
     );
     logger.info(
       { event: "customer.update.success", userId: session.userId },

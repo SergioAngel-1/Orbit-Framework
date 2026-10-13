@@ -305,7 +305,9 @@
     "phoneOptional": "Phone (optional)",
     "dialCode": "Dial code",
     "phoneHelper": "You will also be able to sign in with it.",
-    "phoneInvalid": "Invalid phone number. Check the dial code and the number."
+    "phoneInvalid": "Invalid phone number. Check the dial code and the number.",
+    "state": "State / province",
+    "select": "Select…"
   },
   "login": {
     "title": "Sign in",

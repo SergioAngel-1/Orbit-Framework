@@ -310,7 +310,9 @@
     "phoneOptional": "Teléfono (opcional)",
     "dialCode": "Prefijo",
     "phoneHelper": "Con él también podrás iniciar sesión.",
-    "phoneInvalid": "Teléfono no válido. Revisa el prefijo y el número."
+    "phoneInvalid": "Teléfono no válido. Revisa el prefijo y el número.",
+    "state": "Departamento / provincia",
+    "select": "Selecciona…"
   },
   "login": {
     "title": "Iniciar sesión",

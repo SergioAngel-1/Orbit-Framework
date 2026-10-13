@@ -27,6 +27,7 @@ framework y se anuncia en `docs/UPGRADE.md`).
 | `hwe_control_center_schema` | filtro | Añadir campos al Control Center. Solo dentro del grupo `instance`. |
 | `hwe_control_center_saved` | acción | Reaccionar a «Guardar configuración» (datos saneados y POST crudo). |
 | `hwe_revalidation_tags` | filtro | Declarar tags ISR propios para poder revalidarlos desde WordPress. |
+| `hwe_geo_packs` | filtro | Añadir o sustituir paquetes por país del mu-plugin `hwe-geo`. |
 
 (F3 añade `hwe_control_center_field_types`; los módulos y F5 añaden más. Todos se documentan en
 `docs/PLUGIN_DEVELOPMENT.md`.)

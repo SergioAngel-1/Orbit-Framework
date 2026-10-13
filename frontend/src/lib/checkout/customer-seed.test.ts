@@ -39,6 +39,7 @@ describe("checkoutSeedFromCustomer", () => {
       email: "ana@example.com",
       phone: "+34600111222",
       city: "Madrid",
+      state: "",
       country: "ES",
       addresses: [ADDRESS],
     });

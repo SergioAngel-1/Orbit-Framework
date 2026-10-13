@@ -185,6 +185,42 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   de producto traducidos en `completeStoreCart` (i18n de contenido, tarea 51) y el contexto de
   medición del pedido (analítica, tarea 44).
 
+### Paquetes por país: dirección, documento y teléfono (mu-plugin `hwe-geo`)
+
+- **Endpoint:** `GET /wp-json/hwe/v1/geo` (público, cacheable 5 min). Sirve SIEMPRE el paquete de
+  `ecommerce.country`; no acepta un país por parámetro. Forma:
+  `{ country, name, fallback, requested, dialCode, divisionLabel, address: { division, postcode,
+  cityDivision }, divisions: [{ code, name }], cities: [{ name, division }], documentTypes:
+  [{ code, label, pattern }] }`.
+  - `address.division`: `required` / `optional` (lista cerrada), `free` (texto libre) o `none`
+    (no se pide). `address.postcode`: `required` / `optional` / `none`. `cityDivision`: una ciudad
+    de la lista solo admite su división.
+  - `documentTypes[].pattern` es una expresión regular **sin delimitadores**, válida en PHP y en
+    JavaScript, que se compara con el número normalizado (sin espacios, puntos ni guiones, en
+    mayúsculas). La usa el módulo `customer-identity`.
+  - Un país sin paquete cae a `generic` (`fallback: true`, `requested` = el país pedido): todo
+    texto libre, sin documentos ni prefijo. WordPress lo registra una vez.
+  - El núcleo trae `CO` y `generic`. Una instancia añade o sustituye paquetes con el filtro
+    `hwe_geo_packs` (forma en `mu-plugins/hwe-geo/packs.php`); un paquete mal formado se descarta y
+    se registra, sin tirar los demás.
+- **Lector:** `getGeoPack()` (`lib/geo`, server-only, tag ISR `geo`). Si WordPress no responde o
+  contesta fuera de contrato, devuelve `GENERIC_PACK` y lo registra (`geo.read_failed`). Los
+  formularios reciben el paquete **por props** (`geoPack`); nunca lo leen por su cuenta.
+- **Lo que valida el BFF** (`lib/geo/address.ts`, `checkAddress` / `applyGeoPack`): en `POST
+  /api/store/checkout`, `PUT /api/store/customer` y la libreta (`/api/store/addresses`), para
+  direcciones del país del paquete —las de otro país son texto libre—: la división se resuelve
+  (por código, nombre o sufijo) al **código** que exige WooCommerce; una ciudad conocida fija la
+  división si falta; una división que no existe o **no corresponde a la ciudad** es un 422 por
+  campo (`billing_address.state`); obligatoria y sin resolver, 422. **Nunca se rellena una división
+  por defecto.** El teléfono sin prefijo recibe el del paquete (E.164); lo que no cuadra se deja
+  como lo escribió el cliente.
+- **Libreta:** `buildAddressSchema(pack)` / `buildAddressUpdateSchema(pack)` sustituyen al
+  `addressSchema` fijo; sin país en el cuerpo se usa el de la tienda (con el paquete genérico,
+  el país es obligatorio).
+- **Starter:** `components/forms/geo-fields.tsx` (`CityField`, `DivisionField`) los usan el
+  formulario del checkout y la libreta. Una vista propia solo necesita el paquete y estas dos
+  piezas (o `divisionOptionsForCity` / `findDivision` si pinta sus propios campos).
+
 ### Cuenta: pedidos, volver a pedir y reseñas
 
 | Ruta | Qué hace | Reglas |
@@ -583,6 +619,10 @@ Formato por componente: **qué hace** — *de dónde saca datos* — estado de c
   (§A.2; hoy solo loggea, tiene un TODO para reenviar a email/WordPress real). ✅ Conectado en
   `/contact`. `country-selector.tsx` y `contact-form.data.ts` (`REQUEST_TYPES`/`COUNTRIES`)
   son genéricos, sin datos de negocio.
+
+- **`geo-fields.tsx`** (`CityField`, `DivisionField`) — ciudad con sugerencias y división
+  (select de lista cerrada o texto libre) según el paquete de país; ver «Paquetes por país» en
+  §A.2. ✅ Conectados en el checkout y en `/account/addresses`.
 
 ### `components/ui/` — primitivas (esto sí es núcleo del framework, ver `AGENTS.md §1.1`)
 

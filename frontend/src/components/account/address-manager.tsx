@@ -2,9 +2,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
+import { CityField, DivisionField } from "@/components/forms/geo-fields";
+import { findDivision, packCountry } from "@/lib/geo/address";
+import { GENERIC_PACK } from "@/lib/geo/generic";
+import type { GeoPack } from "@/lib/geo/types";
 import type { SavedAddress } from "@/types/address";
 
-const emptyAddress: SavedAddress = {
+const emptyAddress = (country: string): SavedAddress => ({
   first_name: "",
   last_name: "",
   company: "",
@@ -13,11 +17,11 @@ const emptyAddress: SavedAddress = {
   city: "",
   state: "",
   postcode: "",
-  country: "ES",
+  country,
   phone: "",
   is_default: false,
   label: "",
-};
+});
 
 const COUNTRY_OPTIONS = [
   { code: "ES", name: "España" },
@@ -29,12 +33,18 @@ const COUNTRY_OPTIONS = [
   { code: "US", name: "United States" },
 ];
 
-export function AddressManager() {
+export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }) {
+  const defaultCountry = packCountry(geoPack);
+  // El país de la tienda siempre es elegible, aunque la lista fija no lo traiga.
+  const countryOptions =
+    defaultCountry && !COUNTRY_OPTIONS.some((c) => c.code === defaultCountry)
+      ? [{ code: defaultCountry, name: geoPack.name }, ...COUNTRY_OPTIONS]
+      : COUNTRY_OPTIONS;
   const t = useTranslations("addresses");
   const tForm = useTranslations("form");
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [editing, setEditing] = useState<number | "new" | null>(null);
-  const [form, setForm] = useState<SavedAddress>({ ...emptyAddress });
+  const [form, setForm] = useState<SavedAddress>(emptyAddress(defaultCountry));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +69,7 @@ export function AddressManager() {
 
   function startNew() {
     setEditing("new");
-    setForm({ ...emptyAddress });
+    setForm(emptyAddress(defaultCountry));
     setError(null);
     setMessage(null);
   }
@@ -73,7 +83,7 @@ export function AddressManager() {
 
   function cancelEdit() {
     setEditing(null);
-    setForm({ ...emptyAddress });
+    setForm(emptyAddress(defaultCountry));
     setError(null);
   }
 
@@ -172,7 +182,8 @@ export function AddressManager() {
                 {addr.address_1}
                 {addr.address_2 && <>, {addr.address_2}</>}
                 <br />
-                {addr.city}, {addr.state} {addr.postcode}
+                {addr.city}, {findDivision(geoPack, addr.state)?.name ?? addr.state}{" "}
+                {addr.postcode}
                 <br />
                 {addr.country}
                 {addr.phone && <> &middot; {addr.phone}</>}
@@ -258,32 +269,42 @@ export function AddressManager() {
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">{tForm("city")}</label>
-              <input
-                value={form.city}
-                onChange={(e) => updateField("city", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">
-                {tForm("postcode")}
-              </label>
-              <input
-                value={form.postcode}
-                onChange={(e) => updateField("postcode", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">{t("state")}</label>
-              <input
-                value={form.state}
-                onChange={(e) => updateField("state", e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
-              />
-            </div>
+            <CityField
+              id="address-city"
+              name="city"
+              label={tForm("city")}
+              pack={geoPack}
+              required
+              value={form.city}
+              onChange={(v) => updateField("city", v)}
+            />
+            <DivisionField
+              id="address-state"
+              name="state"
+              label={geoPack.fallback ? tForm("state") : geoPack.divisionLabel}
+              pack={geoPack}
+              city={form.city}
+              country={form.country}
+              value={form.state}
+              onChange={(v) => updateField("state", v)}
+            />
+            {geoPack.address.postcode !== "none" && (
+              <div>
+                <label
+                  htmlFor="address-postcode"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  {tForm("postcode")}
+                </label>
+                <input
+                  id="address-postcode"
+                  value={form.postcode}
+                  required={geoPack.address.postcode === "required"}
+                  onChange={(e) => updateField("postcode", e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
+                />
+              </div>
+            )}
             <div>
               <label className="mb-1 block text-sm font-medium">
                 {tForm("country")}
@@ -293,7 +314,8 @@ export function AddressManager() {
                 onChange={(e) => updateField("country", e.target.value)}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
               >
-                {COUNTRY_OPTIONS.map((c) => (
+                {!defaultCountry && <option value="">{tForm("select")}</option>}
+                {countryOptions.map((c) => (
                   <option key={c.code} value={c.code}>
                     {c.name}
                   </option>

@@ -29,6 +29,7 @@ framework nunca toca, y se engancha al núcleo por hooks estables, versionados p
 | `hwe_control_center_field_types` | filtro | Registrar tipos de campo propios (desde la tarea 26). |
 | `hwe_control_center_saved` | acción | Reaccionar al guardado: `($publicData, $rawPost)`. Sustituye a las acciones con nombre de instancia; `AdminPage` ya no lee claves del POST fuera del schema. |
 | `hwe_revalidation_tags` | filtro | Declarar tags ISR propios (el frontend debe declararlos también en `registry.ts`). |
+| `hwe_geo_packs` | filtro | Añadir o sustituir paquetes por país (divisiones, ciudades, documentos, prefijo); ver `docs/FRONTEND_CONNECT.md` «Paquetes por país». |
 | `hwe_modules_catalog` | filtro | Añadir módulos propios (id → slug de plugin). |
 
 **Módulos opcionales:** la instancia los elige en `instance.config.json` (`modules:

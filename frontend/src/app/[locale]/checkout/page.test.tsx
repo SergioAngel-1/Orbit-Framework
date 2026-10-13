@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getSession } from "@/lib/auth/session";
 import { getSiteConfig } from "@/lib/config";
 import { redirect } from "@/i18n/navigation";
+import { getGeoPack } from "@/lib/geo";
+import { CO_PACK } from "../../../../tests/helpers/geo-pack";
 import CheckoutPage from "./page";
 
 // ============================================================================
@@ -21,6 +23,7 @@ vi.mock("@/i18n/navigation", () => ({
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/config", () => ({ getSiteConfig: vi.fn() }));
+vi.mock("@/lib/geo", () => ({ getGeoPack: vi.fn() }));
 vi.mock("@/lib/checkout/customer-seed-server", () => ({
   getCheckoutCustomerSeed: vi.fn(async () => ({ first_name: "Ana" })),
 }));
@@ -63,6 +66,7 @@ async function formProps() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(getGeoPack).mockResolvedValue(CO_PACK);
 });
 
 describe("/checkout", () => {
@@ -95,5 +99,14 @@ describe("/checkout", () => {
     const props = await formProps();
 
     expect(props).toMatchObject({ guest: false, customer: { first_name: "Ana" } });
+  });
+
+  it("le pasa al formulario el paquete de país de la tienda", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    config(false);
+
+    const props = await formProps();
+
+    expect(props.geoPack).toBe(CO_PACK);
   });
 });

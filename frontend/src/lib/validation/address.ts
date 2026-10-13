@@ -1,26 +1,56 @@
 import { z } from "zod";
+import { checkAddress, packCountry } from "@/lib/geo/address";
+import type { GeoPack } from "@/lib/geo/types";
 
-export const addressSchema = z.object({
-  first_name: z.string().max(100).optional().default(""),
-  last_name: z.string().max(100).optional().default(""),
-  company: z.string().max(100).optional().default(""),
-  address_1: z.string().min(1, "Dirección requerida").max(300),
-  address_2: z.string().max(300).optional().default(""),
-  city: z.string().min(1, "Ciudad requerida").max(100),
-  state: z.string().max(100).optional().default(""),
-  postcode: z.string().max(20).optional().default(""),
-  country: z.string().length(2, "País debe ser ISO 2 (ej. ES)").default("ES"),
-  phone: z.string().max(30).optional().default(""),
-  is_default: z.boolean().optional().default(false),
-  label: z.string().max(50).optional().default(""),
-});
+/**
+ * Esquema de una dirección de la libreta, según el paquete de país de la tienda
+ * (`getGeoPack()`): el país por defecto es el de la tienda, la división se valida
+ * contra la lista del paquete (y contra la ciudad si el paquete lo pide), y el
+ * estado y el teléfono salen normalizados.
+ *
+ * Con el paquete genérico no hay país por defecto: el cliente debe indicarlo.
+ */
+export function buildAddressSchema(pack: GeoPack) {
+  const own = packCountry(pack);
+  const countryMessage = "País debe ser ISO 2 (ej. CO)";
+  const country = own
+    ? z.string().length(2, countryMessage).default(own)
+    : z.string().length(2, countryMessage);
 
-export type AddressInput = z.infer<typeof addressSchema>;
+  return z
+    .object({
+      first_name: z.string().max(100).optional().default(""),
+      last_name: z.string().max(100).optional().default(""),
+      company: z.string().max(100).optional().default(""),
+      address_1: z.string().min(1, "Dirección requerida").max(300),
+      address_2: z.string().max(300).optional().default(""),
+      city: z.string().min(1, "Ciudad requerida").max(100),
+      state: z.string().max(100).optional().default(""),
+      postcode: z.string().max(20).optional().default(""),
+      country,
+      phone: z.string().max(30).optional().default(""),
+      is_default: z.boolean().optional().default(false),
+      label: z.string().max(50).optional().default(""),
+    })
+    .superRefine((address, ctx) => {
+      for (const issue of checkAddress(pack, address).issues) {
+        ctx.addIssue({ code: "custom", message: issue.message, path: [issue.field] });
+      }
+    })
+    .transform((address) => {
+      const { state, phone } = checkAddress(pack, address);
+      return { ...address, state, phone };
+    });
+}
 
-export const addressUpdateSchema = z.object({
-  index: z.number().int().min(0),
-  address: addressSchema,
-});
+export type AddressInput = z.infer<ReturnType<typeof buildAddressSchema>>;
+
+export function buildAddressUpdateSchema(pack: GeoPack) {
+  return z.object({
+    index: z.number().int().min(0),
+    address: buildAddressSchema(pack),
+  });
+}
 
 export const addressDeleteSchema = z.object({
   index: z.number().int().min(0),

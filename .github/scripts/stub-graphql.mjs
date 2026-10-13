@@ -28,7 +28,9 @@
 //  Solo `design.colors`: `typography` traería los enlaces a Google Fonts y con
 //  ellos una dependencia de red dentro de cada spec.
 //
-//  Tampoco es «vacío» `GET /wp-json/wc/v3/orders[/{10..13}]`, `customers/7` ni
+//  Tampoco es «vacío» `GET /wp-json/wc/v3/orders[/{10..13}]`, `customers/7`,
+//  `hwe/v1/geo` (el paquete genérico de un país sin paquete, como el que sirve
+//  WordPress para el `ES` por defecto) ni
 //  `hwe/v1/coupons/public` (un cupón de prueba): los
 //  pedidos y el cliente de prueba de los e2e de la cuenta (`STUB_ORDERS`).
 //
@@ -147,6 +149,20 @@ const STUB_CUSTOMER = {
   meta_data: [],
 };
 
+/** Paquete de país de reserva (`hwe/v1/geo`): texto libre, para el `ES` de la config por defecto. */
+const STUB_GEO = {
+  country: "generic",
+  name: "Genérico",
+  fallback: true,
+  requested: "ES",
+  dialCode: "",
+  divisionLabel: "Provincia o estado",
+  address: { division: "free", postcode: "optional", cityDivision: false },
+  divisions: [],
+  cities: [],
+  documentTypes: [],
+};
+
 /** Respuesta fija de la REST de WooCommerce, o `undefined` si no es una del fixture. */
 function wooFixture(path) {
   const order = path.match(/^\/wp-json\/wc\/v3\/orders\/(\d+)$/);
@@ -154,6 +170,7 @@ function wooFixture(path) {
   if (path === "/wp-json/wc/v3/orders") return STUB_ORDERS;
   if (path === "/wp-json/wc/v3/products/reviews") return [];
   if (path === "/wp-json/hwe/v1/coupons/public") return { items: [STUB_COUPON] };
+  if (path === "/wp-json/hwe/v1/geo") return STUB_GEO;
   if (path === "/wp-json/wc/v3/customers/7") return STUB_CUSTOMER;
   return undefined;
 }
