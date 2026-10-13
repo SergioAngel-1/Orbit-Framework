@@ -17,11 +17,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** Revalida el tag `posts` una vez (función nombrada para poder probarla). */
+/**
+ * Revalida el tag `posts` UNA vez por petición (función nombrada para poder probarla).
+ *
+ * El editor de bloques guarda una entrada en varias pasadas (`save_post_post` llega por
+ * la petición REST y otra vez por la de las cajas clásicas), y un cambio de categoría
+ * dispara varios hooks a la vez: sin el candado, cada uno era una petición más al
+ * frontend para invalidar lo mismo.
+ */
 function hwe_post_revalidate_now(): void {
-	if ( ! class_exists( 'HWE\ControlCenter\Revalidation' ) ) {
+	static $done = false;
+
+	if ( $done || ! class_exists( 'HWE\ControlCenter\Revalidation' ) ) {
 		return;
 	}
+	$done = true;
 	\HWE\ControlCenter\Revalidation::trigger( 'posts' );
 }
 

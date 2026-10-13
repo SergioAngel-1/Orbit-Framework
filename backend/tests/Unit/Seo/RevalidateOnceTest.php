@@ -49,7 +49,8 @@ final class RevalidateOnceTest extends TestCase
         $this->assertCount(1, $this->posts);
     }
 
-    public function testPostSaveTriggersThePostsTag(): void {
+    public function testPostSaveTriggersThePostsTagOnlyOncePerRequest(): void {
+        hwe_post_revalidate_now();
         hwe_post_revalidate_now();
 
         $this->assertCount(1, $this->posts);
