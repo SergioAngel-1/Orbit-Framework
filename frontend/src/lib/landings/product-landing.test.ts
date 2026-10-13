@@ -257,6 +257,19 @@ describe("lectores", () => {
     expect(await getProductLanding("lector-slug-3", "es")).toBeNull();
   });
 
+  it("getProductLanding: WooGraphQL lanza ante un producto inexistente, y eso es «no hay landing»", async () => {
+    fetchLocalizedGraphQL.mockRejectedValue(
+      Object.assign(
+        new Error(
+          "Error de GraphQL: No product ID was found corresponding to the slug: nada",
+        ),
+        { kind: "graphql" },
+      ),
+    );
+
+    expect(await getProductLanding("lector-slug-5", "es")).toBeNull();
+  });
+
   it("getProductLanding propaga el fallo de WordPress (no lo convierte en «no hay landing»)", async () => {
     fetchLocalizedGraphQL.mockRejectedValue(new Error("WordPress caído"));
 

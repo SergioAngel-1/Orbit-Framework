@@ -293,6 +293,12 @@ const STUB_LANDING = {
   },
 };
 
+/** Respuesta de WooGraphQL ante `product(id: $slug, idType: SLUG)` de un producto inexistente. */
+const unknownProduct = (slug) => ({
+  data: { product: null },
+  errors: [{ message: `No product ID was found corresponding to the slug: ${slug}` }],
+});
+
 /**
  * Respuesta de GraphQL por operación para el e2e de la landing de producto, o
  * `undefined` si la operación no es una del fixture (entonces el stub contesta vacío).
@@ -304,14 +310,17 @@ export function graphqlFixture(body) {
   switch (operation) {
     case "ProductLandingsPublished":
       return { data: { hweProductLandingsPublished: [LANDING_SLUG] } };
+    // WooGraphQL no responde `product: null` a un producto inexistente: lanza un
+    // `UserError` (`errors[]`). El stub lo imita para que el e2e ejercite el mismo
+    // camino que producción.
     case "ProductBySlug":
-      return { data: { product: variables.slug === LANDING_SLUG ? STUB_LANDING_PRODUCT : null } };
+      return variables.slug === LANDING_SLUG
+        ? { data: { product: STUB_LANDING_PRODUCT } }
+        : unknownProduct(variables.slug);
     case "ProductLanding":
-      return {
-        data: {
-          product: variables.slug === LANDING_SLUG ? { landing: STUB_LANDING } : null,
-        },
-      };
+      return variables.slug === LANDING_SLUG
+        ? { data: { product: { landing: STUB_LANDING } } }
+        : unknownProduct(variables.slug);
     case "ProductLandingLocales":
       return {
         data: {

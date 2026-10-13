@@ -1,6 +1,7 @@
 import "server-only";
 import { routing } from "@/i18n/routing";
 import { fetchLocalizedGraphQL } from "@/lib/i18n/fetch-localized";
+import { isUnknownProductError } from "@/lib/catalog/unknown-product";
 import {
   pickTranslated,
   secondaryLocales,
@@ -244,18 +245,28 @@ export async function getProductsBySlugs(
  * Una ficha por su slug NATIVO, en `locale`. Pide las traducciones de TODOS los
  * idiomas del sitio (no solo la del idioma de la página): la ficha declara el
  * hreflang y la canónica de cada uno, y la misma query sirve a cualquier idioma.
+ *
+ * Null si la ficha no existe. WooGraphQL no devuelve `product: null` ante un slug
+ * desconocido: lanza un `UserError` («No product ID was found…») que llega como
+ * error de GraphQL (ver `isUnknownProductError`); cualquier otro error se propaga.
  */
 export async function getProductBySlug(
   slug: string,
   locale: string = routing.defaultLocale,
 ): Promise<ProductDetail | null> {
-  const data = await fetchLocalizedGraphQL<{
-    product: Localizable<RawProductNode> | null;
-  }>(PRODUCT_BY_SLUG_QUERY, secondaryLocales(), {
-    variables: { slug, locale },
-    revalidate: CATALOG_REVALIDATE,
-    tags: ["products"],
-  });
+  let data: { product: Localizable<RawProductNode> | null };
+  try {
+    data = await fetchLocalizedGraphQL<{
+      product: Localizable<RawProductNode> | null;
+    }>(PRODUCT_BY_SLUG_QUERY, secondaryLocales(), {
+      variables: { slug, locale },
+      revalidate: CATALOG_REVALIDATE,
+      tags: ["products"],
+    });
+  } catch (error) {
+    if (isUnknownProductError(error)) return null;
+    throw error;
+  }
 
   const node = data.product;
   if (!node) return null;

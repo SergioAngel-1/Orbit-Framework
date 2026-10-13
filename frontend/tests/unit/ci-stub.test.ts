@@ -145,12 +145,17 @@ describe("landing de producto de prueba (GraphQL)", () => {
   it("un producto que no es el de prueba no tiene landing ni ficha", async () => {
     const base = await startStub();
 
+    // Como WooGraphQL: `product: null` MÁS un error, no un `null` limpio.
+    const unknown = {
+      data: { product: null },
+      errors: [{ message: "No product ID was found corresponding to the slug: otro" }],
+    };
     expect(
       await operation(base, "query ProductLanding($slug: ID!) { x }", { slug: "otro" }),
-    ).toEqual({ data: { product: null } });
+    ).toEqual(unknown);
     expect(
       await operation(base, "query ProductBySlug($slug: ID!) { x }", { slug: "otro" }),
-    ).toEqual({ data: { product: null } });
+    ).toEqual(unknown);
   });
 
   it("resuelve el slug traducido y deja vacío cualquier otro", async () => {

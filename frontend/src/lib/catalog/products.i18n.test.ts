@@ -149,6 +149,38 @@ describe("getProductBySlug", () => {
 
     expect(await getProductBySlug("nada", "en")).toBeNull();
   });
+
+  it("WooGraphQL lanza ante un slug desconocido: es «no existe» (null), no un fallo", async () => {
+    // `product(idType: SLUG)` responde `errors: [...]` en vez de `product: null`.
+    fetchGraphQL.mockRejectedValue(
+      Object.assign(
+        new Error(
+          "Error de GraphQL: No product ID was found corresponding to the slug: nada",
+        ),
+        { kind: "graphql" },
+      ),
+    );
+
+    expect(await getProductBySlug("nada", "en")).toBeNull();
+  });
+
+  it("un error de GraphQL que no es «no existe» se propaga", async () => {
+    fetchGraphQL.mockRejectedValue(
+      Object.assign(new Error("Error de GraphQL: Internal server error"), {
+        kind: "graphql",
+      }),
+    );
+
+    await expect(getProductBySlug("camiseta", "en")).rejects.toThrow(/Internal/);
+  });
+
+  it("un fallo de red se propaga: no se convierte en «no existe»", async () => {
+    fetchGraphQL.mockRejectedValue(
+      Object.assign(new Error("fetch failed"), { kind: "network" }),
+    );
+
+    await expect(getProductBySlug("camiseta", "en")).rejects.toThrow(/fetch failed/);
+  });
 });
 
 describe("getCategory / getCategories", () => {

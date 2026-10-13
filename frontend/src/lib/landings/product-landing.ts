@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { routing } from "@/i18n/routing";
+import { isUnknownProductError } from "@/lib/catalog/unknown-product";
 import { getSiteConfig } from "@/lib/config";
 import { isModuleEnabled } from "@/lib/config/modules";
 import { fetchGraphQL } from "@/lib/graphql-client";
@@ -134,11 +135,18 @@ export const getProductLanding = cache(
     if (!(await moduleEnabled())) return null;
     // Se piden las traducciones de TODOS los idiomas: el hreflang de la página
     // declara en cuáles existe, y la misma consulta sirve a cualquier idioma.
-    const data = await fetchLocalizedGraphQL<RawResponse>(
-      PRODUCT_LANDING_QUERY,
-      secondaryLocales(),
-      { variables: { slug }, revalidate: REVALIDATE, tags: ["products"] },
-    );
+    let data: RawResponse;
+    try {
+      data = await fetchLocalizedGraphQL<RawResponse>(
+        PRODUCT_LANDING_QUERY,
+        secondaryLocales(),
+        { variables: { slug }, revalidate: REVALIDATE, tags: ["products"] },
+      );
+    } catch (error) {
+      // WooGraphQL lanza (no devuelve `product: null`) ante un producto inexistente.
+      if (isUnknownProductError(error)) return null;
+      throw error;
+    }
     return normalizeProductLanding(data.product?.landing ?? null, locale);
   },
 );
