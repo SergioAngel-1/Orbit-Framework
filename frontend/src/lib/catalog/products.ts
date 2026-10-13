@@ -68,6 +68,8 @@ interface RawProductNode {
   variations?: { nodes: RawVariation[] } | null;
   reviews?: { averageRating: number; edges: RawReview[] } | null;
   related?: { nodes: RawProductNode[] } | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
 }
 
 // ── Normalización ─────────────────────────────────────────────────────────────
@@ -191,6 +193,8 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
   return {
     ...normalize(node),
     description: node.description ?? null,
+    seoTitle: node.seoTitle?.trim() || null,
+    seoDescription: node.seoDescription?.trim() || null,
     attributes:
       node.attributes?.nodes.map((a) => ({
         id: a.id,
@@ -256,6 +260,8 @@ export async function getCategory(
       name: cat.name,
       slug: cat.slug,
       description: cat.description ?? null,
+      seoTitle: cat.seoTitle?.trim() || null,
+      seoDescription: cat.seoDescription?.trim() || null,
     },
     products: cat.products.nodes.map(normalize),
   };

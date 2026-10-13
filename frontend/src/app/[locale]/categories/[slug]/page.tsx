@@ -35,9 +35,12 @@ export async function generateMetadata({
     const result = await getCategory(slug);
     if (!result) return { title: t("notFound") };
     const canonical = alternatesFor(`/categories/${slug}`, locale);
-    const description = metaDescription(result.category.description);
+    // La caja SEO del editor manda sobre el nombre y la descripción.
+    const description = metaDescription(
+      result.category.seoDescription || result.category.description,
+    );
     return {
-      title: siteTitle(config, result.category.name),
+      title: siteTitle(config, result.category.seoTitle || result.category.name),
       ...(description ? { description } : {}),
       alternates: canonical,
       openGraph: siteOpenGraph(config, locale, canonical.canonical),

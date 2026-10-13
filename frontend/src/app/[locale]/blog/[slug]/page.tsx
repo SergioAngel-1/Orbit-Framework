@@ -34,14 +34,15 @@ export async function generateMetadata({
   try {
     const post = await getPostBySlug(slug);
     if (!post) return { title: t("notFound") };
-    const description = metaDescription(post.excerpt);
+    // La caja SEO del editor manda sobre el título y el extracto.
+    const description = metaDescription(post.seoDescription || post.excerpt);
     const image = post.featuredImage?.node;
     const canonical = alternatesFor(`/blog/${slug}`, locale);
     const images = image
       ? [{ url: image.sourceUrl, alt: image.altText || post.title }]
       : undefined;
     return {
-      title: siteTitle(config, post.title),
+      title: siteTitle(config, post.seoTitle || post.title),
       ...(description ? { description } : {}),
       alternates: canonical,
       openGraph: {

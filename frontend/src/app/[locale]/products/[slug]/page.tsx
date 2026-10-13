@@ -44,8 +44,9 @@ export async function generateMetadata({
   try {
     const product = await getProductBySlug(slug);
     if (!product) return { title: t("notFound") };
+    // La caja SEO del editor manda sobre el nombre y el resumen del producto.
     const description = metaDescription(
-      product.shortDescription || product.description,
+      product.seoDescription || product.shortDescription || product.description,
     );
     const canonical = alternatesFor(`/products/${slug}`, locale);
     // Next REEMPLAZA `openGraph` entero: los campos de sitio (siteName, locale,
@@ -55,7 +56,7 @@ export async function generateMetadata({
       ? [{ url: product.image.sourceUrl, alt: product.image.altText || product.name }]
       : undefined;
     return {
-      title: siteTitle(config, product.name),
+      title: siteTitle(config, product.seoTitle || product.name),
       ...(description ? { description } : {}),
       alternates: canonical,
       openGraph: {

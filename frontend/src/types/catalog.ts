@@ -55,6 +55,9 @@ export interface ProductReview {
 
 export interface ProductDetail extends CatalogProduct {
   description: string | null;
+  /** Override de la caja SEO del editor (hwe-seo). Null = usar nombre/resumen. */
+  seoTitle: string | null;
+  seoDescription: string | null;
   attributes: ProductAttributeOption[];
   variations: ProductVariationData[];
   reviews: { averageRating: number; items: ProductReview[] };
@@ -67,6 +70,9 @@ export interface ProductCategory {
   name: string;
   slug: string;
   description: string | null;
+  /** Override de la caja SEO del editor (hwe-seo). Null = usar nombre/descripción. */
+  seoTitle?: string | null;
+  seoDescription?: string | null;
 }
 
 export interface PageInfo {
