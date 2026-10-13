@@ -243,7 +243,7 @@ curl -i -X POST http://localhost:3000/api/auth/login \
 curl http://localhost:3000/api/auth/me -b cookies.txt
 ```
 
-- El **middleware** refresca el `authToken` caducado de forma transparente.
+- El **proxy** (`src/proxy.ts`, el antiguo middleware de Next) refresca el `authToken` caducado de forma transparente.
 - En **Server Components** usa `getSession()` / `fetchGraphQLAsViewer()` de
   `src/lib/auth/session.ts` para datos del usuario autenticado.
 

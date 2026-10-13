@@ -625,7 +625,7 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 - **No dupliques emails transaccionales**: WooCommerce ya los envía al cambiar el estado del
   pedido (ver `hwe-email-chrome.php` y las plantillas del tema base). El dispatcher de `order-events` es para
   integraciones, no para correos al cliente.
-- **Correlación por `request-id`**: Caddy genera `X-Request-Id`, el `middleware` lo reutiliza/
+- **Correlación por `request-id`**: Caddy genera `X-Request-Id`, el `proxy` lo reutiliza/
   crea y lo devuelve en la respuesta, y los clientes WP lo propagan vía un AsyncLocalStorage
   (`lib/observability/request-context.ts`). Para correlacionar tus logs con los de WP en un
   handler, envuélvelo en `runWithRequestId(getOrCreateRequestId(request.headers), …)` y usa

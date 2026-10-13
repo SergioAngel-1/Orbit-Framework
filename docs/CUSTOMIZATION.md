@@ -48,7 +48,8 @@ instancia, no algo que reconfigures desde `wp-admin`.
 - Locales en `frontend/src/i18n/routing.ts` (`es` canónico, `en` bajo `/en`).
 - Textos en `messages/es.json` y `messages/en.json` — **toda clave debe existir en
   ambos**. Para añadir un idioma: amplía `routing.locales`, crea `messages/<loc>.json`
-  y añade su entrada en `sitemap.ts` (hreflang).
+  y declara el mismo idioma en `i18n.locales` del Control Center (sitemap, hreflang y llms.txt
+  salen solos de ahí: `app/_sitemap/entries.ts`). `npm run i18n:check` exige la paridad.
 
 ## 5. Páginas legales
 

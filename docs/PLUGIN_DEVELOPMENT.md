@@ -96,8 +96,7 @@ revalidación ISR del frontend.
 
 El Schema no tiene (a propósito) un tipo "repeater": una lista corta se modela como `textarea`
 con **una entrada por línea y campos separados por `|`**, más un parser puro en el frontend.
-Ejemplos vivos: FAQ (`geo.faq` → `lib/seo/faq.ts`) y banners (`banners.slides` →
-`lib/config/banners.ts`). Si tu lista necesita medioteca, orden drag-and-drop o decenas de
+Ejemplo vivo: FAQ (`geo.faq` → `lib/seo/faq.ts`). Si tu lista necesita medioteca, orden drag-and-drop o decenas de
 entradas, es señal de que toca un CPT, no un campo de config.
 
 ## 3. Leer la config desde PHP (lógica de negocio)
@@ -121,7 +120,7 @@ Para campos `public => true` no hay trabajo backend extra: ya salen en
 2. Añade su default a `frontend/src/lib/config/defaults.ts` (DEBE coincidir con el `'default'`
    del Schema — es el fallback cuando WP no responde).
 3. Si el dato necesita parseo (líneas, `|`…), crea un helper puro en `frontend/src/lib/…` con
-   test unitario en `frontend/tests/unit/` (patrón: `lib/seo/faq.ts` + `lib/config/banners.ts`).
+   test unitario colocado junto al helper (patrón: `lib/seo/faq.ts` y su test).
 4. Si la funcionalidad es opcional, gatea la UI con el flag (patrón
    `config.ecommerce.*_enabled`).
 

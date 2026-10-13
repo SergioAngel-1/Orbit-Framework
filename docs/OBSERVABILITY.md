@@ -18,7 +18,7 @@ Navegador
 Caddy ── genera X-Request-Id = {http.request.uuid} y lo inyecta ──► upstream
    │                                                   (Caddyfile: request_header)
    ▼
-Next.js (middleware) ── reutiliza el X-Request-Id entrante o crea uno;
+Next.js (proxy.ts) ── reutiliza el X-Request-Id entrante o crea uno;
    │   lo reenvía a los Route Handlers (request) y lo DEVUELVE en la respuesta
    │   (lib/observability/request-id.ts)
    ▼
