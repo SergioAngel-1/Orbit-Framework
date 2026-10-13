@@ -8,20 +8,26 @@ use Brain\Monkey\Actions;
 use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use HWE\ControlCenter\AdminPage;
+use HWE\ControlCenter\AdminSave;
 use HWE\ControlCenter\BackupConfig;
 use HWE\ControlCenter\Revalidation;
+use HWE\ControlCenter\Schema;
 use HWE\Tests\TestCase;
 
 use function Patchwork\redefine;
 
 /**
- * `AdminPage::handleSave()` y la acción `hwe_control_center_saved`.
+ * `AdminSave::handle()` y la acción `hwe_control_center_saved`.
  *
  * Antes, cada funcionalidad de una instancia que guardaba datos propios desde el panel
  * obligaba a que `AdminPage` leyera SU clave del POST y disparase SU acción con nombre
  * (`hwe_control_center_<cosa>_save`): el núcleo acababa lleno de nombres de instancia. Ahora
  * hay UNA acción genérica con la configuración pública ya saneada y el árbol `hwe_config`
- * crudo, y `AdminPage` no lee ninguna clave del POST que no sea del schema.
+ * crudo, y el guardado no lee ninguna clave del POST que no sea del schema.
+ *
+ * Además el guardado comprueba que el formulario llegó COMPLETO (todas las pestañas de
+ * nivel superior con contenido): un POST parcial es un formulario roto o manipulado, nunca
+ * una edición legítima. Los tests envían por eso posts completos (ver `completePost()`).
  *
  * `BackupConfig::write()` escribe `wp-content/hwe-backup-config.json` (carpeta que los
  * contenedores montan) y `Revalidation::trigger()` hace una petición HTTP: se sustituyen con
@@ -77,13 +83,31 @@ final class AdminPageSavedTest extends TestCase
     private function save(array $post): string
     {
         $_POST = $post;
-        $method = new \ReflectionMethod(AdminPage::class, 'handleSave');
-        return (string) $method->invoke(null);
+        return AdminSave::handle();
     }
 
     private function postWithNonce(array $config, array $extra = []): array
     {
         return ['hwe_nonce' => 'valido', 'hwe_config' => $config] + $extra;
+    }
+
+    /**
+     * Completa el POST con todas las pestañas de nivel superior (vacías salvo lo que el
+     * test quiera fijar): un guardado real de wp-admin SIEMPRE envía el formulario entero,
+     * y el guardado rechaza lo incompleto.
+     */
+    private function completePost(array $config, array $extra = []): array
+    {
+        $full = [];
+        foreach (Schema::get() as $key => $node) {
+            if (is_array($node) && !empty($node['children'] ?? [])) {
+                $full[$key] = [];
+            }
+        }
+        foreach ($config as $key => $value) {
+            $full[$key] = $value;
+        }
+        return $this->postWithNonce($full, $extra);
     }
 
     public function testItFiresTheSavedActionWithThePublicDataAndTheRawConfigTree(): void
@@ -95,7 +119,7 @@ final class AdminPageSavedTest extends TestCase
                 $captured = $args;
             });
 
-        $this->save($this->postWithNonce(['brand' => ['name' => '<b>Tienda</b>']]));
+        $this->save($this->completePost(['brand' => ['name' => '<b>Tienda</b>']]));
 
         $this->assertNotNull($captured, 'La acción no se disparó.');
         [$publicData, $rawPost] = $captured;
@@ -118,7 +142,7 @@ final class AdminPageSavedTest extends TestCase
             $captured = $args;
         });
 
-        $this->save($this->postWithNonce(['instance' => ['example' => ['greeting' => 'Hola <script>x</script>']]]));
+        $this->save($this->completePost(['instance' => ['example' => ['greeting' => 'Hola <script>x</script>']]]));
 
         $this->assertSame('Hola x', $captured[0]['instance']['example']['greeting']);
         $this->assertSame('Hola <script>x</script>', $captured[1]['instance']['example']['greeting']);
@@ -130,7 +154,7 @@ final class AdminPageSavedTest extends TestCase
             $this->events[] = 'saved';
         });
 
-        $this->save($this->postWithNonce(['brand' => ['name' => 'Tienda']]));
+        $this->save($this->completePost(['brand' => ['name' => 'Tienda']]));
 
         $storage = array_search('storage:hwe_config', $this->events, true);
         $saved = array_search('saved', $this->events, true);
@@ -161,7 +185,7 @@ final class AdminPageSavedTest extends TestCase
             $captured = $args;
         });
 
-        $this->save($this->postWithNonce(['brand' => ['name' => 'T']], [
+        $this->save($this->completePost(['brand' => ['name' => 'T']], [
             'hwe_example_copy' => ['x' => 'secreto'],
             'otra_clave' => 'valor',
         ]));
@@ -170,16 +194,44 @@ final class AdminPageSavedTest extends TestCase
         $this->assertStringNotContainsString('otra_clave', json_encode($captured, JSON_THROW_ON_ERROR));
     }
 
-    public function testAnEmptyPostStillFiresTheActionWithEmptyRawData(): void
+    public function testAnEmptyPostIsRejectedAsIncomplete(): void
     {
-        $captured = null;
-        Actions\expectDone('hwe_control_center_saved')->once()->whenHappen(function (...$args) use (&$captured): void {
-            $captured = $args;
-        });
+        Actions\expectDone('hwe_control_center_saved')->never();
 
-        $this->save(['hwe_nonce' => 'valido']);
+        $notice = $this->save(['hwe_nonce' => 'valido']);
 
-        $this->assertSame([], $captured[1]);
+        $this->assertStringContainsString('notice-error', $notice);
+        $this->assertStringContainsString('incompleto', $notice);
+        $this->assertSame([], $this->events, 'Un POST vacío no guarda nada.');
+    }
+
+    public function testAPostMissingOneTabIsRejectedWithoutSaving(): void
+    {
+        Actions\expectDone('hwe_control_center_saved')->never();
+
+        $post = $this->completePost(['brand' => ['name' => 'T']]);
+        unset($post['hwe_config']['seo']);
+        $notice = $this->save($post);
+
+        $this->assertStringContainsString('notice-error', $notice);
+        $this->assertStringContainsString('seo', $notice);
+        $this->assertSame([], $this->events);
+    }
+
+    public function testSavingMergesInsteadOfReplacing(): void
+    {
+        Actions\expectDone('hwe_control_center_saved')->once();
+        $this->options['hwe_config'] = [
+            'brand' => ['name' => 'Anterior'],
+            'legado' => ['a' => 'b'],
+        ];
+
+        $this->save($this->completePost(['brand' => ['name' => 'Nueva']]));
+
+        // merge(), no setAll(): lo saneado que queda vacío se omite y lo almacenado que el
+        // saneado no menciona se conserva; setAll() lo borraría de wp_options.
+        $this->assertSame('Nueva', $this->options['hwe_config']['brand']['name']);
+        $this->assertSame(['a' => 'b'], $this->options['hwe_config']['legado']);
     }
 
     // ── La pestaña «Instancia» ───────────────────────────────────────────────

@@ -260,6 +260,10 @@ git fetch framework --tags
   sanear, persistencia `config`/`secret`/`external`). El filtro puede añadir ids, pero no
   sobrescribir ni eliminar los del núcleo; un tipo desconocido se pinta deshabilitado en vez de
   romper el panel.
+- **El guardado ya no reemplaza toda la config (`merge`, no `setAll`)** y rechaza el formulario
+  incompleto: si falta alguna pestaña de nivel superior con contenido, no guarda nada y avisa
+  (antes la completaba con vacíos y la persistía). Un secreto guardado se muestra como
+  «guardado» sin revelar su valor.
 
 ### Operación (F1)
 

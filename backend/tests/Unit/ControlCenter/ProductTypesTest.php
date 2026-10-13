@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace HWE\Tests\Unit\ControlCenter;
 
 use Brain\Monkey\Functions;
-use HWE\ControlCenter\AdminPage;
+use HWE\ControlCenter\AdminSave;
 use HWE\ControlCenter\FieldTypes\FieldType;
 use HWE\ControlCenter\FieldTypes\ProductFieldsListType;
 use HWE\ControlCenter\FieldTypes\Registry;
@@ -179,7 +179,7 @@ final class ProductTypesTest extends TestCase
             ],
         ];
 
-        [$public, $secrets] = AdminPage::sanitizeAndSplit($schema, [
+        [$public, $secrets] = AdminSave::sanitizeAndSplit($schema, [
             'tienda' => ['badges' => ['camiseta' => ['badge' => 'x']], 'name' => 'N'],
         ]);
 

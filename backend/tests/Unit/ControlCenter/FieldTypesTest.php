@@ -6,7 +6,7 @@ namespace HWE\Tests\Unit\ControlCenter;
 
 use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
-use HWE\ControlCenter\AdminPage;
+use HWE\ControlCenter\AdminSave;
 use HWE\ControlCenter\FieldTypes\BooleanType;
 use HWE\ControlCenter\FieldTypes\ColorType;
 use HWE\ControlCenter\FieldTypes\FieldType;
@@ -145,10 +145,9 @@ final class FieldTypesTest extends TestCase
 
     public function testSecretRendersAnEmptyPasswordWithPlaceholder(): void {
         $without = (new SecretType())->render([], 'id', 'name', 'valor-oculto', ['g', 'clave']);
-        // El mapa de secretos del walker trae booleanos; el tipo acepta cualquier hoja no
-        // vacía como «ya guardado». (En producción el mapa trae `true`, así que hoy siempre
-        // sale «Introducir valor…»: ver la nota en `SecretType::render`.)
-        $with = (new SecretType())->render([], 'id', 'name', null, ['g', 'clave'], ['secrets' => ['g' => ['clave' => 'x']]]);
+        // El mapa de secretos del panel es de EXISTENCIA (hojas booleanas): un secreto
+        // guardado se muestra como «guardado» sin revelar su valor.
+        $with = (new SecretType())->render([], 'id', 'name', null, ['g', 'clave'], ['secrets' => ['g' => ['clave' => true]]]);
 
         foreach ([$without, $with] as $html) {
             $this->assertStringContainsString('type="password"', $html);
@@ -257,7 +256,7 @@ final class FieldTypesTest extends TestCase
     }
 
     public function testSanitizeAndSplitSeparatesPublicFromSecrets(): void {
-        [$public, $secrets] = AdminPage::sanitizeAndSplit($this->miniSchema(), [
+        [$public, $secrets] = AdminSave::sanitizeAndSplit($this->miniSchema(), [
             'brand' => ['name' => '  <b>T</b>  ', 'show' => '1'],
             'api' => ['key' => 'secreto'],
         ]);
@@ -267,7 +266,7 @@ final class FieldTypesTest extends TestCase
     }
 
     public function testSparseModeOmitsMissingKeysInsteadOfBlankingThem(): void {
-        [$public, $secrets] = AdminPage::sanitizeAndSplit($this->miniSchema(), [
+        [$public, $secrets] = AdminSave::sanitizeAndSplit($this->miniSchema(), [
             'brand' => ['name' => 'Solo esto'],
         ], [], true);
 
@@ -278,7 +277,7 @@ final class FieldTypesTest extends TestCase
     }
 
     public function testNormalModeBlanksMissingKeysLikeTheFullAdminForm(): void {
-        [$public, $secrets] = AdminPage::sanitizeAndSplit($this->miniSchema(), [
+        [$public, $secrets] = AdminSave::sanitizeAndSplit($this->miniSchema(), [
             'brand' => ['name' => 'T'],
         ]);
 
@@ -294,7 +293,7 @@ final class FieldTypesTest extends TestCase
             static fn (array $types): array => [...$types, 'external_stub_26' => new ExternalStubType()]
         );
 
-        [$public, $secrets] = AdminPage::sanitizeAndSplit([
+        [$public, $secrets] = AdminSave::sanitizeAndSplit([
             'mod' => [
                 'type' => 'group',
                 'label' => 'Módulo',

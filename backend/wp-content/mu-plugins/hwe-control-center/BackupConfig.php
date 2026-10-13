@@ -25,7 +25,7 @@ class BackupConfig {
 
     /**
      * Escribe la configuración de backup como JSON.
-     * Se llama desde AdminPage::handleSave() tras guardar el formulario.
+     * Se llama desde AdminSave::handle() tras guardar el formulario.
      *
      * @param array $cfg Sección 'backups' ya sanitizada de wp_options.
      */

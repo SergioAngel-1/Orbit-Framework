@@ -17,10 +17,6 @@ final class SecretType implements FieldType {
     }
 
     public function render(array $field, string $id, string $name, mixed $value, array $path, array $context = []): string {
-        // NOTA(T29): el mapa que construye `AdminPage` trae booleanos (`true` = guardado), y
-        // `secretExists` exige hoja de texto no vacía: hoy SIEMPRE sale «Introducir valor…»,
-        // incluso con secreto guardado. No se toca aquí para no cambiar el comportamiento en
-        // esta tarea; la visualización de secretos se rehace en la tarea 29.
         $hasValue = $this->secretExists((array) ($context['secrets'] ?? []), $path);
         $ph       = $hasValue
             ? esc_attr(__('●●●●●●●● (dejar en blanco para conservar)', 'hwe'))
@@ -32,7 +28,14 @@ final class SecretType implements FieldType {
         return sanitize_text_field((string) ($raw ?? ''));
     }
 
-    /** ¿Hay ya un secreto almacenado en la ruta dada? (Mapa anidado del walker.) */
+    /**
+     * ¿Hay ya un secreto almacenado en la ruta dada?
+     *
+     * El mapa es de EXISTENCIA (`AdminPage::buildSecretExistenceMap`): sus hojas son
+     * booleanos, nunca el valor. Se admite también una cadena no vacía por si algún
+     * llamante pasa el árbol en claro. El `value` del input sigue vacío: la clave no viaja
+     * al HTML; un secreto guardado se muestra como «guardado» sin revelarse.
+     */
     private function secretExists(array $secrets, array $path): bool {
         $current = $secrets;
         foreach ($path as $key) {
@@ -41,6 +44,6 @@ final class SecretType implements FieldType {
             }
             $current = $current[$key];
         }
-        return is_string($current) && $current !== '';
+        return $current === true || (is_string($current) && $current !== '');
     }
 }

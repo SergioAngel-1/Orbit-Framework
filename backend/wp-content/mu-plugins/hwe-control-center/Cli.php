@@ -8,7 +8,7 @@ namespace HWE\ControlCenter;
  * Seedea la configuración de una instancia nueva (marca, diseño, redes,
  * legal, e-commerce, SEO, envíos, GEO) desde un archivo JSON, reutilizando
  * la misma sanitización/validación por tipo de campo que usa el guardado
- * desde wp-admin (AdminPage::sanitizeAndSplit). Pensado para ejecutarse una
+ * desde wp-admin (AdminSave::sanitizeAndSplit). Pensado para ejecutarse una
  * vez desde backend/scripts/setup.sh durante la inicialización de la
  * instancia, pero es idempotente y se puede reejecutar en cualquier momento
  * (p. ej. para reaplicar config en un entorno reproducible/CI).
@@ -61,7 +61,7 @@ class Cli {
 
         // Modo *sparse*: el JSON trae solo lo que la instancia quiere fijar; lo que no
         // trae se omite (no se sanea a vacío), así un JSON parcial no borra el resto.
-        [$publicData, $secretData] = AdminPage::sanitizeAndSplit(Schema::get(), $data, [], true);
+        [$publicData, $secretData] = AdminSave::sanitizeAndSplit(Schema::get(), $data, [], true);
 
         Storage::merge($publicData);
         if (!empty($secretData)) {

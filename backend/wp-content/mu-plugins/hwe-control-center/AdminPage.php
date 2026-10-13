@@ -2,25 +2,21 @@
 
 namespace HWE\ControlCenter;
 
-use HWE\ControlCenter\FieldTypes\FieldType;
-use HWE\ControlCenter\FieldTypes\Registry;
 use HWE\ControlCenter\Walkers\AdminFormWalker;
 use HWE\ControlCenter\Walkers\DefaultsWalker;
 
 /**
- * Página de administración en wp-admin para el Control Center.
+ * Página de administración en wp-admin para el Control Center (RENDER).
  *
  * - Menú: HWE Config (entry principal en la sidebar de WP).
  * - Interfaz con pestañas para organizar las secciones de configuración.
  * - Formulario generado recursivamente desde el esquema (AdminFormWalker).
- * - Guardado: nonce + capacidad + sanitización recursiva por tipo de campo.
- * - Separa valores públicos (Storage) de secretos (SecretsStorage).
- * - Dispara revalidación ISR en el frontend al guardar.
+ *
+ * El guardado vive en `AdminSave` y los avisos en `AdminNotices`.
  */
 class AdminPage {
 
     private const MENU_SLUG  = 'hwe-config';
-    private const NONCE_KEY  = 'hwe_config_save';
 
     public static function register(): void {
         add_action('admin_menu', [self::class, 'addMenuPage']);
@@ -50,7 +46,9 @@ class AdminPage {
 
         $baseUrl = content_url('mu-plugins/hwe-control-center');
 
-        $assetVersion = filemtime(dirname(__FILE__) . '/assets/admin.css');
+        $assetVersion = file_exists(dirname(__FILE__) . '/assets/admin.css')
+            ? filemtime(dirname(__FILE__) . '/assets/admin.css')
+            : 'v2-fallback';
 
         // La medioteca (`wp.media`) la usan los pickers de los tipos `image`/`file`.
         wp_enqueue_media();
@@ -83,7 +81,7 @@ class AdminPage {
         $notice = '';
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['hwe_nonce'])) {
-            $notice = self::handleSave();
+            $notice = AdminSave::handle();
         }
 
         $schema  = Schema::get();
@@ -129,7 +127,7 @@ class AdminPage {
 
         // Form.
         echo '<form method="post" action="' . $formUrl . '" class="hwe-form">';
-        wp_nonce_field(self::NONCE_KEY, 'hwe_nonce');
+        wp_nonce_field(AdminSave::NONCE_KEY, 'hwe_nonce');
 
         // Inline fallback: hide payment provider groups until JS activates the selected one.
         echo '<style>.hwe-subgroup[data-provider]{display:none!important}.hwe-subgroup[data-provider].is-active{display:block!important}</style>';
@@ -227,97 +225,7 @@ class AdminPage {
     }
 
     // -------------------------------------------------------------------------
-    // Guardado
-    // -------------------------------------------------------------------------
-
-    private static function handleSave(): string {
-        if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['hwe_nonce'] ?? '')), self::NONCE_KEY)) {
-            return self::notice('error', __('Nonce inválido. Por favor recarga la página e inténtalo de nuevo.', 'hwe'));
-        }
-
-        $raw = isset($_POST['hwe_config']) && is_array($_POST['hwe_config'])
-            ? wp_unslash($_POST['hwe_config'])
-            : [];
-
-        [$publicData, $secretData] = self::sanitizeAndSplit(Schema::get(), (array) $raw);
-
-        Storage::setAll($publicData);
-        SecretsStorage::mergeNonEmpty($secretData);
-        BackupConfig::write($publicData['backups'] ?? []);
-
-        // Contrato con la instancia y los módulos: UNA acción genérica con la configuración
-        // pública ya saneada y guardada, y el árbol `hwe_config` tal como llegó (sin sanear).
-        // Sustituye a las acciones con nombre de instancia (`hwe_control_center_<cosa>_save`),
-        // que obligaban a este archivo a leer sus claves del POST. Nonce y capacidad ya están
-        // comprobados. Va ANTES de revalidar: un handler que cambie datos propios debe haber
-        // terminado cuando el frontend vuelva a leer.
-        do_action('hwe_control_center_saved', $publicData, (array) $raw);
-
-        Revalidation::trigger();
-
-        return self::notice('success', __('Configuración guardada correctamente.', 'hwe'));
-    }
-
-    /**
-     * Recorre el esquema y los datos enviados de forma recursiva.
-     * Devuelve [publicData, secretData] separados.
-     *
-     * El saneado de cada campo lo hace su tipo (`FieldTypes\Registry`); la persistencia
-     * (`config`/`secret`/`external`) decide en qué cubo cae. Los `external` no se persisten
-     * aquí: los guarda su módulo al recibir `hwe_control_center_saved`.
-     *
-     * Modo `$sparse` (para `wp hwe setup` con un JSON parcial): las claves que NO llegaron
-     * se omiten en vez de sanearse a vacío, así un JSON con solo `brand` no borra el resto.
-     * El formulario de admin siempre envía el árbol completo, así que guarda en modo normal.
-     */
-    /**
-     * Público para que Cli::setup() reutilice la misma sanitización/validación
-     * por tipo de campo que usa el guardado desde wp-admin.
-     */
-    public static function sanitizeAndSplit(array $schema, array $submitted, array $path = [], bool $sparse = false): array {
-        $publicData = [];
-        $secretData = [];
-
-        foreach ($schema as $key => $node) {
-            $currentPath = array_merge($path, [$key]);
-            $present     = array_key_exists($key, $submitted);
-            $rawValue    = $submitted[$key] ?? null;
-            $nodeType    = $node['type'] ?? 'text';
-
-            if ($nodeType === 'group') {
-                $groupRaw = is_array($rawValue) ? $rawValue : [];
-                [$gPublic, $gSecrets] = self::sanitizeAndSplit($node['children'] ?? [], $groupRaw, $currentPath, $sparse);
-                if (!empty($gPublic))   $publicData[$key]  = $gPublic;
-                if (!empty($gSecrets))   $secretData[$key]  = $gSecrets;
-                continue;
-            }
-
-            $type = Registry::get($nodeType);
-            if ($type->persistence() === FieldType::EXTERNAL) {
-                continue;
-            }
-            if ($sparse && !$present) {
-                continue;
-            }
-            $clean = $type->sanitize($node, $rawValue);
-            if ($clean === FieldType::SKIP) {
-                continue;
-            }
-
-            if ($type->persistence() === FieldType::SECRET) {
-                if ($clean !== '') {
-                    $secretData[$key] = $clean;
-                }
-            } else {
-                $publicData[$key] = $clean;
-            }
-        }
-
-        return [$publicData, $secretData];
-    }
-
-    // -------------------------------------------------------------------------
-    // Utilidades
+    // Utilidades de render
     // -------------------------------------------------------------------------
 
     /** Construye un mapa anidado indicando si ya existe un secreto en cada ruta. */
@@ -347,14 +255,6 @@ class AdminPage {
         return $base;
     }
 
-    private static function notice(string $type, string $message): string {
-        return sprintf(
-            '<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
-            esc_attr($type),
-            esc_html($message)
-        );
-    }
-
     // -------------------------------------------------------------------------
     // Prueba de transporte SMTP (integrada en la pestaña de Integraciones)
     // -------------------------------------------------------------------------
@@ -366,14 +266,14 @@ class AdminPage {
 
         $notices = '';
         if ($status === 'sent') {
-            $notices = self::notice('success', __('Email de prueba enviado. Revisa la bandeja de entrada (y la carpeta de spam).', 'hwe'));
+            $notices = AdminNotices::notice('success', __('Email de prueba enviado. Revisa la bandeja de entrada (y la carpeta de spam).', 'hwe'));
         } elseif ($status === 'failed') {
             $err = get_transient('hwe_smtp_last_error');
             $msg = __('No se pudo enviar el email de prueba.', 'hwe');
             if (is_string($err) && $err !== '') {
                 $msg .= ' ' . $err;
             }
-            $notices = self::notice('error', $msg);
+            $notices = AdminNotices::notice('error', $msg);
         }
 
         $active  = function_exists('hwe_smtp_is_active') && hwe_smtp_is_active();
