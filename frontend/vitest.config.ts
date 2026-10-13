@@ -39,11 +39,33 @@ export default defineConfig({
       provider: "v8",
       include: ["src/lib/**/*.ts"],
       reporter: ["text", "lcov"],
+      // Umbrales de trinquete: un punto o dos por debajo de lo medido, para que un
+      // cambio no pueda bajar la cobertura sin que CI lo diga. Se suben cuando la
+      // cobertura sube; nunca se bajan para que pase un cambio.
       thresholds: {
-        statements: 30,
-        branches: 28,
-        functions: 26,
-        lines: 30,
+        statements: 83,
+        branches: 75,
+        functions: 87,
+        lines: 84,
+        // Lo que decide la seguridad y el cobro se exige más que el resto.
+        "src/lib/security/**": {
+          statements: 92,
+          branches: 86,
+          functions: 94,
+          lines: 94,
+        },
+        "src/lib/payments/**": {
+          statements: 82,
+          branches: 70,
+          functions: 85,
+          lines: 80,
+        },
+        "src/lib/i18n/**": {
+          statements: 97,
+          branches: 94,
+          functions: 97,
+          lines: 97,
+        },
       },
     },
   },
