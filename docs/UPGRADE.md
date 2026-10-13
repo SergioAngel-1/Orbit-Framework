@@ -19,9 +19,14 @@
 - `docs/**` (salvo notas propias de la instancia)
 - `frontend/tests/unit/**` (tests del núcleo)
 
+- `backend/wp-content/plugins/hwe-*` (los 9 módulos del framework, salvo los `hwe-instance-*`)
+
 **Instancia** — la actualización NUNCA debe tocarlo (si un merge lo toca, resuelve a favor
 de lo local):
 
+- `backend/wp-content/mu-plugins/instance/**` y `backend/wp-content/plugins/hwe-instance-*/`
+  (el framework solo versiona el `README.md` de la primera)
+- `frontend/src/instance/**` (`registry.ts`, `config.d.ts`, `lib/`)
 - `frontend/src/components/**` (salvo `ui/`)
 - `frontend/src/app/[locale]/**`
 - `frontend/src/i18n/messages/**`
@@ -29,7 +34,8 @@ de lo local):
 
 **Zona gris (revisar a mano):** `frontend/package.json` (el framework puede subir versiones de
 dependencias del núcleo; la instancia puede haber añadido las suyas) y
-`frontend/src/i18n/routing.ts` (si la instancia añadió locales).
+`frontend/src/i18n/routing.ts` (si la instancia añadió locales) y `.gitignore` (la instancia
+quita las líneas que ignoran sus carpetas de instancia para versionarlas).
 
 ## 2. Preparación (una vez por instancia)
 
@@ -41,15 +47,18 @@ git fetch framework --tags
 ## 3. Procedimiento de actualización
 
 1. Lee `CHANGELOG.md` del framework entre tu versión y la nueva (los tags `vX.Y.Z` delimitan).
-   Las entradas marcadas **BREAKING** requieren acción manual descrita en la propia entrada.
+   Las entradas marcadas **BREAKING** requieren acción manual descrita en la propia entrada. Para
+   **v1 → v2** sigue la guía de §5.
 2. Crea una rama: `git checkout -b chore/framework-vX.Y.Z`.
 3. Trae los cambios: `git merge vX.Y.Z` (merge del tag, no de `framework/main`: actualiza
    siempre a una release, nunca a trabajo en curso).
 4. Resuelve conflictos con la regla de §1: rutas de núcleo → versión del framework; rutas de
    instancia → versión local; zona gris → a mano.
-5. Verifica desde `frontend/`: `npm ci && npm run test && npm run lint && npx next build`.
-6. Smoke test del contrato con la pila levantada: `node examples/minimal-consumer/index.mjs`
-   y prueba de humo manual (login, carrito, checkout `noop`). Despliega como cualquier otro
+5. Verifica. Desde `frontend/`: `npm ci && npm run lint && npm run type-check &&
+   npm run i18n:check && npm run test && npx next build`. Desde `backend/`: `composer test`.
+6. Con la pila levantada: `sh backend/scripts/verify-security.sh`, `verify-modules.sh` (y
+   `verify-integration.sh` si usas `external-integration`), `node examples/minimal-consumer/index.mjs`
+   y una prueba de humo manual (login, carrito, checkout). Despliega como cualquier otro
    cambio (`docs/DEPLOYMENT.md`).
 
 ## 4. Reglas para el framework (para que esto siga funcionando)
@@ -60,12 +69,239 @@ git fetch framework --tags
 - El núcleo no importa código de instancia (regla de lint en `eslint.config.mjs`) — esto es lo
   que hace que los merges de arriba sean limpios.
 
-## 5. v1 → v2: registro de cambios incompatibles
+## 5. v1 → v2: guía de migración
 
-> **Borrador en curso.** Se anota aquí, **una línea por cambio**, a medida que se hace. La
-> guía definitiva —qué cambia, por qué y los pasos de migración de cada punto, más la tabla
-> de migración de una instancia derivada— se redacta al final de la v2.0.0. Una entrada marcada **(contrato)**
-> afecta a un frontend que llame directamente al BFF o a WordPress sin usar el de este repo.
+La v2.0.0 se publica en **un único salto**: no hay versiones intermedias. Esta guía sirve a una
+instancia derivada del framework v1 (un clon que divergió). Una instalación nueva no migra nada:
+parte de `docs/CREATE_INSTANCE.md`.
+
+### Antes de empezar
+
+1. **Haz una copia** (`sh backend/scripts/backup.sh`) y comprueba que es restaurable
+   (`docs/RUNBOOK.md`).
+2. **Producción: fija el volumen de la base de datos.** Pon en `.env.prod` `HWE_DB_VOLUME=<tu
+   volumen actual>` (`docker volume ls | grep db_data`) y `COMPOSE_FILE=docker-compose.prod.yml`.
+   Sin lo primero, `up` falla con «external volume … not found» (no arranca con la base vacía).
+3. **Genera los secretos nuevos** que v2 exige y que v1 no tenía: `CSRF_SECRET` (sin valor de
+   reserva), `HWE_SECRETS_KEY`, `HWE_2FA_KEY` (estables: no las cambies después) y
+   `WP_ADMIN_PASSWORD`. `ALLOWED_ORIGIN` debe ser exactamente el `Origin` del navegador. El
+   arranque en producción **aborta** si algo de esto falta o es el valor por defecto
+   (`docs/CONFIGURATION.md`, «Seguridad y sesión»).
+4. **El build del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** (CSP e imágenes). El CD y
+   `docker compose … build frontend` ya la pasan; defínela en `.env.prod` si difiere de
+   `https://<PUBLIC_DOMAIN>`.
+
+### Orden recomendado
+
+1. Sigue §3 hasta el merge del tag `v2.0.0` y resuelve conflictos con la regla de §1.
+2. Aplica, en este orden, los pasos de las nueve secciones siguientes que te afecten: primero las
+   de **infraestructura y seguridad** (5.6), después las de **contrato de instancia** (5.1–5.3), y
+   por último las de **datos y módulos** (5.4, 5.5, 5.7–5.9).
+3. Recrea los servicios: `docker compose -f docker-compose.prod.yml up -d` (toda la pila; el
+   contenedor `backup` con `--force-recreate`). La caché de objetos de WordPress se rehace (cambia
+   el prefijo de Redis).
+4. Verifica (§3, pasos 5 y 6) y repasa el registro de §6 buscando entradas de áreas que uses y no
+   aparezcan aquí.
+
+### 5.1 El código de tu instancia vive en rutas reservadas
+
+- **Qué cambia.** Todo lo propio de una instancia va en `backend/wp-content/mu-plugins/instance/`
+  (o en un plugin `hwe-instance-<slug>`) y en `frontend/src/instance/`. El framework no las toca
+  nunca. Los ajustes propios del Control Center cuelgan del nuevo grupo raíz `instance` y salen por
+  `/wp-json/hwe/v1/config` en `instance.<grupo>.<campo>`.
+- **Por qué.** En v1 el código de instancia se mezclaba con el del núcleo (p. ej. dentro del
+  directorio del Control Center) y cada actualización generaba conflictos. Una puerta en CI
+  (`.github/scripts/check-anti-instance.sh`) impide que vuelva a colarse.
+- **Pasos.**
+  1. Mueve tus archivos de instancia a `mu-plugins/instance/` (el cargador `hwe-instance-loader.php`
+     carga los `.php` de primer nivel en orden alfabético; usa prefijos numéricos si importa el
+     orden). Un archivo roto se registra y no tumba el sitio.
+  2. Quita del `.gitignore` las dos líneas que ignoran esa carpeta, para versionar la tuya.
+  3. Declara tus campos con el filtro `hwe_control_center_schema` **dentro de `instance`**: una
+     clave raíz nueva se descarta y se registra.
+  4. Si añadías tipos de campo, regístralos con `hwe_control_center_field_types`.
+- **Datos.** Sin migración: los valores guardados no cambian de sitio. Referencia:
+  `docs/PLUGIN_DEVELOPMENT.md §0` y los `README.md` de las dos carpetas `instance/`. Registro: §6,
+  «Contrato de instancia (F2)».
+
+### 5.2 `src/instance/` y el `InstanceRegistry`
+
+- **Qué cambia.** El núcleo ya no contiene tablas con datos de instancia: las declara la instancia en
+  `frontend/src/instance/registry.ts`, que exporta un `InstanceRegistry` (**solo datos**, nunca
+  componentes): `revalidationTags`, `landings`, `productFields` y `decorPresets`. Es el **único**
+  módulo de instancia que el núcleo importa. `SiteConfig` gana `instance` (tipado con
+  *module augmentation* en `config.d.ts`) y `modules`.
+- **Por qué.** Para que el núcleo se actualice sin conocer a ninguna instancia. Una regla de ESLint
+  impide que `lib/`, `app/api/`, `proxy.ts` y `components/ui/` importen `@/components/**` (salvo
+  `ui/`) o `@/instance/**` (salvo `registry`); `import type` también cuenta.
+- **Pasos.**
+  1. Copia `registry.ts` y `config.d.ts` del framework si no los tienes y rellena lo que uses.
+  2. Mueve tu dominio (fetchers, formato, validación) a `src/instance/lib/`.
+  3. Si el núcleo te fallaba al importar código tuyo, haz que el núcleo lo reciba por el registro (o
+     que la vista de tu instancia lo importe); no al revés.
+  4. Si construyes un `SiteConfig` literal en tus tests, añade `modules` e `instance`.
+- **Datos.** Ninguno. Referencia: `frontend/src/instance/README.md` y `examples/instance-minimal/`
+  (el job «contrato» de CI lo superpone al repo y ejecuta la batería).
+
+### 5.3 `hwe_control_center_saved` sustituye a las acciones con nombre de instancia
+
+- **Qué cambia.** El panel ya no lee claves del POST que no cuelguen del schema. Para reaccionar a
+  «Guardar», engánchate a la acción `hwe_control_center_saved($publicData, $rawPost)`, que se
+  dispara tras guardar y **antes** de revalidar. También la dispara `wp hwe setup` (con el JSON
+  como `$rawPost`).
+- **Por qué.** Cada instancia añadía una acción con su propio nombre y el núcleo conocía sus
+  claves; era acoplamiento de instancia dentro del núcleo.
+- **Pasos.** Cambia `add_action('hwe_control_center_<cosa>_save', …)` por
+  `add_action('hwe_control_center_saved', fn(array $publicData, array $rawPost) => …, 10, 2)`.
+  **Sanea siempre `$rawPost`** (llega sin sanear). Persiste ahí lo que gestione tu código (post meta,
+  tablas propias).
+- **Datos.** Ninguno. Registro: §6, «Contrato de instancia (F2)» y «Control Center (F3)».
+
+### 5.4 Los nombres GraphQL de las traducciones
+
+- **Qué cambia.** Desaparecen los campos por idioma (`titleEn`, `excerptEn`, `contentEn`,
+  `seoTitleEn`, `seoDescriptionEn`, `nameEn`, `shortDescriptionEn`, `descriptionEn`, `slugEn`…).
+  Cada tipo traducible expone `translation(locale: "en") { title excerpt content seoTitle
+  seoDescription name shortDescription description slug }` (mismos valores; `null` si no hay
+  traducción), y `hweSlugFromEn(postType, slugEn)` pasa a `hweSlugFrom(postType, locale, slug)`. Los
+  idiomas son los secundarios de `i18n.locales` (N idiomas, no uno). Los campos de config
+  traducibles (`brand.tagline`, `brand.description`, `geo.faq`, `geo.faq_payments`) dejan de tener
+  una hermana `_en` fija y generan `<campo>_<idioma>`.
+- **Por qué.** Un segundo idioma fijo no escala: una tienda en tres idiomas necesitaba código de
+  núcleo. Ahora el idioma es configuración y cada uno tiene su slug (con 308 a la URL canónica).
+- **Pasos.**
+  1. Declara `i18n.locales` en `instance.config.json` (los secundarios; `brand.locale` es el
+     principal) y haz que `frontend/src/i18n/routing.ts` coincida: el arranque avisa si divergen.
+  2. Borra de `mu-plugins/` los cinco mu-plugins de traducción de v1 (`hwe-content-translation`,
+     `hwe-slug-translation`, `hwe-category-translation`, `hwe-tag-translation`,
+     `hwe-blog-category-translation`): los sustituye `hwe-content-i18n`.
+  3. Migra tus consultas GraphQL propias a `translation(locale: …)` y tus helpers
+     `pickLocalized(es, en, locale)` a `pickLocalized(entity, campo, locale)`. Los lectores del
+     catálogo y del blog reciben ahora el idioma; los enlaces a fichas pasan por
+     `productHref`/`categoryHref`/`blogPostHref`.
+  4. Crea `messages/<idioma>.json` por cada idioma nuevo (`npm run i18n:check` exige la paridad).
+- **Datos.** **Sin migración de datos:** las metas (`_hwe_title_en`, `_hwe_slug_en`…) son las mismas,
+  así que lo ya traducido al inglés sigue valiendo. Registro: §6, «Traducción de contenido (F5)».
+
+### 5.5 La moneda se pasa siempre a los formateadores
+
+- **Qué cambia.** `formatPrice(precio, moneda, locale, decimales?)` y
+  `formatStoreAmount(importe, minorUnit, moneda, locale)` **exigen** moneda y locale: ya no hay una
+  moneda con formato fijado en el código. En servidor, la moneda sale de
+  `getSiteConfig().ecommerce.currency` (o del `currency_code` de la Store API); en cliente, de los
+  hooks `useFormatPrice()` / `useFormatStoreAmount()`. Los decimales salen de WooCommerce
+  (`ecommerce.price_decimals`, calculado).
+- **Por qué.** Los importes se formateaban siempre en un idioma y una moneda concretos, y una
+  tienda sin decimales no podía configurarse.
+- **Pasos.** Fija `ecommerce.currency` en `instance.config.json` (el defecto es `EUR`; se
+  sincroniza con WooCommerce) y `ecommerce.country`. Actualiza en tu UI cada llamada a los
+  formateadores y cada uso de `CurrencyProvider` (el layout raíz del starter ya lo monta).
+- **Datos.** Ninguno. Registro: §6, «Control Center (F3)».
+
+### 5.6 WordPress solo atiende al BFF (secreto interno)
+
+- **Qué cambia.** El mu-plugin `hwe-bff-only` responde **404** a `/graphql`, `?graphql`,
+  `wc/store/*`, `hwe/v1/auth/*` y `hwe/v1/consent/*` salvo que la petición traiga
+  `X-HWE-Internal-Secret` con el valor de `HWE_REVALIDATION_SECRET` (o venga de WP-CLI). El BFF lo
+  envía en todas sus llamadas (`wpFetch` y los clientes de GraphQL, wc/v3 y Store API). Se elimina
+  `NEXT_PUBLIC_WORDPRESS_API_URL` y `lib/graphql-client.ts` pasa a `server-only`: el navegador no
+  habla con WordPress.
+- **Por qué.** Cualquiera podía saltarse el BFF (CSRF, rate-limit, autorización) llamando a WordPress
+  directamente. Ahora la superficie pública de WordPress es solo `wp-admin` y las rutas firmadas.
+- **Pasos.**
+  1. **WordPress nativo (modo híbrido):** define `HWE_REVALIDATION_SECRET` en su `wp-config.php` con el
+     mismo valor que `frontend/.env.local`. En Docker ya lo hace el compose.
+  2. **Consumidores propios del lado servidor** (un script, otro BFF): envía la cabecera en cada
+     llamada. Quita `NEXT_PUBLIC_WORDPRESS_API_URL` de `.env*`, compose, CI y build; si un componente
+     de cliente importaba `fetchGraphQL`, el build fallará: pásalo por un Route Handler.
+  3. Una ruta nueva del BFF no debe usar `fetch` a WordPress por su cuenta: usa `wpFetch` (un test
+     lo comprueba).
+  4. Verifica con `sh backend/scripts/verify-security.sh`.
+- **Qué deja de funcionar:** el IDE GraphiQL y los bloques de carrito de WooCommerce en el editor
+  (llamaban a esas rutas desde el navegador). **Datos:** ninguno. Registro: §6, «Seguridad (F1)»,
+  «Operación (F1)» e «Infraestructura y CD (F4)».
+
+### 5.7 Los mu-plugins de v1 que pasan a módulo
+
+- **Qué cambia.** La funcionalidad opcional deja de ser un mu-plugin siempre activo y pasa a ser un
+  **módulo**: un plugin `hwe-<id>` que se enciende por instancia. Catálogo: `banners`, `shipping`,
+  `product-landing`, `landings`, `consent-log`, `site-reviews`, `coupon-rules`,
+  `customer-identity` y `external-integration`. La config pública expone `modules: { <id>: boolean }`.
+  Con un módulo apagado, su lector devuelve vacío, sus rutas del BFF responden 404 y su UI no se pinta.
+- **Por qué.** Una instancia sin envío por ciudad o sin documento de identidad no debe cargar ni
+  exponer esa funcionalidad.
+- **Pasos.**
+  1. Lista los módulos que usas en `modules` de `instance.config.json`: `wp hwe setup` **activa los
+     listados y desactiva los demás** del catálogo (sin la clave no toca ningún plugin).
+  2. Borra de `mu-plugins/` los archivos que el módulo sustituye: el mu-plugin de identidad
+     (`hwe-customer-identity.php`), el de tarifa plana y umbral de envío
+     (`woocommerce-shipping-config.php`) y los de acceso y guarda de GraphQL de un integrador
+     (`hwe-*-access.php`, `hwe-*-graphql-guard.php`). El de correos de marca
+     (`woocommerce-email-branding.php`) lo cubre `hwe-email-chrome` del núcleo.
+  3. `<INTEGRADOR>_ALLOWED_IPS` pasa a `HWE_INTEGRATION_ALLOWED_IPS` (compose, `.env`, `.env.prod`).
+  4. Si usabas `landing_pages` en la config, pasa a `landings.registry` y `landings.editorial.<id>`
+     (siembra de nuevo con `wp hwe setup` o mueve lo guardado).
+  5. Comprueba con `sh backend/scripts/verify-modules.sh` que cada módulo apagado desaparece del todo.
+- **Datos.** **Sin migración** para los CPT y metas de `shipping`, `customer-identity` y
+  `external-integration` (son las mismas). Para `landings`, los campos `*_en` pasan a variantes por
+  idioma (`title_en`, `title_pt_br`…) y hay que mover la config guardada. Registro: §6, un apartado
+  «Módulo …» por cada uno.
+
+### 5.8 Banners: `mandala_presets` → `decor_presets`
+
+- **Qué cambia.** El módulo `banners` adopta el modelo **tipo × locación** (tipos `carousel`,
+  `band`, `allies`, `page_hero`, `landing`; locación `home` por defecto) y desaparecen las posiciones
+  `hero`/`middle`/`bottom`. Los visuales decorativos de plantilla se declaran en
+  `InstanceRegistry.decorPresets` (clave → `{ src, invert? }`) y en el filtro
+  `hwe_banners_decor_presets`, con las **mismas claves** en los dos lados (hay un test de paridad).
+  El JSON del slide pasa de `mandalaMode`/`mandalaSvg`/`mandalaPreset` a
+  `decorMode`/`decorSvg`/`decorPreset`.
+- **Por qué.** Los presets eran una tabla de una marca concreta dentro del núcleo; ahora es dato de la
+  instancia. Los tipos y locaciones permiten banners en más sitios que la portada.
+- **Pasos.** Renombra el filtro `hwe_banners_mandala_presets` → `hwe_banners_decor_presets`; declara
+  `decorPresets` en `registry.ts`; sustituye `getBannerPlacement(placement, locale)` por
+  `getBanner(type, location, locale, { enabled })` / `getBanners(locale, location)`; la REST pasa a
+  `GET /banners[/{type}]?location=&lang=`. Enciende el módulo (`"banners"` en `modules`).
+- **Datos.** **Sin migración:** los slides guardados con `mandala_*` se leen con las claves nuevas y
+  se reescriben al guardar. Si tenías banners por posición, vuelve a crearlos eligiendo el tipo (el
+  plugin de v1 no llegó a publicarse). Registro: §6, «Módulo `banners` (F5)».
+
+### 5.9 Campos de producto y detalles de línea declarativos
+
+- **Qué cambia.** Un dato propio de producto (modo de uso, composición…) ya no necesita un mu-plugin
+  con su caja y su campo GraphQL: se declara con el filtro `hwe_product_fields` (y en
+  `InstanceRegistry.productFields`). En GraphQL, en vez de un campo por dato (`Product.dosage`,
+  `dosageEn`…), `Product.hweFields(locale)` devuelve pares `{ key, value }` ya resueltos al idioma;
+  el frontend los lee como `product.fields.<clave>`. Del mismo modo, un dato por línea de pedido
+  (dedicatoria, talla…) se declara con `hwe_order_item_details` y viaja en `extensions.<clave>` de
+  `cart/add-item`.
+- **Por qué.** Cada dato exigía código de núcleo duplicado (cajas, GraphQL, Store API, correos).
+- **Pasos.** Borra los mu-plugins que cableaban a mano esos campos o la Store API y declara los datos.
+  Migra las consultas a `hweFields(locale: $locale) { key value }` (la consulta `ProductBySlug` gana
+  `$locale`) y tipa tus claves por *augmentation* de `ProductFieldValues`. Evita las claves reservadas
+  (`name`, `short_description`, `description`, `seo_title`, `seo_description`, `slug` y el prefijo
+  `landing_`).
+- **Datos.** **Sin migración:** la meta `_hwe_<clave>` (y `_hwe_<clave>_en`, que pasa a ser la variante
+  de idioma) es la que ya guardaban esos mu-plugins; el campo declarado debe llamarse como el sufijo tras
+  `_hwe_`. En los detalles de línea, si ya guardabas el dato con otra clave visible, decláralo con
+  `meta_key` para no romper pedidos anteriores ni sus correos. Registro: §6, «Campos de producto
+  declarativos (F5)» y «Detalles de línea de pedido (F5)».
+
+### Paquetes por país y otras acciones puntuales
+
+No son uno de los nueve cambios, pero te pueden pedir acción: los tipos de documento y las ciudades
+salen ahora del **paquete de país** (`ecommerce.country`; para otro país, un paquete con
+`hwe_geo_packs`), y un estado que no resuelve en el paquete da **422** (v1 caía en silencio a un valor
+por defecto); el sitemap es un **índice segmentado** (`app/sitemap.ts` desaparece); el consentimiento
+de analítica pasa a la generación 2 (se vuelve a preguntar a todos). El detalle de estas y de las
+demás entradas, en §6.
+
+## 6. v1 → v2: registro detallado de cambios incompatibles
+
+> Referencia completa, **una entrada por cambio**, ordenada por área de trabajo (no por
+> importancia): la guía de §5 es el camino recomendado y esta sección es el detalle al que
+> remite. Una entrada marcada **(contrato)** afecta a un frontend que llame directamente al BFF o
+> a WordPress sin usar el de este repo; **(breaking)** exige una acción manual.
 
 ### Seguridad (F1)
 
