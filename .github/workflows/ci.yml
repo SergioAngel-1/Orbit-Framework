@@ -253,6 +253,30 @@ jobs:
         run: npx wait-on http://localhost:3000/api/health/live --timeout 60000
       - name: Tests e2e
         run: npx playwright test
+      # Segunda pasada: instalación SIN módulos (la config por defecto). Cada módulo apagado
+      # debe comportarse como si no existiera (rutas del BFF en 404, páginas inexistentes, fuera
+      # del sitemap). Las páginas se prerenderizan en el build, así que lleva el suyo.
+      - name: Parar el servidor y el stub de la primera pasada
+        run: |
+          # `next start` deja un proceso hijo `next-server` que no casa con «next start»: se
+          # libera el puerto por número para que la segunda pasada no hable con el servidor viejo.
+          pkill -f stub-graphql.mjs || true
+          pkill -f next-server || true
+          pkill -f "next start" || true
+          fuser -k 3000/tcp 8080/tcp || true
+          sleep 2
+          ! (exec 3<>/dev/tcp/127.0.0.1/3000) 2>/dev/null || { echo "el puerto 3000 sigue ocupado"; exit 1; }
+      - name: Tests e2e con los módulos apagados
+        env:
+          STUB_SITE_CONFIG_EXTRA: '{"ecommerce":{"checkout_login_required":false}}'
+        run: |
+          node ../.github/scripts/stub-graphql.mjs &
+          npx wait-on http://127.0.0.1:8080 --timeout 30000
+          rm -rf .next
+          npm run build
+          npx next start --port 3000 &
+          npx wait-on http://localhost:3000/api/health/live --timeout 60000
+          npx playwright test tests/e2e/modules-off.spec.ts tests/e2e/smoke.spec.ts
       - name: Subir report HTML
         if: always()
         uses: actions/upload-artifact@v4
@@ -293,6 +317,11 @@ jobs:
         run: |
           docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.9-alpine \
             caddy validate --adapter caddyfile --config /etc/caddy/Caddyfile
+
+      # Cada módulo tiene su entrada, README y MANUAL, está montado en los tres servicios de
+      # WordPress y los catálogos de PHP y TS coinciden (la sección que no necesita pila).
+      - name: Módulos completos
+        run: sh backend/scripts/verify-modules.sh static
 
       - name: Sintaxis de scripts de shell
         run: |

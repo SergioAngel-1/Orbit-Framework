@@ -869,6 +869,25 @@ git fetch framework --tags
   tercer argumento y `StoreCartItem.item_data`.
 - **No se porta** lo específico de una instancia (catálogos de una marca concreta): era una declaración, no núcleo.
 
+### Verificación de módulos (F5)
+
+- **Nuevo script `backend/scripts/verify-modules.sh [static|toggle|i18n|country|integration|all] [--strict]`.**
+  `static` (sin pila, también en CI) exige por módulo su entrada, `README.md` y `MANUAL.md`, que esté
+  montado en los tres servicios de WordPress de `docker-compose.yml` y que los catálogos de PHP y TS
+  coincidan. Contra la pila: `toggle` enciende y apaga cada módulo y comprueba `config.modules` y sus rutas
+  REST; `i18n` una traducción a un segundo idioma; `country` el paquete del país; `integration` ejecuta
+  `verify-integration.sh all` con el módulo encendido y lo deja como estaba.
+- **(contrato) `docker-compose.yml` monta ahora los 9 plugins de módulo** en `wordpress`, `wpcli` y
+  `wp-cron` (antes solo 4: `shipping`, `product-landing`, `landings`, `customer-identity` y
+  `external-integration` no se podían activar en la pila). Una instancia que mantenga su propio compose debe
+  montar cada plugin de módulo que use; `verify-modules.sh static` lo comprueba sobre el compose del repo.
+- **(corregido) `external-integration`: la IP autorizada recibía 404 aunque el módulo estuviera activo.**
+  El módulo registraba `hwe_integration_gate_enabled` en `plugins_loaded`, y WPGraphQL‑WooCommerce pregunta
+  `is_graphql_http_request()` antes en esa misma fase y WPGraphQL cachea la respuesta. La puerta se enciende
+  ahora al cargar el archivo del plugin (`Plugin::boot()`). Si copiaste el módulo a una instancia, actualízalo.
+- **(CI) El job e2e hace una segunda pasada SIN módulos** (`tests/e2e/modules-off.spec.ts`): rutas del BFF
+  en 404, páginas de landings inexistentes y fuera del sitemap.
+
 ### Infraestructura y CD (F4)
 
 - **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin

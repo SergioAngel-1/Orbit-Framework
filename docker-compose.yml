@@ -110,6 +110,11 @@ services:
       - ./backend/wp-content/plugins/hwe-site-reviews:/var/www/html/wp-content/plugins/hwe-site-reviews
       - ./backend/wp-content/plugins/hwe-coupon-rules:/var/www/html/wp-content/plugins/hwe-coupon-rules
       - ./backend/wp-content/plugins/hwe-consent-log:/var/www/html/wp-content/plugins/hwe-consent-log
+      - ./backend/wp-content/plugins/hwe-shipping:/var/www/html/wp-content/plugins/hwe-shipping
+      - ./backend/wp-content/plugins/hwe-product-landing:/var/www/html/wp-content/plugins/hwe-product-landing
+      - ./backend/wp-content/plugins/hwe-landings:/var/www/html/wp-content/plugins/hwe-landings
+      - ./backend/wp-content/plugins/hwe-customer-identity:/var/www/html/wp-content/plugins/hwe-customer-identity
+      - ./backend/wp-content/plugins/hwe-external-integration:/var/www/html/wp-content/plugins/hwe-external-integration
       - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
       # Bridge de backups (ver HWE_BACKUPS_DIR arriba): fuera del docroot para
       # que nunca sea servible por HTTP. Mismo host path que el servicio
@@ -154,6 +159,11 @@ services:
       - ./backend/wp-content/plugins/hwe-site-reviews:/var/www/html/wp-content/plugins/hwe-site-reviews
       - ./backend/wp-content/plugins/hwe-coupon-rules:/var/www/html/wp-content/plugins/hwe-coupon-rules
       - ./backend/wp-content/plugins/hwe-consent-log:/var/www/html/wp-content/plugins/hwe-consent-log
+      - ./backend/wp-content/plugins/hwe-shipping:/var/www/html/wp-content/plugins/hwe-shipping
+      - ./backend/wp-content/plugins/hwe-product-landing:/var/www/html/wp-content/plugins/hwe-product-landing
+      - ./backend/wp-content/plugins/hwe-landings:/var/www/html/wp-content/plugins/hwe-landings
+      - ./backend/wp-content/plugins/hwe-customer-identity:/var/www/html/wp-content/plugins/hwe-customer-identity
+      - ./backend/wp-content/plugins/hwe-external-integration:/var/www/html/wp-content/plugins/hwe-external-integration
       - ./backend/scripts:/scripts:ro
       # Mismo bridge que `wordpress`: `wp hwe setup` escribe aquí
       # hwe-backup-config.json (ver HWE_BACKUPS_DIR en ese servicio).
@@ -199,6 +209,11 @@ services:
       - ./backend/wp-content/plugins/hwe-site-reviews:/var/www/html/wp-content/plugins/hwe-site-reviews
       - ./backend/wp-content/plugins/hwe-coupon-rules:/var/www/html/wp-content/plugins/hwe-coupon-rules
       - ./backend/wp-content/plugins/hwe-consent-log:/var/www/html/wp-content/plugins/hwe-consent-log
+      - ./backend/wp-content/plugins/hwe-shipping:/var/www/html/wp-content/plugins/hwe-shipping
+      - ./backend/wp-content/plugins/hwe-product-landing:/var/www/html/wp-content/plugins/hwe-product-landing
+      - ./backend/wp-content/plugins/hwe-landings:/var/www/html/wp-content/plugins/hwe-landings
+      - ./backend/wp-content/plugins/hwe-customer-identity:/var/www/html/wp-content/plugins/hwe-customer-identity
+      - ./backend/wp-content/plugins/hwe-external-integration:/var/www/html/wp-content/plugins/hwe-external-integration
       # Mismo bridge que `wordpress`: el evento de notificación de copias lee
       # hwe-backup-status.json de aquí.
       - ./backups:/var/www/hwe-backups

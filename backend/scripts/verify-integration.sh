@@ -88,7 +88,12 @@ check_not() { # nombre, salida, patrón que NO debe aparecer
 
 setup_secret() {
   [ -n "$SECRET" ] && return 0
-  SECRET="$(cli eval 'echo defined("HWE_REVALIDATION_SECRET") ? HWE_REVALIDATION_SECRET : "";')"
+  # El secreto lo define `WORDPRESS_CONFIG_EXTRA` del contenedor `wordpress`; el contenedor de
+  # WP-CLI no lo tiene, así que `defined()` allí da falso: se lee del entorno del contenedor
+  # y, si no está, de WP-CLI (pilas que lo definen en wp-config.php).
+  SECRET="$(docker exec hwe_wordpress printenv WORDPRESS_CONFIG_EXTRA 2>/dev/null \
+    | sed -n "s/.*'HWE_REVALIDATION_SECRET', '\([^']*\)'.*/\1/p" | head -n1)"
+  [ -n "$SECRET" ] || SECRET="$(cli eval 'echo defined("HWE_REVALIDATION_SECRET") ? HWE_REVALIDATION_SECRET : "";')"
 }
 
 setup_order() {
@@ -229,7 +234,7 @@ section_guard() {
   # recalcularlo ni pisar su origen.
   cli eval "\$o = wc_get_order($ORDER_ID); \$o->set_total(40500); \$o->set_created_via('checkout'); \$o->save();" >/dev/null
   out="$(gql "{\"query\":\"mutation { updateOrder(input: {orderId: $ORDER_ID, status: COMPLETED}) { order { status total(format: RAW) } } }\"}" "$auth")"
-  check "updateOrder devuelve el pedido con su total intacto" "$out" '"status":"COMPLETED","total":"40500"'
+  check "updateOrder devuelve el pedido con su total intacto" "$out" '"status":"COMPLETED","total":"40500(\.0+)?"'
   out="$(cli eval "\$o = wc_get_order($ORDER_ID); echo json_encode([\$o->get_status(), (float) \$o->get_total(), \$o->get_created_via()]);")"
   check "updateOrder no recalcula el total ni pisa created_via" "$out" '^\["completed",40500,"checkout"\]$'
 
