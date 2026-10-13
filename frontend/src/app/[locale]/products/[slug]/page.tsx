@@ -13,6 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { ProductGrid } from "@/components/products/product-grid";
 import ProductActions from "@/components/products/product-actions";
 import { ReviewGate } from "@/components/products/review-gate";
+import { CouponNotices } from "@/components/coupons/coupon-notice";
+import { isModuleEnabled } from "@/lib/config/modules";
+import { getProductCoupons } from "@/lib/coupons/public-coupons";
+import { getCartProductRefs } from "@/lib/catalog/coupon-refs";
 
 export const revalidate = 300;
 
@@ -82,6 +86,20 @@ export default async function ProductPage({
     { name: product.name, url: canonicalUrl },
   ]);
 
+  // Cupones públicos que aplican a este producto (módulo `coupon-rules` y
+  // `coupons_enabled`). La ficha es ISR: el aviso lo gobierna `CouponGate` en el
+  // navegador (ventana de fechas y cupones ya agotados por el cliente).
+  const productCoupons =
+    config.ecommerce.coupons_enabled && isModuleEnabled(config, "coupon-rules")
+      ? await getProductCoupons({
+          slug: product.slug,
+          onSale: product.onSale,
+          categorySlugs:
+            (await getCartProductRefs([product.databaseId])).get(product.databaseId)
+              ?.categorySlugs ?? [],
+        })
+      : [];
+
   return (
     <div>
       <script
@@ -148,6 +166,16 @@ export default async function ProductPage({
               </p>
             )}
           </div>
+
+          {productCoupons.length > 0 && (
+            <CouponNotices
+              coupons={productCoupons}
+              context="product"
+              locale={locale}
+              currency={config.ecommerce.currency}
+              decimals={config.ecommerce.price_decimals}
+            />
+          )}
 
           {/* Precio (lo actualiza ProductActions al seleccionar variación) */}
           <div className="flex items-baseline gap-3">

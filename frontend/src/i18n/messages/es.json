@@ -211,7 +211,16 @@
     "couponApplied": "Cupón aplicado",
     "subtotal": "Subtotal",
     "discount": "Dto.",
-    "shipping": "Envío"
+    "shipping": "Envío",
+    "offers": {
+      "heading": "Cupones disponibles",
+      "title": "{kind, select, shipping {Envío gratis} both {{discount} de descuento y envío gratis} other {{discount} de descuento}}{type, select, fixed_cart {{first, select, yes {} other { en tu compra}}} fixed_product { por producto} other {}}{first, select, yes { en tu primera compra} other {}}",
+      "use": "Usar",
+      "useLabel": "Usar el cupón {code}",
+      "login": "Inicia sesión",
+      "loginLabel": "Inicia sesión para usar el cupón {code}",
+      "accountOnly": "Requiere iniciar sesión"
+    }
   },
   "checkout": {
     "title": "Finalizar compra",
@@ -494,5 +503,18 @@
   },
   "meta": {
     "titleTemplate": "%s · HeadlessWP"
+  },
+  "coupons": {
+    "label": "Cupón de descuento",
+    "title": {
+      "product": "{kind, select, shipping {Envío gratis en este producto} both {{discount} de descuento y envío gratis{type, select, fixed_cart {{first, select, yes {} other { en tu compra}}} fixed_product { por cada unidad de este producto} other { en este producto}}} other {{discount} de descuento{type, select, fixed_cart {{first, select, yes {} other { en tu compra}}} fixed_product { por cada unidad de este producto} other { en este producto}}}}{first, select, yes { en tu primera compra} other {}}",
+      "category": "{kind, select, shipping {Envío gratis en esta categoría} both {{discount} de descuento y envío gratis{type, select, fixed_cart {{first, select, yes {} other { en tu compra}}} fixed_product { por cada producto de esta categoría} other { en esta categoría}}} other {{discount} de descuento{type, select, fixed_cart {{first, select, yes {} other { en tu compra}}} fixed_product { por cada producto de esta categoría} other { en esta categoría}}}}{first, select, yes { en tu primera compra} other {}}",
+      "auth": "{kind, select, shipping {Envío gratis} both {{discount} de descuento y envío gratis} other {{discount} de descuento}}{scope, select, all {{type, select, fixed_cart {{first, select, yes {} other { en tu compra}}} fixed_product { por producto} other {}}} categories { en {categories}{type, select, fixed_product { por producto} other {}}} selected { en productos seleccionados{type, select, fixed_product { por producto} other {}}} other {}}{first, select, yes { en tu primera compra} other {}}"
+    },
+    "useCode": "Aplica el código <code>{value}</code> al finalizar tu compra.",
+    "minSpend": "Compra mínima de {amount}.",
+    "maxSpend": "Válido en compras de hasta {amount}.",
+    "accountOnly": "Exclusivo para clientes con cuenta.",
+    "guestHint": "<login>Inicia sesión</login> o <register>crea tu cuenta</register> para usarlo."
   }
 }

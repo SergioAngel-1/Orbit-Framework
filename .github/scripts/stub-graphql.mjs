@@ -28,7 +28,8 @@
 //  Solo `design.colors`: `typography` traería los enlaces a Google Fonts y con
 //  ellos una dependencia de red dentro de cada spec.
 //
-//  Tampoco es «vacío» `GET /wp-json/wc/v3/orders[/{10..13}]` ni `customers/7`: los
+//  Tampoco es «vacío» `GET /wp-json/wc/v3/orders[/{10..13}]`, `customers/7` ni
+//  `hwe/v1/coupons/public` (un cupón de prueba): los
 //  pedidos y el cliente de prueba de los e2e de la cuenta (`STUB_ORDERS`).
 //
 //  Uso:  node .github/scripts/stub-graphql.mjs   (puerto: STUB_GRAPHQL_PORT, 8080)
@@ -114,6 +115,27 @@ export const STUB_ORDERS = [
   ...order,
 }));
 
+/** Cupón público de prueba (`hwe/v1/coupons/public`): 10 % en todo el catálogo. */
+const STUB_COUPON = {
+  code: "HOLA10",
+  discountType: "percent",
+  amount: 10,
+  freeShipping: false,
+  scope: "all",
+  productSlugs: [],
+  categorySlugs: [],
+  excludedProductSlugs: [],
+  excludedCategorySlugs: [],
+  excludeSaleItems: false,
+  minimumAmount: null,
+  maximumAmount: null,
+  requiresLogin: false,
+  firstOrderOnly: false,
+  perUserLimited: false,
+  startsAt: null,
+  endsAt: null,
+};
+
 const STUB_CUSTOMER = {
   id: 7,
   email: "ana@example.com",
@@ -131,6 +153,7 @@ function wooFixture(path) {
   if (order) return STUB_ORDERS.find((o) => o.id === Number(order[1]));
   if (path === "/wp-json/wc/v3/orders") return STUB_ORDERS;
   if (path === "/wp-json/wc/v3/products/reviews") return [];
+  if (path === "/wp-json/hwe/v1/coupons/public") return { items: [STUB_COUPON] };
   if (path === "/wp-json/wc/v3/customers/7") return STUB_CUSTOMER;
   return undefined;
 }

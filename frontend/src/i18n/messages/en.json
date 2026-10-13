@@ -206,7 +206,16 @@
     "couponApplied": "Coupon applied",
     "subtotal": "Subtotal",
     "discount": "Discount",
-    "shipping": "Shipping"
+    "shipping": "Shipping",
+    "offers": {
+      "heading": "Available coupons",
+      "title": "{kind, select, shipping {Free shipping} both {{discount} off plus free shipping} other {{discount} off}}{type, select, fixed_cart { on your order} fixed_product { per product} other {}}{first, select, yes { on your first order} other {}}",
+      "use": "Use",
+      "useLabel": "Use coupon {code}",
+      "login": "Log in",
+      "loginLabel": "Log in to use coupon {code}",
+      "accountOnly": "Requires signing in"
+    }
   },
   "checkout": {
     "title": "Checkout",
@@ -494,5 +503,18 @@
   },
   "meta": {
     "titleTemplate": "%s · HeadlessWP"
+  },
+  "coupons": {
+    "label": "Discount coupon",
+    "title": {
+      "product": "{kind, select, shipping {Free shipping on this product} both {{discount} off{type, select, fixed_cart { your order} fixed_product { each unit of this product} other { this product}}, plus free shipping} other {{discount} off{type, select, fixed_cart { your order} fixed_product { each unit of this product} other { this product}}}}{first, select, yes { on your first order} other {}}",
+      "category": "{kind, select, shipping {Free shipping on products in this category} both {{discount} off{type, select, fixed_cart { your order} fixed_product { each product in this category} other { products in this category}}, plus free shipping} other {{discount} off{type, select, fixed_cart { your order} fixed_product { each product in this category} other { products in this category}}}}{first, select, yes { on your first order} other {}}",
+      "auth": "{kind, select, shipping {Free shipping} both {{discount} off plus free shipping} other {{discount} off}}{scope, select, all {{type, select, fixed_cart { on your order} fixed_product { per product} other {}}} categories { on {categories}{type, select, fixed_product { per product} other {}}} selected { on selected products{type, select, fixed_product { per product} other {}}} other {}}{first, select, yes { on your first order} other {}}"
+    },
+    "useCode": "Enter code <code>{value}</code> at checkout.",
+    "minSpend": "Minimum purchase of {amount}.",
+    "maxSpend": "Valid on purchases up to {amount}.",
+    "accountOnly": "For registered customers only.",
+    "guestHint": "<login>Sign in</login> or <register>create an account</register> to use it."
   }
 }

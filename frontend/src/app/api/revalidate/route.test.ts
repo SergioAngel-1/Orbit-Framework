@@ -92,6 +92,17 @@ describe("firmas", () => {
     expect(revalidateTag).toHaveBeenCalledWith("site-reviews", "max");
   });
 
+  it("HWE: el tag del módulo coupon-rules también", async () => {
+    const body = '{"tag":"coupons"}';
+
+    const res = await POST(
+      request(body, { "x-hwe-signature": `sha256=${hmac(body, HWE_SECRET, "hex")}` }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(revalidateTag).toHaveBeenCalledWith("coupons", "max");
+  });
+
   it.each([
     ["WooCommerce", { "x-wc-webhook-signature": "firma-falsa" }],
     ["HWE", { "x-hwe-signature": "sha256=deadbeef" }],

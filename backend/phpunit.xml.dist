@@ -26,6 +26,7 @@
             <directory>wp-content/mu-plugins</directory>
             <directory>wp-content/plugins/hwe-banners</directory>
             <directory>wp-content/plugins/hwe-site-reviews</directory>
+            <directory>wp-content/plugins/hwe-coupon-rules</directory>
             <directory>wp-content/themes/hwe-headless-base</directory>
         </include>
     </source>

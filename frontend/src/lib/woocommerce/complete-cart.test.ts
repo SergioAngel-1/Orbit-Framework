@@ -12,6 +12,11 @@ vi.mock("./client", () => ({ wcFetch: (...args: unknown[]) => wcFetch(...args) }
 vi.mock("@/lib/observability/logger", () => ({ logger: { warn: vi.fn() } }));
 
 import { completeStoreCart } from "./complete-cart";
+import { getSiteConfig } from "@/lib/config";
+import { getCartProductRefs } from "@/lib/catalog/coupon-refs";
+
+vi.mock("@/lib/config", () => ({ getSiteConfig: vi.fn() }));
+vi.mock("@/lib/catalog/coupon-refs", () => ({ getCartProductRefs: vi.fn() }));
 
 function cart(overrides: Record<string, unknown> = {}): StoreCart {
   return {
@@ -21,7 +26,18 @@ function cart(overrides: Record<string, unknown> = {}): StoreCart {
   } as unknown as StoreCart;
 }
 
-beforeEach(() => wcFetch.mockReset());
+function config(opts: { module?: boolean; coupons?: boolean }) {
+  vi.mocked(getSiteConfig).mockResolvedValue({
+    modules: { "coupon-rules": opts.module ?? false },
+    ecommerce: { coupons_enabled: opts.coupons ?? false },
+  } as never);
+}
+
+beforeEach(() => {
+  wcFetch.mockReset();
+  vi.mocked(getCartProductRefs).mockReset();
+  config({});
+});
 
 describe("completeStoreCart", () => {
   it("decodifica las entidades HTML del nombre: React lo pinta como texto", async () => {
@@ -58,5 +74,46 @@ describe("completeStoreCart", () => {
 
     expect(await completeStoreCart(empty)).toBe(empty);
     expect(wcFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("completeStoreCart: referencia de catálogo para los cupones", () => {
+  const line = { key: "a", id: 3, quantity: 1, name: "Camiseta" };
+
+  it("con el módulo y los cupones activos, cada línea trae su slug y categorías (con ancestros)", async () => {
+    config({ module: true, coupons: true });
+    vi.mocked(getCartProductRefs).mockResolvedValue(
+      new Map([[3, { slug: "camiseta", categorySlugs: ["ropa", "moda"] }]]),
+    );
+
+    const out = await completeStoreCart(cart({ items: [line] }));
+
+    expect(out.items[0]!.couponRef).toEqual({
+      slug: "camiseta",
+      categorySlugs: ["ropa", "moda"],
+    });
+    expect(getCartProductRefs).toHaveBeenCalledWith([3]);
+  });
+
+  it.each([
+    ["el módulo apagado", { module: false, coupons: true }],
+    ["los cupones desactivados", { module: true, coupons: false }],
+  ])("con %s no consulta el catálogo", async (_name, opts) => {
+    config(opts);
+
+    const out = await completeStoreCart(cart({ items: [line] }));
+
+    expect(getCartProductRefs).not.toHaveBeenCalled();
+    expect(out.items[0]!.couponRef).toBeUndefined();
+  });
+
+  it("si el catálogo no responde, la línea llega sin referencia (el carrito no se rompe)", async () => {
+    config({ module: true, coupons: true });
+    vi.mocked(getCartProductRefs).mockResolvedValue(new Map());
+
+    const out = await completeStoreCart(cart({ items: [line] }));
+
+    expect(out.items[0]!.name).toBe("Camiseta");
+    expect(out.items[0]!.couponRef).toBeUndefined();
   });
 });

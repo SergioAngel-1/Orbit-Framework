@@ -1,5 +1,6 @@
 {
     "redefinable-internals": [
-        "error_log"
+        "error_log",
+        "time"
     ]
 }

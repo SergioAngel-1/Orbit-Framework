@@ -1,0 +1,138 @@
+/*
+ * Pantalla de edición del cupón (ver `admin.php`). Mismas medidas que los
+ * paneles de WooCommerce: etiqueta de 150 px a la izquierda, campo a 162 px.
+ */
+
+/* Iconos de las pestañas propias (Dashicons, como las nativas). */
+#woocommerce-coupon-data ul.wc-tabs li.hwe_scope_options a::before {
+	font-family: dashicons;
+	content: "\f323"; /* etiqueta */
+}
+#woocommerce-coupon-data ul.wc-tabs li.hwe_customers_options a::before {
+	font-family: dashicons;
+	content: "\f307"; /* grupo */
+}
+#woocommerce-coupon-data ul.wc-tabs li.hwe_validity_options a::before {
+	font-family: dashicons;
+	content: "\f508"; /* calendario */
+}
+#woocommerce-coupon-data ul.wc-tabs li.hwe_limits_options a::before {
+	font-family: dashicons;
+	content: "\f160"; /* candado */
+}
+
+/* Encabezado de sección dentro de una pestaña. */
+.hwe-coupon-panel .hwe-coupon-section {
+	padding: 14px 20px 4px 12px;
+}
+.hwe-coupon-panel .hwe-coupon-section h4 {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+.hwe-coupon-panel .hwe-coupon-section p {
+	margin: 2px 0 0;
+	padding: 0;
+	color: #646970;
+}
+
+/* Los radios en columna, con aire entre opciones. */
+.hwe-coupon-panel fieldset.form-field .wc-radios li {
+	padding-bottom: 6px;
+}
+.hwe-coupon-panel fieldset.form-field .wc-radios label {
+	display: inline;
+	float: none;
+	width: auto;
+	margin: 0;
+}
+
+/* Nota y aviso en línea, alineados con la columna de los campos. */
+.hwe-coupon-panel .hwe-coupon-note,
+.hwe-coupon-panel .hwe-coupon-warning {
+	margin: 0 20px 10px 162px;
+	padding: 6px 10px;
+	line-height: 1.5;
+}
+.hwe-coupon-panel .hwe-coupon-note {
+	color: #646970;
+	background: #f6f7f7;
+	border-left: 4px solid #c3c4c7;
+}
+.hwe-coupon-panel .hwe-coupon-warning {
+	background: #fcf9e8;
+	border-left: 4px solid #dba617;
+}
+.hwe-coupon-panel .hwe-coupon-warning[hidden],
+.hwe-coupon-panel [data-hwe-when][hidden] {
+	display: none;
+}
+
+/* ------------------------------------------------------------------ Resumen */
+
+#hwe-coupon-summary-body .hwe-summary-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 8px;
+	margin: 4px 0 12px;
+}
+#hwe-coupon-summary-body .hwe-summary-code {
+	padding: 2px 6px;
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+}
+#hwe-coupon-summary-body .hwe-summary-status {
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	line-height: 1.6;
+}
+#hwe-coupon-summary-body .hwe-summary-status.is-on {
+	color: #00450c;
+	background: #b8e6bf;
+}
+#hwe-coupon-summary-body .hwe-summary-status.is-soon {
+	color: #043959;
+	background: #c5d9ed;
+}
+#hwe-coupon-summary-body .hwe-summary-status.is-off {
+	color: #691c1c;
+	background: #facfd2;
+}
+#hwe-coupon-summary-body .hwe-summary-status.is-draft {
+	color: #3c434a;
+	background: #dcdcde;
+}
+
+#hwe-coupon-summary-body .hwe-summary-list {
+	margin: 0;
+}
+#hwe-coupon-summary-body .hwe-summary-list dt {
+	margin-top: 10px;
+	color: #646970;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+#hwe-coupon-summary-body .hwe-summary-list dd {
+	margin: 2px 0 0;
+	line-height: 1.5;
+}
+#hwe-coupon-summary-body .hwe-summary-list dd.is-missing {
+	color: #b32d2e;
+}
+
+#hwe-coupon-summary-body .hwe-summary-issues {
+	margin: 14px 0 0;
+	padding: 8px 10px 8px 26px;
+	list-style: disc;
+	background: #fcf9e8;
+	border-left: 4px solid #dba617;
+}
+#hwe-coupon-summary-body .hwe-summary-issues li {
+	margin: 0 0 4px;
+}

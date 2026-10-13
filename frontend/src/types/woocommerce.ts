@@ -32,6 +32,11 @@ export interface StoreCartItem {
     line_subtotal: string;
     line_total: string;
   };
+  /**
+   * Slug y categorías (con ancestros) del producto: lo añade el BFF para decidir
+   * qué cupones públicos aplican a la línea (`completeStoreCart`).
+   */
+  couponRef?: { slug: string; categorySlugs: string[] };
   /** Límites de cantidad de la Store API; el máximo ya refleja el stock restante. */
   quantity_limits?: {
     minimum: number;

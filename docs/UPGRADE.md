@@ -417,6 +417,21 @@ git fetch framework --tags
   una instancia siguen siendo `hwe-instance-*`.
 - **Accesibilidad:** el título «Mi cuenta» del layout de la cuenta pasa de `text-gray-400` a
   `text-gray-500` (contraste AA).
+- **Nuevo módulo `coupon-rules`** (plugin regular `hwe-coupon-rules`, con `README.md` y
+  `MANUAL.md`): fecha de inicio y caducidad **inclusiva**, primera compra, «requiere sesión»,
+  alcance y cupones públicos. **La caducidad inclusiva afecta a todos los cupones del sitio**
+  mientras el plugin esté activo (antes, «caduca el 27» dejaba de valer a las 00:00 del 27).
+  Tag ISR `coupons` (admitido por `/api/revalidate`).
+- **`POST /api/store/coupons` usaba `cart/coupons`**, cuya respuesta es el cupón y no el carrito:
+  nada más aplicar uno, el carrito quedaba roto en pantalla. Ahora usa `cart/apply-coupon` y
+  `cart/remove-coupon`. Con `ecommerce.coupons_enabled` apagado, aplicar responde 403 (quitar
+  sigue permitido). Un frontend propio que llamara directo a la Store API no cambia.
+- **`completeStoreCart` añade `couponRef`** a las líneas (una consulta de catálogo, en caché de
+  5 min) solo con el módulo y los cupones activos.
+- **Textos nuevos** `coupons.*` y `cart.offers.*` (i18n). La ficha, la categoría, el carrito y
+  el checkout muestran los avisos y «Cupones disponibles» solo con el módulo y `coupons_enabled`.
+- **Pruebas:** `backend/patchwork.json` hace redefinible `time()`; el stub del CI sirve un cupón
+  público y los pedidos del cliente de prueba.
 - **SEO por entidad unificado (`hwe-seo/fields.php`).** Entradas, páginas, productos y
   categorías comparten caja, límites (título 60, descripción 160), contador y columna
   «SEO». Los campos del formulario de la entrada pasan de `hwe_seo_title`/`hwe_seo_description`

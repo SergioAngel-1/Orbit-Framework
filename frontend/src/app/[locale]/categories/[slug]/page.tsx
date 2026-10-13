@@ -7,6 +7,9 @@ import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
 import { buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { ProductGrid } from "@/components/products/product-grid";
 import { stripHtml } from "@/lib/format";
+import { CouponNotices } from "@/components/coupons/coupon-notice";
+import { isModuleEnabled } from "@/lib/config/modules";
+import { getCategoryCoupons } from "@/lib/coupons/public-coupons";
 
 export const revalidate = 300;
 
@@ -56,6 +59,13 @@ export default async function CategoryPage({
     },
   ]);
 
+  // Cupones públicos que se anuncian en esta categoría (módulo `coupon-rules` y
+  // `coupons_enabled`). Página ISR: `CouponGate` filtra en el navegador.
+  const coupons =
+    config.ecommerce.coupons_enabled && isModuleEnabled(config, "coupon-rules")
+      ? await getCategoryCoupons(slug)
+      : [];
+
   return (
     <div>
       <script
@@ -69,6 +79,16 @@ export default async function CategoryPage({
         <p className="mb-8 max-w-2xl text-gray-600 dark:text-gray-300">
           {stripHtml(result.category.description)}
         </p>
+      )}
+      {coupons.length > 0 && (
+        <CouponNotices
+          coupons={coupons}
+          context="category"
+          locale={locale}
+          currency={config.ecommerce.currency}
+          decimals={config.ecommerce.price_decimals}
+          className="mb-8 flex max-w-2xl flex-col gap-2"
+        />
       )}
       <ProductGrid products={result.products} />
     </div>

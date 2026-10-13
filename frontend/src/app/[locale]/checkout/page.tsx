@@ -4,6 +4,9 @@ import { redirect } from "@/i18n/navigation";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { getSession } from "@/lib/auth/session";
 import { getCheckoutCustomerSeed } from "@/lib/checkout/customer-seed-server";
+import { CartCouponOffers } from "@/components/coupons/cart-coupon-offers";
+import { isModuleEnabled } from "@/lib/config/modules";
+import { getCartCoupons } from "@/lib/coupons/public-coupons";
 import { getSiteConfig } from "@/lib/config";
 import "@/lib/payments/providers"; // efecto secundario: registra las pasarelas
 import { enabledPaymentChoices } from "@/lib/payments/checkout-options";
@@ -46,9 +49,19 @@ export default async function CheckoutPage({
   const gatewaySandbox = paymentChoices.includes("online")
     ? await isActiveGatewaySandbox().catch(() => false)
     : false;
+  // «Cupones disponibles»: del módulo `coupon-rules` y de `coupons_enabled`.
+  const offers =
+    config.ecommerce.coupons_enabled && isModuleEnabled(config, "coupon-rules")
+      ? await getCartCoupons(session?.userId)
+      : [];
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-8 text-3xl font-extrabold tracking-tight">{t("title")}</h1>
+      {offers.length > 0 && (
+        <div className="mb-6">
+          <CartCouponOffers coupons={offers} guest={!session} />
+        </div>
+      )}
       <CheckoutForm
         guest={!session}
         customer={customer}

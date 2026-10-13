@@ -173,6 +173,31 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
 - Una línea de pedido con la meta `_hwe_not_reviewable` no se ofrece a reseñar (un producto
   compuesto cuya ficha no muestra reseñas): la pone quien arma la línea.
 
+### Cupones: reglas, avisos y «Cupones disponibles»
+
+- `POST /api/store/coupons` aplica con `cart/apply-coupon` y `DELETE` quita con
+  `cart/remove-coupon` (devuelven el **carrito** completo). Con `ecommerce.coupons_enabled`
+  apagado, `POST` responde 403, pero `DELETE` sigue abierto: un descuento ya aplicado no puede
+  quedar sin poder quitarse. La sesión la exige cada cupón en WordPress, no el BFF.
+- **Módulo `coupon-rules`** (plugin `hwe-coupon-rules`, ver su `README.md`/`MANUAL.md`):
+  ventana de validez inclusiva con fecha de inicio, primera compra (con fecha de corte),
+  «requiere sesión», alcance (todo / categorías / productos) y cupones **públicos**. El motivo
+  de cada rechazo llega al cliente en texto plano.
+- **Lectura (BFF → WordPress, solo con el secreto interno):** `GET hwe/v1/coupons/public`
+  (lista compartida, ISR 1 h con el tag `coupons`; incluye los que empiezan en ≤ 3 h) y
+  `GET hwe/v1/coupons/public/used-up?user_id=` (por cliente, sin caché). `lib/coupons/` decide
+  dónde se anuncia cada cupón (`couponAppliesToProduct/Category/Cart`) y si se enseña
+  (`shouldShowCoupon`, la misma regla en servidor y navegador).
+- **`GET /api/coupons/used-up`** (módulo + `coupons_enabled`, si no 404): `{ codes, authenticated }`
+  del propio cliente. Lo consulta `CouponGate` en el navegador porque fichas y categorías son
+  ISR y no conocen al visitante.
+- **Qué no viaja:** el código de un cupón que aún no empieza solo llega a las páginas ISR (ficha
+  y categoría, oculto hasta su hora); carrito y checkout, que son dinámicos, reciben únicamente
+  los vigentes. Un cupón que depende de quién compra (correos permitidos, marcas) no se anuncia.
+- `completeStoreCart` añade `couponRef` (slug y categorías con ancestros) a cada línea del
+  carrito cuando el módulo y los cupones están activos: es lo que usa «Cupones disponibles»
+  (`CartCouponOffers`) para filtrar por alcance y gasto mínimo/máximo.
+
 ## A.3 Config pública dinámica: `GET /wp-json/hwe/v1/config`
 
 Fuente única de verdad de marca/negocio, sin auth, cacheable. Forma exacta (ver

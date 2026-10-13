@@ -7,16 +7,40 @@ import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { applyCouponSchema, removeCouponSchema } from "@/lib/validation/store";
 import { logger } from "@/lib/observability/logger";
+import { getSiteConfig } from "@/lib/config";
 import type { StoreCart } from "@/types/woocommerce";
 
 export const dynamic = "force-dynamic";
 
-/** POST /api/store/coupons — aplica un cupón al carrito. */
+// ---------------------------------------------------------------------------
+//  Ambos handlers usan los endpoints CART-LEVEL de la Store API
+//  (`/cart/apply-coupon`, `/cart/remove-coupon`), que devuelven el CARRITO
+//  completo. El CRUD de colección `/cart/coupons` NO sirve aquí: su POST
+//  devuelve el CUPÓN creado (no el carrito) y su DELETE responde con cuerpo
+//  vacío, así que el carrito quedaba roto en pantalla nada más aplicar uno.
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /api/store/coupons — aplica un cupón al carrito.
+ *
+ * NO exige sesión: si un cupón la pide lo decide cada cupón en WordPress
+ * («Requiere sesión» del módulo `coupon-rules`, implícito en «Solo primera
+ * compra»), que rechaza al invitado con un mensaje que lo invita a iniciar
+ * sesión. Con sesión, el JWT viaja a la Store API para que esas reglas vean la
+ * cuenta. Con `ecommerce.coupons_enabled` apagado no se aplica ninguno (403).
+ */
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
     rateLimit: { name: "coupon", limit: 20, windowSeconds: 60 },
   });
   if (blocked) return blocked;
+
+  if (!(await getSiteConfig()).ecommerce.coupons_enabled) {
+    return NextResponse.json(
+      { error: "Los cupones no están activos." },
+      { status: 403 },
+    );
+  }
 
   let body: unknown;
   try {
@@ -39,7 +63,7 @@ export async function POST(request: Request) {
 
   try {
     const { cartToken: token, authToken } = await getCartRequestAuth();
-    const { data, cartToken } = await storeFetch<StoreCart>("/cart/coupons", {
+    const { data, cartToken } = await storeFetch<StoreCart>("/cart/apply-coupon", {
       method: "POST",
       body: { code: parsed.data.code },
       cartToken: token,
@@ -64,7 +88,10 @@ export async function POST(request: Request) {
   }
 }
 
-/** DELETE /api/store/coupons — elimina un cupón del carrito. */
+/**
+ * DELETE /api/store/coupons — elimina un cupón del carrito. Sigue abierto con
+ * los cupones desactivados: uno ya aplicado no puede quedar sin poder quitarse.
+ */
 export async function DELETE(request: Request) {
   const blocked = await guardMutation(request, {
     rateLimit: { name: "coupon", limit: 20, windowSeconds: 60 },
@@ -89,10 +116,12 @@ export async function DELETE(request: Request) {
 
   try {
     const { cartToken: token, authToken } = await getCartRequestAuth();
-    const { data, cartToken } = await storeFetch<StoreCart>(
-      `/cart/coupons/${encodeURIComponent(parsed.data.code)}`,
-      { method: "DELETE", cartToken: token, authToken },
-    );
+    const { data, cartToken } = await storeFetch<StoreCart>("/cart/remove-coupon", {
+      method: "POST",
+      body: { code: parsed.data.code },
+      cartToken: token,
+      authToken,
+    });
     await writeCartToken(cartToken);
     logger.info(
       { event: "coupon.remove.success", code: parsed.data.code },

@@ -146,6 +146,19 @@ describe("pedidos de prueba (wc/v3)", () => {
     expect(body).toEqual([]);
   });
 
+  it("sirve un cupón público para los avisos (módulo coupon-rules)", async () => {
+    const base = await startStub();
+
+    const body = await (await fetch(`${base}/wp-json/hwe/v1/coupons/public`)).json();
+
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0]).toMatchObject({
+      code: "HOLA10",
+      scope: "all",
+      perUserLimited: false,
+    });
+  });
+
   it("un pedido que no está en el fixture responde {data:{}} (CMS vacío)", async () => {
     const base = await startStub();
 

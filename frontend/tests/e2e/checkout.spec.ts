@@ -83,3 +83,27 @@ test.describe("con varios medios de pago activos", () => {
     await expectNoSeriousA11yViolations(page);
   });
 });
+
+test.describe("con cupones activos", () => {
+  // El stub los activa con STUB_SITE_CONFIG_EXTRA (ecommerce.coupons_enabled y
+  // el módulo `coupon-rules`).
+  test.skip(
+    !process.env.STUB_SITE_CONFIG_EXTRA?.includes('"coupons_enabled":true'),
+    "requiere el stub con ecommerce.coupons_enabled (STUB_SITE_CONFIG_EXTRA)",
+  );
+
+  test("el campo de cupón del checkout es accesible", async ({ page }) => {
+    await page.goto("/checkout");
+
+    await expect(page.getByRole("textbox", { name: "Código de cupón" })).toBeVisible();
+    await expectNoSeriousA11yViolations(page);
+  });
+
+  test("/api/coupons/used-up: un invitado no tiene historial", async ({ request }) => {
+    const res = await request.get("/api/coupons/used-up");
+
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ codes: [], authenticated: false });
+    expect(res.headers()["cache-control"]).toContain("no-store");
+  });
+});
