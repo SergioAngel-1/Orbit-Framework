@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HWE\Tests\Unit\ControlCenter;
 
+use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use HWE\ControlCenter\AdminSave;
 use HWE\ControlCenter\FieldTypes\FieldType;
@@ -206,6 +207,36 @@ final class ProductTypesTest extends TestCase
         $this->assertArrayNotHasKey('_hwe_no_declarada', $product->meta);
         $this->assertSame('intacta', $product->meta['_otra']);
         $this->assertSame(1, $product->saves);
+    }
+
+    public function testSaveFromTheSchemaOnlyWritesTheProductsTheNodeDeclares(): void {
+        $this->withWoo();
+        $declared   = $this->withProduct('camiseta', 7);
+        $undeclared = $this->withProduct('otro', 8);
+        Functions\when('get_option')->justReturn([]);
+        Filters\expectApplied('hwe_control_center_schema')->andReturnUsing(function (array $schema): array {
+            $schema['instance']['children']['badges'] = [
+                'type' => 'product_fields_list',
+                'label' => 'Distintivos',
+                'items' => ['camiseta' => 'Camiseta'],
+                'meta_fields' => $this->metaFields(),
+            ];
+            return $schema;
+        });
+
+        ProductFieldsListType::saveAllFromSchema(
+            [],
+            ['instance' => ['badges' => [
+                'camiseta' => ['badge' => 'Nuevo'],
+                'otro' => ['badge' => 'Colado'],
+            ]]],
+            $this->resolver(['camiseta' => 7, 'otro' => 8])
+        );
+
+        $this->assertSame('Nuevo', $declared->meta['_hwe_badge'] ?? null);
+        $this->assertArrayNotHasKey('_hwe_badge', $undeclared->meta);
+        $this->assertSame(0, $undeclared->saves);
+        $this->assertStringContainsString('otro', implode("\n", $this->logged));
     }
 
     public function testSaveDeletesEmptyMetasAndSkipsUnchangedProducts(): void {

@@ -38,6 +38,7 @@ spl_autoload_register( static function ( string $class ): void {
 // ---------------------------------------------------------------------------
 add_action( 'init', static function (): void {
 	HWE\ControlCenter\RestApi::register();
+	HWE\ControlCenter\Modules::register();
 	HWE\ControlCenter\AdminPage::register();
 	HWE\ControlCenter\PaymentsInternalApi::register();
 	HWE\ControlCenter\IntegrationsInternalApi::register();

@@ -86,6 +86,26 @@ final class Modules {
         return $catalog;
     }
 
+    /**
+     * Activar o desactivar un módulo a mano (wp-admin → Plugins) cambia `config.modules`:
+     * se revalida la config del frontend para que no siga gateando con el estado viejo
+     * hasta que caduque la ventana ISR. `wp hwe setup` revalida por su cuenta.
+     */
+    public static function register(): void {
+        add_action('activated_plugin', [self::class, 'onPluginToggled']);
+        add_action('deactivated_plugin', [self::class, 'onPluginToggled']);
+    }
+
+    /** @param string $pluginFile Ruta relativa del plugin (`hwe-banners/hwe-banners.php`). */
+    public static function onPluginToggled($pluginFile): void {
+        foreach (self::catalog() as $slug) {
+            if ($pluginFile === self::pluginFile($slug)) {
+                Revalidation::trigger();
+                return;
+            }
+        }
+    }
+
     /** Archivo principal del plugin dentro de `wp-content/plugins/`. */
     public static function pluginFile(string $slug): string {
         return $slug . '/' . $slug . '.php';

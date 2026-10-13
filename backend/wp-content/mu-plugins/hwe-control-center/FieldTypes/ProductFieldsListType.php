@@ -102,8 +102,14 @@ final class ProductFieldsListType implements FieldType {
     /**
      * Guarda todos los nodos `product_fields_list` del esquema con lo que trajo el POST.
      * Enganchado a `hwe_control_center_saved` (nonce y capacidad ya comprobados).
+     *
+     * Solo se escriben los productos que el nodo declara en `items`: el formulario solo
+     * pinta esos, así que una fila de otro producto en el POST es una petición manipulada
+     * y se descarta (y se registra).
+     *
+     * @param callable|null $resolveId (slug → id) Solo para tests.
      */
-    public static function saveAllFromSchema(array $publicData, array $rawPost): void {
+    public static function saveAllFromSchema(array $publicData, array $rawPost, ?callable $resolveId = null): void {
         foreach (self::findNodes(Schema::get()) as [$path, $node]) {
             $submitted = $rawPost;
             foreach ($path as $step) {
@@ -115,7 +121,17 @@ final class ProductFieldsListType implements FieldType {
             if (!is_array($submitted)) {
                 continue;
             }
-            self::saveSubmitted($submitted, (array) ($node['meta_fields'] ?? []));
+            $declared = array_map('strval', array_keys((array) ($node['items'] ?? [])));
+            foreach (array_keys($submitted) as $slug) {
+                if (!in_array((string) $slug, $declared, true)) {
+                    Log::once(
+                        'product-fields:undeclared:' . implode('.', $path) . ':' . $slug,
+                        sprintf('product_fields_list «%s»: se descarta la fila de «%s», que el nodo no declara en items.', implode('.', $path), (string) $slug)
+                    );
+                    unset($submitted[$slug]);
+                }
+            }
+            self::saveSubmitted($submitted, (array) ($node['meta_fields'] ?? []), $resolveId);
         }
     }
 

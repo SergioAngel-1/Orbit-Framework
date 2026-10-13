@@ -193,4 +193,18 @@ final class ModulesTest extends TestCase
         $this->assertCount(1, $this->logged);
         $this->assertStringContainsString('banners', $this->logged[0]);
     }
+
+    // ── revalidación al activar/desactivar a mano ───────────────────────────
+
+    public function testTogglingACatalogPluginRevalidatesTheConfig(): void {
+        $calls = 0;
+        \Patchwork\redefine(\HWE\ControlCenter\Revalidation::class . '::trigger', function () use (&$calls): void {
+            $calls++;
+        });
+
+        Modules::onPluginToggled('hwe-banners/hwe-banners.php');
+        Modules::onPluginToggled('woocommerce/woocommerce.php');
+
+        $this->assertSame(1, $calls, 'Solo los plugins del catálogo de módulos revalidan.');
+    }
 }
