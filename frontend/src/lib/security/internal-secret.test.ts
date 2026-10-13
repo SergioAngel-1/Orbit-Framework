@@ -1,5 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { INTERNAL_SECRET_HEADER, internalSecretHeaders } from "./internal-secret";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  INTERNAL_SECRET_HEADER,
+  hasValidInternalSecret,
+  internalSecretHeaders,
+} from "./internal-secret";
 
 // ============================================================================
 //  Secreto interno compartido BFF → WordPress.
@@ -52,5 +56,36 @@ describe("internalSecretHeaders", () => {
 
     process.env.HWE_REVALIDATION_SECRET = "dos";
     expect(internalSecretHeaders()[INTERNAL_SECRET_HEADER]).toBe("dos");
+  });
+});
+
+describe("hasValidInternalSecret", () => {
+  const SECRET = "dummy-ci-revalidation-secret-24-chars";
+  const req = (value?: string) =>
+    new Request("https://tienda.example/x", {
+      headers: value === undefined ? {} : { "X-HWE-Internal-Secret": value },
+    });
+
+  beforeEach(() => vi.stubEnv("HWE_REVALIDATION_SECRET", SECRET));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("acepta el secreto exacto", () => {
+    expect(hasValidInternalSecret(req(SECRET))).toBe(true);
+  });
+
+  it.each([
+    ["sin cabecera", undefined],
+    ["vacío", ""],
+    ["otro valor", "otro-secreto-de-la-misma-longitud-xx"],
+    ["un prefijo", SECRET.slice(0, 10)],
+  ])("rechaza %s", (_name, value) => {
+    expect(hasValidInternalSecret(req(value))).toBe(false);
+  });
+
+  it("sin secreto configurado falla cerrado, aunque la cabecera venga vacía", () => {
+    vi.stubEnv("HWE_REVALIDATION_SECRET", "");
+
+    expect(hasValidInternalSecret(req(""))).toBe(false);
+    expect(hasValidInternalSecret(req("cualquiera"))).toBe(false);
   });
 });

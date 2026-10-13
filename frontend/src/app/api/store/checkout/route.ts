@@ -25,6 +25,7 @@ import { markOrderAwaitingPaymentLink } from "@/lib/payments/orders";
 import { getClientIp } from "@/lib/http/request-ip";
 import { routing } from "@/i18n/routing";
 import { checkoutReturnUrl } from "@/lib/checkout/return-url";
+import { CONSENT_RECEIPT_COOKIE } from "@/lib/analytics/consent-record";
 import {
   orderTrackingMetaData,
   type OrderTrackingContext,
@@ -366,5 +367,8 @@ async function trackingContext(
     ip: getClientIp(request),
     userAgent: request.headers.get("user-agent") ?? undefined,
     sourceUrl: checkoutReturnUrl(config.brand.url, tracking.locale, orderId),
+    // Comprobante del registro de consentimientos (módulo `consent-log`): para
+    // comprobar al confirmarse el pago que no se retiró entre medias.
+    consentReceipt: jar.get(CONSENT_RECEIPT_COOKIE)?.value,
   };
 }

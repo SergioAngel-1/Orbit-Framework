@@ -3,6 +3,7 @@ import { fetchGraphQL } from "@/lib/graphql-client";
 import { logger } from "@/lib/observability/logger";
 import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
 import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
+import { linkConsentReceipt } from "@/lib/analytics/consent-ledger";
 import { POST } from "./route";
 
 // ============================================================================
@@ -24,6 +25,9 @@ vi.mock("@/lib/woocommerce/cart-session", () => ({
 }));
 vi.mock("@/lib/checkout/guest-order-claim", () => ({
   claimGuestOrder: vi.fn(async () => "no_credential"),
+}));
+vi.mock("@/lib/analytics/consent-ledger", () => ({
+  linkConsentReceipt: vi.fn(async () => undefined),
 }));
 vi.mock("@/lib/graphql-client", () => ({ fetchGraphQL: vi.fn() }));
 vi.mock("@/lib/auth/jwt", () => ({ getTokenMaxAgeSeconds: () => 300 }));
@@ -81,6 +85,7 @@ describe("sesión recién creada", () => {
 
     expect(syncAuthenticatedCart).toHaveBeenCalledWith("AUTH");
     expect(claimGuestOrder).toHaveBeenCalledWith(7);
+    expect(linkConsentReceipt).toHaveBeenCalledWith(expect.any(Request), 7);
   });
 });
 

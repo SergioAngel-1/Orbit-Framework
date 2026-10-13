@@ -2,6 +2,14 @@
 import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import type { ConsentReportVariant } from "@/lib/analytics/consent-report";
+
+/**
+ * Qué forma tiene este banner en la medición anónima (pantalla «Consentimientos
+ * de cookies» del módulo `consent-log`). Si se cambia por un modal, cámbiala a
+ * `"modal"` en el mismo commit: así las dos etapas se comparan sin mezclarse.
+ */
+export const CONSENT_BANNER_VARIANT: ConsentReportVariant = "bar";
 
 /**
  * Banner de consentimiento. Dice qué se pide y a quién: los terceros que la
@@ -10,11 +18,18 @@ import { Link } from "@/i18n/navigation";
  */
 export function ConsentBanner({
   message,
+  receipt = null,
   onAccept,
   onDecline,
   onClose,
 }: {
   message: { kind: "analytics" | "ads" | "both"; providers: string };
+  /**
+   * Comprobante de la decisión vigente en el registro de consentimientos. Solo
+   * al reabrir «Preferencias de cookies»: es la referencia que la persona puede
+   * citar si pide saber qué eligió y cuándo.
+   */
+  receipt?: string | null;
   onAccept: () => void;
   onDecline: () => void;
   /**
@@ -56,19 +71,24 @@ export function ConsentBanner({
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white p-4 shadow-lg dark:border-gray-800 dark:bg-gray-950"
     >
       <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 sm:flex-row">
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          {t.rich("message", {
-            ...message,
-            link: (chunks) => (
-              <Link
-                href="/legal/cookies"
-                className="font-medium underline underline-offset-2 hover:text-brand"
-              >
-                {chunks}
-              </Link>
-            ),
-          })}
-        </p>
+        <div className="text-sm text-gray-600 dark:text-gray-300">
+          <p>
+            {t.rich("message", {
+              ...message,
+              link: (chunks) => (
+                <Link
+                  href="/legal/cookies"
+                  className="font-medium underline underline-offset-2 hover:text-brand"
+                >
+                  {chunks}
+                </Link>
+              ),
+            })}
+          </p>
+          {receipt && (
+            <p className="mt-1 break-all text-xs">{t("receipt", { id: receipt })}</p>
+          )}
+        </div>
         <div className="flex shrink-0 gap-2">
           {onClose && (
             <button

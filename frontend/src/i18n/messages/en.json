@@ -501,7 +501,9 @@
     "necessaryOnly": "Necessary only",
     "acceptAll": "Accept all",
     "close": "Close",
-    "regionLabel": "Cookies"
+    "regionLabel": "Cookies",
+    "preferences": "Cookie preferences",
+    "receipt": "Reference for your current choice: {id}"
   },
   "meta": {
     "titleTemplate": "%s · HeadlessWP"

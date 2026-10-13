@@ -14,6 +14,7 @@ import { createPendingLogin } from "@/lib/auth/pending-login";
 import { guardMutation } from "@/lib/api/guard";
 import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
 import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
+import { linkConsentReceipt } from "@/lib/analytics/consent-ledger";
 import { logger } from "@/lib/observability/logger";
 import type { LoginResponse } from "@/types/auth";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
@@ -166,6 +167,9 @@ export async function POST(request: Request) {
   // y «Mis pedidos» ya tiene que mostrarlo. Ninguna lanza.
   await syncAuthenticatedCart(authToken);
   await claimGuestOrder(user.databaseId);
+  // Liga el comprobante de consentimiento de este dispositivo a la cuenta
+  // (módulo `consent-log`; en `after()`, no retrasa la respuesta).
+  await linkConsentReceipt(request, user.databaseId);
 
   logger.info({ event: "auth.login.success", userId: user.id }, "Login exitoso");
   return NextResponse.json({ user }, { status: 200 });

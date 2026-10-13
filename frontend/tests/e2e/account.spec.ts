@@ -34,6 +34,13 @@ async function signIn(page: Page, baseURL: string | undefined) {
     ]);
 }
 
+/**
+ * El contenido de la vista, sin el marcador oculto que React deja fuera de
+ * `<main>` mientras una frontera de Suspense termina de transmitirse: un
+ * `getByText` sobre la página entera lo encuentra dos veces (modo estricto).
+ */
+const main = (page: Page) => page.locator("#main-content");
+
 async function expectNoSeriousA11yViolations(page: Page) {
   const results = await new AxeBuilder({ page }).analyze();
   expect(
@@ -48,9 +55,9 @@ test("historial: pedidos enlazados y con el estado traducido", async ({ page }) 
 
   await expect(page.getByRole("heading", { name: "Mis pedidos" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Pedidos? #10/ })).toBeVisible();
-  await expect(page.getByText("Completado").first()).toBeVisible();
-  await expect(page.getByText("En preparación")).toBeVisible();
-  await expect(page.getByText("En espera")).toBeVisible();
+  await expect(main(page).getByText("Completado").first()).toBeVisible();
+  await expect(main(page).getByText("En preparación")).toBeVisible();
+  await expect(main(page).getByText("En espera")).toBeVisible();
   await expectNoSeriousA11yViolations(page);
 });
 
@@ -79,7 +86,7 @@ test("pedido ya calificado: enseña la calificación y no la vuelve a pedir", as
 }) => {
   await page.goto("/account/orders/12");
 
-  await expect(page.getByText("Muy buena compra.")).toBeVisible();
+  await expect(main(page).getByText("Muy buena compra.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Calificar pedido" })).toHaveCount(0);
   await expectNoSeriousA11yViolations(page);
 });
@@ -97,6 +104,6 @@ test("un pedido que no es del cliente enseña la página de «no encontrado»", 
   // Con la vista en streaming el estado HTTP ya salió como 200: se comprueba el contenido.
   await page.goto("/account/orders/99999");
 
-  await expect(page.getByText("La página que buscas no existe.")).toBeVisible();
+  await expect(main(page).getByText("La página que buscas no existe.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Calificar pedido" })).toHaveCount(0);
 });

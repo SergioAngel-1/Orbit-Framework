@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/pending-login";
 import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
 import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
+import { linkConsentReceipt } from "@/lib/analytics/consent-ledger";
 import { POST } from "./route";
 
 // ============================================================================
@@ -32,6 +33,9 @@ vi.mock("@/lib/woocommerce/cart-session", () => ({
 }));
 vi.mock("@/lib/checkout/guest-order-claim", () => ({
   claimGuestOrder: vi.fn(async () => "no_credential"),
+}));
+vi.mock("@/lib/analytics/consent-ledger", () => ({
+  linkConsentReceipt: vi.fn(async () => undefined),
 }));
 vi.mock("@/lib/redis/client", () => ({ getRedis: vi.fn() }));
 vi.mock("@/lib/auth/jwt", () => ({ getTokenMaxAgeSeconds: () => 300 }));
@@ -85,6 +89,7 @@ beforeEach(() => {
   vi.unstubAllGlobals();
   vi.mocked(syncAuthenticatedCart).mockClear();
   vi.mocked(claimGuestOrder).mockClear();
+  vi.mocked(linkConsentReceipt).mockClear();
   cookieSet.mockClear();
   redis = new FakeRedis();
   vi.mocked(getRedis).mockReturnValue(redis as never);
@@ -108,6 +113,7 @@ describe("verify-2fa: el id opaco", () => {
 
     expect(syncAuthenticatedCart).toHaveBeenCalledWith(AUTH);
     expect(claimGuestOrder).toHaveBeenCalledWith("7");
+    expect(linkConsentReceipt).toHaveBeenCalledWith(expect.any(Request), "7");
   });
 
   it("un código inválido no abre sesión: ni carrito ni pedido de invitado", async () => {
@@ -117,6 +123,7 @@ describe("verify-2fa: el id opaco", () => {
 
     expect(syncAuthenticatedCart).not.toHaveBeenCalled();
     expect(claimGuestOrder).not.toHaveBeenCalled();
+    expect(linkConsentReceipt).not.toHaveBeenCalled();
   });
 
   it("es de UN SOLO USO: tras verificar, el mismo id ya no vale", async () => {

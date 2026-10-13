@@ -14,6 +14,8 @@
 //  checkout (escritura) y el envío de la compra (lectura).
 // ============================================================================
 
+import { isConsentReceipt } from "./consent-record";
+
 export const ORDER_TRACKING_META = {
   consent: "_hwe_tracking_consent",
   fbp: "_hwe_fbp",
@@ -21,6 +23,13 @@ export const ORDER_TRACKING_META = {
   ip: "_hwe_client_ip",
   userAgent: "_hwe_client_user_agent",
   sourceUrl: "_hwe_event_source_url",
+  /**
+   * Comprobante del registro de consentimientos del dispositivo que compró
+   * (cookie `hwe_consent`, módulo `consent-log`): el envío lo usa para
+   * comprobar que la persona no RETIRÓ el consentimiento entre el checkout y la
+   * confirmación del pago.
+   */
+  consentReceipt: "_hwe_consent_receipt",
   /** Marca de «compra ya enviada por la Conversions API» (la pone el envío). */
   capiPurchaseSent: "_hwe_meta_capi_purchase_sent",
 } as const;
@@ -33,6 +42,7 @@ export interface OrderTrackingContext {
   ip?: string;
   userAgent?: string;
   sourceUrl?: string;
+  consentReceipt?: string;
 }
 
 type MetaEntry = { key: string; value: string };
@@ -72,6 +82,10 @@ export function orderTrackingMetaData(ctx: OrderTrackingContext): MetaEntry[] {
   add(ORDER_TRACKING_META.ip, ip === "unknown" ? undefined : ip);
   add(ORDER_TRACKING_META.userAgent, clean(ctx.userAgent));
   add(ORDER_TRACKING_META.sourceUrl, clean(ctx.sourceUrl));
+  add(
+    ORDER_TRACKING_META.consentReceipt,
+    isConsentReceipt(ctx.consentReceipt) ? ctx.consentReceipt : undefined,
+  );
   return entries;
 }
 
@@ -90,5 +104,6 @@ export function readOrderTracking(
     ip: get(ORDER_TRACKING_META.ip),
     userAgent: get(ORDER_TRACKING_META.userAgent),
     sourceUrl: get(ORDER_TRACKING_META.sourceUrl),
+    consentReceipt: get(ORDER_TRACKING_META.consentReceipt),
   };
 }

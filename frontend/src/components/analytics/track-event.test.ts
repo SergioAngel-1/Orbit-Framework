@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EcommerceParams } from "@/lib/analytics/ecommerce";
+import { CONSENT_GENERATION } from "@/lib/analytics/consent-storage";
 
 // La cola es estado de MÓDULO: cada test importa una copia limpia.
 async function load() {
@@ -30,7 +31,13 @@ const memoryStorage = {
 };
 
 function storeConsent(status: "accepted" | "declined") {
-  store["cookie-consent"] = status;
+  store["cookie-consent"] = JSON.stringify({
+    v: CONSENT_GENERATION,
+    status,
+    services: null,
+    receipt: null,
+    pending: [],
+  });
 }
 
 beforeEach(() => {

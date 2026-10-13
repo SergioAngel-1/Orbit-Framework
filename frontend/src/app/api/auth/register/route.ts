@@ -13,6 +13,7 @@ import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
 import { guardMutation } from "@/lib/api/guard";
 import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
 import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
+import { linkConsentReceipt } from "@/lib/analytics/consent-ledger";
 import { logger } from "@/lib/observability/logger";
 import type { RegisterResponse, LoginResponse } from "@/types/auth";
 import { authEmailLocale, authEmailUrl } from "@/lib/auth/email-links";
@@ -188,6 +189,9 @@ export async function POST(request: Request) {
     // vacío: lo que importa aquí es ligar el pedido que acaba de hacer.
     await syncAuthenticatedCart(authToken);
     await claimGuestOrder(user.databaseId);
+    // Liga el comprobante de consentimiento de este dispositivo a la cuenta
+    // (módulo `consent-log`; en `after()`, no retrasa la respuesta).
+    await linkConsentReceipt(request, user.databaseId);
 
     return NextResponse.json({ user }, { status: 201 });
   } catch {

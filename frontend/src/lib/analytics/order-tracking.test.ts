@@ -79,6 +79,18 @@ describe("readOrderTracking", () => {
     });
   });
 
+  it("guarda y lee el comprobante del dispositivo, solo si es un comprobante", () => {
+    const receipt = "3f2b8c1e-9a4d-4c7e-8b1a-2d3e4f5a6b7c";
+    const meta = orderTrackingMetaData({ consent: true, consentReceipt: receipt });
+    expect(readOrderTracking(meta).consentReceipt).toBe(receipt);
+    expect(orderTrackingMetaData({ consent: true, consentReceipt: "basura" })).toEqual([
+      { key: ORDER_TRACKING_META.consent, value: "accepted" },
+    ]);
+    expect(orderTrackingMetaData({ consent: false, consentReceipt: receipt })).toEqual([
+      { key: ORDER_TRACKING_META.consent, value: "declined" },
+    ]);
+  });
+
   it("un pedido sin constancia (anterior a esto) cuenta como sin consentimiento", () => {
     expect(readOrderTracking([]).consent).toBe(false);
     expect(readOrderTracking(undefined).consent).toBe(false);

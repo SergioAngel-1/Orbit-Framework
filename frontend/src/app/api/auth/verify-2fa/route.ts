@@ -5,6 +5,7 @@ import { twoFactorCodeSchema } from "@/lib/validation/auth";
 import { guardMutation } from "@/lib/api/guard";
 import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
 import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
+import { linkConsentReceipt } from "@/lib/analytics/consent-ledger";
 import {
   AUTH_COOKIE,
   REFRESH_COOKIE,
@@ -196,6 +197,9 @@ export async function POST(request: Request) {
     // Ver `login`: carrito de la cuenta y pedido de invitado, antes de responder.
     await syncAuthenticatedCart(session.authToken);
     await claimGuestOrder(ephemeral.userId);
+    // Liga el comprobante de consentimiento de este dispositivo a la cuenta
+    // (módulo `consent-log`; en `after()`, no retrasa la respuesta).
+    await linkConsentReceipt(request, ephemeral.userId);
 
     logger.info({ event: "2fa.verify_login.success", userId: ephemeral.userId });
     return NextResponse.json({ ok: true }, { status: 200 });

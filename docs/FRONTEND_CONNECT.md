@@ -208,7 +208,13 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   única: scripts, banner y qué dice.
 - **Consentimiento:** ningún script carga sin «Aceptar» (`localStorage`, clave `cookie-consent`).
   Retirarlo borra las cookies de seguimiento y recarga. Los eventos se retienen (hasta 20) solo
-  en el hueco de hidratación y solo con un «Aceptar» guardado; si no, se descartan.
+  en el hueco de hidratación y solo con un «Aceptar» guardado; si no, se descartan. El valor es
+  JSON (`lib/analytics/consent-storage.ts`): decisión, **generación** (`CONSENT_GENERATION`,
+  subirla repregunta a todos), **alcance** (los servicios que el banner nombraba: uno nuevo en el
+  panel repregunta solo) y, con el módulo `consent-log`, el comprobante y la cola de decisiones
+  sin registrar. «Preferencias de cookies» (pie de página) permite cambiarla.
+- **Registro y medición del consentimiento (módulo `consent-log`):** ver § «Consentimiento» más
+  abajo. Sin el módulo, el banner funciona igual con el consentimiento local y no encola nada.
 - **Eventos** (forma de GA4: `currency`, `value`, `items[]`, `transaction_id`): `view_item`,
   `add_to_cart` (lo añadido, leído del carrito del servidor), `begin_checkout`, `purchase`. Se
   traducen a cada proveedor (Meta: `ViewContent`/`AddToCart`/`InitiateCheckout`/`Purchase`;
@@ -226,6 +232,26 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   llegar al CRM (contacto); un test lo impone.
 - **CSP:** `CSP_ANALYTICS_PROVIDERS` (lista o `none`) estrecha los hosts autorizados; por defecto
   están todos los que el framework sabe cargar.
+
+### Consentimiento: registro y medición (módulo `consent-log`)
+
+Solo existe con el módulo `consent-log` activo (plugin `hwe-consent-log`); apagado, las dos rutas
+responden **404** y el banner no encola ni guarda comprobante.
+
+| Ruta | Quién | Qué hace |
+|---|---|---|
+| `POST /api/consent` | navegador | Registra una decisión como **prueba** y responde `{ receipt }`; fija la cookie httpOnly `hwe_consent` (UUID del dispositivo, 400 días, `SameSite=Lax`). Cuerpo: `decision` (`accepted`/`declined`), `action` (`first`/`change`), `variant` (`bar`/`modal`), `locale`, `path`, `clientAt`, `services`, `generation`. El usuario, la IP (truncada /24 · /48), el user-agent y el texto que se enseñó los pone **el servidor**, nunca el cuerpo. Sin CSRF (el visitante de primera visita no tiene token): lo acotan Origin y un rate-limit por IP. 409 si no hay servicios que consentir; 503 si WordPress no lo guardó (el navegador conserva la decisión en cola y la reenvía). |
+| `POST /api/consent-stats` | navegador | +1 en el contador anónimo de la hora (`shown`/`accepted`/`declined`, por variante). Sin IP, cookie ni identificador; Redis del BFF. Responde 204 también sin Redis. |
+| `GET /api/consent-stats?days=&tz=` | WordPress | Informe por día local. Solo con `X-HWE-Internal-Secret`. |
+
+- WordPress guarda la decisión en `hwe/v1/consent/record|latest|link` (solo BFF, por `wpFetch`).
+  El BFF **vincula** el comprobante a la cuenta tras `login`, `register` y `verify-2fa`, y mete el
+  comprobante en el pedido (`_hwe_consent_receipt`) para que la Conversions API consulte la
+  decisión **vigente** antes de enviar la compra.
+- La purga (años desde la última decisión de cada comprobante) se configura en Control Center →
+  Integraciones → «Conservar el registro de consentimientos».
+- Una instancia con su propio banner debe llamar a estas rutas con la misma forma; el hueco de
+  hidratación y la cola los resuelve `lib/analytics/consent-sync.ts`.
 
 ## A.3 Config pública dinámica: `GET /wp-json/hwe/v1/config`
 

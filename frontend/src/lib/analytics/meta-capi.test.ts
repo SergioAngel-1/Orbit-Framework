@@ -4,9 +4,13 @@ import type { WooOrder } from "@/types/woocommerce";
 const getSiteConfigMock = vi.fn();
 const wcFetchMock = vi.fn();
 const getMetaCapiCredentialsMock = vi.fn();
+const latestConsentDecisionMock = vi.fn();
 
 vi.mock("@/lib/config", () => ({ getSiteConfig: getSiteConfigMock }));
 vi.mock("@/lib/woocommerce/client", () => ({ wcFetch: wcFetchMock }));
+vi.mock("./consent-ledger", () => ({
+  latestConsentDecision: latestConsentDecisionMock,
+}));
 vi.mock("./meta-capi-credentials", () => ({
   getMetaCapiCredentials: getMetaCapiCredentialsMock,
 }));
@@ -295,5 +299,48 @@ describe("sendPurchaseToMeta", () => {
     fetchMock.mockRejectedValue(new Error("ECONNRESET"));
 
     await expect(sendPurchaseToMeta(order())).resolves.toBe("failed");
+  });
+
+  describe("con el comprobante del dispositivo en el pedido", () => {
+    const RECEIPT = "3f2b8c1e-9a4d-4c7e-8b1a-2d3e4f5a6b7c";
+    const withReceipt = () => {
+      const o = order();
+      o.meta_data = [...o.meta_data!, { key: "_hwe_consent_receipt", value: RECEIPT }];
+      return o;
+    };
+
+    it("si sigue aceptado en el registro, envía", async () => {
+      latestConsentDecisionMock.mockResolvedValue({
+        status: "found",
+        decision: "accepted",
+      });
+
+      expect(await sendPurchaseToMeta(withReceipt())).toBe("sent");
+      expect(latestConsentDecisionMock).toHaveBeenCalledWith(RECEIPT);
+    });
+
+    it("si lo retiró tras el checkout, no envía", async () => {
+      latestConsentDecisionMock.mockResolvedValue({
+        status: "found",
+        decision: "declined",
+      });
+
+      expect(await sendPurchaseToMeta(withReceipt())).toBe("no_consent");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("si no se puede comprobar, no envía ni marca el pedido: la prueba no se supone", async () => {
+      latestConsentDecisionMock.mockResolvedValue({ status: "unavailable" });
+
+      expect(await sendPurchaseToMeta(withReceipt())).toBe("failed");
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(wcFetchMock).not.toHaveBeenCalled();
+    });
+
+    it("sin comprobante en el pedido no consulta el registro", async () => {
+      await sendPurchaseToMeta(order());
+
+      expect(latestConsentDecisionMock).not.toHaveBeenCalled();
+    });
   });
 });

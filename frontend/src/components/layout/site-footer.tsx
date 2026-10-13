@@ -1,5 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { CookiePreferencesButton } from "@/components/analytics/cookie-preferences-button";
 import { getSiteConfig } from "@/lib/config";
 import { getMenu } from "@/lib/navigation/menu";
 import type { MenuLink } from "@/lib/navigation/types";
@@ -194,6 +195,9 @@ export async function SiteFooter({ columns }: SiteFooterProps = {}) {
           >
             {tNav("returns")}
           </Link>
+          {/* Retirar el consentimiento tiene que ser tan fácil como darlo: solo
+              aparece si hay servicios que consentir (Integraciones). */}
+          <CookiePreferencesButton className="text-[12px] text-white/60 hover:text-white" />
         </nav>
 
         <div className="flex flex-col items-center justify-between gap-3 md:flex-row">

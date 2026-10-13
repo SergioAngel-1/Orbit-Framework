@@ -11,18 +11,32 @@ import {
   type ReactNode,
 } from "react";
 import Script from "next/script";
-import { ConsentBanner } from "./consent-banner";
+import { useLocale } from "next-intl";
+import { CONSENT_BANNER_VARIANT, ConsentBanner } from "./consent-banner";
 import { Ga4PageViews } from "./ga4-page-views";
 import { HubSpotPageViews } from "./hubspot-page-views";
 import { MetaPixelPageViews } from "./meta-pixel-page-views";
 import { setTrackingReady } from "./track-event";
-import { readStoredConsent, storeConsent } from "@/lib/analytics/consent-storage";
 import { clearTrackingCookies } from "@/lib/analytics/tracking-cookies";
+import { reportConsentEvent } from "@/lib/analytics/consent-report";
+import {
+  CONSENT_GENERATION,
+  adoptLegacyScope,
+  discardObsoleteConsent,
+  effectiveConsent,
+  hasNewerConsent,
+  readStoredConsent as readConsentRecord,
+  storeDecision,
+} from "@/lib/analytics/consent-storage";
+import { syncPendingConsent } from "@/lib/analytics/consent-sync";
+import type { ConsentClientAction } from "@/lib/analytics/consent-record";
 import {
   consentMessageArgs,
   resolveTrackingServices,
   sanitizeTrackingIds,
+  trackingServiceNames,
   type AnalyticsIntegrationsConfig,
+  type TrackingServiceName,
 } from "@/lib/analytics/services";
 
 type ConsentStatus = "unknown" | "accepted" | "declined";
@@ -179,21 +193,90 @@ function HubSpotScript({ portalId }: { portalId: string }) {
   );
 }
 
-// ── Consentimiento: almacén externo (localStorage) ──────────────────────────
+// ── Consentimiento de cookies: almacén externo (localStorage) ────────────────
+//
+// El formato y la cola de registros pendientes viven en `consent-storage.ts`;
+// el envío al registro de consentimientos (la PRUEBA de cada decisión), en
+// `consent-sync.ts`. Aquí solo se envuelve el acceso real, que puede lanzar.
 
 /** Aviso in-tab: `storage` solo lo reciben las OTRAS pestañas, no la que escribe. */
 const CONSENT_EVENT = "hwe:cookie-consent";
 
-function readConsent(): ConsentStatus {
+/**
+ * La decisión que vale para los servicios configurados HOY (`current`): un
+ * «Aceptar» que no nombraba alguno cuenta como «sin respuesta» (ver ALCANCE en
+ * `consent-storage.ts`). Lectura tolerante a fallos: en Safari con cookies
+ * bloqueadas el simple acceso a `localStorage` lanza.
+ */
+function readConsent(current: readonly TrackingServiceName[]): ConsentStatus {
   try {
-    return readStoredConsent(localStorage)?.status ?? "unknown";
+    return effectiveConsent(readConsentRecord(localStorage), current);
   } catch {
     return "unknown";
   }
 }
 
+/** Comprobante de la decisión vigente (null hasta que el servidor la registra). */
+function readConsentReceipt(): string | null {
+  try {
+    return readConsentRecord(localStorage)?.receipt ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Hay guardada una decisión de una generación MÁS NUEVA que la de este bundle:
+ * el documento es una copia vieja. No se pregunta ni se carga nada.
+ */
+function readNewerConsent(): boolean {
+  try {
+    return hasNewerConsent(localStorage);
+  } catch {
+    return false;
+  }
+}
+
 function notifyConsentChange(): void {
   window.dispatchEvent(new Event(CONSENT_EVENT));
+}
+
+/** Manda al registro lo pendiente (la decisión recién tomada o una que no llegó). */
+function syncConsentLedger(): void {
+  try {
+    void syncPendingConsent(localStorage, undefined, notifyConsentChange);
+  } catch {
+    /* sin almacenamiento no hay cola que enviar */
+  }
+}
+
+function writeConsent(
+  value: Exclude<ConsentStatus, "unknown">,
+  action: ConsentClientAction,
+  locale: string,
+  services: readonly TrackingServiceName[],
+  ledger: boolean,
+): void {
+  try {
+    storeDecision(
+      localStorage,
+      {
+        decision: value,
+        action,
+        path: window.location.pathname,
+        variant: CONSENT_BANNER_VARIANT,
+        locale,
+        clientAt: new Date().toISOString(),
+        services: [...services],
+        generation: CONSENT_GENERATION,
+      },
+      { enqueue: ledger },
+    );
+  } catch {
+    /* sin almacenamiento: la decisión vale para esta vista y se repreguntará */
+  }
+  notifyConsentChange();
+  if (ledger) syncConsentLedger();
 }
 
 function subscribeConsent(onStoreChange: () => void): () => void {
@@ -205,53 +288,109 @@ function subscribeConsent(onStoreChange: () => void): () => void {
   };
 }
 
-function writeConsent(value: Exclude<ConsentStatus, "unknown">): void {
-  try {
-    storeConsent(localStorage, value);
-  } catch {
-    /* sin almacenamiento: la decisión vale para esta vista y se repreguntará */
-  }
-  notifyConsentChange();
-}
-
 export function AnalyticsProvider({
   children,
   config,
   plausibleHost = "https://plausible.io",
+  ledger = false,
 }: {
   children: ReactNode;
   config: AnalyticsIntegrationsConfig;
   /** Origen del script de Plausible (por defecto el servicio alojado). */
   plausibleHost?: string;
+  /**
+   * El módulo `consent-log` está activo: cada decisión se registra en WordPress
+   * como prueba y se mide la respuesta al banner. Apagado, el consentimiento es
+   * solo local y no se envía nada.
+   */
+  ledger?: boolean;
 }) {
   // Solo los IDs validados llegan a los scripts inline (ver `sanitizeTrackingIds`).
   const ids = useMemo(() => sanitizeTrackingIds(config), [config]);
   const services = useMemo(() => resolveTrackingServices(ids), [ids]);
+  // Lo que el banner nombra y lo que un «Aceptar» tiene que cubrir. La clave
+  // en texto mantiene estable el lector de abajo mientras no cambie la lista.
+  const serviceKey = trackingServiceNames(services).join(",");
+  const serviceNames = useMemo(
+    () => (serviceKey ? (serviceKey.split(",") as TrackingServiceName[]) : []),
+    [serviceKey],
+  );
+  const readCurrentConsent = useCallback(
+    () => readConsent(serviceNames),
+    [serviceNames],
+  );
 
   // El consentimiento NO es estado de React: vive en `localStorage`, que es un
   // sistema externo. `useSyncExternalStore` lo lee donde está en vez de copiarlo
   // a un `useState` desde un efecto de montaje; escuchar `storage` sincroniza la
-  // decisión entre pestañas.
+  // decisión entre pestañas: aceptar en una retira el banner de las demás.
   const consent = useSyncExternalStore(
     subscribeConsent,
-    readConsent,
+    readCurrentConsent,
     () => "unknown" as ConsentStatus,
+  );
+  const receipt = useSyncExternalStore(
+    subscribeConsent,
+    readConsentReceipt,
+    () => null,
+  );
+  const newerStored = useSyncExternalStore(
+    subscribeConsent,
+    readNewerConsent,
+    () => false,
   );
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
+  const locale = useLocale();
   const [preferencesOpen, setPreferencesOpen] = useState(false);
 
+  // Una decisión de una generación anterior (`CONSENT_GENERATION`) ya no vale:
+  // la lectura la trata como «sin respuesta» y el banner vuelve a preguntar.
+  // Aquí se retira del almacén y, con ella, las cookies de seguimiento que
+  // dejaron los scripts que autorizaba.
+  useEffect(() => {
+    try {
+      if (discardObsoleteConsent(localStorage)) clearTrackingCookies();
+    } catch {
+      /* sin almacenamiento no hay nada guardado que retirar */
+    }
+  }, []);
+
+  // Una decisión anterior al campo `services` adopta lo configurado hoy, que es
+  // lo que nombraba su banner (ver ALCANCE en `consent-storage.ts`).
+  useEffect(() => {
+    try {
+      if (adoptLegacyScope(localStorage, serviceNames)) notifyConsentChange();
+    } catch {
+      /* sin almacenamiento no hay decisión que actualizar */
+    }
+  }, [serviceNames]);
+
+  // Una decisión que no llegó al registro (red caída, WordPress sin responder)
+  // se reenvía al cargar cualquier página.
+  useEffect(() => {
+    if (mounted && ledger) syncConsentLedger();
+  }, [mounted, ledger]);
+
+  // La medición cuenta la respuesta a la PRIMERA pregunta: cambiar de opinión
+  // desde «Preferencias de cookies» no suma (ver `consent-stats.ts`). El
+  // registro de consentimientos, en cambio, guarda TODAS: la retirada es justo
+  // lo que más importa poder demostrar.
   const accept = useCallback(() => {
     setPreferencesOpen(false);
-    writeConsent("accepted");
-  }, []);
+    const first = readCurrentConsent() === "unknown";
+    if (first && ledger) reportConsentEvent("accepted", CONSENT_BANNER_VARIANT);
+    writeConsent("accepted", first ? "first" : "change", locale, serviceNames, ledger);
+  }, [ledger, locale, readCurrentConsent, serviceNames]);
   const decline = useCallback(() => {
     setPreferencesOpen(false);
-    writeConsent("declined");
-  }, []);
+    const first = readCurrentConsent() === "unknown";
+    if (first && ledger) reportConsentEvent("declined", CONSENT_BANNER_VARIANT);
+    writeConsent("declined", first ? "first" : "change", locale, serviceNames, ledger);
+  }, [ledger, locale, readCurrentConsent, serviceNames]);
   const openPreferences = useCallback(() => setPreferencesOpen(true), []);
   const closePreferences = useCallback(() => setPreferencesOpen(false), []);
 
@@ -259,7 +398,12 @@ export function AnalyticsProvider({
   // scripts y se recarga, porque un script ya ejecutado no se descarga (seguiría
   // midiendo la sesión en curso aunque su <Script> se desmonte). Es un efecto
   // sobre la TRANSICIÓN para cubrir también la retirada hecha en OTRA pestaña.
-  // Toda llegada a «Solo necesarias» borra además las cookies, recargue o no.
+  // El registro de la retirada ya salió con `keepalive`; si la recarga le gana,
+  // sigue en la cola y se reenvía (WordPress descarta el duplicado).
+  //
+  // Toda llegada a «Solo necesarias» borra además las cookies, recargue o no:
+  // quien rechaza al repreguntarle por un servicio nuevo pudo tener el
+  // «Aceptar» anterior, y lo que dejaron aquellos scripts ya no lo cubre nada.
   const previousConsent = useRef(consent);
   useEffect(() => {
     const was = previousConsent.current;
@@ -273,11 +417,19 @@ export function AnalyticsProvider({
     [consent, accept, decline, openPreferences, services.any],
   );
 
+  const askingFirstTime =
+    mounted && services.any && consent === "unknown" && !newerStored;
+  useEffect(() => {
+    if (askingFirstTime && ledger) reportConsentEvent("shown", CONSENT_BANNER_VARIANT);
+  }, [askingFirstTime, ledger]);
+
   // Abre (o cierra) la cola de `trackEvent` cuando el consentimiento ya está
   // resuelto. En el render de hidratación vale «sin respuesta» aunque haya un
   // «Aceptar» guardado: ahí no se toca, o se vaciaría lo que la página disparó
-  // al hidratar. Con aceptación, este efecto corre DESPUÉS de los de los
-  // `<Script>` de abajo, que inyectan los inline en su propio efecto.
+  // al hidratar. Ya montado, sí: también con «sin respuesta», que descarta lo
+  // retenido (un «Aceptar» guardado que no cubre un servicio nuevo). Con
+  // aceptación, este efecto corre DESPUÉS de los de los `<Script>` de abajo,
+  // que inyectan los inline en su propio efecto.
   const trackersReady = consent === "accepted" && services.any;
   useEffect(() => {
     if (!mounted) return;
@@ -285,8 +437,7 @@ export function AnalyticsProvider({
   }, [mounted, trackersReady]);
 
   const accepted = consent === "accepted";
-  const askingFirstTime = mounted && services.any && consent === "unknown";
-  const showPreferences = mounted && services.any && preferencesOpen;
+  const showPreferences = mounted && services.any && preferencesOpen && !newerStored;
 
   return (
     <ConsentContext.Provider value={consentValue}>
@@ -320,6 +471,7 @@ export function AnalyticsProvider({
       {(askingFirstTime || showPreferences) && (
         <ConsentBanner
           message={consentMessageArgs(services)}
+          receipt={preferencesOpen ? receipt : null}
           onAccept={accept}
           onDecline={decline}
           onClose={askingFirstTime ? undefined : closePreferences}

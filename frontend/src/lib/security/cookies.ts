@@ -82,3 +82,12 @@ export function csrfCookieOptions(maxAgeSeconds: number): CookieOptions {
 export function expiredCookieOptions(path = "/"): CookieOptions {
   return { ...baseOptions(), path, maxAge: 0 };
 }
+
+/**
+ * Cookie httpOnly con el COMPROBANTE del registro de consentimientos del
+ * dispositivo (`hwe_consent`). `SameSite=Lax` basta: solo la lee el BFF, en las
+ * peticiones del propio sitio.
+ */
+export function consentReceiptCookieOptions(maxAgeSeconds: number): CookieOptions {
+  return { ...baseOptions(), maxAge: maxAgeSeconds };
+}

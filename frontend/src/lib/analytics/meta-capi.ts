@@ -7,6 +7,7 @@ import { logger } from "@/lib/observability/logger";
 import { routing } from "@/i18n/routing";
 import type { WooOrder } from "@/types/woocommerce";
 import { metaEvent, purchaseParams } from "./ecommerce";
+import { latestConsentDecision } from "./consent-ledger";
 import { getMetaCapiCredentials } from "./meta-capi-credentials";
 import {
   ORDER_TRACKING_META,
@@ -25,9 +26,10 @@ import { sanitizeTrackingIds } from "./services";
 //    (`metaEvent` sobre `purchaseParams`) y el mismo `event_id`
 //    (`purchase_<pedido>`), que es lo que hace que Meta la cuente una vez.
 //  - Solo con consentimiento: lo que el pedido guardó al crearse
-//    (`order-tracking.ts`). Sin constancia de «Aceptar», no se envía. (Con el
-//    módulo `consent-log`, la última decisión del registro manda además: una
-//    retirada tras el checkout también lo impide.)
+//    (`order-tracking.ts`). Sin constancia de «Aceptar», no se envía. Y si el
+//    pedido trae el comprobante del dispositivo (módulo `consent-log`), la
+//    última decisión del registro manda: una retirada tras el checkout también
+//    lo impide.
 //  - Una vez por pedido: al enviarse se marca el pedido
 //    (`_hwe_meta_capi_purchase_sent`). Si esa marca fallara, Meta deduplica
 //    igual por `event_id` durante 48 h.
@@ -181,6 +183,30 @@ export async function sendPurchaseToMeta(order: WooOrder): Promise<PurchaseSendR
     ]);
     const pixelId = sanitizeTrackingIds(config.integrations).meta_pixel_id;
     if (!pixelId || !credentials.accessToken) return "not_configured";
+
+    // El «Aceptar» del pedido es el del momento del checkout. Con un pago en
+    // línea la confirmación llega minutos u horas después, y entre medias la
+    // persona pudo retirarlo en ese dispositivo: manda la última decisión del
+    // registro. Si no se puede comprobar, no se envía (es la prueba de un
+    // consentimiento, no un dato que se pueda suponer). Pedidos sin comprobante
+    // (anteriores al campo, sin cookie o sin el módulo) siguen con el del pedido.
+    if (tracking.consentReceipt) {
+      const latest = await latestConsentDecision(tracking.consentReceipt);
+      if (latest.status === "unavailable") {
+        logger.warn(
+          { event: "analytics.meta_capi.consent_unverifiable", ...log },
+          "No se pudo comprobar el consentimiento vigente: la compra no se envía a Meta",
+        );
+        return "failed";
+      }
+      if (latest.status === "found" && latest.decision === "declined") {
+        logger.info(
+          { event: "analytics.meta_capi.consent_revoked", ...log },
+          "El comprador retiró el consentimiento tras el checkout: no se envía a Meta",
+        );
+        return "no_consent";
+      }
+    }
 
     // Pedidos creados antes de guardar el contexto: la «gracias» en el idioma
     // por defecto.

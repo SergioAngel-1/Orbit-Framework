@@ -331,6 +331,18 @@ describe("contexto de medición del pedido", () => {
     });
   });
 
+  it("guarda el comprobante de consentimiento del dispositivo, y solo con «Aceptar»", async () => {
+    const receipt = "3f2b8c1e-9a4d-4c7e-8b1a-2d3e4f5a6b7c";
+    cookieJar.set("hwe_consent", receipt);
+
+    await POST(checkout("hwe_offline", { tracking: { consent: true, locale: "es" } }));
+    expect(trackingMeta()).toMatchObject({ _hwe_consent_receipt: receipt });
+
+    vi.mocked(wcFetch).mockClear();
+    await POST(checkout("hwe_offline", { tracking: { consent: false, locale: "es" } }));
+    expect(trackingMeta()).toEqual({ _hwe_tracking_consent: "declined" });
+  });
+
   it("sin consentimiento, solo constancia de que no se aceptó: ni cookies ni IP", async () => {
     cookieJar.set("_fbp", "fb.1.1727440000000.1234567890");
 

@@ -18,6 +18,8 @@
 //  Aun así NO debe importarse desde un componente de cliente (lo vigila la guarda).
 // ============================================================================
 
+import { timingSafeEqual } from "node:crypto";
+
 export const INTERNAL_SECRET_HEADER = "X-HWE-Internal-Secret";
 
 /**
@@ -28,4 +30,19 @@ export const INTERNAL_SECRET_HEADER = "X-HWE-Internal-Secret";
 export function internalSecretHeaders(): Record<string, string> {
   const secret = process.env.HWE_REVALIDATION_SECRET?.trim();
   return secret ? { [INTERNAL_SECRET_HEADER]: secret } : {};
+}
+
+/**
+ * ¿La petición entrante trae el secreto interno? Es la autenticación de las rutas
+ * del BFF que SOLO debe llamar WordPress (p. ej. el informe de
+ * `/api/consent-stats`). Comparación en tiempo constante; sin secreto
+ * configurado, siempre `false` (falla cerrado).
+ */
+export function hasValidInternalSecret(request: Request): boolean {
+  const expected = process.env.HWE_REVALIDATION_SECRET?.trim();
+  const received = request.headers.get(INTERNAL_SECRET_HEADER)?.trim();
+  if (!expected || !received) return false;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(received);
+  return a.length === b.length && timingSafeEqual(a, b);
 }

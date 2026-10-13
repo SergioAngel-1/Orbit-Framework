@@ -366,7 +366,11 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   `cart-context`, `begin_checkout` en el checkout, `purchase` en `checkout/return`). La compra
   también sale desde el servidor (`sendPurchaseToMeta`, tras el webhook verificado) con el
   contexto que el checkout guardó en el pedido. Hosts de la CSP: `csp-analytics.mjs`
-  (`CSP_ANALYTICS_PROVIDERS` los estrecha).
+  (`CSP_ANALYTICS_PROVIDERS` los estrecha). La decisión vive en `localStorage["cookie-consent"]`
+  (JSON: generación + alcance de servicios + comprobante + cola, `consent-storage.ts`). Con el
+  módulo `consent-log`, cada decisión se registra como prueba (`/api/consent` →
+  `consent-ledger.ts` → plugin `hwe-consent-log`, cookie `hwe_consent`) y la respuesta al banner
+  se mide en Redis sin identificar a nadie (`/api/consent-stats`).
 
 ### 6.8 Pagos (Fase 7 — capa de pasarelas agnóstica)
 - **Contrato e implementación** en `lib/payments/`: `types.ts` (`PaymentProvider`,

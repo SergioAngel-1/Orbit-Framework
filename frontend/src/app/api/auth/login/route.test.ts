@@ -6,6 +6,7 @@ import { fetchGraphQL } from "@/lib/graphql-client";
 import { getPendingLogin } from "@/lib/auth/pending-login";
 import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
 import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
+import { linkConsentReceipt } from "@/lib/analytics/consent-ledger";
 import { POST } from "./route";
 
 // ============================================================================
@@ -29,6 +30,9 @@ vi.mock("@/lib/woocommerce/cart-session", () => ({
 }));
 vi.mock("@/lib/checkout/guest-order-claim", () => ({
   claimGuestOrder: vi.fn(async () => "no_credential"),
+}));
+vi.mock("@/lib/analytics/consent-ledger", () => ({
+  linkConsentReceipt: vi.fn(async () => undefined),
 }));
 vi.mock("@/lib/graphql-client", () => ({ fetchGraphQL: vi.fn() }));
 vi.mock("@/lib/redis/client", () => ({ getRedis: vi.fn() }));
@@ -69,6 +73,7 @@ beforeEach(() => {
   vi.unstubAllGlobals();
   vi.mocked(syncAuthenticatedCart).mockClear();
   vi.mocked(claimGuestOrder).mockClear();
+  vi.mocked(linkConsentReceipt).mockClear();
   cookieSet.mockClear();
   redis = new FakeRedis();
   vi.mocked(getRedis).mockReturnValue(redis as never);
@@ -170,6 +175,17 @@ describe("login sin 2FA", () => {
 
     expect(syncAuthenticatedCart).toHaveBeenCalledWith(AUTH);
     expect(claimGuestOrder).toHaveBeenCalledWith(7);
+  });
+
+  it("liga el comprobante de consentimiento del dispositivo a la cuenta, y solo con sesión abierta", async () => {
+    stubTwoFactorStatus(false);
+    await POST(loginRequest());
+    expect(linkConsentReceipt).toHaveBeenCalledWith(expect.any(Request), 7);
+
+    vi.mocked(linkConsentReceipt).mockClear();
+    stubTwoFactorStatus(true);
+    await POST(loginRequest());
+    expect(linkConsentReceipt).not.toHaveBeenCalled();
   });
 
   it("con 2FA pendiente aún no hay sesión: ni carrito de la cuenta ni pedido de invitado", async () => {

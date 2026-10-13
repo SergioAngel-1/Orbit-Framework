@@ -8,6 +8,9 @@ import { POST } from "./route";
 //  POST /api/auth/register con teléfono (`auth.phone_login_enabled`).
 // ============================================================================
 
+vi.mock("@/lib/analytics/consent-ledger", () => ({
+  linkConsentReceipt: vi.fn(async () => undefined),
+}));
 vi.mock("next/headers", () => ({ cookies: async () => ({ set: vi.fn() }) }));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
 vi.mock("@/lib/graphql-client", () => ({ fetchGraphQL: vi.fn() }));

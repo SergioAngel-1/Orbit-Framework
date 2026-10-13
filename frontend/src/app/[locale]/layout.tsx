@@ -13,6 +13,7 @@ import { ThemeTokens } from "@/components/ui/theme-tokens";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { getSiteConfig } from "@/lib/config";
+import { isModuleEnabled } from "@/lib/config/modules";
 import { CurrencyProvider } from "@/components/ui/currency-context";
 import { getMenu } from "@/lib/navigation/menu";
 import { buildSiteGraph } from "@/lib/seo/jsonld";
@@ -133,6 +134,7 @@ export default async function LocaleLayout({
           <AnalyticsProvider
             config={config.integrations}
             plausibleHost={process.env.PLAUSIBLE_HOST || undefined}
+            ledger={isModuleEnabled(config, "consent-log")}
           >
             <CurrencyProvider
               currency={config.ecommerce.currency || "EUR"}

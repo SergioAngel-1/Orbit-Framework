@@ -469,6 +469,28 @@ git fetch framework --tags
   redirecciones de las acciones del panel se quedan en el host del panel. La prueba de SMTP
   vuelve a `admin.php?page=hwe-config`. Los fallos de envío se registran como `[hwe] smtp:`.
 
+- **Nuevo módulo `consent-log`** (plugin regular `hwe-consent-log`, con `README.md` y
+  `MANUAL.md`): registro de cada decisión del banner como prueba (tabla `wp_hwe_consent_log`,
+  IP truncada, texto enseñado por hash, versión de la política), medición anónima de la respuesta
+  al banner (Redis del BFF), historial en el perfil del usuario, exportador y eliminador de datos
+  personales de WordPress y purga por años (Control Center → Integraciones). Pantalla: Ajustes →
+  «Consentimientos de cookies». Rutas del BFF: `POST /api/consent`, `/api/consent-stats` (ver
+  `FRONTEND_CONNECT.md`); apagado, ambas responden 404.
+- **El valor de `localStorage["cookie-consent"]` pasa de cadena a JSON** y sube la generación a 2:
+  **todos los visitantes verán el banner otra vez** al actualizar (la cadena suelta de la v1 se
+  descarta, no se migra: no había comprobante ni alcance que conservar). Una instancia con su
+  propio banner debe leer/escribir con `consent-storage.ts`, no con la cadena.
+- **«Aceptar» cubre los servicios que el banner nombraba.** Añadir un servicio en Control Center
+  repregunta sin subir la generación; quitar uno no.
+- **`hasValidInternalSecret`** (`lib/security/internal-secret.ts`): comparación en tiempo
+  constante del `X-HWE-Internal-Secret` para las rutas del BFF que solo atiende WordPress
+  (`/api/consent-stats` GET). Quien comparaba el secreto a mano debe usarla.
+- **Nueva cookie `hwe_consent`** (httpOnly, 400 días): el comprobante del dispositivo. Solo con el
+  módulo; entra en la política de cookies de la instancia como cookie técnica de prueba.
+- **Riesgo residual documentado:** el comprobante se vincula a la cuenta al iniciar sesión; en un
+  dispositivo compartido, un comprobante ya ligado a otra cuenta **no** se reasigna (queda en la
+  primera), de modo que las decisiones de una persona no se atribuyen a otra.
+
 ### Operación (F1)
 
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor
