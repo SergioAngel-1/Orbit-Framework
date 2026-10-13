@@ -63,11 +63,25 @@ services:
         define( 'HWE_BACKUPS_DIR', '/var/www/hwe-backups' );
         define( 'WP_REDIS_HOST', 'redis' );
         define( 'WP_REDIS_PORT', 6379 );
+        // Prefijo + flush SELECTIVO: Redis es COMPARTIDO con el frontend (ISR,
+        // tokens revocados, rate-limit, idempotencia, 2FA). Sin esto, «Flush cache»
+        // de Redis Object Cache y `wp cache flush` hacen FLUSHDB y se llevan por
+        // delante todo eso — incluidas las listas de revocación (un token revocado
+        // volvería a valer). Con él solo borran las claves `hwe-wp:*`.
+        define( 'WP_REDIS_PREFIX', 'hwe-wp:' );
+        define( 'WP_REDIS_SELECTIVE_FLUSH', true );
         define( 'WP_CACHE', true );
         define( 'HWE_TRUSTED_PROXY_COUNT', ${TRUSTED_PROXY_COUNT:-1} );
         // Login del panel en /<slug> en vez de /wp-login.php (hwe-login-slug.php). Vacío = sin mover.
         define( 'HWE_LOGIN_SLUG', '${HWE_LOGIN_SLUG:-}' );
         if ( ! defined( 'WP_DEBUG_LOG' ) ) { define( 'WP_DEBUG_LOG', true ); }
+        // El siteurl (host:puerto publicado, p. ej. localhost:8080) no es alcanzable
+        // en loopback DESDE DENTRO del contenedor (Apache solo escucha :80 aquí): el
+        // spawn HTTP de WP-Cron y el dispatch asíncrono de Action Scheduler fallan
+        // con «connection refused» y las acciones se represan. El servicio `wp-cron`
+        // ejecuta los eventos en proceso por WP-CLI (sin loopback), así que el
+        // pseudo-cron por petición queda desactivado.
+        define( 'DISABLE_WP_CRON', true );
     healthcheck:
       # Endpoint ligero (categorías con 1 post) en lugar de /wp-json/ que devuelve >1MB con WooCommerce
       test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/wp-json/wp/v2/categories?per_page=1 || exit 1"]
@@ -87,6 +101,12 @@ services:
       # volumen, instalados por setup.sh vía WP-CLI).
       - ./backend/wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
       - ./backend/wp-content/themes/hwe-headless-base:/var/www/html/wp-content/themes/hwe-headless-base
+      # Plugins PROPIOS (módulos del framework): código versionado, montado desde el
+      # host como el tema. Los de terceros los instala setup.sh en el volumen.
+      - ./backend/wp-content/plugins/hwe-banners:/var/www/html/wp-content/plugins/hwe-banners
+      - ./backend/wp-content/plugins/hwe-site-reviews:/var/www/html/wp-content/plugins/hwe-site-reviews
+      - ./backend/wp-content/plugins/hwe-coupon-rules:/var/www/html/wp-content/plugins/hwe-coupon-rules
+      - ./backend/wp-content/plugins/hwe-consent-log:/var/www/html/wp-content/plugins/hwe-consent-log
       - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
       # Bridge de backups (ver HWE_BACKUPS_DIR arriba): fuera del docroot para
       # que nunca sea servible por HTTP. Mismo host path que el servicio
@@ -125,6 +145,12 @@ services:
       - wordpress_content:/var/www/html/wp-content
       - ./backend/wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
       - ./backend/wp-content/themes/hwe-headless-base:/var/www/html/wp-content/themes/hwe-headless-base
+      # Plugins PROPIOS (módulos del framework): código versionado, montado desde el
+      # host como el tema. Los de terceros los instala setup.sh en el volumen.
+      - ./backend/wp-content/plugins/hwe-banners:/var/www/html/wp-content/plugins/hwe-banners
+      - ./backend/wp-content/plugins/hwe-site-reviews:/var/www/html/wp-content/plugins/hwe-site-reviews
+      - ./backend/wp-content/plugins/hwe-coupon-rules:/var/www/html/wp-content/plugins/hwe-coupon-rules
+      - ./backend/wp-content/plugins/hwe-consent-log:/var/www/html/wp-content/plugins/hwe-consent-log
       - ./backend/scripts:/scripts:ro
       # Mismo bridge que `wordpress`: `wp hwe setup` escribe aquí
       # hwe-backup-config.json (ver HWE_BACKUPS_DIR en ese servicio).
@@ -138,6 +164,48 @@ services:
       - ./frontend/.env.local:/workspace/frontend/.env.local
     entrypoint: ["/bin/sh"]
     command: ["/scripts/setup.sh"]
+    networks:
+      - hwe_net
+
+  # --------------------------------------------------------------------------
+  # WP-Cron: ejecuta los eventos vencidos de WordPress y de los plugins (Action
+  # Scheduler de WooCommerce, avisos de copia de seguridad…) por WP-CLI cada
+  # minuto. Lee wp-config.php del volumen `wordpress_core`.
+  # --------------------------------------------------------------------------
+  wp-cron:
+    image: wordpress:cli-php8.4
+    container_name: hwe_wp_cron
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_healthy
+    user: "33:33" # www-data, mismo UID que el contenedor de WordPress
+    environment:
+      WORDPRESS_DB_HOST: "db:3306"
+      WORDPRESS_DB_USER: "${MYSQL_USER:-wordpress}"
+      WORDPRESS_DB_PASSWORD: "${MYSQL_PASSWORD:-wordpress}"
+      WORDPRESS_DB_NAME: "${MYSQL_DATABASE:-wordpress}"
+    volumes:
+      - wordpress_core:/var/www/html
+      - wordpress_content:/var/www/html/wp-content
+      - ./backend/wp-content/mu-plugins:/var/www/html/wp-content/mu-plugins
+      - ./backend/wp-content/themes/hwe-headless-base:/var/www/html/wp-content/themes/hwe-headless-base
+      - ./backend/wp-content/plugins/hwe-banners:/var/www/html/wp-content/plugins/hwe-banners
+      - ./backend/wp-content/plugins/hwe-site-reviews:/var/www/html/wp-content/plugins/hwe-site-reviews
+      - ./backend/wp-content/plugins/hwe-coupon-rules:/var/www/html/wp-content/plugins/hwe-coupon-rules
+      - ./backend/wp-content/plugins/hwe-consent-log:/var/www/html/wp-content/plugins/hwe-consent-log
+      # Mismo bridge que `wordpress`: el evento de notificación de copias lee
+      # hwe-backup-status.json de aquí.
+      - ./backups:/var/www/hwe-backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          wp cron event run --due-now --allow-root --quiet 2>&1 | sed 's/^/[wp-cron] /'
+          sleep 60
+        done
     networks:
       - hwe_net
 

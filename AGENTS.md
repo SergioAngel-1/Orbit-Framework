@@ -201,6 +201,13 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   → `generate-woo-keys.sh` (claves WC) → pegar en `.env` → `docker compose up -d frontend`.
 - **Producción**: `docker-compose.prod.yml` + `Caddyfile` (TLS, HTTP/3). Servicios con
   `security_opt: no-new-privileges`. GraphQL público restringido a POST/OPTIONS en Caddy.
+  Caddy sirve `/wp-content/*` desde disco (volumen del núcleo en solo lectura; los `.php` van a
+  Apache); `wp-cron` ejecuta los eventos programados por WP-CLI (`DISABLE_WP_CRON`); el
+  `Dockerfile` del frontend **congela** `WORDPRESS_PUBLIC_URL` (CSP + `remotePatterns`) y falla
+  pronto sin ella. WordPress y el BFF comparten Redis: WordPress usa prefijo + flush selectivo,
+  o un `wp cache flush` borraría las listas de revocación. Sitios opcionales de Caddy (panel en
+  `admin.<dominio>`): `caddy/README.md`. Tras desplegar: `backend/scripts/warm-cache.sh`. Un test
+  (`tests/unit/deploy-config.test.ts`) fija todo esto.
 - **Backups/restore**: `backend/scripts/backup.sh` (+ contenedor `backup` con cron) y
   `backend/scripts/restore.sh`. Procedimientos y simulacro en **`docs/RUNBOOK.md`**.
 - **Sondas**: liveness `GET /api/health/live`; readiness `GET /api/health?ready=1` (503 si

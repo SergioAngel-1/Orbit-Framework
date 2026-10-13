@@ -141,6 +141,10 @@ const nextConfig = withNextIntl({
   // copia solo el server.js + node_modules mínimos trazados. Inocuo en dev.
   output: "standalone",
 
+  // El build type-chequea el código de la app, no las pruebas (ver el propio
+  // archivo): `npm run type-check` las cubre con tsconfig.json.
+  typescript: { tsconfigPath: "tsconfig.build.json" },
+
   // Ritmo del prerender por variable de entorno: sin ellas, la config queda
   // como estaba (ver `scripts/static-generation-options.mjs`).
   experimental: staticGenerationOptions(process.env),

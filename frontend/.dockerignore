@@ -7,3 +7,13 @@ npm-debug.log*
 Dockerfile
 .dockerignore
 README.md
+# OJO: `tests` y los `*.test.ts` NO se excluyen. `tsconfig.json` incluye
+# `**/*.ts`, que abarca los tests colocados dentro de `src/`, y alguno importa
+# fixtures de `tests/`: excluyéndolos, el `next build` DENTRO de la imagen
+# fallaba con TS2307 mientras el build local pasaba — un fallo que solo existía
+# en producción. No llegan al runtime: el stage `prod` solo copia
+# `.next/standalone`, `.next/static` y `public`.
+coverage
+playwright-report
+test-results
+tsconfig.tsbuildinfo

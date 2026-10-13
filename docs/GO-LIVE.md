@@ -33,7 +33,8 @@
 
 ## 3. Despliegue
 
-- [ ] `docker build --target prod -t hwe-frontend:prod ./frontend`.
+- [ ] `docker compose -f docker-compose.prod.yml --env-file .env.prod build frontend` (pasa los build-args que el build congela; falla pronto sin `WORDPRESS_PUBLIC_URL`).
+- [ ] Tras el primer arranque y cada despliegue: `sh backend/scripts/warm-cache.sh https://<dominio>` (el CD ya lo hace).
 - [ ] Primer arranque: `docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm wpcli`.
 - [ ] Levantar: `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d`.
 - [ ] `WORDPRESS_DEBUG=0` y `WP_ENVIRONMENT_TYPE=production` (la introspección GraphQL se apaga).

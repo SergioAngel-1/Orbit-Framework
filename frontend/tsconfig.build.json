@@ -1,0 +1,12 @@
+{
+  "//": "Config que usa `next build` (next.config.mjs → typescript.tsconfigPath). Igual que tsconfig.json pero SIN las pruebas: algunas importan archivos de fuera de `frontend/` (p. ej. .github/scripts), que no existen en el contexto de Docker (`./frontend`), y type-chequearlas dentro de la imagen fallaba mientras el build local pasaba. Las pruebas se comprueban con `npm run type-check` (tsconfig.json), que corre en CI.",
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "tests",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "vitest.config.ts",
+    "playwright.config.ts"
+  ]
+}

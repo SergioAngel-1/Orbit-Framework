@@ -565,6 +565,46 @@ git fetch framework --tags
   `lib/youtube`, `lib/validation/{email,form}`, `lib/prerender-budget`,
   `scripts/static-generation-options.mjs`, `lib/wordpress/media`.
 
+### Infraestructura y CD (F4)
+
+- **El `Dockerfile` del frontend exige `--build-arg WORDPRESS_PUBLIC_URL`** y falla pronto sin
+  ella (antes construía con el valor por defecto y la imagen servía una CSP que autorizaba
+  `http://localhost:8080`). El workflow de CD y `docker compose … build frontend` ya la pasan
+  (CD: variable de repositorio `WORDPRESS_PUBLIC_URL`). Otros args que el build congela:
+  `NEXT_PUBLIC_SITE_URL`, `CSP_ANALYTICS_PROVIDERS`, `SENTRY_DSN`.
+- **`npm run build` ya no type-chequea las pruebas** (`tsconfig.build.json`): algunas importan
+  archivos de fuera de `frontend/` y el contexto de Docker no los trae. `npm run type-check`
+  (CI) sigue cubriéndolas. `frontend/public/` existe (la imagen lo copia) y `.dockerignore` deja
+  de excluir `tests/` por el mismo motivo.
+- **`postinstall` parchea Next** (`scripts/patch-next-isr-headers.mjs`): en un MISS, una redirección
+  dentro de una página ISR salía con `Location` duplicado (reproducido en Next 16.4.0). El script
+  comprueba la versión EXACTA y **falla la instalación** si `next` cambia: hay que volver a
+  reproducir el problema y, si ya no ocurre, retirar el script y su test.
+- **`docker-compose.prod.yml`:** servicio `wp-cron` (con `DISABLE_WP_CRON`; sin él los eventos
+  programados solo corrían con visitas al panel), volumen `wordpress_core` compartido con
+  `wpcli`/`wp-cron` y, en solo lectura, `caddy`; MariaDB con buffer pool configurable;
+  `frontend.build` con los args; `GRAPHQL_TIMEOUT_MS`/`CONFIG_TIMEOUT_MS` de runtime
+  (25 s / 15 s); volumen `next_image_cache`; `--save 900 1` en Redis. **Tras actualizar:**
+  `docker compose … up -d` recrea los servicios cambiados y `docker compose … run --rm wpcli`
+  no hace falta de nuevo. Define `WORDPRESS_PUBLIC_URL` en `.env.prod` si difiere de
+  `https://<PUBLIC_DOMAIN>`.
+- **Seguridad — `wp cache flush` ya no borra el Redis del frontend.** WordPress y el BFF comparten
+  Redis (revocación de tokens, rate-limit, idempotencia, 2FA); «Flush cache» de Redis Object Cache
+  hacía `FLUSHDB` y se llevaba todo, incluidas las listas de revocación (un token revocado volvía a
+  valer). WordPress usa ahora `WP_REDIS_PREFIX='hwe-wp:'` y `WP_REDIS_SELECTIVE_FLUSH` (dev y prod).
+  **Al actualizar, la caché de objetos de WordPress se rehace** (cambia el prefijo).
+- **Caddyfile:** `/wp-content/*` lo sirve Caddy desde disco (los `.php` siguen yendo a Apache);
+  el frontend reintenta la conexión 30 s durante el despliegue (antes 502); redirect opcional
+  `/wp-admin` → `ADMIN_DOMAIN` y sitios opcionales en `caddy/conf.d/*.caddy`
+  (`caddy/README.md`: el panel en `admin.<dominio>`).
+- **Desarrollo:** `docker-compose.yml` monta los plugins propios (`hwe-banners`,
+  `hwe-site-reviews`, `hwe-coupon-rules`, `hwe-consent-log`) y tiene `wp-cron`; antes `setup.sh`
+  avisaba de que `hwe-banners` no existía.
+- **CD:** exige la CI en verde para el commit, construye con los build-args, despliega con
+  `up -d` (toda la pila), recarga Caddy, calienta la caché y comprueba rutas reales; `image_tag`
+  en el disparo manual permite volver a una imagen ya publicada sin construir.
+- **Nuevo:** `backend/scripts/warm-cache.sh`.
+
 ### Operación (F1)
 
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor

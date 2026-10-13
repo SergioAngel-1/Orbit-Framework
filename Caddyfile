@@ -46,6 +46,24 @@
     # estricto (rompería iframes propios de wp-admin, p. ej. la vista previa del
     # Customizer). "SAMEORIGIN" es lo que WP core ya manda en wp-login.php; aquí se
     # asegura también en el resto de rutas que el core no cubre (REST, medios).
+    #
+    # Panel en su propio host (opcional, `ADMIN_DOMAIN`): con la variable definida,
+    # `/wp-admin` y el login de este dominio redirigen allí, para que un marcador
+    # viejo no acabe en el 404 de Next. El sitio del panel está en
+    # caddy/conf.d/admin.caddy (ver caddy/README.md). Sin la variable, la
+    # expresión es falsa y todo sigue como antes.
+    #
+    # ⚠ El redirect y `siteurl` van EMPAREJADOS: con `siteurl` todavía en este
+    # dominio, WordPress respondería al subdominio devolviendo aquí, y este
+    # redirect lo mandaría de vuelta — bucle. Si hay que revertir, se revierten
+    # los dos a la vez.
+    @panel_moved {
+        expression `"{$ADMIN_DOMAIN:}" != ""`
+        path /wp-admin /wp-admin/* /wp-login.php /{$HWE_LOGIN_SLUG:wp-login.php}
+    }
+    handle @panel_moved {
+        redir https://{$ADMIN_DOMAIN:}{uri} permanent
+    }
     handle /wp-admin/* {
         header >X-Frame-Options "SAMEORIGIN"
         reverse_proxy wordpress:80
@@ -104,16 +122,42 @@
         respond "Method Not Allowed" 405
     }
 
-    # Medios de WordPress con caché larga (immutable una vez publicados).
+    # Medios de WordPress: los sirve CADDY desde el disco, no Apache.
+    #
+    # Apache corre con MPM prefork y pocos workers (backend/config/apache-mpm.conf):
+    # cada archivo que pasa por ahí ocupa uno de esos slots mientras dura, así que
+    # un .jpg que se sirve en milisegundos puede esperar detrás de una consulta
+    # GraphQL lenta. Es bloqueo de cabeza de línea, y se nota sobre todo en la
+    # medioteca del panel. Caddy los sirve del mismo volumen (montado en solo
+    # lectura, ver docker-compose.prod.yml), en paralelo y sin tocar PHP.
+    #
+    # Los .php bajo wp-content SÍ siguen yendo a Apache: algún plugin los usa como
+    # endpoint, y servirlos como texto plano sería además una fuga de código.
     handle /wp-content/* {
-        reverse_proxy wordpress:80
-        header >Cache-Control "public, max-age=31536000, stale-while-revalidate=86400"
-        header >X-Frame-Options "SAMEORIGIN"
+        @php path *.php
+        handle @php {
+            reverse_proxy wordpress:80
+        }
+        handle {
+            root * /var/www/html
+            file_server
+            header >Cache-Control "public, max-age=31536000, stale-while-revalidate=86400"
+            header >X-Frame-Options "SAMEORIGIN"
+        }
     }
 
     # ── Frontend (Next.js) ── todo lo demás ─────────────────────────────────
+    # `lb_try_*`: durante el `up -d` del despliegue el contenedor viejo se para y
+    # el nuevo tarda unos segundos en escuchar; sin reintento, Caddy respondía 502
+    # al instante a quien llegara en ese hueco. Con él, la petición espera hasta
+    # 30 s a que el upstream vuelva a aceptar conexiones. Solo se reintenta
+    # cuando la CONEXIÓN falla —la petición no llegó a enviarse—, así que es
+    # seguro también para un POST.
     handle {
-        reverse_proxy frontend:3000
+        reverse_proxy frontend:3000 {
+            lb_try_duration 30s
+            lb_try_interval 250ms
+        }
     }
 
     # Compresión de respuestas
@@ -125,6 +169,12 @@
         format json
     }
 }
+
+# ─── Sitios opcionales ────────────────────────────────────────────────────────
+# Cada archivo `*.caddy` de caddy/conf.d/ (montado en el contenedor) se importa
+# aquí. Sin archivos, la expresión no casa con nada y Caddy lo acepta. Ver
+# caddy/README.md (panel de WordPress en admin.<dominio>).
+import /etc/caddy/conf.d/*.caddy
 
 # ─── Redirección www → sin www ───────────────────────────────────────────────
 www.{$PUBLIC_DOMAIN:localhost} {

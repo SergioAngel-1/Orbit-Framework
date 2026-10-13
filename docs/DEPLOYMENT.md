@@ -65,9 +65,23 @@ openssl rand -hex 32
 ### 3. Construir la imagen del frontend
 
 ```bash
-docker build --target prod -t hwe-frontend:prod ./frontend
-# Anotar el nombre en .env.prod: FRONTEND_IMAGE=hwe-frontend:prod
+# Construye con los argumentos que el build CONGELA (WORDPRESS_PUBLIC_URL, la URL del
+# sitio, la CSP de analítica…): compose los toma de .env.prod.
+docker compose -f docker-compose.prod.yml --env-file .env.prod build frontend
+# La imagen queda como FRONTEND_IMAGE (por defecto hwe-frontend:prod).
 ```
+
+Sin `WORDPRESS_PUBLIC_URL` el build **falla pronto y con un mensaje claro**: ese valor se
+hornea en la CSP (`img-src`) y en los `remotePatterns` de `next/image`, y pasarlo solo al
+contenedor en runtime no tiene efecto. El build no alcanza la red interna de WordPress: el
+prerender usa la configuración por defecto y las páginas se regeneran con el contenido real
+al primer acceso (ISR). Tras cada despliegue conviene **calentar la caché**:
+`sh backend/scripts/warm-cache.sh https://tienda.mi-dominio.com` (secuencial y sin borrar
+nada; el workflow de CD ya lo hace).
+
+Para un catálogo grande o una máquina justa: `PRERENDER_LONG_TAIL=none` deja fichas y entradas
+para ISR bajo demanda, y `BUILD_GRAPHQL_TIMEOUT_MS` / `BUILD_STATIC_PAGE_TIMEOUT` /
+`BUILD_STATIC_MAX_CONCURRENCY` acotan el ritmo del build (ver `.env.prod.example`).
 
 ### 4. Primer arranque: instalar WordPress
 
@@ -120,6 +134,12 @@ curl -s https://tienda.mi-dominio.com/api/health | jq .
 4. Configura los webhooks de WooCommerce (ver §Webhooks más abajo).
 
 ---
+
+## Panel de WordPress en su propio host (opcional)
+
+Para dejar el dominio público íntegramente al frontend y servir el panel en
+`admin.<dominio>`: ver `caddy/README.md` (DNS, `ADMIN_DOMAIN`, `siteurl` y cómo revertir).
+Los medios no se mudan, así que el frontend no se reconstruye.
 
 ## Configuración de Caddy
 

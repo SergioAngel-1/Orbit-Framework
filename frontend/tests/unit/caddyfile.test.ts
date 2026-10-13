@@ -132,7 +132,19 @@ describe("Caddyfile: cabeceras de seguridad base", () => {
 });
 
 describe("Caddyfile: X-Frame-Options SAMEORIGIN en lo que sirve WordPress", () => {
-  it.each(["/wp-admin/*", "/wp-login.php", "/wp-json/*", "/wp-content/*"])(
+  // `/wp-content/*` lo sirve Caddy desde disco (anidado: `handle` dentro de
+  // `handle`), así que su bloque se lee entero y no hasta la primera llave.
+  it("/wp-content/* manda X-Frame-Options SAMEORIGIN en lo que sirve y proxya los .php", () => {
+    const start = code.indexOf("handle /wp-content/* {");
+    expect(start).toBeGreaterThan(-1);
+    const block = code.slice(start, code.indexOf("\n    }\n", start));
+
+    expect(block).toContain('header >X-Frame-Options "SAMEORIGIN"');
+    expect(block).toContain("reverse_proxy wordpress:80");
+    expect(block).toContain("file_server");
+  });
+
+  it.each(["/wp-admin/*", "/wp-login.php", "/wp-json/*"])(
     "%s manda X-Frame-Options SAMEORIGIN y sigue proxyando",
     (matcher) => {
       const block = handleBlock(matcher);

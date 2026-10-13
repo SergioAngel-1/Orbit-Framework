@@ -1,0 +1,60 @@
+# ─── Panel de WordPress en su propio host ────────────────────────────────────
+#
+# Cópialo a `caddy/conf.d/admin.caddy` y define `ADMIN_DOMAIN` en `.env.prod`
+# (p. ej. ADMIN_DOMAIN=admin.tienda.com). Pasos completos en caddy/README.md.
+#
+# El panel se sirve en su propio host para que el dominio público quede
+# íntegramente en manos del frontend. `siteurl` apunta aquí; `home` NO (sigue
+# siendo el dominio público), así que WordPress construye las URLs de admin y de
+# login contra este host y las del sitio contra el otro.
+#
+# Los MEDIOS no se mudan: `WP_CONTENT_URL` (docker-compose.prod.yml) los fija en
+# el dominio público, donde `/wp-content/*` sigue sirviéndose. Así el contenido
+# migrado —que lleva URLs absolutas incrustadas— sigue resolviendo, y el frontend
+# no necesita reconstruirse: ni su CSP ni los `remotePatterns` de next/image
+# mencionan este subdominio.
+{$ADMIN_DOMAIN} {
+    # Mismo bloqueo que en el dominio público, por el MISMO motivo: exponer
+    # /graphql permite hablar con WordPress saltándose el BFF (obtener authToken
+    # sin el gate de 2FA ni el rate-limit de login). Que este host sea «el del
+    # panel» no lo hace menos público.
+    handle /graphql* {
+        respond "Not Found" 404
+    }
+    # Igual que en el dominio público: el comercio solo se alcanza por el BFF.
+    handle /wp-json/wc/store/* {
+        respond "Not Found" 404
+    }
+    handle /wp-json/wc/v3/* {
+        respond "Not Found" 404
+    }
+
+    # Estáticos del panel servidos por CADDY, no por Apache: un wp-admin con la
+    # medioteca abierta lanza decenas de peticiones de .js/.css/imágenes, y cada
+    # una ocupaba un worker de Apache mientras PHP —el polling del propio panel—
+    # esperaba su turno. El matcher es por EXTENSIÓN: ningún .php cae aquí.
+    @static {
+        path *.css *.js *.map *.png *.jpg *.jpeg *.gif *.webp *.avif *.svg *.ico *.woff *.woff2 *.ttf *.eot
+    }
+    handle @static {
+        root * /var/www/html
+        file_server
+        header >Cache-Control "public, max-age=31536000, stale-while-revalidate=86400"
+        header >X-Frame-Options "SAMEORIGIN"
+    }
+
+    handle {
+        header >X-Frame-Options "SAMEORIGIN"
+        header >Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        header >X-Content-Type-Options "nosniff"
+        header >Referrer-Policy "strict-origin-when-cross-origin"
+        reverse_proxy wordpress:80
+    }
+
+    encode zstd gzip
+
+    log {
+        output stdout
+        format json
+    }
+}

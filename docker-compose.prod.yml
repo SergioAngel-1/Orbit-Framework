@@ -22,8 +22,9 @@
 #    - Restore PROBADO con backend/scripts/restore.sh (ver docs/RUNBOOK.md).
 #
 #  Uso:
-#    # 1. Construir imagen del frontend:
-#    docker build --target prod -t hwe-frontend:prod ./frontend
+#    # 1. Construir imagen del frontend (pasa los build-args que congela, ver
+#    #    el bloque «Variables que se CONGELAN» de frontend/Dockerfile):
+#    docker compose -f docker-compose.prod.yml --env-file .env.prod build frontend
 #
 #    # 2. Preparar entorno:
 #    cp .env.prod.example .env.prod
@@ -66,12 +67,23 @@ services:
       - "443:443/udp"   # HTTP/3 (QUIC)
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Sitios opcionales (p. ej. el panel en admin.<dominio>): ver caddy/README.md.
+      - ./caddy/conf.d:/etc/caddy/conf.d:ro
+      # Los medios los sirve CADDY desde disco, no los workers de Apache (ver el
+      # bloque /wp-content/* del Caddyfile). Mismo montaje, en SOLO LECTURA y en
+      # el mismo orden que el servicio `wordpress`: sin el bind mount de wp-content
+      # encima vería la copia que quedó dentro del volumen del core.
+      - wordpress_core:/var/www/html:ro
+      - ./backend/wp-content:/var/www/html/wp-content:ro
       - caddy_data:/data          # certificados TLS persistentes
       - caddy_config:/config      # configuración Caddy persistente
     environment:
       PUBLIC_DOMAIN: "${PUBLIC_DOMAIN:?PUBLIC_DOMAIN must be set}"
       # Mismo valor que en WordPress: Caddy enruta /<slug> al panel.
       HWE_LOGIN_SLUG: "${HWE_LOGIN_SLUG:-}"
+      # Host del panel (opcional). Con valor, `/wp-admin` y el login redirigen allí;
+      # el sitio del panel lo define caddy/conf.d/admin.caddy (ver caddy/README.md).
+      ADMIN_DOMAIN:  "${ADMIN_DOMAIN:-}"
       ACME_EMAIL:    "${ACME_EMAIL:?ACME_EMAIL must be set}"
     depends_on:
       frontend:
@@ -98,6 +110,15 @@ services:
       MARIADB_USER:          "${MYSQL_USER:-wordpress}"
       MARIADB_PASSWORD:      "${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set}"
       MARIADB_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set}"
+    # Los defaults de MariaDB (innodb_buffer_pool_size=128M, max_connections=151)
+    # no tienen en cuenta el límite de memoria del contenedor (512m, abajo). 256M
+    # de buffer pool (50 %) deja margen para conexiones, sort buffers y el SO; y
+    # 100 conexiones sobran: todo el tráfico pasa por el BFF, no hay muchos
+    # clientes concurrentes directos. Si subes el límite de memoria, sube también
+    # `MYSQL_INNODB_BUFFER_POOL_SIZE` (≈ 50 % del límite).
+    command:
+      - --innodb-buffer-pool-size=${MYSQL_INNODB_BUFFER_POOL_SIZE:-256M}
+      - --max-connections=${MYSQL_MAX_CONNECTIONS:-100}
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
@@ -137,6 +158,13 @@ services:
         define( 'WP_ENVIRONMENT_TYPE', 'production' );
         define( 'HEADLESS_FRONTEND_URL',    'https://${PUBLIC_DOMAIN}' );
         define( 'HEADLESS_ALLOWED_ORIGINS', 'https://${PUBLIC_DOMAIN}' );
+        // Los MEDIOS se emiten SIEMPRE por el dominio público, donde Caddy sirve
+        // /wp-content/*, aunque el panel viva en otro host (`siteurl` en
+        // admin.<dominio>). Sin esto WordPress derivaría content_url() de
+        // `siteurl` y emitiría la medioteca por un host que ni la CSP ni los
+        // `remotePatterns` de next/image conocen. Los tres contenedores de
+        // WordPress (wordpress, wpcli y wp-cron) la definen igual.
+        define( 'WP_CONTENT_URL', 'https://${PUBLIC_DOMAIN}/wp-content' );
         define( 'HWE_REVALIDATION_SECRET',  '${HWE_REVALIDATION_SECRET:?HWE_REVALIDATION_SECRET must be set}' );
         // Claves AES dedicadas (estables entre recreaciones del contenedor). En
         // prod el core de WP NO se persiste, así que NO se puede depender del
@@ -147,13 +175,30 @@ services:
         define( 'HWE_BACKUPS_DIR', '/var/www/hwe-backups' );
         define( 'WP_REDIS_HOST', 'redis' );
         define( 'WP_REDIS_PORT', 6379 );
+        // Prefijo + flush SELECTIVO: Redis es COMPARTIDO con el frontend (ISR,
+        // tokens revocados, rate-limit, idempotencia, 2FA). Sin esto, «Flush cache»
+        // de Redis Object Cache y `wp cache flush` hacen FLUSHDB y se llevan por
+        // delante todo eso — incluidas las listas de revocación (un token revocado
+        // volvería a valer). Con él solo borran las claves `hwe-wp:*`.
+        define( 'WP_REDIS_PREFIX', 'hwe-wp:' );
+        define( 'WP_REDIS_SELECTIVE_FLUSH', true );
         define( 'WP_CACHE', true );
         define( 'HWE_TRUSTED_PROXY_COUNT', ${TRUSTED_PROXY_COUNT:-1} );
         // Login del panel en /<slug> en vez de /wp-login.php (hwe-login-slug.php). Vacío = sin mover.
         define( 'HWE_LOGIN_SLUG', '${HWE_LOGIN_SLUG:-}' );
         define( 'DISALLOW_FILE_EDIT', true );
         define( 'DISALLOW_FILE_MODS', true );
+        // WP-Cron NO se dispara en cada visita (el spawn HTTP de WordPress hacia sí
+        // mismo es frágil detrás de Caddy y cuesta una petición PHP por vista): lo
+        // ejecuta el servicio `wp-cron` por WP-CLI cada minuto.
+        define( 'DISABLE_WP_CRON', true );
     volumes:
+      # Núcleo de WordPress (wp-config.php incluido) en un volumen con nombre,
+      # compartido con `wpcli`, `wp-cron` y —en solo lectura— `caddy`. Sin él, cada
+      # contenedor vive con su propia copia y wp-cli nunca ve el wp-config.php que
+      # este servicio genera al arrancar («This does not seem to be a WordPress
+      # installation»).
+      - wordpress_core:/var/www/html
       - ./backend/wp-content:/var/www/html/wp-content
       - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
       # Directorio de backups (dumps + archivos de control del panel de
@@ -170,6 +215,9 @@ services:
       # la imagen permite 150 workers y el contenedor muere por OOM bajo carga (ver el
       # propio archivo, que explica cómo dimensionarlo respecto al límite de memoria).
       - ./backend/config/apache-mpm.conf:/etc/apache2/conf-enabled/zz-hwe-mpm.conf:ro
+      # Caché larga de `uploads/` en el origen (lo que ve el optimizador de
+      # next/image por la red interna, sin pasar por Caddy). Ver el propio archivo.
+      - ./backend/config/apache-headers.conf:/etc/apache2/conf-enabled/zz-hwe-headers.conf:ro
     healthcheck:
       test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/wp-json/ || exit 1"]
       interval: 30s
@@ -209,6 +257,7 @@ services:
       HEADLESS_FRONTEND_URL: "${HEADLESS_FRONTEND_URL:-http://frontend:3000}"
       WC_WEBHOOK_SECRET:     "${WC_WEBHOOK_SECRET:-}"
     volumes:
+      - wordpress_core:/var/www/html
       - ./backend/wp-content:/var/www/html/wp-content
       - ./backend/scripts:/scripts:ro
     entrypoint: ["/bin/sh"]
@@ -236,7 +285,10 @@ services:
     command:
       [
         "redis-server",
-        "--save", "60", "1",
+        # Instantánea cada 15 min si hubo al menos un cambio, no cada minuto: la caché
+        # y el rate-limit se reescribían entera cada minuto (cientos de MB) sin
+        # que nadie necesitara esa durabilidad.
+        "--save", "900", "1",
         "--loglevel", "warning",
         "--maxmemory", "220mb",
         "--maxmemory-policy", "allkeys-lru",
@@ -259,6 +311,33 @@ services:
   # Puerto 3000 NO expuesto al host: Caddy es el punto de entrada público.
   frontend:
     image: "${FRONTEND_IMAGE:-hwe-frontend:prod}"
+    # Para construirla EN el servidor (`docker compose … build frontend`), con los
+    # argumentos que el build CONGELA (CSP, remotePatterns). La imagen que publica
+    # el workflow de CD se construye con los mismos (ver .github/workflows/cd.yml).
+    build:
+      context: ./frontend
+      target: prod
+      # Sin `network:` el build no alcanza `wordpress:80`: el prerender usa la
+      # config por defecto y ISR regenera las páginas con el contenido real al
+      # primer acceso (sin pila de WordPress en el build es el modo normal). Si
+      # quieres que el build prerenderice contra WordPress, pon aquí el nombre REAL
+      # de la red (`<proyecto>_hwe_net`, sin prefijo automático en `build.network`)
+      # y construye con el builder clásico (`DOCKER_BUILDKIT=0`), el único que
+      # admite una red por nombre.
+      args:
+        WORDPRESS_PUBLIC_URL:        "${WORDPRESS_PUBLIC_URL:-https://${PUBLIC_DOMAIN}}"
+        WORDPRESS_INTERNAL_API_URL:  "${BUILD_WORDPRESS_INTERNAL_API_URL:-}"
+        NEXT_PUBLIC_SITE_URL:        "https://${PUBLIC_DOMAIN}"
+        CSP_ANALYTICS_PROVIDERS:     "${CSP_ANALYTICS_PROVIDERS:-}"
+        SENTRY_DSN:                  "${SENTRY_DSN:-}"
+        # Paciencia y ritmo del prerender SOLO en el build (con WordPress cargado por
+        # el propio build, los defaults se quedan cortos). Vacíos = defaults.
+        GRAPHQL_TIMEOUT_MS:          "${BUILD_GRAPHQL_TIMEOUT_MS:-}"
+        CONFIG_TIMEOUT_MS:           "${BUILD_CONFIG_TIMEOUT_MS:-}"
+        NEXT_STATIC_PAGE_GENERATION_TIMEOUT: "${BUILD_STATIC_PAGE_TIMEOUT:-}"
+        NEXT_STATIC_GENERATION_MAX_CONCURRENCY: "${BUILD_STATIC_MAX_CONCURRENCY:-}"
+        NEXT_STATIC_GENERATION_MIN_PAGES_PER_WORKER: "${BUILD_STATIC_MIN_PAGES_PER_WORKER:-}"
+        PRERENDER_LONG_TAIL:         "${PRERENDER_LONG_TAIL:-}"
     container_name: hwe_frontend
     logging: *default-logging
     restart: unless-stopped
@@ -274,6 +353,9 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_SITE_URL:             "https://${PUBLIC_DOMAIN}"
+      # Origen público de los medios (lib/wordpress/media.ts): lo usa `CmsImage` para
+      # reconocer una imagen del WordPress propio y reescribirla al origen interno.
+      WORDPRESS_PUBLIC_URL:             "${WORDPRESS_PUBLIC_URL:-https://${PUBLIC_DOMAIN}}"
       WORDPRESS_INTERNAL_API_URL:       "http://wordpress:80/graphql"
       ALLOWED_ORIGIN:                   "https://${PUBLIC_DOMAIN}"
       GRAPHQL_JWT_AUTH_SECRET_KEY:      "${GRAPHQL_JWT_AUTH_SECRET_KEY}"
@@ -289,7 +371,21 @@ services:
       PAYMENT_CURRENCY:                 "${PAYMENT_CURRENCY:-EUR}"
       NEXT_PUBLIC_PAYMENT_RETURN_URL:   "https://${PUBLIC_DOMAIN}/checkout/return"
       NOOP_INTEGRITY_SECRET:            "${NOOP_INTEGRITY_SECRET:-}"
+      # ── Paciencia EN RUNTIME con WordPress ─────────────────────────────────
+      # Una petición ABORTADA por plazo no entra en el Data Cache de Next: la
+      # página que expira no cachea nada, el siguiente visitante vuelve a pagar el
+      # viaje entero y el sitio nunca se calienta. Con WordPress cargado (un
+      # rastreador recorriendo el catálogo) los 10 s / 5 s por defecto convierten la
+      # lentitud en una cascada de 500. Una página lenta que termina y se cachea es
+      # estrictamente mejor que un 500 servido indefinidamente; con la caché
+      # caliente ninguna petición se acerca a estos valores.
+      GRAPHQL_TIMEOUT_MS:               "${RUNTIME_GRAPHQL_TIMEOUT_MS:-25000}"
+      CONFIG_TIMEOUT_MS:                "${RUNTIME_CONFIG_TIMEOUT_MS:-15000}"
       LOG_LEVEL:                        "${LOG_LEVEL:-info}"
+    volumes:
+      # Caché de imágenes optimizadas: persiste entre despliegues (la imagen la crea
+      # con el dueño correcto; ver frontend/Dockerfile). Es OTRA que la ISR.
+      - next_image_cache:/app/.next/cache/images
     healthcheck:
       test:
         - "CMD"
@@ -306,6 +402,58 @@ services:
       resources:
         limits:
           memory: 512m
+
+  # ── WP-Cron (eventos programados de WordPress y de los plugins) ─────────────
+  # `DISABLE_WP_CRON` está activo en `wordpress`: este servicio ejecuta por WP-CLI
+  # los eventos vencidos cada minuto. Sin él nada programado correría (avisos de
+  # copia de seguridad, cancelaciones automáticas, Action Scheduler de WooCommerce).
+  wp-cron:
+    image: wordpress:cli-php8.4
+    container_name: hwe_wp_cron
+    logging: *default-logging
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      wordpress:
+        condition: service_healthy
+    user: "33:33"
+    environment:
+      WORDPRESS_DB_HOST:     "db:3306"
+      WORDPRESS_DB_USER:     "${MYSQL_USER:-wordpress}"
+      WORDPRESS_DB_PASSWORD: "${MYSQL_PASSWORD}"
+      WORDPRESS_DB_NAME:     "${MYSQL_DATABASE:-wordpress}"
+      # Sin WORDPRESS_CONFIG_EXTRA: este contenedor NO genera wp-config.php, lo lee
+      # del volumen `wordpress_core`, que ya trae todas las constantes que define el
+      # servicio `wordpress` (Redis, claves AES, URL de medios, login…). El
+      # entrypoint de la imagen CLI no procesa esa variable.
+    volumes:
+      - wordpress_core:/var/www/html
+      - ./backend/wp-content:/var/www/html/wp-content
+      # Mismo directorio que `wordpress`: el evento de notificación de copias lee
+      # hwe-backup-status.json de aquí.
+      - ./backups:/var/www/hwe-backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          wp cron event run --due-now --allow-root --quiet 2>&1 | sed 's/^/[wp-cron] /'
+          sleep 60
+        done
+    networks:
+      - hwe_net
+    # Trabajo de fondo: cede ante el tráfico.
+    cpu_shares: 256
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
   # ── Backup cron (diario 03:00 UTC) ──────────────────────────────────────────
   backup:
@@ -352,9 +500,16 @@ services:
 
 # ── Volúmenes ──────────────────────────────────────────────────────────────────
 volumes:
+  # Núcleo de WordPress compartido entre wordpress, wpcli, wp-cron y caddy (solo lectura).
+  wordpress_core:
+    driver: local
   db_data:
     driver: local
   redis_data:
+    driver: local
+  # Caché de imágenes optimizadas de next/image: sobrevive al despliegue. Es
+  # regenerable (se rehace bajo demanda), pero rehacerla cuesta CPU de sharp.
+  next_image_cache:
     driver: local
   caddy_data:
     driver: local

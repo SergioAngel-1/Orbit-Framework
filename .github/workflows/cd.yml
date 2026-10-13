@@ -8,15 +8,42 @@ name: CD
 #
 #  Disparadores:
 #    - Tag `v*`           → build + push + deploy a staging + (aprobación) prod.
-#    - workflow_dispatch  → elige entorno (staging | production) a mano.
+#    - workflow_dispatch  → elige entorno (staging | production) y, opcional,
+#                           una etiqueta de imagen YA publicada (rollback).
 #
-#  Gates: los entornos `staging` y `production` de GitHub (Settings →
-#  Environments) aportan la APROBACIÓN MANUAL y los secretos por entorno.
-#  Configura "Required reviewers" en `production` para el promote manual.
+#  Gates:
+#    · CI en verde: antes de construir se comprueba POR API que `ci.yml` terminó
+#      en `success` para ese commit exacto. Aunque alguien etiquete un commit con
+#      la CI en rojo (o aún corriendo), el workflow aborta.
+#    · Aprobación manual: los entornos `staging` y `production` de GitHub
+#      (Settings → Environments) aportan la APROBACIÓN y los secretos por
+#      entorno. Configura "Required reviewers" en `production` para el promote.
 #
-#  Secretos esperados (por entorno): DEPLOY_SSH_HOST, DEPLOY_SSH_USER,
-#  DEPLOY_SSH_KEY, DEPLOY_PATH. Variables: STAGING_URL / PRODUCTION_URL.
-#  Si no están configurados, el job avisa y omite el deploy real (no rompe).
+#  ── Variables y secretos ────────────────────────────────────────────────────
+#  Repositorio o entorno (Settings → Secrets and variables → Actions):
+#    Variables (se HORNEAN en la imagen: ver «Variables que se CONGELAN» de
+#    frontend/Dockerfile):
+#      WORDPRESS_PUBLIC_URL      origen público de los medios (obligatoria)
+#      NEXT_PUBLIC_SITE_URL      URL pública del sitio (fallback de la marca)
+#      CSP_ANALYTICS_PROVIDERS   estrecha la CSP de analítica (opcional)
+#      SENTRY_DSN                opcional
+#    Por entorno:
+#      secretos   DEPLOY_SSH_HOST, DEPLOY_SSH_USER, DEPLOY_SSH_KEY, DEPLOY_PATH
+#      variables  STAGING_URL / PRODUCTION_URL
+#  Si los secretos no están, el job avisa y omite el deploy real (no rompe).
+#
+#  ── El build NO alcanza WordPress ───────────────────────────────────────────
+#  El runner no ve la red interna de la pila: el prerender usa la config por
+#  defecto del código y las páginas se regeneran con el contenido real al primer
+#  acceso (ISR). Por eso, tras el despliegue, el paso «Calentar» recorre las rutas
+#  clave y el sitemap en orden (backend/scripts/warm-cache.sh) y el smoke check
+#  comprueba rutas reales. Si prefieres construir en el servidor con acceso a
+#  WordPress, usa `docker compose … build frontend` (ver docker-compose.prod.yml).
+#
+#  ── Cómo volver atrás ───────────────────────────────────────────────────────
+#  Cada tag deja `ghcr.io/<repo>/frontend:<tag>`. Para volver a una versión:
+#  Actions → CD → «Run workflow» → entorno + `image_tag` = la etiqueta anterior.
+#  No hay build: se vuelve a desplegar la imagen ya publicada.
 # ============================================================================
 
 on:
@@ -29,6 +56,10 @@ on:
         type: choice
         options: [staging, production]
         default: staging
+      image_tag:
+        description: "Etiqueta de imagen ya publicada a desplegar (vacío = construir este commit). Rollback sin build."
+        required: false
+        default: ""
 
 concurrency:
   group: cd-${{ github.ref }}
@@ -37,6 +68,8 @@ concurrency:
 permissions:
   contents: read
   packages: write
+  # Necesario para consultar por API el resultado de la CI del commit destino.
+  actions: read
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}/frontend
@@ -53,32 +86,67 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # EL REQUISITO DE TESTS, EN CÓDIGO. Se consulta `actions/workflows/ci.yml/runs`
+      # y no el estado combinado de checks del commit a propósito: el combinado
+      # mezcla checks de terceros y daría verde con la suite sin haberse ejecutado.
+      - name: Exigir CI en verde para este commit
+        if: ${{ inputs.image_tag == '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          OK=$(gh api \
+            "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${SHA}&status=completed" \
+            --jq '[.workflow_runs[] | select(.conclusion == "success")] | length')
+          if [ "$OK" -lt 1 ]; then
+            echo "::error::El commit ${SHA} no tiene una ejecución de CI completada con éxito."
+            echo "::error::Espera a que termine en verde (o arregla lo que falle) antes de desplegar."
+            exit 1
+          fi
+          echo "CI en verde para ${SHA} (${OK} ejecución/es correcta/s)."
+
+      - name: Resolver tag de imagen
+        id: meta
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            TAG="${{ inputs.image_tag }}"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="manual-$(git rev-parse --short HEAD)"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "image_ref=${IMAGE}:${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Login en GHCR
+        if: steps.meta.outputs.build == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolver tag de imagen
-        id: meta
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="manual-$(git rev-parse --short HEAD)"
-          else
-            TAG="${GITHUB_REF_NAME}"
-          fi
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "image_ref=${IMAGE}:${TAG}" >> "$GITHUB_OUTPUT"
-
       - uses: docker/setup-buildx-action@v3
+        if: steps.meta.outputs.build == 'true'
 
       - name: Build & push
+        if: steps.meta.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
           target: prod
           push: true
+          # Lo que el build CONGELA (CSP, remotePatterns, URL del sitio). Sin
+          # WORDPRESS_PUBLIC_URL el Dockerfile falla pronto y con un mensaje claro.
+          build-args: |
+            WORDPRESS_PUBLIC_URL=${{ vars.WORDPRESS_PUBLIC_URL }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL }}
+            CSP_ANALYTICS_PROVIDERS=${{ vars.CSP_ANALYTICS_PROVIDERS }}
+            SENTRY_DSN=${{ vars.SENTRY_DSN }}
           tags: |
             ${{ steps.meta.outputs.image_ref }}
             ${{ env.IMAGE }}:latest
@@ -107,25 +175,41 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Desplegar (SSH → docker compose pull + up)
+      # `up -d` de TODA la pila, no solo del frontend: recrea únicamente los
+      # servicios cuya definición cambió (un servicio nuevo, un Caddyfile con
+      # reglas nuevas, un parámetro de MariaDB) y deja los demás como están.
+      - name: Desplegar (SSH → pull + up -d + calentar)
         if: steps.guard.outputs.skip != 'true'
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_SSH_HOST }}
           username: ${{ secrets.DEPLOY_SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 30m
           script: |
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
             export FRONTEND_IMAGE="${{ needs.build-push.outputs.image_ref }}"
             docker compose -f docker-compose.prod.yml --env-file .env.prod pull frontend
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d frontend
-            docker image prune -f
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+            # Recarga el Caddyfile sin cortar conexiones (si cambió).
+            docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T caddy \
+              caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 || true
+            # Quita las imágenes sin etiqueta; las etiquetadas (la versión anterior)
+            # se conservan para volver atrás sin descargar.
+            docker image prune -f >/dev/null
 
-      - name: Smoke check readiness
+      - name: Calentar la caché y comprobar rutas reales
         if: steps.guard.outputs.skip != 'true' && vars.STAGING_URL != ''
         run: |
-          curl -fsS "${{ vars.STAGING_URL }}/api/health?ready=1" >/dev/null && echo "staging OK"
+          set -e
+          BASE="${{ vars.STAGING_URL }}"
+          # Espera a que el frontend nuevo esté listo (Caddy ya reintenta la conexión).
+          curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "${BASE}/api/health?ready=1" >/dev/null
+          for path in / /robots.txt /sitemap.xml; do
+            curl -fsS -o /dev/null -w "%{http_code} ${path}\n" "${BASE}${path}"
+          done
+          echo "staging OK"
 
   # --------------------------------------------------------------------------
   #  Promote a PRODUCCIÓN: requiere aprobación manual (entorno `production`).
@@ -133,7 +217,11 @@ jobs:
   deploy-production:
     name: Deploy a producción (aprobación manual)
     needs: [build-push, deploy-staging]
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.environment == 'production' }}
+    # `deploy-staging` se omite cuando se despliega SOLO producción por dispatch.
+    if: >-
+      ${{ !cancelled() && needs.build-push.result == 'success' &&
+      (needs.deploy-staging.result == 'success' || needs.deploy-staging.result == 'skipped') &&
+      (startsWith(github.ref, 'refs/tags/v') || inputs.environment == 'production') }}
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -149,22 +237,50 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Desplegar (SSH → docker compose pull + up)
+      - name: Desplegar (SSH → pull + up -d)
         if: steps.guard.outputs.skip != 'true'
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_SSH_HOST }}
           username: ${{ secrets.DEPLOY_SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 30m
           script: |
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
             export FRONTEND_IMAGE="${{ needs.build-push.outputs.image_ref }}"
             docker compose -f docker-compose.prod.yml --env-file .env.prod pull frontend
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d frontend
-            docker image prune -f
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T caddy \
+              caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 || true
+            docker image prune -f >/dev/null
 
-      - name: Smoke check readiness
+      # Calentar es best-effort (siempre sale 0): corre en el servidor, donde está
+      # el repo y el sitemap se lee por el dominio público.
+      - name: Calentar la caché ISR (servidor)
+        if: steps.guard.outputs.skip != 'true' && vars.PRODUCTION_URL != ''
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 30m
+          script: |
+            cd "${{ secrets.DEPLOY_PATH }}"
+            # Rutas clave y las primeras URLs del sitemap, en primer plano.
+            sh backend/scripts/warm-cache.sh "${{ vars.PRODUCTION_URL }}"
+            # El resto del sitemap, en segundo plano y sin competir con el público.
+            WARM_OFFSET=120 WARM_MAX_URLS=0 WARM_KEY_ROUTES=0 \
+              nohup sh backend/scripts/warm-cache.sh "${{ vars.PRODUCTION_URL }}" \
+              >/tmp/warm-cache.log 2>&1 &
+
+      - name: Smoke check (rutas reales)
         if: steps.guard.outputs.skip != 'true' && vars.PRODUCTION_URL != ''
         run: |
-          curl -fsS "${{ vars.PRODUCTION_URL }}/api/health?ready=1" >/dev/null && echo "producción OK"
+          set -e
+          BASE="${{ vars.PRODUCTION_URL }}"
+          curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "${BASE}/api/health?ready=1" >/dev/null
+          for path in / /robots.txt /sitemap.xml; do
+            curl -fsS -o /dev/null -w "%{http_code} ${path}\n" "${BASE}${path}"
+          done
+          echo "producción OK"
