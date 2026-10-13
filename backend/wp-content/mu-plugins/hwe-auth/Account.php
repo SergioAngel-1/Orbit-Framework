@@ -10,6 +10,51 @@
 defined('ABSPATH') || exit;
 
 trait HWE_Auth_Account {
+    /** Intentos fallidos de contraseña actual antes de bloquear, y cuánto dura el bloqueo. */
+    private const PASSWORD_CHANGE_MAX_FAILURES = 5;
+    private const PASSWORD_CHANGE_LOCK_SECONDS = 900;
+
+    /**
+     * Cambia la contraseña de quien llama, verificando la ACTUAL.
+     *
+     * El BFF ya limita por IP, pero este endpoint adivina una contraseña con una sesión
+     * robada: se acota también por usuario (5 fallos → 429 durante 15 minutos, aunque la
+     * contraseña enviada sea la correcta).
+     */
+    public static function handleChangePassword(WP_REST_Request $request): WP_REST_Response {
+        $user_id = get_current_user_id();
+        $user    = $user_id ? get_userdata($user_id) : false;
+        if (!$user) {
+            return new WP_REST_Response(['error' => 'Usuario no autenticado.'], 401);
+        }
+
+        $current = (string) $request->get_param('current_password');
+        $new     = (string) $request->get_param('new_password');
+        if (strlen($new) < 8) {
+            return new WP_REST_Response(['error' => 'La contraseña nueva debe tener al menos 8 caracteres.'], 422);
+        }
+
+        $lock_key = 'hwe_pwchange_' . $user_id;
+        $failures = (int) get_transient($lock_key);
+        if ($failures >= self::PASSWORD_CHANGE_MAX_FAILURES) {
+            return new WP_REST_Response(['error' => 'Demasiados intentos. Inténtalo de nuevo más tarde.'], 429);
+        }
+
+        if (!wp_check_password($current, (string) $user->user_pass, $user_id)) {
+            set_transient($lock_key, $failures + 1, self::PASSWORD_CHANGE_LOCK_SECONDS);
+            return new WP_REST_Response(['error' => 'La contraseña actual no es correcta.'], 403);
+        }
+
+        $result = wp_update_user(['ID' => $user_id, 'user_pass' => $new]);
+        if (is_wp_error($result)) {
+            error_log('[hwe] auth: no se pudo cambiar la contraseña del usuario ' . $user_id . ': ' . $result->get_error_message());
+            return new WP_REST_Response(['error' => 'No se pudo cambiar la contraseña.'], 500);
+        }
+
+        delete_transient($lock_key);
+        return new WP_REST_Response(['ok' => true], 200);
+    }
+
     public static function handleForgotPassword(WP_REST_Request $request): WP_REST_Response {
         $user_login  = $request->get_param('user_login');
         $frontend_url = untrailingslashit($request->get_param('frontend_url'));

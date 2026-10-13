@@ -22,6 +22,15 @@ trait HWE_Auth_Access {
         return is_user_logged_in() && get_current_user_id() === $req_id;
     }
 
+    /**
+     * Rutas que actúan sobre la cuenta de quien llama (cambio de contraseña): el
+     * secreto interno del BFF Y una sesión válida. `hwe-bff-only` ya devuelve 404 a
+     * `hwe/v1/auth/*` sin el secreto; aquí se exige también por si esa capa falta.
+     */
+    public static function permitInternalWithSession(WP_REST_Request $request): bool {
+        return self::hasInternalSecret($request) && is_user_logged_in();
+    }
+
     /** Endpoints de teléfono: secreto interno del BFF y flag encendido. */
     public static function permitPhoneLogin(WP_REST_Request $request): bool {
         return self::hasInternalSecret($request) && self::phoneLoginEnabled();

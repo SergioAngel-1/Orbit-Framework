@@ -15,9 +15,13 @@ import { POST } from "./route";
 //  refresh token robado seguiría renovándose.
 //
 //  Pero `logout-all` rota el secreto JWT del usuario en WordPress, lo que invalida
-//  TODOS sus refresh tokens, también el de ESTE dispositivo. Para que la sesión
-//  actual se conserve hay que reemitir sus tokens iniciando sesión con la
-//  contraseña nueva, y revocar el access token anterior.
+//  TODOS sus refresh tokens (`enforceRefreshTokenSecret`), también el de ESTE
+//  dispositivo. Para que la sesión actual se conserve hay que reemitir sus tokens
+//  iniciando sesión con la contraseña nueva, y revocar el access token anterior.
+//
+//  El cambio lo hace `POST hwe/v1/auth/change-password`: WordPress verifica la
+//  contraseña actual. La ruta `wp/v2/users/<id>` que se usaba antes la retira
+//  `security.php` a los clientes, y los tests que simulaban su 200 no lo veían.
 // ============================================================================
 
 const cookieStore = { set: vi.fn() };
@@ -56,15 +60,21 @@ const login = (authToken: string, refreshToken: string) => ({
 
 /** El orden de las llamadas con efectos: lo que importa es QUÉ pasa antes de qué. */
 let calls: string[];
-let restBody: unknown;
+let restBody: Record<string, unknown> | null;
+let restRequest: { url: string; auth: string | null } | null;
 
-function stubRestUpdate(ok = true) {
+/** Respuesta de WordPress a `POST hwe/v1/auth/change-password`. */
+function stubChangePassword(status = 200) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (_url: string, init?: RequestInit) => {
-      calls.push("rest:update");
+    vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push("wp:change-password");
+      restRequest = {
+        url: String(url),
+        auth: new Headers(init?.headers).get("authorization"),
+      };
       restBody = JSON.parse(String(init?.body));
-      return new Response("{}", { status: ok ? 200 : 500 });
+      return new Response("{}", { status });
     }) as unknown as typeof fetch,
   );
 }
@@ -81,6 +91,7 @@ beforeEach(() => {
   vi.unstubAllGlobals();
   calls = [];
   restBody = null;
+  restRequest = null;
   vi.mocked(requireSession).mockResolvedValue({ userId: "7", token: OLD_TOKEN });
   vi.mocked(getCustomer).mockResolvedValue({ email: EMAIL } as never);
   vi.mocked(revokeAllSessions).mockImplementation(async () => {
@@ -90,19 +101,12 @@ beforeEach(() => {
   vi.mocked(revokeToken).mockImplementation(async () => {
     calls.push("blocklist:old-token");
   });
-  // 1.ª llamada: verificar la contraseña actual. 2.ª: reemitir con la nueva.
-  vi.mocked(fetchGraphQL).mockImplementation((async (
-    _q: string,
-    opts: { variables?: { password?: string } },
-  ) => {
-    if (opts.variables?.password === BODY.currentPassword) {
-      calls.push("gql:verify-current");
-      return login("token-de-verificacion", "refresh-de-verificacion");
-    }
+  // El único login que hace el BFF es el de reemitir esta sesión con la contraseña nueva.
+  vi.mocked(fetchGraphQL).mockImplementation((async () => {
     calls.push("gql:login-new");
     return login("token-nuevo", "refresh-nuevo");
   }) as never);
-  stubRestUpdate();
+  stubChangePassword();
 });
 
 describe("validación y acceso", () => {
@@ -128,56 +132,63 @@ describe("validación y acceso", () => {
   });
 });
 
-describe("verificación de la contraseña actual", () => {
-  it("se hace con el EMAIL de la cuenta, no con el id numérico de la sesión", async () => {
+describe("WordPress verifica la contraseña actual y fija la nueva", () => {
+  it("usa el endpoint propio con la sesión del usuario, no `wp/v2/users` (que security.php retira)", async () => {
     await POST(request(BODY));
 
-    const [, opts] = vi.mocked(fetchGraphQL).mock.calls[0]!;
-    expect(opts?.variables).toEqual({
-      username: EMAIL,
-      password: BODY.currentPassword,
+    expect(restRequest?.url).toContain("/wp-json/hwe/v1/auth/change-password");
+    expect(restRequest?.url).not.toContain("wp/v2/users");
+    expect(restRequest?.auth).toBe(`Bearer ${OLD_TOKEN}`);
+    expect(restBody).toEqual({
+      current_password: BODY.currentPassword,
+      new_password: BODY.newPassword,
     });
   });
 
-  it("una contraseña incorrecta es 403 y no cambia ni revoca nada", async () => {
-    vi.mocked(fetchGraphQL).mockRejectedValue(
-      new GraphQLClientError("graphql", "Error de GraphQL: incorrect_password"),
-    );
+  it("una contraseña actual incorrecta es 403 y no revoca nada", async () => {
+    stubChangePassword(403);
 
     const res = await POST(request(BODY));
 
     expect(res.status).toBe(403);
     expect((await res.json()).error).toMatch(/no es correcta/i);
-    expect(calls).not.toContain("rest:update");
+    expect(revokeAllSessions).not.toHaveBeenCalled();
+    expect(cookieStore.set).not.toHaveBeenCalled();
+  });
+
+  it("demasiados intentos fallidos (el bloqueo de WordPress) es 429", async () => {
+    stubChangePassword(429);
+
+    const res = await POST(request(BODY));
+
+    expect(res.status).toBe(429);
     expect(revokeAllSessions).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["WordPress inalcanzable", new GraphQLClientError("network", "sin red")],
-    [
-      "WordPress responde 5xx",
-      new GraphQLClientError("http", "HTTP 503", { status: 503 }),
-    ],
-  ])("%s no es «contraseña incorrecta»: 502 y no cambia nada", async (_caso, error) => {
-    vi.mocked(fetchGraphQL).mockRejectedValue(error);
+  it("una caída de WordPress no es «contraseña incorrecta»: 502 y no revoca nada", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("sin red");
+      }) as unknown as typeof fetch,
+    );
 
     const res = await POST(request(BODY));
 
     expect(res.status).toBe(502);
-    expect(calls).not.toContain("rest:update");
+    expect(revokeAllSessions).not.toHaveBeenCalled();
   });
 
   it.each([
     ["no se puede leer el perfil", async () => Promise.reject(new Error("woo caído"))],
     ["la cuenta no tiene email", async () => ({ email: "" })],
-  ])("si %s: 502 y no cambia nada", async (_caso, impl) => {
+  ])("si %s: 502 y la contraseña no se toca", async (_caso, impl) => {
     vi.mocked(getCustomer).mockImplementation(impl as never);
 
     const res = await POST(request(BODY));
 
     expect(res.status).toBe(502);
-    expect(fetchGraphQL).not.toHaveBeenCalled();
-    expect(calls).not.toContain("rest:update");
+    expect(calls).not.toContain("wp:change-password");
   });
 });
 
@@ -191,11 +202,9 @@ describe("cambio de contraseña y revocación de sesiones", () => {
       otherSessionsRevoked: true,
       sessionKept: true,
     });
-    expect(restBody).toEqual({ password: BODY.newPassword });
     // Primero el cambio; luego se rota el secreto; luego se reemite ESTA sesión.
     expect(calls).toEqual([
-      "gql:verify-current",
-      "rest:update",
+      "wp:change-password",
       "wp:logout-all",
       "gql:login-new",
       "blocklist:old-token",
@@ -211,7 +220,7 @@ describe("cambio de contraseña y revocación de sesiones", () => {
   it("la sesión actual se reemite con la contraseña NUEVA y se guardan las cookies", async () => {
     await POST(request(BODY));
 
-    const [, loginOpts] = vi.mocked(fetchGraphQL).mock.calls[1]!;
+    const [, loginOpts] = vi.mocked(fetchGraphQL).mock.calls[0]!;
     expect(loginOpts?.variables).toEqual({
       username: EMAIL,
       password: BODY.newPassword,
@@ -231,7 +240,7 @@ describe("cambio de contraseña y revocación de sesiones", () => {
   });
 
   it("si WordPress no cambia la contraseña: 502 y no revoca nada", async () => {
-    stubRestUpdate(false);
+    stubChangePassword(500);
 
     const res = await POST(request(BODY));
 
@@ -261,15 +270,9 @@ describe("cambio de contraseña y revocación de sesiones", () => {
   });
 
   it("si se rotó el secreto pero no se puede reemitir esta sesión: se avisa de que hay que volver a entrar", async () => {
-    vi.mocked(fetchGraphQL).mockImplementation((async (
-      _q: string,
-      opts: { variables?: { password?: string } },
-    ) => {
-      if (opts.variables?.password === BODY.currentPassword) {
-        return login("token-de-verificacion", "refresh-de-verificacion");
-      }
-      throw new GraphQLClientError("network", "sin red");
-    }) as never);
+    vi.mocked(fetchGraphQL).mockRejectedValue(
+      new GraphQLClientError("network", "sin red"),
+    );
 
     const res = await POST(request(BODY));
 

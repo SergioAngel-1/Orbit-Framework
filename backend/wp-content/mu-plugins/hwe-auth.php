@@ -169,6 +169,19 @@ class HWE_Auth_Endpoints {
             ],
         ]);
 
+        // 7b. Cambiar la contraseña de quien llama. Solo el BFF, con sesión: WordPress
+        //     verifica la contraseña ACTUAL y fija la nueva. No se usa `wp/v2/users/<id>`
+        //     porque `security.php` retira esa ruta a quien no puede listar usuarios.
+        register_rest_route(self::NAMESPACE, '/auth/change-password', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'handleChangePassword'],
+            'permission_callback' => [self::class, 'permitInternalWithSession'],
+            'args'                => [
+                'current_password' => ['required' => true, 'type' => 'string'],
+                'new_password'     => ['required' => true, 'type' => 'string'],
+            ],
+        ]);
+
         // 8. Consume a 2FA recovery code (authenticated). Lo usa el BFF cuando el
         //    usuario no tiene el dispositivo TOTP. Idempotente por código: cada
         //    código solo sirve una vez.

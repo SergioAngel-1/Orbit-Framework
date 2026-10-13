@@ -76,6 +76,12 @@ git fetch framework --tags
   `graphql_jwt_auth_validate_token` y exige que el `user_secret` sea el vigente. Efecto al
   actualizar: los refresh tokens emitidos hasta hoy siguen valiendo (llevan el secreto actual);
   solo dejan de valer los que se rotan a partir de ahora.
+- **Cambiar la contraseña funciona para los clientes.** El BFF la cambiaba con
+  `POST wp/v2/users/<id>`, ruta que `security.php` retira (anti-enumeración) a quien no puede
+  listar usuarios: un cliente recibía 404 y «No se pudo cambiar la contraseña». Ahora usa
+  `POST hwe/v1/auth/change-password` (solo BFF y con sesión): WordPress verifica la contraseña
+  actual y, tras 5 intentos fallidos, bloquea 15 minutos. **(contrato)** Un frontend propio que
+  llame a `wp/v2/users/<id>` para cambiar la contraseña debe pasar a este endpoint.
 - **Desactivar el 2FA funciona.** La ruta `PUT hwe/v1/auth/2fa-secret` declaraba `secret` como
   `string` y el BFF manda `null` para desactivar: WordPress respondía 400 siempre, con TOTP y con
   código de recuperación. Ahora acepta `string|null`.

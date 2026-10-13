@@ -11,7 +11,7 @@ import {
   REFRESH_TOKEN_MAX_AGE,
 } from "@/lib/auth/constants";
 import { getCustomer } from "@/lib/account/data";
-import { fetchGraphQL, GraphQLClientError } from "@/lib/graphql-client";
+import { fetchGraphQL } from "@/lib/graphql-client";
 import { sessionCookieOptions, refreshCookieOptions } from "@/lib/security/cookies";
 import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
@@ -98,9 +98,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
 
-  // `wp_authenticate` espera el email o el user_login, nunca el id numérico de la
-  // sesión: con el id, la comprobación fallaba siempre y nadie podía cambiar la
-  // contraseña.
+  // El email de la cuenta hace falta DESPUÉS, para reemitir esta sesión con la
+  // contraseña nueva (`login` espera el email o el user_login, nunca el id numérico).
+  // Se lee antes de cambiar nada: si falla, la contraseña no se toca.
   let email: string;
   try {
     email = ((await getCustomer()).email || "").trim();
@@ -110,57 +110,49 @@ export async function POST(request: Request) {
       err: error instanceof Error ? error.message : error,
     });
     return NextResponse.json(
-      { error: "No se pudo verificar la contraseña actual." },
+      { error: "No se pudo cambiar la contraseña." },
       { status: 502 },
     );
   }
   if (!email) {
     logger.warn({ event: "auth.change_password.no_email", userId: session.userId });
     return NextResponse.json(
-      { error: "No se pudo verificar la contraseña actual." },
+      { error: "No se pudo cambiar la contraseña." },
       { status: 502 },
     );
   }
 
-  // 1. Verificar la contraseña actual iniciando sesión con ella.
-  let verifiedAuthToken: string;
+  // 1. Cambiar la contraseña: WordPress verifica la ACTUAL y fija la nueva en una sola
+  //    llamada, con la sesión del usuario. No se usa `wp/v2/users/<id>`: `security.php`
+  //    retira esa ruta a quien no puede listar usuarios, así que a un cliente le daba 404.
   try {
-    const data = await fetchGraphQL<LoginResponse>(LOGIN_MUTATION, {
-      variables: { username: email, password: parsed.data.currentPassword },
-      revalidate: 0,
+    const res = await wpFetch(`/wp-json/hwe/v1/auth/change-password`, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.token}`,
+      },
+      body: JSON.stringify({
+        current_password: parsed.data.currentPassword,
+        new_password: parsed.data.newPassword,
+      }),
     });
-    verifiedAuthToken = data.login.authToken;
-  } catch (error) {
-    // Un error de GraphQL es «credenciales incorrectas»; red o HTTP 5xx no lo es.
-    if (error instanceof GraphQLClientError && error.kind === "graphql") {
+
+    if (res.status === 403) {
       return NextResponse.json(
         { error: "La contraseña actual no es correcta." },
         { status: 403 },
       );
     }
-    logger.warn({
-      event: "auth.change_password.wp_login_error",
-      err: error instanceof Error ? error.message : error,
-    });
-    return NextResponse.json(
-      { error: "No se pudo verificar la contraseña actual." },
-      { status: 502 },
-    );
-  }
-
-  try {
-    // 2. Cambiar la contraseña en WordPress.
-    const updateRes = await wpFetch(`/wp-json/wp/v2/users/${session.userId}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${verifiedAuthToken}`,
-      },
-      body: JSON.stringify({ password: parsed.data.newPassword }),
-    });
-
-    if (!updateRes.ok) {
-      logger.warn({ event: "auth.change_password.wp_error", status: updateRes.status });
+    if (res.status === 429) {
+      return NextResponse.json(
+        { error: "Demasiados intentos. Inténtalo de nuevo más tarde." },
+        { status: 429 },
+      );
+    }
+    if (!res.ok) {
+      logger.warn({ event: "auth.change_password.wp_error", status: res.status });
       return NextResponse.json(
         { error: "No se pudo cambiar la contraseña." },
         { status: 502 },
@@ -174,7 +166,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
   }
 
-  // 3. La contraseña YA cambió. Cerrar las demás sesiones y conservar la actual. Un
+  // 2. La contraseña YA cambió. Cerrar las demás sesiones y conservar la actual. Un
   //    fallo aquí no se esconde: se informa al cliente para que no dé por cerradas
   //    unas sesiones que siguen abiertas.
   const otherSessionsRevoked = await revokeAllSessions(session.token);
