@@ -1002,3 +1002,90 @@
     border: 1px solid #e2e8f0;
     background: #f1f5f9;
 }
+
+/* ==========================================================================
+   Listas de productos (tipos `product_multiselect` / `product_fields_list`)
+   ========================================================================== */
+
+.hwe-checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 280px;
+    overflow-y: auto;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px;
+    background: #f8fafc;
+    max-width: 420px;
+}
+
+.hwe-checkbox-list .hwe-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #1e293b;
+}
+
+.hwe-checkbox-list .hwe-checkbox-item:hover {
+    background: #dbeafe;
+}
+
+.hwe-checkbox-list input[type="checkbox"] {
+    flex: none;
+    accent-color: #2563eb;
+}
+
+/* La lista de edición ocupa todo el ancho de la columna del campo. */
+.hwe-field-control .hwe-product-fields-list {
+    max-width: none;
+}
+
+.hwe-product-fields-list .hwe-product-item {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.hwe-product-fields-list .hwe-product-item:last-child {
+    border-bottom: none;
+}
+
+.hwe-product-item-label {
+    margin: 8px 0 4px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.hwe-product-item-link {
+    font-weight: 400;
+    margin-left: 6px;
+}
+
+.hwe-item-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 10px 12px 0;
+}
+
+.hwe-item-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.hwe-item-field > label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.hwe-product-fields-list .hwe-item-field input[type="text"],
+.hwe-product-fields-list .hwe-item-field textarea {
+    max-width: none;
+}

@@ -100,6 +100,8 @@ final class Registry {
             'slug'     => new SlugType(),
             'lines'    => new LinesType(),
             'pairs'    => new PairsType(),
+            'product_multiselect' => new ProductMultiselectType(),
+            'product_fields_list' => new ProductFieldsListType(),
         ];
     }
 }

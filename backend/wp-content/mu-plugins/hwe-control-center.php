@@ -42,6 +42,18 @@ add_action( 'init', static function (): void {
 }, 20 );
 
 // ---------------------------------------------------------------------------
+// Los nodos `product_fields_list` (persistencia `external`) los guarda su propio tipo al
+// recibir `hwe_control_center_saved`: escriben metas de producto, nunca `hwe_config`.
+// Nonce y capacidad ya están comprobados cuando la acción se dispara (AdminPage).
+// ---------------------------------------------------------------------------
+add_action(
+    'hwe_control_center_saved',
+    [ HWE\ControlCenter\FieldTypes\ProductFieldsListType::class, 'saveAllFromSchema' ],
+    10,
+    2
+);
+
+// ---------------------------------------------------------------------------
 // Comando WP-CLI `wp hwe setup <archivo.json>` para seedear la config de una
 // instancia nueva durante la inicialización (ver backend/scripts/setup.sh).
 // ---------------------------------------------------------------------------

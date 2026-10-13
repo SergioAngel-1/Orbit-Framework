@@ -7,7 +7,8 @@ namespace HWE\ControlCenter\FieldTypes;
  * dónde se persiste.
  *
  * Los tipos del núcleo (`text`, `textarea`, `email`, `url`, `color`, `boolean`, `select`,
- * `secret`, `image`, `file`, `number`, `richtext`, `link`, `slug`, `lines`, `pairs`) viajan
+ * `secret`, `image`, `file`, `number`, `richtext`, `link`, `slug`, `lines`, `pairs`,
+ * `product_multiselect`, `product_fields_list`) viajan
  * por el mismo filtro que los de una instancia,
  * `hwe_control_center_field_types`: el filtro recibe el mapa del núcleo (id → FieldType) y
  * puede AÑADIR ids. Sobrescribir o eliminar un id del núcleo se descarta y se registra: el
