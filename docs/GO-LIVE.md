@@ -35,6 +35,8 @@
 
 - [ ] `docker compose -f docker-compose.prod.yml --env-file .env.prod build frontend` (pasa los build-args que el build congela; falla pronto sin `WORDPRESS_PUBLIC_URL`).
 - [ ] Tras el primer arranque y cada despliegue: `sh backend/scripts/warm-cache.sh https://<dominio>` (el CD ya lo hace).
+- [ ] Volumen de la base de datos creado una vez (`docker volume create hwe_db_data`, o el nombre de `HWE_DB_VOLUME`; con una instalación previa, el nombre del volumen que ya tienes).
+- [ ] `COMPOSE_FILE=docker-compose.prod.yml` en `.env.prod` (sin `-f`, compose usaría el de desarrollo).
 - [ ] Primer arranque: `docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm wpcli`.
 - [ ] Levantar: `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d`.
 - [ ] `WORDPRESS_DEBUG=0` y `WP_ENVIRONMENT_TYPE=production` (la introspección GraphQL se apaga).

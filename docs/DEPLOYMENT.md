@@ -83,6 +83,20 @@ Para un catálogo grande o una máquina justa: `PRERENDER_LONG_TAIL=none` deja f
 para ISR bajo demanda, y `BUILD_GRAPHQL_TIMEOUT_MS` / `BUILD_STATIC_PAGE_TIMEOUT` /
 `BUILD_STATIC_MAX_CONCURRENCY` acotan el ritmo del build (ver `.env.prod.example`).
 
+### 3 bis. Crear el volumen de la base de datos (una sola vez)
+
+La base de datos vive en un volumen **externo**: `docker compose down -v` no lo borra, y si
+falta, `up` **falla** en vez de arrancar la tienda con una base de datos vacía (lo que pasaba
+al clonar el repo en otra ruta o usar otro `-p`, porque el nombre del volumen salía del
+nombre del proyecto).
+
+```bash
+docker volume create hwe_db_data      # o el nombre que pongas en HWE_DB_VOLUME
+```
+
+Si ya tenías una instalación, **no crees uno nuevo**: pon en `HWE_DB_VOLUME` el nombre del tuyo
+(`docker volume ls | grep db_data`, suele ser `<directorio>_db_data`).
+
 ### 4. Primer arranque: instalar WordPress
 
 ```bash

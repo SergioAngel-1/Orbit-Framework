@@ -30,6 +30,7 @@
 #    cp .env.prod.example .env.prod
 #    nano .env.prod   # completar TODOS los secretos
 #    mkdir -p backups
+#    docker volume create hwe_db_data   # (o el nombre de HWE_DB_VOLUME): ver «Volúmenes»
 #
 #    # 3. Primer arranque (instala WordPress + plugins):
 #    docker compose -f docker-compose.prod.yml --env-file .env.prod \
@@ -505,8 +506,15 @@ volumes:
   # Núcleo de WordPress compartido entre wordpress, wpcli, wp-cron y caddy (solo lectura).
   wordpress_core:
     driver: local
+  # La base de datos es EXTERNA a propósito: un volumen normal se borra con
+  # `docker compose down -v`, y su nombre depende del nombre del proyecto (el del
+  # directorio): clonar el repo en otra ruta, o un `-p` distinto, creaba un volumen NUEVO
+  # y VACÍO y arrancaba la tienda con una base de datos en blanco, sin ningún error. Un
+  # volumen externo no lo toca `down -v`, y si no existe `up` FALLA en vez de crearlo.
+  # Se crea una vez: `docker volume create ${HWE_DB_VOLUME:-hwe_db_data}`.
   db_data:
-    driver: local
+    external: true
+    name: ${HWE_DB_VOLUME:-hwe_db_data}
   redis_data:
     driver: local
   # Caché de imágenes optimizadas de next/image: sobrevive al despliegue. Es

@@ -668,6 +668,19 @@ git fetch framework --tags
   versión vieja (y sin la configuración del panel) hasta recrearse. Los scripts viven ahora en
   `/opt/hwe/scripts/` (antes `/usr/local/bin/`): actualiza cualquier comando propio. Tras
   actualizar, `docker compose -f docker-compose.prod.yml up -d backup` recrea el contenedor.
+- **(contrato) La base de datos de producción es un volumen EXTERNO.** `db_data` era un volumen
+  normal: `docker compose down -v` se llevaba la base de datos, y su nombre salía del nombre del
+  proyecto, así que un `up -d` desde otro directorio (o con otro `-p`) creaba un volumen **nuevo
+  y vacío** y arrancaba la tienda en blanco, sin error. Ahora es `external: true`, con el nombre
+  `HWE_DB_VOLUME` (por defecto `hwe_db_data`): `down -v` no lo toca y, si no existe, `up` falla.
+  **Antes de actualizar una instalación existente** pon en `.env.prod` `HWE_DB_VOLUME=<tu
+  volumen actual>` (`docker volume ls | grep db_data`, suele ser `<directorio>_db_data`); sin
+  eso, `up` falla con «external volume … not found» (no arranca vacío). En una instalación
+  nueva: `docker volume create hwe_db_data` una vez. El compose de desarrollo no cambia.
+- **`COMPOSE_FILE=docker-compose.prod.yml` en `.env.prod`.** Sin `-f`, `docker compose
+  --env-file .env.prod …` usaba el compose de **desarrollo** sobre producción (db y wordpress
+  recreados con otra configuración, puertos publicados). Añade la línea a tu `.env.prod`
+  (no está en el repositorio); un `-f` explícito, como el del CD, sigue mandando.
 - **El CD de producción hace una copia de la base de datos antes de desplegar** y se detiene si no
   hay un volcado de los últimos 15 minutos.
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor

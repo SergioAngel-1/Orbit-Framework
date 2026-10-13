@@ -136,6 +136,29 @@ describe("docker-compose.prod.yml", () => {
   });
 });
 
+describe("docker-compose.prod.yml: la base de datos no se pierde por descuido", () => {
+  const envProd = root(".env.prod.example");
+
+  it("db_data es un volumen EXTERNO con nombre fijo: `down -v` no lo borra y un proyecto distinto no crea otro vacío", () => {
+    const block = prod.slice(prod.indexOf("\nvolumes:"));
+    expect(block).toMatch(
+      /\n {2}db_data:\n {4}external: true\n {4}name: \$\{HWE_DB_VOLUME:-hwe_db_data\}/,
+    );
+  });
+
+  it(".env.prod.example fija COMPOSE_FILE a producción y documenta el volumen", () => {
+    expect(envProd).toMatch(/^COMPOSE_FILE=docker-compose\.prod\.yml$/m);
+    expect(envProd).toMatch(/^HWE_DB_VOLUME=hwe_db_data$/m);
+  });
+
+  it("el compose de desarrollo conserva su volumen normal (en dev `down -v` debe limpiar)", () => {
+    const dev = root("docker-compose.yml");
+    const block = dev.slice(dev.indexOf("\nvolumes:"));
+    expect(block).toMatch(/\n {2}db_data:\n/);
+    expect(block).not.toMatch(/db_data:\n {4}external/);
+  });
+});
+
 describe("docker-compose.yml (desarrollo)", () => {
   it("Redis compartido: WordPress usa prefijo y flush selectivo", () => {
     const wordpress = service(dev, "wordpress");
