@@ -876,3 +876,129 @@
 .hwe-tab-content::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+
+/* ==========================================================================
+   Editores de filas (tipos `lines` / `pairs`)
+   ========================================================================== */
+
+.hwe-rows-editor-rows {
+    margin: 0 0 8px;
+    padding: 0;
+    list-style: none;
+    counter-reset: hwe-row;
+}
+
+.hwe-rows-editor[data-kind="lines"] .hwe-rows-editor-rows,
+.hwe-rows-editor[data-kind="pairs"] .hwe-rows-editor-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.hwe-rows-editor-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    counter-increment: hwe-row;
+}
+
+.hwe-rows-editor[data-kind="lines"] .hwe-rows-editor-row::before {
+    content: counter(hwe-row);
+    min-width: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    text-align: right;
+}
+
+.hwe-rows-editor-inputs {
+    display: flex;
+    flex: 1;
+    gap: 6px;
+}
+
+.hwe-rows-editor[data-kind="pairs"] .hwe-rows-editor-input:first-child {
+    flex: 0 0 38%;
+}
+
+.hwe-field-control input.hwe-rows-editor-input[type="text"] {
+    flex: 1;
+    max-width: none;
+    padding: 7px 10px;
+    font-size: 13px;
+}
+
+.hwe-rows-editor-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.hwe-rows-editor-actions .button-link {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    color: #94a3b8;
+    text-decoration: none;
+}
+
+.hwe-rows-editor-actions .button-link:hover {
+    background: #dbeafe;
+    color: #1e293b;
+}
+
+.hwe-rows-editor-row:first-child .hwe-rows-editor-up,
+.hwe-rows-editor-row:last-child .hwe-rows-editor-down {
+    visibility: hidden;
+}
+
+/* Con JS el textarea es solo el transporte del dato; sin JS, se edita a mano. */
+.hwe-rows-editor.is-enhanced .hwe-rows-editor-value {
+    display: none;
+}
+
+.hwe-rows-editor:not(.is-enhanced) .hwe-rows-editor-rows,
+.hwe-rows-editor:not(.is-enhanced) .hwe-rows-editor-add {
+    display: none;
+}
+
+/* ==========================================================================
+   Media picker (tipos `image` / `file`)
+   ========================================================================== */
+
+.hwe-media {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 520px;
+}
+
+.hwe-media-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.hwe-media-row .hwe-media-url {
+    flex: 1 1 220px;
+    min-width: 0;
+    max-width: none !important;
+    font-size: 13px;
+}
+
+.hwe-media-preview {
+    display: block;
+}
+
+.hwe-media-preview img {
+    display: block;
+    max-width: 220px;
+    max-height: 140px;
+    width: auto;
+    height: auto;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #f1f5f9;
+}

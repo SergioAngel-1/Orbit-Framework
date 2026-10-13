@@ -92,6 +92,14 @@ final class Registry {
             'boolean'  => new BooleanType(),
             'select'   => new SelectType(),
             'secret'   => new SecretType(),
+            'image'    => new ImageType(),
+            'file'     => new FileType(),
+            'number'   => new NumberType(),
+            'richtext' => new RichTextType(),
+            'link'     => new LinkType(),
+            'slug'     => new SlugType(),
+            'lines'    => new LinesType(),
+            'pairs'    => new PairsType(),
         ];
     }
 }

@@ -52,6 +52,9 @@ class AdminPage {
 
         $assetVersion = filemtime(dirname(__FILE__) . '/assets/admin.css');
 
+        // La medioteca (`wp.media`) la usan los pickers de los tipos `image`/`file`.
+        wp_enqueue_media();
+
         wp_enqueue_style(
             'hwe-admin',
             $baseUrl . '/assets/admin.css',
