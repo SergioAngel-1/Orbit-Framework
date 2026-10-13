@@ -6,6 +6,30 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+Correcciones tras la auditoría de la v2.0.0 (ver `docs/UPGRADE.md` para lo que afecta a una
+actualización).
+
+### Fixed
+- **Pagos:** Wompi concilia la transacción con su API antes de aplicar un evento (la `reference`
+  no va firmada por Wompi); el pago en línea nunca cae a efectivo ni a WhatsApp si Woo no ofrece
+  un medio de cobro (422); el `metadata` del cobro ya no lleva el id bajo `order_key`.
+- **Catálogo/i18n:** un producto inexistente es `null` y no un error de GraphQL (WooGraphQL lanza
+  un `UserError`), con lo que `/products/<slug-de-otro-idioma>` llega al 308 y un slug desconocido
+  da 404; la ruta de categorías se hornea (ISR) y devuelve 404/308 reales; el idioma por defecto
+  se compara normalizado en `translation.ts`.
+- **Control Center:** una lista en un campo de texto (`i18n.locales: ["en", "fr"]`) se une con
+  comas en vez de guardarse como «Array».
+- **Seguridad:** todos los endpoints de escritura de `api/auth` limitan con `strict: true`
+  (`change-password`, `verify-email`, `resend-verification`, `refresh`, `logout` no lo llevaban).
+- **Infra:** la salida de las copias programadas va a `docker logs hwe_backup`;
+  `BACKUP_HOUR_UTC` y `HWE_BACKUP_LOCK_MAX_AGE_MIN` llegan al contenedor; `backup.sh` toma los
+  uploads del contenedor cuando no están en el host; CI valida el Caddyfile con Caddy 2.11 (la
+  de producción); `wpcli` lleva `no-new-privileges`.
+- **Tests y docs:** `purchase.spec.ts` manda dirección de envío (la compra completa `E2E_FULL=1`
+  pasa en vivo contra la pila de desarrollo); nuevo e2e de status HTTP de las fichas; guías
+  corregidas (`--entrypoint wp wpcli`, `i18n.locales`, `COMPOSE_FILE`, mu-plugins de traducción,
+  idempotencia, versión de cabecera por componente) y `NEXT_PUBLIC_SITE_NAME` retirada.
+
 ## [2.0.0] — 2026-10-13
 
 Salto mayor con cambios incompatibles. **Antes de actualizar una instancia de v1, sigue la
