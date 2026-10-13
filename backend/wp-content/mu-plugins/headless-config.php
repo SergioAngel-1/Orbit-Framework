@@ -60,6 +60,23 @@ function hwe_match_origin( string $request_origin ): ?string {
 }
 
 /**
+ * ¿La petición trae el secreto interno del BFF (server-to-server, cabecera
+ * X-HWE-Internal-Secret) con comparación en tiempo constante? Compartido por
+ * las APIs internas del Control Center (`PaymentsInternalApi`,
+ * `IntegrationsInternalApi`): sin él, responden 401 sin cuerpo útil.
+ */
+function hwe_has_internal_secret( WP_REST_Request $request ): bool {
+	if ( ! defined( 'HWE_REVALIDATION_SECRET' ) || ! HWE_REVALIDATION_SECRET ) {
+		return false;
+	}
+	$provided = $request->get_header( 'x_hwe_internal_secret' );
+	if ( ! is_string( $provided ) || '' === $provided ) {
+		return false;
+	}
+	return hash_equals( (string) HWE_REVALIDATION_SECRET, $provided );
+}
+
+/**
  * Determina si la petición actual va dirigida al endpoint de GraphQL.
  */
 function hwe_is_graphql_request(): bool {
