@@ -304,6 +304,21 @@ describe("medio de pago frente a lo que WooCommerce ofrece para este carrito", (
   });
 });
 
+describe("pago en línea sin ningún medio de cobro disponible", () => {
+  it("si Woo solo ofrece efectivo o WhatsApp: 422, no nace un pedido «en línea» contra reembolso", async () => {
+    cartIs({
+      needs_shipping: false,
+      shipping_rates: [],
+      payment_methods: ["cod", "hwe_whatsapp_link"],
+    });
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(422);
+    expect(orderPosts()).toHaveLength(0);
+  });
+});
+
 describe("contexto de medición del pedido", () => {
   /** Metas que el checkout escribió en el pedido (PUT con `meta_data`). */
   const trackingMeta = () => {

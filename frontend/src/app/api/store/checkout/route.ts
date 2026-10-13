@@ -286,7 +286,11 @@ export async function POST(request: Request) {
     if (available.length > 0 && !available.includes(paymentMethod)) {
       // Nunca `cod` ni WhatsApp: un pago en línea no puede acabar sin cobro.
       const preferred = [ONLINE_PAYMENT_METHOD, "bacs", "cheque"] as const;
-      paymentMethod = preferred.find((id) => available.includes(id)) ?? available[0]!;
+      const charging = preferred.find((id) => available.includes(id));
+      // Si Woo no ofrece ninguno, tampoco se cae a lo primero que ofrezca (`cod`,
+      // WhatsApp): el pedido nacería como efectivo y «Pagar ahora» fallaría después.
+      if (!charging) throw new PaymentMethodUnavailableError();
+      paymentMethod = charging;
       logger.info(
         {
           event: "checkout.payment_method_fallback",
