@@ -69,7 +69,7 @@ instancia:
   Deben coincidir con `frontend/src/i18n/routing.ts`: si divergen, el arranque del frontend lo
   avisa en el log. Con ellos, los campos traducibles (`tagline`, `faq`…) ganan una variante
   `<campo>_<idioma>`.
-- `ecommerce`: `currency` (**obligatoria**: sin moneda no hay precios ni pagos), `country`
+- `ecommerce`: `currency` (defecto `EUR`: **fíjala siempre**, es la moneda de todo importe y se sincroniza con WooCommerce), `country`
   (elige el paquete por país: ciudades, tipos de documento, formato de teléfono y dirección;
   `CO` o `generic`), flags de reviews/wishlist/cupones/búsqueda, `checkout_login_required`
   y `free_shipping`.

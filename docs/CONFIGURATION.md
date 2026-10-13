@@ -113,7 +113,7 @@ plantillas; nunca subas claves reales.**
 | Variable | Descripción |
 |----------|-------------|
 | `PAYMENT_PROVIDER` | Anulación de la pasarela activa: `noop` (sandbox) \| `wompi` \| `avalpay` \| `payu` \| `bold`. **Manda el panel**; esta variable solo la anula. |
-| `PAYMENT_CURRENCY` | Moneda ISO-4217 de respaldo. La moneda de la tienda es `ecommerce.currency` del panel (obligatoria). |
+| `PAYMENT_CURRENCY` | Moneda ISO-4217 de respaldo. La moneda de la tienda es `ecommerce.currency` del panel (defecto `EUR`; fíjala siempre). |
 | `NEXT_PUBLIC_PAYMENT_RETURN_URL` | URL de retorno tras el checkout alojado. `POST /api/payments/create` solo acepta un `returnUrl` del propio sitio. |
 | `NOOP_INTEGRITY_SECRET` | Secreto de los webhooks del proveedor `noop`. |
 | `WOMPI_*`, `PAYU_*`, `BOLD_*` | Credenciales server-only por pasarela. Wompi y Aval Pay se configuran de punta a punta **desde el panel**; PayU y Bold son stubs (501). |
@@ -166,7 +166,7 @@ Los valores de una instancia se siembran con `wp hwe setup instance.config.json`
 | `modules` | lista de ids en `instance.config.json` | Qué módulos quedan **activos**. La fuente de verdad en tiempo de ejecución es si el plugin está activo (`config.modules`). Ver «Módulos». |
 | `i18n` | `locales` | Idiomas secundarios (p. ej. `en, fr`), sin el de `brand.locale`. Deben coincidir con `frontend/src/i18n/routing.ts` (el arranque avisa si divergen). |
 | Marca / diseño | `brand.*`, `design.colors.*`, `design.typography.*` | Los colores solo admiten `#rrggbb` y las fuentes un nombre simple; lo que no cumple cae al valor por defecto. |
-| Tienda (`ecommerce`) | `currency` (**obligatoria**), `country`, `price_decimals` (calculado), `products_per_page`, flags `*_enabled`, `checkout_login_required`, `free_shipping.*` | `country` elige el paquete por país. El login se sincroniza con el ajuste nativo de Woo; el envío gratis lo aplica el módulo `shipping`. |
+| Tienda (`ecommerce`) | `currency` (defecto `EUR`; fíjala siempre), `country`, `price_decimals` (calculado), `products_per_page`, flags `*_enabled`, `checkout_login_required`, `free_shipping.*` | `country` elige el paquete por país. El login se sincroniza con el ajuste nativo de Woo; el envío gratis lo aplica el módulo `shipping`. |
 | Pasarelas de pago | `provider`, `gateway_enabled`, `whatsapp_enabled`, `cash_enabled` (+ credenciales por pasarela) | Lo público lo lee el checkout; los secretos solo salen por `hwe/v1/payments/credentials` (canal interno). El efectivo usa «Contra reembolso», que se sincroniza al guardar. |
 | Integraciones | ids de analítica, `consent_retention_years`, SMTP (+ `meta_capi_*` por canal interno) | Cada id activa su proveedor; vacío = desactivado. |
 | Legal → Sedes | hasta 4 sedes | Alimentan el JSON-LD `LocalBusiness` y la página de contacto. |

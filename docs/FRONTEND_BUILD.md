@@ -142,7 +142,7 @@ Preguntas:
 - ¿Un sistema externo (ERP, logística) que deba leer los pedidos?
 
 **Determina**:
-- `ecommerce.currency` (obligatoria) y `ecommerce.country` (elige el paquete por país: ciudades,
+- `ecommerce.currency` (defecto `EUR`; fíjala siempre) y `ecommerce.country` (elige el paquete por país: ciudades,
   tipos de documento, direcciones), `ecommerce.free_shipping.*` y
   `ecommerce.checkout_login_required` en `instance.config.json`.
 - Módulos: `shipping` (tarifa por ciudad y extras; las tarifas se cargan en el menú «Envío» de
