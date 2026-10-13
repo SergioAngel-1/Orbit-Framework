@@ -1055,46 +1055,13 @@ class Schema {
             /* ------------------------------------------------------------------ */
             /* ENVÍO                                                               */
             /* ------------------------------------------------------------------ */
+            // Grupo RESERVADO al módulo `shipping`: sin él no hay nada que configurar
+            // (el envío se ajusta en WooCommerce → Ajustes → Envío) y la pestaña no se
+            // pinta. El módulo añade aquí sus campos con `hwe_control_center_schema`.
             'shipping' => [
                 'type'     => 'group',
                 'label'    => 'Envío',
-                'children' => [
-                    'zone_name' => [
-                        'type'        => 'text',
-                        'label'       => 'Nombre de la zona de envío principal',
-                        'default'     => 'España peninsular',
-                        'public'      => false,
-                        'description' => 'Nombre de la zona principal en WooCommerce. Cámbialo si tu mercado principal no es España.',
-                    ],
-                    'flat_rate_cost' => [
-                        'type'        => 'text',
-                        'label'       => 'Coste de envío (tarifa plana)',
-                        'default'     => '4.99',
-                        'public'      => true,
-                        'description' => 'Importe en la moneda de la tienda. Ej.: 4.99. Aplicado a todos los pedidos de la zona principal salvo que superen el umbral de envío gratis.',
-                    ],
-                    'free_above' => [
-                        'type'        => 'text',
-                        'label'       => 'Envío gratis a partir de (0 = desactivado)',
-                        'default'     => '0',
-                        'public'      => true,
-                        'description' => 'Si el subtotal del carrito supera este importe, el envío es gratuito. 0 = tarifa plana siempre.',
-                    ],
-                    'free_label' => [
-                        'type'        => 'text',
-                        'label'       => 'Etiqueta de envío gratis',
-                        'default'     => 'Envío gratuito',
-                        'public'      => true,
-                        'description' => 'Texto que se muestra al cliente cuando el envío es gratis.',
-                    ],
-                    'flat_label' => [
-                        'type'        => 'text',
-                        'label'       => 'Etiqueta de tarifa plana',
-                        'default'     => 'Envío estándar',
-                        'public'      => true,
-                        'description' => 'Texto que se muestra al cliente para la tarifa plana.',
-                    ],
-                ],
+                'children' => [],
             ],
 
             /* ------------------------------------------------------------------ */

@@ -125,14 +125,6 @@
     "founder_url": ""
   },
 
-  "shipping": {
-    "zone_name": "Zona principal",
-    "flat_rate_cost": "4.99",
-    "free_above": "0",
-    "free_label": "Envío gratuito",
-    "flat_label": "Envío estándar"
-  },
-
   "geo": {
     "ai_crawlers": "allow",
     "llms_txt_enabled": true,

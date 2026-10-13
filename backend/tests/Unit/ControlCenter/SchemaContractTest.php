@@ -67,6 +67,16 @@ final class SchemaContractTest extends TestCase
         $this->assertSame([], $schema['instance']['children']);
     }
 
+    public function testTheShippingGroupIsReservedForItsModuleAndHasNoDeadFields(): void
+    {
+        $shipping = Schema::get()['shipping'];
+
+        // Los campos de tarifa plana y umbral dejaron de aplicarse a Woo (se retiró
+        // `woocommerce-shipping-config.php`): un campo que no hace nada engaña al editor.
+        $this->assertSame('group', $shipping['type']);
+        $this->assertSame([], $shipping['children']);
+    }
+
     public function testTheCoreRootsAreUntouchedWithoutAnyFilter(): void
     {
         $this->assertSame(

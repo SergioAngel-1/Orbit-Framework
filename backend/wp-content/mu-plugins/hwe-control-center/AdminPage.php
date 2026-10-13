@@ -201,9 +201,9 @@ class AdminPage {
     /**
      * Pestañas del panel: una por sección del esquema.
      *
-     * La pestaña «Instancia» (grupo raíz `instance`) solo aparece cuando la instancia le ha
-     * añadido campos: vacía no tiene nada que mostrar, y una pestaña muerta en todo panel
-     * estropearía la plantilla.
+     * Un grupo raíz sin campos no tiene pestaña: «Instancia» (`instance`) y «Envío»
+     * (`shipping`, reservado al módulo del mismo nombre) solo aparecen cuando alguien les
+     * ha añadido campos; una pestaña muerta en todo panel estropearía la plantilla.
      *
      * @param array<string,array>  $schema   Esquema efectivo (Schema::get()).
      * @param array<string,string> $sections HTML de cada sección, por clave raíz.
@@ -228,7 +228,7 @@ class AdminPage {
 
         $tabs = [];
         foreach ($sections as $key => $html) {
-            if ($key === 'instance' && empty($schema['instance']['children'] ?? [])) {
+            if (empty($schema[$key]['children'] ?? [])) {
                 continue;
             }
             $tabs[$key] = [

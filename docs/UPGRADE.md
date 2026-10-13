@@ -308,12 +308,13 @@ git fetch framework --tags
 
 ### Núcleo de WordPress (F4)
 
-- **Se retira `woocommerce-shipping-config.php`.** La tarifa plana y el umbral de envío gratis
-  del grupo `shipping` del Control Center (`flat_rate_cost`, `free_above`, `flat_label`,
-  `free_label`) **dejan de aplicarse a WooCommerce** hasta que llegue el módulo `shipping`
-  (que sustituye a este mu-plugin). Mientras tanto, configura las tarifas en WooCommerce →
-  Ajustes → Envío. Un filtro o código propio que llamara a `hwe_shipping_config()` debe dejar
-  de hacerlo.
+- **Se retira `woocommerce-shipping-config.php`, y con él los campos del grupo `shipping` del
+  Control Center** (`zone_name`, `flat_rate_cost`, `free_above`, `flat_label`, `free_label`):
+  dejaron de aplicarse a WooCommerce y un campo que no hace nada engaña al editor. El grupo
+  queda **reservado al módulo `shipping`**, que añadirá los suyos (sin ellos, la pestaña «Envío»
+  no se pinta). Mientras tanto, configura las tarifas en WooCommerce → Ajustes → Envío; la regla
+  de envío gratis sigue en `ecommerce.free_shipping`. Quita la clave `shipping` de tu
+  `instance.config.json` (se ignora) y no llames a `hwe_shipping_config()`.
 - **Correo transaccional de marca a N idiomas.** `woocommerce-email-branding.php` se retira:
   lo sustituyen `hwe-email-chrome.php` (marco, colores y fuentes del Control Center, texto por
   idioma con el filtro `hwe_email_copy` y enlaces al frontend con prefijo de idioma) y las

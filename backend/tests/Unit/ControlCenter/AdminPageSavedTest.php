@@ -261,4 +261,27 @@ final class AdminPageSavedTest extends TestCase
         $this->assertSame('<p>mía</p>', $tabs['instance']['content']);
         $this->assertNotSame('', $tabs['instance']['icon']);
     }
+
+    // ── La pestaña «Envío» (reservada al módulo `shipping`) ──────────────────
+
+    public function testTheShippingTabIsHiddenWhileTheModuleHasNotAddedFields(): void
+    {
+        $tabs = AdminPage::buildTabs(
+            ['brand' => ['label' => 'Marca', 'children' => ['x' => []]], 'shipping' => ['label' => 'Envío', 'children' => []]],
+            ['brand' => '<p>marca</p>', 'shipping' => '']
+        );
+
+        $this->assertSame(['brand'], array_keys($tabs));
+    }
+
+    public function testTheShippingTabAppearsWhenAModuleAddsFields(): void
+    {
+        $tabs = AdminPage::buildTabs(
+            ['shipping' => ['label' => 'Envío', 'children' => ['zone' => ['type' => 'text']]]],
+            ['shipping' => '<p>envío</p>']
+        );
+
+        $this->assertSame(['shipping'], array_keys($tabs));
+        $this->assertSame('dashicons-store', $tabs['shipping']['icon']);
+    }
 }
