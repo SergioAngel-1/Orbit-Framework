@@ -3,6 +3,7 @@ import { storeFetch } from "@/lib/woocommerce/store-client";
 import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { getCartRequestAuth } from "@/lib/woocommerce/cart-session";
 import { completeStoreCart } from "@/lib/woocommerce/complete-cart";
+import { requestLocale } from "@/lib/i18n/request-locale";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { applyCouponSchema, removeCouponSchema } from "@/lib/validation/store";
@@ -74,7 +75,9 @@ export async function POST(request: Request) {
       { event: "coupon.apply.success", code: parsed.data.code },
       "Cupón aplicado al carrito",
     );
-    return NextResponse.json(await completeStoreCart(data));
+    return NextResponse.json(
+      await completeStoreCart(data, requestLocale(request.headers)),
+    );
   } catch (error) {
     logger.error(
       {
@@ -127,7 +130,9 @@ export async function DELETE(request: Request) {
       { event: "coupon.remove.success", code: parsed.data.code },
       "Cupón eliminado del carrito",
     );
-    return NextResponse.json(await completeStoreCart(data));
+    return NextResponse.json(
+      await completeStoreCart(data, requestLocale(request.headers)),
+    );
   } catch (error) {
     logger.error(
       {

@@ -108,7 +108,7 @@ export default async function BlogPage({
     !searchQuery &&
     isLandingCategory(categorySlug)
   ) {
-    const category = await getBlogCategory(categorySlug).catch(() => null);
+    const category = await getBlogCategory(categorySlug, locale).catch(() => null);
     if (categoryPageAvailable(category)) {
       permanentRedirect({ href: blogCategoryHref(categorySlug), locale });
     }
@@ -137,7 +137,7 @@ export default async function BlogPage({
       }),
       tagSlug ? getTagBySlug(tagSlug, locale).catch(() => null) : null,
       authorSlug ? getAuthorBySlug(authorSlug).catch(() => null) : null,
-      categorySlug ? getBlogCategory(categorySlug).catch(() => null) : null,
+      categorySlug ? getBlogCategory(categorySlug, locale).catch(() => null) : null,
     ]);
     posts = result.posts;
     pageInfo = result.pageInfo;
@@ -161,7 +161,7 @@ export default async function BlogPage({
   }
 
   const [categories, topTags] = await Promise.all([
-    getBlogCategories().catch(() => []),
+    getBlogCategories(locale).catch(() => []),
     getTopTags(TOP_TAGS, locale).catch(() => []),
   ]);
 

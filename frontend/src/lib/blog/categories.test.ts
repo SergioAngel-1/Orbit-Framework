@@ -53,6 +53,27 @@ describe("getBlogCategory", () => {
       slug: "guias",
       description: "Todo.",
       count: 2,
+      locales: ["es"],
+    });
+  });
+
+  it("pide las traducciones de todos los idiomas y devuelve la del idioma de la página", async () => {
+    fetchGraphQL.mockResolvedValue({
+      category: {
+        name: "Guías",
+        slug: "guias",
+        count: 2,
+        tr_en: { name: "Guides", description: "Everything." },
+      },
+    });
+
+    const category = await getBlogCategory("guias", "en");
+
+    expect(fetchGraphQL.mock.calls.at(-1)![0]).toContain('translation(locale: "en")');
+    expect(category).toMatchObject({
+      name: "Guides",
+      description: "Everything.",
+      locales: ["es", "en"],
     });
   });
 

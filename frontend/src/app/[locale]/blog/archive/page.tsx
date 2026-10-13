@@ -54,7 +54,7 @@ export default async function BlogArchivePage({
   let entries: PostIndexEntry[] = [];
   let failed = false;
   try {
-    entries = await getPostsIndex();
+    entries = await getPostsIndex(locale);
   } catch {
     failed = true;
   }

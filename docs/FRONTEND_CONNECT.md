@@ -63,10 +63,23 @@ Este documento tiene dos partes con garantías muy distintas:
     `description`; `Tag`: `name`). Cada campo es **null** si esa ficha no tiene traducción: el
     cliente cae al texto nativo. El propio `translation` es null si `locale` no es uno de los
     idiomas secundarios (el idioma por defecto es el contenido nativo).
-  - `hweSlugFrom(postType: "post"|"product", locale: "en", slug: "…")` → slug **nativo** de la
-    ficha publicada cuyo slug en ese idioma es `slug` (null si ninguna). Es la búsqueda inversa
+  - `hweSlugFrom(postType: "post"|"product"|"product_cat", locale: "en", slug: "…")` → slug
+    **nativo** de la ficha publicada (o de la categoría de producto, si `postType` es
+    `product_cat`) cuyo slug en ese idioma es `slug` (null si ninguna). Es la búsqueda inversa
     de `/<idioma>/…/<slug>`; el slug nativo sigue siendo la identidad (carrito, wishlist,
-    overrides).
+    overrides). Las categorías y etiquetas del blog no traducen su slug.
+  - **En el frontend** (`lib/i18n/`): las queries llevan marcadores `# @translation <Tipo>[: campos]`
+    que `fetchLocalizedGraphQL` sustituye por `translation(locale)` de los idiomas que hagan falta
+    (ninguno en el idioma por defecto) y aplana a `<campo>_<idioma>`; `pickTranslated` /
+    `pickLocalized` resuelven al idioma con caída al texto nativo. Las fichas (`/blog/[slug]`,
+    `/products/[slug]`, `/categories/[slug]`) aceptan el slug de **cualquier** idioma y redirigen con
+    308 al del idioma de la página (`resolveEntityRoute`). Un idioma sin traducción no se anuncia:
+    ni hreflang ni fila de sitemap. Los enlaces usan `productHref` / `categoryHref` /
+    `blogPostHref` (tramo `urlSlug` ya resuelto).
+  - **El BFF recibe el idioma** en `X-HWE-Locale` (lo manda el navegador con el `lang` del
+    documento; un valor que no sea de `routing.locales` cae al idioma por defecto): el carrito
+    devuelve los nombres de producto traducidos. `GET /api/store/products` y `/api/blog/posts`
+    aceptan `?locale=`.
   - El idioma `pt-BR` se escribe así en el argumento (`locale: "pt-BR"`); en las metas es
     `_hwe_<campo>_pt_br`. Las claves `_hwe_title_en`, `_hwe_slug_en`… de instalaciones previas
     valen tal cual.

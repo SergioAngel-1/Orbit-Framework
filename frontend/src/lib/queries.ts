@@ -21,6 +21,7 @@ export const LATEST_POSTS_QUERY = /* GraphQL */ `
         excerpt
         seoTitle
         seoDescription
+        # @translation Post: title excerpt slug seoTitle seoDescription
         author {
           node {
             name
@@ -50,6 +51,7 @@ const POST_CARD_FIELDS = /* GraphQL */ `
   date
   modified
   excerpt
+  # @translation Post: title excerpt slug
   author {
     node {
       name
@@ -73,6 +75,7 @@ const POST_CARD_FIELDS = /* GraphQL */ `
       name
       slug
       count
+      # @translation Tag
     }
   }
   categories {
@@ -80,6 +83,7 @@ const POST_CARD_FIELDS = /* GraphQL */ `
       name
       slug
       count
+      # @translation Category: name
     }
   }
 `;
@@ -141,6 +145,7 @@ export const TAG_BY_SLUG_QUERY = /* GraphQL */ `
     tag(id: $slug, idType: SLUG) {
       name
       slug
+      # @translation Tag
     }
   }
 `;
@@ -166,6 +171,7 @@ export const BLOG_CATEGORY_BY_SLUG_QUERY = /* GraphQL */ `
       slug
       description
       count
+      # @translation Category
     }
   }
 `;
@@ -183,6 +189,7 @@ export const BLOG_CATEGORIES_QUERY = /* GraphQL */ `
         slug
         description
         count
+        # @translation Category
       }
     }
   }
@@ -208,6 +215,7 @@ export const POSTS_INDEX_QUERY = /* GraphQL */ `
         slug
         title
         date
+        # @translation Post: title slug
       }
     }
   }
@@ -226,6 +234,7 @@ export const TAGS_QUERY = /* GraphQL */ `
         name
         slug
         count
+        # @translation Tag
       }
     }
   }
@@ -249,6 +258,7 @@ export const POST_BY_SLUG_QUERY = /* GraphQL */ `
       content
       seoTitle
       seoDescription
+      # @translation Post
       author {
         node {
           name
@@ -272,6 +282,7 @@ export const POST_BY_SLUG_QUERY = /* GraphQL */ `
           name
           slug
           count
+          # @translation Tag
         }
       }
       categories {
@@ -279,6 +290,7 @@ export const POST_BY_SLUG_QUERY = /* GraphQL */ `
           name
           slug
           count
+          # @translation Category: name
         }
       }
     }
@@ -296,6 +308,7 @@ export const POST_SLUGS_QUERY = /* GraphQL */ `
       nodes {
         slug
         modified
+        # @translation Post: title slug
       }
     }
   }

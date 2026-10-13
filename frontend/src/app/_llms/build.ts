@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { getSiteConfig, isFallbackSiteConfig } from "@/lib/config";
 import { brandDescription, brandTagline } from "@/lib/config/brand";
+import { categoryHref } from "@/lib/catalog/product-href";
 import { getCategories } from "@/lib/catalog/products";
 import { absoluteLocalized } from "@/lib/seo/urls";
 import { metaDescription } from "@/lib/seo/meta-description";
@@ -64,13 +65,13 @@ export async function buildLlmsTxt(locale: string): Promise<string | null> {
   }
 
   try {
-    const categories = await getCategories();
+    const categories = await getCategories(locale);
     if (categories.length > 0) {
       lines.push("", `## ${t("sections.categories")}`);
       for (const cat of categories) {
         const text = metaDescription(cat.description, 120);
         lines.push(
-          `- [${cat.name}](${abs(`/categories/${cat.slug}`)}): ${
+          `- [${cat.name}](${abs(categoryHref(cat))}): ${
             text || t("categoryFallback", { name: cat.name })
           }`,
         );

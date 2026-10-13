@@ -1,6 +1,13 @@
 import "server-only";
 import { cache } from "react";
 import { fetchGraphQL } from "@/lib/graphql-client";
+import { fetchLocalizedGraphQL } from "@/lib/i18n/fetch-localized";
+import {
+  secondaryLocales,
+  stripTranslations,
+  translatedLocales,
+} from "@/lib/i18n/translation";
+import { localizedUrlSlug, urlSlugsByLocale } from "@/lib/i18n/url-slug";
 import {
   AUTHOR_BY_SLUG_QUERY,
   FEATURED_POST_QUERY,
@@ -13,7 +20,13 @@ import {
 } from "@/lib/queries";
 import { pickLocalized } from "@/lib/i18n/pick-localized";
 import { tagUrlSlug } from "@/lib/blog/tag-slug";
-import type { PageInfo, WPPost, WPPostDetail, WPTag } from "@/types/wordpress";
+import type {
+  PageInfo,
+  WPCategory,
+  WPPost,
+  WPPostDetail,
+  WPTag,
+} from "@/types/wordpress";
 
 const BLOG_REVALIDATE = 300;
 
@@ -42,6 +55,59 @@ function localizeTags<T extends { tags?: { nodes: WPTag[] } | null }>(
   };
 }
 
+/** Lo traducido de una categoría de entrada (solo el nombre: el slug no se traduce). */
+function localizeCategories<T extends { categories?: { nodes: WPCategory[] } | null }>(
+  post: T,
+  locale: string,
+): T {
+  if (!post.categories) return post;
+  return {
+    ...post,
+    categories: {
+      nodes: post.categories.nodes.map((category) => ({
+        ...category,
+        name: pickLocalized(category, "name", locale) ?? category.name,
+      })),
+    },
+  };
+}
+
+/**
+ * La entrada en el idioma de la página: título, resumen, contenido y SEO (con
+ * caída al texto nativo), el tramo de URL del idioma y sus etiquetas y
+ * categorías. Quita después el texto de los demás idiomas: el cliente no lo
+ * necesita.
+ *
+ * Con `withLocales` añade los datos del hreflang (tramo de URL por idioma e
+ * idiomas en los que existe): solo la ficha, que es la que los declara.
+ */
+function localizePost<T extends WPPost>(
+  post: T,
+  locale: string,
+  options: { withLocales?: boolean } = {},
+): T {
+  const raw = post as T & { content?: string | null };
+  const localized = {
+    ...localizeCategories(localizeTags(post, locale), locale),
+    title: pickLocalized(post, "title", locale) ?? post.title,
+    excerpt: pickLocalized(post, "excerpt", locale) ?? post.excerpt,
+    seoTitle: pickLocalized(post, "seo_title", locale) ?? post.seoTitle ?? null,
+    seoDescription:
+      pickLocalized(post, "seo_description", locale) ?? post.seoDescription ?? null,
+    urlSlug: localizedUrlSlug(post as WPPost & Record<string, unknown>, locale),
+    ...("content" in raw
+      ? { content: pickLocalized(post, "content", locale) ?? raw.content ?? null }
+      : {}),
+    ...(options.withLocales
+      ? {
+          urlSlugs: urlSlugsByLocale(post as WPPost & Record<string, unknown>),
+          locales: translatedLocales(post, "title"),
+        }
+      : {}),
+  } as T;
+  return stripTranslations(localized);
+}
+
 /**
  * Índice del blog: listado paginado de entradas publicadas. `tag`/`author`/
  * `category` (slug) y `search` filtran el listado — los usan las etiquetas, el
@@ -61,10 +127,10 @@ export async function getPosts(
   } = {},
 ): Promise<{ posts: WPPost[]; pageInfo: PageInfo }> {
   const locale = options.locale ?? "es";
-  const data = await fetchGraphQL<{
+  const data = await fetchLocalizedGraphQL<{
     // Opcional: un CMS vacío no trae `posts`.
     posts?: { pageInfo: PageInfo; nodes: WPPost[] };
-  }>(POSTS_QUERY, {
+  }>(POSTS_QUERY, locale, {
     variables: {
       first: options.first ?? 9,
       after: options.after,
@@ -81,7 +147,7 @@ export async function getPosts(
     tags: ["posts"],
   });
   return {
-    posts: (data.posts?.nodes ?? []).map((node) => localizeTags(node, locale)),
+    posts: (data.posts?.nodes ?? []).map((node) => localizePost(node, locale)),
     pageInfo: data.posts?.pageInfo ?? { hasNextPage: false, endCursor: null },
   };
 }
@@ -99,14 +165,18 @@ const TOP_TAGS_SLACK = 30;
  * entrada —no aportan como filtro de descubrimiento— y se recorta.
  */
 export async function getTopTags(limit = 30, locale = "es"): Promise<LocalizedTag[]> {
-  const data = await fetchGraphQL<{ tags?: { nodes: WPTag[] } }>(TAGS_QUERY, {
-    variables: { first: limit + TOP_TAGS_SLACK },
-    revalidate: BLOG_REVALIDATE,
-    tags: ["posts"],
-  });
+  const data = await fetchLocalizedGraphQL<{ tags?: { nodes: WPTag[] } }>(
+    TAGS_QUERY,
+    locale,
+    {
+      variables: { first: limit + TOP_TAGS_SLACK },
+      revalidate: BLOG_REVALIDATE,
+      tags: ["posts"],
+    },
+  );
   const top = (data.tags?.nodes ?? [])
     .filter((tag) => (tag.count ?? 0) > 1)
-    .map((tag) => localizeTag(tag, locale));
+    .map((tag) => stripTranslations(localizeTag(tag, locale)));
   // Dos etiquetas que en un idioma comparten traducción comparten URL: se pinta
   // UNA píldora, la primera (la de más uso, porque el orden ya viene por `count`).
   return top
@@ -120,11 +190,12 @@ export async function getTopTags(limit = 30, locale = "es"): Promise<LocalizedTa
  */
 export async function getFeaturedPostOverride(locale = "es"): Promise<WPPost | null> {
   try {
-    const data = await fetchGraphQL<{ hweFeaturedPost?: WPPost | null }>(
+    const data = await fetchLocalizedGraphQL<{ hweFeaturedPost?: WPPost | null }>(
       FEATURED_POST_QUERY,
+      locale,
       { revalidate: BLOG_REVALIDATE, tags: ["posts"] },
     );
-    return data.hweFeaturedPost ? localizeTags(data.hweFeaturedPost, locale) : null;
+    return data.hweFeaturedPost ? localizePost(data.hweFeaturedPost, locale) : null;
   } catch {
     return null;
   }
@@ -135,11 +206,15 @@ export async function getTagBySlug(
   slug: string,
   locale = "es",
 ): Promise<{ name: string; slug: string } | null> {
-  const data = await fetchGraphQL<{ tag?: WPTag | null }>(TAG_BY_SLUG_QUERY, {
-    variables: { slug },
-    revalidate: BLOG_REVALIDATE,
-    tags: ["posts"],
-  });
+  const data = await fetchLocalizedGraphQL<{ tag?: WPTag | null }>(
+    TAG_BY_SLUG_QUERY,
+    locale,
+    {
+      variables: { slug },
+      revalidate: BLOG_REVALIDATE,
+      tags: ["posts"],
+    },
+  );
   const tag = data.tag;
   return tag
     ? { name: pickLocalized(tag, "name", locale) ?? tag.name, slug: tag.slug }
@@ -162,37 +237,60 @@ export async function getPostBySlug(
   slug: string,
   locale = "es",
 ): Promise<WPPostDetail | null> {
-  const data = await fetchGraphQL<{ post?: WPPostDetail | null }>(POST_BY_SLUG_QUERY, {
-    variables: { slug },
-    revalidate: BLOG_REVALIDATE,
-    tags: ["posts"],
-  });
-  return data.post ? localizeTags(data.post, locale) : null;
+  // Todos los idiomas, no solo el de la página: la ficha declara el hreflang y
+  // la URL canónica de cada uno (y la misma query sirve a cualquier idioma).
+  const data = await fetchLocalizedGraphQL<{ post?: WPPostDetail | null }>(
+    POST_BY_SLUG_QUERY,
+    secondaryLocales(),
+    {
+      variables: { slug },
+      revalidate: BLOG_REVALIDATE,
+      tags: ["posts"],
+    },
+  );
+  return data.post ? localizePost(data.post, locale, { withLocales: true }) : null;
 }
 
-/** Slugs publicados (+ fecha de modificación) para SSG y sitemap, recorridos por cursor. */
-export async function getPostSlugs(): Promise<
-  { slug: string; modified: string | null }[]
-> {
+/** Una entrada publicada tal como la necesita el sitemap y el prerender. */
+export interface PostSlugEntry {
+  slug: string;
+  modified: string | null;
+  /** Tramo de URL por idioma del sitio. */
+  slugs: Record<string, string>;
+  /** Idiomas del sitio en los que la entrada existe de verdad (el por defecto, siempre). */
+  locales: string[];
+}
+
+/**
+ * Slugs publicados (+ fecha de modificación) para SSG y sitemap, recorridos por
+ * cursor, con el slug de cada idioma y en cuáles existe la entrada.
+ */
+export async function getPostSlugs(): Promise<PostSlugEntry[]> {
   interface SlugsResponse {
     posts?: {
       pageInfo?: { hasNextPage: boolean; endCursor: string | null };
-      nodes: { slug: string; modified: string | null }[];
+      nodes: ({ slug: string; modified: string | null } & Record<string, unknown>)[];
     };
   }
   try {
-    const slugs: { slug: string; modified: string | null }[] = [];
+    const slugs: PostSlugEntry[] = [];
     let cursor: string | null = null;
     for (let page = 0; page < MAX_CURSOR_PAGES; page++) {
-      const data: SlugsResponse = await fetchGraphQL<SlugsResponse>(POST_SLUGS_QUERY, {
-        variables: { first: 100, after: cursor },
-        revalidate: BLOG_REVALIDATE,
-        tags: ["posts"],
-      });
+      const data: SlugsResponse = await fetchLocalizedGraphQL<SlugsResponse>(
+        POST_SLUGS_QUERY,
+        secondaryLocales(),
+        {
+          variables: { first: 100, after: cursor },
+          revalidate: BLOG_REVALIDATE,
+          tags: ["posts"],
+        },
+      );
       slugs.push(
         ...(data.posts?.nodes ?? []).map((n) => ({
           slug: n.slug,
           modified: n.modified ?? null,
+          slugs: urlSlugsByLocale(n),
+          locales: translatedLocales(n, "title"),
         })),
       );
       const { hasNextPage, endCursor } = data.posts?.pageInfo ?? {
@@ -213,6 +311,8 @@ export interface PostIndexEntry {
   slug: string;
   title: string;
   date: string;
+  /** Tramo de URL en el idioma de la página (ver `blogPostHref`). */
+  urlSlug?: string;
 }
 
 /**
@@ -223,24 +323,36 @@ export interface PostIndexEntry {
  * dejaría una página de archivo vacía cacheada por ISR como si fuera la buena;
  * quien llama decide cómo mostrarlo.
  */
-export const getPostsIndex = cache(async (): Promise<PostIndexEntry[]> => {
+export const getPostsIndex = cache(async (locale = "es"): Promise<PostIndexEntry[]> => {
   interface IndexResponse {
     // Opcional: un CMS vacío no trae `posts`.
     posts?: {
       pageInfo: { hasNextPage: boolean; endCursor: string | null };
-      nodes: PostIndexEntry[];
+      nodes: (PostIndexEntry & Record<string, unknown>)[];
     };
   }
   const entries: PostIndexEntry[] = [];
   let cursor: string | null = null;
   for (let page = 0; page < MAX_CURSOR_PAGES; page++) {
-    const data: IndexResponse = await fetchGraphQL<IndexResponse>(POSTS_INDEX_QUERY, {
-      variables: { first: 100, after: cursor },
-      revalidate: BLOG_REVALIDATE,
-      tags: ["posts"],
-    });
+    const data: IndexResponse = await fetchLocalizedGraphQL<IndexResponse>(
+      POSTS_INDEX_QUERY,
+      locale,
+      {
+        variables: { first: 100, after: cursor },
+        revalidate: BLOG_REVALIDATE,
+        tags: ["posts"],
+      },
+    );
     for (const node of data.posts?.nodes ?? []) {
-      entries.push({ slug: node.slug, title: node.title, date: node.date });
+      entries.push({
+        slug: node.slug,
+        title: pickLocalized(node, "title", locale) ?? node.title,
+        date: node.date,
+        urlSlug: localizedUrlSlug(
+          node as PostIndexEntry & Record<string, unknown>,
+          locale,
+        ),
+      });
     }
     const { hasNextPage, endCursor } = data.posts?.pageInfo ?? {
       hasNextPage: false,

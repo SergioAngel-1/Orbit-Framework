@@ -33,13 +33,14 @@ export async function generateMetadata({
   const [t, config, category] = await Promise.all([
     getTranslations({ locale, namespace: "blog" }),
     getSiteConfig(),
-    getBlogCategory(slug).catch(() => null),
+    getBlogCategory(slug, locale).catch(() => null),
   ]);
   if (!category || !categoryPageAvailable(category)) return { title: t("notFound") };
   return pageMetadata({
     config,
     locale,
     path: `/blog/category/${slug}`,
+    alternates: { locales: category.locales },
     title: category.name,
     description: category.description ?? t("categoryFallback", { name: category.name }),
   });
@@ -53,7 +54,7 @@ export default async function BlogCategoryPage({
   const { locale, slug } = await params;
   setRequestLocale(locale);
 
-  const category = await getBlogCategory(slug).catch(() => null);
+  const category = await getBlogCategory(slug, locale).catch(() => null);
   if (!category || !categoryPageAvailable(category)) notFound();
 
   const [t, tNav, config] = await Promise.all([

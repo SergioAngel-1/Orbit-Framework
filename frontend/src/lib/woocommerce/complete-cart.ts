@@ -3,6 +3,9 @@ import { stripHtml } from "@/lib/format";
 import { getSiteConfig } from "@/lib/config";
 import { isModuleEnabled } from "@/lib/config/modules";
 import { getCartProductRefs } from "@/lib/catalog/coupon-refs";
+import { routing } from "@/i18n/routing";
+import { getProductsByIds } from "@/lib/catalog/products";
+import { logger } from "@/lib/observability/logger";
 import { withCouponDescriptions } from "./coupon-descriptions";
 import type { StoreCart } from "@/types/woocommerce";
 
@@ -20,18 +23,57 @@ import type { StoreCart } from "@/types/woocommerce";
 //     que el navegador decida qué cupones públicos aplican a algo del carrito.
 //     El navegador no tiene el árbol de categorías.
 //
-//  Punto de extensión: la traducción de los nombres de producto al idioma de la
-//  página (i18n de contenido, tarea 51) y los datos que una instancia quiera
-//  añadir a cada línea (enlace, volumen…) se hacen aquí, en el servidor: el
-//  navegador no tiene el catálogo.
+//   - El nombre de cada línea en el idioma de la página (`X-HWE-Locale`), si el
+//     producto tiene traducción. Las líneas de variación y los productos sin
+//     traducción conservan el nombre que manda la Store API.
+//
+//  Punto de extensión: los datos que una instancia quiera añadir a cada línea
+//  (enlace, volumen…) se hacen aquí, en el servidor: el navegador no tiene el
+//  catálogo.
 // ============================================================================
 
-export async function completeStoreCart(cart: StoreCart): Promise<StoreCart> {
+/**
+ * Nombres de producto en `locale` por id de producto. Vacío en el idioma por
+ * defecto (el nombre de la Store API ya es el nativo) y ante un fallo del
+ * catálogo, que queda en el log: el carrito sigue con los nombres nativos.
+ */
+async function localizedNames(
+  ids: readonly number[],
+  locale: string,
+): Promise<Map<number, string>> {
+  if (locale === routing.defaultLocale) return new Map();
+  try {
+    const products = await getProductsByIds(ids, locale);
+    return new Map(products.map((product) => [product.databaseId, product.name]));
+  } catch (error) {
+    logger.warn(
+      {
+        event: "cart.localized_names_failed",
+        locale,
+        err: error instanceof Error ? error.message : error,
+      },
+      "No se pudieron traducir los nombres del carrito",
+    );
+    return new Map();
+  }
+}
+
+export async function completeStoreCart(
+  cart: StoreCart,
+  locale: string = routing.defaultLocale,
+): Promise<StoreCart> {
   const described = await withCouponDescriptions(cart);
   if (described.items.length === 0) return described;
+  const names = await localizedNames(
+    described.items.map((item) => item.id),
+    locale,
+  );
   const named = {
     ...described,
-    items: described.items.map((item) => ({ ...item, name: stripHtml(item.name) })),
+    items: described.items.map((item) => ({
+      ...item,
+      name: stripHtml(names.get(item.id) ?? item.name),
+    })),
   };
 
   const config = await getSiteConfig();

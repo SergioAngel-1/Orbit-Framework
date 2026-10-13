@@ -1,5 +1,6 @@
 "use client";
 import { csrfFetch } from "./csrf";
+import { pageLocaleHeaders } from "./page-locale";
 import type { StoreCart } from "@/types/woocommerce";
 import type { ReorderSummary } from "@/lib/account/reorder";
 import type { SiteReview } from "@/lib/account/order-review";
@@ -41,7 +42,10 @@ async function parseCart(res: Response): Promise<StoreCart> {
 
 export const cartApi = {
   async get(): Promise<StoreCart> {
-    const res = await fetch("/api/store/cart", { credentials: "same-origin" });
+    const res = await fetch("/api/store/cart", {
+      credentials: "same-origin",
+      headers: pageLocaleHeaders(),
+    });
     return parseCart(res);
   },
   async addItem(id: number, quantity = 1): Promise<StoreCart> {

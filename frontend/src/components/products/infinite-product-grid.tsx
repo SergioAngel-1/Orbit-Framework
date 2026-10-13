@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ProductCard } from "./product-card";
 import type { CatalogProduct } from "@/types/catalog";
 
@@ -19,6 +19,7 @@ export function InfiniteProductGrid({
   wishlistEnabled = false,
 }: Props) {
   const t = useTranslations("products");
+  const locale = useLocale();
   const [products, setProducts] = useState(initialProducts);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
   const [loading, setLoading] = useState(false);
@@ -40,6 +41,7 @@ export function InfiniteProductGrid({
       if (filters.sort) params.set("sort", filters.sort);
       if (pageInfo.endCursor) params.set("after", pageInfo.endCursor);
       params.set("first", "12");
+      params.set("locale", locale);
 
       const res = await fetch(`/api/store/products?${params}`);
       if (!res.ok) throw new Error();

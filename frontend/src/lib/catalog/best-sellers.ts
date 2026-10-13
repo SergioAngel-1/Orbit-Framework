@@ -65,11 +65,17 @@ export const getBestSellerRanking = cache(async (): Promise<BestSellerEntry[]> =
 });
 
 /** Los `limit` productos más vendidos, publicados y en orden de ranking. */
-export async function getBestSellingProducts(limit = 4): Promise<CatalogProduct[]> {
+export async function getBestSellingProducts(
+  limit = 4,
+  locale?: string,
+): Promise<CatalogProduct[]> {
   const ranking = await getBestSellerRanking();
   if (ranking.length === 0) return [];
   try {
-    return await getProductsByIds(ranking.slice(0, limit).map((entry) => entry.id));
+    return await getProductsByIds(
+      ranking.slice(0, limit).map((entry) => entry.id),
+      locale,
+    );
   } catch (error) {
     logger.warn({
       event: "catalog.best_sellers.products_error",

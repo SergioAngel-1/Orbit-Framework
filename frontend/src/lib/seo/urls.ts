@@ -27,10 +27,21 @@ export function localizedPath(path: string, locale: string): string {
  */
 export interface AlternatesOptions {
   locales?: readonly string[];
+  /**
+   * Ruta de la entidad en cada idioma, sin prefijo de locale, cuando el tramo
+   * de URL cambia con el idioma (slug traducido). Un idioma sin entrada usa la
+   * ruta base.
+   */
+  paths?: Readonly<Record<string, string>>;
 }
 
 function hasLocale(options: AlternatesOptions, locale: string): boolean {
   return !options.locales || options.locales.includes(locale);
+}
+
+/** Ruta de la entidad en `locale` (sin prefijo): la suya si la declara, si no la base. */
+function pathFor(path: string, locale: string, options: AlternatesOptions): string {
+  return options.paths?.[locale] ?? path;
 }
 
 /** Mapa hreflang (incluye x-default → locale por defecto). Rutas relativas. */
@@ -41,9 +52,12 @@ export function hreflangLanguages(
   const languages: Record<string, string> = {};
   for (const locale of routing.locales) {
     if (locale !== routing.defaultLocale && !hasLocale(options, locale)) continue;
-    languages[locale] = localizedPath(path, locale);
+    languages[locale] = localizedPath(pathFor(path, locale, options), locale);
   }
-  languages["x-default"] = localizedPath(path, routing.defaultLocale);
+  languages["x-default"] = localizedPath(
+    pathFor(path, routing.defaultLocale, options),
+    routing.defaultLocale,
+  );
   return languages;
 }
 
@@ -62,9 +76,26 @@ export function alternatesFor(
       ? locale
       : routing.defaultLocale;
   return {
-    canonical: localizedPath(path, canonicalLocale),
+    canonical: localizedPath(pathFor(path, canonicalLocale, options), canonicalLocale),
     languages: hreflangLanguages(path, options),
   };
+}
+
+/**
+ * `paths` de `AlternatesOptions` para una ficha cuyo tramo cambia con el idioma:
+ * `entityPaths("/products", { es: "camiseta", en: "t-shirt" })` →
+ * `{ es: "/products/camiseta", en: "/products/t-shirt" }`.
+ */
+export function entityPaths(
+  prefix: string,
+  urlSlugs: Readonly<Record<string, string>> | undefined,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(urlSlugs ?? {}).map(([locale, slug]) => [
+      locale,
+      `${prefix}/${encodeURIComponent(slug)}`,
+    ]),
+  );
 }
 
 /** URL absoluta y localizada (para JSON-LD, que exige URLs completas). */

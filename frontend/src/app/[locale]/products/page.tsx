@@ -2,6 +2,7 @@ import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
+import { productHref } from "@/lib/catalog/product-href";
 import { getProducts, getCategories } from "@/lib/catalog/products";
 import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
 import { getSiteConfig } from "@/lib/config";
@@ -84,6 +85,7 @@ export default async function ProductsPage({
     getSiteConfig(),
   ]);
   const { search, after, category, minPrice, maxPrice, sort } = await searchParams;
+  const locale = await getLocale();
 
   const filters = { search, category, minPrice, maxPrice, sort };
 
@@ -93,6 +95,7 @@ export default async function ProductsPage({
 
   try {
     const result = await getProducts({
+      locale,
       search,
       after,
       category,
@@ -107,7 +110,7 @@ export default async function ProductsPage({
     errorMessage = e instanceof Error ? e.message : t("error");
   }
 
-  const categories = await getCategories();
+  const categories = await getCategories(locale);
 
   // CollectionPage + breadcrumb solo en la vista base: las derivadas no se
   // indexan, y un `ItemList` de resultados de búsqueda no es la colección.
@@ -115,7 +118,6 @@ export default async function ProductsPage({
     { search, after, category, minPrice, maxPrice, sort },
     LISTING_PARAMS,
   );
-  const locale = await getLocale();
   const collectionJsonLd =
     isBaseView && products.length > 0
       ? buildCollectionPageJsonLd({
@@ -123,11 +125,7 @@ export default async function ProductsPage({
           url: absoluteLocalized(config.brand.url, "/products", locale),
           items: products.slice(0, COLLECTION_ITEM_LIST_LIMIT).map((product) => ({
             name: product.name,
-            url: absoluteLocalized(
-              config.brand.url,
-              `/products/${product.slug}`,
-              locale,
-            ),
+            url: absoluteLocalized(config.brand.url, productHref(product), locale),
             image: product.image?.sourceUrl ?? null,
           })),
         })

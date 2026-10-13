@@ -3,6 +3,7 @@ import { storeFetch } from "@/lib/woocommerce/store-client";
 import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { getCartRequestAuth } from "@/lib/woocommerce/cart-session";
 import { completeStoreCart } from "@/lib/woocommerce/complete-cart";
+import { requestLocale } from "@/lib/i18n/request-locale";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import {
@@ -53,7 +54,9 @@ export async function POST(request: Request) {
       { event: "cart.add_item.success", productId: parsed.data.id },
       "Producto añadido al carrito",
     );
-    return NextResponse.json(await completeStoreCart(data));
+    return NextResponse.json(
+      await completeStoreCart(data, requestLocale(request.headers)),
+    );
   } catch (error) {
     logger.error(
       {
@@ -96,7 +99,9 @@ export async function PATCH(request: Request) {
       { event: "cart.update_item.success", key: parsed.data.key },
       "Ítem del carrito actualizado",
     );
-    return NextResponse.json(await completeStoreCart(data));
+    return NextResponse.json(
+      await completeStoreCart(data, requestLocale(request.headers)),
+    );
   } catch (error) {
     logger.error(
       {
@@ -139,7 +144,9 @@ export async function DELETE(request: Request) {
       { event: "cart.remove_item.success", key: parsed.data.key },
       "Ítem eliminado del carrito",
     );
-    return NextResponse.json(await completeStoreCart(data));
+    return NextResponse.json(
+      await completeStoreCart(data, requestLocale(request.headers)),
+    );
   } catch (error) {
     logger.error(
       {

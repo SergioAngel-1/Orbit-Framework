@@ -2,8 +2,9 @@ import { CmsImage } from "@/components/ui/cms-image";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Link } from "@/i18n/navigation";
+import { Link, permanentRedirect } from "@/i18n/navigation";
 import { getPostBySlug, getPostSlugs, wpDateIso } from "@/lib/blog/posts";
+import { resolveEntityRoute } from "@/lib/i18n/entity-route";
 import { prerenderLongTail } from "@/lib/prerender-budget";
 import { buildPostView } from "@/lib/blog/post-view";
 import { showUpdatedDate } from "@/lib/blog/updated-date";
@@ -16,19 +17,23 @@ import { CategoryLink } from "@/components/blog/category-link";
 import { ProductGrid } from "@/components/products/product-grid";
 import { getSiteConfig } from "@/lib/config";
 import { stripHtml, formatDate } from "@/lib/format";
-import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
+import { absoluteLocalized, alternatesFor, entityPaths } from "@/lib/seo/urls";
 import { buildArticleJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
 import { siteTitle } from "@/lib/seo/title";
 import { metaDescription } from "@/lib/seo/meta-description";
+import type { WPPostDetail } from "@/types/wordpress";
 
 export const revalidate = 300;
 
 export async function generateStaticParams() {
-  // La cola larga se hornea o se deja para ISR según `PRERENDER_LONG_TAIL`.
-  const slugs = await prerenderLongTail(getPostSlugs);
-  return slugs.map(({ slug }) => ({ slug }));
+  // La cola larga se hornea o se deja para ISR según `PRERENDER_LONG_TAIL`. Cada
+  // entrada se hornea solo en los idiomas en que existe, con su tramo de URL.
+  const posts = await prerenderLongTail(getPostSlugs);
+  return posts.flatMap(({ slugs, locales }) =>
+    locales.map((locale) => ({ locale, slug: slugs[locale]! })),
+  );
 }
 
 export async function generateMetadata({
@@ -42,12 +47,18 @@ export async function generateMetadata({
     getSiteConfig(),
   ]);
   try {
-    const post = await getPostBySlug(slug);
-    if (!post) return { title: t("notFound") };
+    const route = await resolveEntityRoute("post", "/blog", slug, locale, (native) =>
+      getPostBySlug(native, locale),
+    );
+    if (!route) return { title: t("notFound") };
+    const post = route.entity;
     // La caja SEO del editor manda sobre el título y el extracto.
     const description = metaDescription(post.seoDescription || post.excerpt);
     const image = post.featuredImage?.node;
-    const canonical = alternatesFor(`/blog/${slug}`, locale);
+    const canonical = alternatesFor(`/blog/${route.nativeSlug}`, locale, {
+      locales: post.locales,
+      paths: entityPaths("/blog", post.urlSlugs),
+    });
     const images = image
       ? [{ url: image.sourceUrl, alt: image.altText || post.title }]
       : undefined;
@@ -85,16 +96,21 @@ export default async function PostPage({
     getSiteConfig(),
   ]);
 
-  let post: Awaited<ReturnType<typeof getPostBySlug>>;
+  let route: Awaited<ReturnType<typeof resolveEntityRoute<WPPostDetail>>>;
   try {
-    post = await getPostBySlug(slug, locale);
+    route = await resolveEntityRoute("post", "/blog", slug, locale, (native) =>
+      getPostBySlug(native, locale),
+    );
   } catch {
     notFound();
   }
-  if (!post) notFound();
+  if (!route) notFound();
+  // El tramo pedido puede ser el nativo o el de otro idioma: 308 al del idioma.
+  if (!route.isCanonical) permanentRedirect({ href: route.canonicalHref, locale });
+  const post = route.entity;
 
   const image = post.featuredImage?.node;
-  const url = absoluteLocalized(config.brand.url, `/blog/${slug}`, locale);
+  const url = absoluteLocalized(config.brand.url, route.canonicalHref, locale);
   const authorNode = post.author?.node;
   const authorName = authorNode?.name ?? config.brand.name;
   const tags = post.tags?.nodes ?? [];
@@ -105,7 +121,7 @@ export default async function PostPage({
   // Cuerpo: productos enlazados, recomendaciones y TOC (ver `buildPostView`).
   const view = await buildPostView(post.content ?? "", {
     locale,
-    slug,
+    slug: route.nativeSlug,
     siteOrigins: [config.brand.url].filter(Boolean),
   });
   const updated = showUpdatedDate(post.date, post.modified);

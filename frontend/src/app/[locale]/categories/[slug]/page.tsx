@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { permanentRedirect } from "@/i18n/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getCategory } from "@/lib/catalog/products";
+import { resolveEntityRoute } from "@/lib/i18n/entity-route";
+import { productHref } from "@/lib/catalog/product-href";
 import { getSiteConfig } from "@/lib/config";
-import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
+import { absoluteLocalized, alternatesFor, entityPaths } from "@/lib/seo/urls";
 import {
   COLLECTION_ITEM_LIST_LIMIT,
   buildBreadcrumbJsonLd,
@@ -21,6 +24,24 @@ import { getCategoryCoupons } from "@/lib/coupons/public-coupons";
 
 export const revalidate = 300;
 
+/**
+ * La categoría (con sus productos) a partir del tramo de URL, en cualquier
+ * idioma. `urlSlug` se copia al nivel superior: es lo que `resolveEntityRoute`
+ * usa para calcular la URL canónica.
+ */
+function loadCategoryRoute(slug: string, locale: string) {
+  return resolveEntityRoute(
+    "product_cat",
+    "/categories",
+    slug,
+    locale,
+    async (native) => {
+      const found = await getCategory(native, locale);
+      return found ? { ...found, urlSlug: found.category.urlSlug } : null;
+    },
+  );
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -32,9 +53,13 @@ export async function generateMetadata({
     getSiteConfig(),
   ]);
   try {
-    const result = await getCategory(slug);
-    if (!result) return { title: t("notFound") };
-    const canonical = alternatesFor(`/categories/${slug}`, locale);
+    const route = await loadCategoryRoute(slug, locale);
+    if (!route) return { title: t("notFound") };
+    const result = route.entity;
+    const canonical = alternatesFor(`/categories/${route.nativeSlug}`, locale, {
+      locales: result.category.locales,
+      paths: entityPaths("/categories", result.category.urlSlugs),
+    });
     // La caja SEO del editor manda sobre el nombre y la descripción.
     const description = metaDescription(
       result.category.seoDescription || result.category.description,
@@ -65,19 +90,18 @@ export default async function CategoryPage({
     getSiteConfig(),
   ]);
 
-  let result: Awaited<ReturnType<typeof getCategory>>;
+  let route: Awaited<ReturnType<typeof loadCategoryRoute>>;
   try {
-    result = await getCategory(slug);
+    route = await loadCategoryRoute(slug, locale);
   } catch {
     notFound();
   }
-  if (!result) notFound();
+  if (!route) notFound();
+  // El tramo pedido puede ser el nativo o el de otro idioma: 308 al del idioma.
+  if (!route.isCanonical) permanentRedirect({ href: route.canonicalHref, locale });
+  const result = route.entity;
 
-  const categoryUrl = absoluteLocalized(
-    config.brand.url,
-    `/categories/${slug}`,
-    locale,
-  );
+  const categoryUrl = absoluteLocalized(config.brand.url, route.canonicalHref, locale);
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: tNav("home"), url: absoluteLocalized(config.brand.url, "/", locale) },
     { name: t("title"), url: absoluteLocalized(config.brand.url, "/products", locale) },
@@ -93,11 +117,7 @@ export default async function CategoryPage({
             .slice(0, COLLECTION_ITEM_LIST_LIMIT)
             .map((product) => ({
               name: product.name,
-              url: absoluteLocalized(
-                config.brand.url,
-                `/products/${product.slug}`,
-                locale,
-              ),
+              url: absoluteLocalized(config.brand.url, productHref(product), locale),
               image: product.image?.sourceUrl ?? null,
             })),
         })
@@ -107,7 +127,7 @@ export default async function CategoryPage({
   // `coupons_enabled`). Página ISR: `CouponGate` filtra en el navegador.
   const coupons =
     config.ecommerce.coupons_enabled && isModuleEnabled(config, "coupon-rules")
-      ? await getCategoryCoupons(slug)
+      ? await getCategoryCoupons(route.nativeSlug)
       : [];
 
   return (

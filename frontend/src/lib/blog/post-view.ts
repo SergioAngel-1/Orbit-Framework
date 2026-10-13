@@ -1,5 +1,7 @@
 import "server-only";
 import { getProducts, getProductsBySlugs } from "@/lib/catalog/products";
+import { localizedPath } from "@/lib/seo/urls";
+import { productHref } from "@/lib/catalog/product-href";
 import { getCartProductRefs } from "@/lib/catalog/coupon-refs";
 import {
   extractProductSlugsFromHtml,
@@ -49,16 +51,19 @@ export async function buildPostView(
   let mentionedProducts: CatalogProduct[] = [];
   if (slugs.length > 0) {
     try {
-      mentionedProducts = await getProductsBySlugs(slugs.slice(0, 24));
+      mentionedProducts = await getProductsBySlugs(slugs.slice(0, 24), opts.locale);
     } catch {
       mentionedProducts = [];
     }
   }
-  const known = new Set(mentionedProducts.map((product) => product.slug));
+  const known = new Map(mentionedProducts.map((product) => [product.slug, product]));
 
   const rewritten = rewriteProductLinks(
     rawHtml,
-    (slug) => (known.has(slug) ? `/products/${slug}` : null),
+    (slug) => {
+      const product = known.get(slug);
+      return product ? localizedPath(productHref(product), opts.locale) : null;
+    },
     { siteOrigins: opts.siteOrigins },
   );
   const { html: withMarkers, recs } = extractRecs(rewritten);
@@ -73,7 +78,7 @@ export async function buildPostView(
     segments: splitPostHtml(html),
     recs: resolved,
     headings,
-    mentioned: await mentionedStrip(mentionedProducts),
+    mentioned: await mentionedStrip(mentionedProducts, opts.locale),
   };
 }
 
@@ -84,6 +89,7 @@ export async function buildPostView(
  */
 async function mentionedStrip(
   mentioned: CatalogProduct[],
+  locale: string,
 ): Promise<{ items: CatalogProduct[]; hasRelated: boolean }> {
   if (mentioned.length === 0 || mentioned.length >= MENTIONED_PRODUCTS_MAX) {
     return { items: mentioned.slice(0, MENTIONED_PRODUCTS_MAX), hasRelated: false };
@@ -98,9 +104,9 @@ async function mentionedStrip(
       ?.categorySlugs[0];
     if (!category) return { items: mentioned, hasRelated: false };
 
-    const candidates = (await getProducts({ category, first: 12 })).products.map(
-      (product) => ({ ...product, categorySlugs: [category] }),
-    );
+    const candidates = (
+      await getProducts({ category, first: 12, locale })
+    ).products.map((product) => ({ ...product, categorySlugs: [category] }));
     // Se pinta el producto tal cual, sin los campos auxiliares del cálculo.
     const bySlug = new Map(mentioned.concat(candidates).map((p) => [p.slug, p]));
     const strip = buildMentionedProductsStrip(

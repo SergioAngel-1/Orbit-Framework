@@ -7,6 +7,7 @@ import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { completeStoreCart } from "@/lib/woocommerce/complete-cart";
+import { requestLocale } from "@/lib/i18n/request-locale";
 import {
   REORDER_PRODUCT_FIELDS,
   planReorder,
@@ -129,7 +130,7 @@ export async function POST(
       "Pedido vuelto a pedir",
     );
     return NextResponse.json({
-      cart: await completeStoreCart(cart),
+      cart: await completeStoreCart(cart, requestLocale(request.headers)),
       ...summary,
     });
   } catch (error) {

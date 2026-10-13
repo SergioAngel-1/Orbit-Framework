@@ -10,13 +10,37 @@ vi.mock("@/lib/config", () => ({
   isFallbackSiteConfig: () => degraded,
 }));
 vi.mock("@/lib/catalog/products", () => ({
-  getProductSlugs: async () => ["camiseta", "gorra"],
-  getCategories: async () => [{ slug: "ropa" }],
+  getProductUrls: async () => [
+    {
+      slug: "camiseta",
+      slugs: { es: "camiseta", en: "t-shirt" },
+      locales: ["es", "en"],
+    },
+    // Sin traducción: solo existe en el idioma por defecto.
+    { slug: "gorra", slugs: { es: "gorra", en: "gorra" }, locales: ["es"] },
+  ],
+  getCategories: async () => [
+    {
+      slug: "ropa",
+      urlSlugs: { es: "ropa", en: "clothes" },
+      locales: ["es", "en"],
+    },
+  ],
 }));
 vi.mock("@/lib/blog/posts", () => ({
   getPostSlugs: async () => [
-    { slug: "con-fecha", modified: "2026-09-20T10:00:00" },
-    { slug: "sin-fecha", modified: null },
+    {
+      slug: "con-fecha",
+      modified: "2026-09-20T10:00:00",
+      slugs: { es: "con-fecha", en: "with-date" },
+      locales: ["es", "en"],
+    },
+    {
+      slug: "sin-fecha",
+      modified: null,
+      slugs: { es: "sin-fecha", en: "sin-fecha" },
+      locales: ["es"],
+    },
   ],
 }));
 vi.mock("@/lib/blog/categories", () => ({
@@ -60,8 +84,38 @@ describe("buildSitemapEntries", () => {
     const entries = await buildSitemapEntries("catalogo");
     const urls = entries.map((e) => e.url);
     expect(urls).toContain("https://mitienda.example/products/camiseta");
-    expect(urls).toContain("https://mitienda.example/en/categories/ropa");
+    expect(urls).toContain("https://mitienda.example/en/categories/clothes");
     for (const entry of entries) expect(entry).not.toHaveProperty("lastModified");
+  });
+
+  it("la ficha traducida usa el slug de cada idioma en la URL y en el hreflang", async () => {
+    const entries = await buildSitemapEntries("catalogo");
+    const es = entries.find(
+      (e) => e.url === "https://mitienda.example/products/camiseta",
+    )!;
+
+    expect(es.alternates!.languages).toEqual({
+      es: "https://mitienda.example/products/camiseta",
+      en: "https://mitienda.example/en/products/t-shirt",
+      "x-default": "https://mitienda.example/products/camiseta",
+    });
+    expect(entries.map((e) => e.url)).toContain(
+      "https://mitienda.example/en/products/t-shirt",
+    );
+    // El slug nativo no sale bajo /en: ahí la URL es la traducida.
+    expect(entries.map((e) => e.url)).not.toContain(
+      "https://mitienda.example/en/products/camiseta",
+    );
+  });
+
+  it("sin traducción no se anuncia el idioma: ni fila ni hreflang", async () => {
+    const urls = (await buildSitemapEntries("catalogo")).map((e) => e.url);
+    expect(urls).toContain("https://mitienda.example/products/gorra");
+    expect(urls).not.toContain("https://mitienda.example/en/products/gorra");
+
+    const blog = (await buildSitemapEntries("blog")).map((e) => e.url);
+    expect(blog).toContain("https://mitienda.example/en/blog/with-date");
+    expect(blog).not.toContain("https://mitienda.example/en/blog/sin-fecha");
   });
 
   it("el blog solo emite lastmod cuando hay fecha real", async () => {

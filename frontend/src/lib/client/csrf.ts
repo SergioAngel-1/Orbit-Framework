@@ -6,6 +6,8 @@
 //  /api/csrf. El token se reenvía en la cabecera `X-CSRF-Token`.
 // ============================================================================
 
+import { pageLocaleHeaders } from "./page-locale";
+
 const CSRF_COOKIE = "hwe_csrf";
 
 function readCookie(name: string): string | null {
@@ -39,6 +41,7 @@ export async function csrfFetch(
     headers: {
       "Content-Type": "application/json",
       "X-CSRF-Token": token,
+      ...pageLocaleHeaders(),
       ...(init.headers ?? {}),
     },
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,

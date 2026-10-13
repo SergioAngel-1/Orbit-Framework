@@ -48,10 +48,53 @@ describe("categoryPageAvailable", () => {
   });
 });
 
+describe("toBlogCategory — idiomas", () => {
+  const raw = {
+    name: "Guías",
+    slug: "guias",
+    count: 3,
+    description: "Todo.",
+    name_en: "Guides",
+    description_en: "Everything.",
+  };
+
+  it("pinta el nombre y la descripción del idioma de la página", () => {
+    expect(toBlogCategory(raw, "en")).toMatchObject({
+      name: "Guides",
+      description: "Everything.",
+    });
+    expect(toBlogCategory(raw, "es")).toMatchObject({
+      name: "Guías",
+      description: "Todo.",
+    });
+  });
+
+  it("sin descripción traducida cae a la nativa", () => {
+    const { description_en: _omitted, ...withoutDescription } = raw;
+    void _omitted;
+
+    expect(toBlogCategory(withoutDescription, "en").description).toBe("Todo.");
+  });
+
+  it("sin nombre traducido la página existe solo en el idioma por defecto", () => {
+    const { name_en: _omitted, ...withoutName } = raw;
+    void _omitted;
+
+    expect(toBlogCategory(withoutName, "es").locales).toEqual(["es"]);
+    expect(toBlogCategory(raw, "es").locales).toEqual(["es", "en"]);
+  });
+});
+
 describe("toBlogCategory", () => {
   it("`count` null es 0 y una descripción en blanco, null", () => {
     expect(
       toBlogCategory({ name: "Guías", slug: "guias", count: null, description: "  " }),
-    ).toEqual({ name: "Guías", slug: "guias", description: null, count: 0 });
+    ).toEqual({
+      name: "Guías",
+      slug: "guias",
+      description: null,
+      count: 0,
+      locales: ["es"],
+    });
   });
 });

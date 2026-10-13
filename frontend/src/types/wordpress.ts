@@ -57,6 +57,12 @@ export interface WPPost {
   seoDescription?: string | null;
   tags?: { nodes: WPTag[] } | null;
   categories?: { nodes: WPCategory[] } | null;
+  /** Tramo de URL en el idioma de la página (slug traducido si lo hay). Ver `blogPostHref`. */
+  urlSlug?: string;
+  /** Tramo de URL por idioma del sitio (hreflang y canónica de la ficha). */
+  urlSlugs?: Record<string, string>;
+  /** Idiomas del sitio en los que la entrada existe de verdad (el por defecto, siempre). */
+  locales?: string[];
 }
 
 /** Post individual con contenido completo (página de detalle). */

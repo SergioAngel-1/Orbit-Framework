@@ -23,6 +23,12 @@ export async function register() {
 
     const { logger } = await import("@/lib/observability/logger");
     logger.info({ event: "server_start" }, "Frontend iniciado");
+
+    // Los idiomas de `routing.ts` y de `i18n.locales` (Control Center) deben
+    // coincidir. Sin esperar: WordPress puede estar arrancando y el aviso no debe
+    // retrasar el servidor (`checkLocalesAgainstConfig` nunca lanza).
+    const { checkLocalesAgainstConfig } = await import("@/lib/i18n/locale-check");
+    void checkLocalesAgainstConfig();
   }
 
   if (process.env.NEXT_RUNTIME === "edge") {

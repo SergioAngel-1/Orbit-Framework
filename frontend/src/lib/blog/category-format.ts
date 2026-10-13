@@ -1,3 +1,7 @@
+import { routing } from "@/i18n/routing";
+import { pickLocalized } from "@/lib/i18n/pick-localized";
+import { translatedLocales } from "@/lib/i18n/translation";
+
 // ============================================================================
 //  Categorías del blog — lógica PURA (sin `server-only`): la usan las páginas de
 //  servidor y también componentes de cliente (el enlace de la entrada, la barra
@@ -40,15 +44,30 @@ export interface BlogCategory {
   description: string | null;
   /** Entradas publicadas: 0 = la página no se sirve ni entra al sitemap. */
   count: number;
+  /**
+   * Idiomas del sitio en los que la categoría tiene página de verdad (el por
+   * defecto, siempre). Una categoría sin nombre traducido existe en el idioma
+   * por defecto y NO se declara en el otro: ni hreflang ni sitemap.
+   */
+  locales: string[];
 }
 
-export function toBlogCategory(node: RawBlogCategory): BlogCategory {
-  const description = node.description?.trim() || null;
+/**
+ * Categoría tal como se pinta en `locale`: nombre y descripción traducidos (con
+ * caída al texto nativo). `raw` puede traer `name_<idioma>` y
+ * `description_<idioma>` (ver `flattenTranslations`).
+ */
+export function toBlogCategory(
+  node: RawBlogCategory & Record<string, unknown>,
+  locale: string = routing.defaultLocale,
+): BlogCategory {
+  const description = pickLocalized(node, "description", locale)?.trim() || null;
   return {
-    name: node.name,
+    name: pickLocalized(node, "name", locale) ?? node.name,
     slug: node.slug,
     description,
     count: node.count ?? 0,
+    locales: translatedLocales(node, "name"),
   };
 }
 

@@ -27,7 +27,7 @@ export async function resolveRecs(
   const products = new Map<string, CatalogProduct>();
   if (productSlugs.length > 0) {
     try {
-      for (const product of await getProductsBySlugs(productSlugs)) {
+      for (const product of await getProductsBySlugs(productSlugs, opts.locale)) {
         products.set(product.slug, product);
       }
     } catch {

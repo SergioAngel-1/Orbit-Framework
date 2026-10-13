@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useFormatPrice } from "@/components/ui/currency-context";
 import { cn } from "@/lib/utils";
 import type { CatalogProduct } from "@/types/catalog";
+import { productHref } from "@/lib/catalog/product-href";
 
 export interface ProductCardHorizontalProps {
   product: CatalogProduct;
@@ -55,7 +56,7 @@ export function ProductCardHorizontal({
 
   return (
     <Link
-      href={href ?? `/products/${product.slug}`}
+      href={href ?? productHref(product)}
       onMouseEnter={onMouseEnter}
       onClick={onClick}
       className={cn(

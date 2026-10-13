@@ -577,7 +577,13 @@ git fetch framework --tags
   desaparecen. Pasan a `translation(locale: "en") { title excerpt content seoTitle seoDescription
   name shortDescription description slug }` en cada tipo, con los mismos valores y null cuando no hay
   traducción. `RootQuery.hweSlugFromEn(postType, slugEn)` pasa a
-  `hweSlugFrom(postType, locale, slug)`. Las queries del frontend se reescriben (tarea 51).
+  `hweSlugFrom(postType, locale, slug)`, que además acepta una taxonomía (`product_cat`). Las queries
+  del frontend llevan marcadores `# @translation` (`lib/i18n/translation.ts`).
+- **(contrato) Firmas del frontend.** `getProducts`, `getProductBySlug`, `getCategory`,
+  `getCategories`, `getProductsByIds`/`BySlugs`, `getBlogCategories` y `getPostsIndex` reciben el
+  idioma; `getProductSlugs()` se sustituye por `getProductUrls()` (slug por idioma y en cuáles
+  existe) y `getPostSlugs()` devuelve además `slugs` y `locales`. Los enlaces a fichas pasan por
+  `productHref`/`categoryHref`/`blogPostHref`. El navegador manda `X-HWE-Locale` al BFF.
 - **El idioma sale de `i18n.locales`** (Control Center, sembrado por `wp hwe setup` desde
   `instance.config.json`) y debe coincidir con `frontend/src/i18n/routing.ts`; con un solo idioma el
   plugin no registra cajas ni campos de GraphQL.

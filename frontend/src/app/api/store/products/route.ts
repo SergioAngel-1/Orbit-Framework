@@ -1,3 +1,4 @@
+import { routing } from "@/i18n/routing";
 import { NextResponse } from "next/server";
 import { getProducts } from "@/lib/catalog/products";
 import { wcFetch } from "@/lib/woocommerce/client";
@@ -104,8 +105,16 @@ export async function GET(request: Request) {
     }
   }
 
+  // Idioma de los textos y las URLs: solo uno de los del sitio (un valor ajeno
+  // cae al idioma por defecto y nunca llega a la query).
+  const requestedLocale = searchParams.get("locale") ?? "";
+  const locale = (routing.locales as readonly string[]).includes(requestedLocale)
+    ? requestedLocale
+    : routing.defaultLocale;
+
   try {
     const result = await getProducts({
+      locale,
       search: searchQuery || undefined,
       after: searchParams.get("after") || undefined,
       category: searchParams.get("category") || undefined,

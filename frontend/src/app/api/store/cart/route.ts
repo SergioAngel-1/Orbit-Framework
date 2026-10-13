@@ -7,6 +7,7 @@ import {
   applyCartStockAdjustments,
 } from "@/lib/woocommerce/cart-session";
 import { completeStoreCart } from "@/lib/woocommerce/complete-cart";
+import { requestLocale } from "@/lib/i18n/request-locale";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { rateLimit } from "@/lib/security/rate-limit";
@@ -78,7 +79,9 @@ export async function GET(request: Request) {
       },
       "Carrito consultado",
     );
-    return NextResponse.json(await completeStoreCart(reconciled.cart));
+    return NextResponse.json(
+      await completeStoreCart(reconciled.cart, requestLocale(request.headers)),
+    );
   } catch (error) {
     logger.error(
       { event: "cart.get.error", err: error instanceof Error ? error.message : error },
@@ -103,7 +106,9 @@ export async function DELETE(request: Request) {
     });
     await writeCartToken(cartToken);
     logger.info({ event: "cart.clear" }, "Carrito vaciado");
-    return NextResponse.json(await completeStoreCart(data));
+    return NextResponse.json(
+      await completeStoreCart(data, requestLocale(request.headers)),
+    );
   } catch (error) {
     logger.error(
       {

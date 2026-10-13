@@ -3,6 +3,7 @@ import { storeFetch } from "@/lib/woocommerce/store-client";
 import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { getCartRequestAuth } from "@/lib/woocommerce/cart-session";
 import { completeStoreCart } from "@/lib/woocommerce/complete-cart";
+import { requestLocale } from "@/lib/i18n/request-locale";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { selectShippingRateSchema } from "@/lib/validation/store";
@@ -53,7 +54,9 @@ export async function PUT(request: Request) {
       { event: "shipping.select.success", rateId: parsed.data.rate_id },
       "Tarifa de envío seleccionada",
     );
-    return NextResponse.json(await completeStoreCart(data));
+    return NextResponse.json(
+      await completeStoreCart(data, requestLocale(request.headers)),
+    );
   } catch (error) {
     logger.error(
       {

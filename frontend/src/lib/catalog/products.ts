@@ -1,5 +1,14 @@
 import "server-only";
+import { routing } from "@/i18n/routing";
 import { fetchGraphQL } from "@/lib/graphql-client";
+import { fetchLocalizedGraphQL } from "@/lib/i18n/fetch-localized";
+import {
+  pickTranslated,
+  secondaryLocales,
+  translatedLocales,
+} from "@/lib/i18n/translation";
+import { localizedUrlSlug, urlSlugsByLocale } from "@/lib/i18n/url-slug";
+import { logger } from "@/lib/observability/logger";
 import {
   PRODUCTS_BY_IDS_QUERY,
   PRODUCTS_BY_SLUGS_QUERY,
@@ -73,21 +82,34 @@ interface RawProductNode {
   seoDescription?: string | null;
 }
 
+/**
+ * Nodo tal como lo deja `fetchLocalizedGraphQL`: la respuesta de WooGraphQL más
+ * las traducciones aplanadas (`name_en`, `short_description_en`, `slug_en`…).
+ */
+type Localizable<T> = T & Record<string, unknown>;
+
 // ── Normalización ─────────────────────────────────────────────────────────────
 
-function normalize(node: RawProductNode): CatalogProduct {
+/**
+ * Producto tal como se pinta en `locale`: nombre y resumen traducidos (con caída
+ * al texto nativo) y el tramo de URL del idioma. El slug nativo sigue siendo la
+ * identidad (carrito, wishlist, cupones). No arrastra el texto de otros idiomas.
+ */
+function normalize(rawNode: RawProductNode, locale: string): CatalogProduct {
+  const node = rawNode as Localizable<RawProductNode>;
   return {
     id: node.id,
     databaseId: node.databaseId,
-    name: node.name,
+    name: pickTranslated(node, "name", locale) ?? node.name,
     slug: node.slug,
+    urlSlug: localizedUrlSlug(node, locale),
     type: node.type,
     onSale: Boolean(node.onSale),
     price: node.price ?? null,
     regularPrice: node.regularPrice ?? null,
     salePrice: node.salePrice ?? null,
     stockStatus: node.stockStatus ?? null,
-    shortDescription: node.shortDescription ?? null,
+    shortDescription: pickTranslated(node, "shortDescription", locale),
     image: node.image
       ? {
           sourceUrl: node.image.sourceUrl,
@@ -110,6 +132,8 @@ export interface ProductFilterParams {
   sort?: string;
   after?: string;
   first?: number;
+  /** Idioma de la página: textos y tramos de URL traducidos. Por defecto, el idioma por defecto. */
+  locale?: string;
 }
 
 function parseSortVariables(sort?: string) {
@@ -133,9 +157,13 @@ export async function getProducts(
   options: ProductFilterParams = {},
 ): Promise<ProductsPage> {
   const { orderbyField, orderbyOrder } = parseSortVariables(options.sort);
-  const data = await fetchGraphQL<{
-    products: { pageInfo: ProductsPage["pageInfo"]; nodes: RawProductNode[] };
-  }>(PRODUCTS_QUERY, {
+  const locale = options.locale ?? routing.defaultLocale;
+  const data = await fetchLocalizedGraphQL<{
+    products: {
+      pageInfo: ProductsPage["pageInfo"];
+      nodes: Localizable<RawProductNode>[];
+    };
+  }>(PRODUCTS_QUERY, locale, {
     variables: {
       first: options.first ?? 12,
       after: options.after,
@@ -152,7 +180,7 @@ export async function getProducts(
   });
 
   return {
-    products: data.products.nodes.map(normalize),
+    products: data.products.nodes.map((node) => normalize(node, locale)),
     pageInfo: data.products.pageInfo,
   };
 }
@@ -163,18 +191,21 @@ export async function getProducts(
  */
 export async function getProductsByIds(
   ids: readonly number[],
+  locale: string = routing.defaultLocale,
 ): Promise<CatalogProduct[]> {
   if (ids.length === 0) return [];
-  const data = await fetchGraphQL<{ products: { nodes: RawProductNode[] } }>(
-    PRODUCTS_BY_IDS_QUERY,
-    {
-      variables: { ids: [...ids], first: ids.length },
-      revalidate: CATALOG_REVALIDATE,
-      tags: ["products"],
-    },
-  );
+  const data = await fetchLocalizedGraphQL<{
+    products: { nodes: Localizable<RawProductNode>[] };
+  }>(PRODUCTS_BY_IDS_QUERY, locale, {
+    variables: { ids: [...ids], first: ids.length },
+    revalidate: CATALOG_REVALIDATE,
+    tags: ["products"],
+  });
   const byId = new Map(
-    (data.products?.nodes ?? []).map((node) => [node.databaseId, normalize(node)]),
+    (data.products?.nodes ?? []).map((node) => [
+      node.databaseId,
+      normalize(node, locale),
+    ]),
   );
   return ids.flatMap((id) => {
     const product = byId.get(id);
@@ -188,18 +219,18 @@ export async function getProductsByIds(
  */
 export async function getProductsBySlugs(
   slugs: readonly string[],
+  locale: string = routing.defaultLocale,
 ): Promise<CatalogProduct[]> {
   if (slugs.length === 0) return [];
-  const data = await fetchGraphQL<{ products?: { nodes: RawProductNode[] } }>(
-    PRODUCTS_BY_SLUGS_QUERY,
-    {
-      variables: { slugs: [...slugs], first: slugs.length },
-      revalidate: CATALOG_REVALIDATE,
-      tags: ["products"],
-    },
-  );
+  const data = await fetchLocalizedGraphQL<{
+    products?: { nodes: Localizable<RawProductNode>[] };
+  }>(PRODUCTS_BY_SLUGS_QUERY, locale, {
+    variables: { slugs: [...slugs], first: slugs.length },
+    revalidate: CATALOG_REVALIDATE,
+    tags: ["products"],
+  });
   const bySlug = new Map(
-    (data.products?.nodes ?? []).map((node) => [node.slug, normalize(node)]),
+    (data.products?.nodes ?? []).map((node) => [node.slug, normalize(node, locale)]),
   );
   return slugs.flatMap((slug) => {
     const product = bySlug.get(slug);
@@ -207,20 +238,33 @@ export async function getProductsBySlugs(
   });
 }
 
-export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
-  const data = await fetchGraphQL<{ product: RawProductNode | null }>(
-    PRODUCT_BY_SLUG_QUERY,
-    { variables: { slug }, revalidate: CATALOG_REVALIDATE, tags: ["products"] },
-  );
+/**
+ * Una ficha por su slug NATIVO, en `locale`. Pide las traducciones de TODOS los
+ * idiomas del sitio (no solo la del idioma de la página): la ficha declara el
+ * hreflang y la canónica de cada uno, y la misma query sirve a cualquier idioma.
+ */
+export async function getProductBySlug(
+  slug: string,
+  locale: string = routing.defaultLocale,
+): Promise<ProductDetail | null> {
+  const data = await fetchLocalizedGraphQL<{
+    product: Localizable<RawProductNode> | null;
+  }>(PRODUCT_BY_SLUG_QUERY, secondaryLocales(), {
+    variables: { slug },
+    revalidate: CATALOG_REVALIDATE,
+    tags: ["products"],
+  });
 
   const node = data.product;
   if (!node) return null;
 
   return {
-    ...normalize(node),
-    description: node.description ?? null,
-    seoTitle: node.seoTitle?.trim() || null,
-    seoDescription: node.seoDescription?.trim() || null,
+    ...normalize(node, locale),
+    description: pickTranslated(node, "description", locale),
+    seoTitle: pickTranslated(node, "seoTitle", locale)?.trim() || null,
+    seoDescription: pickTranslated(node, "seoDescription", locale)?.trim() || null,
+    urlSlugs: urlSlugsByLocale(node),
+    locales: translatedLocales(node, "name"),
     attributes:
       node.attributes?.nodes.map((a) => ({
         id: a.id,
@@ -248,7 +292,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
         authorName: e.node.author?.node?.name ?? "Anónimo",
       })),
     },
-    related: node.related?.nodes.map(normalize) ?? [],
+    related: node.related?.nodes.map((related) => normalize(related, locale)) ?? [],
   };
 }
 
@@ -264,13 +308,62 @@ export async function getProductSlugs(): Promise<string[]> {
   }
 }
 
+/** Una ficha publicada tal como la necesitan el sitemap y el prerender. */
+export interface ProductUrlEntry {
+  /** Slug nativo (identidad de la ficha). */
+  slug: string;
+  /** Tramo de URL por idioma del sitio. */
+  slugs: Record<string, string>;
+  /** Idiomas del sitio en los que la ficha existe de verdad (el por defecto, siempre). */
+  locales: string[];
+}
+
+/**
+ * Fichas publicadas con el slug de cada idioma y en cuáles existen, sin importar
+ * el idioma de la página. Un fallo del catálogo da lista vacía y queda en el log:
+ * el sitemap sigue con el resto.
+ */
+export async function getProductUrls(): Promise<ProductUrlEntry[]> {
+  try {
+    const data = await fetchLocalizedGraphQL<{
+      products: { nodes: Localizable<{ slug: string; name: string }>[] };
+    }>(PRODUCT_SLUGS_QUERY, secondaryLocales(), {
+      variables: { first: 100 },
+      revalidate: CATALOG_REVALIDATE,
+      tags: ["products"],
+    });
+    return data.products.nodes.map((node) => ({
+      slug: node.slug,
+      slugs: urlSlugsByLocale(node),
+      locales: translatedLocales(node, "name"),
+    }));
+  } catch (error) {
+    logger.error(
+      {
+        event: "catalog.product_urls_failed",
+        err: error instanceof Error ? error.message : error,
+      },
+      "No se pudo listar las fichas del catálogo",
+    );
+    return [];
+  }
+}
+
+/**
+ * Una categoría por su slug NATIVO, en `locale`. Como la ficha, pide las
+ * traducciones de todos los idiomas: declara el hreflang de cada uno.
+ */
 export async function getCategory(
   slug: string,
+  locale: string = routing.defaultLocale,
 ): Promise<{ category: ProductCategory; products: CatalogProduct[] } | null> {
-  const data = await fetchGraphQL<{
+  const data = await fetchLocalizedGraphQL<{
     productCategory:
-      (ProductCategory & { products: { nodes: RawProductNode[] } }) | null;
-  }>(CATEGORY_BY_SLUG_QUERY, {
+      | (Localizable<ProductCategory> & {
+          products: { nodes: Localizable<RawProductNode>[] };
+        })
+      | null;
+  }>(CATEGORY_BY_SLUG_QUERY, secondaryLocales(), {
     variables: { slug, first: 24 },
     revalidate: CATALOG_REVALIDATE,
     tags: ["products"],
@@ -283,21 +376,34 @@ export async function getCategory(
     category: {
       id: cat.id,
       databaseId: cat.databaseId,
-      name: cat.name,
+      name: pickTranslated(cat, "name", locale) ?? cat.name,
       slug: cat.slug,
-      description: cat.description ?? null,
-      seoTitle: cat.seoTitle?.trim() || null,
-      seoDescription: cat.seoDescription?.trim() || null,
+      description: pickTranslated(cat, "description", locale),
+      seoTitle: pickTranslated(cat, "seoTitle", locale)?.trim() || null,
+      seoDescription: pickTranslated(cat, "seoDescription", locale)?.trim() || null,
+      urlSlug: localizedUrlSlug(cat, locale),
+      urlSlugs: urlSlugsByLocale(cat),
+      locales: translatedLocales(cat, "name"),
     },
-    products: cat.products.nodes.map(normalize),
+    products: cat.products.nodes.map((node) => normalize(node, locale)),
   };
 }
 
-export async function getCategories(): Promise<ProductCategory[]> {
+/**
+ * Categorías con el nombre y el tramo de URL de `locale`. Con `allLocales` pide
+ * las traducciones de todos los idiomas y añade `urlSlugs` y `locales` (sitemap
+ * y llms.txt, que listan cada idioma sin importar el de la página).
+ */
+export async function getCategories(
+  locale: string = routing.defaultLocale,
+  options: { allLocales?: boolean } = {},
+): Promise<ProductCategory[]> {
   try {
-    const data = await fetchGraphQL<{
-      productCategories: { nodes: (ProductCategory & { count: number })[] };
-    }>(CATEGORIES_QUERY, {
+    const data = await fetchLocalizedGraphQL<{
+      productCategories: {
+        nodes: Localizable<ProductCategory & { count: number }>[];
+      };
+    }>(CATEGORIES_QUERY, options.allLocales ? secondaryLocales() : locale, {
       variables: { first: 50 },
       revalidate: CATALOG_REVALIDATE,
       tags: ["products"],
@@ -305,9 +411,13 @@ export async function getCategories(): Promise<ProductCategory[]> {
     return data.productCategories.nodes.map((c) => ({
       id: c.id,
       databaseId: c.databaseId,
-      name: c.name,
+      name: pickTranslated(c, "name", locale) ?? c.name,
       slug: c.slug,
-      description: c.description,
+      description: pickTranslated(c, "description", locale),
+      urlSlug: localizedUrlSlug(c, locale),
+      ...(options.allLocales
+        ? { urlSlugs: urlSlugsByLocale(c), locales: translatedLocales(c, "name") }
+        : {}),
     }));
   } catch {
     return [];

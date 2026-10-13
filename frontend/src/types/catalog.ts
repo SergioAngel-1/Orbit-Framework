@@ -26,6 +26,11 @@ export interface CatalogProduct {
   stockStatus: string | null;
   shortDescription: string | null;
   image: ProductImage | null;
+  /**
+   * Tramo de URL en el idioma de la página: el slug traducido si lo hay, si no
+   * el nativo (ver `lib/i18n/url-slug.ts`). Los enlaces lo usan vía `productHref`.
+   */
+  urlSlug?: string;
 }
 
 export interface ProductAttributeOption {
@@ -62,6 +67,10 @@ export interface ProductDetail extends CatalogProduct {
   variations: ProductVariationData[];
   reviews: { averageRating: number; items: ProductReview[] };
   related: CatalogProduct[];
+  /** Tramo de URL por idioma del sitio (hreflang y canónica). */
+  urlSlugs?: Record<string, string>;
+  /** Idiomas del sitio en los que la ficha existe de verdad (el por defecto, siempre). */
+  locales?: string[];
 }
 
 export interface ProductCategory {
@@ -73,6 +82,12 @@ export interface ProductCategory {
   /** Override de la caja SEO del editor (hwe-seo). Null = usar nombre/descripción. */
   seoTitle?: string | null;
   seoDescription?: string | null;
+  /** Tramo de URL en el idioma de la página (ver `CatalogProduct.urlSlug`). */
+  urlSlug?: string;
+  /** Tramo de URL por idioma del sitio. */
+  urlSlugs?: Record<string, string>;
+  /** Idiomas del sitio en los que la categoría existe de verdad. */
+  locales?: string[];
 }
 
 export interface PageInfo {

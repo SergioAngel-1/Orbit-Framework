@@ -13,6 +13,7 @@ const PRODUCT_CARD_FRAGMENT = /* GraphQL */ `
     name
     slug
     type
+    # @translation Product: name shortDescription slug
     image {
       sourceUrl
       altText
@@ -124,6 +125,7 @@ export const PRODUCT_BY_SLUG_QUERY = /* GraphQL */ `
     product(id: $slug, idType: SLUG) {
       id databaseId name slug type
       seoTitle seoDescription
+      # @translation Product
       image { sourceUrl altText isReferenceImage }
       ... on SimpleProduct {
         onSale price regularPrice salePrice stockStatus
@@ -155,6 +157,8 @@ export const PRODUCT_SLUGS_QUERY = /* GraphQL */ `
     products(first: $first, where: { status: "publish" }) {
       nodes {
         slug
+        name
+        # @translation Product: name slug
       }
     }
   }
@@ -171,6 +175,7 @@ export const CATEGORY_BY_SLUG_QUERY = /* GraphQL */ `
       description
       seoTitle
       seoDescription
+      # @translation ProductCategory
       products(first: $first) {
         nodes {
           ...ProductCard
@@ -189,6 +194,7 @@ export const CATEGORIES_QUERY = /* GraphQL */ `
         name
         slug
         count
+        # @translation ProductCategory: name description slug
       }
     }
   }

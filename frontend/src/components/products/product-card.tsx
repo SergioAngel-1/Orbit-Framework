@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 import { WishlistButton } from "@/components/products/wishlist-button";
 import { useFormatPrice } from "@/components/ui/currency-context";
+import { productHref } from "@/lib/catalog/product-href";
 import type { CatalogProduct } from "@/types/catalog";
 
 export interface ProductCardProps {
@@ -28,7 +29,7 @@ export function ProductCard({ product, wishlistEnabled = false }: ProductCardPro
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
       <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800">
-        <Link href={`/products/${product.slug}`} className="block h-full w-full">
+        <Link href={productHref(product)} className="block h-full w-full">
           {product.image?.sourceUrl ? (
             <CmsImage
               src={product.image.sourceUrl}
@@ -52,7 +53,7 @@ export function ProductCard({ product, wishlistEnabled = false }: ProductCardPro
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <Link href={`/products/${product.slug}`} className="flex-1">
+        <Link href={productHref(product)} className="flex-1">
           <h3 className="font-semibold leading-snug transition-colors group-hover:text-brand">
             {product.name}
           </h3>

@@ -1,14 +1,15 @@
 import { CmsImage } from "@/components/ui/cms-image";
-import { Link } from "@/i18n/navigation";
+import { Link, permanentRedirect } from "@/i18n/navigation";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { getProductBySlug, getProductSlugs } from "@/lib/catalog/products";
+import { getProductBySlug, getProductUrls } from "@/lib/catalog/products";
+import { resolveEntityRoute } from "@/lib/i18n/entity-route";
 import { prerenderLongTail } from "@/lib/prerender-budget";
 import { sanitizeHtml } from "@/lib/security/sanitize";
 import { formatPrice, stripHtml, formatDate } from "@/lib/format";
 import { getSiteConfig } from "@/lib/config";
-import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
+import { absoluteLocalized, alternatesFor, entityPaths } from "@/lib/seo/urls";
 import { buildProductJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
@@ -22,15 +23,19 @@ import { CouponNotices } from "@/components/coupons/coupon-notice";
 import { ViewItemTracker } from "@/components/analytics/view-item-tracker";
 import { viewItemParams } from "@/lib/analytics/ecommerce";
 import { isModuleEnabled } from "@/lib/config/modules";
+import type { ProductDetail } from "@/types/catalog";
 import { getProductCoupons } from "@/lib/coupons/public-coupons";
 import { getCartProductRefs } from "@/lib/catalog/coupon-refs";
 
 export const revalidate = 300;
 
 export async function generateStaticParams() {
-  // La cola larga se hornea o se deja para ISR según `PRERENDER_LONG_TAIL`.
-  const slugs = await prerenderLongTail(getProductSlugs);
-  return slugs.map((slug) => ({ slug }));
+  // La cola larga se hornea o se deja para ISR según `PRERENDER_LONG_TAIL`. Cada
+  // ficha se hornea solo en los idiomas en que existe, con su tramo de URL.
+  const products = await prerenderLongTail(getProductUrls);
+  return products.flatMap(({ slugs, locales }) =>
+    locales.map((locale) => ({ locale, slug: slugs[locale]! })),
+  );
 }
 
 export async function generateMetadata({
@@ -44,13 +49,23 @@ export async function generateMetadata({
     getSiteConfig(),
   ]);
   try {
-    const product = await getProductBySlug(slug);
-    if (!product) return { title: t("notFound") };
+    const route = await resolveEntityRoute(
+      "product",
+      "/products",
+      slug,
+      locale,
+      (native) => getProductBySlug(native, locale),
+    );
+    if (!route) return { title: t("notFound") };
+    const product = route.entity;
     // La caja SEO del editor manda sobre el nombre y el resumen del producto.
     const description = metaDescription(
       product.seoDescription || product.shortDescription || product.description,
     );
-    const canonical = alternatesFor(`/products/${slug}`, locale);
+    const canonical = alternatesFor(`/products/${route.nativeSlug}`, locale, {
+      locales: product.locales,
+      paths: entityPaths("/products", product.urlSlugs),
+    });
     // Next REEMPLAZA `openGraph` entero: los campos de sitio (siteName, locale,
     // alternateLocale) salen de `siteOpenGraph`, y la foto del producto manda
     // sobre la tarjeta por defecto.
@@ -88,19 +103,24 @@ export default async function ProductPage({
     getSiteConfig(),
   ]);
 
-  let product: Awaited<ReturnType<typeof getProductBySlug>>;
+  let route: Awaited<ReturnType<typeof resolveEntityRoute<ProductDetail>>>;
   try {
-    product = await getProductBySlug(slug);
+    route = await resolveEntityRoute("product", "/products", slug, locale, (native) =>
+      getProductBySlug(native, locale),
+    );
   } catch {
     notFound();
   }
-  if (!product) notFound();
+  if (!route) notFound();
+  // El tramo pedido puede ser el nativo o el de otro idioma: 308 al del idioma.
+  if (!route.isCanonical) permanentRedirect({ href: route.canonicalHref, locale });
+  const product = route.entity;
 
   const descriptionHtml = product.description ? sanitizeHtml(product.description) : "";
   const outOfStock = product.stockStatus === "OUT_OF_STOCK";
   const isVariable = product.type === "VARIABLE";
 
-  const canonicalUrl = absoluteLocalized(config.brand.url, `/products/${slug}`, locale);
+  const canonicalUrl = absoluteLocalized(config.brand.url, route.canonicalHref, locale);
   const jsonLd = buildProductJsonLd({
     product,
     config,

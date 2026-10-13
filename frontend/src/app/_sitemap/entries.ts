@@ -1,11 +1,11 @@
 import type { MetadataRoute } from "next";
 import { getSiteConfig, isFallbackSiteConfig } from "@/lib/config";
 import { routing } from "@/i18n/routing";
-import { getCategories, getProductSlugs } from "@/lib/catalog/products";
+import { getCategories, getProductUrls } from "@/lib/catalog/products";
 import { getPostSlugs } from "@/lib/blog/posts";
 import { getBlogCategories } from "@/lib/blog/categories";
 import { categoryPageAvailable } from "@/lib/blog/category-format";
-import { hreflangLanguages, localizedPath } from "@/lib/seo/urls";
+import { entityPaths, hreflangLanguages, localizedPath } from "@/lib/seo/urls";
 import type { SitemapSegment } from "@/lib/seo/sitemap-segments";
 import { logger } from "@/lib/observability/logger";
 
@@ -41,11 +41,19 @@ interface SitemapPath {
    * hreflang (ver `lib/seo/urls.ts`).
    */
   locales?: readonly string[];
+  /**
+   * Ruta de la entidad en cada idioma (sin prefijo de locale) cuando el tramo
+   * de URL cambia con el idioma. Un idioma sin entrada usa `path`.
+   */
+  paths?: Readonly<Record<string, string>>;
 }
 
 /** Expande una ruta interna a una entrada por idioma, con alternates. */
 function expand(baseUrl: string, entry: SitemapPath): MetadataRoute.Sitemap {
-  const options = entry.locales ? { locales: entry.locales } : {};
+  const options = {
+    ...(entry.locales ? { locales: entry.locales } : {}),
+    ...(entry.paths ? { paths: entry.paths } : {}),
+  };
   const languages = Object.fromEntries(
     Object.entries(hreflangLanguages(entry.path, options)).map(([lang, path]) => [
       lang,
@@ -59,7 +67,7 @@ function expand(baseUrl: string, entry: SitemapPath): MetadataRoute.Sitemap {
       entry.locales.includes(locale),
   );
   return locales.map((locale) => ({
-    url: `${baseUrl}${localizedPath(entry.path, locale)}`,
+    url: `${baseUrl}${localizedPath(entry.paths?.[locale] ?? entry.path, locale)}`,
     // Sin fecha REAL no se emite `lastmod`. Es opcional en el protocolo, y un
     // `new Date()` en todas las filas decía «todo el sitio cambió ahora» en
     // cada petición — el patrón exacto por el que Google deja de fiarse del
@@ -118,9 +126,11 @@ export async function buildSitemapEntries(
     // Fail-soft deliberado: un sitemap sin productos es mejor que una ruta
     // caída, pero el fallo queda visible en los logs.
     try {
-      for (const slug of await getProductSlugs()) {
+      for (const { slug, slugs, locales } of await getProductUrls()) {
         paths.push({
           path: `/products/${slug}`,
+          locales,
+          paths: entityPaths("/products", slugs),
           changeFrequency: "weekly",
           priority: 0.7,
         });
@@ -132,9 +142,13 @@ export async function buildSitemapEntries(
       );
     }
     try {
-      for (const cat of await getCategories()) {
+      for (const cat of await getCategories(routing.defaultLocale, {
+        allLocales: true,
+      })) {
         paths.push({
           path: `/categories/${cat.slug}`,
+          ...(cat.locales ? { locales: cat.locales } : {}),
+          paths: entityPaths("/categories", cat.urlSlugs),
           changeFrequency: "weekly",
           priority: 0.6,
         });
@@ -154,6 +168,7 @@ export async function buildSitemapEntries(
         if (!categoryPageAvailable(category)) continue;
         paths.push({
           path: `/blog/category/${category.slug}`,
+          locales: category.locales,
           changeFrequency: "weekly",
           priority: 0.5,
         });
@@ -167,9 +182,11 @@ export async function buildSitemapEntries(
       );
     }
     try {
-      for (const { slug, modified } of await getPostSlugs()) {
+      for (const { slug, modified, slugs, locales } of await getPostSlugs()) {
         paths.push({
           path: `/blog/${slug}`,
+          locales,
+          paths: entityPaths("/blog", slugs),
           changeFrequency: "monthly",
           priority: 0.6,
           lastModified: modified ? new Date(modified) : undefined,
