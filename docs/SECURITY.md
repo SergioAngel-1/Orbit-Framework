@@ -22,7 +22,7 @@ seguridad se toma ahí, **fallando cerrado** cuando falta una pieza.
 | Robo de credenciales antes del segundo factor | El login con 2FA no entrega tokens: las credenciales se quedan en Redis hasta verificar (id opaco de un solo uso, `GETDEL`); sin Redis falla cerrado | `lib/auth/pending-login.ts` |
 | Secreto TOTP en reposo / en tránsito | AES-256-GCM con clave dedicada (`HWE_2FA_KEY`, sin clave de reserva); el QR lo genera el BFF, ningún tercero lo ve; recuperación con códigos hasheados | `mu-plugins/hwe-auth/` |
 | Sesión robada o cuenta comprometida | Blocklist de access tokens, `logout-all` que rota el secreto del usuario, cambio de contraseña que cierra las demás sesiones | `lib/auth/revocation.ts`, `hwe-auth.php` |
-| Duplicación de pedidos | Clave de idempotencia (Redis) | `lib/security/idempotency.ts` |
+| Duplicación de pedidos | Clave de idempotencia (Redis): un duplicado detectado no vuelve a proceder aunque Redis falle después; sin Redis (o si falla la reserva) el checkout sigue y queda registrado como `error` | `lib/security/idempotency.ts` |
 | Pago falsificado | Confirmación solo por webhook firmado, con importe y moneda verificados; anti-replay | `lib/payments/*`, `lib/security/replay.ts` |
 | Webhook falso | HMAC-SHA256 con secreto compartido, un único verificador, falla cerrado con secreto vacío | `lib/security/webhook.ts` |
 | IDOR (otro usuario ve mis datos) | Autorización por propietario en handlers; el pedido de invitado solo con su cookie `order_key` | `lib/woocommerce/client.ts`, `lib/checkout/` |

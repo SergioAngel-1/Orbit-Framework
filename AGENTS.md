@@ -203,7 +203,7 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 | Seguridad (cabeceras, CORS, hardening, `hwe-bff-only` con secreto, guard de arranque) | ✅ |
 | Autenticación JWT (cookies httpOnly + refresh + revocación + cambio de contraseña) | ✅ |
 | Proxy inverso a WooCommerce (BFF, ck/cs server-only, `wpFetch` único) | ✅ |
-| CSRF + rate-limit + idempotencia (con fallo cerrado) | ✅ |
+| CSRF + rate-limit + idempotencia (el duplicado ya detectado nunca procede; ver §9) | ✅ |
 | E-commerce (catálogo, carrito, checkout ligado a cliente **o de invitado**, cuenta) | ✅ |
 | Cuenta avanzada (wishlist, reseñas, direcciones — **meta atómica con lock**) | ✅ |
 | Cupones (reglas, avisos) y envío (por ciudad, extras, gratis por regla) | ✅ (módulos `coupon-rules` y `shipping`) |
@@ -277,7 +277,11 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
 - **Rate-limit** (Redis, ventana fija): `lib/security/rate-limit.ts` + `lib/redis/client.ts`.
   Fail-open por defecto; con `strict: true` usa un **fallback en memoria** si Redis cae
   (se aplica en auth: login/registro/2FA/forgot/reset).
-- **Idempotencia** (checkout): `lib/security/idempotency.ts`.
+- **Idempotencia** (checkout): `lib/security/idempotency.ts`. Falla cerrado solo ante un
+  duplicado **ya detectado** (si `SET NX` confirma la clave y la lectura falla → `conflict`, nunca
+  `proceed`). Sin Redis, o si falla el propio `SET NX`, deja pasar y lo registra (`error`): no se
+  sabe si hay duplicado y bloquear todo el checkout por una caída de Redis cuesta más que el
+  riesgo de un doble envío.
 - **Guard unificado** (Origin → CSRF → rate-limit) aplicado en cada escritura:
   `lib/api/guard.ts`. Si añades un endpoint de escritura, **úsalo**.
 - **Guard de arranque**: `lib/security/secret-guard.ts` (llamado desde `instrumentation.ts`)
