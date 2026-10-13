@@ -91,7 +91,7 @@ export async function dispatchOrderEffects(ctx: OrderEffectContext): Promise<voi
   //  Email transaccional AL CLIENTE: lo emite WooCommerce de forma NATIVA.
   //  Cuando el pedido cambia de estado (p. ej. a `processing` desde el webhook
   //  de pago vía `markOrderPaid` → `set_paid`), WooCommerce dispara su propio
-  //  email con plantilla (ver `woocommerce-email-branding.php`). NO lo
+  //  email con plantilla (ver `hwe-email-chrome.php`). NO lo
   //  duplicamos aquí para evitar correos dobles. Este dispatcher cubre los
   //  efectos OPERATIVOS/integraciones que Woo no hace por sí mismo.
   // -------------------------------------------------------------------------

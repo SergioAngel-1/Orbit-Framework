@@ -194,9 +194,14 @@ final class HeadlessMuPluginsTest extends TestCase
         $this->loadOwnFile('mu-plugins/hwe-smtp.php');
 
         $this->assertSame(
-            'https://admin.example.test/wp-admin/admin.php?page=hwe-config&hwe_smtp_test=sent',
+            'https://admin.example.test/wp-admin/admin.php?page=hwe-config&hwe_smtp_test=sent&hwe_smtp_test_tpl=basic&hwe_smtp_test_real=0',
             hwe_smtp_test_redirect_url(true)
         );
         $this->assertStringContainsString('hwe_smtp_test=failed', hwe_smtp_test_redirect_url(false));
+        $this->assertStringContainsString(
+            'hwe_smtp_test_tpl=wc%3Acustomer_note&hwe_smtp_test_real=1',
+            hwe_smtp_test_redirect_url(true, 'wc:customer_note', true),
+            'Vuelve con la plantilla probada para dejarla seleccionada.'
+        );
     }
 }

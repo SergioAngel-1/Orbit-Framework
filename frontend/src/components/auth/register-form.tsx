@@ -2,12 +2,13 @@
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 
 export function RegisterForm() {
   const router = useRouter();
   const tRegister = useTranslations("register");
+  const locale = useLocale();
   const tForm = useTranslations("form");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -24,6 +25,7 @@ export function RegisterForm() {
           username: String(form.get("username") ?? ""),
           email: String(form.get("email") ?? ""),
           password: String(form.get("password") ?? ""),
+          locale,
         },
       });
       if (!res.ok) {

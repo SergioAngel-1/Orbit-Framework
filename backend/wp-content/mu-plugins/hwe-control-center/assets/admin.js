@@ -309,6 +309,99 @@
     // Init on DOMContentLoaded
     // =========================================================================
 
+    // =========================================================================
+    // Vista previa de la prueba de email: pide el HTML final por AJAX
+    // (hwe-email-test.php) y lo pinta en un <iframe sandbox> con `srcdoc`.
+    // =========================================================================
+
+    function initEmailPreview() {
+        var trigger = document.querySelector('[data-hwe-email-preview]');
+        var modal = document.querySelector('[data-hwe-email-preview-modal]');
+        if (!trigger || !modal) return;
+        document.body.appendChild(modal);
+
+        var frame = modal.querySelector('[data-hwe-email-preview-frame]');
+        var status = modal.querySelector('[data-hwe-email-preview-status]');
+        var label = modal.querySelector('[data-hwe-email-preview-label]');
+        var subject = modal.querySelector('[data-hwe-email-preview-subject]');
+        var from = modal.querySelector('[data-hwe-email-preview-from]');
+        var deviceBtns = modal.querySelectorAll('[data-hwe-email-preview-device]');
+        var lastFocus = null;
+        var request = 0;
+
+        function setDevice(device) {
+            modal.dataset.device = device;
+            deviceBtns.forEach(function (b) {
+                b.setAttribute('aria-pressed', b.dataset.hweEmailPreviewDevice === device ? 'true' : 'false');
+            });
+        }
+
+        function close() {
+            modal.hidden = true;
+            document.body.classList.remove('hwe-email-preview-open');
+            frame.srcdoc = '';
+            if (lastFocus) lastFocus.focus();
+        }
+
+        function showStatus(text) {
+            status.textContent = text;
+            status.hidden = !text;
+            frame.hidden = !!text;
+        }
+
+        function open() {
+            var select = document.querySelector('[name="hwe_smtp_test_template"]');
+            var real = document.querySelector('[name="hwe_smtp_test_real_order"]');
+            var params = new URLSearchParams({
+                action: 'hwe_email_preview',
+                _ajax_nonce: trigger.dataset.nonce,
+                template: select ? select.value : 'basic',
+                real: real && real.checked ? '1' : ''
+            });
+
+            lastFocus = document.activeElement;
+            label.textContent = select ? select.options[select.selectedIndex].text : '';
+            subject.textContent = '…';
+            from.textContent = '…';
+            showStatus('Generando vista previa…');
+            modal.hidden = false;
+            document.body.classList.add('hwe-email-preview-open');
+            modal.querySelector('.hwe-email-preview__close').focus();
+
+            var current = ++request;
+            fetch(trigger.dataset.url + '?' + params.toString(), { credentials: 'same-origin' })
+                .then(function (res) { return res.json(); })
+                .then(function (json) {
+                    if (current !== request) return;
+                    if (!json || !json.success) {
+                        throw new Error(json && json.data && json.data.message ? json.data.message : 'No se pudo generar la vista previa.');
+                    }
+                    label.textContent = json.data.label;
+                    subject.textContent = json.data.subject;
+                    from.textContent = json.data.from;
+                    // Los enlaces se abren fuera del iframe (sandbox con allow-popups).
+                    frame.srcdoc = json.data.html.replace(/<head([^>]*)>/i, '<head$1><base target="_blank">');
+                    showStatus('');
+                })
+                .catch(function (err) {
+                    if (current !== request) return;
+                    showStatus(err.message || 'No se pudo generar la vista previa.');
+                });
+        }
+
+        trigger.addEventListener('click', open);
+        modal.querySelectorAll('[data-hwe-email-preview-close]').forEach(function (el) {
+            el.addEventListener('click', close);
+        });
+        deviceBtns.forEach(function (b) {
+            b.addEventListener('click', function () { setDevice(b.dataset.hweEmailPreviewDevice); });
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !modal.hidden) close();
+        });
+        setDevice('desktop');
+    }
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', boot);
     } else {
@@ -323,5 +416,6 @@
         initSaveSpinner();
         initProviderToggle();
         initNotices();
+        initEmailPreview();
     }
 })();

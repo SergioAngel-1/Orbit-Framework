@@ -3,10 +3,9 @@ import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
+import { authEmailLocale, authEmailUrl } from "@/lib/auth/email-links";
 
 export const dynamic = "force-dynamic";
-
-const FRONTEND_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
@@ -21,6 +20,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
 
+  // Cuerpo opcional: `{ locale }` del visitante (sin cuerpo, el idioma por defecto).
+  const body = (await request.json().catch(() => null)) as { locale?: unknown } | null;
+  const locale = authEmailLocale(body?.locale);
+
   try {
     const res = await wpFetch(`/wp-json/hwe/v1/auth/send-verification`, {
       method: "POST",
@@ -29,7 +32,8 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${session.token}`,
       },
       body: JSON.stringify({
-        verification_url: `${FRONTEND_URL}/verify-email`,
+        verification_url: authEmailUrl("/verify-email", locale),
+        locale,
       }),
     });
 

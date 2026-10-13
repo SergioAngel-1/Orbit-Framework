@@ -1089,3 +1089,139 @@
 .hwe-product-fields-list .hwe-item-field textarea {
     max-width: none;
 }
+
+/* ==========================================================================
+   Prueba de email: acciones y vista previa (modal con iframe sandbox)
+   El modal se mueve a <body> (fuera de .hwe-wrap) para quedar por encima de todo.
+   ========================================================================== */
+
+.hwe-smtp-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+body.hwe-email-preview-open {
+    overflow: hidden;
+}
+
+.hwe-email-preview[hidden],
+.hwe-email-preview__status[hidden],
+.hwe-email-preview__frame[hidden] {
+    display: none;
+}
+
+.hwe-email-preview {
+    position: fixed;
+    inset: 0;
+    z-index: 100000; /* por encima de la barra de admin (99999) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    color: #0f172a;
+}
+
+.hwe-email-preview__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+}
+
+.hwe-email-preview__dialog {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: min(1040px, 100%);
+    height: min(92vh, 1100px);
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.35);
+    overflow: hidden;
+}
+
+.hwe-email-preview__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 18px 22px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.hwe-email-preview__meta {
+    min-width: 0;
+}
+
+.hwe-email-preview__meta h2 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.hwe-email-preview__meta dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+    margin: 0;
+    font-size: 13px;
+}
+
+.hwe-email-preview__meta dt {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.hwe-email-preview__meta dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.hwe-email-preview__tools {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.hwe-email-preview__devices .button[aria-pressed="true"] {
+    background: #0f172a;
+    border-color: #0f172a;
+    color: #fff;
+}
+
+.hwe-email-preview__stage {
+    position: relative;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    padding: 24px;
+    background: #e2e8f0;
+    overflow: hidden;
+}
+
+.hwe-email-preview__frame {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 720px;
+    height: 100%;
+    border: 0;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.14);
+}
+
+.hwe-email-preview[data-device="mobile"] .hwe-email-preview__frame {
+    max-width: 391px; /* 375 + 2 × 8 de marco */
+    border: 8px solid #0f172a;
+    border-radius: 28px;
+}
+
+.hwe-email-preview__status {
+    align-self: center;
+    margin: 0;
+    color: #475569;
+    font-size: 14px;
+}

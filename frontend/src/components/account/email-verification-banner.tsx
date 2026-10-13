@@ -1,17 +1,21 @@
 "use client";
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 
 export function EmailVerificationBanner() {
   const t = useTranslations("verifyEmail");
+  const locale = useLocale();
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
   async function resend() {
     setSending(true);
     try {
-      await csrfFetch("/api/auth/resend-verification", { method: "POST" });
+      await csrfFetch("/api/auth/resend-verification", {
+        method: "POST",
+        body: { locale },
+      });
       setSent(true);
     } catch {
       /* ignore */

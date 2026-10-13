@@ -185,10 +185,13 @@ class AdminPage {
 
         echo '</form>';
 
-        // Formularios fuera del form principal: HTML prohíbe <form> anidados, y estas
-        // acciones (backup manual, import de config) van a admin-post.php, no al guardado
-        // normal del panel. Los botones de BackupActions los referencian por `form="…"`.
+        // Formularios fuera del form principal: HTML prohíbe <form> anidados (el navegador
+        // descarta el interior y su botón envía el formulario de configuración), y estas
+        // acciones (prueba de email, backup manual, import de config) van a
+        // admin-post.php, no al guardado normal del panel. Sus controles los referencian
+        // por `form="…"`.
         $adminPostUrl = esc_url(admin_url('admin-post.php'));
+        echo '<form id="hwe-smtp-form" method="post" action="' . $adminPostUrl . '" class="hwe-smtp-form-root"></form>';
         echo '<form id="hwe-backup-run-now-form" method="post" action="' . $adminPostUrl . '" class="hwe-smtp-form-root"></form>';
         echo '<form id="hwe-config-import-form" method="post" enctype="multipart/form-data" action="' . $adminPostUrl . '" class="hwe-smtp-form-root"></form>';
 
@@ -277,12 +280,24 @@ class AdminPage {
             ? sanitize_text_field(wp_unslash($_GET['hwe_smtp_test']))
             : '';
 
+        // Plantilla de la última prueba (hwe-email-test.php), para el aviso y para dejarla
+        // seleccionada.
+        $tplKey   = isset($_GET['hwe_smtp_test_tpl'])
+            ? (string) preg_replace('/[^a-z0-9_:\-]/', '', strtolower(sanitize_text_field(wp_unslash($_GET['hwe_smtp_test_tpl']))))
+            : 'basic';
+        $useReal  = isset($_GET['hwe_smtp_test_real']) && $_GET['hwe_smtp_test_real'] === '1';
+        $catalog  = function_exists('hwe_email_test_catalog') ? hwe_email_test_catalog() : ['Transporte' => ['basic' => __('Prueba simple (sin plantilla)', 'hwe')]];
+        $tplLabel = function_exists('hwe_email_test_label') ? hwe_email_test_label($tplKey) : '';
+        $tplNote  = $tplLabel !== '' && $tplKey !== 'basic' ? sprintf(' (%s)', $tplLabel) : '';
+
         $notices = '';
         if ($status === 'sent') {
-            $notices = AdminNotices::notice('success', __('Email de prueba enviado. Revisa la bandeja de entrada (y la carpeta de spam).', 'hwe'));
+            /* translators: %s: plantilla probada, entre paréntesis, o vacío */
+            $notices = AdminNotices::notice('success', sprintf(__('Email de prueba%s enviado. Revisa la bandeja de entrada (y la carpeta de spam).', 'hwe'), $tplNote));
         } elseif ($status === 'failed') {
             $err = get_transient('hwe_smtp_last_error');
-            $msg = __('No se pudo enviar el email de prueba.', 'hwe');
+            /* translators: %s: plantilla probada, entre paréntesis, o vacío */
+            $msg = sprintf(__('No se pudo enviar el email de prueba%s.', 'hwe'), $tplNote);
             if (is_string($err) && $err !== '') {
                 $msg .= ' ' . $err;
             }
@@ -294,40 +309,82 @@ class AdminPage {
             ? __('SMTP activo: el correo se enviará por el servidor configurado.', 'hwe')
             : __('SMTP inactivo: actívalo y completa el host arriba; mientras tanto se usa el envío PHP por defecto.', 'hwe');
 
-        $actionUrl  = esc_url(admin_url('admin-post.php'));
-        $current    = esc_attr(wp_get_current_user()->user_email);
-        $nonce      = wp_nonce_field('hwe_smtp_test', '_wpnonce', true, false);
-        $title      = esc_html__('Probar entrega de email', 'hwe');
-        $label      = esc_html__('Enviar email de prueba a:', 'hwe');
-        $btn        = esc_attr__('Enviar email de prueba', 'hwe');
-        $estadoHtml = esc_html($estado);
-        $iconClass  = $active ? 'yes-alt' : 'warning';
-
         ob_start();
         ?>
         <div class="hwe-smtp-test">
             <div class="hwe-panel-header">
                 <span class="dashicons dashicons-email-alt"></span>
-                <h2><?php echo $title; ?></h2>
+                <h2><?php esc_html_e('Probar entrega de email', 'hwe'); ?></h2>
             </div>
             <div class="hwe-panel-body">
                 <div class="hwe-smtp-status">
-                    <span class="dashicons dashicons-<?php echo $iconClass; ?>"></span>
-                    <p><?php echo $estadoHtml; ?></p>
+                    <span class="dashicons dashicons-<?php echo $active ? 'yes-alt' : 'warning'; ?>"></span>
+                    <p><?php echo esc_html($estado); ?></p>
                 </div>
-                <form method="post" action="<?php echo $actionUrl; ?>" class="hwe-smtp-form">
-                    <?php echo $nonce; ?>
-                    <input type="hidden" name="action" value="hwe_smtp_test">
+                <?php // Controles asociados a #hwe-smtp-form, que vive FUERA del formulario principal (ver renderPage). ?>
+                <div class="hwe-smtp-form">
+                    <input type="hidden" form="hwe-smtp-form" name="_wpnonce" value="<?php echo esc_attr(wp_create_nonce('hwe_smtp_test')); ?>">
+                    <input type="hidden" form="hwe-smtp-form" name="action" value="hwe_smtp_test">
                     <div class="hwe-field-row">
-                        <label><?php echo $label; ?></label>
-                        <input type="email" name="hwe_smtp_test_email" value="<?php echo $current; ?>" class="regular-text" required>
+                        <label for="hwe-smtp-test-email"><?php esc_html_e('Enviar email de prueba a:', 'hwe'); ?></label>
+                        <input type="email" id="hwe-smtp-test-email" form="hwe-smtp-form" name="hwe_smtp_test_email" value="<?php echo esc_attr(wp_get_current_user()->user_email); ?>" class="regular-text" required>
                     </div>
-                    <p class="submit"><button type="submit" class="button button-secondary"><span class="dashicons dashicons-email"></span> <?php echo $btn; ?></button></p>
-                </form>
+                    <div class="hwe-field-row">
+                        <label for="hwe-smtp-test-template"><?php esc_html_e('Plantilla:', 'hwe'); ?></label>
+                        <select id="hwe-smtp-test-template" form="hwe-smtp-form" name="hwe_smtp_test_template">
+                            <?php foreach ($catalog as $group => $items) : ?>
+                                <optgroup label="<?php echo esc_attr((string) $group); ?>">
+                                    <?php foreach ($items as $key => $itemLabel) : ?>
+                                        <option value="<?php echo esc_attr((string) $key); ?>" <?php selected($tplKey, (string) $key); ?>><?php echo esc_html((string) $itemLabel); ?></option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="hwe-field-row">
+                        <label>
+                            <input type="checkbox" form="hwe-smtp-form" name="hwe_smtp_test_real_order" value="1" <?php checked($useReal); ?>>
+                            <?php esc_html_e('Usar el último pedido real en vez del pedido de ejemplo', 'hwe'); ?>
+                        </label>
+                    </div>
+                    <p class="description"><?php esc_html_e('El correo se envía SOLO a la dirección de arriba, con «[Prueba]» en el asunto y el diseño real de la plantilla. Por defecto usa un pedido de ejemplo que no se guarda. Los enlaces con clave (restablecer, verificar) llevan una de ejemplo: muestran a dónde apuntan, pero no funcionan.', 'hwe'); ?></p>
+                    <p class="submit hwe-smtp-actions">
+                        <button type="submit" form="hwe-smtp-form" class="button button-secondary"><span class="dashicons dashicons-email"></span> <?php esc_html_e('Enviar email de prueba', 'hwe'); ?></button>
+                        <?php if (function_exists('hwe_email_test_render')) : ?>
+                            <button type="button" class="button" data-hwe-email-preview data-url="<?php echo esc_url(admin_url('admin-ajax.php')); ?>" data-nonce="<?php echo esc_attr(wp_create_nonce('hwe_email_preview')); ?>"><span class="dashicons dashicons-visibility"></span> <?php esc_html_e('Ver vista previa', 'hwe'); ?></button>
+                        <?php endif; ?>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <?php // Vista previa: el HTML llega por AJAX (hwe-email-test.php) y se pinta en un iframe sandbox. ?>
+        <div class="hwe-email-preview" data-hwe-email-preview-modal hidden>
+            <div class="hwe-email-preview__backdrop" data-hwe-email-preview-close></div>
+            <div class="hwe-email-preview__dialog" role="dialog" aria-modal="true" aria-labelledby="hwe-email-preview-title">
+                <header class="hwe-email-preview__head">
+                    <div class="hwe-email-preview__meta">
+                        <h2 id="hwe-email-preview-title" data-hwe-email-preview-label><?php esc_html_e('Vista previa', 'hwe'); ?></h2>
+                        <dl>
+                            <dt><?php esc_html_e('Asunto', 'hwe'); ?></dt><dd data-hwe-email-preview-subject></dd>
+                            <dt><?php esc_html_e('De', 'hwe'); ?></dt><dd data-hwe-email-preview-from></dd>
+                        </dl>
+                    </div>
+                    <div class="hwe-email-preview__tools">
+                        <div class="hwe-email-preview__devices" role="group" aria-label="<?php esc_attr_e('Ancho', 'hwe'); ?>">
+                            <button type="button" class="button" data-hwe-email-preview-device="desktop" aria-pressed="true"><span class="dashicons dashicons-desktop"></span> <?php esc_html_e('Escritorio', 'hwe'); ?></button>
+                            <button type="button" class="button" data-hwe-email-preview-device="mobile" aria-pressed="false"><span class="dashicons dashicons-smartphone"></span> <?php esc_html_e('Móvil', 'hwe'); ?></button>
+                        </div>
+                        <button type="button" class="button hwe-email-preview__close" data-hwe-email-preview-close aria-label="<?php esc_attr_e('Cerrar', 'hwe'); ?>"><span class="dashicons dashicons-no-alt"></span></button>
+                    </div>
+                </header>
+                <div class="hwe-email-preview__stage">
+                    <p class="hwe-email-preview__status" data-hwe-email-preview-status></p>
+                    <iframe class="hwe-email-preview__frame" data-hwe-email-preview-frame title="<?php esc_attr_e('Vista previa del correo', 'hwe'); ?>" sandbox="allow-popups allow-popups-to-escape-sandbox"></iframe>
+                </div>
             </div>
         </div>
         <?php
-        return $notices . ob_get_clean();
+        return $notices . (string) ob_get_clean();
     }
 
     // -------------------------------------------------------------------------

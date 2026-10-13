@@ -13,11 +13,10 @@ import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
 import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
 import type { RegisterResponse, LoginResponse } from "@/types/auth";
+import { authEmailLocale, authEmailUrl } from "@/lib/auth/email-links";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
 export const dynamic = "force-dynamic";
-
-const FRONTEND_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 /**
  * Dispara el email de verificación tras el registro (best-effort). La política
@@ -25,7 +24,7 @@ const FRONTEND_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
  * usuario pueda verificar cuando quiera (UI en /verify-email + reenvío). Un
  * fallo de envío no rompe el registro.
  */
-async function sendVerificationEmail(authToken: string): Promise<void> {
+async function sendVerificationEmail(authToken: string, locale: string): Promise<void> {
   try {
     const res = await wpFetch(`/wp-json/hwe/v1/auth/send-verification`, {
       method: "POST",
@@ -33,7 +32,10 @@ async function sendVerificationEmail(authToken: string): Promise<void> {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authToken}`,
       },
-      body: JSON.stringify({ verification_url: `${FRONTEND_URL}/verify-email` }),
+      body: JSON.stringify({
+        verification_url: authEmailUrl("/verify-email", locale),
+        locale,
+      }),
     });
     // WordPress contesta 502 si wp_mail() falla (SMTP caído o mal configurado):
     // no rompe el registro, pero tampoco pasa en silencio.
@@ -88,7 +90,11 @@ export async function POST(request: Request) {
   // 1) Crear el usuario.
   try {
     await fetchGraphQL<RegisterResponse>(REGISTER_USER_MUTATION, {
-      variables: parsed.data,
+      variables: {
+        username: parsed.data.username,
+        email: parsed.data.email,
+        password: parsed.data.password,
+      },
       revalidate: 0,
     });
   } catch (error) {
@@ -134,7 +140,7 @@ export async function POST(request: Request) {
 
     // Inicia el flujo de verificación de email (opcional, no bloqueante).
     if (authToken) {
-      await sendVerificationEmail(authToken);
+      await sendVerificationEmail(authToken, authEmailLocale(parsed.data.locale));
     }
 
     return NextResponse.json({ user }, { status: 201 });

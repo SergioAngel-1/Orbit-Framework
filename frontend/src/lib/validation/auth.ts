@@ -19,10 +19,14 @@ export const registerSchema = z.object({
     .regex(/^[a-zA-Z0-9_.\-@]+$/, "Solo letras, números y los símbolos . _ - @"),
   email: z.email("Email no válido").max(200),
   password: z.string().min(8, "Mínimo 8 caracteres").max(200),
+  /** Idioma del visitante, para el correo de verificación (ver `lib/auth/email-links`). */
+  locale: z.string().max(16).optional(),
 });
 
 export const forgotPasswordSchema = z.object({
   email: z.email("Email no válido").max(200),
+  /** Idioma del visitante, para el correo de recuperación. */
+  locale: z.string().max(16).optional(),
 });
 
 export const resetPasswordSchema = z.object({

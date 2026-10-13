@@ -104,7 +104,7 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 │           ├── headless-config.php      # bloqueo del frontend nativo + CORS de GraphQL
 │           ├── security.php             # hardening (enumeración de usuarios, pingbacks…)
 │           ├── woocommerce-headless.php # ajustes Store API (nonce) + CORS
-│           ├── woocommerce-email-branding.php # emails transaccionales con marca
+│           ├── hwe-email-chrome.php      # emails transaccionales con marca (+ themes/hwe-headless-base/woocommerce/emails/)
 │           ├── graphql-protection.php   # límites de profundidad/complejidad + introspección off
 │           ├── rate-limit.php           # rate-limit de /graphql y /wp-json (XFF de confianza)
 │           ├── hwe-auth.php             # ⭐ REST: reset pass, verificación email, 2FA, logout-all
@@ -461,7 +461,7 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 - **El secreto interno del BFF** para llamadas server-to-server protegidas (p. ej. `2fa-status`)
   es `HWE_REVALIDATION_SECRET`, enviado en la cabecera `X-HWE-Internal-Secret`.
 - **No dupliques emails transaccionales**: WooCommerce ya los envía al cambiar el estado del
-  pedido (ver `woocommerce-email-branding.php`). El dispatcher de `order-events` es para
+  pedido (ver `hwe-email-chrome.php` y las plantillas del tema base). El dispatcher de `order-events` es para
   integraciones, no para correos al cliente.
 - **Correlación por `request-id`**: Caddy genera `X-Request-Id`, el `middleware` lo reutiliza/
   crea y lo devuelve en la respuesta, y los clientes WP lo propagan vía un AsyncLocalStorage

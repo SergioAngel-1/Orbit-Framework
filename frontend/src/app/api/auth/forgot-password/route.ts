@@ -3,10 +3,9 @@ import { forgotPasswordSchema } from "@/lib/validation/auth";
 import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
+import { authEmailLocale, authEmailUrl, frontendOrigin } from "@/lib/auth/email-links";
 
 export const dynamic = "force-dynamic";
-
-const FRONTEND_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
@@ -29,13 +28,16 @@ export async function POST(request: Request) {
     );
   }
 
+  const locale = authEmailLocale(parsed.data.locale);
   try {
     const res = await wpFetch(`/wp-json/hwe/v1/auth/forgot-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         user_login: parsed.data.email,
-        frontend_url: FRONTEND_URL,
+        frontend_url: frontendOrigin(),
+        reset_url: authEmailUrl("/reset-password", locale),
+        locale,
       }),
     });
 

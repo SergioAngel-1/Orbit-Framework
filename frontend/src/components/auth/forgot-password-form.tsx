@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 
 interface Props {
@@ -9,6 +9,7 @@ interface Props {
 
 export function ForgotPasswordForm({ email: initialEmail }: Props) {
   const t = useTranslations("forgotPassword");
+  const locale = useLocale();
   const tForm = useTranslations("form");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -22,7 +23,7 @@ export function ForgotPasswordForm({ email: initialEmail }: Props) {
     try {
       const res = await csrfFetch("/api/auth/forgot-password", {
         method: "POST",
-        body: { email: String(form.get("email") ?? "") },
+        body: { email: String(form.get("email") ?? ""), locale },
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };

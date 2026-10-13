@@ -49,7 +49,8 @@ paquete multi-clase.
 | `hwe-best-sellers.php` | mu-plugin | `GET hwe/v1/best-sellers` (secreto interno): ranking desde las líneas de pedidos pagados. |
 | `hwe-order-tracking.php` | mu-plugin | Transportadora, guía y enlace de seguimiento en el pedido (`_carrier`, `_tracking_number`, `_tracking_url`). |
 | `hwe-contact.php` | mu-plugin | `POST hwe/v1/contact` (secreto interno): entrega por email el formulario de contacto del BFF. |
-| `woocommerce-email-branding.php` | mu-plugin | Branding de los emails transaccionales de WooCommerce. |
+| `hwe-email-chrome.php` | mu-plugin | Marco de marca de los correos (colores y fuentes del Control Center), texto por idioma (`hwe_email_copy`, ampliable con el filtro del mismo nombre) y enlaces al frontend. Lo usan las plantillas de `themes/hwe-headless-base/woocommerce/emails/` y los correos de `hwe-auth.php`. |
+| `hwe-email-test.php` | mu-plugin | Control Center → Integraciones: envía o previsualiza cualquier plantilla de correo con un pedido de ejemplo (en memoria) y el destinatario forzado. |
 
 ## Convención para añadir uno nuevo
 

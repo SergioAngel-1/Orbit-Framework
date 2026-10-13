@@ -35,6 +35,16 @@ class HWE_Auth_Endpoints {
                     'sanitize_callback' => 'esc_url_raw',
                     'validate_callback' => [self::class, 'isAllowedFrontendOrigin'],
                 ],
+                // URL ya localizada de la página de restablecer (`/en/reset-password`):
+                // la decide el BFF, que sabe en qué idioma navega el visitante. Misma
+                // allowlist de orígenes. Sin ella, `<frontend_url>/reset-password`.
+                'reset_url'    => [
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'esc_url_raw',
+                    'validate_callback' => [self::class, 'isOptionalAllowedFrontendUrl'],
+                ],
+                'locale'       => self::localeArg(),
             ],
         ]);
 
@@ -62,6 +72,7 @@ class HWE_Auth_Endpoints {
                     'sanitize_callback' => 'esc_url_raw',
                     'validate_callback' => [self::class, 'isAllowedFrontendOrigin'],
                 ],
+                'locale'           => self::localeArg(),
             ],
         ]);
 
@@ -202,6 +213,66 @@ class HWE_Auth_Endpoints {
         return in_array($origin, array_map('strtolower', hwe_allowed_origins()), true);
     }
 
+    /** Como `isAllowedFrontendOrigin`, pero vacío (no enviado) también vale. */
+    public static function isOptionalAllowedFrontendUrl($url): bool {
+        return $url === null || $url === '' || self::isAllowedFrontendOrigin($url);
+    }
+
+    /**
+     * Argumento `locale` de los correos de auth: el idioma del visitante. Cualquier
+     * texto corto con forma de código de idioma; el que no sea del sitio cae al de la
+     * tienda al redactar (`hwe_email_resolve_locale`).
+     */
+    private static function localeArg(): array {
+        return [
+            'required'          => false,
+            'type'              => 'string',
+            'default'           => '',
+            'validate_callback' => static fn ($v) => $v === '' || (is_string($v) && (bool) preg_match('/^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})?$/', $v)),
+        ];
+    }
+
+    // ------------------------------------------------------------------------
+    //  Correos de auth
+    // ------------------------------------------------------------------------
+
+    /**
+     * Asunto + HTML (+ texto plano de reserva) de un correo de auth, en el idioma del
+     * visitante. Único punto de armado: lo usan los handlers REST y la prueba de
+     * plantillas del Control Center (hwe-email-test.php), para que la prueba sea el
+     * correo REAL. Sin hwe-email-chrome.php, texto plano.
+     *
+     * @param 'reset'|'verify' $type
+     * @return array{subject:string,body:string,headers:list<string>}
+     */
+    public static function buildEmail(string $type, string $display_name, string $link, string $locale): array {
+        $prefix   = 'verify' === $type ? 'auth_verify' : 'auth_reset';
+        $blogname = wp_specialchars_decode((string) get_option('blogname'), ENT_QUOTES);
+
+        if (!function_exists('hwe_email_copy') || !function_exists('hwe_render_auth_email')) {
+            $plain = 'verify' === $type
+                ? "Hola {$display_name},\n\nConfirma tu email con este enlace:\n{$link}\n\nVence en 24 horas."
+                : "Hola {$display_name},\n\nCrea tu contraseña nueva con este enlace:\n{$link}\n\nVence en 24 horas. Si no lo pediste, ignora este correo.";
+            return [
+                'subject' => $blogname . ' — ' . ('verify' === $type ? 'Verifica tu email' : 'Restablecer contraseña'),
+                'body'    => $plain,
+                'headers' => [],
+            ];
+        }
+
+        $locale = hwe_email_resolve_locale($locale);
+        $body   = '<p>' . esc_html(hwe_email_copy('greeting_named', $locale, $display_name)) . '</p>'
+            . '<p>' . esc_html(hwe_email_copy($prefix . '_intro', $locale)) . '</p>'
+            . hwe_email_button(hwe_email_copy($prefix . '_button', $locale), $link)
+            . '<p style="font-size:12.5px;color:#6b7280;text-align:center;">' . esc_html(hwe_email_copy($prefix . '_ignore', $locale)) . '</p>';
+
+        return [
+            'subject' => $blogname . ' — ' . hwe_email_copy($prefix . '_subject', $locale),
+            'body'    => hwe_render_auth_email(hwe_email_copy($prefix . '_heading', $locale), $body, $locale),
+            'headers' => ['Content-Type: text/html; charset=UTF-8'],
+        ];
+    }
+
     // ------------------------------------------------------------------------
     //  Cifrado en reposo del secreto 2FA (AES-256-GCM autenticado)
     // ------------------------------------------------------------------------
@@ -288,22 +359,17 @@ class HWE_Auth_Endpoints {
             return new WP_REST_Response(['ok' => true], 200);
         }
 
+        $reset_url  = (string) $request->get_param('reset_url');
         $reset_link = add_query_arg(
             ['key' => rawurlencode($key), 'login' => rawurlencode($user->user_login)],
-            $frontend_url . '/reset-password'
+            $reset_url !== '' ? $reset_url : $frontend_url . '/reset-password'
         );
 
-        $subject = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES) . ' — Restablecer contraseña';
-        $message = "Hola {$user->display_name},\n\n";
-        $message .= "Recibiste este correo porque solicitaste restablecer tu contraseña.\n\n";
-        $message .= "Haz clic en el siguiente enlace para crear una nueva contraseña:\n";
-        $message .= $reset_link . "\n\n";
-        $message .= "Si no solicitaste este cambio, ignora este mensaje.\n";
-        $message .= "Este enlace expirará en 24 horas.\n";
+        $mail = self::buildEmail('reset', (string) $user->display_name, $reset_link, (string) $request->get_param('locale'));
 
         // Se responde 200 igualmente (no se revela si la cuenta existe), pero el
         // fallo queda en el log: sin esto un SMTP caído no se veía en ningún sitio.
-        if (!wp_mail($user->user_email, $subject, $message)) {
+        if (!wp_mail($user->user_email, $mail['subject'], $mail['body'], $mail['headers'])) {
             error_log('[hwe] auth: forgot-password: wp_mail falló al enviar el enlace de reseteo (revisa el log del SMTP).');
         }
 
@@ -349,16 +415,11 @@ class HWE_Auth_Endpoints {
         update_user_meta($user_id, 'hwe_email_verification_token_time', time());
 
         $verify_link = add_query_arg('token', rawurlencode($token), $verification_url);
-        $subject = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES) . ' — Verifica tu email';
-        $message = "Hola {$user->display_name},\n\n";
-        $message .= "Gracias por crear tu cuenta. Haz clic en el siguiente enlace para verificar tu dirección de email:\n\n";
-        $message .= $verify_link . "\n\n";
-        $message .= "Este enlace expirará en 24 horas.\n";
-        $message .= "Si no creaste esta cuenta, ignora este mensaje.\n";
+        $mail        = self::buildEmail('verify', (string) $user->display_name, $verify_link, (string) $request->get_param('locale'));
 
         // Un envío fallido (SMTP caído o mal configurado) se DICE: antes se
         // respondía 200 y el usuario esperaba un correo que nunca existió.
-        if (!wp_mail($user->user_email, $subject, $message)) {
+        if (!wp_mail($user->user_email, $mail['subject'], $mail['body'], $mail['headers'])) {
             error_log('[hwe] auth: send-verification: wp_mail falló al enviar el correo de verificación (revisa el log del SMTP).');
             return new WP_REST_Response(['error' => 'No se pudo enviar el email.'], 502);
         }
@@ -634,3 +695,17 @@ class HWE_Auth_Endpoints {
 }
 
 HWE_Auth_Endpoints::register();
+
+/*
+ * Registro headless: la mutación `registerUser` de WPGraphQL llama a `register_new_user()`,
+ * cuyo hook por defecto (`wp_send_new_user_notifications`) manda al CLIENTE el correo
+ * nativo «Login Details»: texto plano, sin marca y con un enlace a wp-login.php del dominio
+ * de WordPress para «establecer contraseña», que ya eligió en el formulario. El correo de
+ * bienvenida real es el de verificación (`/auth/send-verification`, lo pide el BFF tras el
+ * alta). El aviso al ADMIN de «nuevo usuario» se conserva.
+ */
+function hwe_auth_notify_new_user_admin_only($user_id): void {
+    wp_send_new_user_notifications((int) $user_id, 'admin');
+}
+remove_action('register_new_user', 'wp_send_new_user_notifications');
+add_action('register_new_user', 'hwe_auth_notify_new_user_admin_only');

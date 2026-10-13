@@ -314,6 +314,24 @@ git fetch framework --tags
   (que sustituye a este mu-plugin). Mientras tanto, configura las tarifas en WooCommerce →
   Ajustes → Envío. Un filtro o código propio que llamara a `hwe_shipping_config()` debe dejar
   de hacerlo.
+- **Correo transaccional de marca a N idiomas.** `woocommerce-email-branding.php` se retira:
+  lo sustituyen `hwe-email-chrome.php` (marco, colores y fuentes del Control Center, texto por
+  idioma con el filtro `hwe_email_copy` y enlaces al frontend con prefijo de idioma) y las
+  plantillas de `themes/hwe-headless-base/woocommerce/emails/`. Los asuntos y encabezados de
+  WooCommerce salen del diccionario en el idioma de la tienda (`brand.locale`) salvo que el
+  admin haya escrito los suyos; el «contenido adicional» por defecto se vacía. Los enlaces de los
+  correos de pedido apuntan a `/account`, `/account/orders/<id>` y `/reset-password` del
+  frontend (antes, a páginas de WordPress que en headless no existen). Si tu frontend usa otras
+  rutas, cambia las plantillas en tu tema o filtra los textos.
+- **(contrato) Correos de acceso en el idioma del visitante.** `hwe/v1/auth/forgot-password`
+  acepta `locale` y `reset_url` (mismo allowlist de orígenes que `frontend_url`) y
+  `send-verification` acepta `locale`; los correos son HTML de marca. En el BFF,
+  `/api/auth/{register,forgot-password,resend-verification}` aceptan `locale` en el cuerpo.
+- **El registro ya no manda al cliente el correo nativo «Login Details»** (texto plano con un
+  enlace a wp-login.php); el aviso al admin se conserva.
+- **El botón «Enviar email de prueba» del Control Center enviaba el formulario de
+  configuración** (estaba anidado dentro de él). Ahora va en su propio formulario, deja elegir
+  cualquier plantilla (pedido de ejemplo en memoria o el último real) y tiene vista previa.
 - **SEO por entidad unificado (`hwe-seo/fields.php`).** Entradas, páginas, productos y
   categorías comparten caja, límites (título 60, descripción 160), contador y columna
   «SEO». Los campos del formulario de la entrada pasan de `hwe_seo_title`/`hwe_seo_description`

@@ -13,7 +13,7 @@
  * Por qué: sin SMTP, WordPress usa el sendmail/PHP por defecto, que en
  * producción suele acabar en spam o no entregarse. Este mu-plugin es el
  * TRANSPORTE; el branding de las plantillas vive en
- * woocommerce-email-branding.php (complementarios, sin solaparse).
+ * hwe-email-chrome.php (complementarios, sin solaparse).
  *
  * Prioridad de configuración: constantes HWE_SMTP_* (wp-config) > Control
  * Center > valores por defecto. Así un despliegue puede gestionar el secreto
@@ -181,10 +181,23 @@ add_action(
 
 		delete_transient( 'hwe_smtp_last_error' );
 
-		$mail = hwe_smtp_basic_test_mail();
-		$ok   = wp_mail( $to, $mail['subject'], $mail['html'], array( 'Content-Type: text/html; charset=UTF-8' ) );
+		// Plantilla a probar (hwe-email-test.php). `basic` = el correo simple de transporte.
+		$template = isset( $_POST['hwe_smtp_test_template'] )
+			? (string) preg_replace( '/[^a-z0-9_:\-]/', '', strtolower( (string) wp_unslash( $_POST['hwe_smtp_test_template'] ) ) )
+			: 'basic';
+		$use_real = ! empty( $_POST['hwe_smtp_test_real_order'] );
+		if ( 'basic' !== $template && ( ! function_exists( 'hwe_email_test_label' ) || '' === hwe_email_test_label( $template ) ) ) {
+			$template = 'basic';
+		}
 
-		wp_safe_redirect( hwe_smtp_test_redirect_url( $ok ) );
+		if ( 'basic' !== $template && function_exists( 'hwe_email_send_test' ) ) {
+			$ok = hwe_email_send_test( $template, $to, $use_real );
+		} else {
+			$mail = hwe_smtp_basic_test_mail();
+			$ok   = wp_mail( $to, $mail['subject'], $mail['html'], array( 'Content-Type: text/html; charset=UTF-8' ) );
+		}
+
+		wp_safe_redirect( hwe_smtp_test_redirect_url( $ok, $template, $use_real ) );
 		exit;
 	}
 );
@@ -212,11 +225,13 @@ function hwe_smtp_basic_test_mail(): array {
  * submenú de Ajustes: con `options-general.php` la redirección caía al
  * escritorio y el aviso no se veía nunca.
  */
-function hwe_smtp_test_redirect_url( bool $ok ): string {
+function hwe_smtp_test_redirect_url( bool $ok, string $template = 'basic', bool $use_real = false ): string {
 	return add_query_arg(
 		array(
-			'page'          => 'hwe-config',
-			'hwe_smtp_test' => $ok ? 'sent' : 'failed',
+			'page'               => 'hwe-config',
+			'hwe_smtp_test'      => $ok ? 'sent' : 'failed',
+			'hwe_smtp_test_tpl'  => $template,
+			'hwe_smtp_test_real' => $use_real ? '1' : '0',
 		),
 		admin_url( 'admin.php' )
 	);
