@@ -18,7 +18,7 @@ namespace HWE\ControlCenter;
  */
 final class Modules {
 
-    /** Ids del catálogo v2 (spec §4.1). Solo `banners` existe hoy; el resto llega en F4/F5. */
+    /** Ids del catálogo del núcleo: los nueve plugins `plugins/hwe-<id>/` del framework. */
     public const CORE_IDS = [
         'banners',
         'shipping',
