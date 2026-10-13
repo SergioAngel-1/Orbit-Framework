@@ -86,6 +86,37 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
    estricto). Así, `POST /api/store/reviews/[productId]` solo lee `rating` y `content`: el nombre
    y el email del autor salen **siempre** de la cuenta autenticada, nunca del cuerpo.
 
+### Pagos: medios, pasarela y confirmación
+
+Tres **medios de pago independientes**, cada uno con su interruptor en Control Center →
+Pasarelas de pago (`payments.*` en la config pública). Un frontend nuevo debe ofrecer solo los
+activos y mandar al BFF el *gateway* de WooCommerce del elegido:
+
+| Medio (`PaymentChoice`) | Flag | `payment_method` | Qué hace el BFF |
+|---|---|---|---|
+| `online` | `payments.gateway_enabled` | `hwe_offline` | Crea el pedido (`pending`); el cliente inicia el cobro con `POST /api/payments/create` y vuelve por `/checkout/return`. |
+| `whatsapp` | `payments.whatsapp_enabled` | `hwe_whatsapp_link` | Crea el pedido y lo pasa a `on-hold` («En espera»): WooCommerce envía los correos y la tienda manda el link de pago. No hay cobro en línea. |
+| `cash` | `payments.cash_enabled` | `cod` | Crea el pedido; se paga al recibirlo. |
+
+- **`lib/payments/checkout-options.ts`** (módulo puro, también para cliente): `enabledPaymentChoices(config)`
+  (con los tres apagados queda `online`: un checkout sin medio no cerraría la compra),
+  `paymentMethodFor(choice)`, `paymentChoiceFor(method)` y `shouldStartGatewayPayment(choice)`.
+- **`POST /api/store/checkout`** responde **422** si `payment_method` no es uno de los tres o su
+  medio está apagado: ya no se reenvía cualquier gateway que WooCommerce tenga activo.
+- **`POST /api/payments/create`** solo cobra pedidos de pago en línea (`hwe_offline`) y con ese
+  medio activo; si no, **409**. Sin pasarela decidida, **503**.
+- **Pasarela activa:** la elegida en el Control Center; `PAYMENT_PROVIDER` del entorno solo la
+  anula (desarrollo, CI). En producción sin ninguna **no hay `noop`**: el cobro falla con un
+  error claro. Credenciales por `GET hwe/v1/payments/credentials` (interno), en caché de memoria
+  del proceso (60 s) que `POST /api/revalidate` vacía al guardar el Control Center.
+- **Modo de pruebas:** `isActiveGatewaySandbox()` (`lib/payments/registry.ts`, server-only)
+  dice si la pasarela cobra con credenciales de sandbox; la vista debe avisarlo
+  (`CheckoutForm` lo recibe como `gatewaySandbox`).
+- **Confirmación:** solo el webhook verificado (`/api/payments/webhook/<id>`: firma, importe y
+  moneda; Aval Pay además consulta la sesión servidor a servidor). El webhook de una pasarela de
+  pruebas (`noop`) solo se atiende si es la activa. Wompi y Aval Pay están implementadas de punta
+  a punta; PayU y Bold responden 501.
+
 ## A.3 Config pública dinámica: `GET /wp-json/hwe/v1/config`
 
 Fuente única de verdad de marca/negocio, sin auth, cacheable. Forma exacta (ver
@@ -173,8 +204,9 @@ pero el **contrato de qué 9 colores + 2 tipografías existen** es estable.
   actual.
 - **Revalidación de catálogo**: `POST {frontend}/api/revalidate`, firmado con
   `HWE_REVALIDATION_SECRET` (cabecera `X-HWE-Signature`).
-- **Pago** (si integras una pasarela real): `POST {frontend}/api/payments/webhook/[provider]`,
-  la verificación de firma/importe/moneda es responsabilidad del provider (`lib/payments/`).
+- **Pago**: `POST {frontend}/api/payments/webhook/[provider]` (Wompi, Aval Pay; `noop` solo si es
+  la activa). La firma, el importe y la moneda los verifica el provider (`lib/payments/`); la
+  pasarela se configura en el Control Center (ver «Pagos» en A.2).
 
 ## A.6 Menús de navegación (WordPress → cualquier frontend)
 
@@ -233,7 +265,7 @@ Leyenda: ✅ **completa** (usa datos reales, sin componentes de relleno) · 🧱
 | `/about` | ✅ | — | 100% `getSiteConfig()` (descripción, fundador, áreas de expertise, JSON-LD `Person`) — sin componentes de layout nuevos, buen ejemplo de vista "de config pura". |
 | `/contact` | ✅ | `ContactForm` | Usa `config.legal.email` + `config.social.*`. Sin teléfono/sedes por defecto (el schema no tiene esos campos — pásalos como prop si el negocio los necesita, ver B.3). |
 | `/cart` | ✅ | `CartView` | — |
-| `/checkout`, `/checkout/return` | ✅ | `CheckoutForm` | Cupón gateado por `coupons_enabled` (ver A.3). |
+| `/checkout`, `/checkout/return` | ✅ | `CheckoutForm` | Cupón gateado por `coupons_enabled` (ver A.3). Selector de medio de pago (`paymentChoices`) y aviso de modo de pruebas (`gatewaySandbox`), ver «Pagos» en A.2. |
 | `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` | ✅ | `*-form.tsx` de `components/auth/` | Flujo de auth completo (JWT + 2FA opcional). |
 | `/account/*` | ✅ | `components/account/*` | Perfil, pedidos, direcciones, wishlist (gateado), 2FA, cambio de contraseña. |
 | `/legal/[slug]` | ✅ | — | Páginas legales (privacidad/cookies/términos/devoluciones) desde `i18n/messages`. |

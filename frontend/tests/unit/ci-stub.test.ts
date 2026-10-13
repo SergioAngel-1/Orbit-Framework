@@ -49,6 +49,25 @@ describe("buildSiteConfig", () => {
     });
     expect(config).toEqual({ design: { colors: { brand: "#111111" } } });
   });
+
+  it("`extra` (STUB_SITE_CONFIG_EXTRA) añade secciones: los e2e activan lo opcional sin tocar el fixture", () => {
+    const config = buildSiteConfig(
+      { design: { colors: { brand: "#111111" } } },
+      { payments: { whatsapp_enabled: true, cash_enabled: true } },
+    );
+    expect(config).toEqual({
+      design: { colors: { brand: "#111111" } },
+      payments: { whatsapp_enabled: true, cash_enabled: true },
+    });
+  });
+
+  it("`extra` no puede sustituir la paleta del fixture", () => {
+    const config = buildSiteConfig(
+      { design: { colors: { brand: "#111111" } } },
+      { design: { colors: { brand: "#ff0000" } } },
+    );
+    expect(config.design.colors.brand).toBe("#111111");
+  });
 });
 
 describe("createStubServer", () => {

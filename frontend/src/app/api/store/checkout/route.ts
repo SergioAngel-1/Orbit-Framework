@@ -11,6 +11,13 @@ import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { checkoutSchema } from "@/lib/validation/store";
 import { logger } from "@/lib/observability/logger";
+import { getSiteConfig } from "@/lib/config";
+import {
+  WHATSAPP_PAYMENT_METHOD,
+  enabledPaymentChoices,
+  paymentChoiceFor,
+} from "@/lib/payments/checkout-options";
+import { markOrderAwaitingPaymentLink } from "@/lib/payments/orders";
 import {
   isValidIdempotencyKey,
   reserveIdempotencyKey,
@@ -64,6 +71,30 @@ export async function POST(request: Request) {
     );
     return NextResponse.json(
       { error: "Datos inválidos.", details: parsed.error.flatten().fieldErrors },
+      { status: 422 },
+    );
+  }
+
+  // Medio de pago: solo los del checkout (pago en línea, link por WhatsApp,
+  // efectivo), cada uno si está activado en el Control Center. Cualquier otro
+  // gateway que WooCommerce tenga activo no se ofrece en el sitio, y se
+  // rechaza ANTES de reservar la clave de idempotencia.
+  const paymentMethod = parsed.data.payment_method;
+  const choice = paymentChoiceFor(paymentMethod);
+  if (!choice) {
+    logger.warn(
+      { event: "checkout.payment_method_invalid", paymentMethod },
+      "Medio de pago no válido en checkout",
+    );
+    return NextResponse.json({ error: "Medio de pago no válido." }, { status: 422 });
+  }
+  if (!enabledPaymentChoices(await getSiteConfig()).includes(choice)) {
+    logger.warn(
+      { event: "checkout.payment_method_disabled", paymentMethod },
+      "Medio de pago desactivado en checkout",
+    );
+    return NextResponse.json(
+      { error: "Ese medio de pago no está disponible." },
       { status: 422 },
     );
   }
@@ -126,6 +157,24 @@ export async function POST(request: Request) {
             err: linkError instanceof Error ? linkError.message : linkError,
           },
           "No se pudo ligar el pedido al cliente; requiere conciliación",
+        );
+      }
+    }
+
+    // Link de pago por WhatsApp: el pedido pasa a «En espera» (ver
+    // `markOrderAwaitingPaymentLink`), que es lo que dispara los correos. Un
+    // fallo aquí no invalida el pedido ya creado: se registra para conciliar.
+    if (data.order_id && paymentMethod === WHATSAPP_PAYMENT_METHOD) {
+      try {
+        await markOrderAwaitingPaymentLink(data.order_id);
+      } catch (holdError) {
+        logger.error(
+          {
+            event: "checkout.on_hold_failed",
+            order_id: data.order_id,
+            err: holdError instanceof Error ? holdError.message : holdError,
+          },
+          "No se pudo pasar el pedido a «En espera»; no se enviaron sus correos",
         );
       }
     }

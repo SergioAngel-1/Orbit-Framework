@@ -5,18 +5,63 @@ import { csrfFetch } from "@/lib/client/csrf";
 import { useCart } from "@/components/cart/cart-context";
 import { Button } from "@/components/ui/button";
 import { useFormatStoreAmount } from "@/components/ui/currency-context";
+import {
+  paymentMethodFor,
+  shouldStartGatewayPayment,
+  type PaymentChoice,
+} from "@/lib/payments/checkout-options";
 
 interface CheckoutResult {
   order_id: number;
   status: string;
 }
 
+/** Claves de `checkout.*` (es/en) de cada medio de pago. */
+const CHOICE_COPY: Record<
+  PaymentChoice,
+  { label: string; hint: string; submit: string; result: string }
+> = {
+  online: {
+    label: "paymentOnline",
+    hint: "paymentOnlineHint",
+    submit: "submitOnline",
+    result: "paymentNotStarted",
+  },
+  whatsapp: {
+    label: "paymentWhatsapp",
+    hint: "paymentWhatsappHint",
+    submit: "submitWhatsapp",
+    result: "resultWhatsapp",
+  },
+  cash: {
+    label: "paymentCash",
+    hint: "paymentCashHint",
+    submit: "submit",
+    result: "resultCash",
+  },
+};
+
 export interface CheckoutFormProps {
+  /**
+   * Medios activos en el Control Center, en orden (`enabledPaymentChoices`):
+   * pago en línea, link por WhatsApp y efectivo. Con uno solo no se pinta el
+   * selector. Omitido, el formulario ofrece solo el pago en línea.
+   */
+  paymentChoices?: PaymentChoice[];
+  /**
+   * La pasarela activa cobra con credenciales de pruebas
+   * (`isActiveGatewaySandbox`). Solo pinta un aviso: el cobro va igual.
+   */
+  gatewaySandbox?: boolean;
   /** `config.ecommerce.coupons_enabled` — oculta la sección de cupón si es `false`. */
   couponsEnabled?: boolean;
 }
 
-export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
+export function CheckoutForm({
+  paymentChoices = ["online"],
+  gatewaySandbox = false,
+  couponsEnabled = false,
+}: CheckoutFormProps) {
   const { cart, loading, refresh, applyCoupon, removeCoupon, selectShippingRate } =
     useCart();
   const t = useTranslations();
@@ -26,7 +71,16 @@ export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
   const tForm = t.raw("form") as unknown as Record<string, string>;
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<CheckoutResult | null>(null);
+  const [result, setResult] = useState<
+    (CheckoutResult & { choice: PaymentChoice; paymentFailed: boolean }) | null
+  >(null);
+  const [choice, setChoice] = useState<PaymentChoice>(paymentChoices[0] ?? "online");
+  // Si la lista de medios cambia (config revalidada) y el elegido ya no está,
+  // se cae al primero: nunca se envía un medio que el servidor rechazaría.
+  const effectiveChoice: PaymentChoice = paymentChoices.includes(choice)
+    ? choice
+    : (paymentChoices[0] ?? "online");
+  const copy = CHOICE_COPY[effectiveChoice];
   const [couponCode, setCouponCode] = useState("");
 
   const FIELDS: { name: string; label: string; type?: string; required?: boolean }[] = [
@@ -81,7 +135,7 @@ export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
         headers: { "Idempotency-Key": crypto.randomUUID() },
         body: {
           billing_address,
-          payment_method: "cod",
+          payment_method: paymentMethodFor(effectiveChoice),
           customer_note: "",
         },
       });
@@ -94,12 +148,20 @@ export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
       const order = data as CheckoutResult;
       await refresh();
 
+      // Efectivo o link por WhatsApp: no hay cobro en línea; el resultado
+      // dice cómo sigue (pago al recibir, o el link que enviará la tienda).
+      if (!shouldStartGatewayPayment(effectiveChoice)) {
+        setResult({ ...order, choice: effectiveChoice, paymentFailed: false });
+        return;
+      }
+
       // Capa de pagos agnóstica: inicia el cobro con la pasarela activa. Si
-      // devuelve un checkout alojado, redirige; si no hay pasarela online
-      // (o sin sesión), se queda con el pedido creado (flujo contra reembolso).
+      // devuelve un checkout alojado, redirige. Si no (sin sesión, pasarela
+      // caída), el pedido ya existe: se dice que el pago no arrancó en vez de
+      // dar la compra por hecha.
       const redirected = await startPayment(order.order_id);
       if (!redirected) {
-        setResult(order);
+        setResult({ ...order, choice: effectiveChoice, paymentFailed: true });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error.");
@@ -118,6 +180,19 @@ export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
           {tCheckout.orderNumber} <strong>#{result.order_id}</strong> ·{" "}
           {tCheckout.status}: {result.status}
         </p>
+        {result.choice !== "online" && (
+          <p className="mt-2 text-green-700 dark:text-green-300">
+            {tCheckout[CHOICE_COPY[result.choice].result]}
+          </p>
+        )}
+        {result.paymentFailed && (
+          <p
+            role="alert"
+            className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+          >
+            {tCheckout.paymentNotStarted}
+          </p>
+        )}
       </div>
     );
   }
@@ -147,6 +222,7 @@ export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
               value={couponCode}
               onChange={(e) => setCouponCode(e.target.value)}
               placeholder={tCart.couponCode}
+              aria-label={tCart.couponCode}
               className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             />
             <Button
@@ -222,8 +298,14 @@ export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {FIELDS.map((f) => (
             <div key={f.name}>
-              <label className="mb-1 block text-sm font-medium">{f.label}</label>
+              <label
+                htmlFor={`checkout-${f.name}`}
+                className="mb-1 block text-sm font-medium"
+              >
+                {f.label}
+              </label>
               <input
+                id={`checkout-${f.name}`}
                 name={f.name}
                 type={f.type ?? "text"}
                 required={f.required}
@@ -233,6 +315,47 @@ export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
           ))}
         </div>
       </section>
+
+      {/* Medio de pago */}
+      {paymentChoices.length > 1 && (
+        <fieldset className="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+          <legend className="px-1 text-sm font-semibold">
+            {tCheckout.paymentMethod}
+          </legend>
+          {paymentChoices.map((c) => (
+            <div
+              key={c}
+              className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-900"
+            >
+              <input
+                id={`payment-choice-${c}`}
+                type="radio"
+                name="payment_choice"
+                value={c}
+                checked={effectiveChoice === c}
+                onChange={() => setChoice(c)}
+                className="mt-1 text-brand"
+              />
+              <label htmlFor={`payment-choice-${c}`} className="cursor-pointer">
+                <span className="block text-sm font-medium">
+                  {tCheckout[CHOICE_COPY[c].label]}
+                </span>
+                <span className="block text-xs text-gray-500">
+                  {tCheckout[CHOICE_COPY[c].hint]}
+                </span>
+              </label>
+            </div>
+          ))}
+        </fieldset>
+      )}
+      {gatewaySandbox && effectiveChoice === "online" && (
+        <p
+          role="status"
+          className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+        >
+          {tCheckout.sandboxNotice}
+        </p>
+      )}
 
       {/* Resumen */}
       <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-800">
@@ -293,7 +416,7 @@ export function CheckoutForm({ couponsEnabled = false }: CheckoutFormProps) {
         disabled={pending || empty}
         className="w-full rounded-lg bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
       >
-        {pending ? tCheckout.processing : tCheckout.submit}
+        {pending ? tCheckout.processing : tCheckout[copy.submit]}
       </button>
     </form>
   );

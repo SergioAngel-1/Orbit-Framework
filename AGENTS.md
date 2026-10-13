@@ -364,7 +364,10 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
 - **Contrato e implementación** en `lib/payments/`: `types.ts` (`PaymentProvider`,
   `PaymentError`), `registry.ts` (registro + selección por `PAYMENT_PROVIDER`),
   `signature.ts` (HMAC/SHA + `safeEqual`), `orders.ts` (máquina de estados del pedido vía
-  wc/v3) y `providers/` (`noop` funcional + stubs `wompi`/`payu`/`bold`).
+  wc/v3) y `providers/` (`wompi` y `avalpay` de punta a punta, `noop` de pruebas, stubs `payu`/`bold`).
+  La pasarela activa y sus credenciales vienen del Control Center (`credentials.ts`, caché en
+  memoria); `PAYMENT_PROVIDER` solo la anula. Medios del checkout (pago en línea, link por
+  WhatsApp, efectivo): `checkout-options.ts`, ver `docs/FRONTEND_CONNECT.md` (A.2 «Pagos»).
 - **Endpoints BFF** en `app/api/payments/`: `create` (POST, sesión + guard + propiedad →
   `createCheckout`), `webhook/[provider]` (server-to-server, **sin CSRF/Origin**, valida
   firma + importe + moneda → marca pagado, idempotente) y `return` (GET, solo estado). La
@@ -457,7 +460,8 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
 - **Sentry YA está cableado**: `sentry.{client,server,edge}.config.ts` + `src/instrumentation.ts`.
   El logger usa `pino` con eventos estructurados.
 - **Stripe/PayPal NO se usan**: la capa de pagos es agnóstica para pasarelas LATAM; solo
-  `noop` está implementado de extremo a extremo (las reales son stubs).
+  `wompi` y `avalpay` están de punta a punta; `noop` es solo de pruebas (su webhook solo se
+  atiende si es la activa) y PayU/Bold siguen siendo stubs (501).
 - **El secreto interno del BFF** para llamadas server-to-server protegidas (p. ej. `2fa-status`)
   es `HWE_REVALIDATION_SECRET`, enviado en la cabecera `X-HWE-Internal-Secret`.
 - **No dupliques emails transaccionales**: WooCommerce ya los envía al cambiar el estado del

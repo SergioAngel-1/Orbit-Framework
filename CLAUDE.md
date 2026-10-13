@@ -130,8 +130,8 @@ Reglas de oro (no las rompas — `AGENTS.md §2, §7`):
   `Cart-Token`, para carrito/checkout). No los confundas.
 - **No dupliques emails transaccionales**: los envía WooCommerce nativamente al cambiar el estado
   del pedido. El dispatcher de `lib/woocommerce/order-events.ts` es para integraciones (ERP/Slack).
-- **Pagos**: capa agnóstica en `lib/payments/`. Solo `noop` está implementado de extremo a extremo;
-  Wompi/PayU/Bold son stubs. Añadir pasarela = implementar `PaymentProvider` sin tocar el checkout.
+- **Pagos**: capa agnóstica en `lib/payments/`. Wompi y Aval Pay están de punta a punta (pasarela y
+  credenciales desde el Control Center); `noop` es solo de pruebas y PayU/Bold son stubs (501). Añadir pasarela = implementar `PaymentProvider` sin tocar el checkout.
 - **Secreto interno del BFF** para llamadas server-to-server (p. ej. `2fa-status`) es
   `HWE_REVALIDATION_SECRET`, en la cabecera `X-HWE-Internal-Secret`.
 - **Banners**: los administra el plugin **HWE Banners** (regular, activable), no el

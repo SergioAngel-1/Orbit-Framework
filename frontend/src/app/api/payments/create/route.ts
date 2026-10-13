@@ -7,6 +7,11 @@ import { createPaymentSchema } from "@/lib/validation/payments";
 import { getActiveProvider } from "@/lib/payments/registry";
 import { getOrder, isOrderPaid, toMinorUnits } from "@/lib/payments/orders";
 import { logger } from "@/lib/observability/logger";
+import { getSiteConfig } from "@/lib/config";
+import {
+  ONLINE_PAYMENT_METHOD,
+  enabledPaymentChoices,
+} from "@/lib/payments/checkout-options";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +66,31 @@ export async function POST(request: Request) {
         "Intento de IDOR en payments.create",
       );
       return NextResponse.json({ error: "No encontrado." }, { status: 404 });
+    }
+
+    // Solo un pedido de pago en línea se cobra en la pasarela: el efectivo se
+    // paga al recibirlo y el de WhatsApp con el link que envía la tienda. El
+    // checkout no llama aquí con esos medios; esto cierra la puerta a una
+    // petición manual. Tampoco si el pago en línea está apagado en el panel.
+    if (order.payment_method !== ONLINE_PAYMENT_METHOD) {
+      logger.warn(
+        {
+          event: "payments.create.not_online",
+          reference,
+          paymentMethod: order.payment_method,
+        },
+        "Cobro en pasarela de un pedido que no es de pago en línea",
+      );
+      return NextResponse.json(
+        { error: "Este pedido no se paga en línea." },
+        { status: 409 },
+      );
+    }
+    if (!enabledPaymentChoices(await getSiteConfig()).includes("online")) {
+      return NextResponse.json(
+        { error: "El pago en línea no está disponible." },
+        { status: 409 },
+      );
     }
 
     // Si ya está pagado, no reiniciamos un cobro: el flujo es idempotente.

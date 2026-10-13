@@ -356,6 +356,18 @@ git fetch framework --tags
   (`getActiveProvider()`). Aval Pay toma referencia, estado e importe de la consulta de la
   sesión (la referencia de la notificación no va firmada); Wompi exige que la firma cubra id,
   estado e importe. Un fallo a medias del webhook ya no deja el evento marcado como duplicado.
+- **`POST /api/store/checkout` solo acepta los tres medios del checkout** (`hwe_offline`,
+  `hwe_whatsapp_link`, `cod`), cada uno si está activo en Control Center → Pasarelas de pago;
+  cualquier otro `payment_method` responde 422 (antes se reenviaba tal cual a la Store API: se
+  podía crear un pedido con transferencia o con efectivo apagado). Un frontend propio debe mandar
+  el gateway que corresponde a `enabledPaymentChoices()`. Con link por WhatsApp el pedido queda
+  `on-hold`.
+- **`POST /api/payments/create` responde 409** si el pedido no es de pago en línea
+  (`hwe_offline`) o el pago en línea está apagado: ya no se puede iniciar un cobro en la pasarela
+  para un pedido de efectivo o de WhatsApp.
+- **`CheckoutForm` recibe `paymentChoices` y `gatewaySandbox`** (la página los calcula en el
+  servidor). Si tu instancia sustituyó el formulario, mantén el mismo contrato: elegir medio,
+  enviar su gateway y avisar del modo de pruebas. Los textos nuevos están en `checkout.*`.
 - **SEO por entidad unificado (`hwe-seo/fields.php`).** Entradas, páginas, productos y
   categorías comparten caja, límites (título 60, descripción 160), contador y columna
   «SEO». Los campos del formulario de la entrada pasan de `hwe_seo_title`/`hwe_seo_description`

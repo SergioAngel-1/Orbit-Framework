@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { getSiteConfig } from "@/lib/config";
+import "@/lib/payments/providers"; // efecto secundario: registra las pasarelas
+import { enabledPaymentChoices } from "@/lib/payments/checkout-options";
+import { isActiveGatewaySandbox } from "@/lib/payments/registry";
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +26,20 @@ export default async function CheckoutPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const [t, config] = await Promise.all([getTranslations("checkout"), getSiteConfig()]);
+  const paymentChoices = enabledPaymentChoices(config);
+  // El aviso de «modo de pruebas» es informativo: si no se puede leer la
+  // pasarela, la página sigue sirviéndose sin él.
+  const gatewaySandbox = paymentChoices.includes("online")
+    ? await isActiveGatewaySandbox().catch(() => false)
+    : false;
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-8 text-3xl font-extrabold tracking-tight">{t("title")}</h1>
-      <CheckoutForm couponsEnabled={config.ecommerce.coupons_enabled} />
+      <CheckoutForm
+        paymentChoices={paymentChoices}
+        gatewaySandbox={gatewaySandbox}
+        couponsEnabled={config.ecommerce.coupons_enabled}
+      />
     </div>
   );
 }

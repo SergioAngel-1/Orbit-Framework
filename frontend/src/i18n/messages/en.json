@@ -209,7 +209,7 @@
     "emptyCart": "Your cart is empty. Add products before checking out.",
     "processing": "Processing…",
     "redirecting": "Redirecting to the payment gateway…",
-    "submit": "Confirm order (cash on delivery)",
+    "submit": "Confirm order (pay on delivery)",
     "return": {
       "title": "Payment status",
       "paid": "Payment confirmed!",
@@ -223,7 +223,20 @@
     "selectShipping": "Select shipping method…",
     "noShipping": "No shipping methods available for this address.",
     "shippingAddress": "Shipping address",
-    "billingSameAsShipping": "Billing matches shipping"
+    "billingSameAsShipping": "Billing matches shipping",
+    "paymentMethod": "Payment method",
+    "paymentOnline": "Pay online",
+    "paymentOnlineHint": "We'll take you to the payment gateway to complete the charge.",
+    "paymentWhatsapp": "Payment link via WhatsApp",
+    "paymentWhatsappHint": "We register your order and send you the payment link on WhatsApp.",
+    "paymentCash": "Cash on delivery",
+    "paymentCashHint": "You pay when you receive your order.",
+    "sandboxNotice": "Test mode: charges on this store are not real.",
+    "submitOnline": "Confirm and pay online",
+    "submitWhatsapp": "Confirm and get the payment link",
+    "resultWhatsapp": "We'll send you the payment link on WhatsApp to complete your order.",
+    "resultCash": "You'll pay in cash when you receive your order.",
+    "paymentNotStarted": "Your order was created, but we couldn't start the online payment. Contact us or try again from your orders."
   },
   "form": {
     "firstName": "First name",

@@ -214,7 +214,7 @@
     "emptyCart": "Tu carrito está vacío. Añade productos antes de finalizar.",
     "processing": "Procesando…",
     "redirecting": "Redirigiendo a la pasarela de pago…",
-    "submit": "Confirmar pedido (contra reembolso)",
+    "submit": "Confirmar pedido (pago al recibir)",
     "return": {
       "title": "Estado del pago",
       "paid": "¡Pago confirmado!",
@@ -228,7 +228,20 @@
     "selectShipping": "Seleccionar método de envío…",
     "noShipping": "No hay métodos de envío disponibles para esta dirección.",
     "shippingAddress": "Dirección de envío",
-    "billingSameAsShipping": "La facturación coincide con el envío"
+    "billingSameAsShipping": "La facturación coincide con el envío",
+    "paymentMethod": "Medio de pago",
+    "paymentOnline": "Pagar en línea",
+    "paymentOnlineHint": "Te llevamos a la pasarela de pago para completar el cobro.",
+    "paymentWhatsapp": "Link de pago por WhatsApp",
+    "paymentWhatsappHint": "Registramos tu pedido y te enviamos por WhatsApp el enlace para pagarlo.",
+    "paymentCash": "Pago en efectivo al recibir",
+    "paymentCashHint": "Pagas cuando recibes tu pedido.",
+    "sandboxNotice": "Modo de pruebas: los cobros de esta tienda no son reales.",
+    "submitOnline": "Confirmar y pagar en línea",
+    "submitWhatsapp": "Confirmar y recibir el link de pago",
+    "resultWhatsapp": "Te enviaremos el enlace de pago por WhatsApp para completar tu pedido.",
+    "resultCash": "Pagarás en efectivo cuando recibas tu pedido.",
+    "paymentNotStarted": "Tu pedido se creó, pero no pudimos iniciar el pago en línea. Contáctanos o inténtalo de nuevo desde tus pedidos."
   },
   "form": {
     "firstName": "Nombre",

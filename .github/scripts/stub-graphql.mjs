@@ -29,6 +29,7 @@
 //  ellos una dependencia de red dentro de cada spec.
 //
 //  Uso:  node .github/scripts/stub-graphql.mjs   (puerto: STUB_GRAPHQL_PORT, 8080)
+//        STUB_SITE_CONFIG_EXTRA='{"payments":{"cash_enabled":true}}' añade secciones
 // ============================================================================
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -36,9 +37,14 @@ import { pathToFileURL } from "node:url";
 
 const CONFIG_PATH = "/wp-json/hwe/v1/config";
 
-/** Config pública que sirve el stub: solo los colores del fixture. */
-export function buildSiteConfig(fixture) {
-  return { design: { colors: fixture.design.colors } };
+/**
+ * Config pública que sirve el stub: los colores del fixture y, opcionalmente,
+ * las secciones de `extra` (`STUB_SITE_CONFIG_EXTRA`, JSON). Sirve para que un
+ * e2e ejercite algo desactivado por defecto —varios medios de pago, un
+ * módulo— sin tocar el fixture. `extra` nunca sustituye la paleta.
+ */
+export function buildSiteConfig(fixture, extra = {}) {
+  return { ...extra, design: { colors: fixture.design.colors } };
 }
 
 /** Servidor HTTP del stub (sin escuchar: quien lo usa elige el puerto). */
@@ -64,7 +70,10 @@ if (
   const fixture = JSON.parse(
     readFileSync(new URL("./site-config.ci.json", import.meta.url), "utf8"),
   );
-  createStubServer(buildSiteConfig(fixture)).listen(port, "127.0.0.1", () => {
+  const extra = process.env.STUB_SITE_CONFIG_EXTRA
+    ? JSON.parse(process.env.STUB_SITE_CONFIG_EXTRA)
+    : {};
+  createStubServer(buildSiteConfig(fixture, extra)).listen(port, "127.0.0.1", () => {
     console.log(`stub GraphQL escuchando en http://127.0.0.1:${port}`);
   });
 }
