@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { formatPrice } from "@/lib/format";
+import { useCurrency } from "@/components/ui/currency-context";
 import type { CatalogProduct } from "@/types/catalog";
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 
 export function WishlistPageClient({ initialIds }: Props) {
   const t = useTranslations("wishlist");
+  const currency = useCurrency();
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -68,7 +70,9 @@ export function WishlistPageClient({ initialIds }: Props) {
               <h3 className="text-sm font-semibold leading-snug group-hover:text-brand">
                 {product.name}
               </h3>
-              <p className="mt-1 font-bold text-sm">{formatPrice(product.price)}</p>
+              <p className="mt-1 font-bold text-sm">
+                {formatPrice(product.price, currency)}
+              </p>
             </div>
           </article>
         </Link>

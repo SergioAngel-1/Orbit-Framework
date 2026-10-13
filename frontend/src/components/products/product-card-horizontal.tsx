@@ -4,6 +4,7 @@ import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatPrice } from "@/lib/format";
+import { useCurrency } from "@/components/ui/currency-context";
 import { cn } from "@/lib/utils";
 import type { CatalogProduct } from "@/types/catalog";
 
@@ -39,6 +40,7 @@ export function ProductCardHorizontal({
   loading = false,
   className,
 }: ProductCardHorizontalProps) {
+  const currency = useCurrency();
   if (loading) {
     return (
       <div className={cn("flex items-center gap-4 rounded-xl p-3", className)}>
@@ -111,11 +113,11 @@ export function ProductCardHorizontal({
         )}
         <div className="flex items-baseline gap-2">
           <span className="font-heading text-base leading-none text-brand">
-            {formatPrice(product.price)}
+            {formatPrice(product.price, currency)}
           </span>
           {product.onSale && product.regularPrice && (
             <span className="font-sans text-[11px] leading-none text-[--foreground]/40 line-through">
-              {formatPrice(product.regularPrice)}
+              {formatPrice(product.regularPrice, currency)}
             </span>
           )}
         </div>

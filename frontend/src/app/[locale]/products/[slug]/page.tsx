@@ -146,10 +146,12 @@ export default async function ProductPage({
 
           {/* Precio (lo actualiza ProductActions al seleccionar variación) */}
           <div className="flex items-baseline gap-3">
-            <span className="text-2xl font-bold">{formatPrice(product.price)}</span>
+            <span className="text-2xl font-bold">
+              {formatPrice(product.price, config.ecommerce.currency)}
+            </span>
             {product.onSale && product.regularPrice && (
               <span className="text-lg text-gray-400 line-through">
-                {formatPrice(product.regularPrice)}
+                {formatPrice(product.regularPrice, config.ecommerce.currency)}
               </span>
             )}
           </div>

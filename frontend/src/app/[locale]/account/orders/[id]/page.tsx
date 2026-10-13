@@ -76,7 +76,9 @@ export default async function OrderDetailPage({
                   {t("quantity")}: {item.quantity}
                 </p>
               </div>
-              <p className="text-sm font-semibold">{formatPrice(String(item.price))}</p>
+              <p className="text-sm font-semibold">
+                {formatPrice(String(item.price), order.currency)}
+              </p>
             </div>
           ))}
         </div>

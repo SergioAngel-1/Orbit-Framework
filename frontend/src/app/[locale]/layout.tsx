@@ -13,6 +13,7 @@ import { ThemeTokens } from "@/components/ui/theme-tokens";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { getSiteConfig } from "@/lib/config";
+import { CurrencyProvider } from "@/components/ui/currency-context";
 import { getMenu } from "@/lib/navigation/menu";
 import { buildSiteGraph } from "@/lib/seo/jsonld";
 
@@ -130,30 +131,32 @@ export default async function LocaleLayout({
         <ThemeTokens />
         <NextIntlClientProvider messages={messages}>
           <AnalyticsProvider>
-            <CartProvider>
-              {/* Skip link de accesibilidad */}
-              <a
-                href="#main-content"
-                className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-white"
-              >
-                {tNav("skipToContent")}
-              </a>
+            <CurrencyProvider currency={config.ecommerce.currency || "EUR"}>
+              <CartProvider>
+                {/* Skip link de accesibilidad */}
+                <a
+                  href="#main-content"
+                  className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-white"
+                >
+                  {tNav("skipToContent")}
+                </a>
 
-              {/* Navegación */}
-              <SiteHeader
-                logoUrl={config.brand.logo || undefined}
-                items={primaryMenu}
-              />
+                {/* Navegación */}
+                <SiteHeader
+                  logoUrl={config.brand.logo || undefined}
+                  items={primaryMenu}
+                />
 
-              <main id="main-content" className="mx-auto max-w-5xl px-6 py-12">
-                {children}
-              </main>
+                <main id="main-content" className="mx-auto max-w-5xl px-6 py-12">
+                  {children}
+                </main>
 
-              <SiteFooter />
+                <SiteFooter />
 
-              {/* CartDrawer: panel deslizante (fuera del flujo principal) */}
-              <CartDrawer couponsEnabled={config.ecommerce.coupons_enabled} />
-            </CartProvider>
+                {/* CartDrawer: panel deslizante (fuera del flujo principal) */}
+                <CartDrawer couponsEnabled={config.ecommerce.coupons_enabled} />
+              </CartProvider>
+            </CurrencyProvider>
           </AnalyticsProvider>
         </NextIntlClientProvider>
         <JsonLd />

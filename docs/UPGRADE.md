@@ -275,6 +275,10 @@ git fetch framework --tags
   HubSpot), campos de schema SEO/GEO (devoluciones, envío, FAQ por bloques) y opciones de
   backup (`keep_only_latest`, `exclude_thumbnails`, `include_config_export`). En el frontend,
   `SiteConfig` gana `payments`, `modules` e `instance` (ver `lib/config/types.ts`).
+- **`formatPrice` y `formatStoreAmount` exigen `currencyCode`.** En servidor sale de
+  `getSiteConfig().ecommerce.currency` (o del `currency_code` que trae la Store API); en
+  cliente, de `useCurrency()` (el layout raíz monta `CurrencyProvider`). El formato usa
+  Intl (COP sin decimales).
 
 ### Operación (F1)
 

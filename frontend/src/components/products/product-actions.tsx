@@ -8,6 +8,7 @@ import {
 } from "./variation-selector";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
 import { formatPrice } from "@/lib/format";
+import { useCurrency } from "@/components/ui/currency-context";
 import { Badge } from "@/components/ui/badge";
 
 // ============================================================================
@@ -34,6 +35,7 @@ export default function ProductActions({
   variations,
 }: ProductActionsProps) {
   const t = useTranslations("products");
+  const currency = useCurrency();
   const [activeVariation, setActiveVariation] = useState<ProductVariation | null>(null);
 
   const handleVariationChange = useCallback((v: ProductVariation | null) => {
@@ -69,11 +71,11 @@ export default function ProductActions({
       {activeVariation && (
         <div className="flex items-baseline gap-2">
           <span className="text-xl font-bold">
-            {formatPrice(activeVariation.price)}
+            {formatPrice(activeVariation.price, currency)}
           </span>
           {activeVariation.salePrice && activeVariation.regularPrice && (
             <span className="text-base text-gray-400 line-through">
-              {formatPrice(activeVariation.regularPrice)}
+              {formatPrice(activeVariation.regularPrice, currency)}
             </span>
           )}
           {variantOutOfStock && (
