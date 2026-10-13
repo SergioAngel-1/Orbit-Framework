@@ -1191,8 +1191,9 @@ demás entradas, en §6.
   nueva: `docker volume create hwe_db_data` una vez. El compose de desarrollo no cambia.
 - **`COMPOSE_FILE=docker-compose.prod.yml` en `.env.prod`.** Sin `-f`, `docker compose
   --env-file .env.prod …` usaba el compose de **desarrollo** sobre producción (db y wordpress
-  recreados con otra configuración, puertos publicados). Añade la línea a tu `.env.prod`
-  (no está en el repositorio); un `-f` explícito, como el del CD, sigue mandando.
+  recreados con otra configuración, puertos publicados). `.env.prod.example` ya la trae:
+  añade la línea a tu `.env.prod` si lo creaste antes de la v2 (el archivo real no se
+  versiona); un `-f` explícito, como el del CD, sigue mandando.
 - **El CD de producción hace una copia de la base de datos antes de desplegar** y se detiene si no
   hay un volcado de los últimos 15 minutos.
 - **Las copias automáticas de producción no funcionaban en la v1.0; ahora sí. Recrea el contenedor
