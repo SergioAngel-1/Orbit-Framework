@@ -12,6 +12,16 @@ import { internalSecretHeaders } from "@/lib/security/internal-secret";
 
 const WC_API_URL = process.env.WC_API_URL ?? "http://wordpress:80/wp-json/wc/v3";
 const WC_CONSUMER_KEY = process.env.WC_CONSUMER_KEY ?? "";
+
+/**
+ * WooCommerce solo acepta Basic con consumer key/secret cuando `is_ssl()` es true. El BFF
+ * habla con WordPress por HTTP en la red interna (`http://wordpress:80`) y el `wp-config`
+ * del contenedor ya trata `X-Forwarded-Proto: https` como HTTPS: sin esa cabecera, TODA
+ * llamada a wc/v3 (pedidos, cuenta, direcciones, reseñas y marcar pagado un pedido desde el
+ * webhook de la pasarela) respondía 401 `woocommerce_rest_cannot_view`, mientras GraphQL y
+ * la Store API (que no usan ck/cs) seguían funcionando.
+ */
+const WC_FORWARD_HTTPS = WC_API_URL.startsWith("http://");
 const WC_CONSUMER_SECRET = process.env.WC_CONSUMER_SECRET ?? "";
 
 /** Error normalizado de WooCommerce con su código HTTP. */
@@ -89,6 +99,7 @@ export async function wcFetch<T>(
           Authorization: authorizationHeader(),
           "Content-Type": "application/json",
           Accept: "application/json",
+          ...(WC_FORWARD_HTTPS ? { "X-Forwarded-Proto": "https" } : {}),
           ...(rid ? { "X-Request-Id": rid } : {}),
           ...internalSecretHeaders(),
         },

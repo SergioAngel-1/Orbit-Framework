@@ -69,6 +69,13 @@ git fetch framework --tags
 
 ### Seguridad (F1)
 
+- **El BFF vuelve a poder leer y escribir en wc/v3.** WooCommerce solo acepta Basic con consumer
+  key/secret cuando `is_ssl()` es true, y el BFF le habla por HTTP en la red interna
+  (`http://wordpress:80`): sin `X-Forwarded-Proto: https`, **toda** llamada a wc/v3 (pedidos,
+  cuenta, direcciones, reseñas y marcar pagado un pedido desde el webhook de la pasarela)
+  respondía 401 `woocommerce_rest_cannot_view`, mientras GraphQL y la Store API (sin ck/cs)
+  seguían funcionando. `wcFetch` manda la cabecera cuando `WC_API_URL` es `http://`. Un frontend
+  propio que llame a wc/v3 por HTTP interno necesita lo mismo.
 - **«Cerrar sesión en todos los dispositivos» y el cambio de contraseña cierran de verdad las
   demás sesiones.** El plugin WPGraphQL JWT Authentication (0.7.0) rotaba el secreto del
   usuario pero **nunca lo comparaba** con el del refresh token: tras `logout-all`, el refresh
