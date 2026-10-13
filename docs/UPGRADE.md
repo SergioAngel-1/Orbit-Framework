@@ -69,6 +69,16 @@ git fetch framework --tags
 
 ### Seguridad (F1)
 
+- **«Cerrar sesión en todos los dispositivos» y el cambio de contraseña cierran de verdad las
+  demás sesiones.** El plugin WPGraphQL JWT Authentication (0.7.0) rotaba el secreto del
+  usuario pero **nunca lo comparaba** con el del refresh token: tras `logout-all`, el refresh
+  token anterior seguía renovando sesión (duran 365 días). `hwe-auth.php` filtra ahora
+  `graphql_jwt_auth_validate_token` y exige que el `user_secret` sea el vigente. Efecto al
+  actualizar: los refresh tokens emitidos hasta hoy siguen valiendo (llevan el secreto actual);
+  solo dejan de valer los que se rotan a partir de ahora.
+- **Desactivar el 2FA funciona.** La ruta `PUT hwe/v1/auth/2fa-secret` declaraba `secret` como
+  `string` y el BFF manda `null` para desactivar: WordPress respondía 400 siempre, con TOTP y con
+  código de recuperación. Ahora acepta `string|null`.
 - **Next 16.4.0 y React 19.3.0.** Tras actualizar, `npm install` en `frontend/`; las instancias
   que fijaban `next` por debajo de 16.3.3 estaban expuestas a una ejecución remota sin
   autenticar en `/_next/image`.

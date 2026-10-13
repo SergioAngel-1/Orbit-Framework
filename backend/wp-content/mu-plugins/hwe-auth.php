@@ -34,6 +34,9 @@ class HWE_Auth_Endpoints {
 
     public static function register(): void {
         add_action('rest_api_init', [self::class, 'registerRoutes']);
+        // El plugin JWT no compara el secreto de un refresh token con el vigente:
+        // sin esto, rotarlo (logout-all, cambio de contraseña) no cierra ninguna sesión.
+        add_filter('graphql_jwt_auth_validate_token', [self::class, 'enforceRefreshTokenSecret']);
     }
 
     public static function registerRoutes(): void {
