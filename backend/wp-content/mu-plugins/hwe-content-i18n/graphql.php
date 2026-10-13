@@ -98,7 +98,7 @@ function hwe_i18n_register_graphql(): void {
 		'hweSlugFrom',
 		array(
 			'type'        => 'String',
-			'description' => __( 'Slug nativo de la ficha PUBLICADA cuyo slug en `locale` es `slug`. Null si ninguna.', 'hwe' ),
+			'description' => __( 'Slug nativo de la ficha PUBLICADA (o del término de la taxonomía `postType`) cuyo slug en `locale` es `slug`. Null si ninguna.', 'hwe' ),
 			'args'        => array(
 				'postType' => array( 'type' => array( 'non_null' => 'String' ) ),
 				'locale'   => array( 'type' => array( 'non_null' => 'String' ) ),
@@ -108,7 +108,7 @@ function hwe_i18n_register_graphql(): void {
 				$post_type = (string) ( $args['postType'] ?? '' );
 				$registry  = hwe_i18n_registry();
 				$def       = $registry[ $post_type ] ?? null;
-				if ( null === $def || 'post' !== $def['kind'] || ! isset( $def['fields']['slug'] ) ) {
+				if ( null === $def || ! isset( $def['fields']['slug'] ) ) {
 					return null;
 				}
 				$suffix = hwe_i18n_locale_suffix( (string) ( $args['locale'] ?? '' ) );
@@ -120,6 +120,17 @@ function hwe_i18n_register_graphql(): void {
 					return null;
 				}
 				global $wpdb;
+				if ( 'term' === $def['kind'] ) {
+					$term = $wpdb->get_var(
+						$wpdb->prepare(
+							"SELECT t.slug FROM {$wpdb->termmeta} tm JOIN {$wpdb->term_taxonomy} tt ON tt.term_id = tm.term_id JOIN {$wpdb->terms} t ON t.term_id = tm.term_id WHERE tm.meta_key = %s AND tm.meta_value = %s AND tt.taxonomy = %s LIMIT 1",
+							hwe_i18n_meta_key( 'slug', $suffix ),
+							$slug,
+							$post_type
+						)
+					);
+					return is_string( $term ) && '' !== $term ? $term : null;
+				}
 				$native = $wpdb->get_var(
 					$wpdb->prepare(
 						"SELECT p.post_name FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id WHERE pm.meta_key = %s AND pm.meta_value = %s AND p.post_type = %s AND p.post_status = 'publish' LIMIT 1",

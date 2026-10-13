@@ -608,6 +608,29 @@ final class ContentI18nTest extends TestCase
         $this->assertStringContainsString("'my-entry'", $this->wpdb->queries[0]);
     }
 
+    public function testSlugFromFindsTheNativeSlugOfATerm(): void
+    {
+        $this->wpdb->vars['tt.taxonomy'] = 'amor-propio';
+        hwe_i18n_register_graphql();
+
+        $resolve = $this->resolverOf('RootQuery', 'hweSlugFrom');
+        $native = $resolve(null, ['postType' => 'product_cat', 'locale' => 'en', 'slug' => 'self-love']);
+
+        $this->assertSame('amor-propio', $native);
+        $this->assertStringContainsString('termmeta', $this->wpdb->queries[0]);
+        $this->assertStringContainsString("'_hwe_slug_en'", $this->wpdb->queries[0]);
+        $this->assertStringContainsString("'product_cat'", $this->wpdb->queries[0]);
+    }
+
+    public function testSlugFromDoesNotTranslateTheSlugOfBlogTerms(): void
+    {
+        hwe_i18n_register_graphql();
+        $resolve = $this->resolverOf('RootQuery', 'hweSlugFrom');
+
+        $this->assertNull($resolve(null, ['postType' => 'category', 'locale' => 'en', 'slug' => 'x']));
+        $this->assertSame([], $this->wpdb->queries);
+    }
+
     public function testSlugFromRejectsTypesWithoutTranslatableSlugAndUnknownLocales(): void
     {
         hwe_i18n_register_graphql();
