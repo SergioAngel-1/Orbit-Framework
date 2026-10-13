@@ -12,8 +12,17 @@ import crypto from "node:crypto";
 //
 //  Variables:
 //    E2E_FULL=1                 → activa esta suite
-//    E2E_PRODUCT_ID=<id>        → id de un producto comprable (def. 1)
-//    NOOP_INTEGRITY_SECRET=...  → debe coincidir con el del servidor (def. sandbox)
+//    E2E_PRODUCT_ID=<id>        → id de un producto comprable. Sin sembrar, el 1 no
+//                                 existe: pásalo siempre (`wp post list --post_type=product`)
+//    NOOP_INTEGRITY_SECRET=...  → debe coincidir con el del servidor. El def. es el
+//                                 sandbox; una pila de desarrollo genera el suyo
+//                                 (`NOOP_INTEGRITY_SECRET` del `.env`)
+//
+//    E2E_COUNTRY / E2E_STATE / E2E_CITY / E2E_POSTCODE → dirección de compra; debe ser
+//                                 de un país en el que venda la tienda (def. ES / M /
+//                                 Madrid / 28001, el país por defecto de la pila)
+//
+//  El producto es físico: Woo exige dirección de ENVÍO además de la de facturación.
 // ============================================================================
 
 const RUN = process.env.E2E_FULL === "1";
@@ -58,18 +67,21 @@ test.describe("Compra de extremo a extremo (BFF)", () => {
     expect(add.ok()).toBeTruthy();
 
     // 4) Checkout (crea el pedido y, por el fix §1.1, lo liga al cliente).
+    const address = {
+      first_name: "E2E",
+      last_name: "Test",
+      email: `e2e_${uniq}@example.com`,
+      address_1: "Calle 1",
+      city: process.env.E2E_CITY || "Madrid",
+      state: process.env.E2E_STATE || "M",
+      country: process.env.E2E_COUNTRY || "ES",
+      postcode: process.env.E2E_POSTCODE || "28001",
+    };
     const checkout = await ctx.post("/api/store/checkout", {
       headers: { ...W, "idempotency-key": `e2e-${uniq}` },
       data: {
-        billing_address: {
-          first_name: "E2E",
-          last_name: "Test",
-          email: `e2e_${uniq}@example.com`,
-          address_1: "Calle 1",
-          city: "Bogotá",
-          country: "CO",
-          postcode: "110111",
-        },
+        billing_address: address,
+        shipping_address: address,
         // Gateway del pago en línea: el BFF solo admite los medios del checkout.
         payment_method: "hwe_offline",
       },
