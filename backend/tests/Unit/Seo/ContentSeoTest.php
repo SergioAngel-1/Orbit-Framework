@@ -71,6 +71,7 @@ final class ContentSeoTest extends TestCase
             'esc_attr' => static fn ($v) => (string) $v,
             'esc_html' => static fn ($v) => (string) $v,
             'esc_textarea' => static fn ($v) => (string) $v,
+            'wp_nonce_field' => static fn ($action, $name) => '<input type="hidden" name="' . $name . '" value="nonce:' . $action . '">',
             '__' => static fn ($v) => $v,
         ]);
         Functions\when('update_post_meta')->alias(function (int $id, string $key, string $value): bool {
@@ -118,8 +119,8 @@ final class ContentSeoTest extends TestCase
     public function testPostSaveWritesTrimmedMetas(): void {
         $_POST = [
             'hwe_post_seo_nonce' => 'valido',
-            'hwe_seo_title' => '  Título  ',
-            'hwe_seo_description' => 'Descripción.',
+            'hwe_post_seo_title' => '  Título  ',
+            'hwe_post_seo_description' => 'Descripción.',
         ];
 
         hwe_post_seo_save(11);
@@ -130,7 +131,7 @@ final class ContentSeoTest extends TestCase
 
     public function testPostSaveDeletesEmptyMetas(): void {
         $this->meta['post:11:_hwe_seo_title'] = 'Viejo';
-        $_POST = ['hwe_post_seo_nonce' => 'valido', 'hwe_seo_title' => '', 'hwe_seo_description' => ''];
+        $_POST = ['hwe_post_seo_nonce' => 'valido', 'hwe_post_seo_title' => '', 'hwe_post_seo_description' => ''];
 
         hwe_post_seo_save(11);
 
@@ -138,7 +139,7 @@ final class ContentSeoTest extends TestCase
     }
 
     public function testSaveWithoutNonceWritesNothing(): void {
-        $_POST = ['hwe_seo_title' => 'X'];
+        $_POST = ['hwe_post_seo_title' => 'X', 'hwe_page_seo_title' => 'X', 'hwe_product_seo_title' => 'X'];
 
         hwe_post_seo_save(11);
         hwe_page_seo_save(11);
@@ -158,6 +159,50 @@ final class ContentSeoTest extends TestCase
 
         $this->assertSame('Cat', $this->meta['term:5:_hwe_seo_title']);
         $this->assertSame('Desc', $this->meta['term:5:_hwe_seo_description']);
+    }
+
+    public function testPageAndProductSaveUseTheirOwnFieldsAndTheSharedLimits(): void {
+        $_POST = [
+            'hwe_page_seo_nonce' => 'valido',
+            'hwe_page_seo_title' => str_repeat('a', 80),
+            'hwe_page_seo_description' => str_repeat('b', 200),
+            'hwe_product_seo_nonce' => 'valido',
+            'hwe_product_seo_title' => 'Producto',
+            'hwe_product_seo_description' => '',
+        ];
+
+        hwe_page_seo_save(21);
+        hwe_product_seo_save(22);
+
+        $this->assertSame(HWE_SEO_TITLE_MAX, mb_strlen($this->meta['post:21:_hwe_seo_title']));
+        $this->assertSame(HWE_SEO_DESC_MAX, mb_strlen($this->meta['post:21:_hwe_seo_description']));
+        $this->assertSame('Producto', $this->meta['post:22:_hwe_seo_title']);
+        $this->assertArrayNotHasKey('post:22:_hwe_seo_description', $this->meta);
+    }
+
+    public function testANonceOfAnotherEntityDoesNotAuthorizeTheSave(): void {
+        $_POST = ['hwe_post_seo_nonce' => 'valido', 'hwe_page_seo_title' => 'X'];
+
+        hwe_page_seo_save(21);
+
+        $this->assertSame([], $this->meta);
+    }
+
+    public function testEveryEntityRendersTheSameFieldsAndTheCounterOnlyOnce(): void {
+        $this->meta['post:11:_hwe_seo_title'] = 'Actual';
+        $post = new \WP_Post();
+        $post->ID = 11;
+
+        ob_start();
+        hwe_post_seo_render_box($post);
+        hwe_product_seo_render_box($post);
+        $html = (string) ob_get_clean();
+
+        $this->assertStringContainsString('name="hwe_post_seo_title"', $html);
+        $this->assertStringContainsString('name="hwe_product_seo_description"', $html);
+        $this->assertStringContainsString('value="Actual"', $html);
+        $this->assertSame(4, substr_count($html, 'data-hwe-seo-min="'), 'Título y descripción en las dos cajas.');
+        $this->assertSame(1, substr_count($html, '<script>'), 'El contador se imprime una sola vez por página.');
     }
 
     // ── GraphQL ─────────────────────────────────────────────────────────────

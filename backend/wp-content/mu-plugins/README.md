@@ -36,6 +36,7 @@ paquete multi-clase.
 | `hwe-post-seo.php` | mu-plugin | Título/descripción SEO por entrada + columna en el listado + `Post.seoTitle`/`seoDescription` en GraphQL. |
 | `hwe-page-seo.php` | mu-plugin | Idem por página (`Page.seoTitle`/`seoDescription`). |
 | `hwe-product-seo.php` | mu-plugin | Idem por producto (`Product.seoTitle`/`seoDescription`). |
+| `hwe-seo/` | carpeta | `fields.php`: caja, guardado, contador, columna y registro GraphQL comunes a los cuatro `hwe-*-seo.php` (que la incluyen con `require_once`). |
 | `hwe-category-seo.php` | mu-plugin | Idem por categoría de producto (`ProductCategory.seoTitle`/`seoDescription`). |
 | `hwe-featured-post.php` | mu-plugin | Selector manual de post destacado (`RootQuery.hweFeaturedPost`). |
 | `woocommerce-email-branding.php` | mu-plugin | Branding de los emails transaccionales de WooCommerce. |

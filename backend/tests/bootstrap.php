@@ -16,7 +16,7 @@
  *   lo necesitan, márcalos con `#[RunInSeparateProcess]`.
  * - Las funciones de WordPress que el código llame se simulan por test con
  *   `Brain\Monkey\Functions\when()/expect()`. Las clases de WordPress se
- *   simulan en tests/Stubs/ (hoy `WP_REST_Request`, `WP_REST_Response` y `WP_Error`); si un
+ *   simulan en tests/Stubs/ (hoy `WP_REST_Request`, `WP_REST_Response`, `WP_Error`, `WP_Post` y `WP_Term`); si un
  *   test necesita otra, añádela allí y cárgala al final de este
  *   archivo.
  * - Las constantes (`AUTH_KEY`, `HWE_SECRETS_KEY`…) NO se definen aquí a
@@ -60,3 +60,4 @@ define('YEAR_IN_SECONDS', 31536000);
 require_once __DIR__ . '/Stubs/wp-rest.php';
 require_once __DIR__ . '/Stubs/wp-error.php';
 require_once __DIR__ . '/Stubs/wp-graphql.php';
+require_once __DIR__ . '/Stubs/wp-post.php';

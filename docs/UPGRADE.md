@@ -306,6 +306,11 @@ git fetch framework --tags
   (que sustituye a este mu-plugin). Mientras tanto, configura las tarifas en WooCommerce →
   Ajustes → Envío. Un filtro o código propio que llamara a `hwe_shipping_config()` debe dejar
   de hacerlo.
+- **SEO por entidad unificado (`hwe-seo/fields.php`).** Entradas, páginas, productos y
+  categorías comparten caja, límites (título 60, descripción 160), contador y columna
+  «SEO». Los campos del formulario de la entrada pasan de `hwe_seo_title`/`hwe_seo_description`
+  a `hwe_post_seo_title`/`hwe_post_seo_description` (solo afecta a quien enviara ese
+  formulario a mano). Las metas (`_hwe_seo_title`, `_hwe_seo_description`) no cambian.
 - **`graphql-protection.php` ya no declara el filtro `graphql_cache_active`** (era código
   muerto: lo lee wp-graphql-smart-cache, que no se instala, y el BFF consulta por POST) y
   `setup.sh` deja de escribir la opción `graphql_cache_section`. Las consultas rechazadas se
