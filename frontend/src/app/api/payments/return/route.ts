@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { handleApiError } from "@/lib/api/errors";
-import { requireSession } from "@/lib/auth/session";
+import { getSession } from "@/lib/auth/session";
+import { readGuestOrderCredential } from "@/lib/checkout/guest-order-cookie";
+import { canAccessOrder } from "@/lib/checkout/order-access";
 import { getOrder, isOrderPaid } from "@/lib/payments/orders";
 import { logger } from "@/lib/observability/logger";
 
@@ -11,11 +13,16 @@ export const dynamic = "force-dynamic";
  * URL de retorno del usuario tras el checkout alojado. SOLO consulta el estado
  * del pedido para la UX; NUNCA confirma el pago (eso lo hace el webhook).
  *
- * Requiere sesión y propiedad del pedido (no filtra estados de otros usuarios).
+ * Requiere propiedad del pedido —por sesión o, si es de invitado, por la
+ * credencial `order_key` de su cookie— (no filtra estados de otros usuarios).
  */
 export async function GET(request: Request) {
   try {
-    const session = await requireSession();
+    const [session, guest] = await Promise.all([
+      getSession(),
+      readGuestOrderCredential(),
+    ]);
+    if (!session && !guest) throw new Error("UNAUTHENTICATED");
 
     const ref = new URL(request.url).searchParams.get("ref");
     if (!ref || !/^\d+$/.test(ref)) {
@@ -27,9 +34,9 @@ export async function GET(request: Request) {
     }
 
     const order = await getOrder(ref);
-    if (order.customer_id !== Number(session.userId)) {
+    if (!canAccessOrder(order, { userId: session?.userId, guest })) {
       logger.warn(
-        { event: "payments.return.idor", userId: session.userId, ref },
+        { event: "payments.return.idor", userId: session?.userId ?? null, ref },
         "Intento de acceso a pedido de otro usuario",
       );
       return NextResponse.json({ error: "No encontrado." }, { status: 404 });
@@ -38,7 +45,7 @@ export async function GET(request: Request) {
     logger.info(
       {
         event: "payments.return.success",
-        userId: session.userId,
+        userId: session?.userId ?? null,
         ref,
         status: order.status,
       },

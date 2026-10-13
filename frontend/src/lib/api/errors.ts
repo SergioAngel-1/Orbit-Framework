@@ -2,6 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { WooCommerceError } from "@/lib/woocommerce/client";
 import { PaymentError } from "@/lib/payments/types";
+import { wcMessageToText } from "./wc-message";
 
 // ============================================================================
 //  Mapeo centralizado de errores a respuestas HTTP de los Route Handlers.
@@ -36,9 +37,10 @@ export function handleApiError(error: unknown): NextResponse {
         { status: 502 },
       );
     }
-    // Errores 4xx (validación de WC, recurso inexistente, etc.) sí informan.
+    // Errores 4xx (validación de WC, recurso inexistente, etc.) sí informan. El
+    // mensaje llega escapado para HTML (`&quot;`): se entrega como texto plano.
     return NextResponse.json(
-      { error: error.message, code: error.code },
+      { error: wcMessageToText(error.message), code: error.code },
       { status: error.status },
     );
   }

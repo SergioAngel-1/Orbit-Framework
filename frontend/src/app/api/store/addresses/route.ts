@@ -9,23 +9,15 @@ import {
   addressDeleteSchema,
 } from "@/lib/validation/address";
 import { withLock } from "@/lib/security/lock";
+import { ADDRESSES_META_KEY, parseSavedAddresses } from "@/lib/customer/addresses";
 import { logger } from "@/lib/observability/logger";
 import type { WooCustomer } from "@/types/woocommerce";
 import type { SavedAddress } from "@/types/address";
 
 export const dynamic = "force-dynamic";
 
-const ADDRESSES_META_KEY = "hwe_addresses";
-
 function parseAddresses(customer: WooCustomer): SavedAddress[] {
-  const meta = customer.meta_data?.find((m) => m.key === ADDRESSES_META_KEY);
-  if (!meta?.value) return [];
-  try {
-    const arr = typeof meta.value === "string" ? JSON.parse(meta.value) : meta.value;
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
+  return parseSavedAddresses(customer.meta_data);
 }
 
 export async function GET() {

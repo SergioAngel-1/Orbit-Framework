@@ -2,6 +2,11 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { readCartToken, writeCartToken } from "@/lib/woocommerce/cart-cookie";
+import {
+  getCartRequestAuth,
+  applyCartStockAdjustments,
+} from "@/lib/woocommerce/cart-session";
+import { completeStoreCart } from "@/lib/woocommerce/complete-cart";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { rateLimit } from "@/lib/security/rate-limit";
@@ -56,13 +61,24 @@ export async function GET(request: Request) {
   }
 
   try {
-    const token = await readCartToken();
+    const { cartToken: token, authToken } = await getCartRequestAuth();
     const { data, cartToken } = await storeFetch<StoreCart>("/cart", {
       cartToken: token,
+      authToken,
     });
-    await writeCartToken(cartToken);
-    logger.info({ event: "cart.get" }, "Carrito consultado");
-    return NextResponse.json(data);
+    // Líneas sin existencias o por encima del máximo disponible: se quitan o
+    // se reducen aquí, antes de que el cliente intente pagarlas.
+    const reconciled = await applyCartStockAdjustments(data, { cartToken, authToken });
+    await writeCartToken(reconciled.cartToken);
+    logger.info(
+      {
+        event: "cart.get",
+        authenticated: Boolean(authToken),
+        stockAdjusted: reconciled.adjusted,
+      },
+      "Carrito consultado",
+    );
+    return NextResponse.json(await completeStoreCart(reconciled.cart));
   } catch (error) {
     logger.error(
       { event: "cart.get.error", err: error instanceof Error ? error.message : error },
@@ -79,14 +95,15 @@ export async function DELETE(request: Request) {
   });
   if (blocked) return blocked;
   try {
-    const token = await readCartToken();
+    const { cartToken: token, authToken } = await getCartRequestAuth();
     const { data, cartToken } = await storeFetch<StoreCart>("/cart/items", {
       method: "DELETE",
       cartToken: token,
+      authToken,
     });
     await writeCartToken(cartToken);
     logger.info({ event: "cart.clear" }, "Carrito vaciado");
-    return NextResponse.json(data);
+    return NextResponse.json(await completeStoreCart(data));
   } catch (error) {
     logger.error(
       {

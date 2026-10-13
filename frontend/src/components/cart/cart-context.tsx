@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -50,14 +51,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Mutaciones superpuestas (doble clic en «+», cambiar de cantidad dos veces)
+  // pueden RESOLVERSE fuera de orden. Gana siempre la que se DISPARÓ última: la
+  // respuesta de una anterior que llega tarde se descarta, o el cajón enseñaba
+  // un carrito que ya no es el del servidor.
+  const requestIdRef = useRef(0);
+
   const refresh = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    const isLatest = () => requestId === requestIdRef.current;
     setLoading(true);
     try {
-      setCart(await cartApi.get());
+      const result = await cartApi.get();
+      if (isLatest()) setCart(result);
     } catch {
       /* carrito no disponible: se reintenta en la próxima acción */
     } finally {
-      setLoading(false);
+      if (isLatest()) setLoading(false);
     }
   }, []);
 
@@ -66,14 +76,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const run = useCallback(async (action: () => Promise<StoreCart>) => {
+    const requestId = ++requestIdRef.current;
+    const isLatest = () => requestId === requestIdRef.current;
     setError(null);
     setLoading(true);
     try {
-      setCart(await action());
+      const result = await action();
+      if (isLatest()) setCart(result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error en el carrito.");
+      if (isLatest()) {
+        setError(e instanceof Error ? e.message : "Error en el carrito.");
+      }
     } finally {
-      setLoading(false);
+      if (isLatest()) setLoading(false);
     }
   }, []);
 

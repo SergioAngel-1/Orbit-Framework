@@ -4,6 +4,8 @@ import { FakeRedis } from "../../../../../tests/helpers/fake-redis";
 import { getRedis } from "@/lib/redis/client";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { getPendingLogin } from "@/lib/auth/pending-login";
+import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
+import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
 import { POST } from "./route";
 
 // ============================================================================
@@ -22,6 +24,12 @@ const REFRESH = "REFRESH-TOKEN-REAL";
 const cookieSet = vi.fn();
 vi.mock("next/headers", () => ({ cookies: async () => ({ set: cookieSet }) }));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
+vi.mock("@/lib/woocommerce/cart-session", () => ({
+  syncAuthenticatedCart: vi.fn(async () => undefined),
+}));
+vi.mock("@/lib/checkout/guest-order-claim", () => ({
+  claimGuestOrder: vi.fn(async () => "no_credential"),
+}));
 vi.mock("@/lib/graphql-client", () => ({ fetchGraphQL: vi.fn() }));
 vi.mock("@/lib/redis/client", () => ({ getRedis: vi.fn() }));
 vi.mock("@/lib/auth/jwt", () => ({ getTokenMaxAgeSeconds: () => 300 }));
@@ -59,6 +67,8 @@ function stubTwoFactorStatus(enabled: boolean | "error") {
 
 beforeEach(() => {
   vi.unstubAllGlobals();
+  vi.mocked(syncAuthenticatedCart).mockClear();
+  vi.mocked(claimGuestOrder).mockClear();
   cookieSet.mockClear();
   redis = new FakeRedis();
   vi.mocked(getRedis).mockReturnValue(redis as never);
@@ -151,6 +161,24 @@ describe("login sin 2FA", () => {
     expect(names).toHaveLength(2);
     expect(cookieSet.mock.calls.map((c) => c[1])).toEqual([AUTH, REFRESH]);
     expect(redis.store.size).toBe(0);
+  });
+
+  it("al abrir sesión carga el carrito de la cuenta y liga el pedido de invitado", async () => {
+    stubTwoFactorStatus(false);
+
+    await POST(loginRequest());
+
+    expect(syncAuthenticatedCart).toHaveBeenCalledWith(AUTH);
+    expect(claimGuestOrder).toHaveBeenCalledWith(7);
+  });
+
+  it("con 2FA pendiente aún no hay sesión: ni carrito de la cuenta ni pedido de invitado", async () => {
+    stubTwoFactorStatus(true);
+
+    await POST(loginRequest());
+
+    expect(syncAuthenticatedCart).not.toHaveBeenCalled();
+    expect(claimGuestOrder).not.toHaveBeenCalled();
   });
 
   it("si no se puede saber si hay 2FA, falla cerrado (503) y no abre sesión", async () => {

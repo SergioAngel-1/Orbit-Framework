@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { logger } from "@/lib/observability/logger";
+import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
+import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
 import { POST } from "./route";
 
 // ============================================================================
@@ -17,6 +19,12 @@ import { POST } from "./route";
 const cookieSet = vi.fn();
 vi.mock("next/headers", () => ({ cookies: async () => ({ set: cookieSet }) }));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
+vi.mock("@/lib/woocommerce/cart-session", () => ({
+  syncAuthenticatedCart: vi.fn(async () => undefined),
+}));
+vi.mock("@/lib/checkout/guest-order-claim", () => ({
+  claimGuestOrder: vi.fn(async () => "no_credential"),
+}));
 vi.mock("@/lib/graphql-client", () => ({ fetchGraphQL: vi.fn() }));
 vi.mock("@/lib/auth/jwt", () => ({ getTokenMaxAgeSeconds: () => 300 }));
 vi.mock("@/lib/observability/logger", () => ({
@@ -63,6 +71,17 @@ beforeEach(() => {
           },
         }
       : { registerUser: { user: { id: "u1" } } }) as never);
+});
+
+describe("sesión recién creada", () => {
+  it("carga el carrito de la cuenta y liga el pedido de invitado de este navegador", async () => {
+    stubSendVerification(Response.json({ ok: true }));
+
+    await POST(request());
+
+    expect(syncAuthenticatedCart).toHaveBeenCalledWith("AUTH");
+    expect(claimGuestOrder).toHaveBeenCalledWith(7);
+  });
 });
 
 describe("correo de verificación tras el registro", () => {

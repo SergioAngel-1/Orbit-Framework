@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
 import { useCart } from "@/components/cart/cart-context";
 import { Button } from "@/components/ui/button";
@@ -10,38 +10,99 @@ import {
   shouldStartGatewayPayment,
   type PaymentChoice,
 } from "@/lib/payments/checkout-options";
+import { checkoutReturnUrl } from "@/lib/checkout/return-url";
+import { canSubmitCheckout } from "@/lib/validation/checkout-guard";
+import {
+  checkoutSeedFromCustomer,
+  type CheckoutCustomerSeed,
+} from "@/lib/checkout/customer-seed";
+import type { WooCustomer } from "@/types/woocommerce";
 
 interface CheckoutResult {
   order_id: number;
   status: string;
 }
 
+/** Campos del formulario, en el orden en que se pintan. */
+const FIELD_NAMES = [
+  "first_name",
+  "last_name",
+  "address_1",
+  "city",
+  "postcode",
+  "country",
+  "email",
+  "phone",
+] as const;
+type FieldName = (typeof FIELD_NAMES)[number];
+type FieldValues = Record<FieldName, string>;
+
+const EMPTY_VALUES: FieldValues = {
+  first_name: "",
+  last_name: "",
+  address_1: "",
+  city: "",
+  postcode: "",
+  country: "",
+  email: "",
+  phone: "",
+};
+
+/**
+ * Valores iniciales: el perfil del cliente y su dirección predeterminada (o la
+ * primera de la libreta). Sin cliente (invitado), vacío con el país de la tienda.
+ */
+function initialValues(
+  seed: CheckoutCustomerSeed | null | undefined,
+  defaultCountry: string,
+): FieldValues {
+  if (!seed) return { ...EMPTY_VALUES, country: defaultCountry };
+  const address = seed.addresses.find((a) => a.is_default) ?? seed.addresses[0];
+  return {
+    first_name: address?.first_name || seed.first_name,
+    last_name: address?.last_name || seed.last_name,
+    address_1: address?.address_1 ?? "",
+    city: address?.city || seed.city,
+    postcode: address?.postcode ?? "",
+    country: address?.country || seed.country || defaultCountry,
+    email: seed.email,
+    phone: address?.phone || seed.phone,
+  };
+}
+
 /** Claves de `checkout.*` (es/en) de cada medio de pago. */
 const CHOICE_COPY: Record<
   PaymentChoice,
-  { label: string; hint: string; submit: string; result: string }
+  { label: string; hint: string; submit: string }
 > = {
   online: {
     label: "paymentOnline",
     hint: "paymentOnlineHint",
     submit: "submitOnline",
-    result: "paymentNotStarted",
   },
   whatsapp: {
     label: "paymentWhatsapp",
     hint: "paymentWhatsappHint",
     submit: "submitWhatsapp",
-    result: "resultWhatsapp",
   },
   cash: {
     label: "paymentCash",
     hint: "paymentCashHint",
     submit: "submit",
-    result: "resultCash",
   },
 };
 
 export interface CheckoutFormProps {
+  /**
+   * Perfil y libreta del cliente con sesión, ya leídos por la página en el
+   * servidor: el formulario nace relleno. `null` (WordPress no respondió) = lo
+   * pide el propio formulario al BFF.
+   */
+  customer?: CheckoutCustomerSeed | null;
+  /** Compra sin sesión (`ecommerce.checkout_login_required` apagado). */
+  guest?: boolean;
+  /** País de la tienda (`config.ecommerce.country`) para el campo vacío. */
+  defaultCountry?: string;
   /**
    * Medios activos en el Control Center, en orden (`enabledPaymentChoices`):
    * pago en línea, link por WhatsApp y efectivo. Con uno solo no se pinta el
@@ -58,6 +119,9 @@ export interface CheckoutFormProps {
 }
 
 export function CheckoutForm({
+  customer,
+  guest = false,
+  defaultCountry = "",
   paymentChoices = ["online"],
   gatewaySandbox = false,
   couponsEnabled = false,
@@ -71,9 +135,17 @@ export function CheckoutForm({
   const tForm = t.raw("form") as unknown as Record<string, string>;
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<
-    (CheckoutResult & { choice: PaymentChoice; paymentFailed: boolean }) | null
-  >(null);
+  const locale = useLocale();
+  const [values, setValues] = useState<FieldValues>(() =>
+    initialValues(customer, defaultCountry),
+  );
+  // Lo que el cliente ya escribió no se pisa con el respaldo asíncrono.
+  const touchedRef = useRef(false);
+  // Un envío en vuelo bloquea otro (doble clic, Enter repetido) y la clave de
+  // idempotencia es estable durante todo el intento: un reintento tras un fallo
+  // de red no crea un segundo pedido. Se renueva solo tras crear el pedido.
+  const submittingRef = useRef(false);
+  const idempotencyKeyRef = useRef<string | null>(null);
   const [choice, setChoice] = useState<PaymentChoice>(paymentChoices[0] ?? "online");
   // Si la lista de medios cambia (config revalidada) y el elegido ya no está,
   // se cae al primero: nunca se envía un medio que el servidor rechazaría.
@@ -83,7 +155,12 @@ export function CheckoutForm({
   const copy = CHOICE_COPY[effectiveChoice];
   const [couponCode, setCouponCode] = useState("");
 
-  const FIELDS: { name: string; label: string; type?: string; required?: boolean }[] = [
+  const FIELDS: {
+    name: FieldName;
+    label: string;
+    type?: string;
+    required?: boolean;
+  }[] = [
     { name: "first_name", label: tForm.firstName, required: true },
     { name: "last_name", label: tForm.lastName, required: true },
     { name: "address_1", label: tForm.address, required: true },
@@ -94,15 +171,40 @@ export function CheckoutForm({
     { name: "phone", label: tForm.phone },
   ];
 
+  // Respaldo: el servidor no pudo leer al cliente (`customer === null`), así
+  // que el formulario lo pide al BFF. Un invitado no tiene nada que pedir.
+  useEffect(() => {
+    if (customer !== null || guest) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/store/customer", { credentials: "same-origin" });
+        if (!res.ok || cancelled || touchedRef.current) return;
+        const seed = checkoutSeedFromCustomer(
+          (await res.json()) as WooCustomer,
+          defaultCountry,
+        );
+        if (!cancelled && !touchedRef.current) {
+          setValues(initialValues(seed, defaultCountry));
+        }
+      } catch {
+        /* sin precarga: el cliente escribe sus datos */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [customer, guest, defaultCountry]);
+
   /**
    * Inicia el cobro del pedido con la pasarela activa (capa agnóstica).
    * @returns true si redirige al checkout alojado (la página se abandona).
    */
-  async function startPayment(orderId: number): Promise<boolean> {
+  async function startPayment(orderId: number, returnUrl: string): Promise<boolean> {
     try {
       const res = await csrfFetch("/api/payments/create", {
         method: "POST",
-        body: { reference: orderId },
+        body: { reference: orderId, returnUrl },
       });
       if (!res.ok) return false; // sin sesión / pasarela no aplicable → fallback
       const data = (await res.json().catch(() => ({}))) as {
@@ -121,18 +223,20 @@ export function CheckoutForm({
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setPending(true);
     setError(null);
-    const form = new FormData(e.currentTarget);
 
     const billing_address = Object.fromEntries(
-      FIELDS.map((f) => [f.name, String(form.get(f.name) ?? "")]),
+      FIELD_NAMES.map((name) => [name, values[name].trim()]),
     );
+    idempotencyKeyRef.current ??= crypto.randomUUID();
 
     try {
       const res = await csrfFetch("/api/store/checkout", {
         method: "POST",
-        headers: { "Idempotency-Key": crypto.randomUUID() },
+        headers: { "Idempotency-Key": idempotencyKeyRef.current },
         body: {
           billing_address,
           payment_method: paymentMethodFor(effectiveChoice),
@@ -142,68 +246,60 @@ export function CheckoutForm({
       const data = (await res.json().catch(() => ({}))) as
         CheckoutResult | { error?: string };
       if (!res.ok) {
-        throw new Error(("error" in data && data.error) || tCheckout.emptyCart);
+        throw new Error(("error" in data && data.error) || tCheckout.genericError);
       }
 
       const order = data as CheckoutResult;
+      // Pedido creado: el siguiente intento es una compra nueva.
+      idempotencyKeyRef.current = null;
       await refresh();
 
-      // Efectivo o link por WhatsApp: no hay cobro en línea; el resultado
-      // dice cómo sigue (pago al recibir, o el link que enviará la tienda).
+      // La pantalla de «gracias» está en el idioma de la página; el cobro en
+      // línea también vuelve a ella.
+      const returnUrl = checkoutReturnUrl(
+        window.location.origin,
+        locale as Parameters<typeof checkoutReturnUrl>[1],
+        order.order_id,
+      );
+
+      // Efectivo o link por WhatsApp: no hay cobro en línea; «gracias» dice
+      // cómo sigue (pago al recibir, o el link que enviará la tienda).
       if (!shouldStartGatewayPayment(effectiveChoice)) {
-        setResult({ ...order, choice: effectiveChoice, paymentFailed: false });
+        window.location.href = returnUrl;
         return;
       }
 
       // Capa de pagos agnóstica: inicia el cobro con la pasarela activa. Si
-      // devuelve un checkout alojado, redirige. Si no (sin sesión, pasarela
-      // caída), el pedido ya existe: se dice que el pago no arrancó en vez de
-      // dar la compra por hecha.
-      const redirected = await startPayment(order.order_id);
-      if (!redirected) {
-        setResult({ ...order, choice: effectiveChoice, paymentFailed: true });
-      }
+      // devuelve un checkout alojado, redirige. Si no, el pedido ya existe y el
+      // carrito se vació: «gracias» lo dice y ofrece reintentar el pago.
+      const redirected = await startPayment(order.order_id, returnUrl);
+      if (!redirected) window.location.href = `${returnUrl}&retry=1`;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error.");
+      setError(err instanceof Error ? err.message : tCheckout.genericError);
     } finally {
+      submittingRef.current = false;
       setPending(false);
     }
   }
 
-  if (result) {
-    return (
-      <div className="rounded-xl border border-green-200 bg-green-50 p-8 text-center dark:border-green-900 dark:bg-green-950">
-        <h2 className="text-xl font-bold text-green-800 dark:text-green-200">
-          {tCheckout.success}
-        </h2>
-        <p className="mt-2 text-green-700 dark:text-green-300">
-          {tCheckout.orderNumber} <strong>#{result.order_id}</strong> ·{" "}
-          {tCheckout.status}: {result.status}
-        </p>
-        {result.choice !== "online" && (
-          <p className="mt-2 text-green-700 dark:text-green-300">
-            {tCheckout[CHOICE_COPY[result.choice].result]}
-          </p>
-        )}
-        {result.paymentFailed && (
-          <p
-            role="alert"
-            className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
-          >
-            {tCheckout.paymentNotStarted}
-          </p>
-        )}
-      </div>
-    );
-  }
-
   const empty = !cart || cart.items.length === 0;
+  // Carrito que necesita envío y sin ninguna tarifa (zona sin cubrir): no se
+  // cierra el pedido con envío 0. El servidor aplica la misma regla.
+  const noShippingRate = !empty && !canSubmitCheckout(cart);
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
           {error}
+        </p>
+      )}
+      {noShippingRate && (
+        <p
+          role="alert"
+          className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+        >
+          {tCheckout.noShipping}
         </p>
       )}
       {empty && (
@@ -242,7 +338,12 @@ export function CheckoutForm({
               key={c.code}
               className="mt-2 flex items-center justify-between text-sm"
             >
-              <span className="text-green-600 dark:text-green-400">{c.code}</span>
+              <span className="text-green-600 dark:text-green-400">
+                {c.code}
+                {c.description && (
+                  <span className="ml-2 text-xs text-gray-500">{c.description}</span>
+                )}
+              </span>
               <button
                 type="button"
                 disabled={loading}
@@ -309,6 +410,11 @@ export function CheckoutForm({
                 name={f.name}
                 type={f.type ?? "text"}
                 required={f.required}
+                value={values[f.name]}
+                onChange={(e) => {
+                  touchedRef.current = true;
+                  setValues((v) => ({ ...v, [f.name]: e.target.value }));
+                }}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
               />
             </div>
@@ -413,7 +519,7 @@ export function CheckoutForm({
 
       <button
         type="submit"
-        disabled={pending || empty}
+        disabled={pending || empty || noShippingRate}
         className="w-full rounded-lg bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
       >
         {pending ? tCheckout.processing : tCheckout[copy.submit]}

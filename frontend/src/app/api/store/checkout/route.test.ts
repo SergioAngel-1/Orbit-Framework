@@ -2,6 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { getSiteConfig } from "@/lib/config";
+import { getSession } from "@/lib/auth/session";
+import { rememberGuestOrder } from "@/lib/checkout/guest-order-cookie";
+import {
+  isValidIdempotencyKey,
+  reserveIdempotencyKey,
+  releaseIdempotencyKey,
+} from "@/lib/security/idempotency";
 import { POST } from "./route";
 
 // ============================================================================
@@ -15,10 +22,16 @@ import { POST } from "./route";
 //
 //  Y un pedido con link de pago por WhatsApp debe quedar «En espera»: en
 //  `pending` WooCommerce no manda ningún correo.
+//
+//  También aquí: quién puede comprar (invitado según
+//  `ecommerce.checkout_login_required`) y el guard de envío del servidor.
 // ============================================================================
 
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
-vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn(async () => null) }));
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
+vi.mock("@/lib/checkout/guest-order-cookie", () => ({
+  rememberGuestOrder: vi.fn(async () => undefined),
+}));
 vi.mock("@/lib/woocommerce/store-client", () => ({ storeFetch: vi.fn() }));
 vi.mock("@/lib/woocommerce/client", () => ({ wcFetch: vi.fn() }));
 vi.mock("@/lib/woocommerce/cart-cookie", () => ({
@@ -55,8 +68,12 @@ function checkout(paymentMethod: string) {
   });
 }
 
-function payments(overrides: Record<string, boolean> = {}) {
+function payments(
+  overrides: Record<string, boolean> = {},
+  ecommerce: Record<string, boolean> = {},
+) {
   vi.mocked(getSiteConfig).mockResolvedValue({
+    ecommerce: { checkout_login_required: true, ...ecommerce },
     payments: {
       gateway_enabled: true,
       whatsapp_enabled: false,
@@ -66,14 +83,31 @@ function payments(overrides: Record<string, boolean> = {}) {
   } as never);
 }
 
+const SESSION = { token: "jwt-del-cliente", userId: "7" };
+const ORDER_RESPONSE = {
+  order_id: 42,
+  status: "pending",
+  order_key: "wc_order_AbC123",
+};
+
+/** Carrito que devuelve `GET /cart` (el guard de envío lo lee antes de pagar). */
+function cartIs(cart: Record<string, unknown>) {
+  vi.mocked(storeFetch).mockImplementation((async (path: string) =>
+    path === "/cart"
+      ? { data: cart, cartToken: "cart-token" }
+      : { data: ORDER_RESPONSE, cartToken: "next-token" }) as never);
+}
+
+const orderPosts = () =>
+  vi.mocked(storeFetch).mock.calls.filter(([path]) => path === "/checkout");
+
 beforeEach(() => {
   vi.clearAllMocks();
   payments();
-  vi.mocked(storeFetch).mockResolvedValue({
-    data: { order_id: 42, status: "pending" },
-    cartToken: "next-token",
-  } as never);
-  vi.mocked(wcFetch).mockResolvedValue({} as never);
+  vi.mocked(getSession).mockResolvedValue(SESSION as never);
+  vi.mocked(isValidIdempotencyKey).mockReturnValue(false);
+  cartIs({ needs_shipping: false, shipping_rates: [] });
+  vi.mocked(wcFetch).mockResolvedValue({ customer_id: 7 } as never);
 });
 
 describe("medio de pago", () => {
@@ -81,28 +115,28 @@ describe("medio de pago", () => {
     const res = await POST(checkout("bacs"));
 
     expect(res.status).toBe(422);
-    expect(storeFetch).not.toHaveBeenCalled();
+    expect(orderPosts()).toHaveLength(0);
   });
 
   it("rechaza efectivo si está apagado en el Control Center", async () => {
     const res = await POST(checkout("cod"));
 
     expect(res.status).toBe(422);
-    expect(storeFetch).not.toHaveBeenCalled();
+    expect(orderPosts()).toHaveLength(0);
   });
 
   it("rechaza el link por WhatsApp si está apagado", async () => {
     const res = await POST(checkout("hwe_whatsapp_link"));
 
     expect(res.status).toBe(422);
-    expect(storeFetch).not.toHaveBeenCalled();
+    expect(orderPosts()).toHaveLength(0);
   });
 
   it("acepta el pago en línea con la pasarela activa", async () => {
     const res = await POST(checkout("hwe_offline"));
 
     expect(res.status).toBe(201);
-    expect(storeFetch).toHaveBeenCalledTimes(1);
+    expect(orderPosts()).toHaveLength(1);
   });
 
   it("acepta efectivo cuando está activado", async () => {
@@ -133,7 +167,10 @@ describe("link de pago por WhatsApp", () => {
     await POST(checkout("hwe_offline"));
     await POST(checkout("cod"));
 
-    expect(wcFetch).not.toHaveBeenCalled();
+    expect(wcFetch).not.toHaveBeenCalledWith(
+      "/orders/42",
+      expect.objectContaining({ body: { status: "on-hold" } }),
+    );
   });
 
   it("si no se puede pasar a «En espera», el pedido ya creado no se pierde", async () => {
@@ -144,5 +181,92 @@ describe("link de pago por WhatsApp", () => {
 
     expect(res.status).toBe(201);
     expect((await res.json()).order_id).toBe(42);
+  });
+});
+
+describe("quién puede comprar", () => {
+  it("sin sesión y con login obligatorio no se crea el pedido (401)", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(401);
+    expect(storeFetch).not.toHaveBeenCalled();
+  });
+
+  it("sin sesión y con compra de invitado, crea el pedido y guarda su credencial", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    payments({}, { checkout_login_required: false });
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(201);
+    expect(rememberGuestOrder).toHaveBeenCalledWith({
+      orderId: 42,
+      orderKey: "wc_order_AbC123",
+    });
+  });
+
+  it("con sesión no deja credencial de invitado y fija el cliente del pedido", async () => {
+    vi.mocked(wcFetch).mockResolvedValue({ customer_id: 0 } as never);
+
+    await POST(checkout("hwe_offline"));
+
+    expect(rememberGuestOrder).not.toHaveBeenCalled();
+    expect(wcFetch).toHaveBeenCalledWith("/orders/42", {
+      method: "PUT",
+      body: { customer_id: 7 },
+    });
+  });
+});
+
+describe("guard de envío del servidor", () => {
+  it("un carrito que necesita envío y no tiene tarifa no crea pedido (422) y libera la clave", async () => {
+    vi.mocked(isValidIdempotencyKey).mockReturnValue(true);
+    vi.mocked(reserveIdempotencyKey).mockResolvedValue({ status: "reserved" } as never);
+    cartIs({ needs_shipping: true, shipping_rates: [{ shipping_rates: [] }] });
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(422);
+    expect(orderPosts()).toHaveLength(0);
+    expect(releaseIdempotencyKey).toHaveBeenCalled();
+  });
+
+  it("con tarifa disponible, crea el pedido", async () => {
+    cartIs({
+      needs_shipping: true,
+      shipping_rates: [{ shipping_rates: [{ rate_id: "flat_rate:1" }] }],
+    });
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(201);
+  });
+});
+
+describe("medio de pago frente a lo que WooCommerce ofrece para este carrito", () => {
+  it("efectivo activado en el panel pero no ofrecido por Woo: 422, no se sustituye", async () => {
+    payments({ cash_enabled: true });
+    cartIs({ needs_shipping: false, shipping_rates: [], payment_methods: ["bacs"] });
+
+    const res = await POST(checkout("cod"));
+
+    expect(res.status).toBe(422);
+    expect(orderPosts()).toHaveLength(0);
+  });
+
+  it("pago en línea no ofrecido: cae a otro medio de cobro, nunca a efectivo", async () => {
+    cartIs({
+      needs_shipping: false,
+      shipping_rates: [],
+      payment_methods: ["cod", "bacs"],
+    });
+
+    await POST(checkout("hwe_offline"));
+
+    expect(orderPosts()[0]![1]).toMatchObject({
+      body: expect.objectContaining({ payment_method: "bacs" }),
+    });
   });
 });

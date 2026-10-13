@@ -1,4 +1,5 @@
 "use client";
+import { regularUnitAmount } from "@/lib/cart/line-price";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -165,6 +166,15 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
                       {item.name}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
+                      {regularUnitAmount(item) !== null && (
+                        <del className="mr-1.5 text-gray-400">
+                          {formatStoreAmount(
+                            regularUnitAmount(item)!,
+                            item.prices.currency_minor_unit,
+                            item.prices.currency_code,
+                          )}
+                        </del>
+                      )}
                       {formatStoreAmount(
                         item.prices.price,
                         item.prices.currency_minor_unit,

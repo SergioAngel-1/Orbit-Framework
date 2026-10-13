@@ -35,7 +35,7 @@ test.describe("Compra de extremo a extremo (BFF)", () => {
     // 1) CSRF (cookie + token). Lo reenviaremos en cada escritura.
     const csrfRes = await ctx.get("/api/csrf");
     expect(csrfRes.ok()).toBeTruthy();
-    const { token: csrf } = await csrfRes.json();
+    const { csrfToken: csrf } = await csrfRes.json();
     const W = { "x-csrf-token": csrf, "content-type": "application/json" };
 
     // 2) Registro (auto-login: deja cookies de sesión en el contexto).
@@ -70,7 +70,8 @@ test.describe("Compra de extremo a extremo (BFF)", () => {
           country: "CO",
           postcode: "110111",
         },
-        payment_method: "noop",
+        // Gateway del pago en línea: el BFF solo admite los medios del checkout.
+        payment_method: "hwe_offline",
       },
     });
     expect(checkout.status()).toBe(201);

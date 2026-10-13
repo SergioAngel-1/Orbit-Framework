@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { readCartToken, writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { storeFetch } from "@/lib/woocommerce/store-client";
+import { getSession } from "@/lib/auth/session";
 import { GET } from "./route";
 
 // ============================================================================
@@ -19,6 +20,7 @@ vi.mock("@/lib/woocommerce/cart-cookie", () => ({
   readCartToken: vi.fn(),
   writeCartToken: vi.fn(),
 }));
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn(async () => null) }));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -37,6 +39,7 @@ beforeEach(() => {
   vi.mocked(rateLimit).mockResolvedValue(OK);
   vi.mocked(readCartToken).mockResolvedValue(undefined as never);
   vi.mocked(storeFetch).mockResolvedValue({ data: CART, cartToken: "nuevo" } as never);
+  vi.mocked(getSession).mockResolvedValue(null);
 });
 
 describe("GET /api/store/cart", () => {
@@ -82,5 +85,52 @@ describe("GET /api/store/cart", () => {
 
     const [a, b] = vi.mocked(rateLimit).mock.calls.map((c) => c[0]);
     expect(a).not.toBe(b);
+  });
+});
+
+describe("GET /api/store/cart — sesión y existencias", () => {
+  it("con sesión, el JWT va a la Store API: el carrito es el de la cuenta", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      token: "jwt-del-cliente",
+      userId: "7",
+    } as never);
+
+    await GET(request());
+
+    expect(storeFetch).toHaveBeenCalledWith(
+      "/cart",
+      expect.objectContaining({ authToken: "jwt-del-cliente" }),
+    );
+  });
+
+  it("sin sesión no manda ningún JWT", async () => {
+    await GET(request());
+
+    expect(vi.mocked(storeFetch).mock.calls[0]![1]).toMatchObject({ authToken: null });
+  });
+
+  it("una línea sin existencias se quita antes de devolver el carrito", async () => {
+    const agotada = {
+      key: "k1",
+      id: 5,
+      quantity: 1,
+      name: "Agotado",
+      quantity_limits: { minimum: 1, maximum: 0, multiple_of: 1, editable: true },
+    };
+    vi.mocked(storeFetch)
+      .mockResolvedValueOnce({
+        data: { ...CART, items: [agotada], items_count: 1 },
+        cartToken: "t1",
+      } as never)
+      .mockResolvedValueOnce({ data: CART, cartToken: "t2" } as never);
+
+    const res = await GET(request());
+
+    expect(storeFetch).toHaveBeenLastCalledWith(
+      "/cart/remove-item",
+      expect.objectContaining({ method: "POST", body: { key: "k1" } }),
+    );
+    expect((await res.json()).items).toEqual([]);
+    expect(writeCartToken).toHaveBeenCalledWith("t2");
   });
 });

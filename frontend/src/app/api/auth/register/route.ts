@@ -11,6 +11,8 @@ import {
 import { sessionCookieOptions, refreshCookieOptions } from "@/lib/security/cookies";
 import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
 import { guardMutation } from "@/lib/api/guard";
+import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
+import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
 import { logger } from "@/lib/observability/logger";
 import type { RegisterResponse, LoginResponse } from "@/types/auth";
 import { authEmailLocale, authEmailUrl } from "@/lib/auth/email-links";
@@ -180,6 +182,12 @@ export async function POST(request: Request) {
     if (authToken) {
       await sendVerificationEmail(authToken, authEmailLocale(parsed.data.locale));
     }
+
+    // Ver `login`: carrito de la cuenta y pedido de invitado de este
+    // navegador, antes de responder. Una cuenta nueva suele tener el carrito
+    // vacío: lo que importa aquí es ligar el pedido que acaba de hacer.
+    await syncAuthenticatedCart(authToken);
+    await claimGuestOrder(user.databaseId);
 
     return NextResponse.json({ user }, { status: 201 });
   } catch {

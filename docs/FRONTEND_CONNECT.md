@@ -117,6 +117,42 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   pruebas (`noop`) solo se atiende si es la activa. Wompi y Aval Pay están implementadas de punta
   a punta; PayU y Bold responden 501.
 
+### Checkout y carrito: invitado, pedido y reconciliación
+
+- **Quién compra:** con `ecommerce.checkout_login_required` encendido (valor por defecto)
+  `POST /api/store/checkout` exige sesión (401 sin ella). Apagado, acepta invitados: el pedido
+  queda con `customer_id = 0` y el BFF deja la cookie httpOnly `hwe_guest_order`
+  (`<id>:<order_key>`, 7 días). Esa credencial —y solo ella— autoriza a ese navegador a iniciar
+  el cobro (`POST /api/payments/create`), consultar el estado (`GET /api/payments/return`) y ver
+  `/checkout/return` (`lib/checkout/order-access.ts`: `canAccessOrder`). El navegador nunca lee
+  la cookie ni la `order_key`.
+- **Pedido de invitado → cuenta:** al abrir sesión (`login`, `verify-2fa`, `register`),
+  `claimGuestOrder` liga el pedido a la cuenta **solo si el correo del pedido es el de la
+  cuenta** y retira la cookie; aparece en «Mis pedidos». Si añades otro punto que abra sesión,
+  llámalo ahí también.
+- **Carrito con sesión:** el JWT se reenvía a la Store API (el carrito es el del cliente, en
+  cualquier dispositivo). Al abrir sesión **prevalece el de la cuenta** (el del navegador se
+  descarta) y `GET /api/store/cart` reconcilia existencias: quita o reduce las líneas que ya no
+  se pueden comprar. `logout-all` vacía el carrito de la cuenta.
+- **Qué completa el BFF en `StoreCart`** (`lib/woocommerce/complete-cart.ts`, en todas las rutas
+  que lo devuelven): `coupons[].description` y `coupons[].freeShipping`, y `items[].name` como
+  texto (sin entidades HTML). Los errores 4xx de WooCommerce llegan como texto plano.
+- **Guard de envío:** si el carrito necesita envío y no hay ninguna tarifa, `POST
+  /api/store/checkout` responde 422 sin crear el pedido (`canSubmitCheckout`, la misma regla que
+  aplica el formulario).
+- **Medio de pago frente a WooCommerce:** `payment_methods` del carrito dice qué gateways ofrece
+  Woo ahora. Efectivo o WhatsApp no ofrecidos → 422 (no se sustituyen); el pago en línea cae a
+  otro medio de cobro, nunca a efectivo.
+- **Cliente:** `Idempotency-Key` estable durante todo el intento (un reintento tras un fallo no
+  duplica el pedido), un solo envío en vuelo, y se descartan las respuestas obsoletas de
+  mutaciones concurrentes del carrito. La vuelta de la pasarela usa `checkoutReturnUrl`
+  (`lib/checkout/return-url.ts`), que respeta el idioma de la página; `/checkout/return` repinta
+  sola cuando el webhook confirma el pago (`PaymentStatusWatcher`) y ofrece «Pagar ahora».
+- **Puntos de extensión que otros módulos rellenan:** documento de identidad en el pedido
+  (`customer-identity`, tarea 53), destino de envío del carrito (`shipping`, tarea 54), nombres
+  de producto traducidos en `completeStoreCart` (i18n de contenido, tarea 51) y el contexto de
+  medición del pedido (analítica, tarea 44).
+
 ## A.3 Config pública dinámica: `GET /wp-json/hwe/v1/config`
 
 Fuente única de verdad de marca/negocio, sin auth, cacheable. Forma exacta (ver

@@ -32,12 +32,23 @@ export interface StoreCartItem {
     line_subtotal: string;
     line_total: string;
   };
+  /** Límites de cantidad de la Store API; el máximo ya refleja el stock restante. */
+  quantity_limits?: {
+    minimum: number;
+    maximum: number;
+    multiple_of: number;
+    editable: boolean;
+  };
 }
 
 export interface StoreCoupon {
   code: string;
   label: string;
   discount_type: string;
+  /** Descripción del cupón (la añade el BFF, `withCouponDescriptions`). */
+  description?: string;
+  /** El cupón da envío gratis (lo añade el BFF, `withCouponDescriptions`). */
+  freeShipping?: boolean;
   totals: {
     currency_code: string;
     currency_minor_unit: number;
@@ -102,6 +113,8 @@ export interface StoreCart {
   needs_payment: boolean;
   needs_shipping: boolean;
   coupons: StoreCoupon[];
+  /** Ids de los gateways que WooCommerce ofrece para ESTE carrito (puede faltar). */
+  payment_methods?: string[];
   shipping_rates: StoreShippingPackage[];
   totals: StoreCartTotals;
 }
@@ -162,6 +175,8 @@ export interface WooOrder {
   total_shipping: string;
   total_tax: string;
   customer_id: number;
+  /** Prueba de propiedad de un pedido de invitado (`wc_order_…`); solo servidor. */
+  order_key?: string;
   customer_note?: string;
   date_created: string;
   date_modified: string;

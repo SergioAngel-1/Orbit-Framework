@@ -217,7 +217,14 @@
       "pendingHint": "We're waiting for the gateway to confirm. Reload this page in a few moments.",
       "notFound": "We couldn't find that order, or it doesn't belong to you.",
       "viewOrders": "View my orders",
-      "continueShopping": "Continue shopping"
+      "continueShopping": "Continue shopping",
+      "received": "Order received",
+      "guestInviteTitle": "Follow your order with an account",
+      "guestInviteBody": "Sign in with your order's email and you'll see it under “My orders”. We'll email you its status.",
+      "guestInviteLogin": "Sign in",
+      "guestInviteRegister": "Create an account",
+      "payNow": "Pay now",
+      "retryTitle": "The payment didn't start"
     },
     "shippingMethod": "Shipping method",
     "selectShipping": "Select shipping method…",
@@ -236,7 +243,8 @@
     "submitWhatsapp": "Confirm and get the payment link",
     "resultWhatsapp": "We'll send you the payment link on WhatsApp to complete your order.",
     "resultCash": "You'll pay in cash when you receive your order.",
-    "paymentNotStarted": "Your order was created, but we couldn't start the online payment. Contact us or try again from your orders."
+    "paymentNotStarted": "Your order was created, but we couldn't start the online payment. Contact us or try again from your orders.",
+    "genericError": "We couldn't complete your order. Please try again."
   },
   "form": {
     "firstName": "First name",

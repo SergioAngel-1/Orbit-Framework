@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { verify as verifyTotp } from "otplib";
 import { twoFactorCodeSchema } from "@/lib/validation/auth";
 import { guardMutation } from "@/lib/api/guard";
+import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
+import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
 import {
   AUTH_COOKIE,
   REFRESH_COOKIE,
@@ -190,6 +192,10 @@ export async function POST(request: Request) {
       session.refreshToken,
       refreshCookieOptions(REFRESH_TOKEN_MAX_AGE),
     );
+
+    // Ver `login`: carrito de la cuenta y pedido de invitado, antes de responder.
+    await syncAuthenticatedCart(session.authToken);
+    await claimGuestOrder(ephemeral.userId);
 
     logger.info({ event: "2fa.verify_login.success", userId: ephemeral.userId });
     return NextResponse.json({ ok: true }, { status: 200 });

@@ -5,29 +5,37 @@ import { NextIntlClientProvider } from "next-intl";
 import es from "@/i18n/messages/es.json";
 import { csrfFetch } from "@/lib/client/csrf";
 import type { PaymentChoice } from "@/lib/payments/checkout-options";
+import type { CheckoutCustomerSeed } from "@/lib/checkout/customer-seed";
 import { CheckoutForm } from "./checkout-form";
 
 // El formulario ofrece los medios de pago que el Control Center activa y manda
 // al BFF el gateway del elegido: el servidor rechaza cualquier otro. Con link
-// por WhatsApp o efectivo no hay cobro en línea.
+// por WhatsApp o efectivo no hay cobro en línea. Un envío doble no crea dos
+// pedidos, y el formulario nace con los datos del cliente con sesión.
 
 vi.mock("@/lib/client/csrf", () => ({ csrfFetch: vi.fn() }));
+vi.mock("@/i18n/navigation", () => ({
+  getPathname: ({ href }: { href: string }) => href,
+}));
+// El carrito que ve el formulario; cada test puede cambiarlo.
+const cartState = vi.hoisted(() => ({ cart: {} as Record<string, unknown> }));
+const baseCart = () => ({
+  items: [{ key: "a", name: "Producto", quantity: 1 }],
+  coupons: [],
+  needs_shipping: false,
+  shipping_rates: [],
+  totals: {
+    total_items: "1000",
+    total_discount: "0",
+    total_shipping: "0",
+    total_price: "1000",
+    currency_minor_unit: 2,
+    currency_code: "EUR",
+  },
+});
 vi.mock("@/components/cart/cart-context", () => ({
   useCart: () => ({
-    cart: {
-      items: [{ key: "a", name: "Producto", quantity: 1 }],
-      coupons: [],
-      needs_shipping: false,
-      shipping_rates: [],
-      totals: {
-        total_items: "1000",
-        total_discount: "0",
-        total_shipping: "0",
-        total_price: "1000",
-        currency_minor_unit: 2,
-        currency_code: "EUR",
-      },
-    },
+    cart: cartState.cart,
     loading: false,
     refresh: vi.fn(async () => undefined),
     applyCoupon: vi.fn(),
@@ -68,6 +76,36 @@ function checkoutBody(): { payment_method: string } {
   return (call?.[1] as { body: { payment_method: string } }).body;
 }
 
+const RETURN_URL = "https://tienda.example/checkout/return?ref=42";
+
+const SEED: CheckoutCustomerSeed = {
+  first_name: "Ana",
+  last_name: "Ruiz",
+  email: "ana@example.com",
+  phone: "+34600111222",
+  city: "Madrid",
+  country: "ES",
+  addresses: [
+    {
+      first_name: "",
+      last_name: "",
+      company: "",
+      address_1: "Calle Mayor 1",
+      address_2: "",
+      city: "Valencia",
+      state: "",
+      postcode: "46001",
+      country: "ES",
+      phone: "",
+      is_default: true,
+      label: "Casa",
+    },
+  ],
+};
+
+const field = (container: HTMLElement, name: string) =>
+  container.querySelector<HTMLInputElement>(`input[name="${name}"]`)!;
+
 const paymentCalls = () =>
   vi.mocked(csrfFetch).mock.calls.filter(([url]) => url === "/api/payments/create");
 
@@ -79,6 +117,8 @@ const ALL: PaymentChoice[] = ["online", "whatsapp", "cash"];
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
+  cartState.cart = baseCart();
   Object.defineProperty(window, "location", {
     value: {
       href: "https://tienda.example/checkout",
@@ -128,28 +168,26 @@ describe("selector de medio de pago", () => {
 });
 
 describe("cada medio crea el pedido con su gateway", () => {
-  it("link por WhatsApp: hwe_whatsapp_link, sin cobro en línea y con aviso", async () => {
+  it("link por WhatsApp: hwe_whatsapp_link, sin cobro en línea y a la pantalla de «gracias»", async () => {
     bff();
     const { container } = renderForm({ paymentChoices: ALL });
     fireEvent.click(screen.getByLabelText(new RegExp(es.checkout.paymentWhatsapp)));
 
     await submit(container);
 
-    await waitFor(() =>
-      expect(screen.getByText(es.checkout.resultWhatsapp)).toBeTruthy(),
-    );
+    await waitFor(() => expect(window.location.href).toBe(RETURN_URL));
     expect(checkoutBody().payment_method).toBe("hwe_whatsapp_link");
     expect(paymentCalls()).toHaveLength(0);
   });
 
-  it("efectivo: cod, sin cobro en línea y con aviso", async () => {
+  it("efectivo: cod, sin cobro en línea y a la pantalla de «gracias»", async () => {
     bff();
     const { container } = renderForm({ paymentChoices: ALL });
     fireEvent.click(screen.getByLabelText(new RegExp(es.checkout.paymentCash)));
 
     await submit(container);
 
-    await waitFor(() => expect(screen.getByText(es.checkout.resultCash)).toBeTruthy());
+    await waitFor(() => expect(window.location.href).toBe(RETURN_URL));
     expect(checkoutBody().payment_method).toBe("cod");
     expect(paymentCalls()).toHaveLength(0);
   });
@@ -164,15 +202,25 @@ describe("cada medio crea el pedido con su gateway", () => {
     expect(paymentCalls()).toHaveLength(1);
   });
 
-  it("en línea sin arrancar el cobro: avisa en vez de dar la compra por hecha", async () => {
+  it("en línea sin arrancar el cobro: a «gracias» con el aviso de reintento, no a la compra por hecha", async () => {
     bff(json({ error: "sin pasarela" }, 503));
     const { container } = renderForm({ paymentChoices: ["online"] });
 
     await submit(container);
 
-    await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toBe(es.checkout.paymentNotStarted),
-    );
+    await waitFor(() => expect(window.location.href).toBe(`${RETURN_URL}&retry=1`));
+  });
+
+  it("el cobro vuelve a la pantalla de «gracias» del idioma de la página", async () => {
+    bff(json({ mode: "redirect", redirectUrl: "https://pay.test/x" }));
+    const { container } = renderForm({ paymentChoices: ["online"] });
+
+    await submit(container);
+
+    await waitFor(() => expect(paymentCalls()).toHaveLength(1));
+    expect(
+      (paymentCalls()[0]![1] as { body: { returnUrl: string } }).body.returnUrl,
+    ).toBe(RETURN_URL);
   });
 });
 
@@ -191,5 +239,132 @@ describe("modo de pruebas", () => {
     renderForm({ paymentChoices: ALL, gatewaySandbox: false });
 
     expect(screen.queryByRole("status")).toBeNull();
+  });
+});
+
+describe("envío del formulario", () => {
+  it("un doble envío no crea dos pedidos", async () => {
+    bff();
+    const { container } = renderForm({ paymentChoices: ["cash"] });
+
+    await submit(container);
+    await submit(container);
+
+    await waitFor(() => expect(window.location.href).toBe(RETURN_URL));
+    const orders = vi
+      .mocked(csrfFetch)
+      .mock.calls.filter(([url]) => url === "/api/store/checkout");
+    expect(orders).toHaveLength(1);
+  });
+
+  it("un reintento tras un fallo reutiliza la clave de idempotencia: no duplica el pedido", async () => {
+    vi.mocked(csrfFetch).mockResolvedValue(json({ error: "caído" }, 502));
+    const { container } = renderForm({ paymentChoices: ["cash"] });
+
+    await submit(container);
+    await waitFor(() => expect(screen.getByText("caído")).toBeTruthy());
+    await submit(container);
+
+    await waitFor(() => expect(vi.mocked(csrfFetch)).toHaveBeenCalledTimes(2));
+    const keys = vi
+      .mocked(csrfFetch)
+      .mock.calls.map(
+        ([, init]) =>
+          (init as { headers: Record<string, string> }).headers["Idempotency-Key"],
+      );
+    expect(keys[0]).toBeTruthy();
+    expect(keys[1]).toBe(keys[0]);
+  });
+});
+
+describe("datos del cliente", () => {
+  it("con sesión, el formulario nace con su perfil y su dirección predeterminada", () => {
+    const { container } = renderForm({ customer: SEED });
+
+    expect(field(container, "first_name").value).toBe("Ana");
+    expect(field(container, "email").value).toBe("ana@example.com");
+    expect(field(container, "address_1").value).toBe("Calle Mayor 1");
+    expect(field(container, "city").value).toBe("Valencia");
+    expect(field(container, "postcode").value).toBe("46001");
+  });
+
+  it("sin cliente (invitado) nace vacío y no pide nada al BFF", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { container } = renderForm({ guest: true, customer: null });
+
+    expect(field(container, "first_name").value).toBe("");
+    expect(field(container, "email").value).toBe("");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("si el servidor no pudo precargarlo, el formulario lo pide al BFF", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        json({
+          email: "ana@example.com",
+          first_name: "Ana",
+          last_name: "",
+          billing: {},
+          shipping: {},
+        }),
+      ),
+    );
+    const { container } = renderForm({ customer: null });
+
+    await waitFor(() => expect(field(container, "first_name").value).toBe("Ana"));
+  });
+});
+
+describe("guard de envío", () => {
+  it("un carrito que necesita envío y no tiene tarifa no se puede enviar y lo dice", () => {
+    cartState.cart = {
+      ...baseCart(),
+      needs_shipping: true,
+      shipping_rates: [{ package_id: 0, name: "Envío", shipping_rates: [] }],
+    };
+    renderForm();
+
+    expect(screen.getByText(es.checkout.noShipping)).toBeTruthy();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: es.checkout.submitOnline,
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+  });
+
+  it("con tarifa disponible el botón está activo", () => {
+    cartState.cart = {
+      ...baseCart(),
+      needs_shipping: true,
+      shipping_rates: [
+        {
+          package_id: 0,
+          name: "Envío",
+          shipping_rates: [
+            {
+              rate_id: "flat_rate:1",
+              name: "Estándar",
+              price: "500",
+              currency_minor_unit: 2,
+              currency_code: "EUR",
+              selected: true,
+            },
+          ],
+        },
+      ],
+    };
+    renderForm();
+
+    expect(
+      (
+        screen.getByRole("button", {
+          name: es.checkout.submitOnline,
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
   });
 });

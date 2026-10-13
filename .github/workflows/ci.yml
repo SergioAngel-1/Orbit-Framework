@@ -223,8 +223,9 @@ jobs:
       # el servidor pasa por las reglas de producción de secret-guard.ts.
       ALLOWED_ORIGIN: http://localhost:3000
       # Activa en el stub los tres medios de pago (por defecto solo el pago en
-      # línea) para que el e2e del checkout ejercite el selector.
-      STUB_SITE_CONFIG_EXTRA: '{"payments":{"gateway_enabled":true,"whatsapp_enabled":true,"cash_enabled":true}}'
+      # línea) y la compra de invitado, para que el e2e del checkout ejercite el
+      # selector y el formulario sin sesión.
+      STUB_SITE_CONFIG_EXTRA: '{"payments":{"gateway_enabled":true,"whatsapp_enabled":true,"cash_enabled":true},"ecommerce":{"checkout_login_required":false}}'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

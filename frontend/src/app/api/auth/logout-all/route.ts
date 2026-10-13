@@ -5,6 +5,7 @@ import { expiredCookieOptions } from "@/lib/security/cookies";
 import { guardMutation } from "@/lib/api/guard";
 import { requireSession } from "@/lib/auth/session";
 import { revokeToken } from "@/lib/auth/revocation";
+import { clearAuthenticatedCart } from "@/lib/woocommerce/cart-session";
 import { logger } from "@/lib/observability/logger";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
 
@@ -48,6 +49,10 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ error: "Error de conexión." }, { status: 502 });
   }
+
+  // El carrito de la cuenta (WooCommerce lo liga al cliente) y la cookie del
+  // carrito de este dispositivo: la sesión siguiente no hereda lo del cliente.
+  await clearAuthenticatedCart(session.token);
 
   // Revocar el access token actual y limpiar cookies del dispositivo.
   await revokeToken(session.token);

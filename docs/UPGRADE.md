@@ -368,6 +368,32 @@ git fetch framework --tags
 - **`CheckoutForm` recibe `paymentChoices` y `gatewaySandbox`** (la página los calcula en el
   servidor). Si tu instancia sustituyó el formulario, mantén el mismo contrato: elegir medio,
   enviar su gateway y avisar del modo de pruebas. Los textos nuevos están en `checkout.*`.
+- **`POST /api/store/checkout` respeta `ecommerce.checkout_login_required`** (por defecto,
+  encendido): sin sesión responde 401. Antes aceptaba invitados sin mirar el flag, pero el
+  cliente no podía pagar (el cobro exigía sesión). Con el flag apagado la compra de invitado
+  funciona de punta a punta: cookie httpOnly `hwe_guest_order` con la `order_key`, que autoriza
+  `/api/payments/{create,return}` y `/checkout/return`. Si tu instancia tenía un checkout de
+  invitado «a medias», enciende o apaga el flag según lo que quieras.
+- **El pedido de invitado se liga a la cuenta al abrir sesión** si el correo coincide
+  (`login`, `verify-2fa`, `register`). Riesgo residual conocido: en un dispositivo compartido,
+  quien registre una cuenta con el correo de un pedido de invitado reciente (cookie de 7 días)
+  lo recibirá en «Mis pedidos»; el correo de la cuenta nueva no está verificado aún.
+- **El carrito va ligado a la cuenta** (el JWT se reenvía a la Store API): al iniciar sesión
+  prevalece el carrito de la cuenta y el del navegador se descarta; `logout-all` lo vacía.
+  `GET /api/store/cart` quita o reduce las líneas sin existencias.
+- **Checkout: guard de envío y medios frente a Woo.** Un carrito que necesita envío y no tiene
+  tarifa responde 422 (antes se creaba con envío 0). Efectivo o WhatsApp que Woo no ofrece para
+  el carrito: 422; el pago en línea cae a otro medio de cobro, nunca a efectivo. El rate-limit
+  del checkout es estricto (cae a memoria si Redis no responde).
+- **Errores de WooCommerce como texto plano** en `handleApiError` (entidades HTML decodificadas,
+  sin etiquetas).
+- **`/checkout/return`** acepta al invitado con su credencial, no se indexa, repinta cuando el
+  webhook confirma el pago y ofrece «Pagar ahora»; el formulario del checkout ya no muestra el
+  resultado en línea: siempre termina ahí (`CheckoutForm` recibe `customer`, `guest` y
+  `defaultCountry`; ver `docs/FRONTEND_CONNECT.md`). Si tu instancia sustituyó esas vistas,
+  conserva el contrato.
+- **Los tests `E2E_FULL` mandan `payment_method: "hwe_offline"`** y leen `csrfToken` (antes
+  `noop` y `token`: el spec estaba roto).
 - **SEO por entidad unificado (`hwe-seo/fields.php`).** Entradas, páginas, productos y
   categorías comparten caja, límites (título 60, descripción 160), contador y columna
   «SEO». Los campos del formulario de la entrada pasan de `hwe_seo_title`/`hwe_seo_description`

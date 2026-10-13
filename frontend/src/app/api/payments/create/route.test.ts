@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getOrder } from "@/lib/payments/orders";
 import { getActiveProvider } from "@/lib/payments/registry";
 import { getSiteConfig } from "@/lib/config";
+import { getSession } from "@/lib/auth/session";
+import { readGuestOrderCredential } from "@/lib/checkout/guest-order-cookie";
 import { POST } from "./route";
 
 // ============================================================================
@@ -13,8 +15,9 @@ import { POST } from "./route";
 // ============================================================================
 
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
-vi.mock("@/lib/auth/session", () => ({
-  requireSession: vi.fn(async () => ({ userId: "7", token: "jwt" })),
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
+vi.mock("@/lib/checkout/guest-order-cookie", () => ({
+  readGuestOrderCredential: vi.fn(),
 }));
 vi.mock("@/lib/payments/providers", () => ({}));
 vi.mock("@/lib/payments/registry", () => ({ getActiveProvider: vi.fn() }));
@@ -62,6 +65,8 @@ const request = () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(getSession).mockResolvedValue({ userId: "7", token: "jwt" } as never);
+  vi.mocked(readGuestOrderCredential).mockResolvedValue(null);
   payments();
   vi.mocked(getOrder).mockResolvedValue(order() as never);
   createCheckout.mockResolvedValue({
@@ -101,5 +106,54 @@ describe("qué pedidos se cobran en la pasarela", () => {
 
     expect(res.status).toBe(409);
     expect(createCheckout).not.toHaveBeenCalled();
+  });
+});
+
+describe("quién puede iniciar el cobro", () => {
+  const GUEST_ORDER = { customer_id: 0, order_key: "wc_order_AbC123" };
+
+  it("sin sesión ni credencial de invitado: 401", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(401);
+    expect(createCheckout).not.toHaveBeenCalled();
+  });
+
+  it("el invitado con la credencial de SU pedido inicia el cobro", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    vi.mocked(getOrder).mockResolvedValue(order(GUEST_ORDER) as never);
+    vi.mocked(readGuestOrderCredential).mockResolvedValue({
+      orderId: 42,
+      orderKey: "wc_order_AbC123",
+    });
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(200);
+    expect(createCheckout).toHaveBeenCalledTimes(1);
+  });
+
+  it("la credencial de otro pedido no abre este (404)", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    vi.mocked(getOrder).mockResolvedValue(order(GUEST_ORDER) as never);
+    vi.mocked(readGuestOrderCredential).mockResolvedValue({
+      orderId: 41,
+      orderKey: "wc_order_AbC123",
+    });
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(404);
+    expect(createCheckout).not.toHaveBeenCalled();
+  });
+
+  it("un cliente con sesión no cobra el pedido de otro (404)", async () => {
+    vi.mocked(getOrder).mockResolvedValue(order({ customer_id: 8 }) as never);
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(404);
   });
 });

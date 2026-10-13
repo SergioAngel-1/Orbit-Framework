@@ -12,6 +12,8 @@ import { sessionCookieOptions, refreshCookieOptions } from "@/lib/security/cooki
 import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
 import { createPendingLogin } from "@/lib/auth/pending-login";
 import { guardMutation } from "@/lib/api/guard";
+import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
+import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
 import { logger } from "@/lib/observability/logger";
 import type { LoginResponse } from "@/types/auth";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
@@ -157,6 +159,13 @@ export async function POST(request: Request) {
     sessionCookieOptions(getTokenMaxAgeSeconds(authToken)),
   );
   store.set(REFRESH_COOKIE, refreshToken, refreshCookieOptions(REFRESH_TOKEN_MAX_AGE));
+
+  // El carrito de la cuenta prevalece sobre el del navegador, y el pedido de
+  // invitado de este dispositivo pasa a la cuenta (si el correo es el mismo).
+  // Van ANTES de responder: la cookie del pedido solo se retira en la respuesta
+  // y «Mis pedidos» ya tiene que mostrarlo. Ninguna lanza.
+  await syncAuthenticatedCart(authToken);
+  await claimGuestOrder(user.databaseId);
 
   logger.info({ event: "auth.login.success", userId: user.id }, "Login exitoso");
   return NextResponse.json({ user }, { status: 200 });

@@ -301,6 +301,10 @@ cuenta) está **íntegro** tras ligar el pedido al cliente autenticado.
   Store API (`storeFetch({ authToken })`) y, como salvaguarda idempotente, `ensureOrderOwner()`
   fija `customer_id` vía wc/v3 tras crear el pedido. Sin esto el comprador no podría pagar/ver
   su pedido (las comprobaciones anti-IDOR exigen `order.customer_id === session.userId`).
+- **Compra de invitado:** `ecommerce.checkout_login_required` decide quién compra. Sin sesión, el
+  pedido es de invitado y su `order_key` va en la cookie httpOnly `hwe_guest_order`
+  (`lib/checkout/`): autoriza cobro, estado y «gracias» (`canAccessOrder`, anti-IDOR) y el pedido
+  pasa a la cuenta al abrir sesión con el mismo correo (`claimGuestOrder`).
 - **Cuenta avanzada:** wishlist, reseñas (`reviews/[productId]`), direcciones, cupones y envío.
   Wishlist y direcciones guardan en `customer.meta_data`; sus secciones de
   lectura-modificación-escritura van **serializadas por usuario** con `lib/security/lock.ts`

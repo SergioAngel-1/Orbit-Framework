@@ -18,6 +18,33 @@ async function expectNoSeriousA11yViolations(page: Page) {
   ).toHaveLength(0);
 }
 
+// Sin la compra de invitado activa en el stub, `/checkout` lleva al login.
+test.describe("compra como invitado", () => {
+  test.skip(
+    !process.env.STUB_SITE_CONFIG_EXTRA?.includes('"checkout_login_required":false'),
+    "requiere el stub con ecommerce.checkout_login_required apagado (STUB_SITE_CONFIG_EXTRA)",
+  );
+
+  test("el checkout se abre sin sesión", async ({ page }) => {
+    await page.goto("/checkout");
+    await expect(page).toHaveURL(/\/checkout$/);
+    await expect(page.getByRole("heading", { name: "Finalizar compra" })).toBeVisible();
+  });
+});
+
+test("la pantalla de «gracias» sin sesión ni credencial lleva al login", async ({
+  page,
+}) => {
+  await page.goto("/checkout/return?ref=1");
+  await expect(page).toHaveURL(/\/login/);
+});
+
+test("carrito vacío: vista accesible", async ({ page }) => {
+  await page.goto("/cart");
+  await expect(page.getByRole("heading").first()).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
+});
+
 test("checkout: formulario con sus campos etiquetados y accesible", async ({
   page,
 }) => {

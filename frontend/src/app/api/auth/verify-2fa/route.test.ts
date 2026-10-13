@@ -7,6 +7,8 @@ import {
   createPendingLogin,
   getPendingLogin,
 } from "@/lib/auth/pending-login";
+import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
+import { claimGuestOrder } from "@/lib/checkout/guest-order-claim";
 import { POST } from "./route";
 
 // ============================================================================
@@ -25,6 +27,12 @@ const GOOD_RECOVERY = "RECOVERY-OK";
 const cookieSet = vi.fn();
 vi.mock("next/headers", () => ({ cookies: async () => ({ set: cookieSet }) }));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
+vi.mock("@/lib/woocommerce/cart-session", () => ({
+  syncAuthenticatedCart: vi.fn(async () => undefined),
+}));
+vi.mock("@/lib/checkout/guest-order-claim", () => ({
+  claimGuestOrder: vi.fn(async () => "no_credential"),
+}));
 vi.mock("@/lib/redis/client", () => ({ getRedis: vi.fn() }));
 vi.mock("@/lib/auth/jwt", () => ({ getTokenMaxAgeSeconds: () => 300 }));
 vi.mock("@/lib/observability/logger", () => ({
@@ -75,6 +83,8 @@ async function newPendingLogin(): Promise<string> {
 
 beforeEach(() => {
   vi.unstubAllGlobals();
+  vi.mocked(syncAuthenticatedCart).mockClear();
+  vi.mocked(claimGuestOrder).mockClear();
   cookieSet.mockClear();
   redis = new FakeRedis();
   vi.mocked(getRedis).mockReturnValue(redis as never);
@@ -89,6 +99,24 @@ describe("verify-2fa: el id opaco", () => {
 
     expect(res.status).toBe(200);
     expect(cookieSet.mock.calls.map((c) => c[1])).toEqual([AUTH, REFRESH]);
+  });
+
+  it("al abrir la sesión carga el carrito de la cuenta y liga el pedido de invitado", async () => {
+    const id = await newPendingLogin();
+
+    await POST(verifyRequest({ ephemeralToken: id, code: GOOD_TOTP }));
+
+    expect(syncAuthenticatedCart).toHaveBeenCalledWith(AUTH);
+    expect(claimGuestOrder).toHaveBeenCalledWith("7");
+  });
+
+  it("un código inválido no abre sesión: ni carrito ni pedido de invitado", async () => {
+    const id = await newPendingLogin();
+
+    await POST(verifyRequest({ ephemeralToken: id, code: "000000" }));
+
+    expect(syncAuthenticatedCart).not.toHaveBeenCalled();
+    expect(claimGuestOrder).not.toHaveBeenCalled();
   });
 
   it("es de UN SOLO USO: tras verificar, el mismo id ya no vale", async () => {

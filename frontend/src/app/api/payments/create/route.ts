@@ -2,7 +2,9 @@ import "@/lib/payments/providers"; // efecto secundario: registra las pasarelas
 import { NextResponse } from "next/server";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
-import { requireSession } from "@/lib/auth/session";
+import { getSession } from "@/lib/auth/session";
+import { canAccessOrder } from "@/lib/checkout/order-access";
+import { readGuestOrderCredential } from "@/lib/checkout/guest-order-cookie";
 import { createPaymentSchema } from "@/lib/validation/payments";
 import { getActiveProvider } from "@/lib/payments/registry";
 import { getOrder, isOrderPaid, toMinorUnits } from "@/lib/payments/orders";
@@ -21,8 +23,10 @@ export const dynamic = "force-dynamic";
  * activa. Devuelve `redirectUrl`/`widget` para que la UI lleve al usuario al
  * checkout alojado. El cobro NO se confirma aquí: lo hace el webhook firmado.
  *
- * Autorización: exige sesión y que el pedido pertenezca al usuario (anti-IDOR).
- * El checkout es agnóstico: no sabe qué pasarela hay detrás.
+ * Autorización (anti-IDOR, `canAccessOrder`): el pedido es del usuario con
+ * sesión, o de un invitado que presenta la credencial (id + `order_key`) que el
+ * checkout dejó en su cookie. El checkout es agnóstico: no sabe qué pasarela
+ * hay detrás.
  */
 export async function POST(request: Request) {
   const blocked = await guardMutation(request, {
@@ -31,7 +35,9 @@ export async function POST(request: Request) {
   if (blocked) return blocked;
 
   try {
-    const session = await requireSession();
+    const session = await getSession();
+    const guest = await readGuestOrderCredential();
+    if (!session && !guest) throw new Error("UNAUTHENTICATED");
 
     let body: unknown;
     try {
@@ -58,11 +64,16 @@ export async function POST(request: Request) {
 
     const { reference, returnUrl } = parsed.data;
 
-    // El pedido debe existir y pertenecer al usuario autenticado.
+    // El pedido debe existir y ser de quien lo pide.
     const order = await getOrder(reference);
-    if (order.customer_id !== Number(session.userId)) {
+    if (!canAccessOrder(order, { userId: session?.userId, guest })) {
       logger.warn(
-        { event: "payments.create.idor_attempt", reference, userId: session.userId },
+        {
+          event: "payments.create.idor_attempt",
+          reference,
+          userId: session?.userId ?? null,
+          guest: Boolean(guest),
+        },
         "Intento de IDOR en payments.create",
       );
       return NextResponse.json({ error: "No encontrado." }, { status: 404 });

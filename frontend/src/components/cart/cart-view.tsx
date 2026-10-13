@@ -1,4 +1,5 @@
 "use client";
+import { regularUnitAmount } from "@/lib/cart/line-price";
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
@@ -56,6 +57,15 @@ export function CartView() {
             <div className="flex flex-1 flex-col">
               <span className="font-medium">{item.name}</span>
               <span className="text-sm text-gray-500">
+                {regularUnitAmount(item) !== null && (
+                  <del className="mr-1.5 text-gray-400">
+                    {formatStoreAmount(
+                      regularUnitAmount(item)!,
+                      item.prices.currency_minor_unit,
+                      item.prices.currency_code,
+                    )}
+                  </del>
+                )}
                 {formatStoreAmount(
                   item.prices.price,
                   item.prices.currency_minor_unit,

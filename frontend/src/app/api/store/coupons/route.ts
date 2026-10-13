@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { storeFetch } from "@/lib/woocommerce/store-client";
-import { readCartToken, writeCartToken } from "@/lib/woocommerce/cart-cookie";
+import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
+import { getCartRequestAuth } from "@/lib/woocommerce/cart-session";
+import { completeStoreCart } from "@/lib/woocommerce/complete-cart";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { applyCouponSchema, removeCouponSchema } from "@/lib/validation/store";
@@ -36,18 +38,19 @@ export async function POST(request: Request) {
   }
 
   try {
-    const token = await readCartToken();
+    const { cartToken: token, authToken } = await getCartRequestAuth();
     const { data, cartToken } = await storeFetch<StoreCart>("/cart/coupons", {
       method: "POST",
       body: { code: parsed.data.code },
       cartToken: token,
+      authToken,
     });
     await writeCartToken(cartToken);
     logger.info(
       { event: "coupon.apply.success", code: parsed.data.code },
       "Cupón aplicado al carrito",
     );
-    return NextResponse.json(data);
+    return NextResponse.json(await completeStoreCart(data));
   } catch (error) {
     logger.error(
       {
@@ -85,17 +88,17 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    const token = await readCartToken();
+    const { cartToken: token, authToken } = await getCartRequestAuth();
     const { data, cartToken } = await storeFetch<StoreCart>(
       `/cart/coupons/${encodeURIComponent(parsed.data.code)}`,
-      { method: "DELETE", cartToken: token },
+      { method: "DELETE", cartToken: token, authToken },
     );
     await writeCartToken(cartToken);
     logger.info(
       { event: "coupon.remove.success", code: parsed.data.code },
       "Cupón eliminado del carrito",
     );
-    return NextResponse.json(data);
+    return NextResponse.json(await completeStoreCart(data));
   } catch (error) {
     logger.error(
       {

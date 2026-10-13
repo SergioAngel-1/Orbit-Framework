@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { storeFetch } from "@/lib/woocommerce/store-client";
-import { readCartToken, writeCartToken } from "@/lib/woocommerce/cart-cookie";
+import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
+import { getCartRequestAuth } from "@/lib/woocommerce/cart-session";
+import { completeStoreCart } from "@/lib/woocommerce/complete-cart";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { selectShippingRateSchema } from "@/lib/validation/store";
@@ -36,13 +38,14 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const token = await readCartToken();
+    const { cartToken: token, authToken } = await getCartRequestAuth();
     const { data, cartToken } = await storeFetch<StoreCart>(
       "/cart/select-shipping-rate",
       {
         method: "POST",
         body: { package_id: parsed.data.package_id, rate_id: parsed.data.rate_id },
         cartToken: token,
+        authToken,
       },
     );
     await writeCartToken(cartToken);
@@ -50,7 +53,7 @@ export async function PUT(request: Request) {
       { event: "shipping.select.success", rateId: parsed.data.rate_id },
       "Tarifa de envío seleccionada",
     );
-    return NextResponse.json(data);
+    return NextResponse.json(await completeStoreCart(data));
   } catch (error) {
     logger.error(
       {

@@ -222,7 +222,14 @@
       "pendingHint": "Estamos esperando la confirmación de la pasarela. Recarga esta página en unos instantes.",
       "notFound": "No encontramos ese pedido o no te pertenece.",
       "viewOrders": "Ver mis pedidos",
-      "continueShopping": "Seguir comprando"
+      "continueShopping": "Seguir comprando",
+      "received": "Pedido recibido",
+      "guestInviteTitle": "Sigue tu pedido con una cuenta",
+      "guestInviteBody": "Inicia sesión con el correo de tu pedido y lo verás en «Mis pedidos». Te avisaremos del estado por correo.",
+      "guestInviteLogin": "Iniciar sesión",
+      "guestInviteRegister": "Crear una cuenta",
+      "payNow": "Pagar ahora",
+      "retryTitle": "El pago no arrancó"
     },
     "shippingMethod": "Método de envío",
     "selectShipping": "Seleccionar método de envío…",
@@ -241,7 +248,8 @@
     "submitWhatsapp": "Confirmar y recibir el link de pago",
     "resultWhatsapp": "Te enviaremos el enlace de pago por WhatsApp para completar tu pedido.",
     "resultCash": "Pagarás en efectivo cuando recibas tu pedido.",
-    "paymentNotStarted": "Tu pedido se creó, pero no pudimos iniciar el pago en línea. Contáctanos o inténtalo de nuevo desde tus pedidos."
+    "paymentNotStarted": "Tu pedido se creó, pero no pudimos iniciar el pago en línea. Contáctanos o inténtalo de nuevo desde tus pedidos.",
+    "genericError": "No se pudo completar el pedido. Inténtalo de nuevo."
   },
   "form": {
     "firstName": "Nombre",
