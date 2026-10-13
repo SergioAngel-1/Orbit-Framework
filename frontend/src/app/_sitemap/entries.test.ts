@@ -14,9 +14,9 @@ vi.mock("@/lib/config", () => ({
   getSiteConfig: async () => currentConfig,
   isFallbackSiteConfig: () => degraded,
 }));
-vi.mock("@/lib/landings/product-landing", () => ({
-  getPublishedProductLandingSlugs: async () => learn.slugs,
-  getPublishedProductLandingLocales: async () => learn.locales,
+vi.mock("@/lib/landings/product-bound-landings", () => ({
+  getProductBoundLandingSlugs: async () => new Set(learn.slugs),
+  getProductBoundLandingLocales: async () => learn.locales,
 }));
 vi.mock("@/lib/catalog/products", () => ({
   getProductUrls: async () => [
@@ -190,6 +190,64 @@ describe("buildSitemapEntries", () => {
 
       expect(urls).toContain("https://mitienda.example/products/gorra/learn");
       expect(urls.some((url) => url.includes("/en/products/gorra/learn"))).toBe(false);
+    });
+  });
+
+  describe("landings editoriales (módulo landings)", () => {
+    const pages = async () =>
+      (await buildSitemapEntries("paginas")).map((entry) => entry.url);
+
+    beforeEach(() => {
+      currentConfig.modules = { ...currentConfig.modules, landings: true };
+      currentConfig.landings = {
+        registry: "guia | Guía | article\nborrador | Borrador | article",
+        editorial: {
+          guia: {
+            published: true,
+            url: { base: "area", path: "guia-de-uso", path_en: "usage-guide" },
+            seo: { title_en: "Usage guide", date_modified: "2026-03-01" },
+          },
+          borrador: { published: false },
+        },
+      };
+    });
+
+    it("sin el módulo no hay filas ni índice", async () => {
+      currentConfig.modules = { ...currentConfig.modules, landings: false };
+
+      expect((await pages()).some((url) => url.includes("/learn"))).toBe(false);
+    });
+
+    it("lista la landing publicada con el tramo de cada idioma y su alternates", async () => {
+      const entries = await buildSitemapEntries("paginas");
+      const es = entries.find(
+        (e) => e.url === "https://mitienda.example/learn/guia-de-uso",
+      )!;
+
+      expect(entries.map((e) => e.url)).toContain(
+        "https://mitienda.example/en/learn/usage-guide",
+      );
+      expect(entries.map((e) => e.url)).toContain("https://mitienda.example/learn");
+      expect(es.alternates!.languages).toEqual({
+        es: "https://mitienda.example/learn/guia-de-uso",
+        en: "https://mitienda.example/en/learn/usage-guide",
+        "x-default": "https://mitienda.example/learn/guia-de-uso",
+      });
+      // La fecha de revisión del editor es la única que se declara.
+      expect(es.lastModified).toBeInstanceOf(Date);
+    });
+
+    it("sin traducción no anuncia el idioma y no lista las sin publicar", async () => {
+      currentConfig.landings.editorial.guia = {
+        published: true,
+        url: { base: "area", path: "guia-de-uso" },
+      };
+
+      const urls = await pages();
+
+      expect(urls).toContain("https://mitienda.example/learn/guia-de-uso");
+      expect(urls.some((url) => url.includes("/en/learn/"))).toBe(false);
+      expect(urls.some((url) => url.includes("borrador"))).toBe(false);
     });
   });
 

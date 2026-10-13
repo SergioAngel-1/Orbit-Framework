@@ -11,8 +11,12 @@ tienda real).
 | `backend/wp-content/mu-plugins/instance/10-example-schema.php` | `backend/wp-content/mu-plugins/instance/` | El campo `instance.example.greeting` vía `hwe_control_center_schema` |
 | `…/instance/20-example-field-type.php` | (misma carpeta) | El tipo propio `example_upper` vía `hwe_control_center_field_types` |
 | `…/instance/30-example-revalidation.php` | (misma carpeta) | El tag `example` vía `hwe_revalidation_tags` |
+| `…/instance/40-example-landing.php` | (misma carpeta) | Una landing con diseño propio (`example-guide`) vía `hwe_landings_static_entries` |
 | `backend/tests/Unit/Instance/ExamplePublicConfigTest.php` | `backend/tests/Unit/Instance/` | El campo sale por la config pública y el tag se acepta |
-| `frontend/src/instance/registry.ts` | `frontend/src/instance/registry.ts` | `revalidationTags: ["example"]` |
+| `backend/tests/Unit/Instance/ExampleLandingTest.php` | `backend/tests/Unit/Instance/` | La landing del ejemplo llega al registro de `hwe-landings` y manda sobre una del panel |
+| `frontend/src/instance/registry.ts` | `frontend/src/instance/registry.ts` | `revalidationTags: ["example"]`, la landing `example-guide` (con su sección única) y `reservedRootSegments` |
+| `frontend/src/components/landings/editorial/unique-sections.tsx` | (mismo archivo del starter, vacío) | El mapa `clave → pieza` de las secciones únicas: `example-callout` |
+| `frontend/src/instance/example-landing.test.ts` | `frontend/src/instance/` | La única se inserta tras `s1`, absorbe la FAQ y tiene pieza |
 | `frontend/src/instance/config.d.ts` | `frontend/src/instance/config.d.ts` | *Module augmentation* de `InstanceConfig` |
 | `frontend/src/app/[locale]/example/page.tsx` | (ruta nueva) | Vista que lee `config.instance.example.greeting` |
 

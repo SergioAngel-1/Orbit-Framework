@@ -141,6 +141,20 @@
     "relatedTitle": "Sigue aprendiendo",
     "relatedCta": "Leer la guía"
   },
+  "landings": {
+    "kicker": "Aprende",
+    "breadcrumb": "Aprende",
+    "faqTitle": "Preguntas frecuentes",
+    "productsTitle": "Productos relacionados",
+    "index": {
+      "title": "Aprende",
+      "intro": "Guías y contenidos para sacarle partido a lo que vendemos.",
+      "guides": "Guías",
+      "products": "Guías de productos",
+      "read": "Leer la guía",
+      "empty": "Todavía no hay guías publicadas."
+    }
+  },
   "blog": {
     "title": "Blog",
     "description": "Artículos, guías y novedades publicados desde WordPress.",
@@ -279,6 +293,7 @@
         "button": "Ver qué productos suman para el envío gratis",
         "title": "Suman para el envío gratis",
         "categories": "Categorías",
+      "guides": "Guías",
         "products": "Productos",
         "showAll": "Ver las {count}",
         "loading": "Cargando…",

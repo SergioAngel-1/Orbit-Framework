@@ -130,6 +130,10 @@ export const CONFIG_DEFAULTS: SiteConfig = {
   banners: {
     enabled: false,
   },
+  landings: {
+    registry: "",
+    editorial: {},
+  },
   payments: {
     gateway_enabled: true,
     whatsapp_enabled: false,

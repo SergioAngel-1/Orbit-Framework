@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { permanentRedirect } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
+import {
+  EditorialLandingContent,
+  heroTitleOf,
+} from "@/components/landings/editorial/editorial-landing-route";
 import { LandingProductView } from "@/components/landings/product/landing-product-view";
 import { getProductBySlug, getProductUrls } from "@/lib/catalog/products";
 import { productHref } from "@/lib/catalog/product-href";
@@ -11,12 +15,17 @@ import { isModuleEnabled } from "@/lib/config/modules";
 import { stripHtml } from "@/lib/format";
 import { resolveEntityRoute } from "@/lib/i18n/entity-route";
 import { advicePageFaq } from "@/lib/landings/advice";
+import { resolveCmsLink } from "@/lib/landings/editorial-href";
+import { getEditorialLanding } from "@/lib/landings/editorial-landing";
+import { getEditorialLandingForProduct } from "@/lib/landings/editorial-product";
 import {
-  getProductLanding,
-  getPublishedProductLandingLocales,
-  getPublishedProductLandingSlugs,
-} from "@/lib/landings/product-landing";
+  getProductBoundLandingLocales,
+  getProductBoundLandingSlugs,
+} from "@/lib/landings/product-bound-landings";
+import { getProductLanding } from "@/lib/landings/product-landing";
+import { productLandingEntry } from "@/lib/landings/product-landing-entry";
 import { productLearnPaths } from "@/lib/landings/product-learn-href";
+import { buildEditorialRegistry } from "@/lib/landings/registry";
 import { getRelatedProductLandings } from "@/lib/landings/related-product-landings";
 import { logReadFailure } from "@/lib/observability/read-failure";
 import { prerenderLongTail } from "@/lib/prerender-budget";
@@ -35,11 +44,17 @@ import {
 import { extractYoutubeId } from "@/lib/youtube";
 
 // ============================================================================
-//  Landing de producto — `/products/[slug]/learn` (módulo `product-landing`).
+//  Landing de un producto — `/products/[slug]/learn`.
 //
-//  Cuelga de la ficha, así que comparte su tramo de URL por idioma y su 308
-//  hacia el canónico. Solo existe si el módulo está activo Y la landing del
-//  producto está publicada: en cualquier otro caso, 404.
+//  Cuelga de la ficha, así que comparte su tramo de URL por idioma y su 308 hacia
+//  el canónico. La sirve UNO de dos mecanismos, con esta precedencia:
+//
+//    1. la landing de producto publicada (módulo `product-landing`, caja de la
+//       ficha);
+//    2. una landing editorial asociada a ese producto (módulo `landings`, campo
+//       «Producto asociado»).
+//
+//  Si ninguno aplica —o los módulos están apagados— es 404.
 //
 //  ISR igual que la ficha. `generateStaticParams` solo enumera las landings
 //  publicadas, en los idiomas en que existen (sin traducción no se hornea ni se
@@ -49,21 +64,38 @@ import { extractYoutubeId } from "@/lib/youtube";
 export const revalidate = 300;
 
 export async function generateStaticParams() {
-  const published = await getPublishedProductLandingSlugs();
-  if (published.length === 0) return [];
-  const wanted = new Set(published);
+  const published = await getProductBoundLandingSlugs();
+  if (published.size === 0) return [];
   const [landingLocales, products] = await Promise.all([
-    getPublishedProductLandingLocales(),
+    getProductBoundLandingLocales(),
     prerenderLongTail(getProductUrls),
   ]);
   return products
-    .filter((product) => wanted.has(product.slug))
+    .filter((product) => published.has(product.slug))
     .flatMap(({ slug, slugs, locales }) => {
       const translated = landingLocales[slug] ?? [routing.defaultLocale];
       return locales
         .filter((locale) => translated.includes(locale))
         .map((locale) => ({ locale, slug: slugs[locale]! }));
     });
+}
+
+/** Las dos landings posibles de un producto, la que manda primero. */
+async function loadLandings(
+  nativeSlug: string,
+  locale: string,
+  config: Awaited<ReturnType<typeof getSiteConfig>>,
+) {
+  const productLanding = isModuleEnabled(config, "product-landing")
+    ? await getProductLanding(nativeSlug, locale)
+    : null;
+  if (productLanding) return { productLanding, editorial: null };
+
+  if (!isModuleEnabled(config, "landings"))
+    return { productLanding: null, editorial: null };
+  const link = await getEditorialLandingForProduct(nativeSlug, locale);
+  const editorial = link ? await getEditorialLanding(link.slug, locale) : null;
+  return { productLanding: null, editorial };
 }
 
 export async function generateMetadata({
@@ -73,7 +105,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, slug } = await params;
   const config = await getSiteConfig();
-  if (!isModuleEnabled(config, "product-landing")) return {};
+  if (
+    !isModuleEnabled(config, "product-landing") &&
+    !isModuleEnabled(config, "landings")
+  ) {
+    return {};
+  }
   try {
     const route = await resolveEntityRoute(
       "product",
@@ -83,7 +120,12 @@ export async function generateMetadata({
       (native) => getProductBySlug(native, locale),
     );
     if (!route) return {};
-    const landing = await getProductLanding(route.nativeSlug, locale);
+    const { productLanding, editorial } = await loadLandings(
+      route.nativeSlug,
+      locale,
+      config,
+    );
+    const landing = productLanding ?? editorial;
     if (!landing) return {};
     const product = route.entity;
 
@@ -94,12 +136,25 @@ export async function generateMetadata({
       ),
       paths: productLearnPaths(product.urlSlugs ?? {}),
     });
-    const title = landing.seoTitle || product.name;
+
+    const title = productLanding
+      ? productLanding.seoTitle || product.name
+      : editorial!.seo.title || editorial!.hero?.title || product.name;
     const description = metaDescription(
-      landing.seoDescription || product.shortDescription || landing.heroSubtitle,
+      productLanding
+        ? productLanding.seoDescription ||
+            product.shortDescription ||
+            productLanding.heroSubtitle
+        : editorial!.seo.description ||
+            product.shortDescription ||
+            editorial!.hero?.subtitle,
     );
     const image =
-      landing.seoOgImage || landing.heroImage || product.image?.sourceUrl || null;
+      (productLanding
+        ? productLanding.seoOgImage || productLanding.heroImage
+        : editorial!.seo.ogImage || editorial!.hero?.image) ||
+      product.image?.sourceUrl ||
+      null;
     return {
       title: siteTitle(config, title),
       ...(description ? { description } : {}),
@@ -133,7 +188,12 @@ export default async function ProductLearnPage({
   setRequestLocale(locale);
 
   const config = await getSiteConfig();
-  if (!isModuleEnabled(config, "product-landing")) notFound();
+  if (
+    !isModuleEnabled(config, "product-landing") &&
+    !isModuleEnabled(config, "landings")
+  ) {
+    notFound();
+  }
 
   // Un fallo de WordPress NO es «no existe»: se propaga (500, que ISR no cachea)
   // en vez de hornear un 404 por una caída transitoria.
@@ -149,65 +209,106 @@ export default async function ProductLearnPage({
   if (!route.isCanonical) permanentRedirect({ href: learnHref, locale });
   const product = route.entity;
 
-  const landing = await getProductLanding(route.nativeSlug, locale);
-  if (!landing) notFound();
+  const { productLanding: landing, editorial } = await loadLandings(
+    route.nativeSlug,
+    locale,
+    config,
+  );
+  if (!landing && !editorial) notFound();
 
-  const [t, tNav, related] = await Promise.all([
+  const [t, tNav] = await Promise.all([
     getTranslations("productLanding"),
     getTranslations("nav"),
-    getRelatedProductLandings(route.nativeSlug, locale, 3),
   ]);
 
   const url = absoluteLocalized(config.brand.url, learnHref, locale);
-  // La ficha emite su propio `Product` con este `@id`: los motores fusionan ambas
-  // menciones en una sola entidad.
+  // La ficha emite su propio `Product` con este `@id`: los motores fusionan ambas menciones en
+  // una sola entidad.
   const pdpUrl = absoluteLocalized(config.brand.url, route.canonicalHref, locale);
+  const productJsonLd = buildProductJsonLd({
+    product,
+    config,
+    url: pdpUrl,
+    description: stripHtml(product.shortDescription ?? product.description ?? ""),
+  });
+  const breadcrumb = [
+    { name: tNav("home"), url: absoluteLocalized(config.brand.url, "/", locale) },
+    {
+      name: t("breadcrumb"),
+      url: absoluteLocalized(config.brand.url, "/products", locale),
+    },
+    { name: product.name, url: pdpUrl },
+    { name: t("breadcrumb"), url },
+  ];
+
+  // Mecanismo 2: landing editorial asociada. Se pinta con el motor de landings; el `Product` de
+  // la ficha se suma a su JSON-LD.
+  if (!landing && editorial) {
+    const registry = buildEditorialRegistry(config.landings.registry);
+    const entry = productLandingEntry(registry, editorial.slug, product.name);
+    return (
+      <EditorialLandingContent
+        locale={locale}
+        config={config}
+        entry={entry}
+        landing={{
+          ...editorial,
+          // Sin título propio, la landing lleva el nombre del producto.
+          hero: editorial.hero ?? null,
+          seo: { ...editorial.seo, title: editorial.seo.title ?? product.name },
+        }}
+        url={url}
+        breadcrumb={[
+          ...breadcrumb.slice(0, 3),
+          { name: heroTitleOf(editorial, { ...entry, label: product.name }), url },
+        ]}
+        extraJsonLd={[productJsonLd]}
+      />
+    );
+  }
+
+  // Mecanismo 1: landing de producto.
+  const productLanding = landing!;
+  const [related, closingLink] = await Promise.all([
+    getRelatedProductLandings(route.nativeSlug, locale, 3),
+    resolveCmsLink(productLanding.closing.ctaHref, locale),
+  ]);
+
   const description = metaDescription(
-    landing.seoDescription || product.shortDescription || landing.heroSubtitle,
+    productLanding.seoDescription ||
+      product.shortDescription ||
+      productLanding.heroSubtitle,
   );
-  const faq = advicePageFaq(landing.advice);
+  const faq = advicePageFaq(productLanding.advice);
   const videoId =
-    landing.video.enabled && landing.video.url
-      ? extractYoutubeId(landing.video.url)
+    productLanding.video.enabled && productLanding.video.url
+      ? extractYoutubeId(productLanding.video.url)
       : null;
-  const image = landing.heroImage || product.image?.sourceUrl || undefined;
+  const image = productLanding.heroImage || product.image?.sourceUrl || undefined;
 
   const jsonLd = [
-    buildBreadcrumbJsonLd([
-      { name: tNav("home"), url: absoluteLocalized(config.brand.url, "/", locale) },
-      {
-        name: t("breadcrumb"),
-        url: absoluteLocalized(config.brand.url, "/products", locale),
-      },
-      { name: product.name, url: pdpUrl },
-      { name: t("breadcrumb"), url },
-    ]),
+    buildBreadcrumbJsonLd(breadcrumb),
     buildArticleJsonLd({
-      headline: landing.seoTitle || product.name,
+      headline: productLanding.seoTitle || product.name,
       description,
       config,
       image,
       url,
       about: `${pdpUrl}#product`,
-      inLanguage: landing.contentLang,
+      inLanguage: productLanding.contentLang,
     }),
-    buildProductJsonLd({
-      product,
-      config,
-      url: pdpUrl,
-      description: stripHtml(product.shortDescription ?? product.description ?? ""),
-    }),
+    productJsonLd,
     ...(faq.length > 0 ? [buildFaqJsonLd(faq)] : []),
     ...(videoId
       ? [
           buildVideoObjectJsonLd({
-            name: landing.video.caption || product.name,
-            description: landing.video.caption || description || product.name,
+            name: productLanding.video.caption || product.name,
+            description: productLanding.video.caption || description || product.name,
             youtubeId: videoId,
-            // Solo si el editor la escribió: sin fecha el nodo se emite igual
-            // pero no opta al resultado enriquecido; una inventada lo invalidaría.
-            ...(landing.video.uploadDate
-              ? { uploadDate: landing.video.uploadDate }
+            // Solo si el editor la escribió: sin fecha el nodo se emite igual pero no opta al
+            // resultado enriquecido; una inventada lo invalidaría.
+            ...(productLanding.video.uploadDate
+              ? { uploadDate: productLanding.video.uploadDate }
               : {}),
           }),
         ]
@@ -225,9 +326,10 @@ export default async function ProductLearnPage({
       ))}
       <LandingProductView
         product={product}
-        landing={landing}
+        landing={productLanding}
         productHref={productHref(product)}
         related={related}
+        closingLink={closingLink}
         locale={locale}
       />
     </>

@@ -258,12 +258,12 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
 - **Starter:** `FreeShippingNotice` en el cajón, `/cart` y el checkout; el checkout pinta los extras y
   comunica el destino. Cada página pasa `shipping={{ methods }}` **solo** si `modules.shipping`.
 
-### Landings editoriales (módulo `landings`, backend)
+### Landings editoriales (módulo `landings`)
 
 - **Qué hace el backend** (plugin `hwe-landings`): un registro de landings y, por cada una, un molde de
   **slots fijos** editado en Control Center → Landings. Con el módulo apagado el plugin no registra nada
-  y el frontend no lee ni pinta nada de esto. El motor del frontend (registro combinado, resolución de
-  secciones, enlaces) llega con la tarea 58; aquí está el contrato de datos.
+  y el frontend no lee ni pinta nada de esto: `getEditorialLanding` devuelve `null`, el sitemap y
+  `/llms.txt` no las listan y las rutas responden 404.
 - **Dónde llega.** Todo sale por `GET /wp-json/hwe/v1/config` bajo `landings` (campos `public`):
   `landings.registry` (texto `identificador | Nombre | tipo`, una landing por línea, tipo `article` o
   `person`) y `landings.editorial.<id>.*`. El identificador es **interno e inmutable**: es la clave del
@@ -283,10 +283,35 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   pinta. La disposición es una de `image-left`, `image-right`, `full`, `text-only`, `prose-blocks`,
   `mirror-pair` o `divider`.
 - **Hero.** Es un banner de tipo `landing` en la locación `landing-<id>` (módulo `banners`).
-- **Estáticas.** Las landings con diseño propio las declara la instancia con
-  `hwe_landings_static_entries` y su contenido se edita en el mismo panel; una del panel con el mismo
-  identificador se ignora.
 - **Revalidación.** Tag ISR `landings` (y `site-config`, que el Control Center revalida en cada guardado).
+
+**Motor del frontend** (`lib/landings/`, núcleo; todo es DATO y funciones: ninguna importa componentes):
+
+| Pieza | Qué hace |
+|---|---|
+| `registry.ts` | `staticEntries()` (de `instanceRegistry.landings.staticEntries`), `parseEditorialRegistry`, `buildEditorialRegistry(registry, editorial?)` (las estáticas primero; las del panel con el molde estándar), `editorialLandingHref` / `editorialLandingPaths`, `findEditorialByPath` y `findEditorialByAnyPath` (acepta el tramo de otro idioma y dice si es el canónico: el 308 lo da la ruta). Una landing con `product` relleno sale del registro de URL libre cuando se pasa `editorial`. |
+| `reserved-segments.ts` | Tramos de raíz que una landing no puede ocupar: las rutas del starter, los idiomas, `api` y `instanceRegistry.landings.reservedRootSegments`. Una landing de raíz sobre un tramo reservado **vuelve al área**; `tests/unit/landings-reserved-segments.test.ts` contrasta la lista con `app/[locale]/`. |
+| `base-flow.ts`, `resolve-sections.ts` | El flujo: `buildBaseFlow(landing, entry)` → `resolveSections(base, entry)`. `consumesBase` filtra ANTES de resolver las anclas `after`; con 2+ únicas sobre la misma ancla manda el orden de declaración (contador `placed`). `unplacedAnchors` detecta una única cuya ancla está consumida (va al final, en silencio). |
+| `band-tones.ts` | Alternancia de bandas `surface` / `background` sobre el flujo YA resuelto; `"other"` = banda con color propio que no corta la cadena. |
+| `prose-blocks.ts`, `paragraph-split.ts` | `splitByH3` (intro + un bloque por `<h3>`, con los enlaces finales como CTA) y `splitFirstBlock` (para `mirror-pair`). |
+| `cms-href.ts`, `editorial-href.ts` | Allow-list de enlaces del CMS (`/ruta`, `#ancla`, `http(s)`, `mailto`, `tel`, `editorial:<id>`), y `getEditorialHref` / `getEditorialHrefStrict` / `resolveCmsLink`: **la única vía** para enlazar una landing (la URL no es deducible del identificador). `Strict` devuelve `null` si no está registrada: para datos estructurados. |
+| `editorial-landing.ts` | `getEditorialLanding(id, locale)`: del contenido de `config.landings.editorial.<id>` al modelo `EditorialLanding` (resuelto al idioma, saneado, con `locales` y `contentLang`). Nulo si el módulo está apagado, no está registrada o no está publicada. |
+| `editorial-locales.ts`, `editorial-list.ts` | Idiomas en que existe (por traducción de los campos de peso: título SEO, entradilla, texto de cierre y cuerpos de sección) y listas para el índice, el sitemap y `/llms.txt`. |
+| `editorial-product.ts`, `product-bound-landings.ts`, `product-landing-entry.ts` | La landing asociada a un producto: se sirve en `/products/<slug>/learn` con precedencia **landing de producto > editorial asociada > 404**; `getProductBoundLandingSlugs` es la unión de los dos mecanismos. |
+| `learn-index.ts`, `learn-index-products.ts` | El índice del área: agrupa las guías de producto por categoría y respeta `instanceRegistry.landings.productGroupOrder`. |
+
+- **Entradas con diseño propio** (`instanceRegistry.landings.staticEntries`): `label`, `path` / `paths`,
+  `base`, `jsonLd`, `uniqueSections: [{ key, after }]`, `consumesBase`, `faqAside`, `seoFallback` y `hints`
+  (pistas opacas para tus vistas). Deben coincidir con el filtro `hwe_landings_static_entries` del backend.
+  El mapa `clave → pieza de código` vive en `components/landings/editorial/unique-sections.tsx` (tuyo): el
+  núcleo nunca importa componentes. Consume lo que absorbes con `findConsumedSection(sections, "s3")`
+  (por SLOT) y devuelve `null` para auto-ocultarte.
+- **Rutas del starter:** `/learn` (índice), `/learn/[slug]` (área) y `/[landingPath]` (raíz) delegan en
+  `components/landings/editorial/editorial-landing-route.tsx`: resuelve el tramo (el de cualquier idioma, con
+  308 al canónico), 404 si el módulo está apagado o no está publicada, metadatos con hreflang SOLO de los
+  idiomas con traducción, y JSON-LD (`BreadcrumbList`, `Article` o `Person` según el tipo, `FAQPage`).
+- **Starter:** `landing-editorial-view.tsx` (hero, entradilla, secciones con las siete disposiciones, cita,
+  preguntas, productos y cierre). Es **de la instancia**: reescríbela; el contrato es el de arriba.
 
 ### Landing de producto (módulo `product-landing`)
 
@@ -699,6 +724,8 @@ Leyenda: ✅ **completa** (usa datos reales, sin componentes de relleno) · 🧱
 | `/products` | 🧱 | `InfiniteProductGrid` | Filtro con un `<form>` HTML plano (`search`/`category`/`minPrice`/`maxPrice`/`sort` por query string). No usa `FilterChips`, `SortDropdown`, `SearchModal`, `CategoryCard` — todos disponibles, ninguno conectado. |
 | `/products/[slug]` | ✅ | `ProductActions`, `VariationSelector`, `ReviewForm` (gateado), `ProductGrid` (relacionados) | Ficha de producto completa: imagen, precio, variantes, JSON-LD `Product` + `BreadcrumbList`. |
 | `/products/[slug]/learn` | ✅ | `LandingProductView` | Landing del producto (módulo `product-landing`, §A.2): 404 con el módulo apagado o sin publicar; JSON-LD `Article` + `Product` + `FAQPage`. |
+| `/learn` | ✅ | — | Índice del área educativa (módulo `landings`, §A.2): guías del panel y guías de producto agrupadas por categoría. 404 con el módulo apagado. |
+| `/learn/[slug]`, `/[landingPath]` | ✅ | `LandingEditorialView` | Landing editorial del área y de la raíz (módulo `landings`, §A.2): 308 al tramo canónico de cada idioma, JSON-LD `Article` o `Person` + `FAQPage`. |
 | `/categories/[slug]` | ✅ | `ProductGrid` | Listado por categoría con JSON-LD breadcrumb. |
 | `/blog` | ✅ | `PostCard` | Listado de entradas. |
 | `/blog/[slug]` | ✅ | — | Entrada individual, JSON-LD `Article`. |

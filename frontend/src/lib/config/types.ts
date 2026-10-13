@@ -107,6 +107,16 @@ export interface SiteConfig {
     /** Activa el renderizado de banners en el frontend. La autoría vive en el plugin HWE Banners. */
     enabled: boolean;
   };
+  /**
+   * Landings editoriales (módulo `landings`): el registro y el contenido de cada una. Vacío con
+   * el módulo apagado o sin landings.
+   */
+  landings: {
+    /** Texto `identificador | Nombre | article|person`, una landing por línea. */
+    registry: string;
+    /** Contenido por identificador. */
+    editorial: Record<string, EditorialLandingConfig | undefined>;
+  };
   /** Medios de pago que ofrece el checkout (lo secreto va por el canal interno). */
   payments: {
     gateway_enabled: boolean;
@@ -176,6 +186,93 @@ export interface SiteConfig {
   modules: Record<ModuleId, boolean>;
   /** Ajustes propios de la instancia (grupo `instance` del Control Center). Vacío en el núcleo. */
   instance: InstanceConfig;
+}
+
+/** Una sección de contenido (`s1`…`s5`) de una landing editorial en la config pública. */
+export interface EditorialSectionConfig {
+  enabled?: boolean;
+  order?: string;
+  layout?: string;
+  kicker?: string | null;
+  title?: string | null;
+  body?: string | null;
+  image?: string | null;
+  image_alt?: string | null;
+  image_2?: string | null;
+  image_2_alt?: string | null;
+  /** `<campo>_<idioma>`: la variante traducida de cada texto. */
+  [translation: string]: unknown;
+}
+
+/**
+ * El contenido de una landing editorial tal como llega de `GET /wp-json/hwe/v1/config`
+ * (`landings.editorial.<id>`). Todo es opcional: una landing recién creada no tiene nada.
+ * Los textos traducibles llevan además `<campo>_<idioma>`.
+ */
+export interface EditorialLandingConfig {
+  published?: boolean;
+  url?: {
+    /** `area` | `root`. */
+    base?: string | null;
+    path?: string | null;
+    /** `path_<idioma>`: el tramo en cada idioma secundario. */
+    [pathByLocale: string]: string | null | undefined;
+  } | null;
+  accent?: string | null;
+  product?: string | null;
+  product_cta_label?: string | null;
+  seo?: {
+    title?: string | null;
+    description?: string | null;
+    og_image?: string | null;
+    date_published?: string | null;
+    date_modified?: string | null;
+    author?: string | null;
+    author_landing?: string | null;
+    [translation: string]: unknown;
+  } | null;
+  lead_enabled?: boolean;
+  lead_body?: string | null;
+  sections?: Partial<
+    Record<"s1" | "s2" | "s3" | "s4" | "s5", EditorialSectionConfig>
+  > | null;
+  quote?: {
+    enabled?: boolean;
+    text?: string | null;
+    author?: string | null;
+    author_photo?: string | null;
+    background_image?: string | null;
+    logo?: string | null;
+    logo_alt?: string | null;
+    [translation: string]: unknown;
+  } | null;
+  faq?: {
+    enabled?: boolean;
+    title?: string | null;
+    [slotOrTranslation: string]: unknown;
+  } | null;
+  products?: {
+    enabled?: boolean;
+    title?: string | null;
+    after?: string | null;
+    mode?: string | null;
+    category?: string | null;
+    manual?: string | null;
+    [translation: string]: unknown;
+  } | null;
+  closing?: {
+    enabled?: boolean;
+    title?: string | null;
+    text?: string | null;
+    cta_label?: string | null;
+    cta_href?: string | null;
+    cta2_label?: string | null;
+    cta2_href?: string | null;
+    background_image?: string | null;
+    [translation: string]: unknown;
+  } | null;
+  /** `<campo>_<idioma>` de los campos de primer nivel. */
+  [translation: string]: unknown;
 }
 
 /** Ids del catálogo de módulos (spec §4.1). Debe coincidir con `Modules::CORE_IDS` en PHP. */

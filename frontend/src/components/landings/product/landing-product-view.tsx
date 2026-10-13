@@ -5,7 +5,7 @@ import { Link } from "@/i18n/navigation";
 import { splitAdvice } from "@/lib/landings/advice";
 import { LANDING_MAX_COMPONENTS, LANDING_MAX_QUALITIES } from "@/lib/landings/limits";
 import type { RelatedProductLanding } from "@/lib/landings/related-product-landings";
-import { resolveLandingHref } from "@/lib/landings/safe-href";
+import type { ResolvedCmsLink } from "@/lib/landings/editorial-href";
 import type { ProductLanding } from "@/lib/landings/types";
 import { extractYoutubeId } from "@/lib/youtube";
 import { QualityIcon } from "./quality-icons";
@@ -34,6 +34,11 @@ interface LandingProductViewProps {
   /** Ruta interna de la ficha del producto. */
   productHref: string;
   related: RelatedProductLanding[];
+  /**
+   * El botón de cierre, ya validado (`resolveCmsLink`: allow-list y `editorial:<id>` resuelto).
+   * `null` = vuelve a la ficha del producto.
+   */
+  closingLink: ResolvedCmsLink | null;
   /** Idioma de la página (para marcar `lang` si el contenido es de otro). */
   locale: string;
 }
@@ -48,6 +53,7 @@ export async function LandingProductView({
   landing,
   productHref,
   related,
+  closingLink,
   locale,
 }: LandingProductViewProps) {
   const t = await getTranslations("productLanding");
@@ -77,7 +83,6 @@ export async function LandingProductView({
     landing.advice.enabled &&
     Boolean(tips.length > 0 || questions.length > 0 || landing.advice.intro);
 
-  const closingLink = resolveLandingHref(landing.closing.ctaHref);
   const closingLabel = landing.closing.ctaLabel ?? t("closingBack");
   const showClosing = Boolean(landing.closing.title || landing.closing.text);
 
@@ -339,12 +344,13 @@ export async function LandingProductView({
                   dangerouslySetInnerHTML={{ __html: landing.closing.text }}
                 />
               )}
-              {closingLink?.kind === "external" ? (
+              {closingLink?.kind === "plain" ? (
                 <a
                   href={closingLink.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className={`${BUTTON} mt-5`}
+                  {...(closingLink.external
+                    ? { target: "_blank", rel: "noopener noreferrer" }
+                    : {})}
                 >
                   {closingLabel}
                 </a>

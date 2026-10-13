@@ -178,3 +178,29 @@ export const LANDING_LOCALES_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+/**
+ * Productos con landing publicada para el índice del área educativa: nombre, imagen y la
+ * categoría con la que se agrupan.
+ */
+export const LEARN_INDEX_PRODUCTS_QUERY = /* GraphQL */ `
+  query LearnIndexProducts($slugs: [String]) {
+    products(first: 100, where: { slugIn: $slugs, status: "publish" }) {
+      nodes {
+        slug
+        name
+        # @translation Product: name slug
+        image {
+          sourceUrl
+          altText
+        }
+        productCategories {
+          nodes {
+            slug
+            name
+          }
+        }
+      }
+    }
+  }
+`;

@@ -6,10 +6,11 @@ import { getPostSlugs } from "@/lib/blog/posts";
 import { getBlogCategories } from "@/lib/blog/categories";
 import { categoryPageAvailable } from "@/lib/blog/category-format";
 import {
-  getPublishedProductLandingLocales,
-  getPublishedProductLandingSlugs,
-} from "@/lib/landings/product-landing";
+  getProductBoundLandingLocales,
+  getProductBoundLandingSlugs,
+} from "@/lib/landings/product-bound-landings";
 import { productLearnPaths } from "@/lib/landings/product-learn-href";
+import { editorialSitemapEntries } from "@/lib/landings/editorial-list";
 import { entityPaths, hreflangLanguages, localizedPath } from "@/lib/seo/urls";
 import type { SitemapSegment } from "@/lib/seo/sitemap-segments";
 import { logger } from "@/lib/observability/logger";
@@ -125,18 +126,36 @@ export async function buildSitemapEntries(
     for (const slug of LEGAL_SLUGS) {
       paths.push({ path: `/legal/${slug}`, changeFrequency: "yearly", priority: 0.3 });
     }
+    // Landings editoriales (módulo `landings`; vacío si está apagado): cada una solo en los
+    // idiomas donde existe, con el tramo de cada uno. `lastmod` solo con la fecha de revisión
+    // que escribió el editor: nunca una inventada.
+    const landings = editorialSitemapEntries(config);
+    if (landings.length > 0) {
+      paths.push({ path: "/learn", changeFrequency: "weekly", priority: 0.5 });
+    }
+    for (const landing of landings) {
+      paths.push({
+        path: landing.path,
+        locales: landing.locales,
+        paths: landing.paths,
+        changeFrequency: "monthly",
+        priority: 0.6,
+        ...(landing.lastModified
+          ? { lastModified: new Date(landing.lastModified) }
+          : {}),
+      });
+    }
   }
 
   if (segmento === "catalogo") {
     // Fail-soft deliberado: un sitemap sin productos es mejor que una ruta
     // caída, pero el fallo queda visible en los logs.
     try {
-      // Landings de producto publicadas (módulo `product-landing`; vacío si está
-      // apagado). Cada una solo se anuncia en los idiomas en que la ficha Y la
-      // landing existen.
-      const learn = new Set(await getPublishedProductLandingSlugs());
-      const learnLocales =
-        learn.size > 0 ? await getPublishedProductLandingLocales() : {};
+      // Landings de producto publicadas (módulos `product-landing` y `landings`;
+      // vacío si están apagados). Cada una solo se anuncia en los idiomas en que
+      // la ficha Y la landing existen.
+      const learn = await getProductBoundLandingSlugs();
+      const learnLocales = learn.size > 0 ? await getProductBoundLandingLocales() : {};
       for (const { slug, slugs, locales } of await getProductUrls()) {
         paths.push({
           path: `/products/${slug}`,

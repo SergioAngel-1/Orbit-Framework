@@ -26,7 +26,8 @@ import { isModuleEnabled } from "@/lib/config/modules";
 import { getProductCoupons } from "@/lib/coupons/public-coupons";
 import { getCartProductRefs } from "@/lib/catalog/coupon-refs";
 import { logReadFailure } from "@/lib/observability/read-failure";
-import { hasProductLanding } from "@/lib/landings/product-landing";
+import { hasProductBoundLanding } from "@/lib/landings/product-bound-landings";
+import { getEditorialLandingForProduct } from "@/lib/landings/editorial-product";
 import { productLearnHref } from "@/lib/landings/product-learn-href";
 
 export const revalidate = 300;
@@ -157,9 +158,14 @@ export default async function ProductPage({
         })
       : [];
 
-  // Guía del producto (módulo `product-landing`): solo si está publicada y, en un
-  // idioma secundario, traducida.
-  const hasLearnPage = await hasProductLanding(route.nativeSlug, locale);
+  // Guía del producto (módulos `product-landing` y `landings`): solo si está publicada y, en un
+  // idioma secundario, traducida. El botón de una landing editorial asociada trae su propio
+  // texto.
+  const hasLearnPage = await hasProductBoundLanding(route.nativeSlug, locale);
+  const learnLabel = hasLearnPage
+    ? ((await getEditorialLandingForProduct(route.nativeSlug, locale))?.ctaLabel ??
+      t("learnMore"))
+    : t("learnMore");
 
   return (
     <div>
@@ -240,7 +246,7 @@ export default async function ProductPage({
               href={productLearnHref(product)}
               className="inline-flex w-fit items-center gap-1 text-sm font-semibold text-brand hover:underline"
             >
-              {t("learnMore")} <span aria-hidden>→</span>
+              {learnLabel} <span aria-hidden>→</span>
             </Link>
           )}
 

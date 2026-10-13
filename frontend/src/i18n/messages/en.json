@@ -141,6 +141,20 @@
     "relatedTitle": "Keep learning",
     "relatedCta": "Read the guide"
   },
+  "landings": {
+    "kicker": "Learn",
+    "breadcrumb": "Learn",
+    "faqTitle": "Frequently asked questions",
+    "productsTitle": "Related products",
+    "index": {
+      "title": "Learn",
+      "intro": "Guides and content to get the most out of what we sell.",
+      "guides": "Guides",
+      "products": "Product guides",
+      "read": "Read the guide",
+      "empty": "There are no published guides yet."
+    }
+  },
   "blog": {
     "title": "Blog",
     "description": "Articles, guides and updates published from WordPress.",
@@ -274,6 +288,7 @@
         "button": "See which products count towards free shipping",
         "title": "Counts towards free shipping",
         "categories": "Categories",
+      "guides": "Guides",
         "products": "Products",
         "showAll": "See all {count}",
         "loading": "Loading…",

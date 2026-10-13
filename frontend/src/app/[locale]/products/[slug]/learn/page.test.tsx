@@ -3,10 +3,10 @@ import type { ReactElement, ReactNode } from "react";
 import { CONFIG_DEFAULTS } from "@/lib/config/defaults";
 
 // ============================================================================
-//  Landing de producto (`/products/[slug]/learn`): con el módulo apagado, o sin
-//  landing publicada, es 404; un tramo que no es el canónico redirige (308); y
-//  publicada pinta la vista y declara su JSON-LD (el FAQPage solo si hay
-//  preguntas con respuesta).
+//  Landing de producto (`/products/[slug]/learn`): con los dos módulos apagados, o
+//  sin landing publicada, es 404; un tramo que no es el canónico redirige (308); la
+//  landing de producto manda sobre una editorial asociada; y publicada pinta la
+//  vista y declara su JSON-LD (el FAQPage solo si hay preguntas con respuesta).
 // ============================================================================
 
 vi.mock("next/navigation", () => ({
@@ -40,6 +40,21 @@ vi.mock("@/lib/landings/product-landing", () => ({
 vi.mock("@/lib/landings/related-product-landings", () => ({
   getRelatedProductLandings: vi.fn(async () => []),
 }));
+const getEditorialLandingForProduct = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/landings/editorial-product", () => ({ getEditorialLandingForProduct }));
+const getEditorialLanding = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/landings/editorial-landing", () => ({ getEditorialLanding }));
+vi.mock("@/lib/landings/editorial-href", () => ({
+  resolveCmsLink: vi.fn(async () => null),
+}));
+vi.mock("@/lib/landings/product-bound-landings", () => ({
+  getProductBoundLandingSlugs: vi.fn(async () => new Set()),
+  getProductBoundLandingLocales: vi.fn(async () => ({})),
+}));
+vi.mock("@/components/landings/editorial/editorial-landing-route", () => ({
+  EditorialLandingContent: () => null,
+  heroTitleOf: (landing: { seo: { title: string | null } }) => landing.seo.title ?? "",
+}));
 vi.mock("@/components/landings/product/landing-product-view", () => ({
   LandingProductView: () => null,
 }));
@@ -61,12 +76,36 @@ function find(node: ReactNode, test: (el: El) => boolean, out: El[] = []): El[] 
   return out;
 }
 
-function config(moduleEnabled: boolean) {
+function config(productLanding: boolean, landings = false) {
   const base = structuredClone(CONFIG_DEFAULTS);
   base.brand.url = "https://tienda.example";
-  base.modules = { ...base.modules, "product-landing": moduleEnabled };
+  base.modules = { ...base.modules, "product-landing": productLanding, landings };
   vi.mocked(getSiteConfig).mockResolvedValue(base);
 }
+
+const editorialLanding = {
+  slug: "guia",
+  contentLang: "es",
+  locales: ["es"],
+  hero: null,
+  accent: null,
+  lead: null,
+  sections: [],
+  quote: null,
+  faq: null,
+  products: null,
+  product: "camiseta",
+  productCtaLabel: null,
+  closing: null,
+  seo: {
+    title: "Guía editorial",
+    description: null,
+    ogImage: null,
+    datePublished: null,
+    dateModified: null,
+    author: null,
+  },
+};
 
 const product = {
   name: "Camiseta",
@@ -117,14 +156,16 @@ const jsonLdTypes = (tree: ReactNode) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  getEditorialLandingForProduct.mockResolvedValue(null);
+  getEditorialLanding.mockResolvedValue(null);
   config(true);
   resolveEntityRoute.mockResolvedValue(route());
   getProductLanding.mockResolvedValue(landing());
 });
 
 describe("ProductLearnPage", () => {
-  it("con el módulo apagado es 404 y no consulta nada", async () => {
-    config(false);
+  it("con los dos módulos apagados es 404 y no consulta nada", async () => {
+    config(false, false);
 
     await expect(render()).rejects.toThrow("NEXT_NOT_FOUND");
     expect(resolveEntityRoute).not.toHaveBeenCalled();
@@ -169,6 +210,43 @@ describe("ProductLearnPage", () => {
     );
 
     expect(jsonLdTypes(await render())).toContain("FAQPage");
+  });
+
+  it("sin landing de producto, una editorial asociada se pinta con el motor de landings", async () => {
+    config(true, true);
+    getProductLanding.mockResolvedValue(null);
+    getEditorialLandingForProduct.mockResolvedValue({ slug: "guia", ctaLabel: null });
+    getEditorialLanding.mockResolvedValue(editorialLanding);
+
+    const tree = (await render()) as ReactElement<Record<string, unknown>>;
+
+    expect(getEditorialLandingForProduct).toHaveBeenCalledWith("camiseta", "es");
+    expect(getEditorialLanding).toHaveBeenCalledWith("guia", "es");
+    // Lleva el `Product` de la ficha en su JSON-LD y el nombre del producto como etiqueta.
+    const props = tree.props as {
+      extraJsonLd: { "@type": string }[];
+      entry: { slug: string; label: string };
+    };
+    expect(props.extraJsonLd.map((node) => node["@type"])).toEqual(["Product"]);
+    expect(props.entry).toMatchObject({ slug: "guia", label: "Camiseta" });
+  });
+
+  it("la landing de producto manda sobre la editorial asociada", async () => {
+    config(true, true);
+    getEditorialLandingForProduct.mockResolvedValue({ slug: "guia", ctaLabel: null });
+    getEditorialLanding.mockResolvedValue(editorialLanding);
+
+    await render();
+
+    expect(getEditorialLandingForProduct).not.toHaveBeenCalled();
+  });
+
+  it("solo con el módulo landings y sin editorial asociada es 404", async () => {
+    config(false, true);
+    getEditorialLandingForProduct.mockResolvedValue(null);
+
+    await expect(render()).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(getProductLanding).not.toHaveBeenCalled();
   });
 
   it("con solo consejos (sin encabezado) no declara FAQPage", async () => {

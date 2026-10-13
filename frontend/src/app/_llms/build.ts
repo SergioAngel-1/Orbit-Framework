@@ -3,6 +3,7 @@ import { getSiteConfig, isFallbackSiteConfig } from "@/lib/config";
 import { brandDescription, brandTagline } from "@/lib/config/brand";
 import { categoryHref } from "@/lib/catalog/product-href";
 import { getCategories } from "@/lib/catalog/products";
+import { publishedEditorialLandings } from "@/lib/landings/editorial-list";
 import { absoluteLocalized } from "@/lib/seo/urls";
 import { metaDescription } from "@/lib/seo/meta-description";
 
@@ -79,6 +80,16 @@ export async function buildLlmsTxt(locale: string): Promise<string | null> {
     }
   } catch {
     /* sin categorías disponibles */
+  }
+
+  // Guías (módulo `landings`): las landings editoriales publicadas en este idioma.
+  const guides = publishedEditorialLandings(config, locale);
+  if (guides.length > 0) {
+    lines.push("", `## ${t("sections.guides")}`);
+    for (const guide of guides) {
+      const text = metaDescription(guide.description, 120);
+      lines.push(`- [${guide.title}](${abs(guide.href)})${text ? `: ${text}` : ""}`);
+    }
   }
 
   lines.push("", `## ${t("sections.legal")}`);

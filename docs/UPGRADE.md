@@ -779,7 +779,22 @@ git fetch framework --tags
   `/learn/<tramo>`; antes el nombre público del área lo fijaba la instancia.
 - **(contrato) Landings con diseño propio.** Las declara la instancia con `hwe_landings_static_entries`
   en el backend (`id => ['label', 'jsonld', 'base']`) y con `instanceRegistry.landings.staticEntries` en
-  el frontend (tarea 58). Un identificador del panel que choque con una estática se ignora.
+  el frontend: `STATIC_EDITORIAL_ENTRIES` y los mapas de tu `registry.ts` pasan a ser DATOS del registro
+  (`uniqueSections`, `consumesBase`, `faqAside`, `hints`). Un identificador del panel que choque con una
+  estática se ignora.
+- **(breaking) Frontend.** `getEditorialLanding` / `buildEditorialRegistry` leen `config.landings` (antes
+  `config.landing_pages`); `EditorialUrlBase` es `"area" | "root"` (antes `"learn" | "root"`) y el href
+  de la raíz es un `string` (`/<tramo>`), no un objeto tipado de `next-intl`. `pathEn` desaparece:
+  `entry.paths[locale]` y `pathFor(entry, locale)` sirven N idiomas. `FAQ_ASIDE_SECTION`,
+  `UNIQUE_SECTIONS` por slug y `LEARN_PRODUCT_GROUP_ORDER` pasan a `entry.faqAside`, al mapa
+  `unique-sections.tsx` de tu instancia y a `instanceRegistry.landings.productGroupOrder`.
+- **(contrato) Tramos reservados.** La lista sale de `reserved-segments.ts` (antes de `routing.pathnames`,
+  que el framework no usa). Si tu instancia añade una ruta de UN solo tramo bajo `app/[locale]/`,
+  decláralo en `instanceRegistry.landings.reservedRootSegments`: el test
+  `landings-reserved-segments.test.ts` falla si no.
+- **Landing asociada a un producto.** Se sirve en `/products/[slug]/learn` (antes en la ruta de la
+  instancia): precedencia landing de producto > editorial asociada > 404. `getProductBoundLandingSlugs`
+  es la unión de los dos mecanismos y alimenta el índice y el sitemap.
 - **(contrato) Tipos de campo.** `landing_registry` y `registry_type` salen del núcleo del Control Center
   y los registra el módulo (`hwe_control_center_field_types`). El tipo de una fila guardada se edita en
   el bloque de su landing y escribe en la misma fila del registro.
