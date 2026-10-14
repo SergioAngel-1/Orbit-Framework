@@ -139,6 +139,13 @@ export interface ProductFilterParams {
   locale?: string;
 }
 
+/** Precio del filtro (llega como texto de la URL) → número, o `undefined` si no vale. */
+function priceVariable(raw?: string): number | undefined {
+  if (raw === undefined || raw.trim() === "") return undefined;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
 function parseSortVariables(sort?: string) {
   switch (sort) {
     case "price-asc":
@@ -148,7 +155,8 @@ function parseSortVariables(sort?: string) {
     case "date-asc":
       return { orderbyField: "DATE", orderbyOrder: "ASC" };
     case "title-asc":
-      return { orderbyField: "TITLE", orderbyOrder: "ASC" };
+      // `ProductsOrderByEnum` no tiene `TITLE`: el nombre del producto es `NAME`.
+      return { orderbyField: "NAME", orderbyOrder: "ASC" };
     default:
       return { orderbyField: "DATE", orderbyOrder: "DESC" };
   }
@@ -172,8 +180,8 @@ export async function getProducts(
       after: options.after,
       search: options.search,
       category: options.category,
-      minPrice: options.minPrice,
-      maxPrice: options.maxPrice,
+      minPrice: priceVariable(options.minPrice),
+      maxPrice: priceVariable(options.maxPrice),
       stockStatus: options.stockStatus ? [options.stockStatus] : undefined,
       orderbyField,
       orderbyOrder,

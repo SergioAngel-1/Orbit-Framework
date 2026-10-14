@@ -58,6 +58,9 @@ const REVIEWS_FRAGMENT = /* GraphQL */ `
 // QUERIES PÚBLICAS
 // ---------------------------------------------------------------------------
 
+// Tipos de WooGraphQL ≥ 1.0 (el 1.0 renombró `ProductStockStatusEnum` →
+// `StockStatusEnum` y `ProductsOrderbyEnum` → `ProductsOrderByEnum`, y los
+// precios del filtro son `Float`). Lo fija `tests/unit/woographql-contract.test.ts`.
 export const PRODUCTS_QUERY = /* GraphQL */ `
   ${PRODUCT_CARD_FRAGMENT}
   query Products(
@@ -65,10 +68,10 @@ export const PRODUCTS_QUERY = /* GraphQL */ `
     $after: String
     $search: String
     $category: String
-    $minPrice: String
-    $maxPrice: String
-    $stockStatus: [ProductStockStatusEnum]
-    $orderbyField: ProductsOrderbyEnum = DATE
+    $minPrice: Float
+    $maxPrice: Float
+    $stockStatus: [StockStatusEnum]
+    $orderbyField: ProductsOrderByEnum = DATE
     $orderbyOrder: OrderEnum = DESC
   ) {
     products(

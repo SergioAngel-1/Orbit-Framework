@@ -37,6 +37,41 @@ beforeEach(() => {
   fetchGraphQL.mockReset();
 });
 
+describe("getProducts: variables que acepta WooGraphQL", () => {
+  const empty = {
+    products: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] },
+  };
+  const sent = () =>
+    (fetchGraphQL.mock.calls[0]![1] as { variables: Record<string, unknown> })
+      .variables;
+
+  it("los precios del filtro viajan como número (`Float`), no como texto", async () => {
+    fetchGraphQL.mockResolvedValue(empty);
+
+    await getProducts({ minPrice: "10", maxPrice: "99.5" });
+
+    expect(sent().minPrice).toBe(10);
+    expect(sent().maxPrice).toBe(99.5);
+  });
+
+  it("un precio vacío o ilegible no se envía", async () => {
+    fetchGraphQL.mockResolvedValue(empty);
+
+    await getProducts({ minPrice: "", maxPrice: "abc" });
+
+    expect(sent().minPrice).toBeUndefined();
+    expect(sent().maxPrice).toBeUndefined();
+  });
+
+  it("ordenar por nombre usa NAME (ProductsOrderByEnum no tiene TITLE)", async () => {
+    fetchGraphQL.mockResolvedValue(empty);
+
+    await getProducts({ sort: "title-asc" });
+
+    expect(sent().orderbyField).toBe("NAME");
+  });
+});
+
 describe("getProducts", () => {
   it("en el idioma por defecto no pide traducciones", async () => {
     fetchGraphQL.mockResolvedValue({
