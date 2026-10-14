@@ -26,7 +26,7 @@
 | react / react-dom | `19.3.0` | UI (ref como prop, sin `forwardRef`). |
 | typescript | `6.0.3` | Tipado estricto. |
 | tailwindcss / @tailwindcss/postcss | `^4.3.3` | CSS-first (`@theme` en `globals.css`, sin `tailwind.config`). |
-| @tailwindcss/typography | `^0.5.20` | Clase `prose` para descripciones del CMS. |
+| @tailwindcss/typography | `^0.5.20` | Clase `prose` para descripciones del CMS. Su `postcss-selector-parser` va forzado a `^7.1.6` (`overrides`, GHSA-rj75-hqrm-r3gf): comprobado que `prose` se sigue generando; retirar el override cuando el plugin lo suba. |
 | next-intl | `^4.14.9` | i18n (routing por locale, mensajes `es`/`en` y los idiomas que declare la instancia). |
 | jose | `^6.2.12` | Verificación/firma local de JWT (HS256). |
 | ioredis | `5.11.1` | Cliente Redis. |
