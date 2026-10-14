@@ -41,15 +41,3 @@ export const REGISTER_USER_MUTATION = /* GraphQL */ `
     }
   }
 `;
-
-/** Devuelve el usuario autenticado según el JWT enviado. */
-export const VIEWER_QUERY = /* GraphQL */ `
-  query Viewer {
-    viewer {
-      id
-      databaseId
-      name
-      email
-    }
-  }
-`;

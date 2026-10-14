@@ -244,8 +244,9 @@ curl http://localhost:3000/api/auth/me -b cookies.txt
 ```
 
 - El **proxy** (`src/proxy.ts`, el antiguo middleware de Next) refresca el `authToken` caducado de forma transparente.
-- En **Server Components** usa `getSession()` / `fetchGraphQLAsViewer()` de
-  `src/lib/auth/session.ts` para datos del usuario autenticado.
+- En **Server Components** usa `getSession()` / `requireSession()` de
+  `src/lib/auth/session.ts` para saber quién es el usuario autenticado; sus datos
+  (pedidos, direcciones…) se leen por el BFF.
 
 ### Protección de escrituras (CSRF + rate-limit — Fase 4)
 

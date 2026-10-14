@@ -311,7 +311,8 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   Opciones de cookie centralizadas en `lib/security/cookies.ts`.
 - Verificación local de firma con `jose`: `lib/auth/jwt.ts`.
 - Sesión en Server Components: `lib/auth/session.ts` (`getSession`, `requireSession`,
-  `fetchGraphQLAsViewer`).
+  `getAuthToken`). Los datos del usuario pasan por el BFF (`wc/v3` con comprobación de
+  propietario), no por GraphQL como «viewer».
 - **Refresh transparente**: lo hace `proxy.ts` (renueva el token caducado y lo propaga
   al request actual). Operaciones GraphQL de auth en `lib/auth/mutations.ts`.
 - **Endpoints WP propios** (mu-plugin `backend/.../hwe-auth.php`, namespace `hwe/v1`):

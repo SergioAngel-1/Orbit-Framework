@@ -1,7 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { cache } from "react";
-import { fetchGraphQL, type GraphQLRequestOptions } from "@/lib/graphql-client";
 import { logger } from "@/lib/observability/logger";
 import { AUTH_COOKIE } from "./constants";
 import { verifyAuthToken } from "./jwt";
@@ -52,18 +51,6 @@ export async function requireSession(): Promise<Session> {
     throw new Error("UNAUTHENTICATED");
   }
   return session;
-}
-
-/**
- * Ejecuta una query GraphQL inyectando automáticamente el JWT de la cookie.
- * Atajo para que los RSC consulten datos del usuario autenticado.
- */
-export async function fetchGraphQLAsViewer<TData>(
-  query: string,
-  options: Omit<GraphQLRequestOptions, "authToken"> = {},
-): Promise<TData> {
-  const token = await getAuthToken();
-  return fetchGraphQL<TData>(query, { ...options, authToken: token ?? undefined });
 }
 
 /**
