@@ -32,7 +32,7 @@ export function listProviders(): string[] {
  * `PAYMENT_PROVIDER` (precedencia completa en `credentials.ts`). `null` en
  * producción si no hay ninguna decidida.
  */
-export async function activeProviderId(): Promise<string | null> {
+async function activeProviderId(): Promise<string | null> {
   return (await getPaymentSettings()).provider;
 }
 

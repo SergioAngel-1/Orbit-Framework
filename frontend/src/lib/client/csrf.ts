@@ -19,7 +19,7 @@ function readCookie(name: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-export async function getCsrfToken(): Promise<string> {
+async function getCsrfToken(): Promise<string> {
   const fromCookie = readCookie(CSRF_COOKIE);
   if (fromCookie) return fromCookie;
 

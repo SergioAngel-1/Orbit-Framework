@@ -197,7 +197,7 @@ const INVISIBLE_CHARS =
  * `stripHtml` ni colapsa el blanco real: es seguro de aplicar sobre HTML rico
  * (p. ej. antes de `sanitizeHtml()`) sin destruir las etiquetas.
  */
-export function stripLiteralEscapes(text: string): string {
+function stripLiteralEscapes(text: string): string {
   return text
     .replace(/\\[rnt]/g, " ")
     .replace(INVISIBLE_CHARS, "")

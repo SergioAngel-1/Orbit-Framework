@@ -8,7 +8,7 @@ import type { GeoDivision, GeoPack } from "./types";
 // ============================================================================
 
 /** Texto comparable: sin tildes, en minúsculas y con una sola clase de separador. */
-export function fold(value: string): string {
+function fold(value: string): string {
   return value
     .normalize("NFD")
     .replace(/\p{M}/gu, "")

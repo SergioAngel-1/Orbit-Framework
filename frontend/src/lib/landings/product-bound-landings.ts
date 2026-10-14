@@ -61,7 +61,7 @@ export const getProductBoundLandingSlugs = cache(async (): Promise<Set<string>> 
  * por defecto siempre y uno secundario si la landing trae traducción de sus campos de peso.
  * Pura. La primera landing del registro sobre un producto manda (como en la ficha).
  */
-export function editorialProductLocales(
+function editorialProductLocales(
   config: Pick<SiteConfig, "landings" | "modules">,
 ): Record<string, string[]> {
   if (!isModuleEnabled(config, "landings")) return {};

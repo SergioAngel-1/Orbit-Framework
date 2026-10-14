@@ -17,7 +17,7 @@ import { getPathname } from "@/i18n/navigation";
  *
  * El `?ref=` no es opcional: sin él, la pantalla no sabe qué pedido mostrar.
  */
-export function checkoutReturnPath(locale: Locale, reference: number | string): string {
+function checkoutReturnPath(locale: Locale, reference: number | string): string {
   return `${getPathname({ locale, href: "/checkout/return" })}?ref=${reference}`;
 }
 

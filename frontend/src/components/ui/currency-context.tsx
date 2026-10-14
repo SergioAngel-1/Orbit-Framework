@@ -21,14 +21,9 @@ const CurrencyContext = createContext<CurrencySettings | null>(null);
 function useCurrencySettings(): CurrencySettings {
   const settings = useContext(CurrencyContext);
   if (!settings) {
-    throw new Error("useCurrency debe usarse dentro de <CurrencyProvider>.");
+    throw new Error("useFormatPrice debe usarse dentro de <CurrencyProvider>.");
   }
   return settings;
-}
-
-/** Código ISO-4217 de la tienda. */
-export function useCurrency(): string {
-  return useCurrencySettings().currency;
 }
 
 /** Formatea un precio de catálogo con la moneda, los decimales y el idioma actuales. */

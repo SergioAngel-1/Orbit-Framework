@@ -77,7 +77,7 @@ function isoSeed(): string {
   return new Date().toISOString().replace(/\.\d{3}Z$/, "+00:00");
 }
 
-export function buildAvalPayAuth(login: string, secretKey: string) {
+function buildAvalPayAuth(login: string, secretKey: string) {
   const rawNonce = crypto.randomBytes(16);
   const seed = isoSeed();
   const tranKey = crypto
