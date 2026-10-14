@@ -4,7 +4,7 @@
  * Description: Ajustes de WooCommerce para operación headless detrás del BFF de
  *              Next.js: desactiva el nonce de la Store API (el BFF ya impone
  *              verificación de Origin + CSRF) y mantiene CORS coherente.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * Parte de la Fase 3 (proxy inverso a WooCommerce) del plan de producción.

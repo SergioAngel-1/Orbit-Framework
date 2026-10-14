@@ -4,7 +4,7 @@
  * Description: Registro de consentimientos de cookies: la PRUEBA de qué eligió
  *              cada persona en el banner y cuándo, anónima o ligada a su cuenta,
  *              y la medición anónima de la respuesta al banner.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  * Requires PHP: 8.0
  * Text Domain: hwe

@@ -10,7 +10,7 @@
  *              nadie lo disparaba nunca, así que un cambio en un menú solo se
  *              veía al caducar la ventana ISR.
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  */
 

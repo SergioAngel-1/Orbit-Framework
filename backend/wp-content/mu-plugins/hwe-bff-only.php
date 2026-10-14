@@ -5,7 +5,7 @@
  *              solo atienden al BFF (Next.js), que se identifica con el secreto interno
  *              compartido (cabecera X-HWE-Internal-Secret), o a WP-CLI. Cualquier otra
  *              petición recibe un 404, llegue por la ruta o por parámetro.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.1.0
  *
  * POR QUÉ AQUÍ Y NO EN CADDY

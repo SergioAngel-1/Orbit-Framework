@@ -1,6 +1,7 @@
 # Acuerdo de Licencia de Usuario Final (EULA)
 
 **Producto:** Headless Web Ecosystem — Plantilla e-commerce headless (WordPress/WooCommerce + Next.js).
+**Titular (Licenciante):** Sergio Jauregui.
 **Versión del acuerdo:** 1.0 · **Fecha:** 2026.
 
 Este Acuerdo de Licencia de Usuario Final ("Acuerdo") es un contrato entre tú

@@ -6,7 +6,7 @@
  *              por idioma y los enlaces al frontend headless. Lo usan las plantillas de
  *              WooCommerce del tema base (themes/hwe-headless-base/woocommerce/emails/) y
  *              los correos propios de hwe-auth.php.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * TEXTO POR IDIOMA

@@ -5,7 +5,7 @@
  *              vendidos», franja de la home). Endpoint interno: solo el BFF
  *              (X-HWE-Internal-Secret).
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * ── La regla: el ranking sale de las líneas de pedido PAGADAS ──────────────

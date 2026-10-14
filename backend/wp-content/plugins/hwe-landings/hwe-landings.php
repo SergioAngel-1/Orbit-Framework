@@ -5,7 +5,7 @@
  *               landings y, por cada una, un molde de slots fijos (hero por banner, entradilla,
  *               hasta 5 secciones, cita, preguntas frecuentes, productos y cierre) con URL
  *               propia, SEO y traducción a los idiomas del sitio.
- * Author:       Headless Web Ecosystem
+ * Author:       Sergio Jauregui
  * Version:      2.0.0
  * Requires PHP: 8.0
  *

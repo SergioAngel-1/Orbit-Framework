@@ -3,7 +3,7 @@
  * Plugin Name: HWE Link Hygiene
  * Description: Retira, al guardar, las marcas de origen que los asistentes de IA
  *              añaden a cada enlace que generan (`utm_source=chatgpt.com`…).
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * Un texto redactado con ayuda de un asistente trae esa marca en CADA enlace, así que

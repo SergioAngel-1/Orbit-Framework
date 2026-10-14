@@ -5,7 +5,7 @@
  *              (estrellas + texto), distinta de las reseñas de producto de
  *              WooCommerce. Una por pedido, sin moderación (la compra es el
  *              filtro, igual que en las de producto).
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  * Requires PHP: 8.0
  * Requires Plugins: woocommerce

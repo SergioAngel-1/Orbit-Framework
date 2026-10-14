@@ -9,7 +9,7 @@
  *              línea, para que lleguen a los correos de WooCommerce (tienda y cliente), al detalle
  *              del pedido en wp-admin y a la API de pedidos. El núcleo no declara ninguno.
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  */
 

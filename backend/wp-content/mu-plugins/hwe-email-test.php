@@ -5,7 +5,7 @@
  *              de email», cualquier plantilla de correo del sitio (WooCommerce
  *              y los propios de hwe-auth) a una dirección de prueba, para ver
  *              su diseño y su entregabilidad sin esperar a que ocurra el evento.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * Datos: por defecto, un pedido de EJEMPLO construido en memoria (nunca se

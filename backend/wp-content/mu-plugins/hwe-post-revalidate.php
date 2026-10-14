@@ -9,7 +9,7 @@
  *              solo se refleja en /blog, /sitemap.xml, etc. tras la ventana
  *              ISR, no al instante como ocurre con productos.
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  */
 

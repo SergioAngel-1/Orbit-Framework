@@ -5,7 +5,7 @@
  *               secciones (hero, educativa, sobre el producto + componentes, cualidades,
  *               consejos, CTA, video, cierre) y listas propias, expuesto en WPGraphQL como
  *               `Product.landing`. Textos traducibles a los idiomas secundarios del sitio.
- * Author:       Headless Web Ecosystem
+ * Author:       Sergio Jauregui
  * Version:      2.0.0
  * Requires PHP: 8.0
  * Requires Plugins: woocommerce

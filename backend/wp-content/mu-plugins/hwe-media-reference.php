@@ -13,7 +13,7 @@
  *              producto que reciba su foto propia pierde la etiqueta solo, sin
  *              que nadie tenga que acordarse de desmarcar nada.
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  */
 

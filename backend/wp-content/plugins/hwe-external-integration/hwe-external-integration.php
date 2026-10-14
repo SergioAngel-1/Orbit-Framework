@@ -5,7 +5,7 @@
  *               mínimo `hwe_integration`, Application Password válida solo desde las IPs
  *               autorizadas y solo en GraphQL, sin inicio de sesión interactivo, y una política
  *               cerrada de lo que puede pedir y cambiar.
- * Author:       Headless Web Ecosystem
+ * Author:       Sergio Jauregui
  * Version:      2.0.0
  * Requires PHP: 8.0
  * Requires Plugins: woocommerce

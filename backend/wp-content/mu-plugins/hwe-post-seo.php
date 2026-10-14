@@ -7,7 +7,7 @@
  *              hwe-seo/fields.php (comunes a las cuatro entidades).
  *              (Las traducciones las aporta hwe-content-i18n.)
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  */
 

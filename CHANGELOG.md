@@ -6,6 +6,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Changed
+- **Autoría:** el autor de los plugins y mu-plugins pasa a «Sergio Jauregui» (cabecera `Author:`),
+  el del tema `hwe-headless-base` a «sergioja.com», y el titular en `LICENSE`, `EULA.md`,
+  `package.json` y `composer.json` a «Sergio Jauregui».
+
 ## [2.0.0] — 2026-10-14
 
 Salto mayor con cambios incompatibles. **Antes de actualizar una instancia de v1, sigue la

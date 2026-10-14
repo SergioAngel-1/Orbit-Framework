@@ -5,7 +5,7 @@
  *              escritura única) y aceptación de términos, en la cuenta y en el pedido. Los
  *              tipos de documento y sus formatos salen del paquete de país de la tienda
  *              (mu-plugin hwe-geo): un país sin tipos de documento no pide documento.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  * Requires PHP: 8.0
  * Text Domain: hwe-customer-identity

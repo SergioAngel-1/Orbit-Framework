@@ -9,7 +9,7 @@
  *              `RootQuery.hweFeaturedPost` (tipo `Post`, null si no hay
  *              selección o el post ya no existe/no está publicado).
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  */
 

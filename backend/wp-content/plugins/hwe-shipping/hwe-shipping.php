@@ -4,7 +4,7 @@
  * Description:  Tarifas de envío por ciudad, métodos de envío (extras aditivos), envío gratis
  *               por regla y una zona de reserva de WooCommerce para el resto del país. Expuesto
  *               en /wp-json/hwe-shipping/v1. Genérico: el país base es el de la tienda.
- * Author:       Headless Web Ecosystem
+ * Author:       Sergio Jauregui
  * Version:      1.0.0
  * Requires PHP: 8.0
  * Text Domain:  hwe-shipping

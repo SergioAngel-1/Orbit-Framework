@@ -16,7 +16,7 @@
  *
  * Filtros: `hwe_content_i18n_locales` (idiomas), `hwe_translatable_fields` (campos por tipo).
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  */
 

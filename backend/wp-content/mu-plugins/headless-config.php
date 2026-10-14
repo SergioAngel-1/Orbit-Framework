@@ -4,7 +4,7 @@
  * Description: Convierte esta instalación de WordPress en un CMS exclusivamente Headless:
  *              bloquea el frontend nativo, redirige el tráfico humano a /wp-admin,
  *              mantiene viva la API de WPGraphQL y aplica cabeceras CORS al endpoint.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * Al ser un "must-use plugin" (mu-plugin) se carga automáticamente y no puede

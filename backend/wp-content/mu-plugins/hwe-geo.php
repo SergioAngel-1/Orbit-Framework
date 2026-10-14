@@ -9,7 +9,7 @@
  *
  * Filtro: `hwe_geo_packs` (añadir o sustituir paquetes). Tag ISR: `geo`.
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  */
 

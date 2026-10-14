@@ -5,7 +5,7 @@
  *              de guía y enlace de seguimiento) guardados como meta del
  *              pedido con claves fijas, para que una integración externa
  *              (ERP, logística) los lea por `metaData` de WooGraphQL o WC REST.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * Las claves son un CONTRATO con quien las lee: `_carrier`, `_tracking_number`,

@@ -7,7 +7,7 @@
  *               pasarelas de pago e integraciones desde un único panel en
  *               wp-admin. Expone la configuración pública (sin secretos) vía
  *               /wp-json/hwe/v1/config para que el frontend la consuma con ISR.
- * Author:       Headless Web Ecosystem
+ * Author:       Sergio Jauregui
  * Version:      2.0.0
  *
  * Al ser mu-plugin se carga automáticamente; no puede desactivarse desde el panel.

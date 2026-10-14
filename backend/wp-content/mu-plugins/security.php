@@ -4,7 +4,7 @@
  * Description: Endurecimiento de la superficie de ataque de WordPress en modo headless:
  *              bloquea la enumeración de usuarios (REST API y ?author=N), desactiva
  *              pingbacks/trackbacks, generaliza los errores de login y reduce metadatos.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * Forma parte de la Fase 1 (endurecimiento de seguridad base) del plan de producción.

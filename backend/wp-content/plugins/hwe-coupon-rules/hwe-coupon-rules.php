@@ -19,7 +19,7 @@
  *              pestañas por tema con un resumen lateral
  *              (`hwe-coupon-rules/admin.php`).
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.3.0
  * Requires PHP: 8.0
  * Requires Plugins: woocommerce

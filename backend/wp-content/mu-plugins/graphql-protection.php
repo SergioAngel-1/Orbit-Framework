@@ -4,7 +4,7 @@
  * Description: Protección del endpoint /graphql contra abusos: limita profundidad
  *              y complejidad de consultas, desactiva la introspección en producción,
  *              y habilita la caché de respuestas WPGraphQL (aprovecha Redis).
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * Forma parte del plan de hardening (Fase C.2) de la plantilla Headless Web Ecosystem.

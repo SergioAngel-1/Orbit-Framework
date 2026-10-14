@@ -7,7 +7,7 @@
  *              de contenido que decide si un producto se publica o se queda
  *              privado.
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  */
 

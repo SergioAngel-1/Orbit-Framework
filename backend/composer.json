@@ -1,6 +1,11 @@
 {
     "name": "hwe/backend",
     "description": "Tests unitarios (PHPUnit + Brain Monkey) del código PHP propio de Headless Web Ecosystem. No es un paquete: WordPress carga mu-plugins y plugins sin Composer.",
+    "authors": [
+        {
+            "name": "Sergio Jauregui"
+        }
+    ],
     "type": "project",
     "license": "proprietary",
     "require": {

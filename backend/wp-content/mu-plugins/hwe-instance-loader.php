@@ -4,7 +4,7 @@
  * Description: Punto de enganche del código de una instancia (una tienda concreta construida
  *              sobre el framework). Carga los .php de primer nivel de mu-plugins/instance/ en
  *              orden alfabético. Con la carpeta vacía o ausente no hace nada.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * POR QUÉ EXISTE

@@ -3,7 +3,7 @@
  * Plugin Name: HWE Guest Order Badge
  * Description: Marca «Invitado» en los pedidos sin cuenta (listado y ficha del
  *              pedido en wp-admin).
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * Con «Exigir inicio de sesión para comprar» apagado (HWE Control Center →

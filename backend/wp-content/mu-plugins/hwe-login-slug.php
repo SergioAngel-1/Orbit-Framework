@@ -3,7 +3,7 @@
  * Plugin Name: HWE Login Slug
  * Description: Mueve el login del panel de /wp-login.php a /<HWE_LOGIN_SLUG>.
  *              /wp-login.php y /wp-admin sin sesión responden 404.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  *
  * Práctica de seguridad, no una barrera: quita del camino a los bots que

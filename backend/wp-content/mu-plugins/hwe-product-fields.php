@@ -13,7 +13,7 @@
  * traducción: la misma convención de `hwe-content-i18n`, así que un dato heredado con claves
  * `_hwe_<clave>` y `_hwe_<clave>_en` vale sin migrar).
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  */
 

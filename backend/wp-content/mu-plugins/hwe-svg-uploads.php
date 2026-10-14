@@ -6,7 +6,7 @@
  *              prefilter (sin scripts, handlers ni entidades externas).
  *              Solo usuarios con `upload_files`.
  *
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     1.0.0
  */
 

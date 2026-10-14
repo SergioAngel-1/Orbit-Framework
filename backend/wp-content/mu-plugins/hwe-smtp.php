@@ -7,7 +7,7 @@
  *              (Ajustes → HWE Config → Integraciones). La contraseña se guarda
  *              cifrada (AES-256-GCM) vía SecretsStorage. Incluye un botón de
  *              "enviar email de prueba" en el propio panel.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * Por qué: sin SMTP, WordPress usa el sendmail/PHP por defecto, que en

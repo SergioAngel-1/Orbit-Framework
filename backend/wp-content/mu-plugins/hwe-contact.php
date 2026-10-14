@@ -5,7 +5,7 @@
  *              por email (usa el SMTP de hwe-smtp si está activo). Solo el BFF
  *              puede llamarlo (X-HWE-Internal-Secret = HWE_REVALIDATION_SECRET),
  *              igual que el resto de llamadas servidor a servidor.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * La validación de verdad (formato, longitud, rate-limit, CSRF, identidad desde la

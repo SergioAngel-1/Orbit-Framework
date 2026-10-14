@@ -3,7 +3,7 @@
  * Plugin Name: HWE Space Hygiene
  * Description: Cambia, al guardar, los espacios duros PEGADOS entre palabras por
  *              espacios normales.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
  * Word, Google Docs y los asistentes de IA meten espacios duros al copiar (el carácter

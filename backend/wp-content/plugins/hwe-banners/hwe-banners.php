@@ -8,7 +8,7 @@
  *               /wp-json/hwe-banners/v1/banners para que el frontend los consuma
  *               con ISR. Genérico y reutilizable: no contiene lógica de negocio de
  *               ninguna instancia concreta.
- * Author:       Headless Web Ecosystem
+ * Author:       Sergio Jauregui
  * Version:      2.0.0
  * Requires PHP: 8.0
  * Text Domain:  hwe-banners

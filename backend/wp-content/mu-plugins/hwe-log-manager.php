@@ -3,7 +3,7 @@
  * Plugin Name: HWE Log Manager
  * Description: Rotación automática de debug.log y visor en tiempo real bajo
  *              Ajustes → HWE Logs. Configuración vía opciones hwe_logmgr_*.
- * Author:      Headless Web Ecosystem
+ * Author:      Sergio Jauregui
  * Version:     2.0.0
  */
 
