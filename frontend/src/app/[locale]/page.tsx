@@ -8,7 +8,10 @@ import { LATEST_POSTS_QUERY } from "@/lib/queries";
 import { getSiteConfig } from "@/lib/config";
 import { isModuleEnabled } from "@/lib/config/modules";
 import { getBanner } from "@/lib/banners";
-import { faqItems as localizedFaqItems } from "@/lib/config/faq";
+import {
+  faqItems as localizedFaqItems,
+  paymentsFaqItems as localizedPaymentsFaqItems,
+} from "@/lib/config/faq";
 import { getBestSellingProducts } from "@/lib/catalog/best-sellers";
 import { PostCard } from "@/components/blog/post-card";
 import { FaqSection } from "@/components/seo/faq-section";
@@ -61,6 +64,7 @@ export default async function HomePage({
     getBestSellingProducts(4),
   ]);
   const faqItems = localizedFaqItems(config, locale);
+  const paymentsFaqItems = localizedPaymentsFaqItems(config, locale);
   const heroBanner = config.banners.enabled
     ? await getBanner("carousel", "home", locale, {
         enabled: isModuleEnabled(config, "banners"),
@@ -131,7 +135,12 @@ export default async function HomePage({
         </div>
       )}
 
-      <FaqSection items={faqItems} title={t("faqTitle")} />
+      <FaqSection
+        items={faqItems}
+        paymentItems={paymentsFaqItems}
+        title={t("faqTitle")}
+        paymentsTitle={t("faqPaymentsTitle")}
+      />
     </div>
   );
 }

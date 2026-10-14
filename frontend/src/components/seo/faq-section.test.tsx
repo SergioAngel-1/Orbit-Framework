@@ -26,6 +26,52 @@ describe("FaqSection", () => {
     );
   });
 
+  it("las preguntas de pagos van en una segunda columna y entran en el mismo FAQPage", () => {
+    const html = renderToStaticMarkup(
+      <FaqSection
+        title="Preguntas"
+        paymentsTitle="Pagos"
+        items={[{ question: "¿Envíos?", answer: "Sí" }]}
+        paymentItems={[{ question: "¿Qué tarjetas?", answer: "Todas" }]}
+      />,
+    );
+
+    expect(html).toContain("Pagos");
+    expect(html).toContain("¿Qué tarjetas?");
+    expect(html).toContain("md:grid-cols-2");
+    // Un solo bloque JSON-LD con las dos listas.
+    expect(html.match(/<script/g)).toHaveLength(1);
+    const json = /<script[^>]*>([\s\S]*?)<\/script>/.exec(html)![1]!;
+    expect(JSON.parse(json).mainEntity).toHaveLength(2);
+  });
+
+  it("sin preguntas de pagos queda una sola columna", () => {
+    const html = renderToStaticMarkup(
+      <FaqSection
+        title="Preguntas"
+        paymentsTitle="Pagos"
+        items={[{ question: "¿Envíos?", answer: "Sí" }]}
+        paymentItems={[]}
+      />,
+    );
+
+    expect(html).not.toContain("md:grid-cols-2");
+    expect(html).not.toContain("Pagos");
+  });
+
+  it("solo con preguntas de pagos también se pinta", () => {
+    const html = renderToStaticMarkup(
+      <FaqSection
+        title="Preguntas"
+        paymentsTitle="Pagos"
+        items={[]}
+        paymentItems={[{ question: "¿Qué tarjetas?", answer: "Todas" }]}
+      />,
+    );
+
+    expect(html).toContain("¿Qué tarjetas?");
+  });
+
   it("sin preguntas no renderiza nada", () => {
     expect(renderToStaticMarkup(<FaqSection title="x" items={[]} />)).toBe("");
   });

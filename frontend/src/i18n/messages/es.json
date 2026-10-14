@@ -121,6 +121,7 @@
     "errorDescription": "Comprueba que WordPress está levantado y que WPGraphQL responde en /graphql.",
     "empty": "Todavía no hay publicaciones. Crea contenido en el panel de WordPress.",
     "faqTitle": "Preguntas frecuentes",
+    "faqPaymentsTitle": "Pagos electrónicos",
     "bestSellersTitle": "Más vendidos"
   },
   "productLanding": {
