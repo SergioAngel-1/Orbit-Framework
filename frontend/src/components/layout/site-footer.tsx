@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { CookiePreferencesButton } from "@/components/analytics/cookie-preferences-button";
 import { getSiteConfig } from "@/lib/config";
+import { getConfiguredSocialLinks } from "@/lib/config/social";
 import { getMenu } from "@/lib/navigation/menu";
 import type { MenuLink } from "@/lib/navigation/types";
 
@@ -101,15 +102,15 @@ export async function SiteFooter({ columns }: SiteFooterProps = {}) {
       },
     ];
 
-  const socialLinks = (
-    [
-      ["instagram", config.social.instagram],
-      ["facebook", config.social.facebook],
-      ["youtube", config.social.youtube],
-    ] as const
-  ).filter((entry): entry is [keyof typeof SOCIAL_ICON_PATHS, string] =>
-    Boolean(entry[1]),
-  );
+  // Los campos del panel admiten `usuario` o URL y varias cuentas (`a | b`):
+  // `getConfiguredSocialLinks` los resuelve a URL (usar el valor crudo como href
+  // enlazaba a «usuario» en relativo). Solo las redes que tienen icono.
+  const socialLinks = getConfiguredSocialLinks(config.social, (platform) => platform)
+    .filter((link) => link.platform in SOCIAL_ICON_PATHS)
+    .map((link) => ({
+      ...link,
+      platform: link.platform as keyof typeof SOCIAL_ICON_PATHS,
+    }));
 
   return (
     <footer className="bg-gray-900 px-4 py-12 sm:px-6 md:py-16 lg:px-10">
@@ -125,13 +126,13 @@ export async function SiteFooter({ columns }: SiteFooterProps = {}) {
             )}
             {socialLinks.length > 0 && (
               <div className="flex gap-2.5">
-                {socialLinks.map(([platform, href]) => (
+                {socialLinks.map(({ platform, href, label }) => (
                   <a
-                    key={platform}
+                    key={href}
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label={platform}
+                    aria-label={label}
                     className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 transition-all duration-200 hover:border-white/50 hover:bg-white/10"
                   >
                     <svg

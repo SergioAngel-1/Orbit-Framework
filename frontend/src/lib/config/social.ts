@@ -139,11 +139,6 @@ export function resolveSocialUrls(
   return out;
 }
 
-/** Primera URL (compat / botón flotante WA). */
-export function resolveSocialUrl(value: string, kind: SocialKind): string | null {
-  return resolveSocialUrls(value, kind)[0]?.href ?? null;
-}
-
 /** Número internacional → wa.me. Acepta espacios/+; vacía → null. */
 export function whatsappHref(raw: string, message?: string): string | null {
   // Si viene "a | b", usa solo el primero (el float es un único botón).
@@ -217,10 +212,4 @@ export function dialableNumber(display: string): string | null {
   const digits = raw.replace(/[^\d+]/g, "");
   if (!digits) return null;
   return digits;
-}
-
-/** href tel: desde texto de display. */
-export function telHref(display: string): string | null {
-  const number = dialableNumber(display);
-  return number ? `tel:${number}` : null;
 }

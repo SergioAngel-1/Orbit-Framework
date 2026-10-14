@@ -3,10 +3,8 @@ import {
   collectSocialSameAs,
   dialableNumber,
   getConfiguredSocialLinks,
-  resolveSocialUrl,
   resolveSocialUrls,
   splitSocialValues,
-  telHref,
   whatsappHref,
 } from "./social";
 import { CONFIG_DEFAULTS } from "./defaults";
@@ -59,15 +57,14 @@ describe("whatsappHref", () => {
   });
 });
 
-describe("dialableNumber / telHref", () => {
+describe("dialableNumber", () => {
   it("deja los dígitos (y el + inicial)", () => {
     expect(dialableNumber("+34 600 123 456")).toBe("+34600123456");
-    expect(telHref("(601) 530 3533")).toBe("tel:6015303533");
+    expect(dialableNumber("(601) 530 3533")).toBe("6015303533");
   });
 
   it("sin dígitos → null", () => {
     expect(dialableNumber("")).toBeNull();
-    expect(telHref("")).toBeNull();
   });
 });
 
@@ -111,12 +108,5 @@ describe("collectSocialSameAs", () => {
     expect(sameAs).toContain("https://wa.me/34600123456");
     expect(sameAs).toContain("https://es.wikipedia.org/wiki/Mi_Marca");
     expect(sameAs).toContain("https://www.wikidata.org/wiki/Q123");
-  });
-});
-
-describe("resolveSocialUrl", () => {
-  it("devuelve la primera URL o null", () => {
-    expect(resolveSocialUrl("marca", "instagram")).toBe("https://instagram.com/marca");
-    expect(resolveSocialUrl("", "instagram")).toBeNull();
   });
 });
