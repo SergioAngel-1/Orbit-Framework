@@ -237,3 +237,30 @@ el JWT → auditar accesos.
 
 > Completa con los datos de tu organización: responsable de infraestructura,
 > proveedor de hosting, soporte de la pasarela de pago y del registrador DNS/TLS.
+
+---
+
+## 10. Revisión de versiones y seguridad de dependencias
+
+**Qué vigila Dependabot (solo seguridad).** `.github/dependabot.yml` tiene las
+actualizaciones de versión apagadas (`open-pull-requests-limit: 0`): solo llegan PR por
+avisos de seguridad, agrupados por ecosistema (npm del frontend, GitHub Actions y las
+dependencias de pruebas de Composer). Requiere, en *Settings → Code security*,
+**Dependabot alerts** y **Dependabot security updates** activados; sin ellos no llega nada.
+
+**Lo que Dependabot NO vigila** y se revisa a mano (mensual, o ante un aviso):
+
+| Qué | Cómo |
+|---|---|
+| Plugins de WordPress de `setup.sh` | `sh backend/scripts/check-versions.sh` (compara con wp.org y GitHub; `--strict` falla si alguno está por detrás) |
+| Imágenes Docker (WordPress, MariaDB, Redis, Caddy, Alpine, Node) | `docs/COMPATIBILITY.md` y las etiquetas de cada imagen en Docker Hub |
+| Árbol npm | `npm audit` / `npm run audit:gate` (el gate de CI) y `npm outdated` en `frontend/` |
+
+**Cómo subir un plugin.** Pruébalo en staging y cambia a la vez la versión y su SHA-256
+en `setup.sh` (los de GitHub verifican hash); actualiza `docs/COMPATIBILITY.md`. Un salto de
+*major* (p. ej. WooCommerce 10 → 11) exige comprobar antes que WooGraphQL lo declara
+probado (`WC tested up to` en su cabecera).
+
+**Avisos de `npm audit` sin parche.** Se toleran solo en la allowlist de
+`frontend/scripts/audit-gate.mjs`, con motivo y condición de retirada; hoy, `braces` (solo
+herramientas de desarrollo; no hay versión corregida).
