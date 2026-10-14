@@ -1,3 +1,15 @@
+# Dependabot: SOLO actualizaciones de SEGURIDAD.
+#
+# `open-pull-requests-limit: 0` apaga las actualizaciones de VERSIÓN (los PR
+# semanales de «bump X de a.b a c.d») y deja activas las de seguridad, que
+# dependen de los ajustes del repositorio (Settings → Code security →
+# «Dependabot alerts» y «Dependabot security updates»; sin ellos no llega ningún
+# aviso). Las versiones del resto del stack —imágenes Docker, plugins de
+# WordPress que instala `setup.sh`— no las vigila Dependabot: se revisan con
+# `docs/COMPATIBILITY.md` y `docs/RUNBOOK.md` («Revisión de versiones»).
+#
+# Los avisos de seguridad de cada ecosistema se agrupan en un único PR para no
+# inundar el repositorio (`applies-to: security-updates`).
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -5,27 +17,50 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 0
     labels:
       - "dependencies"
+      - "security"
     commit-message:
-      prefix: "chore"
-      prefix-development: "chore"
+      prefix: "fix(deps)"
+      prefix-development: "fix(deps-dev)"
     groups:
-      next:
+      npm-security:
+        applies-to: security-updates
         patterns:
-          - "next"
-          - "eslint-config-next"
-      react:
-        patterns:
-          - "react"
-          - "react-dom"
-          - "@types/react"
-          - "@types/react-dom"
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    open-pull-requests-limit: 0
     labels:
       - "ci"
+      - "security"
+    commit-message:
+      prefix: "fix(ci)"
+    groups:
+      actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
+  # Solo dependencias de DESARROLLO de las pruebas PHP (`composer.lock` versionado);
+  # nada de esto llega a producción.
+  - package-ecosystem: "composer"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 0
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "fix(deps-dev)"
+    groups:
+      composer-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
