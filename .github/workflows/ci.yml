@@ -212,6 +212,11 @@ jobs:
       # La validación de secretos en producción (secret-guard.ts, §9 del AGENTS)
       # exige estos valores; se pasan dummy porque en CI no hay WP ni Redis reales.
       WORDPRESS_INTERNAL_API_URL: http://127.0.0.1:8080/graphql
+      # El stub sirve también la REST de WooCommerce (pedidos del cliente, Store API).
+      # Sin estas dos el BFF apunta a `http://wordpress:80` (el host del compose, que
+      # no existe en el runner) y las vistas de la cuenta salen vacías.
+      WC_API_URL: http://127.0.0.1:8080/wp-json/wc/v3
+      WC_STORE_API_URL: http://127.0.0.1:8080/wp-json/wc/store/v1
       GRAPHQL_JWT_AUTH_SECRET_KEY: dummy-ci-jwt-secret-key-at-least-24-chars
       CSRF_SECRET: dummy-ci-csrf-secret-at-least-24-characters-len
       WC_WEBHOOK_SECRET: dummy-ci-webhook-secret-at-least-24-characters
