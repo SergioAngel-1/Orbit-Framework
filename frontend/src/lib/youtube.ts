@@ -44,9 +44,3 @@ export function extractYoutubeId(raw: string): string | null {
 function isYoutubeId(id: string): boolean {
   return /^[\w-]{11}$/.test(id);
 }
-
-/** URL de embed privacy-enhanced, o null si la entrada no es válida. */
-export function youtubeEmbedUrl(raw: string): string | null {
-  const id = extractYoutubeId(raw);
-  return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
-}

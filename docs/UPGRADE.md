@@ -825,7 +825,7 @@ demás entradas, en §6.
   un namespace nuevo debe añadirlo a `CLIENT_NAMESPACES`; los fallos de next-intl se registran
   (`i18n.message_error`).
 - **Nuevo:** `lib/http/fetch-retry` (lecturas del CMS con reintentos; lo usan los banners),
-  `lib/youtube`, `lib/validation/{email,form}`, `lib/prerender-budget`,
+  `lib/youtube`, `lib/validation/email`, `lib/prerender-budget`,
   `scripts/static-generation-options.mjs`, `lib/wordpress/media`.
 
 ### Traducción de contenido (F5)

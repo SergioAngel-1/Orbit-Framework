@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractYoutubeId, youtubeEmbedUrl } from "./youtube";
+import { extractYoutubeId } from "./youtube";
 
 describe("extractYoutubeId", () => {
   it("parsea watch, youtu.be, shorts y embed", () => {
@@ -19,13 +19,5 @@ describe("extractYoutubeId", () => {
     expect(extractYoutubeId("")).toBeNull();
     expect(extractYoutubeId("https://example.com/watch?v=dQw4w9WgXcQ")).toBeNull();
     expect(extractYoutubeId("https://www.youtube.com/watch?v=corto")).toBeNull();
-  });
-});
-
-describe("youtubeEmbedUrl", () => {
-  it("arma nocookie embed", () => {
-    expect(youtubeEmbedUrl("https://youtu.be/dQw4w9WgXcQ")).toBe(
-      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
-    );
   });
 });
