@@ -6,31 +6,7 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
-Correcciones tras la auditoría de la v2.0.0 (ver `docs/UPGRADE.md` para lo que afecta a una
-actualización).
-
-### Fixed
-- **Pagos:** Wompi concilia la transacción con su API antes de aplicar un evento (la `reference`
-  no va firmada por Wompi); el pago en línea nunca cae a efectivo ni a WhatsApp si Woo no ofrece
-  un medio de cobro (422); el `metadata` del cobro ya no lleva el id bajo `order_key`.
-- **Catálogo/i18n:** un producto inexistente es `null` y no un error de GraphQL (WooGraphQL lanza
-  un `UserError`), con lo que `/products/<slug-de-otro-idioma>` llega al 308 y un slug desconocido
-  da 404; la ruta de categorías se hornea (ISR) y devuelve 404/308 reales; el idioma por defecto
-  se compara normalizado en `translation.ts`.
-- **Control Center:** una lista en un campo de texto (`i18n.locales: ["en", "fr"]`) se une con
-  comas en vez de guardarse como «Array».
-- **Seguridad:** todos los endpoints de escritura de `api/auth` limitan con `strict: true`
-  (`change-password`, `verify-email`, `resend-verification`, `refresh`, `logout` no lo llevaban).
-- **Infra:** la salida de las copias programadas va a `docker logs hwe_backup`;
-  `BACKUP_HOUR_UTC` y `HWE_BACKUP_LOCK_MAX_AGE_MIN` llegan al contenedor; `backup.sh` toma los
-  uploads del contenedor cuando no están en el host; CI valida el Caddyfile con Caddy 2.11 (la
-  de producción); `wpcli` lleva `no-new-privileges`.
-- **Tests y docs:** `purchase.spec.ts` manda dirección de envío (la compra completa `E2E_FULL=1`
-  pasa en vivo contra la pila de desarrollo); nuevo e2e de status HTTP de las fichas; guías
-  corregidas (`--entrypoint wp wpcli`, `i18n.locales`, `COMPOSE_FILE`, mu-plugins de traducción,
-  idempotencia, versión de cabecera por componente) y `NEXT_PUBLIC_SITE_NAME` retirada.
-
-## [2.0.0] — 2026-10-13
+## [2.0.0] — 2026-10-14
 
 Salto mayor con cambios incompatibles. **Antes de actualizar una instancia de v1, sigue la
 guía de [`docs/UPGRADE.md`](docs/UPGRADE.md) §5** (qué cambia, por qué y pasos, por cada cambio
@@ -132,19 +108,61 @@ incompatible); el registro completo está en §6.
   fuera de la línea de comandos, `setup.sh` verifica el SHA-256 de lo que descarga y
   `wp cache flush` ya no borra el Redis del frontend.
 
+### Fixed
+- **Pagos:** Wompi concilia la transacción con su API antes de aplicar un evento (la `reference`
+  no va firmada por Wompi); el pago en línea nunca cae a efectivo ni a WhatsApp si Woo no ofrece
+  un medio de cobro (422); el `metadata` del cobro ya no lleva el id bajo `order_key`.
+- **Catálogo:** el listado de la tienda (búsqueda, filtros y orden) usa los tipos de WooGraphQL ≥ 1.0
+  (`StockStatusEnum`, `ProductsOrderByEnum`, precios `Float`); con el WooGraphQL fijado respondía
+  «Unknown type» y la tienda no cargaba. Ordenar por nombre usa `NAME` (el enum no tiene `TITLE`).
+- **Catálogo/i18n:** un producto inexistente es `null` y no un error de GraphQL (WooGraphQL lanza
+  un `UserError`), con lo que `/products/<slug-de-otro-idioma>` llega al 308 y un slug desconocido
+  da 404; la ruta de categorías se hornea (ISR) y devuelve 404/308 reales; el idioma por defecto
+  se compara normalizado en `translation.ts`.
+- **Control Center:** una lista en un campo de texto (`i18n.locales: ["en", "fr"]`) se une con
+  comas en vez de guardarse como «Array».
+- **Seguridad:** todos los endpoints de escritura de `api/auth` limitan con `strict: true`
+  (`change-password`, `verify-email`, `resend-verification`, `refresh`, `logout` no lo llevaban).
+- **Infra:** la salida de las copias programadas va a `docker logs hwe_backup`;
+  `BACKUP_HOUR_UTC` y `HWE_BACKUP_LOCK_MAX_AGE_MIN` llegan al contenedor; `backup.sh` toma los
+  uploads del contenedor cuando no están en el host; CI valida el Caddyfile con Caddy 2.11 (la
+  de producción); `wpcli` lleva `no-new-privileges`.
+- **Frontend:** las preguntas de pagos (`geo.faq_payments`) se muestran en una segunda columna de
+  la FAQ; las redes sociales del pie se resuelven a URL (antes un usuario enlazaba en relativo);
+  el webhook de pago emite sus logs con el `requestId`. Se retiran exports sin uso
+  (`fetchGraphQLAsViewer`, `validateForm`, `isOfferProduct`, `buildServiceJsonLd`…).
+- **CI:** el job e2e define `WC_API_URL`/`WC_STORE_API_URL` contra el stub (la cuenta salía vacía y
+  5 tests fallaban); Dependabot solo propone actualizaciones de seguridad.
+- **Dependencias:** `postcss-selector-parser ^7.1.6` forzado en `@tailwindcss/typography`
+  (GHSA-rj75-hqrm-r3gf).
+- **Tests y docs:** `purchase.spec.ts` manda dirección de envío (la compra completa `E2E_FULL=1`
+  pasa en vivo contra la pila de desarrollo); nuevo e2e de status HTTP de las fichas; guías
+  corregidas (`--entrypoint wp wpcli`, `i18n.locales`, `COMPOSE_FILE`, mu-plugins de traducción,
+  idempotencia, versión de cabecera por componente) y `NEXT_PUBLIC_SITE_NAME` retirada.
+
+### Plugins de WordPress fijados
+WPGraphQL **2.23.1** (incluye la corrección de 2.22.2), WooCommerce **10.9.4** y WooGraphQL
+**1.0.3**, validados en un WordPress desechable (esquema, consultas del frontend y mensaje de
+producto inexistente). Nuevo `backend/scripts/check-versions.sh` compara los plugins fijados con
+la última release. WooCommerce 11 y Redis Object Cache 3 quedan fuera: ver
+`docs/COMPATIBILITY.md`.
+
 ### Verificación y alcance
 Verificado: lint, tipos, formato, paridad i18n, tests de frontend y de PHP, puerta anti-instancia y
-`next build`; el e2e local contra el stub (con módulos encendidos y la pasada sin módulos);
-`verify-modules.sh toggle` (9 módulos), `verify-security.sh` e integración externa contra la pila de
-desarrollo en vivo; el job «contrato» reproducido en local; y `docker build --target prod`.
+`next build`; el e2e contra el stub (con módulos encendidos y la pasada sin módulos), también en el
+CI del servidor; la compra completa (`E2E_FULL=1`) contra la pila de desarrollo;
+`verify-modules.sh toggle` (9 módulos), `verify-security.sh` (también `--strict`) e integración
+externa contra la pila en vivo; `examples/minimal-consumer`; el job «contrato»; y
+`docker build --target prod`. Una auditoría independiente repasó el código y la pila; sus hallazgos
+están corregidos arriba.
 
-**No verificado en vivo en esta versión:**
-- la compra completa (`E2E_FULL=1`) contra la pila sembrada;
-- `verify-security.sh --strict` y `examples/minimal-consumer` contra la pila;
-- la segunda pasada e2e y la CI completa en el servidor de CI;
-- los webhooks de Wompi y Aval Pay contra el sandbox de cada pasarela (se prueban con firmas
-  simuladas);
-- la actualización de una instancia real de v1 siguiendo `docs/UPGRADE.md`.
+**No verificado en esta versión:**
+- los webhooks de Wompi y Aval Pay contra el sandbox de cada pasarela (se prueban con firmas y una
+  API simulada): se validan con las credenciales de cada cliente antes de cobrar;
+- la actualización de una instancia real de v1 siguiendo `docs/UPGRADE.md` (se ensayó en una copia
+  desechable, no en una instancia con datos);
+- el arranque en producción tras Caddy con dominio real, el SMTP real y el CD con despliegue;
+- los plugins actualizados con los mu-plugins propios en una pila real (validados sin ellos).
 
 ## [1.0.0] — 2026-07-14
 
