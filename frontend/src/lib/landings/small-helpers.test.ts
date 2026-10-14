@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { findConsumedSection } from "./consumed-section";
 import { faqAsideSection } from "./faq-aside";
-import { asList } from "./i18n-list";
 import { groupLearnProducts } from "./learn-index";
 import type { LandingContentSection } from "./types";
 
@@ -32,14 +31,6 @@ describe("faqAsideSection", () => {
     expect(faqAsideSection({ faqAside: "s3" })).toBe("s3");
     expect(faqAsideSection({ faqAside: "quote" })).toBeNull();
     expect(faqAsideSection({ faqAside: null })).toBeNull();
-  });
-});
-
-describe("asList", () => {
-  it("devuelve la lista o vacío (next-intl devuelve la clave si falta)", () => {
-    expect(asList<string>(["a"])).toEqual(["a"]);
-    expect(asList<string>("clave.que.falta")).toEqual([]);
-    expect(asList<string>(undefined)).toEqual([]);
   });
 });
 

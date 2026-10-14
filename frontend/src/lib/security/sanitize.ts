@@ -83,9 +83,3 @@ export function sanitizeHtml(dirty: string): string {
     FORBID_ATTR: ["onerror", "onload", "onclick", "style"],
   });
 }
-
-/** Convierte HTML en texto plano (para excerpts/meta descriptions). */
-export function htmlToText(html: string): string {
-  const clean = DOMPurify.sanitize(html, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
-  return clean.replace(/\s+/g, " ").trim();
-}

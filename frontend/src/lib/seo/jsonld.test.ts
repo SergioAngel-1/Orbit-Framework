@@ -11,7 +11,6 @@ import {
   buildFounderPageJsonLd,
   buildLocalBusinessJsonLd,
   buildProductJsonLd,
-  buildServiceJsonLd,
   buildSiteGraph,
   buildVideoObjectJsonLd,
   businessType,
@@ -371,20 +370,7 @@ describe("vídeo", () => {
   });
 });
 
-describe("buildServiceJsonLd / buildCollectionPageJsonLd", () => {
-  it("un servicio sin tarifas no se publica", () => {
-    expect(
-      buildServiceJsonLd({
-        name: "n",
-        description: "d",
-        url: "u",
-        currency: "EUR",
-        offers: [],
-        config: config(),
-      }),
-    ).toBeNull();
-  });
-
+describe("buildCollectionPageJsonLd", () => {
   it("CollectionPage con ItemList y total real cuando va acotada", () => {
     const node = buildCollectionPageJsonLd({
       name: "Tienda",

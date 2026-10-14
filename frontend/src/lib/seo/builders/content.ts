@@ -3,8 +3,8 @@ import type { FaqItem } from "../faq";
 import { cleanBase } from "./shared";
 
 // ============================================================================
-//  JSON-LD de contenido: `FAQPage`, `Article`/`BlogPosting`, `VideoObject`,
-//  `Service` y `BreadcrumbList`. Funciones puras.
+//  JSON-LD de contenido: `FAQPage`, `Article`/`BlogPosting`, `VideoObject` y
+//  `BreadcrumbList`. Funciones puras.
 // ============================================================================
 
 /** JSON-LD `FAQPage` (formato muy citado por motores generativos). */
@@ -133,46 +133,6 @@ export function buildVideoObjectJsonLd(input: {
   };
   const uploadDate = videoUploadDateTime(input.uploadDate);
   if (uploadDate) node.uploadDate = uploadDate;
-  return node;
-}
-
-/**
- * JSON-LD `Service` con sus `Offer` — para una página que publica TARIFAS de
- * algo que se contrata.
- *
- * Los importes NO se extraen del cuerpo de la página: ahí son prosa dentro de
- * un richtext y adivinarlos sería frágil. Vienen de campos propios del CMS, que
- * es lo único que puede viajar a un `Offer`.
- *
- * `provider` referencia a la organización por `@id` en vez de repetir sus
- * datos: el nodo ya existe en el grafo del sitio (`buildSiteGraph`).
- */
-export function buildServiceJsonLd(input: {
-  name: string;
-  description: string;
-  url: string;
-  currency: string;
-  offers: { name: string; price: string }[];
-  config: SiteConfig;
-}): Record<string, unknown> | null {
-  if (input.offers.length === 0) return null;
-  const base = cleanBase(input.config.brand.url);
-  const node: Record<string, unknown> = {
-    "@context": "https://schema.org",
-    "@type": "Service",
-    name: input.name,
-    description: input.description,
-    url: input.url,
-    offers: input.offers.map((offer) => ({
-      "@type": "Offer",
-      name: offer.name,
-      price: offer.price,
-      priceCurrency: input.currency,
-      availability: "https://schema.org/InStock",
-      url: input.url,
-    })),
-  };
-  if (base) node.provider = { "@id": `${base}/#organization` };
   return node;
 }
 

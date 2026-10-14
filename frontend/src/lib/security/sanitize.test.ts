@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import DOMPurify from "isomorphic-dompurify";
-import { htmlToText, sanitizeHtml } from "./sanitize";
+import { sanitizeHtml } from "./sanitize";
 
 // ============================================================================
 //  Sanitización de HTML del CMS.
@@ -118,9 +118,5 @@ describe("saneado general (sin regresiones)", () => {
     expect(out).toBe(
       "<h2>Título</h2><p><strong>negrita</strong> y <em>cursiva</em></p>",
     );
-  });
-
-  it("htmlToText devuelve texto plano compactado", () => {
-    expect(htmlToText("<p>Hola   <b>mundo</b></p>\n<p>fin</p>")).toBe("Hola mundo fin");
   });
 });
