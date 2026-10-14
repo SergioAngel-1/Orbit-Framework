@@ -39,9 +39,21 @@ vi.mock("next/server", async (importOriginal) => ({
 vi.mock("@/lib/analytics/meta-capi", () => ({
   sendPurchaseToMeta: vi.fn(async () => "sent"),
 }));
-vi.mock("@/lib/observability/logger", () => ({
-  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
-}));
+// `requestLogger()` devuelve el logger con el `requestId` del contexto: el mock registra
+// el id que ve en el momento de pedirlo, para comprobar que se pide DENTRO de
+// `runWithRequestId` (con el id de la petición) y no fuera.
+const requestIdsSeen = vi.hoisted(() => [] as (string | null)[]);
+vi.mock("@/lib/observability/logger", async () => {
+  const { currentRequestId } = await import("@/lib/observability/request-context");
+  const fake = { warn: vi.fn(), error: vi.fn(), info: vi.fn() };
+  return {
+    logger: fake,
+    requestLogger: vi.fn(() => {
+      requestIdsSeen.push(currentRequestId());
+      return fake;
+    }),
+  };
+});
 
 const ORDER = {
   id: 42,
@@ -83,6 +95,19 @@ beforeEach(() => {
     ...ORDER,
     status: "processing",
   } as never);
+});
+
+describe("correlación de logs", () => {
+  it("los logs del webhook se emiten con el request-id de la petición", async () => {
+    vi.stubEnv("PAYMENT_PROVIDER", "noop");
+    requestIdsSeen.length = 0;
+    const request = noopEvent();
+    request.headers.set("x-request-id", "req-webhook-abc123");
+
+    await call(request);
+
+    expect(requestIdsSeen).toContain("req-webhook-abc123");
+  });
 });
 
 describe("la pasarela de pruebas (noop)", () => {

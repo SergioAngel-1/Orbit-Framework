@@ -7,7 +7,7 @@ import { markEventOnce, releaseEvent } from "@/lib/security/replay";
 import { getClientIp } from "@/lib/http/request-ip";
 import { getOrCreateRequestId } from "@/lib/observability/request-id";
 import { runWithRequestId } from "@/lib/observability/request-context";
-import { logger } from "@/lib/observability/logger";
+import { logger, requestLogger } from "@/lib/observability/logger";
 import { sendPurchaseToMeta } from "@/lib/analytics/meta-capi";
 import {
   getOrder,
@@ -77,8 +77,10 @@ export async function POST(
   // Contexto de correlación: los `getOrder`/`markOrderPaid` (wc/v3) propagarán
   // este `X-Request-Id` a WordPress para seguir el pago de extremo a extremo.
   return runWithRequestId(requestId, async () => {
-    logger.info(
-      { event: "payments.webhook.received", provider: providerId, requestId },
+    // Logger con el `requestId` ya en cada línea (lo toma del contexto de arriba).
+    const log = requestLogger();
+    log.info(
+      { event: "payments.webhook.received", provider: providerId },
       "Webhook recibido",
     );
 
@@ -94,7 +96,7 @@ export async function POST(
       const verification = await provider.verifyWebhook(rawBody, request.headers);
 
       if (!verification.valid || !verification.reference) {
-        logger.warn(
+        log.warn(
           { event: "payments.webhook.invalid", provider: providerId },
           "Firma de webhook inválida",
         );
@@ -104,7 +106,7 @@ export async function POST(
         );
       }
 
-      logger.info(
+      log.info(
         {
           event: "payments.webhook.verified",
           provider: providerId,
@@ -118,7 +120,7 @@ export async function POST(
       const fresh = await markEventOnce(replayScope, rawBody);
       markedFresh = fresh;
       if (!fresh) {
-        logger.info(
+        log.info(
           {
             event: "payments.webhook.replay",
             provider: providerId,
@@ -134,7 +136,7 @@ export async function POST(
       // Estados negativos: cancelamos si el pedido no estaba ya pagado.
       if (verification.status === "declined" || verification.status === "voided") {
         await markOrderCancelled(verification.reference);
-        logger.info(
+        log.info(
           { event: "payments.webhook.cancelled", reference: verification.reference },
           "Pedido cancelado por webhook",
         );
@@ -143,7 +145,7 @@ export async function POST(
 
       // Solo "approved" marca pagado. Cualquier otro estado se ignora (ACK).
       if (verification.status !== "approved") {
-        logger.info(
+        log.info(
           {
             event: "payments.webhook.ignored",
             reference: verification.reference,
@@ -156,7 +158,7 @@ export async function POST(
 
       // Idempotencia: si ya estaba pagado, ACK sin reprocesar.
       if (isOrderPaid(order)) {
-        logger.info(
+        log.info(
           { event: "payments.webhook.already_paid", reference: verification.reference },
           "Pedido ya estaba pagado",
         );
@@ -178,7 +180,7 @@ export async function POST(
         // 422 (no-2xx): la pasarela reintentará; se suelta la marca para que ese
         // reintento se evalúe de verdad en vez de recibir «duplicado».
         await releaseEvent(replayScope, rawBody);
-        logger.warn(
+        log.warn(
           { event: "payments.webhook.mismatch", reference: verification.reference },
           "El importe/moneda no coincide con el pedido",
         );
@@ -192,7 +194,7 @@ export async function POST(
         verification.reference,
         verification.providerTransactionId,
       );
-      logger.info(
+      log.info(
         { event: "payments.webhook.paid", reference: verification.reference },
         "Pedido marcado como pagado",
       );
@@ -204,7 +206,7 @@ export async function POST(
       if (markedFresh) {
         await releaseEvent(replayScope, rawBody);
       }
-      logger.error(
+      log.error(
         {
           event: "payments.webhook.error",
           err: error instanceof Error ? error.message : error,
