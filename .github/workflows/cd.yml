@@ -80,6 +80,10 @@ jobs:
   # --------------------------------------------------------------------------
   build-push:
     name: Build & push imagen (GHCR)
+    # Sin `WORDPRESS_PUBLIC_URL` (Settings → Variables) la imagen no se puede construir
+    # (el Dockerfile falla pronto a propósito): un repositorio sin configurar, como el
+    # propio framework, omite el CD con un aviso en vez de dar una ejecución en rojo.
+    if: ${{ vars.WORDPRESS_PUBLIC_URL != '' }}
     runs-on: ubuntu-latest
     outputs:
       image_ref: ${{ steps.meta.outputs.image_ref }}
@@ -119,8 +123,12 @@ jobs:
             TAG="${GITHUB_REF_NAME}"
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
+          # GHCR exige el nombre del repositorio en minúsculas; `github.repository`
+          # conserva las mayúsculas del propietario/repositorio (p. ej. «Org/Repo»).
+          IMAGE_LC="${IMAGE,,}"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "image_ref=${IMAGE}:${TAG}" >> "$GITHUB_OUTPUT"
+          echo "image_ref=${IMAGE_LC}:${TAG}" >> "$GITHUB_OUTPUT"
+          echo "latest_ref=${IMAGE_LC}:latest" >> "$GITHUB_OUTPUT"
 
       - name: Login en GHCR
         if: steps.meta.outputs.build == 'true'
@@ -149,9 +157,18 @@ jobs:
             SENTRY_DSN=${{ vars.SENTRY_DSN }}
           tags: |
             ${{ steps.meta.outputs.image_ref }}
-            ${{ env.IMAGE }}:latest
+            ${{ steps.meta.outputs.latest_ref }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Aviso (no fallo) cuando el repositorio no tiene la configuración del CD.
+  sin-configurar:
+    name: CD sin configurar
+    if: ${{ vars.WORDPRESS_PUBLIC_URL == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::notice::CD omitido: falta la variable WORDPRESS_PUBLIC_URL (Settings → Secrets and variables → Actions → Variables). Un repositorio de instancia la define; el framework no construye imagen."
 
   # --------------------------------------------------------------------------
   #  Despliegue a STAGING (automático tras el build en tags; o por dispatch).

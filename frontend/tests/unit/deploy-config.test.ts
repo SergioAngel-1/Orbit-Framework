@@ -199,6 +199,21 @@ describe("docker-compose.prod.yml: hardening", () => {
   });
 });
 
+describe(".github/workflows/cd.yml", () => {
+  it("el nombre de la imagen va en minúsculas (GHCR rechaza «Org/Repo»)", () => {
+    expect(cd).toMatch(/IMAGE_LC="\$\{IMAGE,,\}"/);
+    // Todas las etiquetas salen del nombre ya en minúsculas, no de `env.IMAGE`.
+    expect(cd).not.toMatch(/\$\{\{ env\.IMAGE \}\}:/);
+  });
+
+  it("sin WORDPRESS_PUBLIC_URL el build se omite con un aviso, no falla", () => {
+    expect(cd).toMatch(
+      /build-push:[\s\S]*?if: \$\{\{ vars\.WORDPRESS_PUBLIC_URL != '' \}\}/,
+    );
+    expect(cd).toMatch(/sin-configurar:[\s\S]*?vars\.WORDPRESS_PUBLIC_URL == ''/);
+  });
+});
+
 describe("Caddy: CI valida con la versión de producción", () => {
   it("la imagen del `caddy validate` de CI es la misma que la de docker-compose.prod.yml", () => {
     const image = (source: string) => /image:\s*(caddy:[\w.-]+)/.exec(source)?.[1];
