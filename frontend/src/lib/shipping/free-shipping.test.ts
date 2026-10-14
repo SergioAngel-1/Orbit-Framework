@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  qualifiesForFreeShipping,
   readFreeShipping,
   resolveFreeShippingNotice,
   type FreeShippingState,
@@ -112,7 +111,6 @@ describe("resolveFreeShippingNotice", () => {
       eligible_subtotal: "150000",
     });
     expect(resolveFreeShippingNotice(reached)).toEqual({ kind: "reached" });
-    expect(qualifiesForFreeShipping(reached)).toBe(true);
   });
 
   it("sin mínimo (0) no divide por cero", () => {
@@ -124,12 +122,5 @@ describe("resolveFreeShippingNotice", () => {
       kind: "pendingCity",
       hints: { selectedCities: true, selectedProducts: false },
     });
-  });
-
-  it("qualifiesForFreeShipping es false sin estado", () => {
-    expect(qualifiesForFreeShipping(cart(null))).toBe(false);
-    expect(qualifiesForFreeShipping(cart({ enabled: false, qualifies: true }))).toBe(
-      false,
-    );
   });
 });

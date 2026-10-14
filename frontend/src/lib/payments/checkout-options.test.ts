@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   enabledPaymentChoices,
   formatOrderItemsForMessage,
-  orderCouponSummary,
   paymentChoiceFor,
   paymentMethodFor,
   shouldStartGatewayPayment,
@@ -85,21 +84,5 @@ describe("formatOrderItemsForMessage", () => {
       "• 1 × Caja personalizada (Color: rojo; Talla: M)\n" +
         "• 1 × Taller (Modalidad: en línea)",
     );
-  });
-});
-
-describe("orderCouponSummary", () => {
-  it("junta los códigos y suma el descuento", () => {
-    expect(
-      orderCouponSummary([
-        { code: "bienvenida10", discount: "5000" },
-        { code: "envio", discount: "0" },
-      ]),
-    ).toEqual({ codes: "BIENVENIDA10, ENVIO", discount: "5000" });
-  });
-
-  it("sin cupones, null", () => {
-    expect(orderCouponSummary([])).toBeNull();
-    expect(orderCouponSummary(undefined)).toBeNull();
   });
 });

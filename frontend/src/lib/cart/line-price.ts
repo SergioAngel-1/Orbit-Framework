@@ -20,9 +20,3 @@ export function regularUnitAmount(item: LinePrices): string | null {
   if (!Number.isFinite(regular) || !Number.isFinite(current)) return null;
   return regular > current ? String(regular) : null;
 }
-
-/** Precio regular de la LÍNEA (unidad × cantidad) si hay rebaja; si no, `null`. */
-export function regularLineAmount(item: LinePrices): string | null {
-  const unit = regularUnitAmount(item);
-  return unit === null ? null : String(Number(unit) * item.quantity);
-}

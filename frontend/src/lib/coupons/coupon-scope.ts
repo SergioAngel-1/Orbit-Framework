@@ -204,20 +204,6 @@ export function couponAppliesToProduct(
 }
 
 /**
- * ¿Sale el producto en «Ofertas» de la tienda (`?sort=on-sale`)? Lo de
- * siempre —está rebajado— o, además, lo cubre alguno de los cupones públicos
- * que quien mira PUEDE usar (`coupons` llega ya filtrado por vigencia y por
- * cliente). `categorySlugs` con ancestros, como en `couponAppliesToProduct`.
- */
-export function isOfferProduct(
-  product: { slug: string; categorySlugs: readonly string[]; onSale?: boolean },
-  coupons: readonly PublicCoupon[],
-): boolean {
-  if (product.onSale) return true;
-  return coupons.some((coupon) => couponAppliesToProduct(coupon, product));
-}
-
-/**
  * ¿Se anuncia en la página de esta categoría? `categoryPath` es la categoría
  * y sus ancestros. Un cupón de productos sueltos no se anuncia en ninguna
  * categoría: solo en las fichas de esos productos.

@@ -83,14 +83,6 @@ export function readFreeShipping(
   };
 }
 
-/** El envío de este carrito ya es gratis por la regla de la tienda. */
-export function qualifiesForFreeShipping(
-  cart: Pick<StoreCart, "extensions"> | null | undefined,
-): boolean {
-  const state = readFreeShipping(cart);
-  return state !== null && state.enabled && state.qualifies;
-}
-
 /**
  * Qué aviso de envío gratis corresponde a este carrito, o `null` si ninguno:
  * regla apagada, o carrito sin nada que la alcance o que no se envía.

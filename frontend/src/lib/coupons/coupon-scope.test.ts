@@ -12,7 +12,6 @@ import {
   parsePublicCoupons,
   shouldShowCoupon,
   type PublicCoupon,
-  isOfferProduct,
 } from "./coupon-scope";
 
 function coupon(overrides: Partial<PublicCoupon> = {}): PublicCoupon {
@@ -365,30 +364,5 @@ describe("shouldShowCoupon — el único criterio de visibilidad", () => {
         usedUp: new Set(["bienvenida10"]),
       }),
     ).toBe(false);
-  });
-});
-
-describe("isOfferProduct («Ofertas» de la tienda)", () => {
-  const product = {
-    slug: "taza",
-    categorySlugs: ["formulas", "infusiones"],
-    onSale: false,
-  };
-
-  it("un producto rebajado es oferta con o sin cupones: el flujo de siempre", () => {
-    expect(isOfferProduct({ ...product, onSale: true }, [])).toBe(true);
-    expect(isOfferProduct(product, [])).toBe(false);
-  });
-
-  it("sin rebaja, lo es si algún cupón disponible lo cubre", () => {
-    const infusiones = coupon({ scope: "categories", categorySlugs: ["infusiones"] });
-    const libros = coupon({ scope: "categories", categorySlugs: ["libros"] });
-    expect(isOfferProduct(product, [libros, infusiones])).toBe(true);
-    expect(isOfferProduct(product, [libros])).toBe(false);
-  });
-
-  it("un rebajado sigue siendo oferta aunque el cupón excluya los rebajados", () => {
-    const c = coupon({ scope: "all", excludeSaleItems: true });
-    expect(isOfferProduct({ ...product, onSale: true }, [c])).toBe(true);
   });
 });

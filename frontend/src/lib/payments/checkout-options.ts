@@ -74,19 +74,3 @@ export function formatOrderItemsForMessage(
     })
     .join("\n");
 }
-
-/**
- * Cupones del pedido para el mensaje de WhatsApp: códigos y descuento total. El
- * total del pedido ya lleva el descuento; esto solo lo EXPLICA. `null` sin cupón.
- */
-export function orderCouponSummary(
-  couponLines: ReadonlyArray<{ code: string; discount: string }> | undefined,
-): { codes: string; discount: string } | null {
-  const lines = (couponLines ?? []).filter((c) => c.code.trim() !== "");
-  if (lines.length === 0) return null;
-  const discount = lines.reduce((sum, c) => sum + (Number(c.discount) || 0), 0);
-  return {
-    codes: lines.map((c) => c.code.trim().toUpperCase()).join(", "),
-    discount: String(discount),
-  };
-}
