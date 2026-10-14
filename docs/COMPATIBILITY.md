@@ -62,10 +62,10 @@ Solo para las pruebas (`backend/composer.json`); nada de esto llega a producció
 
 | Plugin | Versión fijada | Variable de override | Notas |
 |--------|----------------|----------------------|-------|
-| WooCommerce | `10.8.1` | `WOOCOMMERCE_VERSION` | Tienda, Store API (carrito/checkout), wc/v3 (admin). |
-| WPGraphQL | `2.17.0` | `WPGRAPHQL_VERSION` | Lectura del catálogo/contenido (GraphQL). v2.x (monorepo). |
+| WooCommerce | `10.9.4` | `WOOCOMMERCE_VERSION` | Tienda, Store API (carrito/checkout), wc/v3 (admin). |
+| WPGraphQL | `2.23.1` | `WPGRAPHQL_VERSION` | Lectura del catálogo/contenido (GraphQL). v2.x (monorepo). |
 | WPGraphQL JWT Authentication | `0.7.2` | — (fijada + checksum SHA256: `JWT_AUTH_SHA256`) | Tokens de sesión; el «user secret» permite `logout-all` (el mu-plugin `hwe-auth` lo hace valer). Última release. |
-| WooGraphQL (wp-graphql-woocommerce) | `1.0.2` | `WOOGRAPHQL_WPORG_VERSION` | Tipos de WooCommerce en GraphQL (compatible con WPGraphQL 2.x). |
+| WooGraphQL (wp-graphql-woocommerce) | `1.0.3` | `WOOGRAPHQL_WPORG_VERSION` | Tipos de WooCommerce en GraphQL (compatible con WPGraphQL 2.x). Su cabecera declara «WC tested up to 10.4.3»: la combinación con WooCommerce 10.9.x está validada aquí (introspección + consultas del frontend), **no** con WooCommerce 11. No está en wp.org: se instala del release de GitHub, con SHA-256. |
 | WPGraphQL CORS | `2.1.1` | — (fijada + `WPGRAPHQL_CORS_SHA256`) | Opcional; el mu-plugin `headless-config.php` ya cubre CORS. |
 | Redis Object Cache | `2.8.0` | `REDISCACHE_VERSION` | Caché de objetos de WordPress sobre Redis (con prefijo y flush selectivo). |
 

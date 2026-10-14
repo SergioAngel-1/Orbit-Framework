@@ -28,7 +28,7 @@ WP="wp --path=/var/www/html --allow-root"
 # instala (ver lib/verified-download.sh). Como las versiones, se pueden sobrescribir por
 # entorno para subir de versión de forma controlada: cambia SIEMPRE ambos a la vez.
 JWT_AUTH_SHA256="${JWT_AUTH_SHA256:-37e7bcc573fdd74a6cf60475b01285e62e62fa9bd5684c1f6a365a6e2bce47d8}"
-WOOGRAPHQL_SHA256="${WOOGRAPHQL_SHA256:-15e9b320114349cc5213f7245d93985d45def4bbe27d9a1850a3a49c7f4f9e58}"
+WOOGRAPHQL_SHA256="${WOOGRAPHQL_SHA256:-202099867ce7b7bc9e1d5ed133096a534f11259f6a465732ec6e24b8e9d0d5b2}"
 WPGRAPHQL_CORS_SHA256="${WPGRAPHQL_CORS_SHA256:-64b2593644dd08859ac3654a9c2f260e31238aa94258210b35b3c7248411c1b6}"
 
 # ----------------------------------------------------------------------------
@@ -39,9 +39,9 @@ WPGRAPHQL_CORS_SHA256="${WPGRAPHQL_CORS_SHA256:-64b2593644dd08859ac3654a9c2f260e
 #  Si una versión fijada no existiera en wp.org, se degrada a la última estable
 #  con un AVISO (no rompe el primer arranque).
 # ----------------------------------------------------------------------------
-WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-2.17.0}"
-WOOCOMMERCE_VERSION="${WOOCOMMERCE_VERSION:-10.8.1}"
-WOOGRAPHQL_WPORG_VERSION="${WOOGRAPHQL_WPORG_VERSION:-1.0.2}"
+WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-2.23.1}"
+WOOCOMMERCE_VERSION="${WOOCOMMERCE_VERSION:-10.9.4}"
+WOOGRAPHQL_WPORG_VERSION="${WOOGRAPHQL_WPORG_VERSION:-1.0.3}"
 REDISCACHE_VERSION="${REDISCACHE_VERSION:-2.8.0}"
 
 # Instala un plugin desde un .zip de GitHub SOLO si su SHA-256 coincide con el fijado.
@@ -165,13 +165,13 @@ $WP option update woocommerce_onboarding_profile '{"skipped":true}' --format=jso
 $WP option update woocommerce_default_country "ES" 2>/dev/null || true
 $WP option update woocommerce_currency "EUR" 2>/dev/null || true
 
-# --- WPGraphQL WooCommerce (WooGraphQL) — v1.0.2 (release fijado) ---
-echo "==> Instalando WPGraphQL WooCommerce (WooGraphQL) v1.0.2..."
+# --- WPGraphQL WooCommerce (WooGraphQL) — release fijado (no está en wp.org: va por GitHub con SHA-256) ---
+echo "==> Instalando WPGraphQL WooCommerce (WooGraphQL) v${WOOGRAPHQL_WPORG_VERSION}..."
 # Primero intentamos instalarlo desde wp.org con la versión fijada
 $WP plugin install wp-graphql-woocommerce --version="$WOOGRAPHQL_WPORG_VERSION" --activate --force 2>/dev/null && \
 	echo "    (WooGraphQL v${WOOGRAPHQL_WPORG_VERSION} instalado desde wp.org)" || {
-	echo "    (WooGraphQL v${WOOGRAPHQL_WPORG_VERSION} no disponible en wp.org; descargando release fijado v1.0.2 de GitHub)..."
-	WOO_URL="https://github.com/wp-graphql/wp-graphql-woocommerce/releases/download/v1.0.2/wp-graphql-woocommerce.zip"
+	echo "    (WooGraphQL v${WOOGRAPHQL_WPORG_VERSION} no disponible en wp.org; descargando release fijado v${WOOGRAPHQL_WPORG_VERSION} de GitHub)..."
+	WOO_URL="https://github.com/wp-graphql/wp-graphql-woocommerce/releases/download/v${WOOGRAPHQL_WPORG_VERSION}/wp-graphql-woocommerce.zip"
 	install_github_zip_verified wp-graphql-woocommerce "$WOO_URL" "$WOOGRAPHQL_SHA256"
 } || echo "    (aviso) WooGraphQL no instalado; instálalo manualmente."
 
