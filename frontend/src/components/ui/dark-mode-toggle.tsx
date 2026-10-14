@@ -79,17 +79,43 @@ export function DarkModeToggle({ className }: { className?: string }) {
   );
 }
 
+const THEME_KEY = "hwe-theme";
+
+/** Aplica el tema guardado (o el del sistema) a `<html>`. Misma lógica que el script inline. */
+function applyStoredTheme() {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    const dark =
+      stored === "dark" ||
+      (stored === null && window.matchMedia("(prefers-color-scheme:dark)").matches);
+    document.documentElement.classList.toggle("dark", dark);
+  } catch {
+    // localStorage bloqueado (modo privado, políticas): se queda el tema por defecto.
+  }
+}
+
 /**
- * Script inline que aplica el tema antes del primer paint.
- * Debe colocarse en <head> (o justo dentro de <body>) para evitar FOUC.
- * Usar con suppressHydrationWarning en <html>.
+ * Aplica el tema antes del primer paint, sin parpadeo (FOUC).
+ *
+ * En el servidor emite un `<script>` inline que va en el HTML de la primera carga.
+ * En el cliente NO pinta un `<script>` (React 19 avisa y nunca lo ejecutaría): al
+ * cambiar de idioma el layout se vuelve a montar y `<html>` se recrea sin la clase
+ * `dark`, así que se reaplica el tema al montar. Usar con `suppressHydrationWarning`
+ * en `<html>`.
  */
 export function DarkModeScript() {
+  useEffect(() => {
+    applyStoredTheme();
+  }, []);
+
+  // El `<script>` solo hace falta en el HTML del servidor, antes del primer paint.
+  // React 19 tolera en `<head>` el nodo del servidor que el cliente no renderiza.
+  if (typeof window !== "undefined") return null;
   return (
     <script
       // biome-ignore lint/security/noDangerouslySetInnerHtml: inline script necesario para evitar FOUC de modo oscuro
       dangerouslySetInnerHTML={{
-        __html: `(function(){try{var t=localStorage.getItem('hwe-theme');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})()`,
+        __html: `(function(){try{var t=localStorage.getItem('${THEME_KEY}');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})()`,
       }}
     />
   );
