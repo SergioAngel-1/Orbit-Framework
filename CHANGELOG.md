@@ -6,6 +6,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Security
+- **Next.js 16.4.1.** Se sube `next` y `eslint-config-next` de 16.4.0 a 16.4.1, que corrige dos RCE
+  críticas (ejecución de código en `use cache` con *typed arrays* y en el optimizador de imágenes
+  con SVG) y un DoS en Server Actions. `sharp` queda en 0.35.5 en el lock. El parche de cabeceras
+  ISR de `scripts/patch-next-isr-headers.mjs` se revalidó contra esta versión (el bucle de Next es
+  idéntico): su `SUPPORTED_NEXT` pasa a `16.4.1`.
+
 ### Changed
 - **Autoría:** el autor de los plugins y mu-plugins pasa a «Sergio Jauregui» (cabecera `Author:`),
   el del tema `hwe-headless-base` a «sergioja.com», y el titular en `LICENSE`, `EULA.md`,

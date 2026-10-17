@@ -11,7 +11,7 @@
 //  con `appendHeader`: dos `Location` idénticos. Con HIT o STALE no hubo render,
 //  `res` está limpio y sale uno.
 //
-//  REPRODUCIDO en Next 16.4.0 (el que fija este repo): una página ISR con
+//  REPRODUCIDO en Next 16.4.0 y confirmado idéntico en 16.4.1 (el que fija este repo): una página ISR con
 //  `generateStaticParams() → []` y `permanentRedirect`, tres peticiones en frío:
 //  tres MISS con `location` doble, y un HIT con uno. Curl y los navegadores
 //  toleran dos valores idénticos; un cliente que fusiona cabeceras (Python, Node,
@@ -47,7 +47,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 /** Versión de Next contra la que se reprodujo y comprobó el parche. */
-export const SUPPORTED_NEXT = "16.4.0";
+export const SUPPORTED_NEXT = "16.4.1";
 
 export const TARGETS = [
   "node_modules/next/dist/build/templates/app-page-runtime.js",
@@ -57,7 +57,7 @@ export const TARGETS = [
 /** Marca que deja el parche: hace el script idempotente. */
 export const MARKER = "[hwe] patch-next-isr-headers";
 
-/** El bucle original, idéntico en CJS y ESM (16.4.0). */
+/** El bucle original, idéntico en CJS y ESM (16.4.0 y 16.4.1). */
 const ORIGINAL_LOOP = `                    for (let [key, value] of Object.entries(headers)){
                         if (typeof value === 'undefined') continue;
                         if (Array.isArray(value)) {
