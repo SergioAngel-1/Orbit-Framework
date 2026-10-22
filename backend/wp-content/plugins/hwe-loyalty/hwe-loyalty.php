@@ -25,10 +25,10 @@
  * devuelven vacío y las rutas del BFF responden 404. La puerta la calcula el núcleo con
  * `config.modules.loyalty`, que refleja si este plugin está activo.
  *
- * Estado: incluye el arranque, los ajustes, el esquema de base de datos y el libro mayor
- * transaccional (abonos, cargos FIFO, devoluciones y caducidad). El canje, los referidos, la
- * administración y las rutas del BFF llegan en las siguientes tareas del módulo (ver README.md
- * y MANUAL.md de esta carpeta).
+ * Estado: incluye el arranque, los ajustes, el esquema de base de datos, el libro mayor
+ * transaccional (abonos, cargos FIFO, devoluciones y caducidad) y la tarea diaria que caduca
+ * los abonos vencidos. El canje, los referidos, la administración y las rutas del BFF llegan
+ * en las siguientes tareas del módulo (ver README.md y MANUAL.md de esta carpeta).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -42,6 +42,7 @@ require_once __DIR__ . '/includes/Settings.php';
 require_once __DIR__ . '/includes/EntryTypes.php';
 require_once __DIR__ . '/includes/Schema.php';
 require_once __DIR__ . '/includes/Ledger.php';
+require_once __DIR__ . '/includes/Scheduler.php';
 
 final class HWE_Loyalty {
 
@@ -58,6 +59,7 @@ final class HWE_Loyalty {
 
 		HWE_Loyalty_Settings::register();
 		HWE_Loyalty_Schema::register();
+		HWE_Loyalty_Scheduler::register();
 	}
 
 	/** Aviso en wp-admin si el plugin se activó sin WooCommerce (la cabecera ya lo impide). */
@@ -72,3 +74,13 @@ final class HWE_Loyalty {
 }
 
 add_action( 'plugins_loaded', array( 'HWE_Loyalty', 'boot' ), 20 );
+
+// Ciclo de vida del evento diario: al activar se programa (idempotente) y al desactivar se
+// retira. En WordPress las dos funciones existen siempre; el `function_exists` mantiene el
+// plugin cargable fuera del entorno de WordPress (tests unitarios) sin fatal.
+if ( function_exists( 'register_activation_hook' ) ) {
+	register_activation_hook( __FILE__, array( 'HWE_Loyalty_Scheduler', 'schedule' ) );
+}
+if ( function_exists( 'register_deactivation_hook' ) ) {
+	register_deactivation_hook( __FILE__, array( 'HWE_Loyalty_Scheduler', 'unschedule' ) );
+}
