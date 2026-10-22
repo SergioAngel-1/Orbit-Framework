@@ -171,6 +171,9 @@ $RECYCLE.BIN/
 .claude/
 *.claude-session
 
+# Estado local de la skill «impeccable» (preguntas y notas de diseño).
+.impeccable/
+
 # ============================================================================
 #  Temporales
 # ============================================================================
