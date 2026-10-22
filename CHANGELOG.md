@@ -12,6 +12,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   con SVG) y un DoS en Server Actions. `sharp` queda en 0.35.5 en el lock. El parche de cabeceras
   ISR de `scripts/patch-next-isr-headers.mjs` se revalidó contra esta versión (el bucle de Next es
   idéntico): su `SUPPORTED_NEXT` pasa a `16.4.1`.
+- **Pagos solo por WhatsApp sin webhook de pruebas abierto.** Con «Activar pago en línea» apagado,
+  el panel oculta la pasarela pero el `noop` por defecto seguía guardado y contaba como activo: su
+  webhook (firmado con un secreto público) se atendía y permitía marcar pagado —o cancelar— un
+  pedido sin pagar. Ahora, sin pago en línea no hay pasarela activa (`lib/payments/registry.ts`):
+  el webhook de `noop` responde 404 y el cobro, 503. Los webhooks de pasarelas reales se siguen
+  atendiendo (cobros ya iniciados). El panel explica cómo dejar WhatsApp como único medio.
 
 ### Changed
 - **Control Center: sedes, pagos y GEO más claros.** Las sedes de Legal son opcionales y pasan de

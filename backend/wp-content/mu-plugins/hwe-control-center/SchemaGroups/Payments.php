@@ -29,7 +29,7 @@ trait Payments {
                         'label'       => 'Activar pago en línea',
                         'default'     => true,
                         'public'      => true,
-                        'description' => 'Ofrece «Pago en línea» en el checkout con la pasarela activa. Apagado, el panel oculta la pasarela y sus credenciales.',
+                        'description' => 'Ofrece «Pago en línea» en el checkout con la pasarela activa. Apagado no hay pasarela activa (el panel la oculta con sus credenciales): para cobrar solo por WhatsApp, apágalo y activa el link de pago por WhatsApp.',
                     ],
 
                     'provider' => [
@@ -95,7 +95,7 @@ trait Payments {
                         'label'       => 'Activar link de pago por WhatsApp',
                         'default'     => false,
                         'public'      => true,
-                        'description' => 'Ofrece «Link de pago por WhatsApp» en el checkout, independiente de la pasarela. Sin cobro en línea: el pedido queda «En espera» y la pantalla de gracias abre WhatsApp (número de Redes → WhatsApp) con el pedido ya escrito.',
+                        'description' => 'Ofrece «Link de pago por WhatsApp» en el checkout, independiente de la pasarela. Sin cobro en línea: el pedido queda «En espera» y la tienda envía el link de pago al WhatsApp del cliente (el teléfono del checkout). Con el pago en línea apagado es el único medio, junto al efectivo si está activo.',
                     ],
 
                     'cash_enabled' => [

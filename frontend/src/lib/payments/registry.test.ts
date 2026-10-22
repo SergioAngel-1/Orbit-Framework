@@ -4,6 +4,10 @@ const getPaymentSettings = vi.fn();
 vi.mock("./credentials", () => ({
   getPaymentSettings: () => getPaymentSettings(),
 }));
+const getSiteConfig = vi.fn();
+vi.mock("@/lib/config", () => ({
+  getSiteConfig: () => getSiteConfig(),
+}));
 
 import {
   acceptsWebhooksFrom,
@@ -18,9 +22,21 @@ import { PaymentError, type PaymentProvider } from "./types";
 const provider = (id: string, sandbox = false): PaymentProvider =>
   ({ id, isSandbox: async () => sandbox }) as unknown as PaymentProvider;
 
+/** Medios del checkout: el pago en línea encendido o apagado (solo WhatsApp). */
+function onlinePayments(enabled: boolean) {
+  getSiteConfig.mockResolvedValue({
+    payments: {
+      gateway_enabled: enabled,
+      whatsapp_enabled: !enabled,
+      cash_enabled: false,
+    },
+  });
+}
+
 beforeEach(() => {
   getPaymentSettings.mockReset();
   getPaymentSettings.mockResolvedValue({ provider: null });
+  onlinePayments(true);
   registerProvider(provider("noop", true));
   registerProvider(provider("wompi", false));
 });
@@ -75,6 +91,24 @@ describe("acceptsWebhooksFrom", () => {
 
     getPaymentSettings.mockResolvedValue({ provider: "noop" });
     expect(await acceptsWebhooksFrom("noop")).toBe(true);
+  });
+
+  it("con el pago en línea apagado no hay pasarela activa: la de pruebas guardada no atiende", async () => {
+    // «Solo WhatsApp»: el panel oculta la pasarela, pero el `noop` por defecto
+    // sigue guardado. Su webhook (secreto público) marcaría pagado cualquier pedido.
+    onlinePayments(false);
+    getPaymentSettings.mockResolvedValue({ provider: "noop" });
+
+    expect(await acceptsWebhooksFrom("noop")).toBe(false);
+    expect(await isActiveGatewaySandbox()).toBe(false);
+    await expect(getActiveProvider()).rejects.toMatchObject({ status: 503 });
+  });
+
+  it("con el pago en línea apagado, una real sigue atendiendo cobros ya iniciados", async () => {
+    onlinePayments(false);
+    getPaymentSettings.mockResolvedValue({ provider: "wompi" });
+
+    expect(await acceptsWebhooksFrom("wompi")).toBe(true);
   });
 });
 

@@ -1,6 +1,8 @@
 import "server-only";
 import { PaymentError, type PaymentProvider } from "./types";
 import { getPaymentSettings } from "./credentials";
+import { enabledPaymentChoices } from "./checkout-options";
+import { getSiteConfig } from "@/lib/config";
 
 // ============================================================================
 //  Registro extensible de pasarelas.
@@ -30,10 +32,13 @@ export function listProviders(): string[] {
 /**
  * Id de la pasarela activa: la del Control Center, salvo anulación con
  * `PAYMENT_PROVIDER` (precedencia completa en `credentials.ts`). `null` en
- * producción si no hay ninguna decidida.
+ * producción si no hay ninguna decidida, y siempre que el pago en línea esté
+ * apagado: el panel oculta entonces la pasarela, pero su valor (el `noop` por
+ * defecto) sigue guardado y no debe contar como activa.
  */
 async function activeProviderId(): Promise<string | null> {
-  return (await getPaymentSettings()).provider;
+  const [settings, config] = await Promise.all([getPaymentSettings(), getSiteConfig()]);
+  return enabledPaymentChoices(config).includes("online") ? settings.provider : null;
 }
 
 /**
