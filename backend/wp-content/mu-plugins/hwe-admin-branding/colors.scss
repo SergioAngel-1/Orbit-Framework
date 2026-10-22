@@ -1,0 +1,29 @@
+@use "sass:color";
+
+// Esquema de color «HWE Orbit» del panel: tinta como base, cadmio como resalte y
+// ultramar para la interacción (DESIGN.md). Para regenerar colors.css tras actualizar
+// WordPress, copia wp-admin/css/colors/ del core a un directorio de trabajo, deja este
+// archivo en <dir>/orbit/ con el @use apuntando a "../_admin.scss" y compila:
+//   npx sass@1.93.2 --no-source-map --style=expanded orbit/colors.scss colors.css
+// Solo se pueden pasar las variables que _admin.scss reenvía (@forward … show …).
+$base-color: #111111;
+$highlight-color: #f2c200;
+$notification-color: #2a3fd6;
+
+@use "../_admin.scss" with (
+	$scheme-name: "hwe-orbit",
+	$base-color: $base-color,
+	$highlight-color: $highlight-color,
+	$notification-color: $notification-color,
+	$body-background: #e9e9e6,
+	$link: #2a3fd6,
+	$link-focus: #1f2fa3,
+	$button-color: #2a3fd6,
+	$form-checked: #2a3fd6,
+	$menu-highlight-text: #111111,
+	$menu-highlight-icon: #111111,
+	$menu-submenu-focus-text: $highlight-color,
+	$menu-bubble-text: #fff,
+	$menu-collapse-focus-icon: $highlight-color,
+	$dashboard-accent-2: $base-color,
+);

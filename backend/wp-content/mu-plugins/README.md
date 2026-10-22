@@ -42,6 +42,8 @@ paquete multi-clase.
 | `hwe-geo.php` | mu-plugin | Paquetes por país para los formularios de dirección y de documento (divisiones, ciudades con su división, tipos de documento, prefijo telefónico, política de la dirección). Sirve el de `ecommerce.country` en `GET /wp-json/hwe/v1/geo` (tag ISR `geo`); `CO` y `generic` (texto libre, reserva) en el núcleo, más los que añada el filtro `hwe_geo_packs`. Valida cada paquete (referencias, códigos únicos, patrones que compilan) y descarta el roto registrándolo. |
 | `hwe-geo/` | carpeta | `packs.php` (registro y normalización), `rest.php` (ruta y tag) y `packs/{co,generic}.php` (datos). |
 | `hwe-content-i18n/` | carpeta | `registry.php`, `storage.php`, `admin.php`, `graphql.php` y `search.php` (los incluye `hwe-content-i18n.php`). |
+| `hwe-admin-branding.php` | mu-plugin | Marca de HWE Orbit en el panel: esquema de color «HWE Orbit» por defecto (sustituye a `fresh`, respeta otra elección) y login con el símbolo. Se apaga con el filtro `hwe_admin_branding`. |
+| `hwe-admin-branding/` | carpeta | `colors.scss` (fuente e instrucciones para regenerar), `colors.css` (compilado) y `orbit-symbol.svg`. |
 | `hwe-featured-post.php` | mu-plugin | Selector manual de post destacado (`RootQuery.hweFeaturedPost`). |
 | `hwe-login-slug.php` | mu-plugin | Con `HWE_LOGIN_SLUG`, el login del panel pasa a `/<slug>` y `/wp-login.php` (y `/wp-admin` sin sesión) responde 404. Sin la constante, no actúa. |
 | `hwe-svg-uploads.php` | mu-plugin | Subida de SVG a la medioteca con saneado (lista de permitidos para enlaces, sin scripts, manejadores ni animaciones que reescriban enlaces). |
