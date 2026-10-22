@@ -24,6 +24,14 @@ trait Payments {
                 'label'    => 'Pasarelas de pago',
                 'children' => [
 
+                    'gateway_enabled' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Activar pago en línea',
+                        'default'     => true,
+                        'public'      => true,
+                        'description' => 'Ofrece «Pago en línea» en el checkout con la pasarela activa. Apagado, el panel oculta la pasarela y sus credenciales.',
+                    ],
+
                     'provider' => [
                         'type'        => 'select',
                         'label'       => 'Pasarela activa',
@@ -36,31 +44,7 @@ trait Payments {
                             'payu'    => 'PayU (LATAM)',
                             'bold'    => 'Bold (Colombia)',
                         ],
-                        'description' => 'La pasarela con la que se cobra el «Pago en línea». Si un campo de credenciales está vacío, el frontend usa su variable de entorno equivalente; la variable PAYMENT_PROVIDER del entorno, si existe, anula esta elección (solo desarrollo o emergencias).',
-                    ],
-
-                    'gateway_enabled' => [
-                        'type'        => 'boolean',
-                        'label'       => 'Activar pago en línea',
-                        'default'     => true,
-                        'public'      => true,
-                        'description' => 'Ofrece «Pago en línea» en el checkout con la pasarela activa.',
-                    ],
-
-                    'whatsapp_enabled' => [
-                        'type'        => 'boolean',
-                        'label'       => 'Activar link de pago por WhatsApp',
-                        'default'     => false,
-                        'public'      => true,
-                        'description' => 'Ofrece «Link de pago por WhatsApp» en el checkout, independiente de la pasarela. Sin cobro en línea: el pedido queda «En espera» y la pantalla de gracias abre WhatsApp (número de Redes → WhatsApp) con el pedido ya escrito.',
-                    ],
-
-                    'cash_enabled' => [
-                        'type'        => 'boolean',
-                        'label'       => 'Activar pago en efectivo',
-                        'default'     => false,
-                        'public'      => true,
-                        'description' => 'Ofrece «Efectivo» en el checkout: el cliente paga al recibir el pedido. Usa la pasarela nativa de WooCommerce «Contra reembolso», que se activa o desactiva al guardar aquí.',
+                        'description' => 'La pasarela con la que se cobra el «Pago en línea»; abajo solo se ven sus credenciales. Si un campo de credenciales está vacío, el frontend usa su variable de entorno equivalente; la variable PAYMENT_PROVIDER del entorno, si existe, anula esta elección (solo desarrollo o emergencias).',
                     ],
 
                     'avalpay' => [
@@ -104,6 +88,22 @@ trait Payments {
                             'integrity_key' => ['type' => 'secret', 'label' => 'Clave de integridad',  'public' => false],
                             'sandbox'       => ['type' => 'boolean','label' => 'Modo sandbox',         'default' => true, 'public' => false],
                         ],
+                    ],
+
+                    'whatsapp_enabled' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Activar link de pago por WhatsApp',
+                        'default'     => false,
+                        'public'      => true,
+                        'description' => 'Ofrece «Link de pago por WhatsApp» en el checkout, independiente de la pasarela. Sin cobro en línea: el pedido queda «En espera» y la pantalla de gracias abre WhatsApp (número de Redes → WhatsApp) con el pedido ya escrito.',
+                    ],
+
+                    'cash_enabled' => [
+                        'type'        => 'boolean',
+                        'label'       => 'Activar pago en efectivo',
+                        'default'     => false,
+                        'public'      => true,
+                        'description' => 'Ofrece «Efectivo» en el checkout: el cliente paga al recibir el pedido. Usa la pasarela nativa de WooCommerce «Contra reembolso», que se activa o desactiva al guardar aquí.',
                     ],
 
                 ],

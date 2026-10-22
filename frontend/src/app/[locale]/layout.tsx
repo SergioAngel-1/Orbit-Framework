@@ -52,11 +52,11 @@ export async function generateMetadata({
   // `openGraph` lo heredaría al compartirse por WhatsApp o redes.
   const siteDescription = brandDescription(config, locale) || t("description");
 
-  // Plantilla de título configurable (Control Center → SEO & GEO).
+  // Plantilla de título configurable (Control Center → SEO).
   // %site% se sustituye aquí; %s lo resuelve Next con el título de cada página.
   const titleTemplate = resolveTitleTemplate(config.seo.title_template, siteName);
 
-  // Indexación por defecto según el módulo SEO & GEO (index/follow vs noindex).
+  // Indexación por defecto según la pestaña SEO (index/follow vs noindex).
   const noindex = config.seo.robots === "noindex,nofollow";
 
   return {

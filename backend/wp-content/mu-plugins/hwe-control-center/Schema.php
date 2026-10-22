@@ -31,6 +31,14 @@ namespace HWE\ControlCenter;
  *                    un hermano `<clave>_<locale>` por cada idioma secundario de
  *                    `i18n.locales` (vacío = se usa el texto del idioma por defecto).
  *                    El frontend lo resuelve con `pickLocalized(entity, campo, locale)`.
+ *   'panel'       → ['tab' => <clave raíz>, 'section' => 'Título'] (solo admin): pinta el campo
+ *                    en otra pestaña, dentro de un bloque con ese título. La ruta del dato, el
+ *                    `name` del input y la API no cambian.
+ *
+ * Atributos de grupo:
+ *   'slots'       → ['add_label', 'remove_label', 'empty'] (solo admin): cada hijo es un
+ *                    hueco opcional (p. ej. las sedes). El panel oculta los huecos vacíos y
+ *                    ofrece «añadir» hasta agotarlos; «quitar» vacía el hueco al guardar.
  *
  * CONTRATO CON LA INSTANCIA
  * -------------------------

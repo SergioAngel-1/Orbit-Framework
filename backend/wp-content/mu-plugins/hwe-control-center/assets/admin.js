@@ -1,8 +1,8 @@
 /**
  * HWE Control Center — Admin JS
  *
- * Tab navigation, color picker sync, media pickers, rows editors, save spinner,
- * and notice auto-dismiss.
+ * Tab navigation, color picker sync, media pickers, rows editors, optional slots,
+ * payment provider toggle, save spinner, and notice auto-dismiss.
  */
 (function () {
     'use strict';
@@ -108,21 +108,81 @@
         );
         if (!providerSelect) return;
 
+        // Con «Activar pago en línea» apagado sobran la pasarela y sus credenciales.
+        var gateway = document.querySelector('#hwe_config_payments_gateway_enabled');
+        var providerRow = providerSelect.closest('.hwe-field');
         var groups = document.querySelectorAll('.hwe-subgroup[data-provider]');
 
         function toggleGroups() {
+            var online = !gateway || gateway.checked;
             var selected = providerSelect.value;
+            if (providerRow) providerRow.hidden = !online;
             groups.forEach(function (group) {
-                if (group.dataset.provider === selected) {
-                    group.classList.add('is-active');
-                } else {
-                    group.classList.remove('is-active');
-                }
+                group.classList.toggle('is-active', online && group.dataset.provider === selected);
             });
         }
 
         providerSelect.addEventListener('change', toggleGroups);
+        if (gateway) gateway.addEventListener('change', toggleGroups);
         toggleGroups();
+    }
+
+    // =========================================================================
+    // Huecos opcionales (grupos con `slots`, p. ej. Legal → Sedes)
+    //
+    // Se ocultan los huecos sin datos y «añadir» muestra el primero libre.
+    // «Quitar» vacía sus campos y lo oculta: al guardar, el hueco queda vacío
+    // y el frontend lo ignora. Sin JS se ven todos, como cualquier grupo.
+    // =========================================================================
+
+    function slotFields(slot) {
+        return slot.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="button"]), textarea, select');
+    }
+
+    function slotHasData(slot) {
+        return Array.prototype.some.call(slotFields(slot), function (field) {
+            return field.value.trim() !== '';
+        });
+    }
+
+    function initSlots() {
+        document.querySelectorAll('[data-hwe-slots]').forEach(function (box) {
+            var slots = Array.prototype.slice.call(box.querySelectorAll('[data-hwe-slot]'));
+            var addBtn = box.querySelector('[data-hwe-slots-add]');
+            var empty = box.querySelector('[data-hwe-slots-empty]');
+            if (!slots.length || !addBtn) return;
+
+            function sync() {
+                var free = slots.filter(function (slot) { return slot.hidden; });
+                addBtn.hidden = false;
+                addBtn.disabled = free.length === 0;
+                if (empty) empty.hidden = free.length !== slots.length;
+            }
+
+            slots.forEach(function (slot) {
+                slot.hidden = !slotHasData(slot);
+                var remove = slot.querySelector('[data-hwe-slot-remove]');
+                if (!remove) return;
+                remove.hidden = false;
+                remove.addEventListener('click', function () {
+                    slotFields(slot).forEach(function (field) { field.value = ''; });
+                    slot.hidden = true;
+                    sync();
+                    addBtn.focus();
+                });
+            });
+
+            addBtn.addEventListener('click', function () {
+                var next = slots.filter(function (slot) { return slot.hidden; })[0];
+                if (!next) return;
+                next.hidden = false;
+                sync();
+                var first = slotFields(next)[0];
+                if (first) first.focus();
+            });
+
+            sync();
+        });
     }
 
     // =========================================================================
@@ -415,6 +475,7 @@
         initRowsEditors();
         initSaveSpinner();
         initProviderToggle();
+        initSlots();
         initNotices();
         initEmailPreview();
     }

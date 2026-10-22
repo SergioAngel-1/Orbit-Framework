@@ -526,6 +526,45 @@
     display: block !important;
 }
 
+/* Huecos opcionales (grupos con `slots`, p. ej. Legal → Sedes) */
+.hwe-field[hidden],
+.hwe-slot[hidden],
+.hwe-slots [hidden] {
+    display: none !important;
+}
+
+.hwe-slot {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Bajo su card, alineado a la derecha. */
+.hwe-slot-remove {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    align-self: flex-end;
+    margin: -8px 0 8px;
+}
+
+.hwe-slot-remove .dashicons,
+.hwe-slots-add .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.hwe-slots-add {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px !important;
+}
+
+.hwe-slots-empty {
+    margin: 0 0 8px;
+}
+
 /* ==========================================================================
    Save Bar (sticky bottom)
    ========================================================================== */

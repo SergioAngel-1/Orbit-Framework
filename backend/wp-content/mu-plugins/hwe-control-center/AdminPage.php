@@ -93,7 +93,8 @@ class AdminPage {
         $secretsExist = self::buildSecretExistenceMap();
 
         $walker   = new AdminFormWalker($secretsExist);
-        $sections = $walker->walk($schema, $merged);
+        // Los campos con `panel` se pintan al final de su pestaña destino.
+        $sections = $walker->withRelocated($walker->walk($schema, $merged));
 
         // Inject SMTP test into integrations tab.
         $sections['integrations'] .= self::renderSmtpTest();

@@ -3,7 +3,7 @@
 //  plantilla) y por las páginas que escriben su propio título.
 //
 //  Google corta el título hacia los 60 caracteres, y la plantilla del sitio
-//  (Control Center → SEO & GEO, `seo.title_template`, por defecto `%s · %site%`)
+//  (Control Center → SEO, `seo.title_template`, por defecto `%s · %site%`)
 //  añade ` · <marca>` a CADA título: un título de 60 sale de 75 y lo que Google
 //  enseña acaba siendo la plantilla, no lo que se escribió.
 // ============================================================================
@@ -89,7 +89,7 @@ export function brandedTitle(
 
 /**
  * `metadata.title` de una página a partir de la config del sitio: la plantilla
- * y los nombres de la marca salen de Control Center → SEO & GEO.
+ * y los nombres de la marca salen de Control Center → SEO y GEO.
  */
 export function siteTitle(
   config: {

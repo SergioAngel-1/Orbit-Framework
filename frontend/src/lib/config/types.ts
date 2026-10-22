@@ -58,6 +58,7 @@ export interface SiteConfig {
       location_2: SiteConfigLocation;
       location_3: SiteConfigLocation;
       location_4: SiteConfigLocation;
+      location_5: SiteConfigLocation;
     };
   };
   design: {

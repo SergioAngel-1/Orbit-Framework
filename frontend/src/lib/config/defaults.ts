@@ -89,6 +89,18 @@ export const CONFIG_DEFAULTS: SiteConfig = {
         latitude: "",
         longitude: "",
       },
+      location_5: {
+        label: "",
+        address: "",
+        city: "",
+        region: "",
+        postal_code: "",
+        maps: "",
+        phone: "",
+        hours: "",
+        latitude: "",
+        longitude: "",
+      },
     },
   },
   design: {

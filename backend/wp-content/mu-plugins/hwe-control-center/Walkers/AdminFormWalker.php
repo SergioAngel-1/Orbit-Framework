@@ -3,6 +3,7 @@
 namespace HWE\ControlCenter\Walkers;
 
 use HWE\ControlCenter\FieldTypes\Registry;
+use HWE\ControlCenter\Log;
 use HWE\ControlCenter\Walker;
 
 /**
@@ -16,6 +17,10 @@ use HWE\ControlCenter\Walker;
  * Los secretos renderizan un <input type="password"> vacío con placeholder;
  * el handler de guardado conserva el valor existente si se deja en blanco.
  *
+ * Un campo con `panel` (ver Schema) no sale en su sección: se guarda aparte y
+ * `withRelocated()` lo añade al final de su pestaña destino. Un grupo con `slots` envuelve cada hijo como hueco opcional
+ * (`assets/admin.js` oculta los vacíos y gestiona «añadir»/«quitar»).
+ *
  * Uso:
  *   $walker   = new AdminFormWalker($secretsExist);
  *   $sections = $walker->walk(Schema::get(), $merged);
@@ -28,6 +33,12 @@ class AdminFormWalker extends Walker {
      *                       cada ruta (true = ya hay valor almacenado).
      */
     public function __construct(private readonly array $secrets = []) {}
+
+    /** @var array<string,array<string,list<string>>> pestaña → sección → filas HTML. */
+    private array $relocated = [];
+
+    /** @var array<string,string> pestaña destino → pestaña de origen (respaldo si no existe). */
+    private array $relocatedFrom = [];
 
     // -------------------------------------------------------------------------
     // Walker implementations
@@ -43,7 +54,7 @@ class AdminFormWalker extends Walker {
 
         $input = $this->renderInput($field, $id, $name, $value, $path);
 
-        return <<<HTML
+        $html = <<<HTML
 <div class="hwe-field">
     <label for="{$id}">{$label}</label>
     <div class="hwe-field-control">
@@ -52,6 +63,41 @@ class AdminFormWalker extends Walker {
     </div>
 </div>
 HTML;
+
+        $tab = (string) ($field['panel']['tab'] ?? '');
+        if ($tab !== '' && $tab !== $path[0]) {
+            $section = (string) ($field['panel']['section'] ?? '');
+            $this->relocated[$tab][$section][] = $html;
+            $this->relocatedFrom[$tab] ??= $path[0];
+            return '';
+        }
+        return $html;
+    }
+
+    /**
+     * Añade a `$sections` (la salida de `walk()`) los campos reubicados con `panel`, envueltos
+     * en un bloque por sección al final de su pestaña destino. Si esa pestaña no existe, se
+     * quedan en la de origen y se registra: un campo nunca desaparece del formulario.
+     *
+     * @param array<string,string> $sections HTML por clave raíz.
+     * @return array<string,string>
+     */
+    public function withRelocated(array $sections): array {
+        foreach ($this->relocated as $tab => $groups) {
+            $target = $tab;
+            if (!isset($sections[$tab])) {
+                $target = $this->relocatedFrom[$tab];
+                Log::once(
+                    'admin:panel:' . $tab,
+                    sprintf('«panel» apunta a la pestaña «%s», que no existe; los campos se quedan en «%s».', $tab, $target)
+                );
+            }
+            foreach ($groups as $section => $rows) {
+                $sections[$target] = ($sections[$target] ?? '')
+                    . $this->renderSubgroup(esc_html($section), implode("\n", $rows), 'dashicons-id', '');
+            }
+        }
+        return $sections;
     }
 
     protected function visitGroup(array $group, string $key, array $path, array $children): mixed {
@@ -64,8 +110,9 @@ HTML;
             return $this->renderFormGroup($key, $label, $content);
         }
 
-        // Subgrupos anidados: card con borde izquierdo azul.
-        $icon = $this->subgroupIcon($key);
+        if (!empty($group['slots']) && is_array($group['slots'])) {
+            $content = $this->renderSlots($group['slots'], $children);
+        }
 
         // Payment provider subgroups get a data attribute for conditional display.
         $providerAttr = '';
@@ -73,8 +120,17 @@ HTML;
             $providerAttr = ' data-provider="' . esc_attr($key) . '"';
         }
 
+        return $this->renderSubgroup($label, $content, $this->subgroupIcon($key), $providerAttr);
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers de renderizado
+    // -------------------------------------------------------------------------
+
+    /** Subgrupo anidado: card con borde izquierdo azul. `$label` ya va escapado. */
+    private function renderSubgroup(string $label, string $content, string $icon, string $attrs): string {
         return <<<HTML
-<div class="hwe-subgroup{$providerAttr}">
+<div class="hwe-subgroup"{$attrs}>
     <h3 class="hwe-subgroup-title">
         <span class="dashicons {$icon}"></span>
         {$label}
@@ -86,9 +142,39 @@ HTML;
 HTML;
     }
 
-    // -------------------------------------------------------------------------
-    // Helpers de renderizado
-    // -------------------------------------------------------------------------
+    /**
+     * Cada hijo como hueco opcional. Sin JS se ven todos y el botón «añadir» sigue oculto.
+     *
+     * @param array<string,string> $meta     `add_label`, `remove_label`, `empty`.
+     * @param array<string,string> $children HTML de cada hijo.
+     */
+    private function renderSlots(array $meta, array $children): string {
+        $add    = esc_html((string) ($meta['add_label'] ?? __('Añadir', 'hwe')));
+        $remove = esc_html((string) ($meta['remove_label'] ?? __('Quitar', 'hwe')));
+        $empty  = esc_html((string) ($meta['empty'] ?? ''));
+
+        $slots = '';
+        foreach ($children as $html) {
+            $slots .= <<<HTML
+<div class="hwe-slot" data-hwe-slot>
+    {$html}
+    <button type="button" class="button-link button-link-delete hwe-slot-remove" data-hwe-slot-remove hidden>
+        <span class="dashicons dashicons-trash"></span> {$remove}
+    </button>
+</div>
+HTML;
+        }
+
+        return <<<HTML
+<div class="hwe-slots" data-hwe-slots>
+    <p class="description hwe-slots-empty" data-hwe-slots-empty hidden>{$empty}</p>
+    {$slots}
+    <button type="button" class="button hwe-slots-add" data-hwe-slots-add hidden>
+        <span class="dashicons dashicons-plus-alt2"></span> {$add}
+    </button>
+</div>
+HTML;
+    }
 
     private function renderFormGroup(string $key, string $label, string $tableBody): string {
         return <<<HTML

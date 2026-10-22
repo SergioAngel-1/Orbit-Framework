@@ -103,11 +103,11 @@ Preguntas:
 - `legal.email`/`legal.address`, `social.facebook`/`instagram`/`youtube`/`twitter`/`linkedin`
   en `instance.config.json` → alimentan `/contact` automáticamente (`ContactForm` ya lee
   `config.legal.email` y `config.social.*`).
-- Si hay sedes físicas: hasta **4** en `legal.locations` (nombre, dirección, ciudad, teléfono,
+- Si hay sedes físicas: hasta **5** en `legal.locations` (nombre, dirección, ciudad, teléfono,
   horario, mapa, coordenadas) y `legal.phone`/`mobile`. Ya alimentan el JSON-LD `LocalBusiness`
   (`getConfiguredLocations`, `businessPhone`); para **mostrarlas** en `/contact` pásalas a
   `<ContactForm branches={...} phone={...} />` en `app/[locale]/contact/page.tsx` (props ya
-  soportadas, ver `docs/FRONTEND_CONNECT.md §B.2`). Más de 4 sedes sí es trabajo de instancia.
+  soportadas, ver `docs/FRONTEND_CONNECT.md §B.2`). Más de 5 sedes sí es trabajo de instancia.
 
 ---
 

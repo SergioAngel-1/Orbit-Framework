@@ -33,6 +33,7 @@ const emptyLocations = () => ({
   location_2: filledLocation({ label: "", address: "" }),
   location_3: filledLocation({ label: "", address: "" }),
   location_4: filledLocation({ label: "", address: "" }),
+  location_5: filledLocation({ label: "", address: "" }),
 });
 
 describe("getConfiguredLocations", () => {
@@ -68,6 +69,14 @@ describe("getConfiguredLocations", () => {
     expect(sede?.hours).toEqual(["Mo-Fr 08:00-18:00", "Sa 09:00-13:00"]);
     expect(sede?.latitude).toBe(4.75);
     expect(sede?.longitude).toBe(-74.02);
+  });
+
+  it("lee la quinta sede", () => {
+    const locations = emptyLocations();
+    locations.location_5 = filledLocation({ label: "Sur", address: "Cra 9" });
+    const locs = getConfiguredLocations(configWithLocations(locations));
+
+    expect(locs.map((l) => l.name)).toEqual(["Sur"]);
   });
 
   it("coordenadas inválidas → null", () => {

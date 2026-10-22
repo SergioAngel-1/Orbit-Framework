@@ -125,7 +125,7 @@ export function buildProductJsonLd({
       : "https://schema.org/OutOfStock",
   };
 
-  // shippingDetails (opcional, gobernado por el módulo SEO & GEO). El campo del
+  // shippingDetails (opcional, gobernado por la pestaña SEO). El campo del
   // panel admite un importe («5», o con texto suelto: «5 EUR») o un RANGO
   // («5-12»): con tarifas por zona (módulo shipping), declarar un importe único
   // era afirmar un coste que solo paga una parte de los compradores.

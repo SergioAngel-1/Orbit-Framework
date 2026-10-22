@@ -100,17 +100,25 @@ trait Contact {
                         'type'        => 'text',
                         'label'       => 'Dirección legal (HQ)',
                         'public'      => true,
-                        'description' => 'Dirección fiscal / sede principal. Los puntos de venta van en Sedes abajo.',
+                        'description' => 'Dirección fiscal / sede principal. Los puntos de venta, si los hay, van en Sedes abajo.',
                     ],
                     ...self::addressPartFields('de la dirección legal'),
                     'locations' => [
                         'type'     => 'group',
                         'label'    => 'Sedes',
+                        // Opcionales: el panel solo enseña las que tienen datos y un botón para
+                        // añadir la siguiente (ver «slots» en el docblock de Schema).
+                        'slots'    => [
+                            'add_label'    => 'Añadir sede',
+                            'remove_label' => 'Quitar sede',
+                            'empty'        => 'Sin sedes. Son opcionales: añade una por cada punto de venta físico (hasta 5).',
+                        ],
                         'children' => [
                             'location_1' => self::locationFields('Sede 1'),
                             'location_2' => self::locationFields('Sede 2'),
                             'location_3' => self::locationFields('Sede 3'),
                             'location_4' => self::locationFields('Sede 4'),
+                            'location_5' => self::locationFields('Sede 5'),
                         ],
                     ],
                 ],

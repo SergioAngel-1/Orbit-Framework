@@ -611,8 +611,8 @@ y `frontend/src/lib/config/types.ts` para el tipo TypeScript equivalente):
 brand:  { name, tagline, description, url, logo, locale, og_image }
 social: { twitter, instagram, facebook, linkedin, youtube, wikipedia, wikidata }
 legal:  { company, nif, email, phone, mobile, address, city, region, postal_code,
-          locations: { location_1…location_4: { label, address, city, region, postal_code,
-                       maps, phone, hours, latitude, longitude } } }   // hasta 4 sedes
+          locations: { location_1…location_5: { label, address, city, region, postal_code,
+                       maps, phone, hours, latitude, longitude } } }   // hasta 5 sedes, todas opcionales
 design: {
   colors:     { brand, brand_dark, brand_light, secondary, secondary_dark, accent, surface, background, foreground }
   typography: { font_sans, font_url, font_heading, font_heading_url }

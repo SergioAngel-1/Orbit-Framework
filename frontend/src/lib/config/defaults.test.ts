@@ -36,7 +36,7 @@ describe("CONFIG_DEFAULTS", () => {
       "legal.phone",
       "legal.mobile",
       "legal.locations.location_1.label",
-      "legal.locations.location_4.longitude",
+      "legal.locations.location_5.longitude",
       "ecommerce.checkout_login_required",
       "ecommerce.free_shipping.enabled",
       "ecommerce.free_shipping.min_amount",

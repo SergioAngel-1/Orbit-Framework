@@ -17,7 +17,13 @@ export interface ConfiguredLocation {
   longitude: number | null;
 }
 
-const SLOT_KEYS = ["location_1", "location_2", "location_3", "location_4"] as const;
+const SLOT_KEYS = [
+  "location_1",
+  "location_2",
+  "location_3",
+  "location_4",
+  "location_5",
+] as const;
 
 function isFilled(loc: SiteConfigLocation | undefined): loc is SiteConfigLocation {
   if (!loc) return false;

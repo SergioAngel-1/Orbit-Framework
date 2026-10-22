@@ -14,6 +14,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   idéntico): su `SUPPORTED_NEXT` pasa a `16.4.1`.
 
 ### Changed
+- **Control Center: sedes, pagos y GEO más claros.** Las sedes de Legal son opcionales y pasan de
+  4 a 5 (`legal.locations.location_5`, nuevo en `SiteConfig` y `CONFIG_DEFAULTS`): el panel solo
+  enseña las que tienen datos, con «Añadir sede» y «Quitar sede». En Pasarelas de pago solo se ven
+  las credenciales de la pasarela activa, y ni la pasarela ni sus credenciales si «Activar pago en
+  línea» está apagado. La pestaña «SEO & GEO» pasa a «SEO» y las señales de entidad
+  (`organization_logo`, `founding_date`, `knows_about`, `alternate_names`, `founder_*`) se editan
+  en «GEO (IA)»; sus rutas siguen en `seo.*`, así que la API y el frontend no cambian. El esquema
+  gana dos atributos solo de panel: `panel` (pintar un campo en otra pestaña) y `slots` (huecos
+  opcionales).
 - **Rebrand «HWE Orbit» y nueva paleta por defecto.** El framework pasa a presentarse como **HWE
   Orbit** (HWE = Headless Web Ecosystem) en el README, las cabeceras de plugins y las descripciones
   de los paquetes, y el tema mínimo describe la nueva identidad. La paleta por defecto del Control
