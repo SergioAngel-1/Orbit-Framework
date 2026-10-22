@@ -25,9 +25,10 @@
  * devuelven vacío y las rutas del BFF responden 404. La puerta la calcula el núcleo con
  * `config.modules.loyalty`, que refleja si este plugin está activo.
  *
- * Estado: en construcción. Esta entrega cubre el arranque y los ajustes; el libro mayor, el
- * canje, los referidos y la administración llegan en las siguientes tareas del módulo
- * (ver README.md y MANUAL.md de esta carpeta).
+ * Estado: incluye el arranque, los ajustes, el esquema de base de datos y el libro mayor
+ * transaccional (abonos, cargos FIFO, devoluciones y caducidad). El canje, los referidos, la
+ * administración y las rutas del BFF llegan en las siguientes tareas del módulo (ver README.md
+ * y MANUAL.md de esta carpeta).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -38,6 +39,9 @@ define( 'HWE_LOYALTY_VERSION', '1.0.0' );
 define( 'HWE_LOYALTY_DIR', __DIR__ );
 
 require_once __DIR__ . '/includes/Settings.php';
+require_once __DIR__ . '/includes/EntryTypes.php';
+require_once __DIR__ . '/includes/Schema.php';
+require_once __DIR__ . '/includes/Ledger.php';
 
 final class HWE_Loyalty {
 
@@ -53,6 +57,7 @@ final class HWE_Loyalty {
 		}
 
 		HWE_Loyalty_Settings::register();
+		HWE_Loyalty_Schema::register();
 	}
 
 	/** Aviso en wp-admin si el plugin se activó sin WooCommerce (la cabecera ya lo impide). */
