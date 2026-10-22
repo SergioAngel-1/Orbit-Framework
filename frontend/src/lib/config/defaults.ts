@@ -15,7 +15,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
   },
   brand: {
     name: "HWE-Orbit",
-    tagline: "Headless WooCommerce Template",
+    tagline: "Framework de e-commerce headless",
     description: "Tienda headless construida con Next.js y WooCommerce.",
     url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
     logo: "",

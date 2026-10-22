@@ -32,7 +32,7 @@ trait Identity {
                     'tagline'     => [
                         'type'    => 'text',
                         'label'   => 'Tagline',
-                        'default' => 'Headless WooCommerce Template',
+                        'default' => 'Framework de e-commerce headless',
                         'public'  => true,
                         'translatable' => true,
                     ],

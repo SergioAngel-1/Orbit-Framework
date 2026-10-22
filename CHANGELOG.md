@@ -23,6 +23,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   los colores semánticos de estado no cambian. El nombre por defecto del sitio pasa a
   «HWE-Orbit» (`WP_TITLE`, `brand.name` y la razón social de ejemplo), en lugar de
   «Headless Web Ecosystem» y «HeadlessWP».
+- **Lema y tema.** El lema por defecto pasa a «Framework de e-commerce headless» («Headless
+  e-commerce framework» en inglés) en lugar de presentar el producto como plantilla, y el tema
+  `hwe-headless-base` se muestra como «HWE Orbit» con una descripción nueva (la carpeta y el slug
+  no cambian).
 - **Autoría:** el autor de los plugins y mu-plugins pasa a «Sergio Jauregui» (cabecera `Author:`),
   el del tema `hwe-headless-base` a «sergioja.com», y el titular en `LICENSE`, `EULA.md`,
   `package.json` y `composer.json` a «Sergio Jauregui».

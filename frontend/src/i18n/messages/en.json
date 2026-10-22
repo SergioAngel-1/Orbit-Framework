@@ -1,7 +1,7 @@
 {
   "site": {
     "name": "HWE-Orbit",
-    "tagline": "Headless WooCommerce Template",
+    "tagline": "Headless e-commerce framework",
     "description": "Next.js (App Router) frontend connected to WordPress via WPGraphQL and WooCommerce.",
     "footer": "Next.js + WordPress (WPGraphQL) · HWE Orbit"
   },
