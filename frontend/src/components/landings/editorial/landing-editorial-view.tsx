@@ -527,7 +527,7 @@ export async function LandingEditorialView({
         if (!closing) return null;
         return (
           <section
-            className={`${BAND} relative isolate overflow-hidden bg-brand-light/20`}
+            className={`${BAND} relative isolate overflow-hidden bg-brand-light/20 dark:bg-accent/20`}
             aria-labelledby="landing-closing"
           >
             {closing.backgroundImage && (

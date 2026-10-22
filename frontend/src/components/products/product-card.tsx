@@ -46,7 +46,7 @@ export function ProductCard({ product, wishlistEnabled = false }: ProductCardPro
         </Link>
         {wishlistEnabled && <WishlistButton productId={product.databaseId} />}
         {product.onSale && (
-          <span className="absolute left-2 top-2 z-10 rounded-full bg-brand px-2 py-0.5 text-xs font-bold text-white">
+          <span className="absolute left-2 top-2 z-10 rounded-full bg-brand px-2 py-0.5 text-xs font-bold text-white dark:bg-accent dark:text-gray-950">
             {t("onSale")}
           </span>
         )}

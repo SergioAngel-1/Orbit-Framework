@@ -94,7 +94,7 @@ export function CartCouponOffers({
                   disabled={loading}
                   aria-label={t("useLabel", { code: coupon.code.toUpperCase() })}
                   onClick={() => void applyCoupon(coupon.code)}
-                  className="shrink-0 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark disabled:opacity-50"
+                  className="shrink-0 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
                 >
                   {t("use")}
                 </button>

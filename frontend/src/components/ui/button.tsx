@@ -34,7 +34,8 @@ const base =
   "select-none";
 
 const variants: Record<Variant, string> = {
-  solid: "bg-brand text-white hover:bg-brand-dark active:bg-brand-dark/90",
+  solid:
+    "bg-brand text-white hover:bg-brand-dark active:bg-brand-dark/90 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85 dark:active:bg-accent/75",
   secondary:
     "bg-secondary text-white hover:bg-secondary-dark active:bg-secondary-dark/90",
   outline:

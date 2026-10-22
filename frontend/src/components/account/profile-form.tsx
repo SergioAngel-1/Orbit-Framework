@@ -135,7 +135,7 @@ export function ProfileForm({
       <button
         type="submit"
         disabled={status === "saving"}
-        className="rounded-lg bg-brand px-5 py-2 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+        className="rounded-lg bg-brand px-5 py-2 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
       >
         {status === "saving" ? tCommon("saving") : tCommon("save")}
       </button>

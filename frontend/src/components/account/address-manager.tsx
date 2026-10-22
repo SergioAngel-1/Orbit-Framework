@@ -171,7 +171,7 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
                   </span>
                 )}
                 {addr.is_default && (
-                  <span className="ml-2 rounded bg-brand-light px-2 py-0.5 text-xs text-white">
+                  <span className="ml-2 rounded bg-brand-light px-2 py-0.5 text-xs text-white dark:bg-accent">
                     {t("default")}
                   </span>
                 )}
@@ -336,7 +336,7 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
             <button
               onClick={save}
               disabled={saving}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50"
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
             >
               {saving ? t("saving") : t("save")}
             </button>

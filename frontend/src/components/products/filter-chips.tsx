@@ -38,7 +38,7 @@ export function FilterChips({
             className={cn(
               "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 py-2 font-sans text-xs transition-all duration-200",
               isActive
-                ? "border-brand dark:border-accent bg-brand text-white shadow-sm"
+                ? "border-brand dark:border-accent bg-brand text-white shadow-sm dark:bg-accent dark:text-gray-950"
                 : "border-gray-200 bg-surface text-[--foreground]/60 hover:border-brand/40 dark:hover:border-accent/40 hover:text-[--foreground] dark:border-gray-700 dark:bg-gray-800",
             )}
           >

@@ -126,7 +126,7 @@ export function CartView() {
 
       <Link
         href="/checkout"
-        className="block rounded-lg bg-brand py-3 text-center font-semibold text-white transition-colors hover:bg-brand-dark"
+        className="block rounded-lg bg-brand py-3 text-center font-semibold text-white transition-colors hover:bg-brand-dark dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
       >
         {tCart("checkout")}
       </Link>

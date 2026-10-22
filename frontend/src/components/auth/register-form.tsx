@@ -203,7 +203,7 @@ export function RegisterForm({
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-lg bg-brand py-2.5 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+        className="w-full rounded-lg bg-brand py-2.5 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
       >
         {pending ? tRegister("submitting") : tRegister("submit")}
       </button>

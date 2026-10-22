@@ -21,7 +21,7 @@ export default function GlobalError({
           <p className="mb-8 text-sm text-gray-400">{error.message}</p>
           <button
             onClick={reset}
-            className="rounded-lg bg-brand px-6 py-2 font-semibold text-white transition-colors hover:bg-brand-dark"
+            className="rounded-lg bg-brand px-6 py-2 font-semibold text-white transition-colors hover:bg-brand-dark dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
           >
             Reintentar
           </button>

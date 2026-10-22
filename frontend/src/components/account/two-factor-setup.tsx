@@ -150,7 +150,7 @@ export function TwoFactorSetup({
           <p className="mb-3 text-sm text-gray-500">{t("notEnabled")}</p>
           <button
             onClick={startSetup}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
           >
             {t("enable")}
           </button>
@@ -183,7 +183,7 @@ export function TwoFactorSetup({
               setStep("idle");
               setRecoveryCodes([]);
             }}
-            className="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark"
+            className="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
           >
             {t("recoveryDone")}
           </button>
@@ -231,7 +231,7 @@ export function TwoFactorSetup({
               <button
                 onClick={verifyAndActivate}
                 disabled={saving || code.length !== 6}
-                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50"
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
               >
                 {saving ? t("verifying") : t("verify")}
               </button>

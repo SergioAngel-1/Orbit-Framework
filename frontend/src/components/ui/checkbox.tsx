@@ -55,7 +55,7 @@ export function Checkbox({
             className={cn(
               "peer h-4 w-4 appearance-none rounded border bg-transparent",
               "transition-colors cursor-pointer",
-              "checked:bg-brand checked:border-brand",
+              "checked:bg-brand checked:border-brand dark:checked:bg-accent",
               "indeterminate:bg-brand/60 indeterminate:border-brand/60 dark:indeterminate:bg-accent/60 dark:indeterminate:border-accent/60",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 dark:focus-visible:ring-accent/40 focus-visible:ring-offset-1",
               "disabled:cursor-not-allowed",

@@ -121,7 +121,7 @@ export function LoginForm({
           type="button"
           onClick={verify2fa}
           disabled={pending || code.length !== 6}
-          className="w-full rounded-lg bg-brand py-2.5 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+          className="w-full rounded-lg bg-brand py-2.5 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
         >
           {pending ? t2fa("verifying") : t2fa("verify")}
         </button>
@@ -164,7 +164,7 @@ export function LoginForm({
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-lg bg-brand py-2.5 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+        className="w-full rounded-lg bg-brand py-2.5 font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
       >
         {pending ? tLogin("submitting") : tLogin("submit")}
       </button>

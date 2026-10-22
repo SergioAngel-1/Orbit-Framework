@@ -34,7 +34,7 @@ export function CartIndicator() {
       {count > 0 && (
         <span
           aria-hidden
-          className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-xs font-bold text-white"
+          className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-xs font-bold text-white dark:bg-accent dark:text-gray-950"
         >
           {count > 99 ? "99+" : count}
         </span>

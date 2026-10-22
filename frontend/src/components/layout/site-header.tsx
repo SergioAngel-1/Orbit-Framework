@@ -176,7 +176,7 @@ export function SiteHeader({ logoUrl, items }: SiteHeaderProps = {}) {
           <div className="hidden items-center gap-4 text-sm font-medium text-gray-600 lg:flex dark:text-gray-300">
             <Link
               href="/contact"
-              className="rounded-lg bg-brand px-5 py-2.5 font-heading text-[11px] tracking-[0.15em] text-white shadow-md transition-all duration-200 hover:bg-brand-dark hover:shadow-lg"
+              className="rounded-lg bg-brand px-5 py-2.5 font-heading text-[11px] tracking-[0.15em] text-white shadow-md transition-all duration-200 hover:bg-brand-dark hover:shadow-lg dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
             >
               {t("contact")}
             </Link>
@@ -295,7 +295,7 @@ export function SiteHeader({ logoUrl, items }: SiteHeaderProps = {}) {
           <div className="mt-4 flex items-center justify-between gap-4 border-t border-gray-200 pt-4 dark:border-gray-800">
             <Link
               href="/contact"
-              className="flex-1 rounded-lg bg-brand px-5 py-3 text-center font-heading text-[11px] tracking-[0.15em] text-white transition-all duration-200 hover:bg-brand-dark"
+              className="flex-1 rounded-lg bg-brand px-5 py-3 text-center font-heading text-[11px] tracking-[0.15em] text-white transition-all duration-200 hover:bg-brand-dark dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
               onClick={() => setIsOpen(false)}
             >
               {t("contact")}

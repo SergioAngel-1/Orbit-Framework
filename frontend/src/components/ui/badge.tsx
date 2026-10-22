@@ -15,7 +15,7 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 const colors: Record<Color, Record<Variant, string>> = {
   brand: {
-    solid: "bg-brand text-white",
+    solid: "bg-brand text-white dark:bg-accent dark:text-gray-950",
     outline: "border border-brand dark:border-accent text-brand dark:text-accent",
     soft: "bg-brand/10 dark:bg-accent/10 text-brand dark:text-accent",
   },

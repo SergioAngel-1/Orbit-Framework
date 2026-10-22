@@ -19,7 +19,7 @@ export function LocaleSwitcher() {
           aria-current={l === locale ? "true" : undefined}
           className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase transition-colors ${
             l === locale
-              ? "bg-brand text-white"
+              ? "bg-brand text-white dark:bg-accent dark:text-gray-950"
               : "text-gray-600 hover:text-brand dark:hover:text-accent"
           }`}
         >

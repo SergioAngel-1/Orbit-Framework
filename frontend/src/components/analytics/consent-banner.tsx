@@ -109,7 +109,7 @@ export function ConsentBanner({
           <button
             type="button"
             onClick={onAccept}
-            className="rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
+            className="rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
           >
             {t("acceptAll")}
           </button>

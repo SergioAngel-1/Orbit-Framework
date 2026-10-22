@@ -72,7 +72,7 @@ export function ReviewGate({ productId }: { productId: number }) {
                 if (ok) await load();
                 setConfirming(false);
               }}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
             >
               {t("reviewConfirmReceived")}
             </button>

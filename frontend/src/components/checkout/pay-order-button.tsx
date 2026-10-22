@@ -62,7 +62,7 @@ export function PayOrderButton({ orderId }: { orderId: number }) {
         type="button"
         onClick={() => void pay()}
         disabled={pending}
-        className="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+        className="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
       >
         {pending ? t("processing") : t("return.payNow")}
       </button>

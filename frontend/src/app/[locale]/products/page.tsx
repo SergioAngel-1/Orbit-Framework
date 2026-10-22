@@ -270,7 +270,7 @@ export default async function ProductsPage({
 
         <button
           type="submit"
-          className="rounded-lg bg-brand px-4 py-2 font-semibold text-white hover:bg-brand-dark"
+          className="rounded-lg bg-brand px-4 py-2 font-semibold text-white hover:bg-brand-dark dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
         >
           {t("searchButton")}
         </button>

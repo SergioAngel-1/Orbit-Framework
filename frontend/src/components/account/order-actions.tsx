@@ -103,7 +103,7 @@ export function OrderActions({
             type="button"
             onClick={() => void onReceived()}
             disabled={busy}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
           >
             {t("received")}
           </button>
@@ -112,7 +112,7 @@ export function OrderActions({
           <button
             type="button"
             onClick={() => setRateOpen(true)}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark"
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
           >
             {t("rate")}
           </button>
@@ -196,7 +196,7 @@ export function OrderActions({
           <button
             type="submit"
             disabled={busy}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
           >
             {t("submitRating")}
           </button>

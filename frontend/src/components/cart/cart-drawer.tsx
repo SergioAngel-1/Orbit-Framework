@@ -317,7 +317,7 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
             <Link
               href="/checkout"
               onClick={closeDrawer}
-              className="flex w-full items-center justify-center rounded-lg bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-dark"
+              className="flex w-full items-center justify-center rounded-lg bg-brand py-3 font-semibold text-white transition-colors hover:bg-brand-dark dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
             >
               {tCart("checkout")}
             </Link>

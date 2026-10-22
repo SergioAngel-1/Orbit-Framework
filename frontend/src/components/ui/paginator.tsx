@@ -102,7 +102,7 @@ function PaginatorNumbers({
               arrowBtn,
               "font-sans",
               page === currentPage
-                ? "bg-brand font-medium text-white shadow-sm"
+                ? "bg-brand font-medium text-white shadow-sm dark:bg-accent dark:text-gray-950"
                 : "text-[--foreground]/60 hover:bg-brand/10 dark:hover:bg-accent/10 hover:text-[--foreground]",
             )}
           >
