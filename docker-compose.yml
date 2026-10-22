@@ -115,6 +115,7 @@ services:
       - ./backend/wp-content/plugins/hwe-landings:/var/www/html/wp-content/plugins/hwe-landings
       - ./backend/wp-content/plugins/hwe-customer-identity:/var/www/html/wp-content/plugins/hwe-customer-identity
       - ./backend/wp-content/plugins/hwe-external-integration:/var/www/html/wp-content/plugins/hwe-external-integration
+      - ./backend/wp-content/plugins/hwe-loyalty:/var/www/html/wp-content/plugins/hwe-loyalty
       - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
       # Bridge de backups (ver HWE_BACKUPS_DIR arriba): fuera del docroot para
       # que nunca sea servible por HTTP. Mismo host path que el servicio
@@ -164,6 +165,7 @@ services:
       - ./backend/wp-content/plugins/hwe-landings:/var/www/html/wp-content/plugins/hwe-landings
       - ./backend/wp-content/plugins/hwe-customer-identity:/var/www/html/wp-content/plugins/hwe-customer-identity
       - ./backend/wp-content/plugins/hwe-external-integration:/var/www/html/wp-content/plugins/hwe-external-integration
+      - ./backend/wp-content/plugins/hwe-loyalty:/var/www/html/wp-content/plugins/hwe-loyalty
       - ./backend/scripts:/scripts:ro
       # Mismo bridge que `wordpress`: `wp hwe setup` escribe aquí
       # hwe-backup-config.json (ver HWE_BACKUPS_DIR en ese servicio).
@@ -214,6 +216,7 @@ services:
       - ./backend/wp-content/plugins/hwe-landings:/var/www/html/wp-content/plugins/hwe-landings
       - ./backend/wp-content/plugins/hwe-customer-identity:/var/www/html/wp-content/plugins/hwe-customer-identity
       - ./backend/wp-content/plugins/hwe-external-integration:/var/www/html/wp-content/plugins/hwe-external-integration
+      - ./backend/wp-content/plugins/hwe-loyalty:/var/www/html/wp-content/plugins/hwe-loyalty
       # Mismo bridge que `wordpress`: el evento de notificación de copias lee
       # hwe-backup-status.json de aquí.
       - ./backups:/var/www/hwe-backups

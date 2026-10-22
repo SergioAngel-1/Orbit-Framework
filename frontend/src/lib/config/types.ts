@@ -109,6 +109,13 @@ export interface SiteConfig {
     enabled: boolean;
   };
   /**
+   * Programa de fidelización (módulo `loyalty`): monedero de puntos y referidos. Los valores
+   * numéricos viajan como texto, igual que el resto de campos `number` del Control Center; los
+   * convierte quien opera con ellos. Con el módulo apagado llegan los defaults y el BFF responde
+   * 404. `allowed_roles` no es público y no forma parte de este contrato.
+   */
+  loyalty: LoyaltyConfig;
+  /**
    * Landings editoriales (módulo `landings`): el registro y el contenido de cada una. Vacío con
    * el módulo apagado o sin landings.
    */
@@ -274,6 +281,57 @@ export interface EditorialLandingConfig {
   } | null;
   /** `<campo>_<idioma>` de los campos de primer nivel. */
   [translation: string]: unknown;
+}
+
+/**
+ * Configuración pública del módulo `loyalty` (spec §9.1). Todos los campos numéricos viajan
+ * como texto, como el resto de campos `number` del Control Center.
+ */
+export interface LoyaltyConfig {
+  /** Enciende el monedero de puntos (ganar, canjear y transferir). */
+  points_enabled: boolean;
+  /** Comisiones y puntos por alta de referidos; exige puntos activos. */
+  referrals_enabled: boolean;
+  /** Nombre de la unidad en singular (por defecto «punto»). */
+  currency_name: string;
+  /** Nombre de la unidad en plural (por defecto «puntos»). */
+  currency_name_plural: string;
+  /** URL del icono de la unidad. Vacío = sin icono. */
+  currency_icon: string;
+  /** Valor de 1 unidad en la moneda de la tienda (decimal como texto). */
+  point_value: string;
+  /** Mínimo de unidades para canjear (0 = sin mínimo). */
+  min_redeem: string;
+  /** Tope de unidades por pedido (0 = sin tope). */
+  max_redeem_per_order: string;
+  /** Permite que el canje cubra el pedido completo (envío incluido). */
+  full_payment_enabled: boolean;
+  /** Importe que debe quedar por pagar en dinero con el pago completo apagado. */
+  min_cash_due: string;
+  /** Días de caducidad de los abonos (0 = no caducan). */
+  expiry_days: string;
+  /** Devuelve un porcentaje de la compra al comprador. */
+  cashback_enabled: boolean;
+  cashback_percent: string;
+  /** Unidades fijas por evento (0 = apagado). */
+  events: {
+    registration: string;
+    review: string;
+    birthday: string;
+  };
+  referral_signup_points_l1: string;
+  referral_signup_points_l2: string;
+  commission_first_percent: string;
+  commission_next_percent: string;
+  level2_enabled: boolean;
+  commission_level2_percent: string;
+  /** Días desde la atribución en los que se paga comisión (0 = sin límite). */
+  commission_duration_days: string;
+  transfers_enabled: boolean;
+  transfer_min: string;
+  transfer_fee_percent: string;
+  /** Tope diario de unidades transferidas (0 = sin tope). */
+  transfer_daily_cap: string;
 }
 
 /** Ids del catálogo de módulos (spec §4.1). Debe coincidir con `Modules::CORE_IDS` en PHP. */
