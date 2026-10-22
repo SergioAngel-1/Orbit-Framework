@@ -51,6 +51,24 @@ final class RoutesTest extends HweBffOnlyTestCase
         $this->assertSame($existing, $result);
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function loyaltyRoutes(): iterable
+    {
+        yield 'referidos: atribuir' => ['/hwe/v1/loyalty/attribute'];
+        yield 'referidos: validar código' => ['/hwe/v1/loyalty/validate-code'];
+        yield 'referidos: código del usuario' => ['/hwe/v1/loyalty/referral-code'];
+    }
+
+    #[DataProvider('loyaltyRoutes')]
+    public function testLoyaltyRoutesAreBffOnly(string $route): void
+    {
+        $result = $this->dispatch($route);
+
+        $this->assertInstanceOf(\WP_Error::class, $result, 'Sin el secreto interno la ruta no existe.');
+        $this->assertSame('rest_no_route', $result->get_error_code());
+        $this->assertSame(['status' => 404], $result->get_error_data());
+    }
+
     public function testARequestWpGraphqlDoesNotConsiderItsOwnIsNotTouched(): void
     {
         // Sin secreto: aun así no se interviene si WPGraphQL ya dijo que no es GraphQL.

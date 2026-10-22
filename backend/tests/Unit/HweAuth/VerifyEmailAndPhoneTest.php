@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HWE\Tests\Unit\HweAuth;
 
+use Brain\Monkey\Actions;
 use Brain\Monkey\Functions;
 
 /**
@@ -84,6 +85,30 @@ final class VerifyEmailAndPhoneTest extends HweAuthTestCase
         $this->setMeta('hwe_email_verification_token_time', time() - 2 * 86400);
         $this->assertSame(400, $this->verify()->get_status());
         $this->assertNull($this->meta('hwe_email_verification_token'), 'El token caducado se borra.');
+    }
+
+    public function test_verificar_el_email_dispara_la_accion_estable_una_sola_vez(): void
+    {
+        $this->setMeta('hwe_email_verification_token', self::TOKEN);
+        $this->setMeta('hwe_email_verification_token_time', time());
+
+        Actions\expectDone('hwe_email_verified')
+            ->once()
+            ->with(self::USER_ID);
+
+        $this->assertSame(200, $this->verify()->get_status());
+    }
+
+    public function test_la_rama_ya_verificado_no_vuelve_a_disparar_la_accion(): void
+    {
+        $this->setMeta('hwe_email_verified', '1');
+        $this->setMeta('hwe_email_verification_token', self::TOKEN);
+        $this->setMeta('hwe_email_verification_token_time', time());
+
+        Actions\expectDone('hwe_email_verified')->never();
+
+        $this->assertSame(200, $this->verify()->get_status());
+        $this->assertTrue($this->verify()->get_data()['already_verified']);
     }
 
     // ── teléfono ────────────────────────────────────────────────────────────

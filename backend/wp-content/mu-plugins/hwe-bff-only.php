@@ -207,7 +207,8 @@ function hwe_bff_only_is_bff_rest_route(string $route): bool
 {
     return str_starts_with($route, '/wc/store')
         || str_starts_with($route, '/hwe/v1/auth/')
-        || str_starts_with($route, '/hwe/v1/consent/');
+        || str_starts_with($route, '/hwe/v1/consent/')
+        || str_starts_with($route, '/hwe/v1/loyalty/');
 }
 
 /** Termina la petición. Aislado para que los tests puedan sustituirlo (`exit` mataría PHPUnit). */
