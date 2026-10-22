@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:  HWE Banners
- * Description:  Sistema de banners administrables para instancias del Headless Web
- *               Ecosystem. Registra un tipo de contenido "Banner" con posiciones
+ * Description:  Sistema de banners administrables para instancias de HWE Orbit.
+ *               Registra un tipo de contenido "Banner" con posiciones
  *               (placements) genéricas, slides ordenables con imagen desktop/móvil
  *               y overrides por idioma, y expone los datos vía
  *               /wp-json/hwe-banners/v1/banners para que el frontend los consuma

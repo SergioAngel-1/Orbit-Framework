@@ -1,6 +1,7 @@
-# Headless Web Ecosystem
+# HWE Orbit
 
-Ecosistema web **Headless / JAMstack** completo y contenedorizado:
+**HWE Orbit** (HWE = Headless Web Ecosystem) es un framework de e-commerce **headless**
+completo y contenedorizado:
 
 - **Backend (CMS):** WordPress configurado **exclusivamente como Headless CMS**, exponiendo su contenido vía **WPGraphQL** (con JWT Auth y CORS).
 - **Frontend:** **Next.js 16** (App Router, Turbopack) + **React 19** + **TypeScript** + **Tailwind CSS v4** (config CSS-first), con **ISR** (Incremental Static Regeneration). Además de la web pública, es el **BFF**: toda operación sensible pasa por sus Route Handlers (`/api/*`).
@@ -23,7 +24,7 @@ Ecosistema web **Headless / JAMstack** completo y contenedorizado:
 ## 🗂️ Estructura del proyecto
 
 ```
-Headless Web Ecosystem/
+hwe-orbit/
 ├── docker-compose.yml          # Orquesta servicios para Docker puro (desarrollo)
 ├── docker-compose.prod.yml     # Producción: + Caddy TLS, backup, wp-cron, sin puertos expuestos
 ├── Caddyfile  caddy/           # Reverse proxy de producción (TLS automático) y sitios opcionales
@@ -64,8 +65,8 @@ Headless Web Ecosystem/
 ### 0. Preparar variables de entorno
 
 ```bash
-git clone <URL_DEL_REPO> "Headless Web Ecosystem"
-cd "Headless Web Ecosystem"
+git clone <URL_DEL_REPO> "hwe-orbit"
+cd "hwe-orbit"
 
 # Variables globales
 cp .env.example .env

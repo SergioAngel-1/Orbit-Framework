@@ -3,7 +3,7 @@
     "name": "HeadlessWP",
     "tagline": "Plantilla Headless WooCommerce",
     "description": "Frontend Next.js (App Router) conectado a WordPress vía WPGraphQL y WooCommerce.",
-    "footer": "Next.js + WordPress (WPGraphQL) · Headless Web Ecosystem"
+    "footer": "Next.js + WordPress (WPGraphQL) · HWE Orbit"
   },
   "nav": {
     "home": "Inicio",

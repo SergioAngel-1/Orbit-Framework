@@ -1,6 +1,6 @@
 # HWE Banners (módulo `banners`)
 
-Plugin de banners administrables para instancias del **Headless Web Ecosystem**. Genérico y
+Plugin de banners administrables para instancias de **HWE Orbit**. Genérico y
 reutilizable: no contiene lógica de negocio de ninguna instancia.
 
 ## Qué hace

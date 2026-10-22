@@ -81,7 +81,7 @@ trait Contact {
                 'type'     => 'group',
                 'label'    => 'Legal',
                 'children' => [
-                    'company' => ['type' => 'text',  'label' => 'Razón social',       'default' => 'Headless Web Ecosystem Inc.', 'public' => true],
+                    'company' => ['type' => 'text',  'label' => 'Razón social',       'default' => 'HWE Orbit', 'public' => true],
                     'nif'     => ['type' => 'text',  'label' => 'NIF / RUT / NIT',    'public' => true],
                     'email'   => ['type' => 'email', 'label' => 'Email de contacto',  'default' => 'hello@headlesswp.com',       'public' => true],
                     'phone'   => [

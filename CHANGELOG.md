@@ -14,6 +14,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   idéntico): su `SUPPORTED_NEXT` pasa a `16.4.1`.
 
 ### Changed
+- **Rebrand «HWE Orbit» y nueva paleta por defecto.** El framework pasa a presentarse como **HWE
+  Orbit** (HWE = Headless Web Ecosystem) en el README, las cabeceras de plugins y las descripciones
+  de los paquetes, y el tema mínimo describe la nueva identidad. La paleta por defecto del Control
+  Center, los tokens de `globals.css`, los ejemplos de configuración y el panel pasan a tinta,
+  cadmio y ultramar (`brand` `#111111`, `brand_dark` `#000000`, `brand_light` `#3a3a3a`,
+  `secondary` `#2a3fd6`, `secondary_dark` `#1f2fa3`, `accent` `#f2c200`, `surface` `#e9e9e6`);
+  los colores semánticos de estado no cambian.
 - **Autoría:** el autor de los plugins y mu-plugins pasa a «Sergio Jauregui» (cabecera `Author:`),
   el del tema `hwe-headless-base` a «sergioja.com», y el titular en `LICENSE`, `EULA.md`,
   `package.json` y `composer.json` a «Sergio Jauregui».

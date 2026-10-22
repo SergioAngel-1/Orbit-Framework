@@ -1,5 +1,5 @@
 # RUNBOOK — Operación, recuperación e incidentes
-### Headless Web Ecosystem
+### HWE Orbit
 
 > Procedimientos operativos para producción: backups/restauración, rotación de
 > secretos, cierre de sesiones, tareas programadas, salud del sistema, verificación

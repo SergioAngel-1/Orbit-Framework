@@ -7,7 +7,7 @@
  * Author:      Sergio Jauregui
  * Version:     2.0.0
  *
- * Forma parte del plan de hardening (Fase C.2) de la plantilla Headless Web Ecosystem.
+ * Forma parte del plan de hardening (Fase C.2) de HWE Orbit.
  * Sin estos límites, /graphql es un vector de DoS por consultas deeply anidadas.
  */
 

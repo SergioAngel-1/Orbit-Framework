@@ -2,10 +2,10 @@
 /**
  * Plugin Name:  HWE Control Center
  * Plugin URI:   https://headlesswebecosystem.com
- * Description:  Panel de configuración central para la plantilla Headless Web
- *               Ecosystem. Gestiona marca, diseño (design tokens), e-commerce,
- *               pasarelas de pago e integraciones desde un único panel en
- *               wp-admin. Expone la configuración pública (sin secretos) vía
+ * Description:  Panel de configuración central de HWE Orbit. Gestiona marca,
+ *               diseño (design tokens), e-commerce, pasarelas de pago e
+ *               integraciones desde un único panel en wp-admin. Expone la
+ *               configuración pública (sin secretos) vía
  *               /wp-json/hwe/v1/config para que el frontend la consuma con ISR.
  * Author:       Sergio Jauregui
  * Version:      2.0.0

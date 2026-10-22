@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "author": "Sergio Jauregui",
   "private": true,
-  "description": "Frontend Next.js (App Router) para el ecosistema Headless WordPress + WPGraphQL",
+  "description": "Frontend Next.js (App Router) y BFF de HWE Orbit",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
