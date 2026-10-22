@@ -27,10 +27,12 @@
  *
  * Estado: incluye el arranque, los ajustes, el esquema de base de datos, el libro mayor
  * transaccional (abonos, cargos FIFO, devoluciones y caducidad), la tarea diaria que caduca
- * los abonos vencidos, los referidos (códigos, atribución y confirmación con sus primas de
- * alta) con sus rutas internas y las ganancias por pedido (cashback, comisiones N1/N2, bono
- * por producto y su reversión). El canje, la administración y las rutas del BFF llegan en las
- * siguientes tareas del módulo (ver README.md y MANUAL.md de esta carpeta).
+ * los abonos vencidos y paga los cumpleaños, los referidos (códigos, atribución y confirmación
+ * con sus primas de alta) con sus rutas internas, las ganancias por pedido (cashback,
+ * comisiones N1/N2, bono por producto y su reversión) y las ganancias por eventos (una reseña
+ * por pedido, de producto o del sitio, y el cumpleaños anual). El canje, la administración y
+ * las rutas del BFF llegan en las siguientes tareas del módulo (ver README.md y MANUAL.md de
+ * esta carpeta).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -48,6 +50,7 @@ require_once __DIR__ . '/includes/Referrals.php';
 require_once __DIR__ . '/includes/ProductBonus.php';
 require_once __DIR__ . '/includes/Earnings.php';
 require_once __DIR__ . '/includes/Scheduler.php';
+require_once __DIR__ . '/includes/Events.php';
 require_once __DIR__ . '/includes/Rest/ReferralRoutes.php';
 
 final class HWE_Loyalty {
@@ -69,6 +72,7 @@ final class HWE_Loyalty {
 		HWE_Loyalty_Referrals::register();
 		HWE_Loyalty_ProductBonus::register();
 		HWE_Loyalty_Earnings::register();
+		HWE_Loyalty_Events::register();
 		HWE_Loyalty_ReferralRoutes::register();
 	}
 

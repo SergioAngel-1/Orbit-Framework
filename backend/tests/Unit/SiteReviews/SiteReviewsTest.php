@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HWE\Tests\Unit\SiteReviews;
 
+use Brain\Monkey\Actions;
 use Brain\Monkey\Functions;
 use HWE\Tests\TestCase;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -73,6 +74,8 @@ final class SiteReviewsTest extends TestCase
             unset($this->options[$name]);
             return true;
         });
+        // La revalidación del Control Center registra que falta el secreto en este entorno.
+        Functions\when('error_log')->justReturn(true);
     }
 
     private function load(): void
@@ -262,5 +265,53 @@ final class SiteReviewsTest extends TestCase
 
         Functions\when('get_post_type')->justReturn('post');
         $this->assertSame('draft', \HWE_Site_Reviews::untrashStatus('draft', 5), 'Otros tipos no se tocan.');
+    }
+
+    // ── acción estable al publicarse ─────────────────────────────────────────
+
+    public function testPublishingAReviewWithAuthorAnnouncesItWithItsThreeIds(): void
+    {
+        Functions\when('get_post_meta')->justReturn(10);
+        $this->load();
+
+        $post              = new \WP_Post();
+        $post->ID          = 501;
+        $post->post_type   = 'hwe_site_review';
+        $post->post_author = 7;
+        $post->post_status = 'draft';
+
+        Actions\expectDone('hwe_site_review_published')
+            ->once()
+            ->with(501, 7, 10);
+
+        \HWE_Site_Reviews::onStatusChange('publish', 'draft', $post);
+    }
+
+    public function testOnlyAPublicationWithAuthorAnnouncesTheReview(): void
+    {
+        Functions\when('get_post_meta')->justReturn(10);
+        $this->load();
+
+        $withoutAuthor              = new \WP_Post();
+        $withoutAuthor->ID          = 502;
+        $withoutAuthor->post_type   = 'hwe_site_review';
+        $withoutAuthor->post_author = 0;
+
+        $otherType              = new \WP_Post();
+        $otherType->ID          = 503;
+        $otherType->post_type   = 'post';
+        $otherType->post_author = 7;
+
+        $alreadyPublished              = new \WP_Post();
+        $alreadyPublished->ID          = 504;
+        $alreadyPublished->post_type   = 'hwe_site_review';
+        $alreadyPublished->post_author = 7;
+        $alreadyPublished->post_status = 'publish';
+
+        Actions\expectDone('hwe_site_review_published')->never();
+
+        \HWE_Site_Reviews::onStatusChange('publish', 'new', $withoutAuthor);
+        \HWE_Site_Reviews::onStatusChange('publish', 'draft', $otherType);
+        \HWE_Site_Reviews::onStatusChange('publish', 'publish', $alreadyPublished);
     }
 }

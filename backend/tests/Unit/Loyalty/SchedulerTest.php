@@ -164,6 +164,30 @@ final class SchedulerTest extends TestCase
         $this->assertStringContainsString('[hwe] loyalty:', $this->logged[0]);
     }
 
+    public function testRegisterRepairsTheDailyEventOnInitAndDoesNotDuplicateIt(): void
+    {
+        $this->loadScheduler();
+
+        Actions\expectAdded('init')
+            ->once()
+            ->with([\HWE_Loyalty_Scheduler::class, 'schedule']);
+        Actions\expectAdded(\HWE_Loyalty_Scheduler::HOOK)
+            ->once()
+            ->with([\HWE_Loyalty_Scheduler::class, 'runExpiry']);
+
+        \HWE_Loyalty_Scheduler::register();
+
+        // El callback de `init` es `schedule()` (idempotente): sin evento lo crea...
+        $this->assertArrayNotHasKey(\HWE_Loyalty_Scheduler::HOOK, $this->events);
+        \HWE_Loyalty_Scheduler::schedule();
+        $this->assertCount(1, $this->events[\HWE_Loyalty_Scheduler::HOOK]);
+
+        // ...y con el evento ya presente no lo duplica.
+        \HWE_Loyalty_Scheduler::schedule();
+        $this->assertCount(1, $this->events[\HWE_Loyalty_Scheduler::HOOK]);
+        $this->assertSame(1, $this->scheduleCalls);
+    }
+
     public function testUnscheduleRemovesEveryEventOfTheHook(): void
     {
         $this->loadScheduler();

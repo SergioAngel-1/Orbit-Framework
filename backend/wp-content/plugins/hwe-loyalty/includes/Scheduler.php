@@ -3,14 +3,16 @@
  * Tareas programadas de `hwe-loyalty` (spec §5.3 y §6.3).
  *
  * Un ÚNICO evento diario de WP-Cron, `hwe_loyalty_daily`, del que cuelgan las tareas de
- * mantenimiento del módulo. Hoy solo la caducidad de abonos; la Tarea 7 añade el cumpleaños
- * como OTRO callback del mismo hook (`add_action( HWE_Loyalty_Scheduler::HOOK, … )`), por eso
- * la caducidad es un callback propio (`runExpiry`) y no el cuerpo del evento: así nadie tiene
+ * mantenimiento del módulo: la caducidad de abonos (`runExpiry`) y el cumpleaños
+ * (`HWE_Loyalty_Events::runBirthdays`), que se engancha aparte como OTRO callback del mismo
+ * hook. Por eso la caducidad es un callback propio y no el cuerpo del evento: así nadie tiene
  * que editar esta clase para colgar trabajo nuevo.
  *
  * En producción el evento no lo dispara una petición: lo ejecuta el contenedor `wp-cron`
- * (`DISABLE_WP_CRON`). Basta con programarlo una vez en la activación y retirarlo al
- * desactivar el plugin; `schedule()` es idempotente por si se llama más de una vez.
+ * (`DISABLE_WP_CRON`). Se programa en la activación y, además, se autorrepara en `init` si
+ * falta (un `wp cron` vaciado, una migración o un despliegue que copió la base sin la opción
+ * `cron` dejarían el mantenimiento sin ejecutar para siempre). `schedule()` es idempotente,
+ * así que pasar por `init` en cada petición no duplica nada.
  *
  * Decisiones de esta tarea:
  *  · **Un solo evento** (`wp_next_scheduled` antes de programar) y `unschedule()` retira
@@ -51,9 +53,18 @@ final class HWE_Loyalty_Scheduler {
 	 */
 	public const MAX_BATCHES = 25;
 
-	/** Engancha la caducidad al evento diario. Lo llama `HWE_Loyalty::boot()`. */
+	/**
+	 * Evita inundar el log cuando `init` reintenta en cada petición y WordPress sigue sin
+	 * poder programar el evento (opción `cron` no escribible, por ejemplo).
+	 */
+	private static bool $scheduleFailureLogged = false;
+
+	/** Engancha la caducidad al evento diario y autorrepara su programación. */
 	public static function register(): void {
 		add_action( self::HOOK, array( self::class, 'runExpiry' ) );
+		// Autorreparación (patrón `hwe-consent-log`): si el evento desapareció de la opción
+		// `cron`, la siguiente petición lo vuelve a programar. `schedule()` es idempotente.
+		add_action( 'init', array( self::class, 'schedule' ) );
 	}
 
 	/**
@@ -68,12 +79,16 @@ final class HWE_Loyalty_Scheduler {
 		$scheduled = wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', self::HOOK );
 
 		// Un fallo al programar no puede pasar desapercibido: sin evento, los abonos vencidos
-		// no se caducarían hasta la siguiente activación.
+		// no se caducarían hasta la siguiente activación. Se registra una vez por proceso
+		// porque `init` vuelve a intentarlo en cada petición.
 		if (
 			false === $scheduled
 			|| ( function_exists( 'is_wp_error' ) && is_wp_error( $scheduled ) )
 		) {
-			error_log( '[hwe] loyalty: no se pudo programar el evento diario de caducidad.' );
+			if ( ! self::$scheduleFailureLogged ) {
+				self::$scheduleFailureLogged = true;
+				error_log( '[hwe] loyalty: no se pudo programar el evento diario de caducidad.' );
+			}
 		}
 	}
 
