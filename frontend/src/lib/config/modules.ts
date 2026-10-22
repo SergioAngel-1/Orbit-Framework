@@ -13,6 +13,7 @@ export const MODULE_IDS: readonly ModuleId[] = [
   "coupon-rules",
   "customer-identity",
   "external-integration",
+  "loyalty",
 ];
 
 /**

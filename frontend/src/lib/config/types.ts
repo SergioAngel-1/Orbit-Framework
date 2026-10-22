@@ -286,7 +286,8 @@ export type ModuleId =
   | "site-reviews"
   | "coupon-rules"
   | "customer-identity"
-  | "external-integration";
+  | "external-integration"
+  | "loyalty";
 
 /**
  * Ajustes propios de la instancia. Vacía en el framework: cada instancia la

@@ -199,6 +199,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     "coupon-rules": false,
     "customer-identity": false,
     "external-integration": false,
+    loyalty: false,
   },
   instance: {},
 };
