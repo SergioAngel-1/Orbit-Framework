@@ -69,7 +69,7 @@ export function Input({
             "dark:bg-gray-950 dark:text-gray-100",
             hasError
               ? "border-red-500 focus:border-red-500 focus:ring-red-400/30"
-              : "border-gray-300 dark:border-gray-700 focus:border-brand focus:ring-brand/25",
+              : "border-gray-300 dark:border-gray-700 focus:border-brand dark:focus:border-accent focus:ring-brand/25 dark:focus:ring-accent/25",
             leading ? "pl-9" : undefined,
             trailing ? "pr-9" : undefined,
             className,

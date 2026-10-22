@@ -198,7 +198,10 @@ export default async function ProductPage({
 
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-        <Link href="/products" className="transition-colors hover:text-brand">
+        <Link
+          href="/products"
+          className="transition-colors hover:text-brand dark:hover:text-accent"
+        >
           {t("title")}
         </Link>
         <span aria-hidden>/</span>
@@ -254,7 +257,7 @@ export default async function ProductPage({
           {hasLearnPage && (
             <Link
               href={productLearnHref(product)}
-              className="inline-flex w-fit items-center gap-1 text-sm font-semibold text-brand hover:underline"
+              className="inline-flex w-fit items-center gap-1 text-sm font-semibold text-brand dark:text-accent hover:underline"
             >
               {learnLabel} <span aria-hidden>→</span>
             </Link>
@@ -342,7 +345,7 @@ export default async function ProductPage({
                     resolveCmsHref(field.value)?.startsWith("http") ? (
                     <a
                       href={field.value}
-                      className="text-brand hover:underline"
+                      className="text-brand dark:text-accent hover:underline"
                       target="_blank"
                       rel="noopener noreferrer"
                     >

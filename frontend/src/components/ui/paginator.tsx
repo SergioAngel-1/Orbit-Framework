@@ -103,7 +103,7 @@ function PaginatorNumbers({
               "font-sans",
               page === currentPage
                 ? "bg-brand font-medium text-white shadow-sm"
-                : "text-[--foreground]/60 hover:bg-brand/10 hover:text-[--foreground]",
+                : "text-[--foreground]/60 hover:bg-brand/10 dark:hover:bg-accent/10 hover:text-[--foreground]",
             )}
           >
             {page}
@@ -146,8 +146,8 @@ function PaginatorDots({
             className={cn(
               "h-2 rounded-full transition-all duration-200",
               page === currentPage
-                ? "w-6 bg-brand"
-                : "w-2 bg-gray-300 hover:bg-brand/50 dark:bg-gray-600",
+                ? "w-6 bg-brand dark:bg-accent"
+                : "w-2 bg-gray-300 hover:bg-brand/50 dark:bg-gray-600 dark:hover:bg-accent/50",
             )}
           />
         ))}
@@ -180,7 +180,7 @@ function ArrowButton({
         arrowBtn,
         disabled
           ? "cursor-not-allowed text-[--foreground]/25"
-          : "text-[--foreground]/60 hover:bg-brand/10 hover:text-[--foreground]",
+          : "text-[--foreground]/60 hover:bg-brand/10 dark:hover:bg-accent/10 hover:text-[--foreground]",
       )}
     >
       <svg

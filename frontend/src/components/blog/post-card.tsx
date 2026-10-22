@@ -74,7 +74,7 @@ export function PostCard({
           )}
         </div>
 
-        <h2 className="mb-2 text-xl font-semibold leading-snug tracking-tight transition-colors group-hover:text-brand">
+        <h2 className="mb-2 text-xl font-semibold leading-snug tracking-tight transition-colors group-hover:text-brand dark:group-hover:text-accent">
           <Link
             href={blogPostHref(post)}
             className="after:absolute after:inset-0 after:content-['']"
@@ -99,7 +99,7 @@ export function PostCard({
           </ul>
         )}
 
-        <span className="mt-4 inline-flex items-center text-sm font-medium text-brand">
+        <span className="mt-4 inline-flex items-center text-sm font-medium text-brand dark:text-accent">
           {readMore}
         </span>
       </div>

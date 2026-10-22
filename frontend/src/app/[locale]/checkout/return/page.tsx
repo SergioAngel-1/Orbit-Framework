@@ -182,12 +182,15 @@ export default async function CheckoutReturnPage({
         {session && (
           <Link
             href="/account/orders"
-            className="font-medium text-brand hover:underline"
+            className="font-medium text-brand dark:text-accent hover:underline"
           >
             {t("return.viewOrders")}
           </Link>
         )}
-        <Link href="/products" className="font-medium text-brand hover:underline">
+        <Link
+          href="/products"
+          className="font-medium text-brand dark:text-accent hover:underline"
+        >
           {t("return.continueShopping")}
         </Link>
       </div>

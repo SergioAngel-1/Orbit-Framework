@@ -540,7 +540,7 @@ export function CheckoutForm({
                     name={`shipping_${pkg.package_id}`}
                     defaultChecked={rate.selected}
                     onChange={() => selectShippingRate(pkg.package_id, rate.rate_id)}
-                    className="text-brand"
+                    className="text-brand dark:text-accent"
                   />
                   <span className="text-sm">{rate.name}</span>
                   <span className="ml-auto text-sm font-medium">
@@ -714,7 +714,7 @@ export function CheckoutForm({
                 value={c}
                 checked={effectiveChoice === c}
                 onChange={() => setChoice(c)}
-                className="mt-1 text-brand"
+                className="mt-1 text-brand dark:text-accent"
               />
               <label htmlFor={`payment-choice-${c}`} className="cursor-pointer">
                 <span className="block text-sm font-medium">

@@ -24,7 +24,7 @@ export function AuthorLink({
     <Link
       href={{ pathname: "/blog", query: { author: author.slug } }}
       className={cn(
-        "relative z-10 underline-offset-2 transition-colors hover:text-brand hover:underline",
+        "relative z-10 underline-offset-2 transition-colors hover:text-brand dark:hover:text-accent hover:underline",
         className,
       )}
     >

@@ -170,8 +170,8 @@ const SOCIAL_LABELS: Record<SocialPlatform, string> = {
 function BranchCard({ branch }: { branch: Branch }) {
   return (
     <div className="flex items-start gap-3 border-b border-brand-light/20 py-3 last:border-0">
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/8">
-        <MapPinIcon className="h-4 w-4 text-brand" />
+      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/8 dark:bg-accent/10">
+        <MapPinIcon className="h-4 w-4 text-brand dark:text-accent" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between">
@@ -180,7 +180,7 @@ function BranchCard({ branch }: { branch: Branch }) {
             href={branch.mapUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 font-sans text-[10px] text-brand transition-colors hover:text-brand-dark"
+            className="flex items-center gap-1 font-sans text-[10px] text-brand dark:text-accent transition-colors hover:text-brand-dark dark:hover:text-accent"
           >
             <NavigationIcon className="h-3 w-3" />
             Ir
@@ -390,7 +390,7 @@ export function ContactForm({
                       href="/legal/privacy"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-brand underline"
+                      className="text-brand dark:text-accent underline"
                     >
                       política de Privacidad
                     </Link>
@@ -447,20 +447,20 @@ export function ContactForm({
                     href={`tel:${phone.replace(/[^+\d]/g, "")}`}
                     className="group flex items-center gap-3"
                   >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/8">
-                      <PhoneIcon className="h-4 w-4 text-brand" />
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/8 dark:bg-accent/10">
+                      <PhoneIcon className="h-4 w-4 text-brand dark:text-accent" />
                     </div>
-                    <span className="font-sans text-[13px] text-[--foreground]/70 transition-colors group-hover:text-brand">
+                    <span className="font-sans text-[13px] text-[--foreground]/70 transition-colors group-hover:text-brand dark:group-hover:text-accent">
                       {phone}
                     </span>
                   </a>
                 )}
                 {email && (
                   <a href={`mailto:${email}`} className="group flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/8">
-                      <MailIcon className="h-4 w-4 text-brand" />
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/8 dark:bg-accent/10">
+                      <MailIcon className="h-4 w-4 text-brand dark:text-accent" />
                     </div>
-                    <span className="break-all font-sans text-[13px] text-[--foreground]/70 transition-colors group-hover:text-brand">
+                    <span className="break-all font-sans text-[13px] text-[--foreground]/70 transition-colors group-hover:text-brand dark:group-hover:text-accent">
                       {email}
                     </span>
                   </a>
@@ -488,7 +488,7 @@ export function ContactForm({
                         title={SOCIAL_LABELS[platform]}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-brand-light/30 bg-[--background] transition-colors hover:border-brand/30 hover:bg-brand/8"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-brand-light/30 bg-[--background] transition-colors hover:border-brand/30 dark:hover:border-accent/30 hover:bg-brand/8 dark:hover:bg-accent/10"
                       >
                         <Icon className="h-4 w-4 text-[--foreground]/50" />
                       </a>

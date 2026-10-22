@@ -78,7 +78,7 @@ export function BlogSearchBar({ initialQuery, tags, categories }: Props) {
                 aria-current={
                   pathname === `/blog/category/${category.slug}` ? "page" : undefined
                 }
-                className="inline-flex rounded-full border border-gray-300 px-3 py-1 text-xs font-medium transition-colors hover:border-brand hover:text-brand dark:border-gray-700"
+                className="inline-flex rounded-full border border-gray-300 px-3 py-1 text-xs font-medium transition-colors hover:border-brand dark:hover:border-accent hover:text-brand dark:hover:text-accent dark:border-gray-700"
               >
                 {category.name}
               </Link>

@@ -72,7 +72,10 @@ export default async function BlogArchivePage({
         dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
       />
       <nav className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-        <Link href="/blog" className="transition-colors hover:text-brand">
+        <Link
+          href="/blog"
+          className="transition-colors hover:text-brand dark:hover:text-accent"
+        >
           {t("backToBlog")}
         </Link>
       </nav>
@@ -101,7 +104,7 @@ export default async function BlogArchivePage({
                 >
                   <Link
                     href={blogPostHref(post)}
-                    className="font-medium transition-colors hover:text-brand"
+                    className="font-medium transition-colors hover:text-brand dark:hover:text-accent"
                   >
                     {post.title}
                   </Link>

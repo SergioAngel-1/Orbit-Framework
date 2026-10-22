@@ -28,7 +28,7 @@ export function Breadcrumb({ items, light = false, className }: BreadcrumbProps)
                     "text-[11px] transition-colors duration-150",
                     light
                       ? "text-white/50 hover:text-white"
-                      : "text-[--foreground]/40 hover:text-brand",
+                      : "text-[--foreground]/40 hover:text-brand dark:hover:text-accent",
                   )}
                 >
                   {item.label}

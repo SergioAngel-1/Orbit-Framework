@@ -3,7 +3,7 @@ import { useId } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
-const LINK_CLASS = "text-brand underline underline-offset-2";
+const LINK_CLASS = "text-brand dark:text-accent underline underline-offset-2";
 
 /**
  * Casilla de términos + privacidad + veracidad de los datos. Registro y checkout

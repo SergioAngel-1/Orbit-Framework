@@ -211,7 +211,7 @@ export function RegisterForm({
         {tRegister("hasAccount")}{" "}
         <Link
           href={withReturn("/login", returnTo)}
-          className="font-medium text-brand hover:underline"
+          className="font-medium text-brand dark:text-accent hover:underline"
         >
           {tRegister("login")}
         </Link>

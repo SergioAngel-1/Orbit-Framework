@@ -147,10 +147,10 @@ export function VariationSelector({
                     aria-label={`${label}: ${option}${!available ? " (agotado)" : ""}`}
                     className={cn(
                       "relative min-w-[2.75rem] rounded-lg border px-3 py-1.5 text-sm font-medium",
-                      "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50",
+                      "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 dark:focus-visible:ring-accent/50",
                       isSelected
-                        ? "border-brand bg-brand text-white"
-                        : "border-gray-300 bg-white text-gray-700 hover:border-brand dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200",
+                        ? "border-brand dark:border-accent bg-brand text-white"
+                        : "border-gray-300 bg-white text-gray-700 hover:border-brand dark:hover:border-accent dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200",
                       !available && "cursor-not-allowed opacity-40 line-through",
                     )}
                   >

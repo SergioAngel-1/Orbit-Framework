@@ -23,7 +23,7 @@ export function PostToc({
           <li key={heading.id} className={heading.level === 3 ? "ml-4" : undefined}>
             <a
               href={`#${heading.id}`}
-              className="text-gray-600 transition-colors hover:text-brand dark:text-gray-300"
+              className="text-gray-600 transition-colors hover:text-brand dark:hover:text-accent dark:text-gray-300"
             >
               {heading.text}
             </a>

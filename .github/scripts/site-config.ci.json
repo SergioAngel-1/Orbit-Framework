@@ -2,13 +2,13 @@
   "_comentario": "Fixture SOLO para el CI (build y job `e2e` contra el stub). Reproduce la paleta POR DEFECTO del framework (CONFIG_DEFAULTS.design.colors): el stub sirve la ruta de config con una respuesta real y así el CI ejercita la rama de éxito de `fetchRemoteConfig` en vez de la de respaldo. `frontend/tests/unit/ci-stub.test.ts` comprueba que no diverge de los defaults; si cambias la paleta por defecto, actualiza este archivo.",
   "design": {
     "colors": {
-      "brand": "#2563eb",
-      "brand_dark": "#1e40af",
-      "brand_light": "#3b82f6",
-      "secondary": "#16a34a",
-      "secondary_dark": "#15803d",
-      "accent": "#f59e0b",
-      "surface": "#f8fafc",
+      "brand": "#111111",
+      "brand_dark": "#000000",
+      "brand_light": "#3a3a3a",
+      "secondary": "#2a3fd6",
+      "secondary_dark": "#1f2fa3",
+      "accent": "#f2c200",
+      "surface": "#e9e9e6",
       "background": "#ffffff",
       "foreground": "#0a0a0a"
     }

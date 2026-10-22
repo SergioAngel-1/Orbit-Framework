@@ -209,7 +209,7 @@ export default async function BlogPage({
                 </div>
               )}
               <div className="flex flex-col gap-3 p-6">
-                <span className="text-xs font-semibold uppercase tracking-wide text-brand">
+                <span className="text-xs font-semibold uppercase tracking-wide text-brand dark:text-accent">
                   {t("featuredBadge")}
                 </span>
                 <div className="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -255,7 +255,7 @@ export default async function BlogPage({
                     )}
                   </ul>
                 )}
-                <span className="mt-auto text-sm font-semibold text-brand">
+                <span className="mt-auto text-sm font-semibold text-brand dark:text-accent">
                   {t("readArticle")}
                 </span>
               </div>
@@ -278,7 +278,7 @@ export default async function BlogPage({
               {isFiltered && (
                 <Link
                   href="/blog"
-                  className="text-sm font-semibold text-brand hover:underline"
+                  className="text-sm font-semibold text-brand dark:text-accent hover:underline"
                 >
                   {t("clearFilter")}
                 </Link>
@@ -305,7 +305,7 @@ export default async function BlogPage({
           {!isFiltered && posts.length > 0 && (
             <Link
               href="/blog/archive"
-              className="self-start text-sm font-semibold text-brand hover:underline"
+              className="self-start text-sm font-semibold text-brand dark:text-accent hover:underline"
             >
               {t("viewArchive")}
             </Link>

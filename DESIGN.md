@@ -9,7 +9,7 @@ description: Identidad programática del framework de e-commerce headless HWE Or
 
 > Alcance: es la identidad de **HWE Orbit, el producto** (logo, docs, web del framework,
 > material de venta). **No** es el diseño de las tiendas que se construyen con él: el starter de
-> `frontend/` sigue siendo neutro y cada instancia trae su propia marca.
+> `frontend/` solo hereda la paleta como valor por defecto y cada instancia trae su propia marca.
 
 ## Overview
 
@@ -113,4 +113,6 @@ Plano absoluto. Sin sombras, sin glow, sin vidrio, sin 3D. La profundidad se exp
 - Azul ultramar o cualquier otro color dentro del logotipo.
 - Deformar, contornear o vaciar el núcleo; poner algo **dentro** del núcleo (nada de la
   instancia entra al centro).
-- Usar la identidad de HWE Orbit en el starter de las tiendas.
+- Llevar el símbolo o el wordmark de HWE Orbit al starter de las tiendas. El starter solo
+  hereda la paleta como valor por defecto (`CONFIG_DEFAULTS` y el Control Center) y cada
+  instancia la reemplaza.

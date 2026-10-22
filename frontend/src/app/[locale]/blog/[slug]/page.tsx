@@ -167,7 +167,10 @@ export default async function PostPage({
       />
 
       <nav className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-        <Link href="/blog" className="transition-colors hover:text-brand">
+        <Link
+          href="/blog"
+          className="transition-colors hover:text-brand dark:hover:text-accent"
+        >
           {t("backToBlog")}
         </Link>
       </nav>

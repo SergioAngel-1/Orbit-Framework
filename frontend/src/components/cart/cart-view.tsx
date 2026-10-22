@@ -24,7 +24,7 @@ export function CartView() {
         <p className="text-gray-600 dark:text-gray-300">{tCart("emptyDetailed")}</p>
         <Link
           href="/products"
-          className="mt-4 inline-block font-medium text-brand hover:underline"
+          className="mt-4 inline-block font-medium text-brand dark:text-accent hover:underline"
         >
           {tCart("viewProducts")}
         </Link>

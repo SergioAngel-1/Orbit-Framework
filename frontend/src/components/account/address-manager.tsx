@@ -192,7 +192,7 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
             <div className="flex gap-2">
               <button
                 onClick={() => startEdit(i)}
-                className="text-sm text-brand hover:underline"
+                className="text-sm text-brand dark:text-accent hover:underline"
               >
                 {t("edit")}
               </button>
@@ -210,7 +210,7 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
       {editing === null && (
         <button
           onClick={startNew}
-          className="rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-500 hover:border-brand hover:text-brand dark:border-gray-600"
+          className="rounded-lg border border-dashed border-gray-300 px-4 py-2 text-sm text-gray-500 hover:border-brand dark:hover:border-accent hover:text-brand dark:hover:text-accent dark:border-gray-600"
         >
           + {t("addNew")}
         </button>

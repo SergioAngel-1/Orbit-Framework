@@ -96,7 +96,11 @@ export function ReviewForm({
       />
       {otherProducts > 0 && (
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="sameForOrder" className="text-brand" />
+          <input
+            type="checkbox"
+            name="sameForOrder"
+            className="text-brand dark:text-accent"
+          />
           {t("reviewSameForOrder", { count: otherProducts })}
         </label>
       )}

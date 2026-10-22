@@ -188,7 +188,7 @@ export function OrderActions({
                 type="checkbox"
                 checked={products}
                 onChange={(e) => setProducts(e.target.checked)}
-                className="text-brand"
+                className="text-brand dark:text-accent"
               />
               {t("alsoProducts", { count: review.productCount })}
             </label>

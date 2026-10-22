@@ -48,7 +48,10 @@ export function ReviewGate({ productId }: { productId: number }) {
     case "auth":
       return (
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          <Link href="/login" className="font-medium text-brand hover:underline">
+          <Link
+            href="/login"
+            className="font-medium text-brand dark:text-accent hover:underline"
+          >
             {t("reviewLogin")}
           </Link>
         </p>

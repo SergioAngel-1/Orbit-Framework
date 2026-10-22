@@ -63,7 +63,7 @@ export default async function OrderDetailPage({
     <div>
       <Link
         href="/account/orders"
-        className="mb-4 inline-block text-sm text-brand transition-colors hover:text-brand-dark"
+        className="mb-4 inline-block text-sm text-brand dark:text-accent transition-colors hover:text-brand-dark dark:hover:text-accent"
       >
         {t("backToOrders")}
       </Link>

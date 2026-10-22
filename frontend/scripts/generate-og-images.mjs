@@ -86,13 +86,13 @@ function loadInstanceConfig(explicit) {
 const args = parseArgs(process.argv.slice(2));
 const instance = loadInstanceConfig(args.config);
 
-// Valores neutros si la instancia no define la suya: el mismo azul del framework.
+// Valores neutros si la instancia no define la suya: los mismos por defecto del framework.
 const colors = instance.design?.colors ?? {};
 const PALETTE = {
   background: colors.background || "#ffffff",
   foreground: colors.foreground || "#111827",
-  brand: colors.brand || "#2563eb",
-  brandDark: colors.brand_dark || "#1e40af",
+  brand: colors.brand || "#111111",
+  brandDark: colors.brand_dark || "#000000",
 };
 const BRAND_NAME = instance.brand?.name || "HeadlessWP";
 const TAGLINE = {

@@ -22,12 +22,12 @@ final class Palette {
      * sugerencias.
      */
     private const FALLBACK = [
-        'brand'          => '#2563eb',
-        'brand_dark'     => '#1e40af',
-        'brand_light'    => '#3b82f6',
-        'secondary'      => '#16a34a',
-        'secondary_dark' => '#15803d',
-        'accent'         => '#f59e0b',
+        'brand'          => '#111111',
+        'brand_dark'     => '#000000',
+        'brand_light'    => '#3a3a3a',
+        'secondary'      => '#2a3fd6',
+        'secondary_dark' => '#1f2fa3',
+        'accent'         => '#f2c200',
     ];
 
     /**

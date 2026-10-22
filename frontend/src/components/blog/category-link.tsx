@@ -21,7 +21,7 @@ export function CategoryLink({
     <Link
       href={blogCategoryHref(category.slug)}
       className={cn(
-        "relative z-10 font-semibold uppercase tracking-wide transition-colors hover:text-brand",
+        "relative z-10 font-semibold uppercase tracking-wide transition-colors hover:text-brand dark:hover:text-accent",
         className,
       )}
     >

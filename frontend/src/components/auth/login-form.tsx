@@ -169,7 +169,10 @@ export function LoginForm({
         {pending ? tLogin("submitting") : tLogin("submit")}
       </button>
       <p className="text-right text-sm">
-        <Link href="/forgot-password" className="text-gray-600 hover:text-brand">
+        <Link
+          href="/forgot-password"
+          className="text-gray-600 hover:text-brand dark:hover:text-accent"
+        >
           {tLogin("forgotPassword")}
         </Link>
       </p>
@@ -177,7 +180,7 @@ export function LoginForm({
         {tLogin("noAccount")}{" "}
         <Link
           href={withReturn("/register", returnTo)}
-          className="font-medium text-brand hover:underline"
+          className="font-medium text-brand dark:text-accent hover:underline"
         >
           {tLogin("register")}
         </Link>

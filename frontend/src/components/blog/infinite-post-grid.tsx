@@ -114,7 +114,7 @@ export function InfinitePostGrid({
               onClick={() => {
                 setFailed(false);
               }}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:border-brand hover:text-brand dark:border-gray-700"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:border-brand dark:hover:border-accent hover:text-brand dark:hover:text-accent dark:border-gray-700"
             >
               {t("loadError")}
             </button>

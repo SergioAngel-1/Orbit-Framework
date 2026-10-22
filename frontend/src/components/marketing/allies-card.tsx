@@ -31,7 +31,7 @@ export function AllyCard({
   const content = (
     <>
       <div className="flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-brand-light/30 bg-surface transition-colors group-hover:border-brand/40">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-brand-light/30 bg-surface transition-colors group-hover:border-brand/40 dark:group-hover:border-accent/40">
           {logoUrl ? (
             <Image
               src={logoUrl}
@@ -41,11 +41,13 @@ export function AllyCard({
               className="h-10 w-10 object-contain"
             />
           ) : (
-            <span className="font-heading text-lg text-brand">{initials(name)}</span>
+            <span className="font-heading text-lg text-brand dark:text-accent">
+              {initials(name)}
+            </span>
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h4 className="mb-1 font-heading text-[15px] text-[--foreground] transition-colors group-hover:text-brand">
+          <h4 className="mb-1 font-heading text-[15px] text-[--foreground] transition-colors group-hover:text-brand dark:group-hover:text-accent">
             {name}
           </h4>
           <p className="line-clamp-2 font-sans text-xs leading-relaxed text-[--foreground]/50">
@@ -55,7 +57,7 @@ export function AllyCard({
       </div>
       {websiteUrl && (
         <div className="mt-4 border-t border-brand-light/30 pt-3">
-          <span className="flex items-center gap-1.5 font-sans text-[10px] text-brand transition-all group-hover:gap-2">
+          <span className="flex items-center gap-1.5 font-sans text-[10px] text-brand dark:text-accent transition-all group-hover:gap-2">
             <svg
               className="h-3 w-3"
               viewBox="0 0 24 24"
@@ -91,7 +93,7 @@ export function AllyCard({
         as="article"
         hoverable
         className={cn(
-          "group border-brand-light/30 transition-colors hover:border-brand/40",
+          "group border-brand-light/30 transition-colors hover:border-brand/40 dark:hover:border-accent/40",
           className,
         )}
       >

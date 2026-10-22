@@ -99,7 +99,7 @@ export function CountrySelector({
         onClick={() => setIsOpen(true)}
         className={cn(
           "flex items-center gap-2 rounded-lg border-2 border-brand-light/60 bg-surface px-3 py-3",
-          "cursor-pointer transition-colors hover:border-brand/50",
+          "cursor-pointer transition-colors hover:border-brand/50 dark:hover:border-accent/50",
           "dark:bg-gray-950",
           className,
         )}
@@ -152,7 +152,7 @@ export function CountrySelector({
                   "flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left",
                   "transition-colors duration-150",
                   value === country.code
-                    ? "border border-brand/20 bg-brand/8"
+                    ? "border border-brand/20 bg-brand/8 dark:border-accent/30 dark:bg-accent/10"
                     : "hover:bg-surface dark:hover:bg-gray-800",
                 )}
               >
@@ -164,7 +164,7 @@ export function CountrySelector({
                   {country.code}
                 </span>
                 {value === country.code && (
-                  <span className="font-sans text-[10px] tracking-wide text-brand">
+                  <span className="font-sans text-[10px] tracking-wide text-brand dark:text-accent">
                     ACTUAL
                   </span>
                 )}

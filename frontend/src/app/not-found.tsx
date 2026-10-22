@@ -27,7 +27,7 @@ export default function GlobalNotFound() {
           <h1 style={{ fontSize: "2.5rem", margin: 0 }}>404</h1>
           <p style={{ color: "#666" }}>Page not found.</p>
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a href="/" style={{ color: "#2563eb", fontWeight: 600 }}>
+          <a href="/" style={{ color: "#2a3fd6", fontWeight: 600 }}>
             ← Home
           </a>
         </div>

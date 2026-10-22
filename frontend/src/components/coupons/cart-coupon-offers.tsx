@@ -47,7 +47,7 @@ export function CartCouponOffers({
   return (
     <section
       aria-labelledby="cart-offers-heading"
-      className="rounded-xl border border-dashed border-brand/60 bg-brand/5 p-4"
+      className="rounded-xl border border-dashed border-brand/60 bg-brand/5 p-4 dark:border-accent/60 dark:bg-accent/5"
     >
       <h3 id="cart-offers-heading" className="mb-2 text-sm font-semibold">
         {t("heading")}
@@ -84,7 +84,7 @@ export function CartCouponOffers({
                 <Link
                   href="/login"
                   aria-label={t("loginLabel", { code: coupon.code.toUpperCase() })}
-                  className="shrink-0 rounded-lg border border-brand px-3 py-1.5 text-xs font-semibold text-brand hover:bg-brand/10"
+                  className="shrink-0 rounded-lg border border-brand dark:border-accent px-3 py-1.5 text-xs font-semibold text-brand dark:text-accent hover:bg-brand/10 dark:hover:bg-accent/10"
                 >
                   {t("login")}
                 </Link>

@@ -34,7 +34,7 @@ export function EmailVerificationBanner() {
         <button
           onClick={resend}
           disabled={sending}
-          className="mt-2 font-medium text-brand underline hover:no-underline disabled:opacity-50"
+          className="mt-2 font-medium text-brand dark:text-accent underline hover:no-underline disabled:opacity-50"
         >
           {sending ? t("sending") : t("resend")}
         </button>

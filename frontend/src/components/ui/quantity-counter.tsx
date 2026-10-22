@@ -65,8 +65,8 @@ export function QuantityCounter({
           "flex items-center justify-center transition-colors",
           "disabled:cursor-not-allowed disabled:opacity-40",
           isMin
-            ? "bg-surface text-secondary hover:bg-brand/10 hover:text-brand dark:bg-gray-800"
-            : "bg-surface hover:bg-brand/10 dark:bg-gray-800",
+            ? "bg-surface text-secondary hover:bg-brand/10 dark:hover:bg-accent/10 hover:text-brand dark:hover:text-accent dark:bg-gray-800"
+            : "bg-surface hover:bg-brand/10 dark:hover:bg-accent/10 dark:bg-gray-800",
         )}
       >
         {isMin ? <TrashIcon size={styles.icon} /> : <MinusIcon size={styles.icon} />}
@@ -88,7 +88,7 @@ export function QuantityCounter({
         aria-label="Sumar"
         className={cn(
           styles.button,
-          "flex items-center justify-center bg-surface transition-colors hover:bg-brand/10 dark:bg-gray-800",
+          "flex items-center justify-center bg-surface transition-colors hover:bg-brand/10 dark:hover:bg-accent/10 dark:bg-gray-800",
           "disabled:cursor-not-allowed disabled:opacity-40",
         )}
       >

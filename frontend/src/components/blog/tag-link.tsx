@@ -68,7 +68,7 @@ export function TagLink({
       className={cn(
         PILL_BASE,
         sizeClass,
-        "relative z-10 border-brand/20 bg-brand/10 text-brand transition-colors hover:border-brand/40 hover:bg-brand/20",
+        "relative z-10 border-brand/20 bg-brand/10 text-brand dark:border-accent/30 dark:bg-accent/10 dark:text-accent transition-colors hover:border-brand/40 dark:hover:border-accent/40 hover:bg-brand/20 dark:hover:bg-accent/20",
       )}
     >
       {content}

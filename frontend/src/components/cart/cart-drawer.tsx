@@ -137,7 +137,7 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
               <Link
                 href="/products"
                 onClick={closeDrawer}
-                className="mt-4 inline-flex items-center justify-center rounded-lg border border-brand px-4 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand/10"
+                className="mt-4 inline-flex items-center justify-center rounded-lg border border-brand dark:border-accent px-4 py-2 text-sm font-semibold text-brand dark:text-accent transition-colors hover:bg-brand/10 dark:hover:bg-accent/10"
               >
                 {tCart("viewProducts")}
               </Link>
@@ -190,7 +190,7 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
                           type="button"
                           disabled={loading || item.quantity <= 1}
                           onClick={() => void updateItem(item.key, item.quantity - 1)}
-                          className="flex h-7 w-7 items-center justify-center text-gray-500 transition-colors hover:text-brand disabled:opacity-30"
+                          className="flex h-7 w-7 items-center justify-center text-gray-500 transition-colors hover:text-brand dark:hover:text-accent disabled:opacity-30"
                           aria-label="Reducir cantidad"
                         >
                           −
@@ -202,7 +202,7 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
                           type="button"
                           disabled={loading}
                           onClick={() => void updateItem(item.key, item.quantity + 1)}
-                          className="flex h-7 w-7 items-center justify-center text-gray-500 transition-colors hover:text-brand disabled:opacity-30"
+                          className="flex h-7 w-7 items-center justify-center text-gray-500 transition-colors hover:text-brand dark:hover:text-accent disabled:opacity-30"
                           aria-label="Aumentar cantidad"
                         >
                           +
@@ -324,7 +324,7 @@ export function CartDrawer({ couponsEnabled = false }: CartDrawerProps) {
             <Link
               href="/cart"
               onClick={closeDrawer}
-              className="mt-2 flex w-full items-center justify-center rounded-lg py-2 text-sm font-medium text-brand transition-colors hover:bg-brand/8"
+              className="mt-2 flex w-full items-center justify-center rounded-lg py-2 text-sm font-medium text-brand dark:text-accent transition-colors hover:bg-brand/8 dark:hover:bg-accent/10"
             >
               {tCart("viewCart")}
             </Link>

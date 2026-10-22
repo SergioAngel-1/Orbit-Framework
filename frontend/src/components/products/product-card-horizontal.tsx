@@ -62,7 +62,7 @@ export function ProductCardHorizontal({
       className={cn(
         "flex w-full items-center gap-4 rounded-xl border p-3 text-left transition-all duration-150",
         selected
-          ? "border-brand/30 bg-brand/10"
+          ? "border-brand/30 bg-brand/10 dark:border-accent/30 dark:bg-accent/10"
           : "border-transparent hover:border-gray-200 hover:bg-surface dark:hover:border-gray-700 dark:hover:bg-gray-800",
         className,
       )}
@@ -112,7 +112,7 @@ export function ProductCardHorizontal({
           </div>
         )}
         <div className="flex items-baseline gap-2">
-          <span className="font-heading text-base leading-none text-brand">
+          <span className="font-heading text-base leading-none text-brand dark:text-accent">
             {formatPrice(product.price)}
           </span>
           {product.onSale && product.regularPrice && (
@@ -126,7 +126,7 @@ export function ProductCardHorizontal({
       <span
         className={cn(
           "shrink-0 transition-all duration-150",
-          selected ? "text-brand" : "text-[--foreground]/20",
+          selected ? "text-brand dark:text-accent" : "text-[--foreground]/20",
         )}
       >
         <svg

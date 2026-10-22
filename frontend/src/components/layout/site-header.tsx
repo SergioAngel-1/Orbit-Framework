@@ -124,8 +124,8 @@ export function SiteHeader({ logoUrl, items }: SiteHeaderProps = {}) {
                       className={cn(
                         "relative flex items-center gap-1.5 px-3 py-1 text-[13px] tracking-wide transition-colors duration-200",
                         isActive
-                          ? "font-medium text-brand"
-                          : "text-[--foreground]/60 hover:text-brand",
+                          ? "font-medium text-brand dark:text-accent"
+                          : "text-[--foreground]/60 hover:text-brand dark:hover:text-accent",
                       )}
                     >
                       {item.label}
@@ -144,7 +144,7 @@ export function SiteHeader({ logoUrl, items }: SiteHeaderProps = {}) {
                           <Link
                             key={child.href + child.label}
                             href={child.href}
-                            className="block px-4 py-2.5 text-[13px] text-[--foreground]/70 transition-colors duration-150 hover:bg-surface hover:text-brand dark:hover:bg-gray-800"
+                            className="block px-4 py-2.5 text-[13px] text-[--foreground]/70 transition-colors duration-150 hover:bg-surface hover:text-brand dark:hover:text-accent dark:hover:bg-gray-800"
                           >
                             {child.label}
                           </Link>
@@ -162,8 +162,8 @@ export function SiteHeader({ logoUrl, items }: SiteHeaderProps = {}) {
                   className={cn(
                     "relative px-3 py-1 text-[13px] tracking-wide transition-colors duration-200",
                     isActive
-                      ? "font-medium text-brand"
-                      : "text-[--foreground]/60 hover:text-brand",
+                      ? "font-medium text-brand dark:text-accent"
+                      : "text-[--foreground]/60 hover:text-brand dark:hover:text-accent",
                   )}
                 >
                   {item.label}
@@ -239,7 +239,7 @@ export function SiteHeader({ logoUrl, items }: SiteHeaderProps = {}) {
                       className={cn(
                         "flex w-full items-center justify-between rounded-lg px-4 py-3 text-left text-[14px] tracking-wide transition-all duration-200",
                         isActive
-                          ? "bg-brand/10 font-medium text-brand"
+                          ? "bg-brand/10 font-medium text-brand dark:bg-accent/10 dark:text-accent"
                           : "text-[--foreground]/60 hover:bg-surface hover:text-[--foreground] dark:hover:bg-gray-800",
                       )}
                       onClick={() =>
@@ -281,7 +281,7 @@ export function SiteHeader({ logoUrl, items }: SiteHeaderProps = {}) {
                   className={cn(
                     "rounded-lg px-4 py-3 text-[14px] tracking-wide transition-all duration-200",
                     isActive
-                      ? "bg-brand/10 font-medium text-brand"
+                      ? "bg-brand/10 font-medium text-brand dark:bg-accent/10 dark:text-accent"
                       : "text-[--foreground]/60 hover:bg-surface hover:text-[--foreground] dark:hover:bg-gray-800",
                   )}
                   onClick={() => setIsOpen(false)}

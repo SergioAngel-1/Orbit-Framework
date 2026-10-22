@@ -29,13 +29,13 @@ export function GuestAccountInvite({
             vuelve a su lista, donde ya aparece. */}
         <Link
           href={loginHref("/account/orders")}
-          className="text-brand hover:underline"
+          className="text-brand dark:text-accent hover:underline"
         >
           {copy.login}
         </Link>
         <Link
           href={withReturn("/register", "/account/orders")}
-          className="text-brand hover:underline"
+          className="text-brand dark:text-accent hover:underline"
         >
           {copy.register}
         </Link>

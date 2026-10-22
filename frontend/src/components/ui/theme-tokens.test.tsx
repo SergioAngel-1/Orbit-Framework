@@ -34,7 +34,7 @@ describe("ThemeTokens", () => {
     const out = html(await ThemeTokens());
 
     expect(out).toMatch(/^:root \{/);
-    expect(out).toContain("--color-brand: #2563eb");
+    expect(out).toContain("--color-brand: #111111");
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
@@ -50,7 +50,7 @@ describe("ThemeTokens", () => {
     const out = html(await ThemeTokens());
 
     expect(out).not.toMatch(/[<>]/);
-    expect(out).toContain("--color-brand: #2563eb");
+    expect(out).toContain("--color-brand: #111111");
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "design.token_invalid",

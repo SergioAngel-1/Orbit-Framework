@@ -18,7 +18,7 @@ const sizes: Record<Size, string> = {
 };
 
 const colors: Record<Color, string> = {
-  brand: "border-brand/30 border-t-brand",
+  brand: "border-brand/30 border-t-brand dark:border-accent/30 dark:border-t-accent",
   white: "border-white/30 border-t-white",
   current: "border-current/30 border-t-current",
 };

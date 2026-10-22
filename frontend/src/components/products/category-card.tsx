@@ -16,7 +16,7 @@ export interface CategoryCardProps {
 }
 
 const themeClasses: Record<CategoryTheme, string> = {
-  brand: "bg-brand/10 border-brand/20",
+  brand: "bg-brand/10 border-brand/20 dark:bg-accent/10 dark:border-accent/20",
   secondary: "bg-secondary/10 border-secondary/20",
   accent: "bg-accent/15 border-accent/25",
   surface: "bg-surface border-gray-200 dark:border-gray-700",

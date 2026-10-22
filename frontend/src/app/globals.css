@@ -14,13 +14,13 @@
  *  Estos @theme son necesarios para que Tailwind genere bg-brand, text-brand, etc.
  * ========================================================================== */
 @theme {
-  --color-brand: #2563eb;
-  --color-brand-dark: #1e40af;
-  --color-brand-light: #3b82f6;
-  --color-secondary: #16a34a;
-  --color-secondary-dark: #15803d;
-  --color-accent: #f59e0b;
-  --color-surface: #f8fafc;
+  --color-brand: #111111;
+  --color-brand-dark: #000000;
+  --color-brand-light: #3a3a3a;
+  --color-secondary: #2a3fd6;
+  --color-secondary-dark: #1f2fa3;
+  --color-accent: #f2c200;
+  --color-surface: #e9e9e6;
 
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-heading: var(--font-inter), system-ui, sans-serif;
@@ -93,4 +93,7 @@ dialog::backdrop {
 }
 .dark .prose {
   color: #e5e7eb;
+}
+.dark .prose a {
+  color: var(--color-accent);
 }

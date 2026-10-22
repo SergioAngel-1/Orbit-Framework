@@ -78,7 +78,7 @@ export function ConsentBanner({
               link: (chunks) => (
                 <Link
                   href="/legal/cookies"
-                  className="font-medium underline underline-offset-2 hover:text-brand"
+                  className="font-medium underline underline-offset-2 hover:text-brand dark:hover:text-accent"
                 >
                   {chunks}
                 </Link>

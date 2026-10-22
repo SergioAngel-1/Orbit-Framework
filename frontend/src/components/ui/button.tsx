@@ -30,7 +30,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const base =
   "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 " +
-  "focus-visible:ring-brand/60 disabled:pointer-events-none disabled:opacity-50 " +
+  "focus-visible:ring-brand/60 dark:focus-visible:ring-accent/60 disabled:pointer-events-none disabled:opacity-50 " +
   "select-none";
 
 const variants: Record<Variant, string> = {
@@ -38,11 +38,12 @@ const variants: Record<Variant, string> = {
   secondary:
     "bg-secondary text-white hover:bg-secondary-dark active:bg-secondary-dark/90",
   outline:
-    "border border-brand text-brand bg-transparent hover:bg-brand/8 active:bg-brand/15",
-  ghost: "text-brand bg-transparent hover:bg-brand/8 active:bg-brand/15",
+    "border border-brand dark:border-accent text-brand dark:text-accent bg-transparent hover:bg-brand/8 dark:hover:bg-accent/10 active:bg-brand/15 dark:active:bg-accent/15",
+  ghost:
+    "text-brand dark:text-accent bg-transparent hover:bg-brand/8 dark:hover:bg-accent/10 active:bg-brand/15 dark:active:bg-accent/15",
   destructive:
     "bg-red-600 text-white hover:bg-red-700 active:bg-red-700/90 focus-visible:ring-red-500/60",
-  link: "text-brand underline-offset-4 hover:underline p-0 h-auto rounded-none",
+  link: "text-brand dark:text-accent underline-offset-4 hover:underline p-0 h-auto rounded-none",
 };
 
 const sizes: Record<Size, string> = {

@@ -42,7 +42,7 @@ export default async function OrdersPage() {
                 <p className="font-medium">
                   <Link
                     href={`/account/orders/${order.id}`}
-                    className="text-brand hover:underline"
+                    className="text-brand dark:text-accent hover:underline"
                   >
                     {t("orders")} #{order.number || order.id}
                   </Link>

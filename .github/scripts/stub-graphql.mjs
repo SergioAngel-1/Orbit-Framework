@@ -190,7 +190,7 @@ const STUB_FREE_SHIPPING_SCOPE = {
 /** Imagen del slide de prueba de los banners: un SVG sencillo servido por el propio stub. */
 const BANNER_IMAGE_PATH = "/wp-content/uploads/e2e-banner.svg";
 const BANNER_IMAGE_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="480"><rect width="1200" height="480" fill="#1e40af"/></svg>';
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="480"><rect width="1200" height="480" fill="#111111"/></svg>';
 
 /** Carrusel de la portada (`hwe-banners/v1/banners/carousel`): un slide con imagen. */
 const bannerCarousel = (origin) => ({

@@ -37,7 +37,7 @@ describe("configuración válida", () => {
   it("con los valores por defecto emite todos los tokens de color y la fuente principal", () => {
     const css = buildCssVars(CONFIG_DEFAULTS);
 
-    expect(css).toContain("--color-brand: #2563eb");
+    expect(css).toContain("--color-brand: #111111");
     expect(css).toContain("--background: #ffffff");
     expect(css).toContain('--font-sans: "Inter", system-ui, sans-serif');
   });

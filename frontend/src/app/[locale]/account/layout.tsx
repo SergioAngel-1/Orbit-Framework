@@ -32,21 +32,33 @@ export default async function AccountLayout({
           {t("myAccount")}
         </h2>
         <nav className="flex flex-col gap-2 text-sm">
-          <Link href="/account" className="hover:text-brand">
+          <Link href="/account" className="hover:text-brand dark:hover:text-accent">
             {t("profile")}
           </Link>
-          <Link href="/account/orders" className="hover:text-brand">
+          <Link
+            href="/account/orders"
+            className="hover:text-brand dark:hover:text-accent"
+          >
             {t("orders")}
           </Link>
-          <Link href="/account/addresses" className="hover:text-brand">
+          <Link
+            href="/account/addresses"
+            className="hover:text-brand dark:hover:text-accent"
+          >
             {t("addresses")}
           </Link>
           {config.ecommerce.wishlist_enabled && (
-            <Link href="/account/wishlist" className="hover:text-brand">
+            <Link
+              href="/account/wishlist"
+              className="hover:text-brand dark:hover:text-accent"
+            >
               {t("wishlist")}
             </Link>
           )}
-          <Link href="/account/password" className="hover:text-brand">
+          <Link
+            href="/account/password"
+            className="hover:text-brand dark:hover:text-accent"
+          >
             {t("changePassword")}
           </Link>
         </nav>

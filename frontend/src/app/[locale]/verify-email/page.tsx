@@ -14,9 +14,9 @@ type Status = "verifying" | "ok" | "error" | "no-token";
 type Tone = "success" | "danger" | "neutral";
 
 const PRIMARY =
-  "inline-flex items-center justify-center rounded-lg bg-brand px-5 py-2.5 font-semibold text-white hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2";
+  "inline-flex items-center justify-center rounded-lg bg-brand px-5 py-2.5 font-semibold text-white hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:focus-visible:ring-accent focus-visible:ring-offset-2";
 const SECONDARY =
-  "inline-flex items-center justify-center rounded-lg border border-gray-300 px-5 py-2.5 font-semibold hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 dark:border-gray-700";
+  "inline-flex items-center justify-center rounded-lg border border-gray-300 px-5 py-2.5 font-semibold hover:border-brand dark:hover:border-accent hover:text-brand dark:hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand dark:focus-visible:ring-accent focus-visible:ring-offset-2 dark:border-gray-700";
 
 const TONE_DISC: Record<Tone, string> = {
   success: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",

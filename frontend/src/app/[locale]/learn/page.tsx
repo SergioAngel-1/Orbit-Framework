@@ -95,7 +95,7 @@ export default async function LearnIndexPage({
                       {guide.description}
                     </span>
                   )}
-                  <span className="mt-2 block text-sm font-semibold text-brand">
+                  <span className="mt-2 block text-sm font-semibold text-brand dark:text-accent">
                     {t("index.read")}
                   </span>
                 </Link>

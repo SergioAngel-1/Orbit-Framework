@@ -13,7 +13,7 @@ export function CartIndicator() {
       type="button"
       onClick={toggleDrawer}
       aria-label={`${t("cart")}${count > 0 ? ` (${count} artículo${count !== 1 ? "s" : ""})` : ""}`}
-      className="relative inline-flex items-center gap-1 text-sm font-medium text-gray-600 transition-colors hover:text-brand dark:text-gray-300"
+      className="relative inline-flex items-center gap-1 text-sm font-medium text-gray-600 transition-colors hover:text-brand dark:hover:text-accent dark:text-gray-300"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

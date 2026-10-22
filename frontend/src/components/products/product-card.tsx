@@ -54,7 +54,7 @@ export function ProductCard({ product, wishlistEnabled = false }: ProductCardPro
 
       <div className="flex flex-1 flex-col p-4">
         <Link href={productHref(product)} className="flex-1">
-          <h3 className="font-semibold leading-snug transition-colors group-hover:text-brand">
+          <h3 className="font-semibold leading-snug transition-colors group-hover:text-brand dark:group-hover:text-accent">
             {product.name}
           </h3>
         </Link>

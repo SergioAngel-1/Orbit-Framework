@@ -60,7 +60,7 @@ export async function CouponNotices({
           >
             <aside
               aria-label={t("label")}
-              className="flex flex-col gap-1 rounded-xl border border-dashed border-brand/60 bg-brand/5 px-4 py-3 text-sm leading-snug"
+              className="flex flex-col gap-1 rounded-xl border border-dashed border-brand/60 bg-brand/5 px-4 py-3 text-sm leading-snug dark:border-accent/60 dark:bg-accent/5"
             >
               <p className="font-bold">{title}</p>
               <p className="text-gray-600 dark:text-gray-300">
@@ -105,7 +105,7 @@ export async function CouponNotices({
                       login: (chunks) => (
                         <Link
                           href="/login"
-                          className="font-bold text-brand underline underline-offset-2"
+                          className="font-bold text-brand dark:text-accent underline underline-offset-2"
                         >
                           {chunks}
                         </Link>
@@ -113,7 +113,7 @@ export async function CouponNotices({
                       register: (chunks) => (
                         <Link
                           href="/register"
-                          className="font-bold text-brand underline underline-offset-2"
+                          className="font-bold text-brand dark:text-accent underline underline-offset-2"
                         >
                           {chunks}
                         </Link>

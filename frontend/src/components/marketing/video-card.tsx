@@ -84,7 +84,7 @@ export function VideoCard({
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <h4 className="mb-1 line-clamp-2 font-heading text-sm leading-tight text-[--foreground] transition-colors group-hover:text-brand">
+            <h4 className="mb-1 line-clamp-2 font-heading text-sm leading-tight text-[--foreground] transition-colors group-hover:text-brand dark:group-hover:text-accent">
               {title}
             </h4>
             <p className="font-sans text-[11px] text-[--foreground]/50">{channel}</p>
@@ -107,7 +107,10 @@ export function VideoCard({
         as="article"
         hoverable
         padding="none"
-        className={cn(cardClass, "transition-colors hover:border-brand/40")}
+        className={cn(
+          cardClass,
+          "transition-colors hover:border-brand/40 dark:hover:border-accent/40",
+        )}
       >
         <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="block">
           {inner}

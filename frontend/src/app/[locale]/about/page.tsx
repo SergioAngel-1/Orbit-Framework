@@ -135,7 +135,7 @@ export default async function AboutPage({
             <dd>
               <a
                 href={`mailto:${config.legal.email}`}
-                className="text-brand hover:underline"
+                className="text-brand dark:text-accent hover:underline"
               >
                 {config.legal.email}
               </a>
@@ -159,7 +159,7 @@ export default async function AboutPage({
           {config.seo.founder_url && (
             <a
               href={config.seo.founder_url}
-              className="text-sm text-brand hover:underline"
+              className="text-sm text-brand dark:text-accent hover:underline"
               rel="noopener noreferrer"
               target="_blank"
             >
