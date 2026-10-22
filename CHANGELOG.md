@@ -20,10 +20,19 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   Center, los tokens de `globals.css`, los ejemplos de configuración y el panel pasan a tinta,
   cadmio y ultramar (`brand` `#111111`, `brand_dark` `#000000`, `brand_light` `#3a3a3a`,
   `secondary` `#2a3fd6`, `secondary_dark` `#1f2fa3`, `accent` `#f2c200`, `surface` `#e9e9e6`);
-  los colores semánticos de estado no cambian.
+  los colores semánticos de estado no cambian. El nombre por defecto del sitio pasa a
+  «HWE-Orbit» (`WP_TITLE`, `brand.name` y la razón social de ejemplo), en lugar de
+  «Headless Web Ecosystem» y «HeadlessWP».
 - **Autoría:** el autor de los plugins y mu-plugins pasa a «Sergio Jauregui» (cabecera `Author:`),
   el del tema `hwe-headless-base` a «sergioja.com», y el titular en `LICENSE`, `EULA.md`,
   `package.json` y `composer.json` a «Sergio Jauregui».
+
+### Added
+- **Marca de HWE Orbit en el panel** (mu-plugin `hwe-admin-branding`). Esquema de color «HWE Orbit»
+  (tinta, cadmio y ultramar), compilado con el `_admin.scss` del core y aplicado por defecto a quien
+  tenga el esquema de WordPress (`fresh`), más un login con el símbolo de Orbit. El tema
+  `hwe-headless-base` estrena su `screenshot.png`. Una instancia lo apaga con el filtro
+  `hwe_admin_branding`.
 
 ## [2.0.0] — 2026-10-14
 

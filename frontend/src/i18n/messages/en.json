@@ -1,6 +1,6 @@
 {
   "site": {
-    "name": "HeadlessWP",
+    "name": "HWE-Orbit",
     "tagline": "Headless WooCommerce Template",
     "description": "Next.js (App Router) frontend connected to WordPress via WPGraphQL and WooCommerce.",
     "footer": "Next.js + WordPress (WPGraphQL) · HWE Orbit"
@@ -600,7 +600,7 @@
     "receipt": "Reference for your current choice: {id}"
   },
   "meta": {
-    "titleTemplate": "%s · HeadlessWP"
+    "titleTemplate": "%s · HWE-Orbit"
   },
   "coupons": {
     "label": "Discount coupon",

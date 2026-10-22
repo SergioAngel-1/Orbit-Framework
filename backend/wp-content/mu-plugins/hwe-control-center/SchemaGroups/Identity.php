@@ -26,7 +26,7 @@ trait Identity {
                     'name'        => [
                         'type'    => 'text',
                         'label'   => 'Nombre del sitio',
-                        'default' => 'HeadlessWP',
+                        'default' => 'HWE-Orbit',
                         'public'  => true,
                     ],
                     'tagline'     => [

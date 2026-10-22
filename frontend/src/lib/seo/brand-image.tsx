@@ -35,7 +35,7 @@ export function renderOgCard(config: SiteConfig, locale: string): ImageResponse 
   const { brand, design } = config;
   const primary = design.colors.brand || "#111111";
   const dark = design.colors.brand_dark || "#000000";
-  const name = brand.name || "HeadlessWP";
+  const name = brand.name || "HWE-Orbit";
   const tagline =
     brandTagline(config, locale) || brandDescription(config, locale) || "";
 
@@ -99,7 +99,7 @@ export function renderBrandIcon(config: SiteConfig, size: number): ImageResponse
   const { brand, design } = config;
   const primary = design.colors.brand || "#111111";
   const dark = design.colors.brand_dark || "#000000";
-  const initial = brandInitial(brand.name || "HeadlessWP");
+  const initial = brandInitial(brand.name || "HWE-Orbit");
 
   // Radio proporcional: iconos grandes (PWA) con esquinas suaves; favicon casi cuadrado.
   const radius = Math.round(size * 0.18);

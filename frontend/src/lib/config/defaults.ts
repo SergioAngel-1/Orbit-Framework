@@ -14,7 +14,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     phone_default_dial_code: "",
   },
   brand: {
-    name: "HeadlessWP",
+    name: "HWE-Orbit",
     tagline: "Headless WooCommerce Template",
     description: "Tienda headless construida con Next.js y WooCommerce.",
     url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
@@ -34,7 +34,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     wikidata: "",
   },
   legal: {
-    company: "HWE Orbit",
+    company: "HWE-Orbit",
     nif: "",
     email: "hello@headlesswp.com",
     phone: "",

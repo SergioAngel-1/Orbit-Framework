@@ -30,7 +30,7 @@ final class SchemaDefaultsTest extends TestCase
     public function testEveryLeafHasADefault(): void {
         $defaults = (new DefaultsWalker())->walk(Schema::get());
 
-        $this->assertSame('HeadlessWP', $defaults['brand']['name']);
+        $this->assertSame('HWE-Orbit', $defaults['brand']['name']);
         $this->assertSame('', $defaults['brand']['tagline_en']);
         $this->assertSame('', $defaults['brand']['description_en']);
         $this->assertSame('EUR', $defaults['ecommerce']['currency']);

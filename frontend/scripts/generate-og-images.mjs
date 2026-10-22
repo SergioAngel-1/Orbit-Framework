@@ -94,7 +94,7 @@ const PALETTE = {
   brand: colors.brand || "#111111",
   brandDark: colors.brand_dark || "#000000",
 };
-const BRAND_NAME = instance.brand?.name || "HeadlessWP";
+const BRAND_NAME = instance.brand?.name || "HWE-Orbit";
 const TAGLINE = {
   es: instance.brand?.tagline || instance.brand?.description || BRAND_NAME,
   en:

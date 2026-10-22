@@ -106,7 +106,7 @@ else
 	echo "==> Instalando WordPress core..."
 	$WP core install \
 		--url="${WP_URL:-http://localhost:8080}" \
-		--title="${WP_TITLE:-HWE Orbit}" \
+		--title="${WP_TITLE:-HWE-Orbit}" \
 		--admin_user="${WP_ADMIN_USER:-admin}" \
 		--admin_password="${WP_ADMIN_PASSWORD}" \
 		--admin_email="${WP_ADMIN_EMAIL:-admin@example.com}" \
