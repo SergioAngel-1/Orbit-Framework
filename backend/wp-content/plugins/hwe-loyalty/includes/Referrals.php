@@ -338,6 +338,34 @@ final class HWE_Loyalty_Referrals {
 	}
 
 	/**
+	 * Atribución del usuario para cálculos internos, sin resolver si el referidor sigue
+	 * existiendo (para eso está `referrerOf`). Devuelve `null` si el usuario no tiene fila.
+	 *
+	 * Las fechas van en UTC con el formato de la tabla (`Y-m-d H:i:s`), que es el que usan los
+	 * cálculos de duración de la comisión (tarea 6). No es un contrato del frontend: no expone
+	 * nombres, emails ni login.
+	 *
+	 * @return array{referrer_id:?int,status:string,attributed_at:?string,confirmed_at:?string}|null
+	 */
+	public static function attributionOf( int $userId ): ?array {
+		if ( $userId <= 0 ) {
+			return null;
+		}
+
+		$row = self::rowForUser( $userId );
+		if ( null === $row ) {
+			return null;
+		}
+
+		return array(
+			'referrer_id'   => empty( $row->referrer_id ) ? null : (int) $row->referrer_id,
+			'status'        => (string) ( $row->status ?? self::STATUS_PENDING ),
+			'attributed_at' => empty( $row->attributed_at ) ? null : (string) $row->attributed_at,
+			'confirmed_at'  => empty( $row->confirmed_at ) ? null : (string) $row->confirmed_at,
+		);
+	}
+
+	/**
 	 * Cambia (o quita, con `null`) el referidor de un usuario desde la administración.
 	 *
 	 * Respeta autorreferido y ciclos, no mueve puntos ya pagados y deja constancia en la meta
