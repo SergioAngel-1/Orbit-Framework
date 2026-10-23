@@ -48,6 +48,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   atendiendo (cobros ya iniciados). El panel explica cómo dejar WhatsApp como único medio.
 
 ### Changed
+- **La suite PHPUnit es ~4× más rápida.** `composer test` cachea en disco lo que Patchwork reescribe
+  y los opcodes de PHP (`opcache.file_cache`), en `backend/.phpunit.cache/` (ignorado por git): los
+  809 tests que corren con `#[RunTestsInSeparateProcesses]` dejan de recompilar lo mismo en cada
+  proceso. Medido en la misma máquina: de 309 s a 75 s en frío y 72 s en caliente (83/80 s con la
+  máquina cargada), con los mismos 1.233 tests y 5.660 aserciones. El comando no cambia y las cachés
+  se invalidan solas cuando cambia el fuente o `patchwork.json`; se pueden borrar en cualquier momento.
 - **`brand.url` tiene predeterminado.** Vacío en el Control Center, el frontend usa su URL pública
   (`NEXT_PUBLIC_SITE_URL`) y lo registra (`site_config.brand_url_default`): las canónicas, el
   JSON-LD, el sitemap y el enlace de referido ya no salen relativos en una instancia sin configurar.

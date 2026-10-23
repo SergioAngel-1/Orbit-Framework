@@ -2,5 +2,6 @@
     "redefinable-internals": [
         "error_log",
         "time"
-    ]
+    ],
+    "cache-path": ".phpunit.cache/patchwork"
 }
