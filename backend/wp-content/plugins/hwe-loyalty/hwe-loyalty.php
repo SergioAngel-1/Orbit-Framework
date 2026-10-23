@@ -30,10 +30,12 @@
  * los abonos vencidos y paga los cumpleaños, los referidos (códigos, atribución y confirmación
  * con sus primas de alta) con sus rutas internas, las ganancias por pedido (cashback,
  * comisiones N1/N2, bono por producto y su reversión), las ganancias por eventos (una reseña
- * por pedido, de producto o del sitio, y el cumpleaños anual) y el canje en el carrito y en el
+ * por pedido, de producto o del sitio, y el cumpleaños anual), el canje en el carrito y en el
  * pedido de la Store API (fee negativo, confirmación contra el libro, devolución y pago
- * completo con puntos). La administración y las rutas del BFF llegan en las siguientes tareas
- * del módulo (ver README.md y MANUAL.md de esta carpeta).
+ * completo con puntos) y las transferencias entre usuarios por código de referido (mínimo,
+ * comisión redondeada hacia arriba, tope diario y cargo/comisión/abono en una sola
+ * transacción, con su ruta interna). La administración y las rutas del BFF llegan en las
+ * siguientes tareas del módulo (ver README.md y MANUAL.md de esta carpeta).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -53,7 +55,9 @@ require_once __DIR__ . '/includes/Earnings.php';
 require_once __DIR__ . '/includes/Scheduler.php';
 require_once __DIR__ . '/includes/Events.php';
 require_once __DIR__ . '/includes/Redemption.php';
+require_once __DIR__ . '/includes/Transfers.php';
 require_once __DIR__ . '/includes/Rest/ReferralRoutes.php';
+require_once __DIR__ . '/includes/Rest/TransferRoutes.php';
 
 final class HWE_Loyalty {
 
@@ -76,6 +80,7 @@ final class HWE_Loyalty {
 		HWE_Loyalty_Earnings::register();
 		HWE_Loyalty_Events::register();
 		HWE_Loyalty_Redemption::register();
+		HWE_Loyalty_TransferRoutes::register();
 		HWE_Loyalty_ReferralRoutes::register();
 	}
 

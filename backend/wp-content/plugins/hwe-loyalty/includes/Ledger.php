@@ -42,9 +42,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class HWE_Loyalty_Ledger {
 
-	public const ACTION_CREDITED = 'hwe_loyalty_credited';
-	public const ACTION_DEBITED  = 'hwe_loyalty_debited';
-	public const ACTION_EXPIRED  = 'hwe_loyalty_expired';
+	public const ACTION_CREDITED    = 'hwe_loyalty_credited';
+	public const ACTION_DEBITED     = 'hwe_loyalty_debited';
+	public const ACTION_EXPIRED     = 'hwe_loyalty_expired';
+	public const ACTION_TRANSFERRED = 'hwe_loyalty_transferred';
 
 	/** Longitud máxima de la clave de idempotencia (la columna es varchar(191)). */
 	private const KEY_MAX = 191;
@@ -314,8 +315,232 @@ final class HWE_Loyalty_Ledger {
 	}
 
 	/**
-	 * Revierte un cargo reabonando exactamente lo que consumió (spec §5.3).
+	 * Transferencia atómica entre dos usuarios (spec §8): cargo, comisión y abono en **una sola
+	 * transacción**.
 	 *
+	 * Semántica de los importes: `$points` es todo lo que sale del emisor, `$fee` la comisión
+	 * que se queda la tienda (ya calculada, `0 ≤ fee < points`) y el receptor recibe
+	 * `$points - $fee`. El cargo se parte en `transfer_out` (lo que llega al receptor) y
+	 * `transfer_fee` (la comisión); ambos consumen remanentes FIFO. El abono `transfer_in`
+	 * caduca según `expiry_days` (la caducidad general), no según la de los abonos consumidos.
+	 *
+	 * · **Bloqueo**: crea las dos filas de saldo y las bloquea siempre en orden de `user_id`
+	 *   ascendente, para que dos transferencias cruzadas no se interbloqueen.
+	 * · **Saldo**: el emisor necesita `$points` (comisión incluida); nunca queda negativo.
+	 * · **Tope diario**: se aplica dentro de la transacción, con la fila del emisor bloqueada,
+	 *   así dos peticiones simultáneas no pueden pasarse del tope. Cuenta lo que sale del
+	 *   emisor (`transfer_out` + `transfer_fee`) desde el inicio del día del sitio.
+	 * · **Idempotencia**: las claves incluyen al emisor (`transfer:<from>:<clave>:out|fee|in`)
+	 *   para que dos usuarios no colisionen. Si el cargo ya existe, devuelve el resumen de lo
+	 *   que se movió entonces sin abrir transacción ni volver a mover puntos.
+	 * · **Fallos**: cualquier escritura fallida hace `ROLLBACK` y devuelve `null`; la acción
+	 *   `hwe_loyalty_transferred` solo se dispara después del `COMMIT`.
+	 *
+	 * @param array<mixed> $data Datos estructurados extra (la `note` se guarda en su columna).
+	 * @return array{out:int,fee:?int,in:int,to:int,out_points:int,fee_points:int,received:int}|null
+	 */
+	public static function transfer(
+		int $fromUserId,
+		int $toUserId,
+		int $points,
+		int $fee,
+		string $key,
+		array $data = array()
+	): ?array {
+		if ( ! self::validUser( $fromUserId ) || ! self::validUser( $toUserId ) || $fromUserId === $toUserId ) {
+			self::log( 'transferencia rechazada entre ' . $fromUserId . ' y ' . $toUserId . ': usuario inexistente o el mismo.' );
+			return null;
+		}
+		if ( $points <= 0 || $fee < 0 || $fee >= $points ) {
+			self::log( 'transferencia rechazada del usuario ' . $fromUserId . ': puntos ' . $points . ' y comisión ' . $fee . '.' );
+			return null;
+		}
+		$key = self::normalizeKey( $key );
+		if ( '' === $key ) {
+			self::log( 'transferencia rechazada del usuario ' . $fromUserId . ': sin clave de idempotencia.' );
+			return null;
+		}
+
+		// Margen para los sufijos `:out`, `:fee` y `:in` dentro de varchar(191).
+		$baseKey = 'transfer:' . $fromUserId . ':' . substr( $key, 0, 150 );
+		$outKey  = $baseKey . ':out';
+		$feeKey  = $baseKey . ':fee';
+		$inKey   = $baseKey . ':in';
+
+		$existing = self::transferResultByKey( $outKey, $feeKey, $inKey );
+		if ( null !== $existing ) {
+			return $existing;
+		}
+
+		global $wpdb;
+
+		$settings  = HWE_Loyalty_Settings::get();
+		$dailyCap  = (int) ( $settings['transfer_daily_cap'] ?? 0 );
+		$now       = self::now();
+		$expiresAt = self::expiresAt( null );
+		[ $actor, $actorId, $note, $payload ] = self::normalizeData( $data );
+		$baseData = self::decodeData( $payload );
+
+		$outPoints = $points - $fee;
+		$received  = $outPoints;
+		$firstId   = min( $fromUserId, $toUserId );
+		$secondId  = max( $fromUserId, $toUserId );
+
+		self::begin();
+		if ( ! self::ensureBalanceRow( $firstId, $now ) || ! self::ensureBalanceRow( $secondId, $now ) ) {
+			self::rollback();
+			self::log( 'no se pudieron preparar los saldos de la transferencia del usuario ' . $fromUserId . '.' );
+			return null;
+		}
+
+		$firstBalance  = self::lockBalance( $firstId );
+		$secondBalance = self::lockBalance( $secondId );
+		if ( null === $firstBalance || null === $secondBalance ) {
+			self::rollback();
+			self::log( 'no se pudieron bloquear los saldos de la transferencia del usuario ' . $fromUserId . '.' );
+			return null;
+		}
+		$fromBalance = $fromUserId === $firstId ? $firstBalance : $secondBalance;
+
+		// Una petición simultánea con la misma clave pudo confirmar mientras esta esperaba el
+		// bloqueo: se devuelve su resultado en vez de chocar con la clave ya escrita.
+		$existing = self::transferResultByKey( $outKey, $feeKey, $inKey );
+		if ( null !== $existing ) {
+			self::rollback();
+			return $existing;
+		}
+
+		if ( (int) $fromBalance->balance < $points ) {
+			self::rollback();
+			return null; // Saldo insuficiente: no es un error, simplemente no se escribe.
+		}
+		if ( $dailyCap > 0 && self::transferredToday( $fromUserId ) + $points > $dailyCap ) {
+			self::rollback();
+			self::log( 'el usuario ' . $fromUserId . ' alcanzó el tope diario de transferencias.' );
+			return null;
+		}
+
+		$outId = self::writeAllocatedDebit(
+			$fromUserId,
+			$outPoints,
+			'transfer_out',
+			$outKey,
+			array( 'type' => 'user', 'id' => $toUserId ),
+			$now,
+			self::json( array( 'to' => $toUserId, 'fee' => $fee, 'received' => $received ) + $baseData ),
+			$note,
+			$actor,
+			$actorId
+		);
+		if ( null === $outId ) {
+			self::rollback();
+			self::log( 'falló el cargo de la transferencia del usuario ' . $fromUserId . '; revertida.' );
+			return null;
+		}
+
+		$feeId = null;
+		if ( $fee > 0 ) {
+			$feeId = self::writeAllocatedDebit(
+				$fromUserId,
+				$fee,
+				'transfer_fee',
+				$feeKey,
+				array( 'type' => 'user', 'id' => $toUserId ),
+				$now,
+				self::json( array( 'to' => $toUserId, 'fee' => $fee, 'received' => $received ) + $baseData ),
+				$note,
+				$actor,
+				$actorId
+			);
+			if ( null === $feeId ) {
+				self::rollback();
+				self::log( 'falló la comisión de la transferencia del usuario ' . $fromUserId . '; revertida.' );
+				return null;
+			}
+		}
+
+		$inserted = $wpdb->insert(
+			HWE_Loyalty_Schema::ledgerTable(),
+			array(
+				'user_id'          => $toUserId,
+				'points'           => $received,
+				'type'             => 'transfer_in',
+				'ref_type'         => 'user',
+				'ref_id'           => (string) $fromUserId,
+				'idempotency_key'  => $inKey,
+				'remaining_points' => $received,
+				'expires_at'       => $expiresAt,
+				'actor'            => 'system',
+				'actor_id'         => null,
+				'note'             => $note,
+				'data'             => self::json( array( 'from' => $fromUserId, 'fee' => $fee ) + $baseData ),
+				'created_at'       => $now,
+			)
+		);
+		$inId     = $inserted ? (int) $wpdb->insert_id : 0;
+
+		if ( $inId <= 0 ) {
+			self::rollback();
+			$existing = self::transferResultByKey( $outKey, $feeKey, $inKey );
+			if ( null !== $existing ) {
+				return $existing; // Otra petición confirmó la misma transferencia primero.
+			}
+			self::log( 'no se pudo abonar la transferencia al usuario ' . $toUserId . '; revertida.' );
+			return null;
+		}
+
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . HWE_Loyalty_Schema::balancesTable()
+				. ' SET balance = balance - %d, used = used + %d, updated_at = %s WHERE user_id = %d',
+				$points,
+				$points,
+				$now,
+				$fromUserId
+			)
+		);
+		if ( 1 !== (int) $updated ) {
+			self::rollback();
+			self::log( 'falló el saldo del emisor ' . $fromUserId . ' en la transferencia; revertida.' );
+			return null;
+		}
+
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . HWE_Loyalty_Schema::balancesTable()
+				. ' SET balance = balance + %d, earned = earned + %d, updated_at = %s WHERE user_id = %d',
+				$received,
+				$received,
+				$now,
+				$toUserId
+			)
+		);
+		if ( 1 !== (int) $updated ) {
+			self::rollback();
+			self::log( 'falló el saldo del receptor ' . $toUserId . ' en la transferencia; revertida.' );
+			return null;
+		}
+
+		if ( ! self::commit() ) {
+			self::log( 'no se pudo confirmar la transferencia del usuario ' . $fromUserId . '.' );
+			return null;
+		}
+
+		do_action( self::ACTION_TRANSFERRED, $fromUserId, $toUserId, $points, $received, $fee );
+
+		return array(
+			'out'        => $outId,
+			'fee'        => $feeId,
+			'in'         => $inId,
+			'to'         => $toUserId,
+			'out_points' => $outPoints,
+			'fee_points' => $fee,
+			'received'   => $received,
+		);
+	}
+
+	/**
+	 * Revierte un cargo reabonando exactamente lo que consumió (spec §5.3).
 	 * La caducidad del nuevo abono es la más lejana de los abonos consumidos, o «no caduca» si
 	 * alguno de ellos no caducaba: la tienda no puede hacer perder puntos al cliente por
 	 * cancelar. Idempotente por `$refundKey`.
@@ -627,6 +852,29 @@ final class HWE_Loyalty_Ledger {
 	}
 
 	/**
+	 * Puntos que el usuario ha transferido desde el inicio del día del sitio (comisión
+	 * incluida). Es lo que compara el tope diario: cuenta lo que SALE del emisor.
+	 */
+	public static function transferredToday( int $userId ): int {
+		global $wpdb;
+
+		if ( $userId <= 0 ) {
+			return 0;
+		}
+
+		$total = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COALESCE(SUM(-points), 0) FROM ' . HWE_Loyalty_Schema::ledgerTable()
+				. " WHERE user_id = %d AND type IN ('transfer_out', 'transfer_fee') AND created_at >= %s",
+				$userId,
+				self::startOfSiteDay()
+			)
+		);
+
+		return max( 0, (int) $total );
+	}
+
+	/**
 	 * Puntos que caducan dentro de `$days` y la fecha más próxima. Sin nada próximo, ceros y
 	 * `null`. Los ya vencidos no cuentan: los reapa la tarea diaria.
 	 *
@@ -795,6 +1043,181 @@ final class HWE_Loyalty_Ledger {
 	// ------------------------------------------------------------------------
 	//  Transacción y utilidades
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Escribe un cargo consumiendo remanentes FIFO dentro de la transacción en curso.
+	 *
+	 * Es el mismo trabajo que hace `debit()` pero sin abrir transacción: la transferencia
+	 * necesita dos cargos (envío y comisión) y un abono dentro del mismo `begin`/`commit`.
+	 * Devuelve el id del movimiento o `null` (sin escribir nada) si no alcanza el saldo.
+	 *
+	 * @param array<mixed> $ref
+	 */
+	private static function writeAllocatedDebit(
+		int $userId,
+		int $points,
+		string $type,
+		string $key,
+		array $ref,
+		string $now,
+		string $payload,
+		?string $note,
+		string $actor,
+		?int $actorId
+	): ?int {
+		global $wpdb;
+
+		$credits = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT id, remaining_points, expires_at FROM ' . HWE_Loyalty_Schema::ledgerTable()
+				. ' WHERE user_id = %d AND points > 0 AND remaining_points > 0'
+				. ' ORDER BY (expires_at IS NULL) ASC, expires_at ASC, id ASC FOR UPDATE',
+				$userId
+			)
+		);
+		$allocation = self::allocate(
+			$points,
+			array_map( static fn ( $row ): array => (array) $row, is_array( $credits ) ? $credits : array() )
+		);
+		$allocated  = array_sum( array_column( $allocation, 'points' ) );
+
+		if ( $allocated < $points ) {
+			self::log(
+				'los abonos vivos del usuario ' . $userId . ' no alcanzan para el cargo «' . $type
+				. '» (' . $allocated . ' de ' . $points . ').'
+			);
+			return null;
+		}
+
+		[ $refType, $refId ] = self::normalizeRef( $ref );
+
+		$inserted = $wpdb->insert(
+			HWE_Loyalty_Schema::ledgerTable(),
+			array(
+				'user_id'          => $userId,
+				'points'           => -$points,
+				'type'             => $type,
+				'ref_type'         => $refType,
+				'ref_id'           => $refId,
+				'idempotency_key'  => $key,
+				'remaining_points' => null,
+				'expires_at'       => null,
+				'actor'            => $actor,
+				'actor_id'         => $actorId,
+				'note'             => $note,
+				'data'             => $payload,
+				'created_at'       => $now,
+			)
+		);
+		$entryId  = $inserted ? (int) $wpdb->insert_id : 0;
+
+		if ( $entryId <= 0 ) {
+			self::log( 'no se pudo insertar el cargo «' . $type . '» del usuario ' . $userId . '.' );
+			return null;
+		}
+
+		foreach ( $allocation as $take ) {
+			$consumed = $wpdb->insert(
+				HWE_Loyalty_Schema::consumptionsTable(),
+				array(
+					'debit_id'   => $entryId,
+					'credit_id'  => (int) $take['id'],
+					'points'     => (int) $take['points'],
+					'created_at' => $now,
+				)
+			);
+			if ( ! $consumed ) {
+				self::log( 'no se pudo registrar el consumo del cargo ' . $entryId . '.' );
+				return null;
+			}
+
+			$moved = $wpdb->query(
+				$wpdb->prepare(
+					'UPDATE ' . HWE_Loyalty_Schema::ledgerTable()
+					. ' SET remaining_points = remaining_points - %d WHERE id = %d AND remaining_points >= %d',
+					(int) $take['points'],
+					(int) $take['id'],
+					(int) $take['points']
+				)
+			);
+			if ( 1 !== (int) $moved ) {
+				self::log( 'no se pudo mover el remanente del abono ' . (int) $take['id'] . ' (cargo ' . $entryId . ').' );
+				return null;
+			}
+		}
+
+		return $entryId;
+	}
+
+	/**
+	 * Resumen de una transferencia ya escrita, por sus tres claves. `null` si el cargo no
+	 * existe (no hay transferencia que reconstruir).
+	 *
+	 * @return array{out:int,fee:?int,in:int,to:int,out_points:int,fee_points:int,received:int}|null
+	 */
+	private static function transferResultByKey( string $outKey, string $feeKey, string $inKey ): ?array {
+		$out = self::entryRowByKey( $outKey );
+		if ( null === $out ) {
+			return null;
+		}
+
+		$fee      = self::entryRowByKey( $feeKey );
+		$in       = self::entryRowByKey( $inKey );
+		$outPoints = -(int) $out->points;
+		$feePoints = null === $fee ? 0 : -(int) $fee->points;
+		$received  = null === $in ? 0 : (int) $in->points;
+
+		if ( $outPoints <= 0 || $received <= 0 ) {
+			self::log( 'una transferencia registrada está incompleta; no se mueve nada.' );
+			return null;
+		}
+
+		return array(
+			'out'        => (int) $out->id,
+			'fee'        => null === $fee ? null : (int) $fee->id,
+			'in'         => null === $in ? 0 : (int) $in->id,
+			'to'         => (int) ( $out->ref_id ?? 0 ),
+			'out_points' => $outPoints,
+			'fee_points' => $feePoints,
+			'received'   => $received,
+		);
+	}
+
+	/** Fila del libro con esa clave, o `null`. */
+	private static function entryRowByKey( string $key ): ?object {
+		global $wpdb;
+
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT * FROM ' . HWE_Loyalty_Schema::ledgerTable()
+				. ' WHERE idempotency_key = %s LIMIT 1',
+				$key
+			)
+		);
+
+		return is_object( $row ) ? $row : null;
+	}
+
+	/** Inicio del día en la zona del sitio, en UTC (`Y-m-d H:i:s`), para el tope diario. */
+	private static function startOfSiteDay(): string {
+		$timestamp = time();
+
+		if ( function_exists( 'wp_timezone' ) ) {
+			try {
+				$timezone = wp_timezone();
+				if ( $timezone instanceof \DateTimeZone ) {
+					$local = ( new \DateTimeImmutable( '@' . $timestamp ) )->setTimezone( $timezone );
+					return $local->setTime( 0, 0, 0 )
+						->setTimezone( new \DateTimeZone( 'UTC' ) )
+						->format( 'Y-m-d H:i:s' );
+				}
+			} catch ( \Throwable $e ) {
+				self::log( 'no se pudo calcular el inicio del día del sitio: ' . $e->getMessage() );
+			}
+		}
+
+		return gmdate( 'Y-m-d 00:00:00', $timestamp );
+	}
 
 	private static function begin(): void {
 		global $wpdb;

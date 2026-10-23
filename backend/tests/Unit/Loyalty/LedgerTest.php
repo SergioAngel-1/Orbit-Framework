@@ -28,6 +28,7 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 final class LedgerTest extends TestCase
 {
     private const USER = 7;
+    private const OTHER = 8;
     private const MISSING_USER = 999;
 
     /** @var array<string,mixed> Opción `hwe_config` del Control Center. */
@@ -51,7 +52,7 @@ final class LedgerTest extends TestCase
             fn (string $name, mixed $default = false) => 'hwe_config' === $name ? $this->config : $default
         );
         Functions\when('get_userdata')->alias(
-            fn (int $id) => self::USER === $id ? (object) ['ID' => self::USER] : false
+            fn (int $id) => in_array($id, [self::USER, self::OTHER], true) ? (object) ['ID' => $id] : false
         );
         Functions\when('time')->alias(fn (): int => $this->now);
         Functions\when('wp_json_encode')->alias(static fn (mixed $value): string|false => json_encode($value));
@@ -227,6 +228,176 @@ final class LedgerTest extends TestCase
         $this->assertNull(\HWE_Loyalty_Ledger::debit(self::USER, 10, 'redeem', ''));
 
         $this->assertCount(1, $this->entries());
+    }
+
+    // ── Transferencias (una sola transacción) ───────────────────────────────
+
+    public function testTransferMovesBothBalancesInOneTransactionAndConsumesFifo(): void
+    {
+        \HWE_Loyalty_Ledger::credit(self::OTHER, 100, 'cashback', 'earn:order:1', [], 5);
+        \HWE_Loyalty_Ledger::credit(self::OTHER, 100, 'cashback', 'earn:order:2', [], 0);
+        $this->config['loyalty'] = ['expiry_days' => 30];
+        $this->wpdb()->queries    = [];
+
+        $result = \HWE_Loyalty_Ledger::transfer(self::OTHER, self::USER, 150, 15, 'abc');
+
+        $this->assertIsArray($result);
+        $this->assertSame(self::USER, $result['to']);
+        $this->assertSame(135, $result['out_points'], 'transfer_out lleva lo que no es comisión.');
+        $this->assertSame(15, $result['fee_points']);
+        $this->assertSame(135, $result['received'], 'El receptor recibe lo enviado menos la comisión.');
+
+        $out = $this->wpdb()->entryOfType('transfer_out');
+        $fee = $this->wpdb()->entryOfType('transfer_fee');
+        $in  = $this->wpdb()->entryOfType('transfer_in');
+
+        $this->assertSame(-135, $out['points']);
+        $this->assertSame(-15, $fee['points']);
+        $this->assertSame(135, $in['points']);
+        $this->assertSame(135, $in['remaining_points']);
+        $this->assertSame($this->day(30), $in['expires_at'], 'El abono recibido caduca según el ajuste general.');
+
+        $this->assertSame(1, substr_count(implode("\n", $this->wpdb()->queries), 'START TRANSACTION'));
+        $this->assertSame(1, substr_count(implode("\n", $this->wpdb()->queries), 'COMMIT'));
+        $this->assertNotContains('ROLLBACK', $this->wpdb()->queries);
+
+        $this->assertSame(50, \HWE_Loyalty_Ledger::balance(self::OTHER)['balance']);
+        $this->assertSame(150, \HWE_Loyalty_Ledger::balance(self::OTHER)['used']);
+        $this->assertSame(135, \HWE_Loyalty_Ledger::balance(self::USER)['balance']);
+        $this->assertSame(135, \HWE_Loyalty_Ledger::balance(self::USER)['earned']);
+
+        $consumed = [];
+        foreach ($this->wpdb()->consumptions as $row) {
+            $creditId = (int) $row['credit_id'];
+            $consumed[$creditId] = ($consumed[$creditId] ?? 0) + (int) $row['points'];
+        }
+        $this->assertSame([100, 50], array_values($consumed), 'El cargo total consume el abono que caduca antes.');
+    }
+
+    public function testTransferLocksBothBalanceRowsInAscendingUserOrder(): void
+    {
+        \HWE_Loyalty_Ledger::credit(self::OTHER, 200, 'cashback', 'earn:order:1');
+        $this->wpdb()->queries = [];
+
+        \HWE_Loyalty_Ledger::transfer(self::OTHER, self::USER, 100, 0, 'lock-order');
+
+        $lockedUserIds = [];
+        foreach ($this->wpdb()->queries as $query) {
+            if (str_contains($query, 'FOR UPDATE') && str_contains($query, 'hwe_loyalty_balances')) {
+                preg_match('~/\\* (\\[(?:\\d+)\\]) \\*/$~', $query, $matches);
+                $lockedUserIds[] = (int) (json_decode($matches[1] ?? '[]', true)[0] ?? 0);
+            }
+        }
+
+        $this->assertSame(
+            [self::USER, self::OTHER],
+            $lockedUserIds,
+            'Se bloquean los dos saldos siempre en orden de user_id ascendente, para no interbloquear.'
+        );
+    }
+
+    public function testTransferRollsBackWhenTheInboundCreditFails(): void
+    {
+        \HWE_Loyalty_Ledger::credit(self::OTHER, 200, 'cashback', 'earn:order:1');
+        $this->wpdb()->failLedgerType = 'transfer_in';
+        $this->wpdb()->queries        = [];
+        Actions\expectDone(\HWE_Loyalty_Ledger::ACTION_TRANSFERRED)->never();
+
+        $result = \HWE_Loyalty_Ledger::transfer(self::OTHER, self::USER, 100, 10, 'rollback');
+
+        $this->assertNull($result);
+        $this->assertContains('ROLLBACK', $this->wpdb()->queries);
+        $this->assertNotContains('COMMIT', $this->wpdb()->queries);
+        $this->assertSame(
+            ['cashback'],
+            array_values(array_column($this->wpdb()->ledger, 'type')),
+            'El fallo del abono deshace también el cargo y la comisión.'
+        );
+        $this->assertSame(200, \HWE_Loyalty_Ledger::balance(self::OTHER)['balance']);
+        $this->assertSame(0, \HWE_Loyalty_Ledger::balance(self::USER)['balance']);
+        $this->assertNotEmpty($this->logged);
+    }
+
+    public function testTransferIsIdempotentBySenderAndKey(): void
+    {
+        \HWE_Loyalty_Ledger::credit(self::OTHER, 200, 'cashback', 'earn:order:1');
+        Actions\expectDone(\HWE_Loyalty_Ledger::ACTION_TRANSFERRED)->once();
+
+        $first  = \HWE_Loyalty_Ledger::transfer(self::OTHER, self::USER, 100, 10, 'same');
+        $second = \HWE_Loyalty_Ledger::transfer(self::OTHER, self::USER, 100, 10, 'same');
+
+        $this->assertSame($first, $second);
+        $this->assertCount(
+            3,
+            array_merge(
+                $this->entryRowsOfType('transfer_out'),
+                $this->entryRowsOfType('transfer_fee'),
+                $this->entryRowsOfType('transfer_in')
+            )
+        );
+        $this->assertSame(100, \HWE_Loyalty_Ledger::balance(self::OTHER)['balance']);
+        $this->assertSame(90, \HWE_Loyalty_Ledger::balance(self::USER)['balance']);
+    }
+
+    public function testTheSameKeyFromTwoDifferentSendersDoesNotCollide(): void
+    {
+        \HWE_Loyalty_Ledger::credit(self::OTHER, 100, 'cashback', 'earn:order:1');
+        \HWE_Loyalty_Ledger::credit(self::USER, 100, 'cashback', 'earn:order:2');
+
+        $first  = \HWE_Loyalty_Ledger::transfer(self::OTHER, self::USER, 10, 0, 'shared');
+        $second = \HWE_Loyalty_Ledger::transfer(self::USER, self::OTHER, 10, 0, 'shared');
+
+        $this->assertIsArray($first);
+        $this->assertIsArray($second);
+        $this->assertNotSame($first['out'], $second['out']);
+        $this->assertSame(100, \HWE_Loyalty_Ledger::balance(self::OTHER)['balance']);
+        $this->assertSame(100, \HWE_Loyalty_Ledger::balance(self::USER)['balance']);
+    }
+
+    public function testTransferRejectsInvalidAmountsOrTheSameUser(): void
+    {
+        \HWE_Loyalty_Ledger::credit(self::OTHER, 100, 'cashback', 'earn:order:1');
+
+        $this->assertNull(\HWE_Loyalty_Ledger::transfer(self::OTHER, self::OTHER, 10, 0, 'k1'));
+        $this->assertNull(\HWE_Loyalty_Ledger::transfer(self::OTHER, self::USER, 0, 0, 'k2'));
+        $this->assertNull(\HWE_Loyalty_Ledger::transfer(self::OTHER, self::USER, 10, 10, 'k3'));
+        $this->assertNull(\HWE_Loyalty_Ledger::transfer(self::OTHER, self::MISSING_USER, 10, 0, 'k4'));
+
+        $this->assertSame(['cashback'], array_values(array_column($this->wpdb()->ledger, 'type')));
+    }
+
+    public function testTransferredTodaySumsWhatLeftTheUserSinceTheStartOfTheDay(): void
+    {
+        $this->wpdb()->ledger = [
+            1 => ['id' => 1, 'user_id' => self::OTHER, 'points' => -40, 'type' => 'transfer_out', 'idempotency_key' => 'a', 'created_at' => $this->day(0)],
+            2 => ['id' => 2, 'user_id' => self::OTHER, 'points' => -5, 'type' => 'transfer_fee', 'idempotency_key' => 'b', 'created_at' => $this->day(0)],
+            3 => ['id' => 3, 'user_id' => self::OTHER, 'points' => -20, 'type' => 'transfer_out', 'idempotency_key' => 'c', 'created_at' => $this->day(-1)],
+            4 => ['id' => 4, 'user_id' => self::USER, 'points' => -30, 'type' => 'transfer_out', 'idempotency_key' => 'd', 'created_at' => $this->day(0)],
+        ];
+
+        $this->assertSame(45, \HWE_Loyalty_Ledger::transferredToday(self::OTHER));
+        $this->assertSame(30, \HWE_Loyalty_Ledger::transferredToday(self::USER));
+        $this->assertSame(0, \HWE_Loyalty_Ledger::transferredToday(self::MISSING_USER));
+    }
+
+    public function testTransferIsAnnouncedOnlyAfterCommit(): void
+    {
+        \HWE_Loyalty_Ledger::credit(self::OTHER, 200, 'cashback', 'earn:order:1');
+
+        Actions\expectDone(\HWE_Loyalty_Ledger::ACTION_TRANSFERRED)
+            ->once()
+            ->with(self::OTHER, self::USER, 100, 90, 10)
+            ->whenHappen(function (): void {
+                $this->wpdb()->events[] = 'action:hwe_loyalty_transferred';
+            });
+
+        \HWE_Loyalty_Ledger::transfer(self::OTHER, self::USER, 100, 10, 'action');
+
+        $commit = array_search('COMMIT', $this->wpdb()->events, true);
+        $action = array_search('action:hwe_loyalty_transferred', $this->wpdb()->events, true);
+        $this->assertIsInt($commit);
+        $this->assertIsInt($action);
+        $this->assertGreaterThan($commit, $action);
     }
 
     // ── Devolución del cargo ────────────────────────────────────────────────
@@ -533,6 +704,10 @@ final class TestLedgerWpdb
     public array $balances = [];
     public string $failQueryNeedle = '';
     public string $failInsertSuffix = '';
+    /** @var string Tipo de movimiento del libro que debe fallar al insertarse. */
+    public string $failLedgerType = '';
+    /** @var array<string,mixed>|null */
+    private ?array $snapshot = null;
     private int $nextId = 1;
 
     public function get_charset_collate(): string
@@ -557,6 +732,9 @@ final class TestLedgerWpdb
         }
 
         if (str_ends_with($table, 'hwe_loyalty_ledger')) {
+            if ('' !== $this->failLedgerType && ($data['type'] ?? '') === $this->failLedgerType) {
+                return false;
+            }
             $key = (string) ($data['idempotency_key'] ?? '');
             if ('' !== $key && null !== $this->ledgerIdByKey($key)) {
                 return false;
@@ -582,6 +760,32 @@ final class TestLedgerWpdb
     {
         $this->queries[] = $sql;
         $this->events[]  = $sql;
+
+        if ('START TRANSACTION' === $sql) {
+            $this->snapshot = [
+                'ledger'       => $this->ledger,
+                'consumptions' => $this->consumptions,
+                'balances'     => $this->balances,
+                'nextId'       => $this->nextId,
+            ];
+            return 1;
+        }
+
+        if ('ROLLBACK' === $sql) {
+            if (null !== $this->snapshot) {
+                $this->ledger       = $this->snapshot['ledger'];
+                $this->consumptions = $this->snapshot['consumptions'];
+                $this->balances     = $this->snapshot['balances'];
+                $this->nextId       = $this->snapshot['nextId'];
+            }
+            $this->snapshot = null;
+            return 1;
+        }
+
+        if ('COMMIT' === $sql) {
+            $this->snapshot = null;
+            return 1;
+        }
 
         if ('' !== $this->failQueryNeedle && str_contains($sql, $this->failQueryNeedle)) {
             return false;
@@ -647,6 +851,22 @@ final class TestLedgerWpdb
             return count($this->ledgerFor((int) ($args[0] ?? 0)));
         }
 
+        if (str_contains($sql, 'SUM(-points)')) {
+            $userId = (int) ($args[0] ?? 0);
+            $since  = (string) ($args[1] ?? '');
+            $total  = 0;
+            foreach ($this->ledger as $row) {
+                if (
+                    (int) $row['user_id'] === $userId
+                    && in_array($row['type'] ?? '', ['transfer_out', 'transfer_fee'], true)
+                    && (string) ($row['created_at'] ?? '') >= $since
+                ) {
+                    $total += abs((int) $row['points']);
+                }
+            }
+            return (string) $total;
+        }
+
         if (str_contains($sql, 'idempotency_key')) {
             return $this->ledgerIdByKey((string) ($args[0] ?? ''));
         }
@@ -669,6 +889,11 @@ final class TestLedgerWpdb
                 return null;
             }
             return (object) ($this->balances[$userId] + ['user_id' => $userId]);
+        }
+
+        if (str_contains($sql, 'idempotency_key') && !str_contains($sql, 'points < 0')) {
+            $id = $this->ledgerIdByKey((string) ($args[0] ?? ''));
+            return null === $id ? null : (object) $this->ledger[$id];
         }
 
         if (str_contains($sql, 'idempotency_key') && str_contains($sql, 'points < 0')) {
@@ -737,6 +962,17 @@ final class TestLedgerWpdb
     public function suppress_errors(bool $suppress = true): bool
     {
         return false;
+    }
+
+    /** @return array<string,mixed> */
+    public function entryOfType(string $type): array
+    {
+        foreach ($this->ledger as $row) {
+            if (($row['type'] ?? '') === $type) {
+                return $row;
+            }
+        }
+        return [];
     }
 
     /** @return array<int,string> */
