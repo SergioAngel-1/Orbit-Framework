@@ -232,6 +232,46 @@ describe("docker-compose.prod.yml: ciclo de vida y recursos", () => {
   });
 });
 
+describe("docker-compose.yml: desarrollo expuesto solo en loopback", () => {
+  /** Puertos publicados de un servicio (`ports:` → comillas). */
+  function publishedPorts(block: string): string[] {
+    const section = block.match(/\n {4}ports:\n((?: {6}- .*\n)+)/);
+    return section ? [...section[1]!.matchAll(/-\s*"([^"]+)"/g)].map((m) => m[1]!) : [];
+  }
+
+  // Sin el prefijo, MariaDB (wordpress/wordpress), Redis (sin auth) y WP/Next
+  // quedaban alcanzables desde la red local: cualquiera podía FLUSHALL del Redis
+  // que guarda revocaciones, rate-limit e idempotencia.
+  it.each(["db", "redis", "wordpress", "frontend"])(
+    "%s publica solo en 127.0.0.1",
+    (name) => {
+      const ports = publishedPorts(service(dev, name));
+
+      expect(ports.length, name).toBeGreaterThan(0);
+      for (const port of ports) {
+        expect(port, `${name}: ${port}`).toMatch(/^127\.0\.0\.1:/);
+      }
+    },
+  );
+});
+
+describe("frontend/.dockerignore: ningún .env* entra en el contexto de build", () => {
+  const ignore = root("frontend/.dockerignore");
+
+  it("excluye el patrón .env* (no solo .env y .env.local)", () => {
+    // Un `frontend/.env.production` —lo natural al preparar un despliegue— se
+    // colaba en el contexto y se horneaba en la imagen: Next lo lee en `next
+    // build` e inlinearía en el artefacto cualquier NEXT_PUBLIC_*.
+    expect(ignore).toMatch(/^\.env\*$/m);
+    expect(ignore).not.toMatch(/^\.env$/m);
+    expect(ignore).not.toMatch(/^\.env\.local$/m);
+  });
+
+  it("deja pasar la plantilla .env.example (no son secretos)", () => {
+    expect(ignore).toMatch(/^!\.env\.example$/m);
+  });
+});
+
 describe("docker-compose.prod.yml: la base de datos no se pierde por descuido", () => {
   const envProd = root(".env.prod.example");
 

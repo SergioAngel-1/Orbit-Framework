@@ -1,8 +1,8 @@
 node_modules
 .next
 .git
-.env.local
-.env
+.env*
+!.env.example
 npm-debug.log*
 Dockerfile
 .dockerignore

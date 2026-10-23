@@ -49,6 +49,19 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   WordPress) en vez de una cada segundo, y sigue admitiendo `WARM_CONCURRENCY=1`.
 
 ### Security
+- **Desarrollo deja de exponer la pila a la red local.** MariaDB (`3307`), Redis (`6379`),
+  WordPress (`8080`) y el frontend (`3000`) se publicaban en `0.0.0.0` con las credenciales por
+  defecto y Redis sin auth: en una red compartida cualquiera podía entrar a la base de datos o
+  hacer `FLUSHALL` del Redis que guarda la blocklist de revocación, el rate-limit y la
+  idempotencia del checkout. Ahora los cuatro se publican solo en `127.0.0.1`; el modo híbrido
+  (WordPress nativo contra `127.0.0.1:3307` y `npm run dev`) sigue igual. Para probar desde el
+  móvil hay que publicar a propósito con un override.
+- **`frontend/.dockerignore` excluye todos los `.env*`.** Antes solo excluía `.env` y `.env.local`
+  exactos: un `.env.production` —lo natural al preparar un despliegue— entraba en el contexto y se
+  horneaba en la imagen, con Next inlinando en `next build` cualquier `NEXT_PUBLIC_*` y dejando el
+  resto en las capas del builder. Ahora el patrón es `.env*` con `!.env.example`.
+
+### Security
 - **Los límites de GraphQL no se aplicaban.** `graphql-protection.php` enganchaba
   `graphql_query_max_depth` y `graphql_query_complexity`, filtros que WPGraphQL no tiene: `/graphql`
   aceptaba consultas de cualquier profundidad y complejidad (DoS). Ahora el límite de profundidad va

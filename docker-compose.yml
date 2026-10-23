@@ -29,7 +29,9 @@ services:
     logging: *default-logging
     restart: unless-stopped
     ports:
-      - "3307:3306"
+      # Solo loopback: el modo híbrido (WordPress nativo contra `127.0.0.1:3307`)
+      # sigue funcionando, pero la BD deja de ser alcanzable desde la red local.
+      - "127.0.0.1:3307:3306"
     environment:
       MARIADB_DATABASE: "${MYSQL_DATABASE:-wordpress}"
       MARIADB_USER: "${MYSQL_USER:-wordpress}"
@@ -57,7 +59,9 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "${WORDPRESS_PORT:-8080}:80"
+      # Solo loopback. Para probar desde el móvil en la LAN, publica a propósito
+      # con `-p` o un override; no lo dejes abierto por defecto.
+      - "127.0.0.1:${WORDPRESS_PORT:-8080}:80"
     environment:
       WORDPRESS_DB_HOST: "db:3306"
       WORDPRESS_DB_USER: "${MYSQL_USER:-wordpress}"
@@ -292,7 +296,9 @@ services:
     logging: *default-logging
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      # Solo loopback: sin esto, cualquiera en la red local puede FLUSHALL el Redis
+      # que guarda la blocklist de revocación, el rate-limit y la idempotencia.
+      - "127.0.0.1:6379:6379"
     command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
     volumes:
       - redis_data:/data
@@ -321,7 +327,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     healthcheck:
       # Liveness puro: /api/health devuelve 200 aunque Redis/WP estén caídos, así
       # que como sonda de contenedor medía otra cosa. El proceso vivo es lo único
