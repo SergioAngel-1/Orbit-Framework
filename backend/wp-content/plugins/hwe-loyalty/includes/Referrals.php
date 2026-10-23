@@ -98,8 +98,25 @@ final class HWE_Loyalty_Referrals {
 		}
 
 		$row = self::ensureRow( $userId );
+		if ( null === $row ) {
+			return '';
+		}
 
-		return null === $row ? '' : (string) $row->code;
+		$code = (string) $row->code;
+		// Tras la supresión de datos la cuenta puede seguir participando: su código anonimizado
+		// (`ERASED-…`) no sirve para atribuir ni transferir, así que recibe uno nuevo.
+		if ( str_starts_with( $code, self::ANON_CODE_PREFIX ) ) {
+			for ( $attempt = 0; $attempt < self::MAX_CODE_ATTEMPTS; $attempt++ ) {
+				$fresh = self::generateCode();
+				if ( self::setCode( $userId, $fresh ) ) {
+					return $fresh;
+				}
+			}
+			self::log( 'no se pudo dar un código nuevo al usuario ' . $userId . ' tras la supresión.' );
+			return '';
+		}
+
+		return $code;
 	}
 
 	/**

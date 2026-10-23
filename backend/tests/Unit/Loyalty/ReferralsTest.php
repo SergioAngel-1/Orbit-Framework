@@ -664,6 +664,19 @@ final class ReferralsTest extends TestCase
         $this->assertCount(1, $sums);
     }
 
+    public function test_an_account_that_keeps_participating_after_erasure_gets_a_fresh_code(): void
+    {
+        $old = \HWE_Loyalty_Referrals::codeFor(self::REFERRER);
+        \HWE_Loyalty_Referrals::anonymize(self::REFERRER);
+
+        $fresh = \HWE_Loyalty_Referrals::codeFor(self::REFERRER);
+
+        $this->assertMatchesRegularExpression('/^[A-Z0-9]{8}$/', $fresh);
+        $this->assertNotSame($old, $fresh);
+        $this->assertSame(self::REFERRER, \HWE_Loyalty_Referrals::userByCode($fresh));
+        $this->assertNull(\HWE_Loyalty_Referrals::userByCode($old));
+    }
+
     public function test_network_never_shows_a_login_used_as_display_name(): void
     {
         // Las cuentas creadas por el registro del BFF tienen el login como `display_name`.
@@ -881,6 +894,18 @@ final class TestReferralsWpdb
 
         if (str_starts_with($sql, 'UPDATE ' . $this->prefix . 'hwe_loyalty_referrals')) {
             $userId = (int) ($args[count($args) - 1] ?? 0);
+            if (str_contains($sql, 'SET code = %s, referrer_id = NULL, status = %s, confirmed_at = NULL')) {
+                // `Referrals::anonymize()` (eliminador de privacidad).
+                $index = $this->referralIdForUser($userId);
+                if (!isset($this->referrals[$index])) {
+                    return 0;
+                }
+                $this->referrals[$index]['code']         = (string) ($args[0] ?? '');
+                $this->referrals[$index]['referrer_id']  = null;
+                $this->referrals[$index]['status']       = (string) ($args[1] ?? 'pending');
+                $this->referrals[$index]['confirmed_at'] = null;
+                return 1;
+            }
             if (str_contains($sql, 'SET status = %s, confirmed_at = %s WHERE user_id = %d')) {
                 if ($this->failConfirmationUpdates > 0) {
                     $this->failConfirmationUpdates--;
