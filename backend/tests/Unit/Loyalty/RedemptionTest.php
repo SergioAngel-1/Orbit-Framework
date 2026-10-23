@@ -947,6 +947,58 @@ final class RedemptionTest extends TestCase
         $this->assertSame('1.00', (string) $order->get_meta(\HWE_Loyalty_Earnings::META_DISCOUNT));
     }
 
+    public function test_refunding_a_paid_order_never_rewrites_its_total(): void
+    {
+        // En WooCommerce real `is_paid()` mira el estado actual: un pedido reembolsado o
+        // cancelado ya no «está pagado» aunque se cobrara. Quitar el fee ahí subía el total
+        // (95000 → 100000) y wp-admin ofrecía reembolsar lo que nunca se cobró.
+        $this->confirmedOrder(55);
+        $order = $this->orders[55];
+        $order->status         = 'refunded';
+        $order->paid           = false;
+        $order->date_paid      = 1_700_000_000;
+        $order->total_refunded = $order->get_total();
+
+        \HWE_Loyalty_Redemption::onOrderRefunded(55);
+
+        $this->assertNotNull($this->entryWithKey('redeem_refund:order:55'));
+        $this->assertSame(99.0, $order->get_total());
+        $this->assertCount(1, $order->get_fees());
+        $this->assertSame('1.00', (string) $order->get_meta(\HWE_Loyalty_Earnings::META_DISCOUNT));
+    }
+
+    public function test_cancelling_an_order_keeps_its_lines_and_total(): void
+    {
+        // Un cancelado no se reintenta (`needs_payment()` solo acepta pending/failed): quitar el
+        // fee solo descuadra el importe de un pago que llegue tarde (cancelación por reserva de
+        // stock) y borra el rastro del descuento. Se devuelven los puntos y nada más.
+        $this->confirmedOrder(55);
+        $order = $this->orders[55];
+        $order->status = 'cancelled';
+        $order->paid   = false;
+
+        \HWE_Loyalty_Redemption::onOrderCancelled(55);
+
+        $this->assertNotNull($this->entryWithKey('redeem_refund:order:55'));
+        $this->assertSame(99.0, $order->get_total());
+        $this->assertCount(1, $order->get_fees());
+        $this->assertSame('1.00', (string) $order->get_meta(\HWE_Loyalty_Earnings::META_DISCOUNT));
+    }
+
+    public function test_a_failed_order_that_was_already_paid_keeps_its_discount(): void
+    {
+        $this->confirmedOrder(55);
+        $order = $this->orders[55];
+        $order->status    = 'failed';
+        $order->paid      = false;
+        $order->date_paid = 1_700_000_000;
+
+        \HWE_Loyalty_Redemption::onOrderFailed(55);
+
+        $this->assertSame(99.0, $order->get_total());
+        $this->assertCount(1, $order->get_fees());
+    }
+
     public function test_a_partial_refund_does_not_return_points(): void
     {
         $this->confirmedOrder(55);

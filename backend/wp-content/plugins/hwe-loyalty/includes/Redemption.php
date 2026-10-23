@@ -578,8 +578,12 @@ final class HWE_Loyalty_Redemption {
 
 		$order->update_meta_data( self::META_REDEEMED_POINTS, 0 );
 
-		if ( ! $order->is_paid() ) {
-			// El pedido puede reintentarse: sin puntos, tampoco puede conservar el descuento.
+		// Solo un pedido `failed` que nunca se cobró se reintenta (`needs_payment()` acepta
+		// pending/failed; un `cancelled` no vuelve): sin puntos, tampoco puede conservar el
+		// descuento. No se usa `is_paid()`, que mira el estado ACTUAL: un pedido cobrado y luego
+		// cancelado o reembolsado ya no «está pagado», y quitarle el fee le subía el total.
+		$paidAt = method_exists( $order, 'get_date_paid' ) ? $order->get_date_paid() : null;
+		if ( 'failed' === $status && empty( $paidAt ) ) {
 			$order->delete_meta_data( HWE_Loyalty_Earnings::META_DISCOUNT );
 			$order->delete_meta_data( HWE_Loyalty_Earnings::META_PAID_WITH_POINTS );
 			self::syncOrderDiscount( $order, 0, 0.0, HWE_Loyalty_Settings::get() );

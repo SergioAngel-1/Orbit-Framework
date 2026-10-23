@@ -79,6 +79,14 @@ if (!class_exists('WC_Order')) {
             return $this->paid;
         }
 
+        /** Fecha de cobro (timestamp o `null`). En WooCommerce no cambia al cancelar o reembolsar. */
+        public ?int $date_paid = null;
+
+        public function get_date_paid(): ?object
+        {
+            return null === $this->date_paid ? null : (object) ['timestamp' => $this->date_paid];
+        }
+
         public function get_payment_method(): string
         {
             return $this->payment_method;
