@@ -184,6 +184,16 @@ final class CitiesTest extends TestCase
         $this->assertNull(Cities::forCity('   '));
     }
 
+    public function testUnTituloConGuionSeComparaSinElTextoTipograficoDeWordPress(): void
+    {
+        // `get_the_title` pasa el título por `wptexturize`: « - » sale como raya «&#8211;».
+        \Brain\Monkey\Functions\when('get_the_title')->alias(static fn (\WP_Post $post): string => str_replace(' - ', ' &#8211; ', $post->post_title));
+        $this->fixedCity(17, 'Villa - Norte', [$this->fixedOption('estandar17', 'Estándar', 5.0)]);
+
+        $this->assertSame(17, Cities::forCity('Villa - Norte')?->postId());
+        $this->assertSame('Villa - Norte', Cities::forCity('villa - norte')?->name());
+    }
+
     public function testLosEspaciosDoblesEntrePalabrasNoDistinguenLaCiudad(): void
     {
         $this->fixedCity(16, 'Puerto  Real', [$this->fixedOption('estandar16', 'Estándar', 5.0)]);

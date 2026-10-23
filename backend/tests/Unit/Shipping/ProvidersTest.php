@@ -244,7 +244,20 @@ final class ProvidersTest extends TestCase
 
         $this->assertInstanceOf(GeocodeResult::class, $result);
         $this->assertSame('Calle 1 # 2-3, Bogotá', $result->label());
-        $this->assertStringContainsString('/v4/geocode/location/4.6,-74.08', $this->wp->sent('GET')[0]['url']);
+        $this->assertStringContainsString('/v4/geocode/location/4.6000000,-74.0800000', $this->wp->sent('GET')[0]['url']);
+    }
+
+    public function testLaInversaDeGoogleNoEscribeCoordenadasDiminutasEnNotacionCientifica(): void
+    {
+        $this->wp->respond(200, ['results' => [
+            ['location' => ['latitude' => 0.00001, 'longitude' => 9.5], 'formattedAddress' => 'Punto de prueba'],
+        ]]);
+
+        (new GoogleProvider())->reverse(new GeoPoint(0.00001, 9.5), 'es');
+
+        $url = $this->wp->sent('GET')[0]['url'];
+        $this->assertStringContainsString('/v4/geocode/location/0.0000100,9.5000000', $url);
+        $this->assertStringNotContainsString('E-', $url);
     }
 
     public function testLaClaveDeGoogleVaSoloEnCabeceraYNuncaEnUrlNiEnLog(): void

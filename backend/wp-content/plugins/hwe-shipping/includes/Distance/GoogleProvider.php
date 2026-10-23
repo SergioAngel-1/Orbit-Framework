@@ -107,7 +107,8 @@ final class GoogleProvider implements Provider {
 
 		$url      = add_query_arg(
 			array( 'languageCode' => $language ),
-			self::GEOCODE_ENDPOINT . 'location/' . $point->lat() . ',' . $point->lng()
+			// `sprintf` y no concatenación: un float diminuto se escribiría «1.0E-5» en la URL.
+			self::GEOCODE_ENDPOINT . 'location/' . sprintf( '%.7F,%.7F', $point->lat(), $point->lng() )
 		);
 		$response = ProviderHttp::get( $url, array( 'X-Goog-Api-Key' => $key ) );
 		if ( is_wp_error( $response ) ) {

@@ -207,7 +207,7 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 | CSRF + rate-limit + idempotencia (el duplicado ya detectado nunca procede; ver §9) | ✅ |
 | E-commerce (catálogo, carrito, checkout ligado a cliente **o de invitado**, cuenta) | ✅ |
 | Cuenta avanzada (wishlist, reseñas, direcciones — **meta atómica con lock**) | ✅ |
-| Cupones (reglas, avisos) y envío (por ciudad, extras, gratis por regla) | ✅ (módulos `coupon-rules` y `shipping`) |
+| Cupones (reglas, avisos) y envío (por ciudad fija o **por distancia** con pin del cliente, extras, gratis por opción) | ✅ (módulos `coupon-rules` y `shipping`) |
 | Fidelización (puntos: ganar, caducar, canjear y transferir; referidos N1/N2) | ✅ (módulo `loyalty`) |
 | Verificación de email (**opcional**, con expiración de token) | 🟡 (no bloqueante) |
 | 2FA TOTP (secreto cifrado AES-GCM, recuperación, **sin tokens antes del segundo factor**) | ✅ |
@@ -476,6 +476,14 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
 - Se encienden con la clave `modules` de `instance.config.json` (`wp hwe setup` activa los
   listados y **desactiva los demás**) o desde `wp-admin → Plugins`. La config pública expone
   `modules: { <id>: boolean }`, calculado según si el plugin está activo.
+- **Envío por distancia (`shipping`):** cada ciudad es de tarifa fija o por distancia (nunca ambas).
+  Las tarifas las calcula WooCommerce con el método `hwe_city_rate` (`ShippingStatus` es la única
+  decisión; `Pricing`, el único precio). La distancia sale de proveedores intercambiables
+  (`hwe_shipping_distance_providers`; Google, OpenRouteService o línea recta + Nominatim, que es el
+  respaldo) y la clave de mapas **nunca sale de WordPress**. El pin del cliente viaja por la extensión
+  `hwe_shipping` de la Store API y vale solo mientras coincidan calle, ciudad y país; sin pin válido no
+  hay tarifa y el checkout del BFF responde 409. Contrato completo en `docs/FRONTEND_CONNECT.md`
+  («Envío por distancia»); detalle en el `README.md` del plugin.
 - **Con el módulo apagado**: el lector devuelve vacío o nulo, sus rutas BFF responden 404
   (`requireModule(config, id)` en `lib/api/modules.ts`, igual que `requireFlag` para los flags de
   la tienda) y su UI no se pinta (`isModuleEnabled`). Cada módulo registra su tag ISR en

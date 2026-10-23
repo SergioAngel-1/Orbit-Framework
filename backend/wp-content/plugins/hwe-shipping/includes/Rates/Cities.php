@@ -116,7 +116,9 @@ final class Cities {
 
 	/** Nombre visible de una ciudad: el título del post, sin entidades HTML ni espacios sobrantes. */
 	public static function nameOf( \WP_Post $post ): string {
-		return trim( html_entity_decode( (string) get_the_title( $post ), ENT_QUOTES, 'UTF-8' ) );
+		// El título crudo, no `get_the_title`: su `wptexturize` convierte « - » en raya y comillas rectas en
+		// tipográficas, y la ciudad dejaría de coincidir con la que escribe el cliente.
+		return trim( html_entity_decode( (string) $post->post_title, ENT_QUOTES, 'UTF-8' ) );
 	}
 
 	/**
