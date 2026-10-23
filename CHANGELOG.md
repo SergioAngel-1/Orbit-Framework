@@ -7,6 +7,16 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Security
+- **Los límites de GraphQL no se aplicaban.** `graphql-protection.php` enganchaba
+  `graphql_query_max_depth` y `graphql_query_complexity`, filtros que WPGraphQL no tiene: `/graphql`
+  aceptaba consultas de cualquier profundidad y complejidad (DoS). Ahora el límite de profundidad va
+  por `graphql_query_depth_max` (WPGraphQL ≥ 2.24) y el de complejidad sustituye la regla
+  `QueryComplexity` de webonyx, que viene desactivada, por `graphql_validation_rules`. Los valores
+  siguen siendo 15 y 1000 (`GRAPHQL_MAX_DEPTH` y `GRAPHQL_QUERY_COMPLEXITY_LIMIT` en `wp-config.php`);
+  las consultas del frontend del framework caben con margen, pero una instancia con consultas
+  propias más profundas debe comprobarlas o subir el límite. El log de consultas rechazadas
+  (`[hwe] graphql: …`) tampoco escribía nada por HTTP, porque WPGraphQL le pasa un `ExecutionResult`
+  y no un array: ahora registra también los rechazos de la guardia de `external-integration`.
 - **Parches de seguridad del 21 de octubre de 2026 (PHP y Node.js).** La imagen de WordPress pasa
   de `wordpress:7.0-php8.4-apache` a `wordpress:7.1-php8.4-apache` (dev y prod): la etiqueta 7.0 ya
   no se reconstruye y se había quedado en PHP 8.4.23, vulnerable a CVE-2026-109618 y CVE-2026-109619

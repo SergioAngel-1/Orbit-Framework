@@ -177,6 +177,13 @@ final class HeadlessMuPluginsTest extends TestCase
         $this->assertNotFalse(has_filter('graphql_request_results', 'hwe_graphql_log_rejected'));
         $this->assertFalse(has_filter('graphql_cache_active'));
         $this->assertFalse(has_action('graphql_execute_request'));
+        // Los límites se enganchan a los filtros que WPGraphQL lee de verdad.
+        // `graphql_query_max_depth` y `graphql_query_complexity` no existen: con
+        // ellos ningún límite se aplicaba.
+        $this->assertFalse(has_filter('graphql_query_max_depth'));
+        $this->assertFalse(has_filter('graphql_query_complexity'));
+        $this->assertNotFalse(has_filter('graphql_query_depth_max', 'hwe_graphql_query_depth_max'));
+        $this->assertNotFalse(has_filter('graphql_validation_rules', 'hwe_graphql_validation_rules'));
 
         $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
         $result = ['errors' => [['message' => 'demasiado profunda']]];
@@ -184,6 +191,53 @@ final class HeadlessMuPluginsTest extends TestCase
         $this->assertCount(1, $this->logged);
         $this->assertStringStartsWith('[hwe] graphql:', $this->logged[0]);
         unset($_SERVER['REMOTE_ADDR']);
+    }
+
+    public function testRejectedQueriesAreLoggedWhenWpGraphqlPassesAnExecutionResult(): void {
+        Functions\when('wp_get_environment_type')->justReturn('production');
+        Functions\when('wp_json_encode')->alias(static fn ($v) => json_encode($v));
+        Functions\when('sanitize_text_field')->returnArg();
+        $this->loadOwnFile('mu-plugins/graphql-protection.php');
+
+        // Por HTTP, WPGraphQL filtra el objeto de webonyx, no un array: antes no se registraba nada.
+        $_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+        $result = new \GraphQL\Executor\ExecutionResult(null, [new \Exception('Max query complexity should be 1000 but got 1100.')]);
+        $this->assertSame($result, hwe_graphql_log_rejected($result));
+        $this->assertCount(1, $this->logged);
+        $this->assertStringContainsString('203.0.113.9', $this->logged[0]);
+        $this->assertStringContainsString('Max query complexity', $this->logged[0]);
+
+        // Una respuesta sin errores no deja rastro.
+        hwe_graphql_log_rejected(new \GraphQL\Executor\ExecutionResult(['data' => true]));
+        $this->assertCount(1, $this->logged);
+        unset($_SERVER['REMOTE_ADDR']);
+    }
+
+    public function testDepthLimitUsesTheFilterWpGraphqlReads(): void {
+        Functions\when('wp_get_environment_type')->justReturn('production');
+        $this->loadOwnFile('mu-plugins/graphql-protection.php');
+
+        // Con el ajuste de WPGraphQL apagado le llega 0 (sin límite): el límite se aplica igual.
+        $this->assertSame(15, hwe_graphql_query_depth_max(0));
+        // Un ajuste más estricto del panel se respeta; uno más laxo, no.
+        $this->assertSame(10, hwe_graphql_query_depth_max(10));
+        $this->assertSame(15, hwe_graphql_query_depth_max(40));
+    }
+
+    public function testComplexityLimitReplacesTheDisabledWebonyxRule(): void {
+        Functions\when('wp_get_environment_type')->justReturn('production');
+        $this->loadOwnFile('mu-plugins/graphql-protection.php');
+
+        // La regla de webonyx viene desactivada: se sustituye por una con límite.
+        $rule = \GraphQL\Validator\Rules\QueryComplexity::class;
+        $rules = hwe_graphql_validation_rules([
+            'query_depth' => 'regla de WPGraphQL',
+            $rule => new \GraphQL\Validator\Rules\QueryComplexity(\GraphQL\Validator\Rules\QueryComplexity::DISABLED),
+        ]);
+
+        $this->assertSame('regla de WPGraphQL', $rules['query_depth']);
+        $this->assertInstanceOf($rule, $rules[$rule]);
+        $this->assertSame(1000, $rules[$rule]->getMaxQueryComplexity());
     }
 
     // ── hwe-smtp ────────────────────────────────────────────────────────────

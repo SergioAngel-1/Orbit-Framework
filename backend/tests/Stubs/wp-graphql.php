@@ -30,3 +30,26 @@ namespace WPGraphQL\Utils {
         }
     }
 }
+
+namespace GraphQL\Validator\Rules {
+    /** Regla de complejidad de webonyx/graphql-php: solo el límite que recibe. */
+    class QueryComplexity {
+        public const DISABLED = 0;
+
+        public function __construct(private int $maxQueryComplexity) {
+        }
+
+        public function getMaxQueryComplexity(): int {
+            return $this->maxQueryComplexity;
+        }
+    }
+}
+
+namespace GraphQL\Executor {
+    /** Resultado de webonyx/graphql-php: lo que recibe `graphql_request_results` por HTTP. */
+    class ExecutionResult {
+        /** @param array<int,\Throwable> $errors */
+        public function __construct(public ?array $data = null, public array $errors = []) {
+        }
+    }
+}
