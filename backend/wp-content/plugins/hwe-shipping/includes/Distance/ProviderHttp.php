@@ -72,9 +72,10 @@ final class ProviderHttp {
 		if ( ! is_array( $body ) ) {
 			return new \WP_Error( 'provider_unavailable', 'El proveedor de mapas devolvió una respuesta que no es JSON.', array( 'status' => $status ) );
 		}
-		// Algunos errores llegan con HTTP 200 y un objeto `error` dentro.
-		if ( isset( $body['error'] ) ) {
-			$code = is_array( $body['error'] ) ? (int) ( $body['error']['code'] ?? $status ) : $status;
+		// Algunos errores llegan con HTTP 200 y un objeto `error` dentro (o en una lista, ver `errorNode`).
+		$error = self::errorNode( $body );
+		if ( null !== $error || isset( $body['error'] ) ) {
+			$code = null !== $error ? (int) ( $error['code'] ?? $status ) : $status;
 			return self::httpError( $code, $body );
 		}
 
@@ -92,7 +93,7 @@ final class ProviderHttp {
 	 * servicio haría que la prueba de conexión diera una pista equivocada.
 	 */
 	public static function httpError( int $status, mixed $body ): \WP_Error {
-		$error  = is_array( $body ) && is_array( $body['error'] ?? null ) ? $body['error'] : array();
+		$error  = self::errorNode( $body ) ?? array();
 		$text   = (string) ( $error['status'] ?? '' );
 		$reason = self::reason( $error );
 		$data   = array(
@@ -108,6 +109,25 @@ final class ProviderHttp {
 		}
 
 		return new \WP_Error( 'provider_unavailable', 'El proveedor de mapas no está disponible en este momento.', $data );
+	}
+
+	/**
+	 * Nodo `error` del cuerpo: en la raíz (Geocoding, ORS) o, en Routes API (`computeRouteMatrix`, que
+	 * responde con una lista), dentro del primer elemento: `[{ "error": { … } }]`.
+	 *
+	 * @return array<mixed>|null
+	 */
+	private static function errorNode( mixed $body ): ?array {
+		if ( ! is_array( $body ) ) {
+			return null;
+		}
+		if ( is_array( $body['error'] ?? null ) ) {
+			return $body['error'];
+		}
+		if ( array_is_list( $body ) && is_array( $body[0] ?? null ) && is_array( $body[0]['error'] ?? null ) ) {
+			return $body[0]['error'];
+		}
+		return null;
 	}
 
 	/**

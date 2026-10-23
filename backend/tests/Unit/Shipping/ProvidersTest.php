@@ -127,6 +127,30 @@ final class ProvidersTest extends TestCase
         $this->assertSame('provider_unauthorized', $this->errorCode((new GoogleProvider())->distance($this->origen(), $this->destino(), 'driving')));
     }
 
+    public function testRoutesEnvuelveElErrorEnUnaListaYLaClaveInvalidaSigueSiendoNoAutorizado(): void
+    {
+        // Forma real de Routes API (computeRouteMatrix) con una clave inválida: HTTP 400 y el error dentro de una lista.
+        $this->wp->respond(400, [[
+            'error' => [
+                'code'    => 400,
+                'status'  => 'INVALID_ARGUMENT',
+                'details' => [['@type' => 'type.googleapis.com/google.rpc.ErrorInfo', 'reason' => 'API_KEY_INVALID']],
+            ],
+        ]]);
+
+        $result = (new GoogleProvider())->distance($this->origen(), $this->destino(), 'driving');
+
+        $this->assertSame('provider_unauthorized', $this->errorCode($result));
+        $this->assertSame('API_KEY_INVALID', $result->get_error_data()['reason']);
+    }
+
+    public function testRoutesConElErrorEnUnaListaYHttp200TampocoEsUnaRuta(): void
+    {
+        $this->wp->respond(200, [['error' => ['code' => 429, 'status' => 'RESOURCE_EXHAUSTED']]]);
+
+        $this->assertSame('provider_rate_limited', $this->errorCode((new GoogleProvider())->distance($this->origen(), $this->destino(), 'driving')));
+    }
+
     public function testGoogleSinPermisosPorEstadoPERMISSIONDENIEDTambienEsNoAutorizado(): void
     {
         $this->wp->respond(200, ['error' => ['code' => 401, 'status' => 'PERMISSION_DENIED']]);
