@@ -1252,7 +1252,7 @@ demás entradas, en §6.
   sobre el `.env`.
 - **Apache tiene techo de procesos en producción** (`backend/config/apache-mpm.conf`, montado en
   `conf-enabled/`): la imagen permitía 150 workers y los hijos no se reciclaban, así que bajo carga
-  el contenedor moría por OOM. Va calibrado al límite de 512 MB de la plantilla (5 workers); si
+  el contenedor moría por OOM. Va calibrado al límite de 768 MB de la plantilla (5 workers); si
   subes `deploy.resources.limits.memory` del servicio `wordpress`, sube también
   `MaxRequestWorkers` (el archivo explica la fórmula). Reinicia el contenedor `wordpress`.
 - **Caddy manda cabeceras de seguridad en las rutas que sirve WordPress** (`/wp-admin`,

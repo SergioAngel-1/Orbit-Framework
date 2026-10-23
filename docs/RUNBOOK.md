@@ -172,17 +172,19 @@ Tras actualizar mu-plugins o plugins, reinicia ese contenedor.
 - **Readiness:** `GET /api/health?ready=1` → 503 si alguna dependencia está caída.
   `GET /api/health` (sin flag) devuelve siempre 200 con el detalle.
 
-**Presupuesto de memoria de WordPress.** El contenedor `wordpress` tiene 512 MB
+**Presupuesto de memoria de WordPress.** El contenedor `wordpress` tiene 768 MB
 (`docker-compose.prod.yml`) y tres números tienen que cuadrar entre sí:
 
 | Archivo | Qué fija |
 |---|---|
-| `docker-compose.prod.yml` | `deploy.resources.limits.memory` (512 MB) |
+| `docker-compose.prod.yml` | `deploy.resources.limits.memory` (768 MB) |
 | `backend/config/opcache.ini` | Segmento COMPARTIDO: `memory_consumption` + `interned_strings_buffer` + `jit_buffer_size` (96 + 8 + 0 = 104 MB) |
 | `backend/config/apache-mpm.conf` | `MaxRequestWorkers` (5); cada hijo cuesta ~60 MB |
 | `backend/config/uploads.ini` | `memory_limit` = techo de UNA petición (256 MB, lo que recomienda WooCommerce), nunca el del contenedor |
 
-Presupuesto: `10 (padre) + 104 (OPcache) + 5 × 60 = 414 MB` → 98 MB de margen. Si
+Presupuesto típico: `10 (padre) + 104 (OPcache) + 5 × 60 = 414 MB`; peor caso (una
+petición al tope de `memory_limit` y 4 workers normales): `10 + 104 + 256 + 4 × 60 = 610 MB`,
+con 158 MB de margen. Si
 subes cualquiera de ellos, recalcula el resto en la misma proporción;
 `npm run test` (`tests/unit/apache-mpm.test.ts`) falla si no cabe. Un import
 puntual que necesite más memoria se lanza con `wp --memory-limit=512M …`, no

@@ -121,6 +121,17 @@ describe("apache-mpm.conf", () => {
     expect(
       PARENT_MB + sharedMb + directive("MaxRequestWorkers")! * PER_CHILD_MB,
     ).toBeLessThanOrEqual(limit);
+
+    // Peor caso: una petición llega al tope de `memory_limit` mientras el resto
+    // de workers trabaja con carga normal. También tiene que caber, o esa sola
+    // petición se lleva el contenedor entero por OOM.
+    const workers = directive("MaxRequestWorkers")!;
+    expect(
+      PARENT_MB +
+        sharedMb +
+        iniMb(uploads, "memory_limit") +
+        (workers - 1) * PER_CHILD_MB,
+    ).toBeLessThanOrEqual(limit);
   });
 
   it("el memory_limit de PHP es un techo POR PETICIÓN, no el del contenedor", () => {

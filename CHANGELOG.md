@@ -13,9 +13,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   OPcache: un pico de WPGraphQL o el prerender podían consumir el cgroup y matar el contenedor
   (`OOMKilled`), dejando el sitio en 500 hasta que Docker lo reiniciaba. Ahora `memory_limit` es
   256M (techo por petición, lo que recomienda WooCommerce), Apache pasa a 5 workers, OPcache
-  baja a 96 + 8 MB con el JIT apagado (WordPress es I/O-bound) y el presupuesto real
-  (10 + 104 + 5 × 60 = 414 MB de 512) está documentado en `docs/RUNBOOK.md` §5. `tests/unit/apache-mpm.test.ts` lee también `opcache.ini`, `uploads.ini`
-  y el límite del compose: subir uno sin recalcular los demás ahora falla.
+  baja a 96 + 8 MB con el JIT apagado (WordPress es I/O-bound) y el contenedor `wordpress` de
+  producción pasa de 512 a 768 MB. El presupuesto (típico 414 MB; peor caso, una petición al
+  tope y 4 workers normales, 610 MB) está documentado en `docs/RUNBOOK.md` §5.
+  `tests/unit/apache-mpm.test.ts` lee también `opcache.ini`, `uploads.ini` y el límite del
+  compose, y comprueba los dos casos: subir uno sin recalcular los demás ahora falla.
 - **Sondas de salud que miden lo que dicen medir.** El healthcheck del frontend (dev y prod)
   llamaba a `/api/health`, que devuelve 200 aunque Redis y WordPress estén caídos y que hace dos
   pings de red cada 30 s: ahora usa `/api/health/live` (liveness puro) y la readiness estricta
