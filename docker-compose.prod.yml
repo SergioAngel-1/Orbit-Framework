@@ -671,7 +671,7 @@ services:
       - |
         trap 'exit 0' TERM INT
         while true; do
-          find /cache/images -type f -mtime +"${CACHE_IMAGES_MAX_AGE_DAYS}" -print -delete 2>/dev/null | sed 's/^/[cache-prune] borrada /'
+          find /cache/images -type f -mtime +"$${CACHE_IMAGES_MAX_AGE_DAYS}" -print -delete 2>/dev/null | sed 's/^/[cache-prune] borrada /'
           sleep 86400
         done
     # No necesita red de ningún tipo.

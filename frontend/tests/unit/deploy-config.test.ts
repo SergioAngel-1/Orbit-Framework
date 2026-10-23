@@ -148,7 +148,10 @@ describe("docker-compose.prod.yml", () => {
 
     expect(prune).toContain("next_cache:/cache");
     expect(prune).toContain("find /cache/images");
-    expect(prune).toMatch(/-mtime \+/);
+    // `$$` es el escape de Compose: con un solo `$`, Compose sustituye la variable
+    // al RENDERIZAR y el `find` recibe `-mtime +""` (no borra nada) aunque el
+    // entorno del contenedor sí la defina.
+    expect(prune).toContain('-mtime +"$${CACHE_IMAGES_MAX_AGE_DAYS}"');
   });
 
   it("MariaDB lleva el buffer pool dimensionado al límite de memoria", () => {
