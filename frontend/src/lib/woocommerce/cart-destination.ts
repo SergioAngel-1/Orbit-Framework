@@ -5,6 +5,7 @@ import { destinationFromAddress } from "@/lib/shipping/destination";
 import { defaultAddress, parseSavedAddresses } from "@/lib/customer/addresses";
 import { getSiteConfig } from "@/lib/config";
 import { isModuleEnabled } from "@/lib/config/modules";
+import { syncDeliveryPoint } from "@/lib/shipping/delivery-point";
 import { getGeoPack } from "@/lib/geo";
 import { logger } from "@/lib/observability/logger";
 import type { StoreCart, WooCustomer } from "@/types/woocommerce";
@@ -53,9 +54,10 @@ async function shippingEnabled(): Promise<boolean> {
 
 /**
  * Comunica a Woo el destino de la dirección PREDETERMINADA de una libreta ya
- * leída. Best-effort: devuelve el carrito recalculado, o `null` si no había nada
- * que fijar, el módulo está apagado o WordPress no respondió (el checkout lo
- * vuelve a fijar).
+ * leída, y su pin si la dirección lo trae (sin pin no se toca el punto de la sesión: la huella de
+ * WordPress lo invalida si cambian calle, ciudad o país). Best-effort:
+ * devuelve el carrito recalculado, o `null` si no había nada que fijar, el módulo
+ * está apagado o WordPress no respondió (el checkout lo vuelve a fijar).
  */
 export async function pushCartDestination(
   userId: string | number,
@@ -74,12 +76,32 @@ export async function pushCartDestination(
   }
   noDestination.delete(key);
   try {
-    return await storeFetch<StoreCart>("/cart/update-customer", {
+    // El pin (`location`) no es un campo de WooCommerce: va después, por la extensión del punto de
+    // entrega, con la misma calle, ciudad y país que acaba de recibir Woo (la huella).
+    const updated = await storeFetch<StoreCart>("/cart/update-customer", {
       method: "POST",
-      body: { shipping_address: destination },
+      body: {
+        shipping_address: {
+          address_1: destination.address_1,
+          city: destination.city,
+          country: destination.country,
+          state: destination.state,
+          postcode: destination.postcode,
+        },
+      },
       cartToken: auth.cartToken,
       authToken: auth.authToken,
     });
+    const point = await syncDeliveryPoint(
+      {
+        address_1: destination.address_1 ?? "",
+        city: destination.city,
+        country: destination.country,
+      },
+      destination.location,
+      { cartToken: updated.cartToken ?? auth.cartToken, authToken: auth.authToken },
+    );
+    return point ?? updated;
   } catch (error) {
     logger.warn(
       {

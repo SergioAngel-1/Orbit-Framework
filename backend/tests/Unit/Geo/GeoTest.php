@@ -319,6 +319,55 @@ final class GeoTest extends TestCase
         $this->assertSame('geo', json_decode($posts[0], true)['tag']);
     }
 
+    public function testElPaqueteCODeclaraAbreviaturasDeViaYTokensDescartados(): void
+    {
+        $geocoding = hwe_geo_packs()['CO']['geocoding'];
+
+        $this->assertSame('Calle', $geocoding['abbreviations']['Cl']);
+        $this->assertSame('Carrera', $geocoding['abbreviations']['Kra']);
+        $this->assertContains('BIS', $geocoding['drop_tokens']);
+        $this->assertContains('#', $geocoding['drop_tokens']);
+        $this->assertContains('Norte', $geocoding['drop_tokens']);
+        $this->assertSame([], $this->logged);
+    }
+
+    public function testElGenericoNoTieneAbreviaturasNiTokens(): void
+    {
+        $this->assertSame(['abbreviations' => [], 'drop_tokens' => []], hwe_geo_packs()['generic']['geocoding']);
+    }
+
+    public function testUnPaqueteSinReglasDeGeocodificacionLasTieneVacias(): void
+    {
+        $this->withPacks($this->validPack());
+
+        $this->assertSame(['abbreviations' => [], 'drop_tokens' => []], hwe_geo_packs()['AR']['geocoding']);
+    }
+
+    public function testLasAbreviaturasMalFormadasSeOmitenYSeRegistran(): void
+    {
+        $this->withPacks($this->validPack(['geocoding' => [
+            'abbreviations' => ['Cl' => 'Calle', 'Roto' => 123, '' => 'Vacía'],
+            'drop_tokens'   => ['#', '', 7],
+        ]]));
+
+        $geocoding = hwe_geo_packs()['AR']['geocoding'];
+
+        $this->assertSame(['Cl' => 'Calle'], $geocoding['abbreviations']);
+        $this->assertSame(['#'], $geocoding['drop_tokens']);
+        $this->assertNotSame([], $this->logged);
+    }
+
+    public function testElRestExponeLaGeocodificacionEnCamelCase(): void
+    {
+        $this->config = ['ecommerce' => ['country' => 'CO']];
+
+        $data = hwe_geo_handle(new \WP_REST_Request())->get_data();
+
+        $this->assertSame('Calle', $data['geocoding']['abbreviations']['Cl']);
+        $this->assertContains('#', $data['geocoding']['dropTokens']);
+        $this->assertArrayNotHasKey('drop_tokens', $data['geocoding']);
+    }
+
     public function testElCargadorEnlazaLosHooks(): void
     {
         $this->assertNotFalse(has_action('rest_api_init', 'hwe_geo_register_route'));

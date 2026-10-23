@@ -2,9 +2,11 @@
 
 namespace HWE\Shipping;
 
+use HWE\Shipping\Rates\Cities;
+use HWE\Shipping\Rates\City;
+
 /**
- * Columnas de listado: Estado + Valor agregado (métodos), Tarifa + Envío
- * gratis (ciudades).
+ * Columnas de listado: Estado + Valor agregado (métodos), Tipo + Nº de opciones (ciudades).
  */
 class AdminColumns {
 
@@ -50,21 +52,27 @@ class AdminColumns {
 		foreach ( $columns as $key => $label ) {
 			$new[ $key ] = $key === 'title' ? __( 'Ciudad', 'hwe-shipping' ) : $label;
 			if ( $key === 'title' ) {
-				$new['hwe_amount'] = __( 'Tarifa', 'hwe-shipping' );
-				$new['hwe_free']   = __( 'Envío gratis', 'hwe-shipping' );
+				$new['hwe_type']    = __( 'Tipo', 'hwe-shipping' );
+				$new['hwe_options'] = __( 'Opciones', 'hwe-shipping' );
 			}
 		}
 		return $new;
 	}
 
 	public static function renderRate( string $column, int $postId ): void {
-		if ( $column === 'hwe_amount' ) {
-			echo esc_html( (string) get_post_meta( $postId, '_hwe_shipping_rate_amount', true ) );
+		$type = (string) get_post_meta( $postId, Cities::META_TYPE, true );
+		if ( $column === 'hwe_type' ) {
+			$labels = [
+				City::TYPE_FIXED    => __( 'Tarifa fija', 'hwe-shipping' ),
+				City::TYPE_DISTANCE => __( 'Por distancia', 'hwe-shipping' ),
+			];
+			echo isset( $labels[ $type ] )
+				? esc_html( $labels[ $type ] )
+				: '<span style="color:#b32d2e">' . esc_html__( 'Sin configurar (modelo anterior)', 'hwe-shipping' ) . '</span>';
 		}
-		if ( $column === 'hwe_free' ) {
-			echo get_post_meta( $postId, Save::RATE_FREE_META, true ) === '1'
-				? '<span style="color:#0a7d3c;font-weight:600">' . esc_html__( 'Aplica', 'hwe-shipping' ) . '</span>'
-				: '<span style="color:#8a8a8a">—</span>';
+		if ( $column === 'hwe_options' ) {
+			$options = json_decode( (string) get_post_meta( $postId, Cities::META_OPTIONS, true ), true );
+			echo esc_html( is_array( $options ) && $options !== [] ? (string) count( $options ) : '—' );
 		}
 	}
 }

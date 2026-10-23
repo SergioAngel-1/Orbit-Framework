@@ -279,8 +279,10 @@ parte de `docs/CREATE_INSTANCE.md`.
   4. Si usabas `landing_pages` en la config, pasa a `landings.registry` y `landings.editorial.<id>`
      (siembra de nuevo con `wp hwe setup` o mueve lo guardado).
   5. Comprueba con `sh backend/scripts/verify-modules.sh` que cada módulo apagado desaparece del todo.
-- **Datos.** **Sin migración** para los CPT y metas de `shipping`, `customer-identity` y
-  `external-integration` (son las mismas). Para `landings`, los campos `*_en` pasan a variantes por
+- **Datos.** **Sin migración** para los CPT y metas de `customer-identity` y `external-integration`
+  (son las mismas). **`shipping` sí cambia de modelo y no se migra:** las ciudades con el modelo anterior
+  (importe único y casilla de envío gratis en la ciudad) no producen tarifa hasta reconfigurarlas con un
+  tipo y opciones de entrega; wp-admin las lista (ver §6, «Módulo `shipping`»). Para `landings`, los campos `*_en` pasan a variantes por
   idioma (`title_en`, `title_pt_br`…) y hay que mover la config guardada. Registro: §6, un apartado
   «Módulo …» por cada uno.
 
@@ -948,18 +950,27 @@ demás entradas, en §6.
 
 - **Nuevo plugin `hwe-shipping`** (módulo `shipping`) sustituye al mu-plugin de tarifa plana y umbral
   global de las instancias derivadas del framework v1 (`woocommerce-shipping-config.php`: **bórralo** y
-  activa el plugin con `modules`). Los CPT (`hwe_shipping_rate`, `hwe_shipping_method`) y sus metas son
-  los mismos: no hay migración de datos.
+  activa el plugin con `modules`). Los CPT (`hwe_shipping_rate`, `hwe_shipping_method`) son los mismos,
+  pero **el modelo de tarifas por ciudad cambió y no se migra** (plugin 2.0.0): cada ciudad tiene un tipo
+  (`fixed` o `distance`) y sus importes viven en opciones de entrega repetibles (metas `_hwe_shipping_city_*`);
+  la casilla de envío gratis pasa de la ciudad a cada opción. Una ciudad guardada con el modelo anterior
+  (sin tipo) no produce tarifa y un aviso de wp-admin la lista para reconfigurarla. La tarifa la produce
+  el método de envío `hwe_city_rate` de la zona de reserva, que sustituye al filtro `applyCityRate`.
 - **(contrato) El país base es `ecommerce.country`** (Control Center), no el de WooCommerce → Ajustes →
   General: las tarifas por ciudad y el envío gratis solo valen para destinos de ese país.
 - **(contrato) El alcance del envío gratis** (`GET /free-shipping/scope`) ya no trae `name_en` / `slug_en`:
   trae `translations: { <idioma>: { name, slug } }` para todos los idiomas secundarios del sitio.
   `normalizeFreeShippingScope` acepta cualquier idioma y las categorías enlazan con `categoryHref`
   (`/categories/<slug>`), no con una ruta fija.
-- **Zona de reserva nueva:** el módulo crea y mantiene una zona de WooCommerce que cubre el país con un
-  `flat_rate` (Control Center → Envío: `reserve_enabled`, `reserve_name`, `reserve_cost`). Sustituye al
-  script de la instancia que sembraba esa zona. Si ya tienes una zona que cubre el país, apaga
-  `reserve_enabled` o tendrás dos.
+- **Zona de reserva nueva:** el módulo crea y mantiene una zona de WooCommerce que cubre el país con el
+  método `hwe_city_rate` (Control Center → Envío: `reserve_enabled`, `reserve_name`, `reserve_cost`), que
+  produce tanto las tarifas por ciudad como la de reserva. Sustituye al script de la instancia que sembraba
+  esa zona. La zona existe siempre con el módulo activo (`reserve_enabled` solo decide si las ciudades sin
+  configurar reciben la tarifa de reserva) y se sincroniza al activar el plugin y al guardar el Control
+  Center: **tras actualizar un sitio que ya tenía la zona con un `flat_rate`, guarda el Control Center una
+  vez** (o reactiva el plugin) para que el método de la zona pase a `hwe_city_rate`. Si ya tienes otra
+  zona que cubre el país, WooCommerce usa la primera por orden: ordénalas o añade a la tuya el método
+  «Envío por ciudad», que no depende de en qué zona esté.
 - **(contrato) Firmas.** `CheckoutForm` recibe `shipping?: { methods }` (omitido = módulo apagado);
   `syncAuthenticatedCart(authToken, userId?)`; `getCartRequestAuth` ya devolvía `userId`;
   `useCart().setShippingDestination`; `StoreCart` gana `shipping_address` y `extensions`.

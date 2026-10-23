@@ -11,7 +11,8 @@
  *   country (ISO 3166-1 alfa-2 en mayúsculas, o `generic`), name, dial_code (`+57` o vacío),
  *   division_label, address { division: required|optional|free|none, postcode: required|optional|none,
  *   city_division: bool }, divisions [{code, name}], cities [{name, division}],
- *   document_types [{code, label, pattern}].
+ *   document_types [{code, label, pattern}], geocoding { abbreviations {abreviatura: forma completa},
+ *   drop_tokens [string] } (opcional: reglas del geocodificador de `shipping`; por defecto vacías).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -120,6 +121,8 @@ function hwe_geo_normalize_pack( $raw ): ?array {
 	$division_mode = in_array( $address_in['division'] ?? null, array( 'required', 'optional', 'free', 'none' ), true ) ? $address_in['division'] : 'free';
 	$postcode_mode = in_array( $address_in['postcode'] ?? null, array( 'required', 'optional', 'none' ), true ) ? $address_in['postcode'] : 'optional';
 
+	$geocoding = hwe_geo_normalize_geocoding( $raw['geocoding'] ?? null, $country );
+
 	// Divisiones: código único; el nombre es lo que ve el cliente.
 	$divisions = array();
 	foreach ( is_array( $raw['divisions'] ?? null ) ? $raw['divisions'] : array() as $division ) {
@@ -171,6 +174,44 @@ function hwe_geo_normalize_pack( $raw ): ?array {
 		'divisions'      => array_values( $divisions ),
 		'cities'         => array_values( $cities ),
 		'document_types' => array_values( $documents ),
+		'geocoding'      => $geocoding,
+	);
+}
+
+/**
+ * Reglas opcionales para el geocodificador: abreviaturas de vía (abreviatura → forma completa) y
+ * tokens que se descartan. Un valor mal formado se omite y se registra; sin reglas, ambas listas
+ * van vacías (el paquete sigue siendo válido).
+ *
+ * @param mixed $raw
+ * @return array{abbreviations: array<string,string>, drop_tokens: string[]}
+ */
+function hwe_geo_normalize_geocoding( $raw, string $country ): array {
+	$input         = is_array( $raw ) ? $raw : array();
+	$abbreviations = array();
+	foreach ( is_array( $input['abbreviations'] ?? null ) ? $input['abbreviations'] : array() as $abbr => $full ) {
+		$text = is_string( $abbr ) ? trim( $abbr ) : '';
+		$form = hwe_geo_text( $full, 60 );
+		if ( '' === $text || null === $form || mb_strlen( $text ) > 10 ) {
+			hwe_geo_log_once( 'pack:abbr:' . $country . ':' . $text, sprintf( 'paquete «%s»: abreviatura de vía inválida, se omite.', $country ) );
+			continue;
+		}
+		$abbreviations[ $text ] = $form;
+	}
+
+	$tokens = array();
+	foreach ( is_array( $input['drop_tokens'] ?? null ) ? $input['drop_tokens'] : array() as $token ) {
+		$text = hwe_geo_text( $token, 40 );
+		if ( null === $text ) {
+			hwe_geo_log_once( 'pack:token:' . $country . ':' . wp_json_encode( $token ), sprintf( 'paquete «%s»: token a descartar inválido, se omite.', $country ) );
+			continue;
+		}
+		$tokens[] = $text;
+	}
+
+	return array(
+		'abbreviations' => $abbreviations,
+		'drop_tokens'   => array_values( array_unique( $tokens ) ),
 	);
 }
 

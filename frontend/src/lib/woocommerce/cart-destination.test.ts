@@ -80,6 +80,7 @@ describe("pushCartDestination", () => {
       method: "POST",
       body: {
         shipping_address: {
+          address_1: "Calle 1",
           city: "Bogotá",
           country: "CO",
           state: "CO-DC",
@@ -89,6 +90,54 @@ describe("pushCartDestination", () => {
       cartToken: "cart-token",
       authToken: "jwt",
     });
+    expect(result?.cartToken).toBe("cart-token-2");
+  });
+
+  it("el pin del cliente no viaja a Woo: no es un campo de su dirección", async () => {
+    await pushCartDestination(
+      7,
+      [address({ is_default: true, location: { lat: 4.6533, lng: -74.0836 } })],
+      AUTH,
+    );
+
+    const [, options] = vi.mocked(storeFetch).mock.calls[0] as unknown as [
+      string,
+      { body: { shipping_address: Record<string, unknown> } },
+    ];
+    expect(options.body.shipping_address).not.toHaveProperty("location");
+  });
+
+  it("con pin en la dirección predeterminada, fija el punto con los mismos datos que la calle", async () => {
+    await pushCartDestination(
+      7,
+      [address({ is_default: true, location: { lat: 4.6533, lng: -74.0836 } })],
+      AUTH,
+    );
+
+    expect(storeFetch).toHaveBeenNthCalledWith(2, "/cart/extensions", {
+      method: "POST",
+      body: {
+        namespace: "hwe_shipping",
+        data: {
+          action: "set_point",
+          lat: 4.6533,
+          lng: -74.0836,
+          address_1: "Calle 1",
+          city: "Bogotá",
+          country: "CO",
+        },
+      },
+      cartToken: "cart-token-2",
+      authToken: "jwt",
+    });
+  });
+
+  it("sin pin en la dirección predeterminada no toca el punto de la sesión (WordPress lo invalida si cambia la calle)", async () => {
+    const result = await pushCartDestination(7, [address({ is_default: true })], AUTH);
+
+    expect(storeFetch).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(storeFetch).mock.calls[0][0]).toBe("/cart/update-customer");
+    // Sin punto que fijar, el resultado es el carrito de `update-customer`.
     expect(result?.cartToken).toBe("cart-token-2");
   });
 
@@ -129,6 +178,7 @@ describe("syncCartDestination", () => {
 
     expect(wcFetch).toHaveBeenCalledWith("/customers/7");
     expect(storeFetch).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(storeFetch).mock.calls[0][0]).toBe("/cart/update-customer");
   });
 
   it("si no se puede leer la libreta, null y sin tocar el carrito", async () => {

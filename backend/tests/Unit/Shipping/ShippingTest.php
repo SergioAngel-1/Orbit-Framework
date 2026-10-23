@@ -8,7 +8,8 @@ use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use HWE\Shipping\FreeShipping;
 use HWE\Shipping\PostTypes;
-use HWE\Shipping\ReserveZone;
+use HWE\Shipping\PublicConfig;
+use HWE\Shipping\SettingsSchema;
 use HWE\Shipping\RestApi;
 use HWE\Shipping\Revalidation;
 use HWE\Shipping\Save;
@@ -121,11 +122,22 @@ final class ShippingTest extends TestCase
         };
         $out = [];
         if (PostTypes::RATE_SLUG === $type) {
+            // Cada ciudad es fija con una opción «Estándar» (id `opt<id>`): «free» decide si esa opción
+            // aplica envío gratis. Una fila puede traer una segunda opción («extra») y, con `type`
+            // `distance`, una referencia (`origin`) y su radio (`coverage`).
             foreach ($this->rates as $r) {
-                $this->postMeta[$r['id']]['_hwe_shipping_rate_amount'] = $r['amount'];
-                $this->postMeta[$r['id']]['_hwe_shipping_rate_free_eligible'] = $r['free'];
-                if (isset($args['meta_key']) && ($this->postMeta[$r['id']][$args['meta_key']] ?? '') !== $args['meta_value']) {
-                    continue;
+                $distance = ($r['type'] ?? 'fixed') === 'distance';
+                $this->postMeta[$r['id']]['_hwe_shipping_city_type'] = $distance ? 'distance' : 'fixed';
+                $options = [$this->optionRow('opt' . $r['id'], 'Estándar', '1' === $r['free'], (float) $r['amount'], $distance)];
+                if (isset($r['extra'])) {
+                    $options[] = $this->optionRow('exp' . $r['id'], 'Express', '1' === $r['extra']['free'], (float) $r['extra']['amount'], $distance);
+                }
+                $this->postMeta[$r['id']]['_hwe_shipping_city_options'] = json_encode($options);
+                if ($distance) {
+                    $this->postMeta[$r['id']]['_hwe_shipping_city_origin_lat'] = (string) $r['origin']['lat'];
+                    $this->postMeta[$r['id']]['_hwe_shipping_city_origin_lng'] = (string) $r['origin']['lng'];
+                    $this->postMeta[$r['id']]['_hwe_shipping_city_origin_label'] = $r['origin']['label'];
+                    $this->postMeta[$r['id']]['_hwe_shipping_city_coverage_km'] = $r['coverage'];
                 }
                 $out[] = $make($r['id'], $r['title']);
             }
@@ -160,6 +172,48 @@ final class ShippingTest extends TestCase
         return ['data' => new \WC_Product($productId, $ships), 'product_id' => $productId, 'line_total' => $total, 'line_tax' => $tax];
     }
 
+    /** Carrito y cliente de WooCommerce para `FreeShipping::cartState()`: líneas y destino de envío. */
+    private function cartWith(array $items, string $country, string $city): void
+    {
+        // Como en WooCommerce, el paquete de envío lleva el destino del cliente (con calle: es lo que pide
+        // la decisión del envío para resolver la ciudad).
+        $destination = ['country' => $country, 'city' => $city, 'address_1' => 'Calle de prueba 1'];
+        Functions\when('WC')->justReturn(new ShippingWc(new ShippingWcCart($items, [['contents' => $items, 'destination' => $destination]]), new ShippingWcCustomer($country, $city)));
+    }
+
+    /** Opción tal como la guarda `DeliveryOption::toArray` (fija o por distancia). */
+    private function optionRow(string $id, string $name, bool $free, float $amount, bool $distance): array
+    {
+        return [
+            'id' => $id,
+            'name' => $name,
+            'free_eligible' => $free,
+            'amount' => $distance ? null : $amount,
+            'price_per_km' => $distance ? 2.0 : null,
+            'min_cost' => 0.0,
+            'max_cost' => 0.0,
+        ];
+    }
+
+    /** Paquete de WooCommerce con un artículo de `$total` a `$city` (con calle, como exige el método). */
+    private function pkg(string $city = 'Madrid', float $total = 60, string $country = 'ES'): array
+    {
+        return [
+            'contents' => [$this->item($total)],
+            'applied_coupons' => [],
+            'destination' => ['country' => $country, 'city' => $city, 'address_1' => 'Calle Mayor 1'],
+        ];
+    }
+
+    /** Un `WC_Shipping_Rate` de la tarifa `hwe_city_rate:<optionId>` (o la de reserva) con su coste. */
+    private function rate(string $optionId, float $cost): \WC_Shipping_Rate
+    {
+        $rate = new \WC_Shipping_Rate('hwe_city_rate', $cost);
+        $rate->id = 'hwe_city_rate:' . $optionId;
+
+        return $rate;
+    }
+
     // --- tarifa por ciudad -----------------------------------------------------------------------
 
     public function testLaCiudadSeNormalizaSinTildesNiMayusculas(): void
@@ -174,63 +228,6 @@ final class ShippingTest extends TestCase
 
         $this->config = ['ecommerce' => ['country' => 'co']];
         $this->assertSame('CO', ShippingCost::baseCountry());
-    }
-
-    public function testLaTarifaDeLaCiudadSustituyeElCosteDeLaTarifaPlana(): void
-    {
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-        $pickup = new \WC_Shipping_Rate('local_pickup', 0);
-
-        $rates = ShippingCost::applyCityRate(['a' => $flat, 'b' => $pickup], ['destination' => ['city' => ' MADRID ', 'country' => 'ES']]);
-
-        $this->assertSame(8.0, $rates['a']->cost);
-        $this->assertSame(0.0, $rates['b']->cost, 'solo la tarifa plana');
-    }
-
-    public function testUnaCiudadSinTarifaConservaElCosteDeLaZona(): void
-    {
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-
-        ShippingCost::applyCityRate(['a' => $flat], ['destination' => ['city' => 'Pamplona', 'country' => 'ES']]);
-
-        $this->assertSame(3.0, $flat->cost);
-    }
-
-    public function testUnaTarifaSinImporteNoCuentaComoGratis(): void
-    {
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-
-        ShippingCost::applyCityRate(['a' => $flat], ['destination' => ['city' => 'Bilbao', 'country' => 'ES']]);
-
-        $this->assertSame(3.0, $flat->cost, 'Bilbao no tiene importe: cae al de la zona');
-    }
-
-    public function testUnImporteCeroExplicitoSiEsGratis(): void
-    {
-        $this->rates[] = ['id' => 14, 'title' => 'Gijón', 'amount' => '0', 'free' => '0'];
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-
-        ShippingCost::applyCityRate(['a' => $flat], ['destination' => ['city' => 'Gijon', 'country' => 'ES']]);
-
-        $this->assertSame(0.0, $flat->cost);
-    }
-
-    public function testUnaCiudadHomonimaDeOtroPaisNoHeredaLaTarifa(): void
-    {
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-
-        ShippingCost::applyCityRate(['a' => $flat], ['destination' => ['city' => 'Madrid', 'country' => 'CO']]);
-
-        $this->assertSame(3.0, $flat->cost);
-    }
-
-    public function testSinCiudadNoHaceNada(): void
-    {
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-
-        ShippingCost::applyCityRate(['a' => $flat], ['destination' => ['country' => 'ES']]);
-
-        $this->assertSame(3.0, $flat->cost);
     }
 
     public function testUnCuponConEnvioGratisDejaTodasLasTarifasAcero(): void
@@ -253,12 +250,6 @@ final class ShippingTest extends TestCase
         ShippingCost::applyCouponFreeShipping(['a' => $a], ['applied_coupons' => ['NORMAL', 'NOEXISTE']]);
 
         $this->assertSame(8.0, $a->cost);
-    }
-
-    public function testLasCiudadesConEnvioGratisYSusNombres(): void
-    {
-        $this->assertSame(['madrid' => true, 'sevilla' => false, 'bilbao' => true], ShippingCost::freeShippingCities());
-        $this->assertSame(['Bilbao', 'Madrid'], ShippingCost::freeShippingCityNames());
     }
 
     // --- envío gratis por regla ------------------------------------------------------------------
@@ -365,27 +356,108 @@ final class ShippingTest extends TestCase
         $this->assertTrue($state['qualifies']);
     }
 
-    public function testConLaReglaCumplidaTodasLasTarifasQuedanAceroConSuMotivo(): void
+    public function testConLaReglaCumplidaSoloLasOpcionesMarcadasQuedanAZeroConSuMotivo(): void
     {
+        $this->rates = [['id' => 11, 'title' => 'Madrid', 'amount' => '8', 'free' => '1', 'extra' => ['free' => '0', 'amount' => '15']]];
         $this->useRule(['enabled' => true, 'min_amount' => 50]);
-        $rate = new \WC_Shipping_Rate('flat_rate', 8);
+        $standard = $this->rate('opt11', 8);
+        $express = $this->rate('exp11', 15);
 
-        FreeShipping::applyToRates(['a' => $rate], ['contents' => [$this->item(60)], 'destination' => ['country' => 'ES', 'city' => 'Madrid']]);
+        FreeShipping::applyToRates(['a' => $standard, 'b' => $express], $this->pkg('Madrid', 60));
 
-        $this->assertSame(0.0, $rate->cost);
-        $this->assertSame([], $rate->taxes);
-        $this->assertSame('Compra mínima de 50.00 € alcanzada', $rate->meta['Envío gratis']);
+        $this->assertSame(0.0, $standard->cost);
+        $this->assertSame([], $standard->taxes);
+        $this->assertSame('Compra mínima de 50.00 € alcanzada', $standard->meta['Envío gratis']);
+        $this->assertSame(15.0, $express->cost, 'la opción no marcada se cobra');
+        $this->assertSame([], $express->meta);
     }
 
     public function testSinCumplirLaReglaLasTarifasNoCambian(): void
     {
         $this->useRule(['enabled' => true, 'min_amount' => 50]);
-        $rate = new \WC_Shipping_Rate('flat_rate', 8);
+        $rate = $this->rate('opt11', 8);
 
-        FreeShipping::applyToRates(['a' => $rate], ['contents' => [$this->item(10)], 'destination' => ['country' => 'ES', 'city' => 'Madrid']]);
+        FreeShipping::applyToRates(['a' => $rate], $this->pkg('Madrid', 10));
 
         $this->assertSame(8.0, $rate->cost);
         $this->assertSame([], $rate->meta);
+    }
+
+    public function testUnaCiudadSinOpcionesMarcadasNoTieneEnvioGratisAunqueLleguePorElMinimo(): void
+    {
+        $this->useRule(['enabled' => true, 'min_amount' => 50]);
+        $rate = $this->rate('opt12', 12);
+
+        FreeShipping::applyToRates(['a' => $rate], $this->pkg('Sevilla', 100));
+
+        $this->assertSame(12.0, $rate->cost);
+        $this->assertSame([], $rate->meta);
+    }
+
+    public function testLaReservaNuncaEsGratis(): void
+    {
+        $this->useRule(['enabled' => true, 'min_amount' => 50]);
+        $reserve = new \WC_Shipping_Rate('hwe_city_rate', 7);
+        $reserve->id = 'hwe_city_rate:reserve';
+
+        // Aunque el destino sea una ciudad elegible, la reserva no es una opción marcada.
+        FreeShipping::applyToRates(['a' => $reserve], $this->pkg('Madrid', 100));
+
+        $this->assertSame(7.0, $reserve->cost);
+        $this->assertSame([], $reserve->meta);
+    }
+
+    public function testUnCuponConEnvioGratisDejaTodoAZeroAunqueLaReglaNoSeCumpla(): void
+    {
+        $this->useRule(['enabled' => true, 'min_amount' => 50]);
+        \WC_Coupon::$free = ['GRATIS' => true];
+        $standard = $this->rate('opt11', 8);
+        $sevilla = $this->rate('opt12', 12);
+        $rates = ['a' => $standard, 'b' => $sevilla];
+
+        FreeShipping::applyToRates($rates, $this->pkg('Madrid', 10));
+        $this->assertSame([8.0, 12.0], [$standard->cost, $sevilla->cost]);
+
+        ShippingCost::applyCouponFreeShipping($rates, ['applied_coupons' => ['GRATIS']]);
+
+        $this->assertSame([0.0, 0.0], [$standard->cost, $sevilla->cost]);
+    }
+
+    public function testElCarritoListaLasTarifasQueLaReglaDejaAZeroSoloDeLasOpcionesMarcadas(): void
+    {
+        $this->rates = [['id' => 11, 'title' => 'Madrid', 'amount' => '8', 'free' => '1', 'extra' => ['free' => '0', 'amount' => '15']]];
+        $this->useRule(['enabled' => true, 'min_amount' => 50]);
+        $this->cartWith([$this->item(60)], 'ES', 'Madrid');
+
+        $state = FreeShipping::cartState();
+
+        $this->assertTrue($state['qualifies']);
+        $this->assertSame(['hwe_city_rate:opt11'], $state['rate_ids']);
+    }
+
+    public function testBajoElMinimoOSinOpcionesMarcadasElCarritoNoListaTarifas(): void
+    {
+        $this->rates = [['id' => 11, 'title' => 'Madrid', 'amount' => '8', 'free' => '1']];
+        $this->useRule(['enabled' => true, 'min_amount' => 50]);
+        $this->cartWith([$this->item(10)], 'ES', 'Madrid');
+
+        $this->assertSame([], FreeShipping::cartState()['rate_ids']);
+    }
+
+    public function testUnaCiudadSinOpcionesMarcadasNoListaTarifasEnElCarrito(): void
+    {
+        $this->useRule(['enabled' => true, 'min_amount' => 50]);
+        $this->cartWith([$this->item(100)], 'ES', 'Sevilla');
+
+        $state = FreeShipping::cartState();
+
+        $this->assertSame('not_eligible', $state['city']);
+        $this->assertSame([], $state['rate_ids']);
+    }
+
+    public function testElEsquemaDelCarritoDeclaraRateIds(): void
+    {
+        $this->assertSame('array', FreeShipping::cartStateSchema()['rate_ids']['type']);
     }
 
     public function testLaReglaSeNormalizaAntesDeUsarse(): void
@@ -455,12 +527,41 @@ final class ShippingTest extends TestCase
         );
     }
 
-    public function testLasTarifasSoloExponenNombresDeCiudad(): void
+    public function testLasTarifasSoloExponenNombreYTipoDeCiudad(): void
     {
+        $this->rates[] = ['id' => 14, 'title' => 'Cartagena', 'amount' => '', 'free' => '0', 'type' => 'distance',
+            'origin' => ['lat' => '37.6', 'lng' => '-0.98', 'label' => 'Dirección de referencia de prueba'], 'coverage' => '12'];
+
         $data = RestApi::getRates(new \WP_REST_Request())->get_data();
 
-        $this->assertSame(['Bilbao', 'Madrid', 'Sevilla'], $data);
-        $this->assertStringNotContainsString('amount', json_encode($data));
+        $this->assertSame([
+            ['name' => 'Bilbao', 'type' => 'fixed'],
+            ['name' => 'Cartagena', 'type' => 'distance'],
+            ['name' => 'Madrid', 'type' => 'fixed'],
+            ['name' => 'Sevilla', 'type' => 'fixed'],
+        ], $data);
+        $json = (string) json_encode($data);
+        $this->assertStringNotContainsString('referencia de prueba', $json);
+        $this->assertStringNotContainsString('37.6', $json);
+        $this->assertStringNotContainsString('amount', $json);
+    }
+
+    public function testLaConfigPublicaIndicaSiHayCiudadesPorDistancia(): void
+    {
+        $this->assertSame(['shipping' => ['distance_enabled' => false]], PublicConfig::add([]));
+
+        $this->rates[] = ['id' => 14, 'title' => 'Cartagena', 'amount' => '', 'free' => '0', 'type' => 'distance',
+            'origin' => ['lat' => '37.6', 'lng' => '-0.98', 'label' => 'Referencia'], 'coverage' => '12'];
+
+        $this->assertTrue(PublicConfig::add(['shipping' => ['reserve_name' => 'Resto']])['shipping']['distance_enabled']);
+        $this->assertSame('Resto', PublicConfig::add(['shipping' => ['reserve_name' => 'Resto']])['shipping']['reserve_name']);
+    }
+
+    public function testLaConfigPublicaSeRegistraEnElFiltroDelControlCenter(): void
+    {
+        Filters\expectAdded('hwe_control_center_public_config')->once();
+
+        PublicConfig::register();
     }
 
     public function testLasTresRutasSonPublicasEnElNamespaceDelPlugin(): void
@@ -485,39 +586,6 @@ final class ShippingTest extends TestCase
 
     // --- guardado --------------------------------------------------------------------------------
 
-    public function testGuardaLaTarifaComoEnteroNoNegativoYLaCasillaDeEnvioGratis(): void
-    {
-        $written = [];
-        Functions\when('update_post_meta')->alias(function (int $id, string $key, $value) use (&$written): bool {
-            $written[$key] = $value;
-            return true;
-        });
-        $_POST = ['hwe_shipping_rate_nonce' => 'x', 'hwe_shipping_rate_amount' => '12.6', 'hwe_shipping_rate_free_eligible' => '1'];
-
-        Save::saveRate(11);
-
-        $this->assertSame('13', $written['_hwe_shipping_rate_amount']);
-        $this->assertSame('1', $written['_hwe_shipping_rate_free_eligible']);
-    }
-
-    public function testUnaTarifaNegativaOSinNumeroQuedaEnCero(): void
-    {
-        $written = [];
-        Functions\when('update_post_meta')->alias(function (int $id, string $key, $value) use (&$written): bool {
-            $written[$key] = $value;
-            return true;
-        });
-
-        $_POST = ['hwe_shipping_rate_nonce' => 'x', 'hwe_shipping_rate_amount' => '-4'];
-        Save::saveRate(11);
-        $this->assertSame('0', $written['_hwe_shipping_rate_amount']);
-
-        $_POST = ['hwe_shipping_rate_nonce' => 'x', 'hwe_shipping_rate_amount' => 'abc'];
-        Save::saveRate(11);
-        $this->assertSame('0', $written['_hwe_shipping_rate_amount']);
-        $this->assertSame('0', $written['_hwe_shipping_rate_free_eligible']);
-    }
-
     public function testGuardaElMetodoYBorraElValorAgregadoVacio(): void
     {
         $written = [];
@@ -535,15 +603,6 @@ final class ShippingTest extends TestCase
 
         $this->assertSame('1', $written['_hwe_shipping_method_enabled']);
         $this->assertSame('borrado', $written['_hwe_shipping_method_added_value']);
-    }
-
-    public function testSinNonceValidoNoSeGuardaNada(): void
-    {
-        Functions\when('wp_verify_nonce')->justReturn(false);
-        Functions\expect('update_post_meta')->never();
-        $_POST = ['hwe_shipping_rate_nonce' => 'x', 'hwe_shipping_rate_amount' => '5'];
-
-        Save::saveRate(11);
     }
 
     // --- revalidación ----------------------------------------------------------------------------
@@ -572,107 +631,93 @@ final class ShippingTest extends TestCase
         $this->assertSame('shipping', json_decode($bodies[0], true)['tag']);
     }
 
-    // --- zona de reserva -------------------------------------------------------------------------
-
-    private function resetZones(): void
+    public function testCambiarUnaCiudadRevalidaTambienLaConfigPublica(): void
     {
-        \WC_Shipping_Zone::$store = [];
-        \WC_Shipping_Zone::$nextId = 1;
-        \WC_Shipping_Zone::$nextInstance = 100;
-        \WC_Shipping_Zone::$saves = 0;
+        define('HWE_REVALIDATION_SECRET', 'secreto-de-prueba-0123456789');
+        Functions\when('wp_is_post_revision')->justReturn(false);
+        Filters\expectApplied('hwe_revalidation_tags')->andReturnUsing(static fn (array $core): array => [...$core, 'shipping']);
+        $bodies = [];
+        Functions\when('wp_remote_post')->alias(function (string $url, array $args) use (&$bodies): array {
+            $bodies[] = $args['body'];
+            return [];
+        });
+
+        Revalidation::onRateChange(11);
+
+        $tags = array_map(static fn (string $body): string => json_decode($body, true)['tag'], $bodies);
+        $this->assertSame(['shipping', 'site-config'], $tags, '`shipping.distance_enabled` vive en la config pública.');
     }
+
+    // --- esquema de la zona de reserva (su sincronización está en ReserveZoneTest) ----------------
 
     public function testElEsquemaDelControlCenterGanaLosCamposDeLaZonaDeReserva(): void
     {
-        $schema = ReserveZone::schema(['shipping' => ['type' => 'group', 'children' => []], 'ecommerce' => ['type' => 'group']]);
+        $schema = SettingsSchema::schema(['shipping' => ['type' => 'group', 'children' => []], 'ecommerce' => ['type' => 'group']]);
 
-        $this->assertSame(['reserve_enabled', 'reserve_name', 'reserve_cost'], array_keys($schema['shipping']['children']));
+        $this->assertSame(
+            ['reserve_enabled', 'reserve_name', 'reserve_cost', 'distance_method', 'distance_travel_mode', 'distance_straight_line_increment', 'distance_cache_ttl_hours', 'distance_connection_test'],
+            array_keys($schema['shipping']['children'])
+        );
         $this->assertTrue($schema['shipping']['children']['reserve_enabled']['default']);
         $this->assertSame(['type' => 'group'], $schema['ecommerce'], 'no toca otros grupos');
     }
 
     public function testUnEsquemaSinElGrupoOMalFormadoSeDevuelveIgual(): void
     {
-        $this->assertSame('roto', ReserveZone::schema('roto'));
-        $this->assertSame(['a' => 1], ReserveZone::schema(['a' => 1]));
+        $this->assertSame('roto', SettingsSchema::schema('roto'));
+        $this->assertSame(['a' => 1], SettingsSchema::schema(['a' => 1]));
+    }
+}
+
+/** `WC()` mínimo para el envío gratis: carrito y cliente, lo que lee `FreeShipping::cartState()`. */
+final class ShippingWc
+{
+    public function __construct(public ShippingWcCart $cart, public ShippingWcCustomer $customer)
+    {
+    }
+}
+
+final class ShippingWcCart
+{
+    /**
+     * @param array<int,array<string,mixed>> $items
+     * @param array<int,array<string,mixed>> $packages
+     */
+    public function __construct(private array $items, private array $packages = [])
+    {
     }
 
-    public function testCreaLaZonaDeReservaConElPaisDeLaTiendaYElCosteConfigurado(): void
+    /** @return array<int,array<string,mixed>> */
+    public function get_shipping_packages(): array
     {
-        $this->resetZones();
-        $this->config = ['ecommerce' => ['country' => 'ES'], 'shipping' => ['reserve_name' => 'Envío península', 'reserve_cost' => '7']];
-
-        ReserveZone::sync();
-
-        $zone = \WC_Shipping_Zone::$store[1];
-        $this->assertSame('Envío península', $zone['name']);
-        $this->assertSame([['ES', 'country']], $zone['locations']);
-        $this->assertCount(1, $zone['methods']);
-        $this->assertSame('flat_rate', $zone['methods'][0]->id);
-        $settings = $this->options['woocommerce_flat_rate_100_settings'];
-        $this->assertSame(['title' => 'Envío península', 'tax_status' => 'none', 'cost' => '7'], $settings);
-        $this->assertSame(1, $this->options['hwe_shipping_reserve_zone_id']);
+        return $this->packages;
     }
 
-    public function testSincronizarDosVecesNoDuplicaLaZonaNiElMetodo(): void
+    /** @return array<int,array<string,mixed>> */
+    public function get_cart(): array
     {
-        $this->resetZones();
-        $this->config = ['ecommerce' => ['country' => 'ES']];
-        ReserveZone::sync();
-
-        $this->config = ['ecommerce' => ['country' => 'PT'], 'shipping' => ['reserve_cost' => '9']];
-        ReserveZone::sync();
-
-        $this->assertCount(1, \WC_Shipping_Zone::$store);
-        $this->assertCount(1, \WC_Shipping_Zone::$store[1]['methods']);
-        $this->assertSame([['PT', 'country']], \WC_Shipping_Zone::$store[1]['locations'], 'sigue al país de la tienda');
-        $this->assertSame('9', $this->options['woocommerce_flat_rate_100_settings']['cost']);
+        return $this->items;
     }
 
-    public function testRespetaLosAjustesAjenosDelMetodoYSoloPisaLosSuyos(): void
+    public function display_prices_including_tax(): bool
     {
-        $this->resetZones();
-        $this->options['woocommerce_flat_rate_100_settings'] = ['requires' => 'min_amount', 'cost' => '1'];
-        $this->config = ['ecommerce' => ['country' => 'ES']];
-        ReserveZone::sync();
-        // El método ya existía con id 100? No: la zona es nueva y crea el 100.
-        $settings = $this->options['woocommerce_flat_rate_100_settings'];
+        return false;
+    }
+}
 
-        $this->assertSame('min_amount', $settings['requires']);
-        $this->assertSame('0', $settings['cost']);
+final class ShippingWcCustomer
+{
+    public function __construct(private string $country, private string $city)
+    {
     }
 
-    public function testApagadaNoCreaNingunaZona(): void
+    public function get_shipping_country(): string
     {
-        $this->resetZones();
-        $this->config = ['ecommerce' => ['country' => 'ES'], 'shipping' => ['reserve_enabled' => false]];
-
-        ReserveZone::sync();
-
-        $this->assertSame([], \WC_Shipping_Zone::$store);
+        return $this->country;
     }
 
-    public function testSiLaZonaSeBorroSeCreaOtra(): void
+    public function get_shipping_city(): string
     {
-        $this->resetZones();
-        $this->options['hwe_shipping_reserve_zone_id'] = 55;
-        $this->config = ['ecommerce' => ['country' => 'ES']];
-
-        ReserveZone::sync();
-
-        $this->assertSame(1, $this->options['hwe_shipping_reserve_zone_id']);
-    }
-
-    public function testSinPaisNoCreaLaZonaYLoRegistra(): void
-    {
-        $this->resetZones();
-        $this->config = ['ecommerce' => ['country' => '']];
-        Functions\when('hwe_geo_store_country')->justReturn('');
-        Functions\when('wc_get_base_location')->justReturn(['country' => '']);
-
-        ReserveZone::sync();
-
-        $this->assertSame([], \WC_Shipping_Zone::$store);
-        $this->assertStringContainsString('[hwe] shipping:', $this->logged[0]);
+        return $this->city;
     }
 }

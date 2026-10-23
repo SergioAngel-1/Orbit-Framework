@@ -1,0 +1,45 @@
+/* Editor de ciudad (HWE Shipping). Los campos ocultos por tipo usan el atributo `hidden`. */
+.hwe-shipping-city [hidden] {
+	display: none !important;
+}
+
+.hwe-shipping-city .hwe-shipping-origin,
+.hwe-shipping-city .hwe-shipping-options {
+	margin: 12px 0;
+	padding: 8px 12px 12px;
+	border: 1px solid #c3c4c7;
+	background: #fff;
+}
+
+.hwe-shipping-city .hwe-shipping-option {
+	margin: 0 0 10px;
+	padding: 6px 12px 10px;
+	border: 1px solid #dcdcde;
+	background: #f6f7f7;
+}
+
+.hwe-shipping-city .hwe-shipping-fields label {
+	display: inline-block;
+	margin-right: 16px;
+}
+
+.hwe-shipping-city .hwe-shipping-fields input[type="number"] {
+	width: 9em;
+}
+
+.hwe-shipping-city .hwe-shipping-option-actions {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	margin: 6px 0 0;
+}
+
+.hwe-shipping-city .hwe-shipping-validate-status {
+	display: inline-block;
+	margin-left: 8px;
+	color: #50575e;
+}
+
+.hwe-shipping-city .hwe-shipping-validate-status--error {
+	color: #b32d2e;
+}

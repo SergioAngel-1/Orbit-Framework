@@ -23,4 +23,9 @@ return array(
 	'divisions'      => array(),
 	'cities'         => array(),
 	'document_types' => array(),
+	// Sin abreviaturas ni tokens: la dirección solo se limpia de espacios antes de geocodificar.
+	'geocoding'      => array(
+		'abbreviations' => array(),
+		'drop_tokens'   => array(),
+	),
 );

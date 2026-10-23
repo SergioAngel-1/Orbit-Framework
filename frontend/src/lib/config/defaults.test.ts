@@ -24,6 +24,10 @@ describe("CONFIG_DEFAULTS", () => {
     expect(CONFIG_DEFAULTS.modules.loyalty).toBe(false);
   });
 
+  it("el envío por distancia viene apagado por defecto (lo enciende el módulo)", () => {
+    expect(CONFIG_DEFAULTS.shipping).toEqual({ distance_enabled: false });
+  });
+
   it("trae `instance` (vacío en el framework)", () => {
     expect(CONFIG_DEFAULTS.instance).toEqual({});
   });
@@ -63,6 +67,7 @@ describe("CONFIG_DEFAULTS", () => {
       "loyalty.events.review",
       "loyalty.events.birthday",
       "loyalty.transfer_daily_cap",
+      "shipping.distance_enabled",
     ]) {
       expect(keys, required).toContain(required);
     }

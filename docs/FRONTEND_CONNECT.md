@@ -172,8 +172,8 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   que lo devuelven): `coupons[].description` y `coupons[].freeShipping`, y `items[].name` como
   texto (sin entidades HTML). Los errores 4xx de WooCommerce llegan como texto plano.
 - **Guard de envío:** si el carrito necesita envío y no hay ninguna tarifa, `POST
-  /api/store/checkout` responde 422 sin crear el pedido (`canSubmitCheckout`, la misma regla que
-  aplica el formulario).
+  /api/store/checkout` responde **409** `{ error, status }` sin crear el pedido (`canSubmitCheckout`, la
+  misma regla que aplica el formulario; ver «Checkout sin tarifa» en «Envío por distancia»).
 - **Medio de pago frente a WooCommerce:** `payment_methods` del carrito dice qué gateways ofrece
   Woo ahora. Efectivo o WhatsApp no ofrecidos → 422 (no se sustituyen); el pago en línea cae a
   otro medio de cobro, nunca a efectivo.
@@ -199,6 +199,14 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   - `documentTypes[].pattern` es una expresión regular **sin delimitadores**, válida en PHP y en
     JavaScript, que se compara con el número normalizado (sin espacios, puntos ni guiones, en
     mayúsculas). La usa el módulo `customer-identity`.
+  - `geocoding: { abbreviations: { abreviatura: forma completa }, dropTokens: string[] }` (opcional;
+    vacío en `generic`). Reglas para normalizar una dirección antes de geocodificarla: el módulo
+    `shipping` expande las abreviaturas de vía (sin distinguir mayúsculas) y descarta los tokens de
+    `dropTokens` (p. ej. «#», «-», «BIS», cardinales); una letra suelta de un token (la letra de vía
+    de «Calle 10 A») solo se descarta si el token anterior del mismo segmento contiene un dígito, así
+    «Diagonal A 12» conserva su letra; un segmento tras la coma que empieza por un token descartable
+    (un complemento como «Apto») se quita entero. Paquete `CO` con
+    las de Colombia; una instancia que añada un país declara las suyas en el filtro `hwe_geo_packs`.
   - Un país sin paquete cae a `generic` (`fallback: true`, `requested` = el país pedido): todo
     texto libre, sin documentos ni prefijo. WordPress lo registra una vez.
   - El núcleo trae `CO` y `generic`. Una instancia añade o sustituye paquetes con el filtro
@@ -231,10 +239,11 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   Envío). Con el módulo apagado nada de esto existe: las rutas de abajo responden 404 y el checkout
   no ofrece extras.
 - **Destino del carrito:** la tarifa y el envío gratis se deciden dentro de WooCommerce con la ciudad
-  del carrito. `PUT /api/store/shipping/destination` `{ city, country, state?, postcode? }` la fija
-  (`/cart/update-customer`) y devuelve el carrito recalculado. El `state` se valida y normaliza con el
-  paquete de país (código de la división): 422 si no existe o no corresponde a la ciudad, **nunca** se
-  rellena una por defecto. El checkout lo llama (con espera) cada vez que cambia la ciudad.
+  del carrito. `PUT /api/store/shipping/destination` `{ address_1?, location?, city, country, state?,
+  postcode? }` la fija (`/cart/update-customer`) y devuelve el carrito recalculado. El `state` se valida y
+  normaliza con el paquete de país (código de la división): 422 si no existe o no corresponde a la ciudad,
+  **nunca** se rellena una por defecto. El checkout lo llama (con espera) cada vez que cambia la ciudad.
+  La calle y el pin van en la misma petición (ver «Envío por distancia» abajo).
 - **Destino de un cliente con sesión** (`lib/woocommerce/cart-destination.ts`): Woo no lee la libreta de
   direcciones, así que el BFF fija el destino de la dirección **predeterminada** al abrir sesión
   (`syncAuthenticatedCart(authToken, userId)`), al cambiar la libreta (`/api/store/addresses`) y, como
@@ -259,6 +268,65 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   importes) para otros frontends.
 - **Starter:** `FreeShippingNotice` en el cajón, `/cart` y el checkout; el checkout pinta los extras y
   comunica el destino. Cada página pasa `shipping={{ methods }}` **solo** si `modules.shipping`.
+
+#### Envío por distancia: pin, estado, metas y mapa
+
+Una ciudad del módulo es `fixed` (un importe por opción) o `distance` (precio por km con mínimo y
+máximo, dentro de un radio desde una dirección de referencia). **El precio lo calcula WooCommerce**: el
+frontend nunca calcula ni firma un importe; solo muestra lo que devuelve la Store API.
+
+- **Pin obligatorio en las ciudades por distancia.** `PUT /api/store/shipping/destination` acepta
+  `location: { lat, lng }` junto a `address_1`. Con `location` fija el punto de entrega; **la calle es
+  obligatoria** con pin (sin calle: 422 con `details.address_1`). **`location` ausente = no se toca el
+  punto** (el pin pudo marcarse en otra pantalla y el formulario del checkout no lo envía; WordPress lo
+  invalida solo si cambian calle, ciudad o país); **`location: null` = borrarlo** (`clear_point`). Lo mismo
+  vale para el destino que el BFF fija desde la libreta de un cliente con sesión: sin `location` en la
+  dirección, el punto de la sesión no se toca. Coordenadas NaN, cadenas, fuera de rango o `0,0` dan
+  422 **antes de llamar a WordPress**. El punto viaja por la Store API (extensión `hwe_shipping`,
+  `set_point`/`clear_point`) con la calle, la ciudad y el país; WordPress lo ignora si no coincide con el
+  destino de la sesión. Cambiar la calle (aunque la ciudad sea la misma) invalida el pin: el carrito pasa a
+  `needs_location`.
+- **Estado del envío.** `cart.extensions.hwe_shipping` = `{ mode, status, distance_km?, duration_min?,
+  fallback? }`. `mode`: `fixed` | `distance` | `reserve` | `none`. `status`: `ok` | `needs_address` |
+  `needs_location` | `out_of_coverage`. Todo lo que no es `ok` significa **sin tarifas** para ese destino;
+  la UI debe explicar el motivo con él, no escribir un «sin envío» genérico. `readShippingStatus(cart)`
+  (`lib/shipping/status.ts`) devuelve `null` ante una forma inesperada. Con el módulo apagado no existe.
+- **Metas de cada tarifa** (`shipping_rates[].meta_data`, ids `hwe_city_rate:<optionId>` y
+  `hwe_city_rate:reserve`): `hwe_option_id`, `hwe_city_type` (`fixed` | `distance` | `reserve`), y solo en
+  distancia `hwe_distance_km` (cadena numérica) y `hwe_fallback` (`yes` | `no`). `readRateDetails(rate)` las
+  lee. **La Store API expone todas las metas de la tarifa**, también las de wp-admin (proveedor, duración,
+  punto de entrega y enlace al mapa). Son datos del propio cliente: no los pintes a terceros, y no leas de
+  ahí nada que decida un importe.
+- **Envío gratis por opción.** `cart.extensions.hwe_free_shipping.rate_ids: string[]` lista las tarifas que
+  la regla deja a 0. `FreeShippingState.rateIds` las recoge en `lib`. El resto de campos no cambia.
+- **Configuración pública.** `config.modules.shipping` y `config.shipping.distance_enabled` (booleano, por
+  defecto `false`): hay al menos una ciudad por distancia. Si es `true`, el mapa de ubicación es obligatorio
+  para esas ciudades. El buscador siempre está disponible.
+- **Ciudades.** `GET /wp-json/hwe-shipping/v1/rates` devuelve `[{ name, type }]` (`fixed` | `distance`), sin
+  importes ni referencias.
+- **Geocodificación para el mapa** (BFF, con módulo `shipping` y las mismas guardas que el resto de escrituras):
+  - `POST /api/shipping/geocode` `{ query }` (1–200 caracteres) → `{ results: [{ lat, lng, label }] }`, máx. 5.
+  - `POST /api/shipping/reverse-geocode` `{ lat, lng }` → `{ label }`, para confirmar el pin.
+  - Orden: `requireModule` (404) → `guardMutation` (Origin, CSRF y límite `shipping_geocode`, 10 por minuto
+    por usuario con sesión o por IP sin ella) → sin sesión con `ecommerce.checkout_login_required` encendido,
+    401. Errores `{ error, code }`: 422 (`no_results`, `invalid_query`, `invalid_point`) o 503
+    (`geocoding_backoff`, `provider_unavailable`). Respuesta siempre `Cache-Control: no-store`. La clave del
+    proveedor nunca sale de WordPress.
+- **Checkout sin tarifa.** Si el carrito necesita envío y no tiene tarifa seleccionable, `POST
+  /api/store/checkout` responde **409** `{ error, status }` **antes** de crear el pedido (antes era 422). `status`
+  es `extensions.hwe_shipping.status`, o `null` si el módulo está apagado. Los textos están en
+  `shippingErrors` (es/en).
+- **Guía de mapa (decisión de la instancia, no código del framework).**
+  - **Buscar al enviar, nunca por tecla.** La búsqueda llama a `/api/shipping/geocode` al enviar el texto. La
+    política de uso de Nominatim lo prohíbe y Google cobra por petición. Muestra los candidatos y deja elegir uno.
+  - **Confirmar el pin** con `/api/shipping/reverse-geocode` después de marcarlo, y permitir corregir lat/lng
+    o volver a marcar.
+  - **Teselas, librería y clave de navegador a elección de la instancia.** El framework no fija proveedor de
+    teselas ni librería. La CSP de `next.config.mjs` limita `img-src` (y `connect-src`/`script-src` según la
+    librería): la instancia debe autorizar los hosts que use, igual que hace `csp-analytics.mjs` con la analítica.
+    Si el mapa usa un servicio de Google en el navegador, necesita **su propia clave de navegador**: la de
+    Integraciones → Mapas es de servidor y nunca se envía al cliente.
+  - El mapa debe ser operable con teclado: el buscador y los campos de latitud y longitud son la alternativa al puntero.
 
 ### Campos de producto declarativos (`hwe-product-fields`)
 

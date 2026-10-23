@@ -615,6 +615,17 @@
     "accountOnly": "For registered customers only.",
     "guestHint": "<login>Sign in</login> or <register>create an account</register> to use it."
   },
+  "shippingErrors": {
+    "noRates": "No shipping rates are available for this address.",
+    "needsAddress": "Enter the shipping address to calculate shipping.",
+    "needsLocation": "Mark the delivery location on the map to calculate shipping.",
+    "outOfCoverage": "Your address is outside this city's delivery area.",
+    "locationNeedsAddress": "To mark the delivery location, also enter the street address.",
+    "geocodeInvalid": "The address search is not valid.",
+    "geocodeNoResults": "We could not find that address. Try with more detail.",
+    "geocodeBackoff": "Too many address searches in a row. Wait a few minutes and try again.",
+    "geocodeUnavailable": "The map service is not available. Try again later."
+  },
   "loyalty": {
     "entries": {
       "cashback": "Refund of your purchase",

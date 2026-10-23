@@ -33,6 +33,27 @@ test.describe("rutas del BFF de un módulo apagado", () => {
     expect(res.status()).toBe(404);
   });
 
+  test("shipping: el buscador del mapa no existe", async ({ request, baseURL }) => {
+    const res = await request.post("/api/shipping/geocode", {
+      headers: await writeHeaders(request, baseURL!),
+      data: { query: "Plaza Mayor, Madrid" },
+    });
+
+    expect(res.status()).toBe(404);
+  });
+
+  test("shipping: la geocodificación inversa no existe", async ({
+    request,
+    baseURL,
+  }) => {
+    const res = await request.post("/api/shipping/reverse-geocode", {
+      headers: await writeHeaders(request, baseURL!),
+      data: { lat: 40.4155, lng: -3.7074 },
+    });
+
+    expect(res.status()).toBe(404);
+  });
+
   test("coupon-rules: los cupones agotados no existen", async ({ request }) => {
     const res = await request.get("/api/coupons/used-up");
 

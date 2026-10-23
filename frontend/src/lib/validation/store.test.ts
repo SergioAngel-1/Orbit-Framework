@@ -3,6 +3,7 @@ import {
   createReviewSchema,
   orderReviewSchema,
   productReviewSchema,
+  shippingDestinationSchema,
   wishlistBodySchema,
 } from "./store";
 
@@ -80,5 +81,43 @@ describe("wishlistBodySchema", () => {
     ["nulo", { productId: null }],
   ])("rechaza un productId %s", (_caso, body) => {
     expect(wishlistBodySchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe("shippingDestinationSchema", () => {
+  const base = { city: "Bogotá", country: "co", state: "CO-DC" };
+
+  it("acepta el destino sin calle ni pin (compatibilidad) y normaliza el país", () => {
+    const r = shippingDestinationSchema.parse(base);
+    expect(r.country).toBe("CO");
+    expect(r).not.toHaveProperty("location");
+  });
+
+  it("acepta calle y pin válidos", () => {
+    const r = shippingDestinationSchema.parse({
+      ...base,
+      address_1: "  Calle 72 # 10-34 ",
+      location: { lat: 4.6533, lng: -74.0836 },
+    });
+    expect(r.address_1).toBe("Calle 72 # 10-34");
+    expect(r.location).toEqual({ lat: 4.6533, lng: -74.0836 });
+  });
+
+  it("`location: null` es el borrado explícito del pin; ausente no lo toca", () => {
+    const cleared = shippingDestinationSchema.parse({ ...base, location: null });
+    expect(cleared.location).toBeNull();
+    expect(shippingDestinationSchema.parse(base).location).toBeUndefined();
+  });
+
+  it.each([
+    ["pin 0,0", { lat: 0, lng: 0 }],
+    ["pin fuera de rango", { lat: 200, lng: -74 }],
+    ["pin con cadenas", { lat: "4.6", lng: "-74" }],
+    ["pin NaN", { lat: NaN, lng: -74 }],
+  ])("rechaza un destino con %s (422 en el BFF)", (_caso, location) => {
+    expect(
+      shippingDestinationSchema.safeParse({ ...base, address_1: "Calle 1", location })
+        .success,
+    ).toBe(false);
   });
 });

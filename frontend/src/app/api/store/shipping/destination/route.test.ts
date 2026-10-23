@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { getSiteConfig } from "@/lib/config";
 import { getGeoPack } from "@/lib/geo";
+import { guardMutation } from "@/lib/api/guard";
+import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { CO_PACK } from "../../../../../../tests/helpers/geo-pack";
 import { PUT } from "./route";
 
@@ -104,5 +106,123 @@ describe("PUT /api/store/shipping/destination", () => {
   it("valida la forma: ciudad obligatoria y país de dos letras", async () => {
     expect((await put({ country: "CO" })).status).toBe(422);
     expect((await put({ city: "Pasto", country: "COL" })).status).toBe(422);
+  });
+});
+
+describe("pin del cliente (punto de entrega por la Store API)", () => {
+  const STREET = "Calle 72 # 10-34";
+  const PIN = { lat: 4.6533, lng: -74.0836 };
+  const extensionCalls = () =>
+    vi
+      .mocked(storeFetch)
+      .mock.calls.filter(([path]) => path === "/cart/extensions")
+      .map(([, options]) => (options as { body: unknown }).body);
+
+  it("con ubicación fija la calle en Woo y el punto con set_point, con los mismos datos", async () => {
+    const res = await put({
+      address_1: STREET,
+      location: PIN,
+      city: "Bogotá",
+      country: "co",
+      state: "Bogotá D.C.",
+    });
+
+    expect(res.status).toBe(200);
+    expect(vi.mocked(storeFetch).mock.calls[0][0]).toBe("/cart/update-customer");
+    expect(vi.mocked(storeFetch).mock.calls[0][1]).toMatchObject({
+      body: {
+        shipping_address: {
+          address_1: STREET,
+          city: "Bogotá",
+          country: "CO",
+          state: "CO-DC",
+        },
+      },
+    });
+    expect(extensionCalls()).toEqual([
+      {
+        namespace: "hwe_shipping",
+        data: {
+          action: "set_point",
+          lat: PIN.lat,
+          lng: PIN.lng,
+          address_1: STREET,
+          city: "Bogotá",
+          country: "CO",
+        },
+      },
+    ]);
+  });
+
+  it("sin `location` no toca el punto (ausente = conservar; WordPress lo invalida si cambia la calle)", async () => {
+    const res = await put({ address_1: STREET, city: "Bogotá", country: "CO" });
+
+    expect(res.status).toBe(200);
+    expect(extensionCalls()).toEqual([]);
+    // La respuesta es el carrito que devolvió `update-customer`, y su token se guarda.
+    expect(await res.json()).toEqual({ items: [] });
+    expect(writeCartToken).toHaveBeenCalledWith("ct2");
+  });
+
+  it("`location: null` borra el punto explícitamente con clear_point", async () => {
+    const res = await put({
+      address_1: STREET,
+      location: null,
+      city: "Bogotá",
+      country: "CO",
+    });
+
+    expect(res.status).toBe(200);
+    expect(extensionCalls()).toEqual([
+      { namespace: "hwe_shipping", data: { action: "clear_point" } },
+    ]);
+  });
+
+  it("sin calle no se envía address_1 a Woo y no hay punto que fijar", async () => {
+    await put({ city: "Bogotá", country: "CO" });
+
+    const body = vi.mocked(storeFetch).mock.calls[0][1] as {
+      body: { shipping_address: Record<string, unknown> };
+    };
+    expect(body.body.shipping_address).not.toHaveProperty("address_1");
+  });
+
+  it("una ubicación sin calle es un 422 y no toca el carrito (el punto necesita la calle)", async () => {
+    const res = await put({ location: PIN, city: "Bogotá", country: "CO" });
+
+    expect(res.status).toBe(422);
+    expect(storeFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["latitud fuera de rango", { lat: 200, lng: -74 }],
+    ["longitud como cadena", { lat: 4.6, lng: "-74" }],
+    ["0,0", { lat: 0, lng: 0 }],
+    ["coordenadas nulas", { lat: null, lng: null }],
+  ])("una ubicación con %s es un 422 y no llega a WordPress", async (_, location) => {
+    const res = await put({
+      address_1: STREET,
+      location,
+      city: "Bogotá",
+      country: "CO",
+    });
+
+    expect(res.status).toBe(422);
+    expect(storeFetch).not.toHaveBeenCalled();
+  });
+
+  it("si el guard de escritura bloquea, no se toca WordPress", async () => {
+    const blocked = new Response(null, { status: 403 });
+    vi.mocked(guardMutation).mockResolvedValueOnce(blocked as never);
+
+    const res = await put({
+      address_1: STREET,
+      location: PIN,
+      city: "Bogotá",
+      country: "CO",
+    });
+
+    expect(res).toBe(blocked);
+    expect(storeFetch).not.toHaveBeenCalled();
   });
 });

@@ -142,6 +142,9 @@ export const CONFIG_DEFAULTS: SiteConfig = {
   banners: {
     enabled: false,
   },
+  shipping: {
+    distance_enabled: false,
+  },
   loyalty: {
     points_enabled: false,
     referrals_enabled: false,

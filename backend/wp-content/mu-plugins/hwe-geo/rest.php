@@ -44,6 +44,10 @@ function hwe_geo_public_pack( array $pack, bool $fallback, string $requested ): 
 		'divisions'     => $pack['divisions'],
 		'cities'        => $pack['cities'],
 		'documentTypes' => $pack['document_types'],
+		'geocoding'     => array(
+			'abbreviations' => $pack['geocoding']['abbreviations'],
+			'dropTokens'    => $pack['geocoding']['drop_tokens'],
+		),
 	);
 }
 

@@ -13,7 +13,11 @@ import { pushCartDestination } from "@/lib/woocommerce/cart-destination";
 import { getCartRequestAuth } from "@/lib/woocommerce/cart-session";
 import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { withLock } from "@/lib/security/lock";
-import { ADDRESSES_META_KEY, parseSavedAddresses } from "@/lib/customer/addresses";
+import {
+  ADDRESSES_META_KEY,
+  mergeAddressLocation,
+  parseSavedAddresses,
+} from "@/lib/customer/addresses";
 import { logger } from "@/lib/observability/logger";
 import type { WooCustomer } from "@/types/woocommerce";
 import type { SavedAddress } from "@/types/address";
@@ -145,7 +149,11 @@ export async function PUT(request: Request) {
         return { notFound: true as const };
       }
 
-      const updated = { ...parsed.data.address };
+      // El pin de la dirección anterior se conserva solo si no cambian calle ni ciudad
+      // (`mergeAddressLocation`); si la edición trae uno nuevo, ese vale.
+      const updated = mergeAddressLocation(addresses[parsed.data.index], {
+        ...parsed.data.address,
+      });
       if (updated.is_default) {
         addresses.forEach((a) => {
           a.is_default = false;

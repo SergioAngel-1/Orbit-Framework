@@ -169,7 +169,7 @@ Los valores de una instancia se siembran con `wp hwe setup instance.config.json`
 | Marca / diseño | `brand.*`, `design.colors.*`, `design.typography.*` | Los colores solo admiten `#rrggbb` y las fuentes un nombre simple; lo que no cumple cae al valor por defecto. |
 | Tienda (`ecommerce`) | `currency` (defecto `EUR`; fíjala siempre), `country`, `price_decimals` (calculado), `products_per_page`, flags `*_enabled`, `checkout_login_required`, `free_shipping.*` | `country` elige el paquete por país. El login se sincroniza con el ajuste nativo de Woo; el envío gratis lo aplica el módulo `shipping`. |
 | Pasarelas de pago | `provider`, `gateway_enabled`, `whatsapp_enabled`, `cash_enabled` (+ credenciales por pasarela) | El panel solo enseña las credenciales de la pasarela activa, y ninguna si el pago en línea está apagado. Lo público lo lee el checkout; los secretos solo salen por `hwe/v1/payments/credentials` (canal interno). El efectivo usa «Contra reembolso», que se sincroniza al guardar. |
-| Integraciones | ids de analítica, `consent_retention_years`, SMTP (+ `meta_capi_*` por canal interno) | Cada id activa su proveedor; vacío = desactivado. |
+| Integraciones | ids de analítica, Mapas (`maps_provider`, `maps_api_key`), `consent_retention_years`, SMTP (+ `meta_capi_*` por canal interno) | Cada id activa su proveedor; vacío = desactivado. La clave de mapas se guarda cifrada y solo la usa el servidor. |
 | Legal → Sedes | opcionales, hasta 5 (`location_1…location_5`) | Alimentan el JSON-LD `LocalBusiness` y la página de contacto. El panel solo enseña las que tienen datos y un botón «Añadir sede»; «Quitar sede» vacía el hueco al guardar. |
 | Acceso (`auth`) | `phone_login_enabled`, `phone_default_dial_code` | Login y registro con el teléfono (E.164, único). Apagado por defecto. |
 | SEO / GEO | `seo.*`, `geo.*` | Dos pestañas: «SEO» y «GEO (IA)». Las señales de entidad (`seo.organization_logo`, `founding_date`, `knows_about`, `alternate_names`, `founder_*`) se editan en GEO aunque su ruta siga en `seo.*`. `faq` y `faq_payments` son traducibles (formato «pregunta \| respuesta»). |
@@ -187,6 +187,45 @@ los suyos) tiene una variante `<campo>_<idioma>` por cada idioma de `i18n.locale
 defecto en `frontend/src/lib/config/defaults.ts` (`CONFIG_DEFAULTS`, respaldo si WordPress no
 responde), y se consume con `getSiteConfig()`.
 
+### Mapas
+
+*Integraciones → Mapas* es la integración genérica de mapas del núcleo. La usa el módulo
+`shipping` para calcular distancias y geocodificar direcciones; cualquier otro módulo puede leer
+la misma configuración con `\HWE\ControlCenter\Storage::get(['integrations', 'maps_provider'])` y
+`\HWE\ControlCenter\SecretsStorage::get(['integrations', 'maps_api_key'])`. Ninguno de los dos
+campos sale por la API pública: el proveedor y la clave se resuelven en el servidor.
+
+| Campo | Valores | Notas |
+|-------|---------|-------|
+| Proveedor | `none`, `google_maps`, `openrouteservice` | Con `none` se calcula en línea recta y la geocodificación cae al servicio público de respaldo. |
+| Clave de API | — | Cifrada en reposo (AES-256-GCM). Solo la usa el servidor: no sale por `/wp-json/hwe/v1/config`, ni por el canal interno del BFF, ni en una URL o un log. Déjala en blanco al guardar para conservar la actual. |
+
+Para Google hay que habilitar las APIs **Routes** y **Geocoding** en el proyecto y restringir la
+clave por la **IP del servidor**, no por referer HTTP: las peticiones las hace WordPress, nunca el
+navegador.
+
+### Envío → Distancia
+
+*Control Center → Envío* (grupo `shipping`, del módulo `shipping`). Estos campos solo afectan a las ciudades
+con envío **por distancia**; las ciudades fijas no los usan. El proveedor y su clave están en *Integraciones →
+Mapas* (arriba). Ninguno de estos campos sale por `/wp-json/hwe/v1/config`, salvo `shipping.distance_enabled`
+(calculado: hay al menos una ciudad por distancia).
+
+| Campo | Valores | Por defecto | Notas |
+|-------|---------|-------------|-------|
+| Método de cálculo (`distance_method`) | `maps`, `straight_line` | `straight_line` | Con `maps` usa el proveedor de Integraciones → Mapas. Sin proveedor o sin clave válidos se calcula en línea recta y wp-admin avisa. |
+| Modo de viaje (`distance_travel_mode`) | `driving`, `walking` | `driving` | Conducción con tráfico en Google; velocidad media en la línea recta (30 km/h y 5 km/h). |
+| Incremento sobre la línea recta (`distance_straight_line_increment`) | 0–200 (%) | 30 | Se aplica también cuando un proveedor falla y el cálculo cae a la línea recta. |
+| Caché de distancias (`distance_cache_ttl_hours`) | ≥ 1 (horas) | 24 | Las distancias de respaldo se cachean 15 minutos, aparte de este valor. |
+
+**«Probar conexión»** (en esta misma sección, solo administradores) hace una llamada real al proveedor con
+una dirección de prueba que escribes en el momento, sin valor por defecto de ningún país. Responde con
+`ok`, `missing_key`, `unauthorized`, `api_not_enabled`, `rate_limited`, `network` o `no_results`, y una
+pista. Nunca muestra la clave.
+
+Las zonas de reserva (`shipping.reserve_enabled`, `reserve_name`, `reserve_cost`) siguen en esta sección. `reserve_enabled`
+significa ahora «enviar también a las ciudades sin configurar» (ver `backend/wp-content/plugins/hwe-shipping/README.md`).
+
 ### Módulos
 
 Un módulo es un plugin regular `hwe-<id>` (con `README.md` y `MANUAL.md`) que aporta una
@@ -198,7 +237,7 @@ nulo, sus rutas del BFF responden 404 y su UI no se pinta.
 | Id | Qué aporta | Configuración propia |
 |----|------------|----------------------|
 | `banners` | Banners por tipo × locación, N idiomas | Plugin (CPT `hwe_banner`); `banners.enabled` |
-| `shipping` | Tarifa por ciudad, métodos extra, envío gratis por regla, zona de reserva | Menú «Envío» de wp-admin (tarifas y métodos) y Control Center → Envío |
+| `shipping` | Tarifa fija o por distancia por ciudad (con opciones de entrega y pin del cliente), métodos extra, envío gratis por opción, zona de reserva | Menú «Envío» de wp-admin (tarifas y métodos) y Control Center → Envío (incluida «Distancia») |
 | `product-landing` | Una landing por producto, a N idiomas | Caja «Landing del producto» en la ficha |
 | `landings` | Landings editoriales (artículo / persona) | Control Center → Landings |
 | `consent-log` | Registro del consentimiento como prueba (RGPD) | `integrations.consent_retention_years` |

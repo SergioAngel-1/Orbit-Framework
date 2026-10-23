@@ -47,6 +47,9 @@ import {
 } from "@/lib/customer/identity";
 import { attachIdentity } from "@/lib/customer/identity-api";
 import { getShippingMethods } from "@/lib/shipping";
+import { readShippingStatus } from "@/lib/shipping/status";
+import { shippingErrorText, type ShippingErrorKey } from "@/lib/shipping/errors";
+import { requestLocale } from "@/lib/i18n/request-locale";
 import { isModuleEnabled } from "@/lib/config/modules";
 import { parseLoyaltyCartExtension } from "@/lib/loyalty/cart";
 import {
@@ -75,6 +78,13 @@ const LOYALTY_REDEEM_MESSAGE: Record<LoyaltyCheckoutErrorReason, string> = {
     "El saldo de fidelización cambió y el canje ya no se puede aplicar. Revisa el carrito e inténtalo de nuevo.",
   loyalty_redeem_failed:
     "No se pudo confirmar el canje de fidelización. Revisa el carrito e inténtalo de nuevo.",
+};
+
+/** Texto del 409 según el estado del envío; sin estado (módulo apagado) vale «sin tarifas». */
+const NO_RATE_MESSAGE: Partial<Record<string, ShippingErrorKey>> = {
+  needs_address: "needsAddress",
+  needs_location: "needsLocation",
+  out_of_coverage: "outOfCoverage",
 };
 
 /** Respuesta del checkout: la de la Store API y la marca de pago con puntos. */
@@ -288,13 +298,26 @@ export async function POST(request: Request) {
       // No se creó ningún pedido: libera la reserva para que un reintento
       // legítimo no choque con un «processing» fantasma.
       if (useIdempotency) await releaseIdempotencyKey(idemKey);
+      // El estado del envío (módulo `shipping`) explica por qué no hay tarifa: sin pin,
+      // fuera de cobertura, sin dirección… El cliente lo muestra en vez de «sin envío».
+      const shippingStatus = readShippingStatus(cartCheck.data)?.status ?? null;
       logger.warn(
-        { event: "checkout.shipping_guard_blocked", userId: session?.userId ?? null },
+        {
+          event: "checkout.shipping_guard_blocked",
+          userId: session?.userId ?? null,
+          shippingStatus,
+        },
         "Checkout bloqueado: el carrito necesita envío y no hay tarifa disponible",
       );
       return NextResponse.json(
-        { error: "No hay tarifas de envío disponibles para esta dirección." },
-        { status: 422 },
+        {
+          error: shippingErrorText(
+            requestLocale(request.headers),
+            (shippingStatus && NO_RATE_MESSAGE[shippingStatus]) || "noRates",
+          ),
+          status: shippingStatus,
+        },
+        { status: 409 },
       );
     }
 

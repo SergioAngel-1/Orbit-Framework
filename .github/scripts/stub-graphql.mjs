@@ -35,8 +35,10 @@
 //
 //  Tampoco es «vacío» `GET /wp-json/wc/v3/orders[/{10..13}]`, `customers/7`,
 //  `hwe-banners/v1/banners/carousel` (un slide con imagen, que el propio stub sirve en
-//  `/wp-content/uploads/e2e-banner.svg`), `hwe-shipping/v1/{methods,free-shipping/scope}` (un extra de envío y un alcance con una
-//  ciudad), `hwe/v1/geo` (el paquete genérico de un país sin paquete, como el que sirve
+//  `/wp-content/uploads/e2e-banner.svg`), `hwe-shipping/v1/{methods,free-shipping/scope,rates}`
+//  (un extra de envío, un alcance con una ciudad y una ciudad por distancia), las rutas internas
+//  de geocodificación `hwe-shipping/v1/{geocode,reverse-geocode}` (candidatos fijos, sin llamar a
+//  ningún proveedor), `hwe/v1/geo` (el paquete genérico de un país sin paquete, como el que sirve
 //  WordPress para el `ES` por defecto) ni
 //  `hwe/v1/coupons/public` (un cupón de prueba): los
 //  pedidos y el cliente de prueba de los e2e de la cuenta (`STUB_ORDERS`).
@@ -186,6 +188,22 @@ const STUB_FREE_SHIPPING_SCOPE = {
   products: [],
   cities: ["Madrid"],
 };
+
+/** Ciudades del envío (`hwe-shipping/v1/rates`): solo nombre y tipo, nunca importes. */
+const STUB_SHIPPING_RATES = [
+  { name: "Madrid", type: "fixed" },
+  { name: "Toledo", type: "distance" },
+];
+
+/**
+ * Geocodificación interna del módulo (`hwe-shipping/v1/geocode`, `reverse-geocode`): candidatos
+ * y dirección fijos, sin proveedor. El BFF valida la forma de la respuesta, así que el stub
+ * devuelve lo mismo que WordPress: `{ results: [{ lat, lng, label }] }` y `{ label }`.
+ */
+const STUB_GEOCODE = {
+  results: [{ lat: 40.4155, lng: -3.7074, label: "Plaza Mayor, Madrid" }],
+};
+const STUB_REVERSE_GEOCODE = { label: "Plaza Mayor, Madrid" };
 
 /** Imagen del slide de prueba de los banners: un SVG sencillo servido por el propio stub. */
 const BANNER_IMAGE_PATH = "/wp-content/uploads/e2e-banner.svg";
@@ -359,6 +377,10 @@ function wooFixture(path) {
   if (path === "/wp-json/hwe-shipping/v1/methods") return STUB_SHIPPING_METHODS;
   if (path === "/wp-json/hwe-shipping/v1/free-shipping/scope")
     return STUB_FREE_SHIPPING_SCOPE;
+  if (path === "/wp-json/hwe-shipping/v1/rates") return STUB_SHIPPING_RATES;
+  if (path === "/wp-json/hwe-shipping/v1/geocode") return STUB_GEOCODE;
+  if (path === "/wp-json/hwe-shipping/v1/reverse-geocode")
+    return STUB_REVERSE_GEOCODE;
   if (path === "/wp-json/wc/v3/customers/7") return STUB_CUSTOMER;
   return undefined;
 }

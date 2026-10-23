@@ -27,6 +27,7 @@ describe("destinationFromAddress", () => {
     expect(
       destinationFromAddress(CO_PACK, address({ city: " Bogotá ", country: "co" })),
     ).toEqual({
+      address_1: "Calle 1",
       city: "Bogotá",
       country: "CO",
       state: "CO-DC",
@@ -37,7 +38,48 @@ describe("destinationFromAddress", () => {
         CO_PACK,
         address({ city: "Pasto", state: "Nariño", postcode: " 5200 " }),
       ),
-    ).toEqual({ city: "Pasto", country: "CO", state: "CO-NAR", postcode: "5200" });
+    ).toEqual({
+      address_1: "Calle 1",
+      city: "Pasto",
+      country: "CO",
+      state: "CO-NAR",
+      postcode: "5200",
+    });
+  });
+
+  it("incluye la calle (sin espacios sobrantes) y la ubicación si es válida", () => {
+    const destino = destinationFromAddress(
+      CO_PACK,
+      address({
+        address_1: "  Calle 72 # 10-34  ",
+        city: "Bogotá",
+        location: { lat: 4.6533, lng: -74.0836 },
+      }),
+    );
+
+    expect(destino).toEqual({
+      address_1: "Calle 72 # 10-34",
+      city: "Bogotá",
+      country: "CO",
+      state: "CO-DC",
+      postcode: "",
+      location: { lat: 4.6533, lng: -74.0836 },
+    });
+  });
+
+  it("una ubicación inválida no pasa al destino (0,0 o fuera de rango)", () => {
+    for (const location of [
+      { lat: 0, lng: 0 },
+      { lat: 95, lng: -74 },
+      { lat: NaN, lng: -74 },
+    ]) {
+      const destino = destinationFromAddress(
+        CO_PACK,
+        address({ city: "Bogotá", location }),
+      );
+      expect(destino).not.toBeNull();
+      expect(destino).not.toHaveProperty("location");
+    }
   });
 
   it("sin ciudad no hay destino", () => {
@@ -71,24 +113,80 @@ describe("destinationFromAddress", () => {
         CO_PACK,
         address({ city: "Madrid", country: "ES", state: "Madrid" }),
       ),
-    ).toEqual({ city: "Madrid", country: "ES", state: "Madrid", postcode: "" });
+    ).toEqual({
+      address_1: "Calle 1",
+      city: "Madrid",
+      country: "ES",
+      state: "Madrid",
+      postcode: "",
+    });
   });
 });
 
 describe("cartHasDestination", () => {
-  const destination = { city: "Bogotá", country: "CO", state: "CO-DC", postcode: "" };
+  const destination = {
+    address_1: "Calle 1",
+    city: "Bogotá",
+    country: "CO",
+    state: "CO-DC",
+    postcode: "",
+  };
 
   it("reconoce que el carrito ya tiene ese destino", () => {
     expect(
       cartHasDestination(
-        { shipping_address: { city: " Bogotá", country: "co", state: "CO-DC" } },
+        {
+          shipping_address: {
+            address_1: " Calle 1",
+            city: " Bogotá",
+            country: "co",
+            state: "CO-DC",
+          },
+        },
         destination,
       ),
     ).toBe(true);
   });
 
+  it("no, si cambia la calle: el pin del cliente depende de ella (misma ciudad)", () => {
+    expect(
+      cartHasDestination(
+        {
+          shipping_address: {
+            address_1: "Calle 2",
+            city: "Bogotá",
+            country: "CO",
+            state: "CO-DC",
+          },
+        },
+        destination,
+      ),
+    ).toBe(false);
+  });
+
+  it("sin calle en el destino (checkout) solo compara ciudad, país y división", () => {
+    expect(
+      cartHasDestination(
+        {
+          shipping_address: {
+            address_1: "Otra calle",
+            city: "Bogotá",
+            country: "CO",
+            state: "CO-DC",
+          },
+        },
+        { city: "Bogotá", country: "CO", state: "CO-DC", postcode: "" },
+      ),
+    ).toBe(true);
+  });
+
   it("no, si cambia la ciudad, el país o la división, o no hay carrito", () => {
-    const base = { city: "Bogotá", country: "CO", state: "CO-DC" };
+    const base = {
+      address_1: "Calle 1",
+      city: "Bogotá",
+      country: "CO",
+      state: "CO-DC",
+    };
     expect(
       cartHasDestination({ shipping_address: { ...base, city: "Cali" } }, destination),
     ).toBe(false);

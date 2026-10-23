@@ -615,6 +615,17 @@
     "accountOnly": "Exclusivo para clientes con cuenta.",
     "guestHint": "<login>Inicia sesión</login> o <register>crea tu cuenta</register> para usarlo."
   },
+  "shippingErrors": {
+    "noRates": "No hay tarifas de envío disponibles para esta dirección.",
+    "needsAddress": "Indica la dirección de envío para calcular el envío.",
+    "needsLocation": "Marca la ubicación de entrega en el mapa para calcular el envío.",
+    "outOfCoverage": "Tu dirección queda fuera de la zona de reparto de esta ciudad.",
+    "locationNeedsAddress": "Para marcar la ubicación de entrega, indica también la calle.",
+    "geocodeInvalid": "La búsqueda de la dirección no es válida.",
+    "geocodeNoResults": "No encontramos esa dirección. Prueba con más detalle.",
+    "geocodeBackoff": "Hay demasiadas búsquedas de direcciones seguidas. Espera unos minutos e inténtalo de nuevo.",
+    "geocodeUnavailable": "El servicio de mapas no está disponible. Inténtalo más tarde."
+  },
   "loyalty": {
     "entries": {
       "cashback": "Devolución de tu compra",

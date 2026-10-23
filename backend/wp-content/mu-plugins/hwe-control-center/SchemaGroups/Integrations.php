@@ -69,6 +69,26 @@ trait Integrations {
                         'public'      => true,
                         'description' => 'Solo el número. El frontend carga el script de seguimiento en todas las páginas, solo con el consentimiento del sitio. Vacío = desactivado.',
                     ],
+                    // Mapas: integración genérica que usa el servidor (el módulo de envío la
+                    // consume para calcular distancias y geocodificar). Nada sale al navegador.
+                    'maps_provider' => [
+                        'type'        => 'select',
+                        'label'       => 'Mapas — Proveedor',
+                        'default'     => 'none',
+                        'public'      => false,
+                        'options'     => [
+                            'none'             => 'Ninguno',
+                            'google_maps'      => 'Google Maps',
+                            'openrouteservice' => 'OpenRouteService',
+                        ],
+                        'description' => 'Proveedor con el que el servidor calcula distancias y geocodifica direcciones. Solo lo usa el backend; el navegador nunca recibe la clave ni llama al proveedor. Con «Ninguno» se usa el cálculo en línea recta (y la geocodificación sin proveedor de pago).',
+                    ],
+                    'maps_api_key' => [
+                        'type'        => 'secret',
+                        'label'       => 'Mapas — Clave de API',
+                        'public'      => false,
+                        'description' => 'Se almacena cifrada (AES-256-GCM) y solo la usa el servidor: no viaja al navegador, ni en una URL, ni en un log. Déjala en blanco al guardar para conservar la actual. Para Google necesita las APIs Routes y Geocoding habilitadas en el proyecto y la clave restringida por la IP del servidor (no por referer HTTP).',
+                    ],
                     // Lo lee el módulo de registro de consentimientos (purga); no lo necesita el frontend.
                     'consent_retention_years' => [
                         'type'        => 'number',

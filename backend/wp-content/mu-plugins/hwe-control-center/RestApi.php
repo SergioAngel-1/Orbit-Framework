@@ -71,6 +71,13 @@ class RestApi {
         $siteIcon = function_exists('get_site_icon_url') ? get_site_icon_url() : '';
         $public['brand']['icon_url'] = is_string($siteIcon) && $siteIcon !== '' ? $siteIcon : null;
 
+        // Valores calculados por los módulos (p. ej. `shipping.distance_enabled`): cada extensión
+        // añade su clave; sin ninguna, la config queda igual. Nunca secretos.
+        $extended = apply_filters('hwe_control_center_public_config', $public);
+        if (is_array($extended)) {
+            $public = $extended;
+        }
+
         $response = new \WP_REST_Response($public, 200);
 
         // Cabeceras de caché: ISR + CDN puede cachear 5 min; el tag invalidará.

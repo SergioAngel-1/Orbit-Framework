@@ -115,4 +115,32 @@ return array(
 		// 9 dígitos, o 10 con el dígito de verificación (el guion se normaliza fuera).
 		array( 'code' => 'NIT', 'label' => 'NIT', 'pattern' => '^\\d{9,10}$' ),
 	),
+	// Reglas para el geocodificador (`AddressNormalizer`): se expanden las abreviaturas de vía
+	// (sin distinguir mayúsculas) y se descartan los tokens de `drop_tokens` (palabras sueltas, «#»,
+	// «-», «BIS», cardinales y marcas de complemento como «Apto»). Las letras sueltas (A–Z) son la
+	// letra de vía de «Calle 10 A»: solo se descartan tras un token con dígito, así que «Diagonal A 12»
+	// conserva su letra (regla en `AddressNormalizer`).
+	// Un segmento tras la coma que empieza por un token descartable es un complemento y se quita
+	// entero; el resto del texto tras la coma (p. ej. la ciudad) se conserva.
+	'geocoding'      => array(
+		'abbreviations' => array(
+			'Ac'   => 'Avenida Calle',
+			'Ak'   => 'Avenida Carrera',
+			'Av'   => 'Avenida',
+			'Avda' => 'Avenida',
+			'Cl'   => 'Calle',
+			'Cll'  => 'Calle',
+			'Cra'  => 'Carrera',
+			'Crra' => 'Carrera',
+			'Kra'  => 'Carrera',
+			'Dg'   => 'Diagonal',
+			'Tv'   => 'Transversal',
+			'Trv'  => 'Transversal',
+			'Trvs' => 'Transversal',
+		),
+		'drop_tokens'   => array_merge(
+			array( '#', '-', 'BIS', 'Norte', 'Sur', 'Este', 'Oeste', 'Apto', 'Apartamento', 'Torre', 'Interior', 'Oficina', 'Piso', 'Casa', 'Bloque', 'Local', 'Conjunto' ),
+			range( 'A', 'Z' )
+		),
+	),
 );

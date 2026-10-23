@@ -1,5 +1,6 @@
 import { routing } from "@/i18n/routing";
 import { documentInputSchema, termsAcceptedField } from "./identity";
+import { locationSchema } from "./address";
 import { z } from "zod";
 
 // ============================================================================
@@ -78,6 +79,13 @@ export const selectShippingRateSchema = z.object({
  * paquete de país.
  */
 export const shippingDestinationSchema = z.object({
+  /** Calle: con el pin, el punto de entrega queda ligado a ella (ver `DeliveryPoint` en WordPress). */
+  address_1: z.string().trim().min(1).max(300).optional(),
+  /**
+   * Pin del cliente. Ausente = no se toca el punto de entrega del carrito (WordPress lo invalida
+   * solo si cambian calle, ciudad o país); `null` = borrarlo explícitamente.
+   */
+  location: locationSchema.nullable().optional(),
   city: z.string().trim().min(1).max(100),
   country: z
     .string()

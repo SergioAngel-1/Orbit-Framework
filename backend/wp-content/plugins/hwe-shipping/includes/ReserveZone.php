@@ -2,66 +2,54 @@
 
 namespace HWE\Shipping;
 
+use HWE\Shipping\Rates\Pricing;
+
 /**
- * Zona de reserva de WooCommerce: el envío para el resto del país.
+ * Zona de reserva de WooCommerce: el envío para las ciudades SIN tarifa propia.
  *
- * Las tarifas por ciudad (`ShippingCost`) solo SOBREESCRIBEN el coste del método `flat_rate`
- * de una zona de WooCommerce; si la tienda no tiene ninguna zona que cubra el país, la Store
- * API devuelve `shipping_rates: []` y el checkout cierra pedidos con envío 0. Esta clase crea
- * (y mantiene) esa zona desde el Control Center: una zona que cubre el país base de la tienda
- * (`ecommerce.country`), con un único método `flat_rate` cuyo coste es el envío de las ciudades
- * SIN tarifa propia.
+ * Las tarifas por ciudad las produce el método de envío del plugin (`CityRateMethod`, id
+ * `hwe_city_rate`). Si la tienda no tiene ninguna zona que cubra el país base de `ecommerce.country`,
+ * la Store API devuelve `shipping_rates: []` y el checkout no puede cerrar el pedido. Esta clase crea
+ * (y mantiene) esa zona: cubre el país base con el método del plugin.
  *
- * Se configura en el Control Center → Envío (los campos los añade este plugin al esquema):
- *   - `shipping.reserve_enabled`: crear y mantener la zona (por defecto, sí);
- *   - `shipping.reserve_name`: nombre de la zona y del método (lo que ve el cliente);
+ * Con el módulo activo la zona existe SIEMPRE. `shipping.reserve_enabled` no la crea ni la borra: dice
+ * si las ciudades sin configurar reciben la tarifa de reserva (`CityRateMethod`). Apagado, esas
+ * ciudades no tienen envío y solo se vende a las configuradas.
+ *
+ * Se configura en el Control Center → Envío (los campos los declara `SettingsSchema`):
+ *   - `shipping.reserve_enabled`: enviar también a las ciudades sin configurar (por defecto, sí);
+ *   - `shipping.reserve_name`: nombre de la zona y de la tarifa de reserva (lo que ve el cliente);
  *   - `shipping.reserve_cost`: coste, en la moneda de la tienda (0 = gratis).
  *
- * Solo toca la zona que ella misma creó (su id va en la opción `hwe_shipping_reserve_zone_id`):
- * las demás zonas de la tienda no se tocan. Apagarla no borra la zona. El Control Center es la
- * fuente de verdad: un cambio a mano del coste de ese método se pisa al guardar el panel.
+ * Solo toca la zona que ella misma guardó (su id va en la opción `hwe_shipping_reserve_zone_id`): las
+ * demás zonas de la tienda no se tocan. De esa zona quita los métodos `flat_rate` (el método que creaba
+ * antes) y deja el de `hwe_city_rate`. El método lee nombre y coste en cada cálculo, así que no hace
+ * falta escribir sus ajustes de WooCommerce.
  */
 class ReserveZone {
 
-	public const OPTION = 'hwe_shipping_reserve_zone_id';
+	public const OPTION        = 'hwe_shipping_reserve_zone_id';
+	private const DEFAULT_NAME = 'Envío nacional';
 
 	public static function register(): void {
-		add_filter( 'hwe_control_center_schema', array( self::class, 'schema' ) );
 		add_action( 'hwe_control_center_saved', array( self::class, 'sync' ) );
 	}
 
-	/**
-	 * Campos del grupo «Envío» del Control Center (el grupo es del núcleo y viene vacío).
-	 *
-	 * @param mixed $schema
-	 * @return mixed
-	 */
-	public static function schema( $schema ) {
-		if ( ! is_array( $schema ) || ! isset( $schema['shipping']['children'] ) || ! is_array( $schema['shipping']['children'] ) ) {
-			return $schema;
-		}
-		$schema['shipping']['children'] += array(
-			'reserve_enabled' => array(
-				'type'        => 'boolean',
-				'label'       => 'Zona de reserva de WooCommerce',
-				'default'     => true,
-				'description' => 'Crea y mantiene una zona de envío que cubre el país de la tienda, con un único método de tarifa plana: el envío de las ciudades que no tienen tarifa propia. Sin una zona que cubra el país, el carrito no tiene envío.',
-			),
-			'reserve_name'    => array(
-				'type'        => 'text',
-				'label'       => 'Nombre del envío de reserva',
-				'default'     => 'Envío nacional',
-				'description' => 'Lo que ve el cliente en el carrito para las ciudades sin tarifa propia.',
-			),
-			'reserve_cost'    => array(
-				'type'        => 'number',
-				'label'       => 'Coste del envío de reserva',
-				'default'     => '0',
-				'min'         => 0,
-				'description' => 'En la moneda de la tienda, sin puntos ni decimales. 0 = envío gratis para las ciudades sin tarifa propia.',
-			),
-		);
-		return $schema;
+	/** ¿Se envía también a las ciudades sin configurar? (`shipping.reserve_enabled`, por defecto sí). */
+	public static function enabled(): bool {
+		return (bool) self::setting( 'reserve_enabled', true );
+	}
+
+	/** Nombre de la zona y de la tarifa de reserva. */
+	public static function name(): string {
+		$name = trim( (string) self::setting( 'reserve_name', self::DEFAULT_NAME ) );
+
+		return '' === $name ? self::DEFAULT_NAME : $name;
+	}
+
+	/** Coste de la tarifa de reserva, en la moneda de la tienda, redondeado y no negativo. */
+	public static function cost(): float {
+		return max( 0.0, Pricing::round( (float) self::setting( 'reserve_cost', 0 ) ) );
 	}
 
 	/** Lee un ajuste del Control Center (`shipping.<clave>`) con el valor por defecto del módulo. */
@@ -74,14 +62,11 @@ class ReserveZone {
 	}
 
 	/**
-	 * Crea o actualiza la zona de reserva. Idempotente. Sin WooCommerce o con la zona apagada
-	 * no hace nada. Un fallo se registra y no rompe el guardado del panel.
+	 * Crea o actualiza la zona de reserva. Idempotente. Sin WooCommerce no hace nada. Un fallo se
+	 * registra y no rompe el guardado del panel.
 	 */
 	public static function sync(): void {
 		if ( ! class_exists( 'WC_Shipping_Zone' ) ) {
-			return;
-		}
-		if ( ! (bool) self::setting( 'reserve_enabled', true ) ) {
 			return;
 		}
 
@@ -90,53 +75,16 @@ class ReserveZone {
 			error_log( '[hwe] shipping: no hay país de la tienda (ecommerce.country): no se crea la zona de reserva.' );
 			return;
 		}
-		$name = trim( (string) self::setting( 'reserve_name', 'Envío nacional' ) );
-		$name = '' === $name ? 'Envío nacional' : $name;
-		$cost = max( 0, (int) round( (float) self::setting( 'reserve_cost', 0 ) ) );
 
 		try {
 			$zone = self::zone();
-			$zone->set_zone_name( $name );
+			$zone->set_zone_name( self::name() );
 			$zone->clear_locations();
 			$zone->add_location( $country, 'country' );
 			$zone->save();
 			update_option( self::OPTION, (int) $zone->get_id(), false );
 
-			$method = null;
-			foreach ( $zone->get_shipping_methods() as $candidate ) {
-				if ( 'flat_rate' === $candidate->id ) {
-					$method = $candidate;
-					break;
-				}
-			}
-			if ( null === $method ) {
-				$zone->add_shipping_method( 'flat_rate' );
-				$zone->save();
-				foreach ( $zone->get_shipping_methods() as $candidate ) {
-					if ( 'flat_rate' === $candidate->id ) {
-						$method = $candidate;
-						break;
-					}
-				}
-			}
-			if ( null === $method ) {
-				error_log( '[hwe] shipping: no se pudo añadir el método de tarifa plana a la zona de reserva.' );
-				return;
-			}
-
-			$key      = 'woocommerce_flat_rate_' . $method->instance_id . '_settings';
-			$settings = get_option( $key, array() );
-			update_option(
-				$key,
-				array_merge(
-					is_array( $settings ) ? $settings : array(),
-					array(
-						'title'      => $name,
-						'tax_status' => 'none',
-						'cost'       => (string) $cost,
-					)
-				)
-			);
+			self::useCityRateMethod( $zone );
 
 			// Los carritos abiertos guardan las tarifas ya calculadas en la sesión.
 			if ( class_exists( '\WC_Cache_Helper' ) ) {
@@ -145,6 +93,26 @@ class ReserveZone {
 		} catch ( \Throwable $e ) {
 			error_log( '[hwe] shipping: no se pudo sincronizar la zona de reserva: ' . $e->getMessage() );
 		}
+	}
+
+	/**
+	 * Quita de la zona los `flat_rate` y deja exactamente un `hwe_city_rate`. Un método ya presente
+	 * se conserva tal cual (sus ajustes son de WooCommerce).
+	 */
+	private static function useCityRateMethod( \WC_Shipping_Zone $zone ): void {
+		$hasCityRate = false;
+		foreach ( $zone->get_shipping_methods() as $method ) {
+			if ( 'flat_rate' === $method->id ) {
+				$zone->delete_shipping_method( $method->instance_id );
+			} elseif ( CityRateMethod::ID === $method->id ) {
+				$hasCityRate = true;
+			}
+		}
+
+		if ( ! $hasCityRate ) {
+			$zone->add_shipping_method( CityRateMethod::ID );
+		}
+		$zone->save();
 	}
 
 	/** La zona que creó el plugin, o una nueva si no existe (o se borró a mano). */
