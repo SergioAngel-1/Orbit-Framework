@@ -9,6 +9,7 @@ use HWE\Shipping\Admin\MapsAdminApi;
 use HWE\Shipping\Admin\MapsNotices;
 use HWE\Shipping\Admin\MapsTestType;
 use HWE\Shipping\Rates\Cities;
+use HWE\Shipping\Rest\GeocodeApi;
 
 /**
  * Punto de arranque del plugin. Engancha los subsistemas en el orden correcto.
@@ -36,6 +37,8 @@ class Plugin {
 		if ( interface_exists( \HWE\ControlCenter\FieldTypes\FieldType::class ) ) {
 			MapsTestType::register();
 		}
+		// Geocodificación para el mapa del BFF: solo con el secreto interno (fuera de `is_admin()`).
+		GeocodeApi::register();
 		Revalidation::register();
 		DeliveryPoint::register();
 		// Un cierre, no `[CityRateMethod::class, …]`: la clase extiende WC_Shipping_Method, que puede no
