@@ -37,6 +37,13 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 // Brain Monkey lo carga de forma perezosa (al primer `Functions\when()`), que
 // llega tarde: PHPUnit ya habría incluido los archivos de test. Por eso se carga
 // aquí, antes que cualquier test. Lee su configuración de backend/patchwork.json.
+// Su caché en disco (cache-path) exige que el directorio exista: sin él aborta el
+// arranque con CachePathUnavailable. Se crea aquí para que la suite funcione también
+// lanzada directamente con `vendor/bin/phpunit`, sin pasar por tests/run-phpunit.php.
+$patchworkCache = dirname(__DIR__) . '/.phpunit.cache/patchwork';
+if (!is_dir($patchworkCache)) {
+    @mkdir($patchworkCache, 0777, true);
+}
 require_once dirname(__DIR__) . '/vendor/antecedent/patchwork/Patchwork.php';
 
 // Raíz del backend y de wp-content, para `loadOwnFile()` y las rutas de los tests.

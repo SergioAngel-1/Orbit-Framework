@@ -18,7 +18,7 @@
         }
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "@php tests/run-phpunit.php"
     },
     "config": {
         "platform": {
