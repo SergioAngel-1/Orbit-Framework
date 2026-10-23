@@ -733,12 +733,15 @@ final class EarningsTest extends TestCase
         Actions\expectAdded('woocommerce_payment_complete')
             ->once()
             ->with([\HWE_Loyalty_Earnings::class, 'onPaymentComplete']);
+        // La reversión corre DESPUÉS de la devolución del canje (Redemption, prioridad 10): si
+        // no, ve el saldo antes de que vuelvan los puntos canjeados, no recupera nada y deja
+        // puntos sin respaldo cuando las ganancias del pedido ya se gastaron.
         Actions\expectAdded('woocommerce_order_status_cancelled')
             ->once()
-            ->with([\HWE_Loyalty_Earnings::class, 'onOrderCancelled']);
+            ->with([\HWE_Loyalty_Earnings::class, 'onOrderCancelled'], 20);
         Actions\expectAdded('woocommerce_order_status_refunded')
             ->once()
-            ->with([\HWE_Loyalty_Earnings::class, 'onOrderRefunded']);
+            ->with([\HWE_Loyalty_Earnings::class, 'onOrderRefunded'], 20);
 
         \HWE_Loyalty_Earnings::register();
     }

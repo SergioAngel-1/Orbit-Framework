@@ -75,8 +75,11 @@ final class HWE_Loyalty_Earnings {
 		add_action( 'woocommerce_order_status_processing', array( self::class, 'onOrderProcessing' ) );
 		add_action( 'woocommerce_order_status_completed', array( self::class, 'onOrderCompleted' ) );
 		add_action( 'woocommerce_payment_complete', array( self::class, 'onPaymentComplete' ) );
-		add_action( 'woocommerce_order_status_cancelled', array( self::class, 'onOrderCancelled' ) );
-		add_action( 'woocommerce_order_status_refunded', array( self::class, 'onOrderRefunded' ) );
+		// Prioridad 20: después de que `HWE_Loyalty_Redemption` (10) devuelva los puntos canjeados
+		// en el mismo pedido. Al revés, la reversión vería el saldo sin ellos, no recuperaría nada
+		// y el cliente se quedaría con puntos sin respaldo si ya gastó las ganancias del pedido.
+		add_action( 'woocommerce_order_status_cancelled', array( self::class, 'onOrderCancelled' ), 20 );
+		add_action( 'woocommerce_order_status_refunded', array( self::class, 'onOrderRefunded' ), 20 );
 	}
 
 	// ------------------------------------------------------------------------
