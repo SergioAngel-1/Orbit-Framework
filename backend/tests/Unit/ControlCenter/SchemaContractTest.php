@@ -54,7 +54,7 @@ final class SchemaContractTest extends TestCase
     /** Las claves raíz que el núcleo declara hoy (sin `instance`). */
     private const CORE_ROOTS = [
         'brand', 'i18n', 'auth', 'social', 'legal', 'design', 'ecommerce', 'banners', 'payments',
-        'integrations', 'backups', 'seo', 'shipping', 'geo', 'landings', 'loyalty',
+        'integrations', 'backups', 'seo', 'shipping', 'geo', 'landings', 'loyalty', 'memberships',
     ];
 
     public function testTheCoreDeclaresAnEmptyInstanceGroup(): void
@@ -102,6 +102,33 @@ final class SchemaContractTest extends TestCase
 
         $public = (new PublicConfigWalker())->walk($schema, ['loyalty' => ['points_enabled' => true]]);
         $this->assertTrue($public['loyalty']['points_enabled'], 'Lo que el plugin declara público sale por la API de config.');
+    }
+
+    public function testTheMembershipsGroupIsReservedForItsModuleAndTheFilterFillsIt(): void
+    {
+        $memberships = Schema::get()['memberships'];
+
+        $this->assertSame('group', $memberships['type']);
+        $this->assertSame('Membresías', $memberships['label']);
+        $this->assertSame([], $memberships['children'], 'Vacío en el núcleo: lo puebla el plugin con `hwe_control_center_schema`.');
+
+        // Un grupo raíz reservado se puede poblar: solo está protegida la CLAVE raíz, no sus hijos.
+        $this->schemaFilter(static function (array $schema): array {
+            $schema['memberships']['children']['card_enabled'] = [
+                'type' => 'boolean',
+                'label' => 'Carné',
+                'default' => false,
+                'public' => true,
+            ];
+            return $schema;
+        });
+
+        $schema = Schema::get();
+        $this->assertSame('boolean', $schema['memberships']['children']['card_enabled']['type']);
+        $this->assertSame([], $this->logged, 'Poblar un grupo raíz reservado es uso correcto del contrato.');
+
+        $public = (new PublicConfigWalker())->walk($schema, ['memberships' => ['card_enabled' => true]]);
+        $this->assertTrue($public['memberships']['card_enabled'], 'Lo que el plugin declara público sale por la API de config.');
     }
 
     public function testTheCoreRootsAreUntouchedWithoutAnyFilter(): void

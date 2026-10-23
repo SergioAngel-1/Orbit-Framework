@@ -17,7 +17,7 @@ describe("isModuleEnabled", () => {
     expect(isModuleEnabled(config, "shipping")).toBe(false);
   });
 
-  it("el catálogo tiene los 10 ids del contrato", () => {
+  it("el catálogo tiene los 11 ids del contrato", () => {
     expect([...MODULE_IDS].sort()).toEqual(
       [
         "banners",
@@ -30,6 +30,7 @@ describe("isModuleEnabled", () => {
         "customer-identity",
         "external-integration",
         "loyalty",
+        "memberships",
       ].sort(),
     );
   });

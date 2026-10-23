@@ -16,12 +16,13 @@ function leafKeys(value: unknown, prefix = ""): string[] {
 // sincronizados. Este test caza el olvido en el acto: si el esquema gana un campo y
 // aquí no aparece (o al revés), falla con la ruta exacta.
 describe("CONFIG_DEFAULTS", () => {
-  it("trae los 10 módulos del catálogo, todos apagados", () => {
+  it("trae los 11 módulos del catálogo, todos apagados", () => {
     expect(Object.keys(CONFIG_DEFAULTS.modules).sort()).toEqual([...MODULE_IDS].sort());
     for (const id of MODULE_IDS) {
       expect(CONFIG_DEFAULTS.modules[id]).toBe(false);
     }
     expect(CONFIG_DEFAULTS.modules.loyalty).toBe(false);
+    expect(CONFIG_DEFAULTS.modules.memberships).toBe(false);
   });
 
   it("el envío por distancia viene apagado por defecto (lo enciende el módulo)", () => {

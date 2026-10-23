@@ -59,17 +59,18 @@ final class ModulesTest extends TestCase
 
     // ── catalog ─────────────────────────────────────────────────────────────
 
-    public function testTheCatalogHasTheTenIds(): void
+    public function testTheCatalogHasTheElevenIds(): void
     {
         $catalog = Modules::catalog();
 
         $this->assertSame(
-            ['banners', 'shipping', 'product-landing', 'landings', 'consent-log', 'site-reviews', 'coupon-rules', 'customer-identity', 'external-integration', 'loyalty'],
+            ['banners', 'shipping', 'product-landing', 'landings', 'consent-log', 'site-reviews', 'coupon-rules', 'customer-identity', 'external-integration', 'loyalty', 'memberships'],
             array_keys($catalog)
         );
         $this->assertSame('hwe-banners', $catalog['banners']);
         $this->assertSame('hwe-site-reviews', $catalog['site-reviews']);
         $this->assertSame('hwe-loyalty', $catalog['loyalty'], 'El id del módulo es el slug del plugin sin el prefijo `hwe-`.');
+        $this->assertSame('hwe-memberships', $catalog['memberships'], 'El id del módulo es el slug del plugin sin el prefijo `hwe-`.');
     }
 
     public function testTheFilterCanAddAnInstanceModule(): void
@@ -127,10 +128,11 @@ final class ModulesTest extends TestCase
 
         $map = Modules::activeMap();
 
-        $this->assertCount(10, $map);
+        $this->assertCount(11, $map);
         $this->assertTrue($map['banners']);
         $this->assertFalse($map['shipping']);
         $this->assertFalse($map['loyalty']);
+        $this->assertFalse($map['memberships']);
     }
 
     // ── applySetup ──────────────────────────────────────────────────────────

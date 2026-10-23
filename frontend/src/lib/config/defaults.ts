@@ -234,6 +234,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     "customer-identity": false,
     "external-integration": false,
     loyalty: false,
+    memberships: false,
   },
   instance: {},
 };

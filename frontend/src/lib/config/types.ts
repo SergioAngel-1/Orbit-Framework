@@ -352,7 +352,8 @@ export type ModuleId =
   | "coupon-rules"
   | "customer-identity"
   | "external-integration"
-  | "loyalty";
+  | "loyalty"
+  | "memberships";
 
 /**
  * Ajustes propios de la instancia. Vacía en el framework: cada instancia la

@@ -9,7 +9,7 @@ use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * Solo cuatro familias de rutas son exclusivas del BFF. Cerrar de más rompería el
+ * Solo cinco familias de rutas son exclusivas del BFF. Cerrar de más rompería el
  * panel de administración (WooCommerce Admin usa `wc/v3`, `wc-admin`, `wc-analytics`).
  */
 #[RunTestsInSeparateProcesses]
@@ -61,6 +61,24 @@ final class RoutesTest extends HweBffOnlyTestCase
 
     #[DataProvider('loyaltyRoutes')]
     public function testLoyaltyRoutesAreBffOnly(string $route): void
+    {
+        $result = $this->dispatch($route);
+
+        $this->assertInstanceOf(\WP_Error::class, $result, 'Sin el secreto interno la ruta no existe.');
+        $this->assertSame('rest_no_route', $result->get_error_code());
+        $this->assertSame(['status' => 404], $result->get_error_data());
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function membershipsRoutes(): iterable
+    {
+        yield 'socio: resumen' => ['/hwe/v1/memberships/summary'];
+        yield 'socio: carné' => ['/hwe/v1/memberships/card'];
+        yield 'catálogo: niveles' => ['/hwe/v1/memberships/levels'];
+    }
+
+    #[DataProvider('membershipsRoutes')]
+    public function testMembershipsRoutesAreBffOnly(string $route): void
     {
         $result = $this->dispatch($route);
 

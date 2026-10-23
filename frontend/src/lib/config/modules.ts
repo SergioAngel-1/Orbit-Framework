@@ -14,6 +14,7 @@ export const MODULE_IDS: readonly ModuleId[] = [
   "customer-identity",
   "external-integration",
   "loyalty",
+  "memberships",
 ];
 
 /**
