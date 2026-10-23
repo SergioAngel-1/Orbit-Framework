@@ -199,6 +199,14 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   - `documentTypes[].pattern` es una expresión regular **sin delimitadores**, válida en PHP y en
     JavaScript, que se compara con el número normalizado (sin espacios, puntos ni guiones, en
     mayúsculas). La usa el módulo `customer-identity`.
+  - `geocoding: { abbreviations: { abreviatura: forma completa }, dropTokens: string[] }` (opcional;
+    vacío en `generic`). Reglas para normalizar una dirección antes de geocodificarla: el módulo
+    `shipping` expande las abreviaturas de vía (sin distinguir mayúsculas) y descarta los tokens de
+    `dropTokens` (p. ej. «#», «-», «BIS», cardinales); una letra suelta de un token (la letra de vía
+    de «Calle 10 A») solo se descarta si el token anterior del mismo segmento contiene un dígito, así
+    «Diagonal A 12» conserva su letra; un segmento tras la coma que empieza por un token descartable
+    (un complemento como «Apto») se quita entero. Paquete `CO` con
+    las de Colombia; una instancia que añada un país declara las suyas en el filtro `hwe_geo_packs`.
   - Un país sin paquete cae a `generic` (`fallback: true`, `requested` = el país pedido): todo
     texto libre, sin documentos ni prefijo. WordPress lo registra una vez.
   - El núcleo trae `CO` y `generic`. Una instancia añade o sustituye paquetes con el filtro
