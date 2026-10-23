@@ -32,6 +32,14 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   peticiones en vuelo), `cpus`/`pids` acotados, Caddy con 256 MB y `GOMEMLIMIT`, `db` con
   `start_period` (el primer `up` ya no falla), y arranque por `service_started` en vez de
   `service_healthy` para que un WordPress lento no impida servir el sitio cacheado.
+- **MariaDB, Redis y el cron, con parámetros coherentes.** MariaDB pasa a 50 conexiones
+  (`max-connections`) con `max-allowed-packet=64M` (el default de 16 MB rompía un restore con
+  filas grandes), `slow-query-log` con `long-query-time=1` (sin él no se ve la consulta que tumba
+  el sitio) y `skip-name-resolve`. Redis deja de bloquear escrituras si falla el `bgsave`
+  (`stop-writes-on-bgsave-error no`: aquí los datos son caché y estado reconstruible). El bucle de
+  `wp-cron` toma un `flock` (una corrida larga ya no se solapa con la siguiente y duplica acciones),
+  se acota con `timeout 300` y atiende SIGTERM. Desarrollo estrena la misma rotación de logs que
+  producción.
 
 ### Security
 - **Los límites de GraphQL no se aplicaban.** `graphql-protection.php` enganchaba

@@ -52,7 +52,7 @@ plantillas; nunca subas claves reales.**
 | `MYSQL_USER` / `MYSQL_PASSWORD` | Credenciales de la BD | *(larga y aleatoria en prod)* |
 | `MYSQL_ROOT_PASSWORD` | Clave root de MariaDB | *(aleatoria en prod)* |
 | `MYSQL_INNODB_BUFFER_POOL_SIZE` | (opc.) ≈ 50 % del límite de memoria del servicio `db` | `256M` |
-| `MYSQL_MAX_CONNECTIONS` | (opc.) | `100` |
+| `MYSQL_MAX_CONNECTIONS` | (opc.) Conexiones simultáneas. Todo el tráfico pasa por el BFF, así que 50 sobran; cada conexión reserva buffers dentro de los 512 MB del servicio. | `50` |
 
 ### WordPress
 

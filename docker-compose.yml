@@ -10,6 +10,15 @@
 #  Para producción usa docker-compose.prod.yml
 # ============================================================================
 
+# Rotación de logs compartida: sin límite, un `docker` con el driver json-file
+# (el de fábrica en muchas instalaciones) llena el disco del portátil tras
+# semanas de desarrollo. Mismo bloque que en producción.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # --------------------------------------------------------------------------
   # Base de datos
@@ -17,6 +26,7 @@ services:
   db:
     image: mariadb:11.8
     container_name: hwe_db
+    logging: *default-logging
     restart: unless-stopped
     ports:
       - "3307:3306"
@@ -41,6 +51,7 @@ services:
   wordpress:
     image: wordpress:7.1-php8.4-apache
     container_name: hwe_wordpress
+    logging: *default-logging
     restart: unless-stopped
     depends_on:
       db:
@@ -130,6 +141,7 @@ services:
   wpcli:
     image: wordpress:cli-php8.4
     container_name: hwe_wpcli
+    logging: *default-logging
     profiles: ["cli"]
     depends_on:
       db:
@@ -190,6 +202,7 @@ services:
   wp-cron:
     image: wordpress:cli-php8.4
     container_name: hwe_wp_cron
+    logging: *default-logging
     restart: unless-stopped
     depends_on:
       db:
@@ -223,8 +236,12 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
+        trap 'exit 0' TERM INT
         while true; do
-          wp cron event run --due-now --allow-root --quiet 2>&1 | sed 's/^/[wp-cron] /'
+          # `flock -n`: si la corrida anterior sigue viva (Action Scheduler,
+          # backups), esta se SALTA en vez de arrancar en paralelo y duplicar
+          # acciones. `timeout 300`: una corrida colgada no se eterniza.
+          flock -n /tmp/wp-cron.lock timeout 300 wp cron event run --due-now --allow-root --quiet 2>&1 | sed 's/^/[wp-cron] /'
           sleep 60
         done
     networks:
@@ -237,6 +254,7 @@ services:
   backup:
     image: alpine:3.23
     container_name: hwe_backup
+    logging: *default-logging
     restart: unless-stopped
     depends_on:
       db:
@@ -271,6 +289,7 @@ services:
   redis:
     image: redis:8-alpine
     container_name: hwe_redis
+    logging: *default-logging
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -294,6 +313,7 @@ services:
       dockerfile: Dockerfile
       target: dev # imagen de desarrollo con hot-reload (prod: --target prod)
     container_name: hwe_frontend
+    logging: *default-logging
     restart: unless-stopped
     depends_on:
       wordpress:

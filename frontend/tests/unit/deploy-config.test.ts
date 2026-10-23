@@ -135,6 +135,29 @@ describe("docker-compose.prod.yml", () => {
     expect(db).toContain("--innodb-buffer-pool-size=");
     expect(db).toContain("--max-connections=");
   });
+
+  it("MariaDB acota conexiones y paquete, y deja rastro de las consultas lentas", () => {
+    const db = service(prod, "db");
+    expect(db).toContain("--max-connections=${MYSQL_MAX_CONNECTIONS:-50}");
+    // 16 MB (default) rompía un restore con filas grandes; 100 conexiones + 256 MB
+    // de buffer pool rozaban el OOM del contenedor.
+    expect(db).toContain("--max-allowed-packet=64M");
+    expect(db).toContain("--slow-query-log=1");
+    expect(db).toContain("--skip-name-resolve");
+  });
+
+  it("wp-cron no solapa corridas ni ignora SIGTERM", () => {
+    for (const compose of [prod, dev]) {
+      const cron = service(compose, "wp-cron");
+      expect(cron).toContain("flock -n /tmp/wp-cron.lock");
+      expect(cron).toContain("timeout 300");
+      expect(cron).toContain("trap 'exit 0' TERM");
+    }
+  });
+
+  it("Redis sigue escribiendo si falla el bgsave (aquí los datos son caché)", () => {
+    expect(service(prod, "redis")).toContain('"--stop-writes-on-bgsave-error", "no"');
+  });
 });
 
 describe("docker-compose.prod.yml: segmentación de red", () => {

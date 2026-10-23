@@ -142,12 +142,23 @@ services:
     # Los defaults de MariaDB (innodb_buffer_pool_size=128M, max_connections=151)
     # no tienen en cuenta el límite de memoria del contenedor (512m, abajo). 256M
     # de buffer pool (50 %) deja margen para conexiones, sort buffers y el SO; y
-    # 100 conexiones sobran: todo el tráfico pasa por el BFF, no hay muchos
+    # 50 conexiones sobran: todo el tráfico pasa por el BFF, no hay muchos
     # clientes concurrentes directos. Si subes el límite de memoria, sube también
     # `MYSQL_INNODB_BUFFER_POOL_SIZE` (≈ 50 % del límite).
+    #
+    # `max-allowed-packet=64M`: el default (16M) rompía un restore de un dump con
+    # filas grandes; 64M es la mitad de `post_max_size` (uploads.ini) y evita
+    # reservar de más por conexión.
+    # `slow-query-log` + `long-query-time=1`: sin él no hay forma de ver la
+    # consulta que tumba el sitio. `skip-name-resolve`: no resolver DNS inverso
+    # por conexión (todo llega por IP de la red interna).
     command:
       - --innodb-buffer-pool-size=${MYSQL_INNODB_BUFFER_POOL_SIZE:-256M}
-      - --max-connections=${MYSQL_MAX_CONNECTIONS:-100}
+      - --max-connections=${MYSQL_MAX_CONNECTIONS:-50}
+      - --max-allowed-packet=64M
+      - --slow-query-log=1
+      - --long-query-time=1
+      - --skip-name-resolve
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
@@ -355,7 +366,16 @@ services:
         "--save", "900", "1",
         "--loglevel", "warning",
         "--maxmemory", "220mb",
+        # allkeys-lru (no volatile-lru): las claves de seguridad no siempre tienen
+        # TTL y con una política que solo expulsa claves volátiles, al llenarse el
+        # límite Redis devolvería error de escritura y el rate-limit dejaría de
+        # contar. Perder una clave por presión de memoria es menos malo que un
+        # Redis que se niega a escribir.
         "--maxmemory-policy", "allkeys-lru",
+        # Si el `bgsave` falla (disco lleno), Redis deja de aceptar escrituras por
+        # defecto —justo cuando el disco está mal—. Aquí los datos son caché y
+        # estado reconstruible: seguir sirviendo es mejor que fallar cerrado.
+        "--stop-writes-on-bgsave-error", "no",
       ]
     volumes:
       - redis_data:/data
@@ -533,8 +553,12 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
+        trap 'exit 0' TERM INT
         while true; do
-          wp cron event run --due-now --allow-root --quiet 2>&1 | sed 's/^/[wp-cron] /'
+          # `flock -n`: si la corrida anterior sigue viva (Action Scheduler,
+          # backups), esta se SALTA en vez de arrancar en paralelo y duplicar
+          # acciones. `timeout 300`: una corrida colgada no se eterniza.
+          flock -n /tmp/wp-cron.lock timeout 300 wp cron event run --due-now --allow-root --quiet 2>&1 | sed 's/^/[wp-cron] /'
           sleep 60
         done
     # `app` porque algunos eventos hacen peticiones salientes (webhooks de
