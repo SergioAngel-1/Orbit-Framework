@@ -38,6 +38,8 @@ function directive(name: string): number | undefined {
 
 const prodCompose = read("docker-compose.prod.yml");
 const devCompose = read("docker-compose.yml");
+const opcache = read("backend/config/opcache.ini");
+const uploads = read("backend/config/uploads.ini");
 
 /** Bloque `services.<name>` del compose (hasta el siguiente servicio de primer nivel). */
 function service(compose: string, name: string): string {
@@ -54,6 +56,16 @@ function memoryLimitMb(block: string): number {
   expect(match, "deploy.resources.limits.memory").not.toBeNull();
   const amount = Number(match![1]);
   return match![2]!.toLowerCase() === "g" ? amount * 1024 : amount;
+}
+
+/** Valor numérico de una directiva INI, aceptando sufijo M/G (0 si falta). */
+function iniMb(source: string, key: string): number {
+  const match = source.match(
+    new RegExp(`^\\s*${key}\\s*=\\s*(\\d+)\\s*([MG])?\\s*$`, "mi"),
+  );
+  expect(match, `${key} en el .ini`).not.toBeNull();
+  const amount = Number(match![1]);
+  return (match![2] ?? "").toUpperCase() === "G" ? amount * 1024 : amount;
 }
 
 describe("apache-mpm.conf", () => {
@@ -91,14 +103,36 @@ describe("apache-mpm.conf", () => {
 
   it("el techo cabe en el límite de memoria del contenedor de WordPress", () => {
     // Medido en un servidor real: ~60 MB de cargo efectivo por hijo con carga de
-    // WPGraphQL y ~100 MB de base (proceso padre + segmento compartido de OPcache).
+    // WPGraphQL (el segmento de OPcache se cuenta APARTE, una sola vez, porque es
+    // memoria compartida). El padre + ese segmento son la base.
     const PER_CHILD_MB = 60;
-    const BASE_MB = 100;
+    const PARENT_MB = 10;
     const limit = memoryLimitMb(service(prodCompose, "wordpress"));
 
+    // Lo que OPcache reserva de verdad: memoria + interned + búfer del JIT. Si
+    // alguien sube `opcache.memory_consumption` a 256 y no toca nada más, este
+    // presupuesto deja de caber y el test falla (antes solo miraba Apache y daba
+    // una falsa sensación de cobertura: el contenedor moría por OOM bajo carga).
+    const sharedMb =
+      iniMb(opcache, "opcache.memory_consumption") +
+      iniMb(opcache, "opcache.interned_strings_buffer") +
+      iniMb(opcache, "opcache.jit_buffer_size");
+
     expect(
-      BASE_MB + directive("MaxRequestWorkers")! * PER_CHILD_MB,
+      PARENT_MB + sharedMb + directive("MaxRequestWorkers")! * PER_CHILD_MB,
     ).toBeLessThanOrEqual(limit);
+  });
+
+  it("el memory_limit de PHP es un techo POR PETICIÓN, no el del contenedor", () => {
+    // C1: con `memory_limit = 512M` y un contenedor de 512 MB, una sola petición
+    // podía consumir el cgroup entero y provocar OOMKilled.
+    const limit = memoryLimitMb(service(prodCompose, "wordpress"));
+    const perRequest = iniMb(uploads, "memory_limit");
+
+    expect(perRequest).toBeLessThan(limit);
+    // Y no por debajo de lo que cuesta un worker con carga normal, o el límite
+    // sería ficción y WordPress devolvería 500 por memoria agotada.
+    expect(perRequest).toBeGreaterThanOrEqual(60);
   });
 });
 
@@ -113,5 +147,16 @@ describe("docker-compose: el techo solo va en producción", () => {
 
   it("desarrollo no lo monta: allí no hay presión de memoria que justifique estrechar nada", () => {
     expect(devCompose).not.toContain("apache-mpm.conf");
+  });
+
+  it("producción monta también opcache.ini y uploads.ini: el presupuesto se calcula con lo que se aplica de verdad", () => {
+    const wordpress = service(prodCompose, "wordpress");
+
+    expect(wordpress).toMatch(
+      /\.\/backend\/config\/opcache\.ini:\/usr\/local\/etc\/php\/conf\.d\/[\w.-]+:ro/,
+    );
+    expect(wordpress).toMatch(
+      /\.\/backend\/config\/uploads\.ini:\/usr\/local\/etc\/php\/conf\.d\/[\w.-]+:ro/,
+    );
   });
 });

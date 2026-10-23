@@ -163,6 +163,22 @@ Tras actualizar mu-plugins o plugins, reinicia ese contenedor.
 - **Readiness:** `GET /api/health?ready=1` → 503 si alguna dependencia está caída.
   `GET /api/health` (sin flag) devuelve siempre 200 con el detalle.
 
+**Presupuesto de memoria de WordPress.** El contenedor `wordpress` tiene 512 MB
+(`docker-compose.prod.yml`) y tres números tienen que cuadrar entre sí:
+
+| Archivo | Qué fija |
+|---|---|
+| `docker-compose.prod.yml` | `deploy.resources.limits.memory` (512 MB) |
+| `backend/config/opcache.ini` | Segmento COMPARTIDO: `memory_consumption` + `interned_strings_buffer` + `jit_buffer_size` (96 + 8 + 0 = 104 MB) |
+| `backend/config/apache-mpm.conf` | `MaxRequestWorkers` (6); cada hijo cuesta ~60 MB |
+| `backend/config/uploads.ini` | `memory_limit` = techo de UNA petición (128 MB), nunca el del contenedor |
+
+Presupuesto: `10 (padre) + 104 (OPcache) + 6 × 60 = 474 MB` → 38 MB de margen. Si
+subes cualquiera de ellos, recalcula el resto en la misma proporción;
+`npm run test` (`tests/unit/apache-mpm.test.ts`) falla si no cabe. Un import
+puntual que necesite más memoria se lanza con `wp --memory-limit=512M …`, no
+subiendo el `memory_limit` global.
+
 **Catálogo desactualizado.** WooCommerce revalida vía webhook a `/api/revalidate`.
 Si tras un cambio el catálogo no refresca, comprueba el webhook y su firma
 (`WC_WEBHOOK_SECRET`). Los cambios de configuración y de módulos revalidan por
@@ -216,6 +232,7 @@ intentos por IP cada 5 minutos.
 |---------|--------------------|--------|
 | Picos de 401/403 en `/api/*` | Logs `*.idor`, `csrf`, `origin` | Revisar `ALLOWED_ORIGIN`/CSRF; posible ataque → revisar IPs. |
 | Todo responde 404 desde el BFF a WordPress | `[hwe] bff-only:` en el log de PHP | `HWE_REVALIDATION_SECRET` distinto o ausente en un lado (ver §3). |
+| 500 intermitentes y el contenedor de WordPress se reinicia | `docker inspect hwe_wordpress` → `OOMKilled`, `docker stats` | Presupuesto de memoria (§5): revisar OPcache, `MaxRequestWorkers` y `memory_limit`. |
 | `payments.webhook.mismatch` | Importe/moneda no casan | NO marcar pagado a mano; investigar pedido y evento de la pasarela. |
 | Muchos 429 | Rate-limit disparado | ¿Ataque o cliente legítimo? Ajustar límites o bloquear IP en Caddy. |
 | `checkout.link_owner_failed` | Pedido no ligado al cliente | Conciliar manualmente `customer_id` del pedido en wc/v3. |

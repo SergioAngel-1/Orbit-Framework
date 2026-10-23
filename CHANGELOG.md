@@ -6,6 +6,17 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed
+- **Presupuesto de memoria de WordPress (OOM bajo carga).** `memory_limit` valía 512M —el
+  límite entero del contenedor— y OPcache reservaba 336 MB (256 de caché + 16 de interned + 64
+  de JIT), mientras el dimensionado de Apache (`apache-mpm.conf`) daba por sentados ~90 MB de
+  OPcache: un pico de WPGraphQL o el prerender podían consumir el cgroup y matar el contenedor
+  (`OOMKilled`), dejando el sitio en 500 hasta que Docker lo reiniciaba. Ahora `memory_limit` es
+  128M (techo por petición), OPcache baja a 96 + 8 MB con el JIT apagado (WordPress es I/O-bound)
+  y el presupuesto real (10 + 104 + 6 × 60 = 474 MB de 512) está documentado en
+  `docs/RUNBOOK.md` §5. `tests/unit/apache-mpm.test.ts` lee también `opcache.ini`, `uploads.ini`
+  y el límite del compose: subir uno sin recalcular los demás ahora falla.
+
 ### Security
 - **Los límites de GraphQL no se aplicaban.** `graphql-protection.php` enganchaba
   `graphql_query_max_depth` y `graphql_query_complexity`, filtros que WPGraphQL no tiene: `/graphql`
