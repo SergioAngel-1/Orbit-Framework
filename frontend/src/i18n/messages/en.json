@@ -615,6 +615,37 @@
     "accountOnly": "For registered customers only.",
     "guestHint": "<login>Sign in</login> or <register>create an account</register> to use it."
   },
+  "loyalty": {
+    "entries": {
+      "cashback": "Refund of your purchase",
+      "referral_commission_l1": "Level 1 referral commission",
+      "referral_commission_l2": "Level 2 referral commission",
+      "referral_product_bonus": "Referred product bonus",
+      "referral_signup_l1": "Reward for a referral sign-up",
+      "referral_signup_l2": "Reward for a level 2 referral sign-up",
+      "registration": "Reward for creating your account",
+      "review_product": "Reward for a product review",
+      "review_site": "Reward for a store review",
+      "review": "Reward for a review",
+      "birthday": "Birthday reward ({year})",
+      "birthday_no_year": "Birthday reward",
+      "transfer_in": "Transfer received from {name}",
+      "transfer_in_no_name": "Transfer received",
+      "transfer_out": "Transfer sent to {name}",
+      "transfer_out_no_name": "Transfer sent",
+      "transfer_fee": "Transfer fee to {name}",
+      "transfer_fee_no_name": "Transfer fee",
+      "redeem": "Redemption applied",
+      "redeem_refund": "Redemption refunded",
+      "earn_reversal": "Reversal adjustment",
+      "expire": "Expired balance",
+      "admin_credit": "Adjustment in your favor",
+      "admin_debit": "Adjustment against you",
+      "with_order": "{text} (order {order})",
+      "with_note": "{text}: {note}",
+      "unknown": "Loyalty movement"
+    }
+  },
   "llms": {
     "sections": {
       "pages": "Main pages",

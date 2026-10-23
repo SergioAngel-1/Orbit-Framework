@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { storeFetch } from "@/lib/woocommerce/store-client";
-import { wcFetch } from "@/lib/woocommerce/client";
+import { WooCommerceError, wcFetch } from "@/lib/woocommerce/client";
 import { getSiteConfig } from "@/lib/config";
 import { getSession } from "@/lib/auth/session";
 import { rememberGuestOrder } from "@/lib/checkout/guest-order-cookie";
@@ -39,7 +39,10 @@ vi.mock("@/lib/checkout/guest-order-cookie", () => ({
   rememberGuestOrder: vi.fn(async () => undefined),
 }));
 vi.mock("@/lib/woocommerce/store-client", () => ({ storeFetch: vi.fn() }));
-vi.mock("@/lib/woocommerce/client", () => ({ wcFetch: vi.fn() }));
+vi.mock("@/lib/woocommerce/client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/woocommerce/client")>()),
+  wcFetch: vi.fn(),
+}));
 vi.mock("@/lib/woocommerce/cart-cookie", () => ({
   readCartToken: vi.fn(async () => "cart-token"),
   writeCartToken: vi.fn(async () => undefined),
@@ -773,5 +776,183 @@ describe("extras de envío (módulo shipping)", () => {
       (await POST(checkout("hwe_offline", { shipping_method_ids: ["a"] }))).status,
     ).toBe(422);
     expect(orderPosts()).toHaveLength(0);
+  });
+});
+
+describe("pago completo con puntos (módulo loyalty)", () => {
+  const EXTENSION = {
+    available: true,
+    reason: null,
+    balance: 5000,
+    points_applied: 3000,
+    discount: "30000",
+    max_redeemable: 3000,
+    min_redeem: 100,
+    full_payment_available: true,
+  };
+
+  /** Config con el módulo de fidelización y los puntos encendidos. */
+  function loyaltyOn({ shipping = false, whatsapp = false } = {}) {
+    vi.mocked(getSiteConfig).mockResolvedValue({
+      brand: { url: "https://tienda.example" },
+      ecommerce: { checkout_login_required: true },
+      payments: {
+        gateway_enabled: true,
+        whatsapp_enabled: whatsapp,
+        cash_enabled: false,
+      },
+      modules: { loyalty: true, shipping },
+      loyalty: { points_enabled: true, full_payment_enabled: true },
+    } as never);
+  }
+
+  /** Carrito que Woo ya dejó en total 0 por el canje de puntos. */
+  function cartPaidWithPoints(overrides: Record<string, unknown> = {}) {
+    return {
+      needs_shipping: false,
+      shipping_rates: [],
+      // Woo no ofrece el pago en línea para este carrito: el flujo normal lo
+      // rechazaría. Con el canje confirmado, el medio no se valida.
+      payment_methods: ["cod"],
+      totals: { total_price: "0" },
+      extensions: { "hwe-loyalty": EXTENSION },
+      ...overrides,
+    };
+  }
+
+  /** Pedido de wc/v3 con las metas indicadas (la marca la escribe WordPress). */
+  function orderWithMeta(meta: Record<string, string>) {
+    vi.mocked(wcFetch).mockImplementation((async (
+      path: string,
+      opts?: { method?: string },
+    ) => {
+      if (path === "/orders/42" && !opts?.method) {
+        return {
+          customer_id: 7,
+          meta_data: Object.entries(meta).map(([key, value]) => ({ key, value })),
+        };
+      }
+      return { customer_id: 7 };
+    }) as never);
+  }
+
+  const errorEvents = () =>
+    vi.mocked(logger.error).mock.calls.map(([o]) => (o as { event: string }).event);
+
+  it("no valida ni sustituye el medio de pago contra los de Woo", async () => {
+    loyaltyOn();
+    cartIs(cartPaidWithPoints());
+    orderWithMeta({ _hwe_loyalty_paid_with_points: "yes" });
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(201);
+    expect((await res.json()).paid_with_points).toBe(true);
+    expect(orderPosts()).toHaveLength(1);
+    expect(orderPosts()[0]![1]).toMatchObject({
+      body: expect.objectContaining({ payment_method: "hwe_offline" }),
+    });
+    // No hay ninguna otra llamada a la tienda: ni pago ni link.
+    expect(vi.mocked(storeFetch).mock.calls.map(([path]) => path)).toEqual([
+      "/cart",
+      "/checkout",
+    ]);
+  });
+
+  it("no pasa a «En espera» aunque el medio pedido sea el link por WhatsApp", async () => {
+    loyaltyOn({ whatsapp: true });
+    cartIs(cartPaidWithPoints());
+    orderWithMeta({ _hwe_loyalty_paid_with_points: "yes" });
+
+    const res = await POST(checkout("hwe_whatsapp_link"));
+
+    expect(res.status).toBe(201);
+    expect((await res.json()).paid_with_points).toBe(true);
+    expect(wcFetch).not.toHaveBeenCalledWith("/orders/42", {
+      method: "PUT",
+      body: { status: "on-hold" },
+    });
+  });
+
+  it("pago completo con extras de envío responde 422 antes de crear el pedido", async () => {
+    vi.mocked(isValidIdempotencyKey).mockReturnValue(true);
+    vi.mocked(reserveIdempotencyKey).mockResolvedValue({
+      status: "reserved",
+    } as never);
+    loyaltyOn({ shipping: true });
+    cartIs(cartPaidWithPoints());
+
+    const res = await POST(checkout("hwe_offline", { shipping_method_ids: [3] }));
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).reason).toBe("loyalty_full_payment_with_shipping_extras");
+    expect(orderPosts()).toHaveLength(0);
+    expect(getShippingMethods).not.toHaveBeenCalled();
+    expect(releaseIdempotencyKey).toHaveBeenCalled();
+  });
+
+  it("un carrito sin total no se da por pagado solo por la extensión", async () => {
+    loyaltyOn();
+    cartIs(cartPaidWithPoints({ totals: {} }));
+
+    const res = await POST(checkout("hwe_offline"));
+
+    // Sin prueba de que el canje cubre el pedido, se aplica el flujo normal:
+    // el pago en línea no está entre los medios de Woo para este carrito.
+    expect(res.status).toBe(422);
+    expect(orderPosts()).toHaveLength(0);
+  });
+
+  it("un total 0 sin la marca del pedido no se anuncia como pagado con puntos", async () => {
+    loyaltyOn();
+    cartIs(cartPaidWithPoints());
+    orderWithMeta({});
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).not.toHaveProperty("paid_with_points");
+    expect(errorEvents()).toContain("checkout.paid_with_points_missing");
+  });
+
+  it.each([
+    ["hwe_loyalty_insufficient_points", "loyalty_insufficient_points"],
+    ["hwe_loyalty_redeem_failed", "loyalty_redeem_failed"],
+  ])(
+    "traduce el error %s del canje a un 409 con motivo estable",
+    async (code, reason) => {
+      loyaltyOn();
+      vi.mocked(storeFetch).mockImplementation((async (path: string) => {
+        if (path === "/cart") {
+          return { data: cartPaidWithPoints(), cartToken: "cart-token" };
+        }
+        throw new WooCommerceError("No se pudo confirmar el canje.", 400, code);
+      }) as never);
+
+      const res = await POST(checkout("hwe_offline"));
+
+      expect(res.status).toBe(409);
+      expect(await res.json()).toMatchObject({ reason });
+      expect(errorEvents()).toContain("checkout.loyalty_redeem_error");
+    },
+  );
+
+  it("con el módulo apagado el total 0 por puntos se trata como cualquier carrito", async () => {
+    cartIs(cartPaidWithPoints());
+
+    const res = await POST(checkout("hwe_offline"));
+
+    // Flujo de hoy: el pago en línea no está entre los medios de Woo → 422.
+    expect(res.status).toBe(422);
+    expect(orderPosts()).toHaveLength(0);
+  });
+
+  it("con el módulo apagado no se marca un pedido por la extensión del carrito", async () => {
+    cartIs(cartPaidWithPoints({ payment_methods: [] }));
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).not.toHaveProperty("paid_with_points");
   });
 });

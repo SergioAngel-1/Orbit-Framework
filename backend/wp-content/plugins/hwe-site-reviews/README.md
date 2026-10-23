@@ -30,6 +30,14 @@ solo de su dueño, sin moderación (la compra es el filtro).
 - Las reseñas de **producto** de ese pedido (opcionales, mismo texto) las crea el BFF por wc/v3
   después de esta; no son cosa del plugin.
 
+## Hooks estables
+
+- `hwe_site_review_published( int $reviewId, int $userId, int $orderId )`: se dispara cuando una
+  reseña **con autor** pasa a publicada, tanto al crearla como al republicarla desde la papelera.
+  Lo consume `hwe-loyalty` para abonar el evento de reseña una sola vez por pedido (la misma
+  clave que usa la reseña de producto). Una reseña sin autor no lo dispara; una sin pedido se
+  registra en el log y tampoco lo dispara.
+
 ## Pruebas
 
 `backend/tests/Unit/SiteReviews/SiteReviewsTest.php` (PHPUnit + Brain Monkey).

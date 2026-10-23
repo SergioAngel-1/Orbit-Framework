@@ -16,8 +16,9 @@ completo y contenedorizado:
 >
 > **v2.0:** el framework trae un **contrato de instancia** (tu código vive en rutas que el
 > framework nunca toca: `backend/wp-content/mu-plugins/instance/` y `frontend/src/instance/`),
-> **nueve módulos opcionales** que se activan por instancia, contenido a **N idiomas**, paquetes
-> **por país** y seguridad reforzada (WordPress solo atiende al BFF). Venir de v1: `docs/UPGRADE.md`.
+> un catálogo de **módulos opcionales** que se activan por instancia (hoy, diez), contenido a
+> **N idiomas**, paquetes **por país** y seguridad reforzada (WordPress solo atiende al BFF).
+> Venir de v1: `docs/UPGRADE.md`.
 
 ---
 
@@ -37,7 +38,7 @@ hwe-orbit/
 │   └── wp-content/
 │       ├── mu-plugins/         # ⭐ núcleo: headless, seguridad, auth, Control Center, SEO, i18n, geo…
 │       │   └── instance/       # 🧩 TU código de instancia (el framework no lo toca)
-│       └── plugins/            # los 9 módulos del framework (hwe-banners, hwe-shipping…)
+│       └── plugins/            # los 10 módulos del framework (hwe-banners, hwe-shipping…)
 └── frontend/                   # Next.js (App Router) — web pública + BFF
     ├── src/
     │   ├── app/

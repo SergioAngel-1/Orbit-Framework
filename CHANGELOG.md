@@ -7,6 +7,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Security
+- **Vite 8.3.5.** `vite` (dependencia de desarrollo, vía `vitest` y `@vitejs/plugin-react`) pasa de
+  8.0.16 a 8.3.5, que corrige GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw,
+  GHSA-9jrq-w75r-8gcw y GHSA-rq7h-c2jc-7f22 (`launch-editor` y `server.fs.allow`). No llega a
+  producción (`npm audit --omit=dev` ya estaba limpio), pero `npm run audit:gate` vuelve a pasar.
 - **Next.js 16.4.1.** Se sube `next` y `eslint-config-next` de 16.4.0 a 16.4.1, que corrige dos RCE
   críticas (ejecución de código en `use cache` con *typed arrays* y en el optimizador de imágenes
   con SVG) y un DoS en Server Actions. `sharp` queda en 0.35.5 en el lock. El parche de cabeceras
@@ -20,6 +24,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   atendiendo (cobros ya iniciados). El panel explica cómo dejar WhatsApp como único medio.
 
 ### Changed
+- **`brand.url` tiene predeterminado.** Vacío en el Control Center, el frontend usa su URL pública
+  (`NEXT_PUBLIC_SITE_URL`) y lo registra (`site_config.brand_url_default`): las canónicas, el
+  JSON-LD, el sitemap y el enlace de referido ya no salen relativos en una instancia sin configurar.
 - **Control Center: sedes, pagos y GEO más claros.** Las sedes de Legal son opcionales y pasan de
   4 a 5 (`legal.locations.location_5`, nuevo en `SiteConfig` y `CONFIG_DEFAULTS`): el panel solo
   enseña las que tienen datos, con «Añadir sede» y «Quitar sede». En Pasarelas de pago solo se ven
@@ -47,6 +54,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `package.json` y `composer.json` a «Sergio Jauregui».
 
 ### Added
+- **Módulo `loyalty` (fidelización).** Monedero de puntos y referidos de dos niveles, sin UI: el
+  plugin `hwe-loyalty` es la fuente de verdad (libro mayor transaccional con consumo FIFO y
+  caducidad, ganancias por pedido y por eventos, canje en la Store API con fee negativo y
+  confirmación contra el libro, transferencias atómicas, administración en wp-admin y
+  privacidad). El BFF expone `/api/loyalty/{summary,transactions,referrals,referral-link,
+  validate-code,transfer}` y `/api/store/cart/points`, con `paid_with_points` en el checkout y la
+  cookie `hwe_ref` para el registro. Ajustes en el Control Center → Fidelización (grupo reservado
+  `loyalty`), hooks estables `hwe_loyalty_*` y cobertura en CI: stub con el módulo encendido,
+  pasada e2e sin módulos y `verify-modules.sh`.
 - **Marca de HWE Orbit en el panel** (mu-plugin `hwe-admin-branding`). Esquema de color «HWE Orbit»
   (tinta, cadmio y ultramar), compilado con el `_admin.scss` del core y aplicado por defecto a quien
   tenga el esquema de WordPress (`fresh`), más un login con el símbolo de Orbit. El tema

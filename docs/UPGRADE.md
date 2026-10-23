@@ -19,7 +19,7 @@
 - `docs/**` (salvo notas propias de la instancia)
 - `frontend/tests/unit/**` (tests del núcleo)
 
-- `backend/wp-content/plugins/hwe-*` (los 9 módulos del framework, salvo los `hwe-instance-*`)
+- `backend/wp-content/plugins/hwe-*` (los 10 módulos del framework, salvo los `hwe-instance-*`)
 
 **Instancia** — la actualización NUNCA debe tocarlo (si un merge lo toca, resuelve a favor
 de lo local):
@@ -225,9 +225,10 @@ parte de `docs/CREATE_INSTANCE.md`.
 ### 5.7 Los mu-plugins de v1 que pasan a módulo
 
 - **Qué cambia.** La funcionalidad opcional deja de ser un mu-plugin siempre activo y pasa a ser un
-  **módulo**: un plugin `hwe-<id>` que se enciende por instancia. Catálogo: `banners`, `shipping`,
-  `product-landing`, `landings`, `consent-log`, `site-reviews`, `coupon-rules`,
-  `customer-identity` y `external-integration`. La config pública expone `modules: { <id>: boolean }`.
+  **módulo**: un plugin `hwe-<id>` que se enciende por instancia. Catálogo en v2.0.0: `banners`,
+  `shipping`, `product-landing`, `landings`, `consent-log`, `site-reviews`, `coupon-rules`,
+  `customer-identity` y `external-integration` (el catálogo vigente añade `loyalty`). La config
+  pública expone `modules: { <id>: boolean }`.
   Con un módulo apagado, su lector devuelve vacío, sus rutas del BFF responden 404 y su UI no se pinta.
 - **Por qué.** Una instancia sin envío por ciudad o sin documento de identidad no debe cargar ni
   exponer esa funcionalidad.
@@ -1117,7 +1118,7 @@ demás entradas, en §6.
   coincidan. Contra la pila: `toggle` enciende y apaga cada módulo y comprueba `config.modules` y sus rutas
   REST; `i18n` una traducción a un segundo idioma; `country` el paquete del país; `integration` ejecuta
   `verify-integration.sh all` con el módulo encendido y lo deja como estaba.
-- **(contrato) `docker-compose.yml` monta ahora los 9 plugins de módulo** en `wordpress`, `wpcli` y
+- **(contrato) `docker-compose.yml` monta ahora los plugins de módulo del catálogo** en `wordpress`, `wpcli` y
   `wp-cron` (antes solo 4: `shipping`, `product-landing`, `landings`, `customer-identity` y
   `external-integration` no se podían activar en la pila). Una instancia que mantenga su propio compose debe
   montar cada plugin de módulo que use; `verify-modules.sh static` lo comprueba sobre el compose del repo.

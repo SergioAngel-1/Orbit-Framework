@@ -34,6 +34,13 @@ export const registerSchema = z.object({
   identity: documentInputSchema.optional(),
   /** Aceptación de términos (módulo `customer-identity`): solo vale `true`. */
   terms_accepted: termsAcceptedField.optional(),
+  /**
+   * Código de referido (`?ref=`, módulo `loyalty`). Opcional: si no viene (o
+   * viene `null`/vacío), el registro usa la cookie `hwe_ref`. Aquí solo se acota
+   * la longitud; el formato se valida en la ruta y un código inválido se ignora
+   * (nunca rechaza el alta).
+   */
+  referral_code: z.string().max(64).nullish(),
 });
 
 export const forgotPasswordSchema = z.object({

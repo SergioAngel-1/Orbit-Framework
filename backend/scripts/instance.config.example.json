@@ -85,6 +85,40 @@
     "enabled": false
   },
 
+  "loyalty": {
+    "_comment": "Módulo hwe-loyalty (monedero de puntos y referidos). Estos son los valores por defecto; los importes numéricos van como texto, igual que los campos `number` del Control Center. Incluye «loyalty» en `modules` para activar el plugin.",
+    "points_enabled": false,
+    "referrals_enabled": false,
+    "currency_name": "punto",
+    "currency_name_plural": "puntos",
+    "currency_icon": "",
+    "point_value": "0.01",
+    "min_redeem": "100",
+    "max_redeem_per_order": "0",
+    "full_payment_enabled": false,
+    "min_cash_due": "0.01",
+    "expiry_days": "0",
+    "cashback_enabled": false,
+    "cashback_percent": "0",
+    "events": {
+      "registration": "0",
+      "review": "0",
+      "birthday": "0"
+    },
+    "referral_signup_points_l1": "0",
+    "referral_signup_points_l2": "0",
+    "commission_first_percent": "0",
+    "commission_next_percent": "0",
+    "level2_enabled": false,
+    "commission_level2_percent": "0",
+    "commission_duration_days": "0",
+    "transfers_enabled": false,
+    "transfer_min": "100",
+    "transfer_fee_percent": "0",
+    "transfer_daily_cap": "0",
+    "allowed_roles": "customer, subscriber"
+  },
+
   "payments": {
     "provider": "noop",
     "gateway_enabled": true,

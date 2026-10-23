@@ -44,9 +44,10 @@ trait Identity {
                         'translatable' => true,
                     ],
                     'url'         => [
-                        'type'   => 'url',
-                        'label'  => 'URL pública del frontend',
-                        'public' => true,
+                        'type'        => 'url',
+                        'label'       => 'URL pública del frontend',
+                        'public'      => true,
+                        'description' => 'Base de las canónicas, el sitemap, el JSON-LD y los enlaces de referido. Vacía = la URL pública del frontend (NEXT_PUBLIC_SITE_URL).',
                     ],
                     'logo'        => [
                         'type'        => 'image',

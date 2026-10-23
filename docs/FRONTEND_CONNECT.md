@@ -100,6 +100,7 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
 |---|---|---|
 | Auth | `POST /api/auth/{login,register,refresh,logout,logout-all}`, `GET /api/auth/me`, `POST /api/auth/{forgot-password,reset-password,verify-email,resend-verification,change-password}`, `POST /api/auth/2fa/{setup,activate,disable,status}`, `POST /api/auth/verify-2fa` | Sesión JWT en cookies httpOnly, 2FA TOTP opcional, verificación de email opcional no bloqueante. `register`, `forgot-password` y `resend-verification` aceptan `locale` (uno de `routing.locales`): el correo y su enlace salen en ese idioma. `verify-email` no exige sesión (el token identifica al usuario). `change-password` cambia la contraseña con `POST hwe/v1/auth/change-password` (solo BFF y con sesión; WordPress verifica la actual y bloquea 15 min tras 5 fallos), cierra las demás sesiones y reemite la de este dispositivo. Con `auth.phone_login_enabled`, `login` acepta el teléfono como usuario y `register` un `phone` E.164 opcional (409 si ya es de otra cuenta). |
 | Tienda | `GET/POST /api/store/cart`, `POST /api/store/cart/items`, `POST /api/store/checkout`, `GET/PUT /api/store/customer`, `GET/POST/DELETE /api/store/coupons`, `GET /api/store/orders/[id]`, `GET /api/store/products`, `GET/POST/DELETE /api/store/wishlist`, `GET/POST /api/store/reviews/[productId]`, `GET/PUT /api/store/addresses`, `GET /api/store/shipping` | Proxy autorizado a la Store API / WC REST v3 de WooCommerce. |
+| Fidelización | `GET /api/loyalty/{summary,transactions,referrals,referral-link,validate-code}`, `POST /api/loyalty/transfer`, `POST/DELETE /api/store/cart/points` | Módulo `loyalty`: monedero y referidos. Ver «Fidelización» más abajo. |
 | Pagos | `POST /api/payments/create`, `POST /api/payments/webhook/[provider]`, `GET /api/payments/return` | Capa agnóstica de pasarela (`lib/payments/`). **La prueba de pago es el webhook verificado, nunca el `return`.** El `returnUrl` opcional de `create` debe ser del propio sitio (origen = `ALLOWED_ORIGIN`; si no, 422). |
 | Webhooks de Woo | `POST /api/webhooks/woocommerce/{order-created,order-updated}` | Firma HMAC verificada, dispara efectos (`lib/woocommerce/order-events.ts`). |
 | Utilidad | `GET /api/csrf`, `GET /api/health` (+`/live`), `POST /api/contact`, `GET /api/og`, `GET /api/icon`, `POST /api/revalidate` | Token CSRF, sondas de salud, formulario de contacto (se entrega por email desde WordPress; con sesión, la identidad sale de la cuenta), imágenes OG/icon dinámicas, revalidación on-demand. |
@@ -182,8 +183,8 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   (`lib/checkout/return-url.ts`), que respeta el idioma de la página; `/checkout/return` repinta
   sola cuando el webhook confirma el pago (`PaymentStatusWatcher`) y ofrece «Pagar ahora».
 - **Puntos de extensión que otros módulos rellenan:** (ver «Envío») destino de envío del carrito (`shipping`, tarea 54), nombres
-  de producto traducidos en `completeStoreCart` (i18n de contenido, tarea 51) y el contexto de
-  medición del pedido (analítica, tarea 44).
+  de producto traducidos en `completeStoreCart` (i18n de contenido, tarea 51), el contexto de
+  medición del pedido (analítica, tarea 44) y el canje de puntos (`loyalty`, ver «Fidelización»).
 
 ### Paquetes por país: dirección, documento y teléfono (mu-plugin `hwe-geo`)
 
@@ -482,6 +483,62 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   carrito cuando el módulo y los cupones están activos: es lo que usa «Cupones disponibles»
   (`CartCouponOffers`) para filtrar por alcance y gasto mínimo/máximo.
 
+### Fidelización: monedero y referidos (módulo `loyalty`)
+
+Un frontend que consuma el módulo `loyalty` (plugin `hwe-loyalty`) tiene este contrato. Todo se
+apaga con `config.modules.loyalty` o con el interruptor de la función (`config.loyalty`), y el BFF
+responde **404** como si la ruta no existiera:
+
+| Ruta | Guarda | Devuelve |
+|---|---|---|
+| `GET /api/loyalty/summary` | Puntos | `{ participant, balance, earned, used, expiring: { points, date }, balance_value }`. `balance_value` es la conversión de presentación (unidades mayores); el descuento real lo calcula WordPress. |
+| `GET /api/loyalty/transactions?page&per_page` | Puntos | `{ items, total, pages }`; cada movimiento lleva `id`, `type`, `points` (con signo), `data`, fechas y `description` ya compuesta en el idioma de la petición. `per_page` se recorta a 1..100. |
+| `GET /api/loyalty/referrals?level=1\|2&page&per_page` | Referidos | `{ items: [{ name, date, status, points_generated }], total, pages, totals: { level1, level2, pending, earned } }`. Solo el nombre visible, nunca ids, email ni login. `level` fuera de `1\|2` es 400. |
+| `GET /api/loyalty/referral-link` | Referidos | `{ code, url }`; `url = <config.brand.url>/?ref=<code>`. Si `brand.url` está vacío, la URL es relativa (`/?ref=…`), como el resto de URLs absolutas del núcleo. |
+| `GET /api/loyalty/validate-code?code=` | Referidos, **pública** | `{ valid }` y nada más; rate-limit por IP. |
+| `POST /api/loyalty/transfer` | Transferencias | `guardMutation` estricto + `Idempotency-Key` obligatoria. Devuelve `{ ok: true, sent, received, fee, recipient_name }` o `{ ok: false, error }`; los motivos de negocio son 422, `conflict` 409, `disabled` 404 y `failed` 502. |
+| `POST /api/store/cart/points` | Puntos | Cuerpo `{ points }` (entero ≥ 0) → update callback de la extensión y carrito recalculado. Exige sesión (401). |
+| `DELETE /api/store/cart/points` | Puntos | Quita el canje (envía 0) y devuelve el carrito. |
+
+- **Sesión y privacidad:** salvo `validate-code`, todas exigen sesión (401 sin ella). El `user_id`
+  sale **siempre** de la sesión verificada; la query y el cuerpo no pueden elegirlo. WordPress se
+  llama por `wpFetch` a las rutas internas `hwe/v1/loyalty/*` (solo con el secreto interno). Un
+  fallo de WordPress es un 5xx tipado (`code`: `unavailable` / `invalid_response`), nunca un saldo
+  0 inventado.
+- **Canje en el carrito:** el navegador solo declara la cantidad. La extensión
+  `extensions["hwe-loyalty"]` publica `{ available, reason, balance, points_applied, discount,
+  max_redeemable, min_redeem, full_payment_available }`. `discount` va en **unidades menores**
+  (string): formatéalo con `formatStoreAmount`. `reason` es `null` si el canje puede aplicarse o
+  `guest` \| `not_participant` \| `disabled` \| `below_minimum` \| `cart_below_cash_minimum`.
+  WordPress recorta la cantidad a saldo, `max_redeem_per_order` y el tope del carrito; con el pago
+  completo apagado, el descuento no cubre el envío ni deja el total por debajo de `min_cash_due`.
+- **Checkout:** si el saldo bajó entre el carrito y la creación del pedido, el checkout responde
+  **409** con `reason: "loyalty_insufficient_points"` y **no crea el pedido**; el reintento cobra
+  lo que el carrito muestra entonces (la cantidad que el cliente vio se descarta). Un fallo de
+  confirmación del canje responde 409 con `loyalty_redeem_failed`. Un pedido en total 0 cubierto
+  por puntos responde `paid_with_points: true`: no llames a `/api/payments/create` ni esperes link;
+  la prueba es la meta `_hwe_loyalty_paid_with_points` del pedido, escrita contra el libro. Pedir
+  pago completo con puntos y `shipping_method_ids` a la vez es **422**
+  (`loyalty_full_payment_with_shipping_extras`).
+- **Después de un canje confirmado** la cantidad pedida se vacía de la sesión de Woo: la siguiente
+  compra no gasta puntos que nadie pidió para ella.
+- **Registro y `?ref=`:** `proxy.ts` deja la cookie httpOnly `hwe_ref` (30 días, `SameSite=Lax`,
+  `Secure` en producción) al llegar a una página con `?ref=<código válido>`; el último código
+  reemplaza al anterior y la URL no cambia. `POST /api/auth/register` acepta `referral_code`
+  opcional (el cuerpo gana a la cookie); tras crear la cuenta atribuye el referido y retira la
+  cookie, y un fallo se registra sin romper el alta. Con el módulo o «Referidos» apagados, ni el
+  cuerpo ni la cookie se leen.
+- **Nombre visible:** la red, el recibo de una transferencia y los movimientos muestran el nombre
+  visible de la otra persona, nunca su login ni su email. La regla está en
+  `HWE_Loyalty_PublicName`: `display_name` solo si no es el login ni un email; si no, nombre de pila
+  e inicial; si no, vacío.
+- **Extensión de la tienda:** el módulo no trae UI. `lib/loyalty/` ofrece los tipos
+  (`LoyaltySummary`, `LoyaltyTransactionPage`, `LoyaltyReferralPage`, `LoyaltyCartExtension`,
+  `LoyaltyTransferResult`…), los helpers puros `pointsToMoney`, `formatPoints`, `maxRedeemable`
+  (solo para mostrar), `parseLoyaltyCartExtension` y `describeEntry`, y los lectores server-only de
+  las rutas. Los nombres de la unidad salen siempre de `config.loyalty.currency_name` /
+  `currency_name_plural` / `currency_icon`; nunca los escribas a mano.
+
 ### Analítica y medición
 
 - **Servicios** (`config.integrations`: `analytics_provider` + `analytics_id`, `gtm_id`,
@@ -623,9 +680,17 @@ ecommerce: { currency, price_decimals, country, products_per_page, reviews_enabl
 i18n:    { locales }                      // idiomas secundarios, p. ej. "en, fr"
 auth:    { phone_login_enabled, phone_default_dial_code }
 modules: { banners, shipping, product-landing, landings, consent-log, site-reviews,
-           coupon-rules, customer-identity, external-integration }   // boolean cada uno
+           coupon-rules, customer-identity, external-integration, loyalty }   // boolean cada uno
 instance: { … }                           // lo que añada la instancia (vacío en el framework)
 banners: { enabled }
+loyalty: { points_enabled, referrals_enabled, currency_name, currency_name_plural, currency_icon,
+           point_value, min_redeem, max_redeem_per_order, full_payment_enabled, min_cash_due,
+           expiry_days, cashback_enabled, cashback_percent,
+           events: { registration, review, birthday },
+           referral_signup_points_l1, referral_signup_points_l2, commission_first_percent,
+           commission_next_percent, level2_enabled, commission_level2_percent,
+           commission_duration_days, transfers_enabled, transfer_min, transfer_fee_percent,
+           transfer_daily_cap }
 integrations: { analytics_provider, analytics_id }
 seo: { title_template, robots, google_site_verification, default_og, og_image, product_brand,
        shipping_amount, return_days, return_category, return_method, return_fees,
@@ -663,6 +728,10 @@ y `/api/store/products?search=` (búsqueda; el listado sin búsqueda sigue sirvi
 - `banners.enabled` — activa/desactiva el renderizado de banners. La autoría de los banners
   vive en el plugin **HWE Banners** (CPT `hwe_banner`, REST `hwe-banners/v1/banners`). Lector
   core: `lib/banners/getBanner(type, location, locale)` con ISR tag `banners`.
+- `loyalty.*` — configuración pública del módulo `loyalty` (nombres de la unidad, valor, topes,
+  eventos, comisiones y transferencias). `allowed_roles` es operativo y **no** se publica. Con el
+  módulo apagado llegan los defaults y las rutas del BFF responden 404; con `points_enabled`
+  apagado, las de puntos; con `referrals_enabled` o `transfers_enabled` apagados, las suyas.
 
 ### Banners — `GET /wp-json/hwe-banners/v1/banners[/{type}]` (módulo `banners`)
 

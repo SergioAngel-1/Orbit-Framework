@@ -86,8 +86,8 @@ los ignora si no vienen en el JSON.
 
 Un módulo es un plugin del framework (`hwe-<id>`) que aporta una funcionalidad que no toda
 tienda necesita. El catálogo es: `banners`, `shipping`, `product-landing`, `landings`,
-`consent-log`, `site-reviews`, `coupon-rules`, `customer-identity` y `external-integration`
-(qué hace cada uno: `docs/CONFIGURATION.md`, «Módulos»).
+`consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`, `external-integration` y
+`loyalty` (qué hace cada uno: `docs/CONFIGURATION.md`, «Módulos»).
 
 `wp hwe setup` **activa los listados en `modules` y desactiva los demás** del catálogo; si el
 JSON no trae la clave, no toca ningún plugin (las instalaciones anteriores conservan su estado).

@@ -1,41 +1,21 @@
 import "server-only";
+import { baseCookieOptions, type CookieOptions } from "./cookie-policy";
 
 // ============================================================================
 //  Opciones centralizadas para las cookies de la aplicación.
 //
-//  Punto único de verdad para los flags de seguridad de cookies. Lo consumirán
-//  los Route Handlers de autenticación (Fase 2) y CSRF (Fase 4). Mantenerlo aquí
-//  evita repetir (y olvidar) flags como `secure` o `sameSite` en cada sitio.
+//  Punto único de verdad para los flags de seguridad de cookies del BFF. La
+//  base (`secure`, `sameSite`, `path`, `httpOnly` y `COOKIE_DOMAIN`) vive en
+//  `cookie-policy.ts`, que también usa `proxy.ts` en edge; aquí solo se ajusta
+//  lo propio de cada cookie. Mantenerlo así evita repetir (y olvidar) flags
+//  como `secure` en cada sitio.
 // ============================================================================
 
-const isProd = process.env.NODE_ENV === "production";
+export type { CookieOptions } from "./cookie-policy";
 
-/** Tipo de las opciones de cookie aceptadas por `next/headers` cookies().set(). */
-export interface CookieOptions {
-  httpOnly: boolean;
-  secure: boolean;
-  sameSite: "lax" | "strict" | "none";
-  path: string;
-  maxAge?: number;
-  domain?: string;
-}
-
-/** Dominio opcional de cookie (subdominios). Vacío = host actual. */
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
-
-/**
- * Opciones base. En producción las cookies son `Secure` (solo HTTPS).
- * `SameSite=Lax` es un buen equilibrio para sesión + navegación normal;
- * los endpoints de escritura se protegen además con CSRF (Fase 4).
- */
+/** Opciones base del framework (las mismas que usa el proxy en edge). */
 function baseOptions(): CookieOptions {
-  return {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "lax",
-    path: "/",
-    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
-  };
+  return baseCookieOptions();
 }
 
 /**
@@ -50,8 +30,8 @@ export function sessionCookieOptions(maxAgeSeconds: number): CookieOptions {
 
 /**
  * Cookie del refresh token. `httpOnly` (inaccesible desde JS) y disponible en
- * todo el sitio (`path: "/"`) para que el middleware pueda auto-refrescar el
- * JWT de acceso en cualquier ruta. `SameSite=Lax` evita su envío en peticiones
+ * todo el sitio (`path: "/"`) para que el proxy pueda auto-refrescar el JWT de
+ * acceso en cualquier ruta. `SameSite=Lax` evita su envío en peticiones
  * cross-site de terceros.
  *
  * @param maxAgeSeconds Vida de la cookie en segundos.
@@ -63,19 +43,12 @@ export function refreshCookieOptions(maxAgeSeconds: number): CookieOptions {
 /**
  * Cookie del token CSRF. A diferencia de las de sesión, NO es httpOnly: el
  * cliente necesita leerla para reenviarla en la cabecera `X-CSRF-Token`
- * (patrón double-submit cookie, Fase 4).
+ * (patrón double-submit cookie).
  *
  * @param maxAgeSeconds Vida de la cookie en segundos.
  */
 export function csrfCookieOptions(maxAgeSeconds: number): CookieOptions {
-  return {
-    httpOnly: false,
-    secure: isProd,
-    sameSite: "lax",
-    path: "/",
-    maxAge: maxAgeSeconds,
-    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
-  };
+  return { ...baseOptions(), httpOnly: false, maxAge: maxAgeSeconds };
 }
 
 /** Opciones para BORRAR una cookie (maxAge 0). */

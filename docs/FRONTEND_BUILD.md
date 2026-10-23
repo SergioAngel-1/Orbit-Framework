@@ -188,6 +188,7 @@ interfaz sin pintar).
 | Quiere que el cliente valore el servicio tras un pedido completado | `site-reviews` | Distinta de la reseña de producto (`reviews_enabled`) |
 | Usa cupones con condiciones (primera compra, ventana, alcance) | `coupon-rules` | Aparte del flag `coupons_enabled` |
 | Necesita documento de identidad o aceptación de términos | `customer-identity` | Tipos de documento y patrones del paquete de país |
+| Quiere fidelizar con puntos y referidos | `loyalty` | Control Center → Fidelización; canje en el carrito y BFF `/api/loyalty/*` (sin UI propia; ver `docs/FRONTEND_CONNECT.md`) |
 | Conecta un ERP u otro sistema que lee pedidos | `external-integration` | IP exacta + contraseña de aplicación; política cerrada |
 
 Además, dos mecanismos **siempre activos** que se declaran en la instancia, sin módulo:

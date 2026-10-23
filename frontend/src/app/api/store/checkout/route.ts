@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { storeFetch } from "@/lib/woocommerce/store-client";
-import { wcFetch } from "@/lib/woocommerce/client";
+import { WooCommerceError, wcFetch } from "@/lib/woocommerce/client";
 import { getSession } from "@/lib/auth/session";
 import { rememberGuestOrder } from "@/lib/checkout/guest-order-cookie";
 import {
@@ -48,15 +48,37 @@ import {
 import { attachIdentity } from "@/lib/customer/identity-api";
 import { getShippingMethods } from "@/lib/shipping";
 import { isModuleEnabled } from "@/lib/config/modules";
+import { parseLoyaltyCartExtension } from "@/lib/loyalty/cart";
+import {
+  loyaltyCheckoutErrorReason,
+  orderPaidWithPoints,
+  type LoyaltyCheckoutErrorReason,
+} from "@/lib/loyalty/checkout";
 import { identityPolicy } from "@/lib/customer/policy";
 import { resolveCheckoutIdentity } from "@/lib/checkout/identity";
 import type {
   StoreCart,
   StoreCheckoutResponse,
   WooCustomer,
+  WooMetaData,
 } from "@/types/woocommerce";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Mensajes de los fallos del canje al crear el pedido. El `reason` es lo que
+ * interpreta el frontend; el texto es solo para mostrar. Ninguno escribe el
+ * nombre de la unidad de fidelización: es configurable por instancia.
+ */
+const LOYALTY_REDEEM_MESSAGE: Record<LoyaltyCheckoutErrorReason, string> = {
+  loyalty_insufficient_points:
+    "El saldo de fidelización cambió y el canje ya no se puede aplicar. Revisa el carrito e inténtalo de nuevo.",
+  loyalty_redeem_failed:
+    "No se pudo confirmar el canje de fidelización. Revisa el carrito e inténtalo de nuevo.",
+};
+
+/** Respuesta del checkout: la de la Store API y la marca de pago con puntos. */
+type CheckoutResponse = StoreCheckoutResponse & { paid_with_points: true };
 
 /**
  * POST /api/store/checkout
@@ -133,6 +155,13 @@ export async function POST(request: Request) {
     );
   }
   const input = { ...parsed.data, ...geo.addresses };
+
+  // Extras de envío elegidos (módulo `shipping`). Se calculan aquí —no después
+  // de crear el pedido— porque un pedido ya pagado con puntos no puede recibir
+  // cargos posteriores: si se piden a la vez, el checkout responde 422.
+  const methodIds = isModuleEnabled(config, "shipping")
+    ? (parsed.data.shipping_method_ids ?? [])
+    : [];
 
   // Medio de pago: solo los del checkout (pago en línea, link por WhatsApp,
   // efectivo), cada uno si está activado en el Control Center. Cualquier otro
@@ -269,12 +298,67 @@ export async function POST(request: Request) {
       );
     }
 
+    // Canje de fidelización: un carrito en total 0 con puntos aplicados no
+    // necesita pago. La prueba definitiva es la meta que escribe WordPress al
+    // confirmar el cargo; aquí solo se decide cómo tratarlo.
+    const loyaltyCart =
+      isModuleEnabled(config, "loyalty") && config.loyalty?.points_enabled === true
+        ? parseLoyaltyCartExtension(cartCheck.data)
+        : null;
+    // El total de la Store API viaja en unidades menores como string. Un
+    // carrito sin total (respuesta incompleta) NO se da por pagado: sin una
+    // prueba de que el canje lo cubre, manda el flujo normal.
+    const totalRaw = cartCheck.data.totals?.total_price;
+    const totalMinor =
+      typeof totalRaw === "string" && totalRaw.trim() !== "" ? Number(totalRaw) : NaN;
+    const paidWithPoints =
+      loyaltyCart !== null &&
+      loyaltyCart.points_applied > 0 &&
+      Number.isFinite(totalMinor) &&
+      totalMinor === 0;
+
+    // Los extras de envío se suman por wc/v3 DESPUÉS de crear el pedido: en un
+    // pedido ya pagado con puntos dejarían importe pendiente. Se rechaza antes
+    // de crear nada (y antes de leer los métodos de envío).
+    if (paidWithPoints && methodIds.length > 0) {
+      if (useIdempotency) await releaseIdempotencyKey(idemKey);
+      logger.warn(
+        {
+          event: "checkout.loyalty_extras_incompatible",
+          userId: session?.userId ?? null,
+          count: methodIds.length,
+        },
+        "Pago completo con fidelización incompatible con extras de envío",
+      );
+      return NextResponse.json(
+        {
+          error:
+            "El pago completo con fidelización no admite extras de envío. Quita los extras e inténtalo de nuevo.",
+          reason: "loyalty_full_payment_with_shipping_extras",
+        },
+        { status: 422 },
+      );
+    }
+
     // Medios que Woo ofrece para ESTE carrito (salen del propio carrito: el
     // `GET /checkout` no los trae y crea un pedido borrador en cada llamada).
     // Lista vacía = desconocida: decide la Store API.
     const available = cartCheck.data.payment_methods ?? [];
     let paymentMethod: string = requestedMethod;
-    if (
+    if (paidWithPoints) {
+      // Total 0 por puntos: Woo deja el pedido pagado por su camino nativo y
+      // ninguna pasarela cobra. Se CONSERVA el medio que pidió el cliente, sin
+      // validarlo ni sustituirlo contra los de Woo: cambiarlo falsearía el
+      // registro del pedido y no hay nada que cobrar. El BFF no crea pago.
+      logger.info(
+        {
+          event: "checkout.loyalty_paid_with_points",
+          userId: session?.userId ?? null,
+          paymentMethod,
+        },
+        "Pedido en total 0 por fidelización: sin pago",
+      );
+    } else if (
       paymentMethod !== ONLINE_PAYMENT_METHOD &&
       available.length > 0 &&
       !available.includes(paymentMethod)
@@ -282,8 +366,7 @@ export async function POST(request: Request) {
       // Efectivo o WhatsApp pedido y Woo no lo ofrece (ajuste desalineado):
       // sustituirlo cambiaría el medio de pago sin que el cliente lo sepa.
       throw new PaymentMethodUnavailableError();
-    }
-    if (available.length > 0 && !available.includes(paymentMethod)) {
+    } else if (available.length > 0 && !available.includes(paymentMethod)) {
       // Nunca `cod` ni WhatsApp: un pago en línea no puede acabar sin cobro.
       const preferred = [ONLINE_PAYMENT_METHOD, "bacs", "cheque"] as const;
       const charging = preferred.find((id) => available.includes(id));
@@ -358,11 +441,27 @@ export async function POST(request: Request) {
       }
     }
 
+    // La prueba de «pagado con puntos» es la meta del pedido, no la extensión del
+    // carrito ni el navegador. Si WordPress no la escribió, se sigue el flujo
+    // normal (pasarela) y se registra la incoherencia.
+    let paidWithPointsConfirmed = false;
+    if (paidWithPoints && data.order_id) {
+      const flag = await readOrderPaidWithPoints(data.order_id);
+      paidWithPointsConfirmed = flag === true;
+      if (flag === false) {
+        logger.error(
+          {
+            event: "checkout.paid_with_points_missing",
+            order_id: data.order_id,
+            userId: session?.userId ?? null,
+          },
+          "El carrito venía pagado con fidelización pero el pedido no tiene la marca",
+        );
+      }
+    }
+
     // Extras de envío (módulo `shipping`): cargos aditivos del pedido. Van ANTES del paso a
     // «En espera», que es el que dispara los correos, y un fallo no pierde el pedido.
-    const methodIds = isModuleEnabled(config, "shipping")
-      ? (parsed.data.shipping_method_ids ?? [])
-      : [];
     if (data.order_id && methodIds.length > 0) {
       try {
         await applyShippingMethodFees(data.order_id, methodIds);
@@ -414,7 +513,12 @@ export async function POST(request: Request) {
     // Link de pago por WhatsApp: el pedido pasa a «En espera» (ver
     // `markOrderAwaitingPaymentLink`), que es lo que dispara los correos. Un
     // fallo aquí no invalida el pedido ya creado: se registra para conciliar.
-    if (data.order_id && paymentMethod === WHATSAPP_PAYMENT_METHOD) {
+    // Un pedido pagado con puntos NO pasa por aquí: no falta ningún pago.
+    if (
+      data.order_id &&
+      paymentMethod === WHATSAPP_PAYMENT_METHOD &&
+      !paidWithPointsConfirmed
+    ) {
       try {
         await markOrderAwaitingPaymentLink(data.order_id);
       } catch (holdError) {
@@ -429,8 +533,14 @@ export async function POST(request: Request) {
       }
     }
 
+    // El frontend usa esta marca para ir directo a la confirmación: no debe
+    // llamar a `/api/payments/create` ni esperar un link de pago.
+    const response: StoreCheckoutResponse | CheckoutResponse = paidWithPointsConfirmed
+      ? { ...data, paid_with_points: true }
+      : data;
+
     if (useIdempotency) {
-      await storeIdempotentResult(idemKey, data, 201);
+      await storeIdempotentResult(idemKey, response, 201);
     }
 
     logger.info(
@@ -439,10 +549,11 @@ export async function POST(request: Request) {
         order_id: data.order_id,
         userId: session?.userId ?? null,
         guest: !session,
+        paid_with_points: paidWithPointsConfirmed,
       },
       "Pedido creado en checkout",
     );
-    return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(response, { status: 201 });
   } catch (error) {
     // Libera la reserva para permitir un reintento legítimo.
     if (useIdempotency) {
@@ -454,11 +565,55 @@ export async function POST(request: Request) {
         { status: 422 },
       );
     }
+    // Errores del canje al crear el pedido: el pedido NO nace con un descuento
+    // sin respaldo. Se devuelve un motivo estable para que el frontend lleve al
+    // cliente al carrito, en vez de un 400 genérico de la Store API.
+    if (error instanceof WooCommerceError) {
+      const reason = loyaltyCheckoutErrorReason(error.code);
+      if (reason) {
+        logger.error(
+          {
+            event: "checkout.loyalty_redeem_error",
+            reason,
+            code: error.code,
+            userId: session?.userId ?? null,
+          },
+          "El canje de fidelización no se pudo confirmar al crear el pedido",
+        );
+        return NextResponse.json(
+          { error: LOYALTY_REDEEM_MESSAGE[reason], reason },
+          { status: 409 },
+        );
+      }
+    }
     logger.error(
       { event: "checkout.error", err: error instanceof Error ? error.message : error },
       "Error en checkout",
     );
     return handleApiError(error);
+  }
+}
+
+/**
+ * Lee la marca de pago con puntos del pedido recién creado (wc/v3).
+ *
+ * Devuelve `null` si no se pudo leer: el checkout sigue el flujo normal y el
+ * fallo queda registrado; nunca se anuncia un pago que no está demostrado.
+ */
+async function readOrderPaidWithPoints(orderId: number): Promise<boolean | null> {
+  try {
+    const order = await wcFetch<{ meta_data?: WooMetaData[] }>(`/orders/${orderId}`);
+    return orderPaidWithPoints(order.meta_data);
+  } catch (error) {
+    logger.error(
+      {
+        event: "checkout.paid_with_points_read_failed",
+        order_id: orderId,
+        err: error instanceof Error ? error.message : error,
+      },
+      "No se pudo leer la marca de pago con fidelización del pedido",
+    );
+    return null;
   }
 }
 

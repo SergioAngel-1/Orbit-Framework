@@ -26,7 +26,7 @@ dos capas que **no debes confundir** (ver `AGENTS.md §1.1`):
 
 - **Núcleo del framework** (se versiona/actualiza como unidad reutilizable): `backend/` (salvo las
   rutas de instancia), `frontend/src/app/api/*` (BFF), `frontend/src/lib/*` (toda la lógica),
-  `frontend/src/proxy.ts`, `frontend/src/components/ui/*` (primitivas sin negocio) y los 9 módulos
+  `frontend/src/proxy.ts`, `frontend/src/components/ui/*` (primitivas sin negocio) y los 10 módulos
   (`backend/wp-content/plugins/hwe-*`).
 - **Responsabilidad de la instancia** — rutas **reservadas**, el framework nunca las toca:
   `backend/wp-content/mu-plugins/instance/`, plugins `hwe-instance-*` y `frontend/src/instance/*`.
@@ -90,9 +90,9 @@ Pasos exactos en `README.md` y `docs/INSTALL.md`.
 ## Backend: qué es código propio
 
 En `backend/wp-content/` solo se versiona lo nuestro (ver `.gitignore`): `mu-plugins/*`, el tema
-vacío `themes/hwe-headless-base/` y los **9 módulos** `plugins/hwe-*` (`banners`, `shipping`,
+vacío `themes/hwe-headless-base/` y los **10 módulos** `plugins/hwe-*` (`banners`, `shipping`,
 `product-landing`, `landings`, `consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`,
-`external-integration`). WooCommerce, WPGraphQL, JWT, etc. los instala `backend/scripts/setup.sh`
+`external-integration`, `loyalty`). WooCommerce, WPGraphQL, JWT, etc. los instala `backend/scripts/setup.sh`
 — **no edites plugins de terceros** en `plugins/`. Un módulo se enciende con la clave `modules` de
 `instance.config.json` (`wp hwe setup` activa los listados y **desactiva los demás**); con él
 apagado, su lector devuelve vacío, sus rutas BFF responden 404 (`requireModule`) y su UI no se

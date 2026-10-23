@@ -87,7 +87,33 @@ final class HWE_Site_Reviews {
 	public static function onStatusChange( $new, $old, $post ): void {
 		if ( $post instanceof WP_Post && $post->post_type === self::POST_TYPE && $new !== $old ) {
 			self::revalidate();
+
+			// Acción estable para el resto del framework: una reseña con autor acaba de
+			// publicarse (al crearla o al republicarla desde la papelera).
+			if ( 'publish' === $new && 'publish' !== $old ) {
+				self::announcePublished( $post );
+			}
 		}
+	}
+
+	/**
+	 * Dispara `hwe_site_review_published( reviewId, userId, orderId )` cuando una reseña con
+	 * autor pasa a publicada. Sin autor no hay a quién atribuirla (no hay nada que anunciar);
+	 * sin pedido no hay evento que fidelizar y se registra (solo ids) en vez de tragárselo.
+	 */
+	private static function announcePublished( WP_Post $post ): void {
+		$userId = (int) $post->post_author;
+		if ( $userId <= 0 ) {
+			return;
+		}
+
+		$orderId = (int) get_post_meta( (int) $post->ID, '_hwe_order_id', true );
+		if ( $orderId <= 0 ) {
+			error_log( '[hwe] site-reviews: la reseña ' . (int) $post->ID . ' no tiene pedido; no se anuncia su publicación.' );
+			return;
+		}
+
+		do_action( 'hwe_site_review_published', (int) $post->ID, $userId, $orderId );
 	}
 
 	// ------------------------------------------------------------------------

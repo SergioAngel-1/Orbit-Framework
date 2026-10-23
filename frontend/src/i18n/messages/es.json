@@ -615,6 +615,37 @@
     "accountOnly": "Exclusivo para clientes con cuenta.",
     "guestHint": "<login>Inicia sesión</login> o <register>crea tu cuenta</register> para usarlo."
   },
+  "loyalty": {
+    "entries": {
+      "cashback": "Devolución de tu compra",
+      "referral_commission_l1": "Comisión por referido de nivel 1",
+      "referral_commission_l2": "Comisión por referido de nivel 2",
+      "referral_product_bonus": "Bono por producto referido",
+      "referral_signup_l1": "Recompensa por el alta de un referido",
+      "referral_signup_l2": "Recompensa por el alta de un referido de nivel 2",
+      "registration": "Recompensa por crear tu cuenta",
+      "review_product": "Recompensa por una reseña de producto",
+      "review_site": "Recompensa por una reseña de la tienda",
+      "review": "Recompensa por una reseña",
+      "birthday": "Recompensa de cumpleaños ({year})",
+      "birthday_no_year": "Recompensa de cumpleaños",
+      "transfer_in": "Transferencia recibida de {name}",
+      "transfer_in_no_name": "Transferencia recibida",
+      "transfer_out": "Transferencia enviada a {name}",
+      "transfer_out_no_name": "Transferencia enviada",
+      "transfer_fee": "Comisión por transferencia a {name}",
+      "transfer_fee_no_name": "Comisión por transferencia",
+      "redeem": "Canje aplicado",
+      "redeem_refund": "Canje devuelto",
+      "earn_reversal": "Ajuste por reversión",
+      "expire": "Saldo caducado",
+      "admin_credit": "Ajuste a tu favor",
+      "admin_debit": "Ajuste en contra",
+      "with_order": "{text} (pedido {order})",
+      "with_note": "{text}: {note}",
+      "unknown": "Movimiento de fidelización"
+    }
+  },
   "llms": {
     "sections": {
       "pages": "Páginas principales",

@@ -63,6 +63,29 @@ describe("fetchRemoteConfig — merge de config remota", () => {
     expect(config.design.colors).toEqual(CONFIG_DEFAULTS.design.colors);
   });
 
+  it("un brand.url vacío en el Control Center cae en el predeterminado y se registra", async () => {
+    // Sin URL, las canónicas, el JSON-LD, el sitemap y el enlace de referido salían relativos.
+    // El predeterminado es la URL pública del propio frontend (`NEXT_PUBLIC_SITE_URL`).
+    mockConfigResponse({ brand: { name: "Mi Tienda", url: "  " } });
+
+    const config = await fetchRemoteConfig();
+
+    expect(config.brand.name).toBe("Mi Tienda");
+    expect(config.brand.url).toBe(CONFIG_DEFAULTS.brand.url);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "site_config.brand_url_default" }),
+      expect.any(String),
+    );
+  });
+
+  it("un brand.url configurado se respeta", async () => {
+    mockConfigResponse({ brand: { url: "https://tienda.example" } });
+
+    const config = await fetchRemoteConfig();
+
+    expect(config.brand.url).toBe("https://tienda.example");
+  });
+
   it("un false remoto desactiva un flag que el default tenía activo", async () => {
     // `false` es un valor, no una ausencia: no debe confundirse con null/undefined.
     // search_enabled es `true` por defecto; con un flag que ya valía false el

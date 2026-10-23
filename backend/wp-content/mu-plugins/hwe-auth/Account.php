@@ -187,6 +187,10 @@ trait HWE_Auth_Account {
         // No da acceso a nada, y con el email verificado /send-verification no emite otro.
         update_user_meta($user_id, 'hwe_email_verified', '1');
 
+        // Acción estable para quien dependa de la verificación (p. ej. los puntos de alta de
+        // referidos). Solo se dispara en la transición real: la rama «ya verificado» sale antes.
+        do_action('hwe_email_verified', $user_id);
+
         return new WP_REST_Response(['ok' => true], 200);
     }
 }

@@ -10,6 +10,7 @@ if (!class_exists('WP_Post')) {
     class WP_Post
     {
         public int $ID = 0;
+        public int $post_author = 0;
         public string $post_type = 'post';
         public string $post_status = 'publish';
         public string $post_title = '';

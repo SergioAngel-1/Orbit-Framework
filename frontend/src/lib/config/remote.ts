@@ -163,6 +163,22 @@ async function attempt(path: string): Promise<Attempt> {
 }
 
 /**
+ * `brand.url` vacío en el Control Center ⇒ el predeterminado del código (`NEXT_PUBLIC_SITE_URL`,
+ * la URL pública de este frontend). El merge deja ganar al remoto también cuando trae `""`, y
+ * sin URL las canónicas, el JSON-LD, el sitemap y el enlace de referido salían relativos. Se
+ * registra: es una instancia sin configurar, no un estado normal.
+ */
+function withBrandUrlDefault(config: SiteConfig): SiteConfig {
+  if (typeof config.brand.url === "string" && config.brand.url.trim() !== "")
+    return config;
+  logger.warn(
+    { event: "site_config.brand_url_default", url: CONFIG_DEFAULTS.brand.url },
+    "brand.url vacío en el Control Center: se usa la URL pública del frontend por defecto",
+  );
+  return { ...config, brand: { ...config.brand, url: CONFIG_DEFAULTS.brand.url } };
+}
+
+/**
  * Obtiene la configuración efectiva del sitio.
  * Fuentes (en orden de prioridad):
  *   1. API REST de WordPress (/wp-json/hwe/v1/config) — con ISR
@@ -184,7 +200,7 @@ export async function fetchRemoteConfig(): Promise<SiteConfig> {
           "Config del sitio recuperada tras reintentar",
         );
       }
-      return deepMerge(CONFIG_DEFAULTS, result.data) as SiteConfig;
+      return withBrandUrlDefault(deepMerge(CONFIG_DEFAULTS, result.data) as SiteConfig);
     }
 
     lastReason = result.reason;
