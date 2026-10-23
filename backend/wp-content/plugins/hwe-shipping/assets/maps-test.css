@@ -1,0 +1,20 @@
+/* «Probar conexión» del Control Center (HWE Shipping). */
+.hwe-maps-test-controls {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	flex-wrap: wrap;
+	margin: 0 0 6px;
+}
+
+.hwe-maps-test-result {
+	margin: 8px 0 0;
+}
+
+.hwe-maps-test-result--ok {
+	color: #1e7e34;
+}
+
+.hwe-maps-test-result--error {
+	color: #b32d2e;
+}

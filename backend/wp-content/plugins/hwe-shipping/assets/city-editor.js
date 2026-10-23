@@ -15,6 +15,88 @@
 	var list = document.getElementById('hwe-shipping-option-list');
 	var addButton = document.getElementById('hwe-shipping-option-add');
 	var template = document.getElementById('hwe-shipping-option-template');
+
+	/**
+	 * «Validar»: geocodifica la dirección de referencia con la ruta del panel y rellena latitud,
+	 * longitud y la dirección resuelta. Latitud y longitud quedan editables para corregirlas a
+	 * mano; el resultado se anuncia en el estado `aria-live` que hay junto al botón.
+	 */
+	(function setupValidate() {
+		var button = document.getElementById('hwe_shipping_city_validate');
+		var address = document.getElementById('hwe_shipping_city_origin_address');
+		var lat = document.getElementById('hwe_shipping_city_origin_lat');
+		var lng = document.getElementById('hwe_shipping_city_origin_lng');
+		var label = document.getElementById('hwe_shipping_city_origin_label');
+		var status = document.getElementById('hwe_shipping_city_validate_status');
+		if (!button || !address || !lat || !lng || !label || !status) {
+			return;
+		}
+
+		function setStatus(message, isError) {
+			status.textContent = message;
+			status.classList.toggle('hwe-shipping-validate-status--error', !!isError);
+		}
+
+		function sync() {
+			button.disabled = address.value.trim() === '';
+		}
+
+		function providerName(provider) {
+			if (provider === 'google_maps') {
+				return 'Google';
+			}
+			if (provider === 'openrouteservice') {
+				return 'OpenRouteService';
+			}
+			if (provider === 'nominatim') {
+				return 'Nominatim (respaldo)';
+			}
+			return 'el proveedor de mapas';
+		}
+
+		function finish() {
+			button.removeAttribute('aria-busy');
+			sync();
+		}
+
+		address.addEventListener('input', function () {
+			setStatus('', false);
+			sync();
+		});
+
+		button.addEventListener('click', function () {
+			var query = address.value.trim();
+			if (query === '') {
+				return;
+			}
+			if (!window.wp || !window.wp.apiFetch) {
+				setStatus('No se pudo cargar el cliente de la API de WordPress; recarga la página.', true);
+				return;
+			}
+
+			button.disabled = true;
+			button.setAttribute('aria-busy', 'true');
+			setStatus('Buscando la dirección…', false);
+
+			window.wp.apiFetch({
+				path: '/hwe-shipping/v1/admin/geocode',
+				method: 'POST',
+				data: { address: query }
+			}).then(function (result) {
+				lat.value = String(result.lat);
+				lng.value = String(result.lng);
+				label.value = result.label || '';
+				setStatus('Dirección validada con ' + providerName(result.provider) + '. Revisa la latitud y la longitud: puedes corregirlas a mano.', false);
+				finish();
+			}, function (error) {
+				setStatus(error && error.message ? error.message : 'No se pudo validar la dirección.', true);
+				finish();
+			});
+		});
+
+		sync();
+	})();
+
 	if (!list || !addButton || !template) {
 		return;
 	}

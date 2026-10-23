@@ -489,7 +489,7 @@ final class ShippingTest extends TestCase
         $schema = SettingsSchema::schema(['shipping' => ['type' => 'group', 'children' => []], 'ecommerce' => ['type' => 'group']]);
 
         $this->assertSame(
-            ['reserve_enabled', 'reserve_name', 'reserve_cost', 'distance_method', 'distance_travel_mode', 'distance_straight_line_increment', 'distance_cache_ttl_hours'],
+            ['reserve_enabled', 'reserve_name', 'reserve_cost', 'distance_method', 'distance_travel_mode', 'distance_straight_line_increment', 'distance_cache_ttl_hours', 'distance_connection_test'],
             array_keys($schema['shipping']['children'])
         );
         $this->assertTrue($schema['shipping']['children']['reserve_enabled']['default']);

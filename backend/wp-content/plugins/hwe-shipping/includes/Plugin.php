@@ -5,6 +5,9 @@ namespace HWE\Shipping;
 use HWE\Shipping\Admin\CityAssets;
 use HWE\Shipping\Admin\CityErrors;
 use HWE\Shipping\Admin\LegacyNotice;
+use HWE\Shipping\Admin\MapsAdminApi;
+use HWE\Shipping\Admin\MapsNotices;
+use HWE\Shipping\Admin\MapsTestType;
 use HWE\Shipping\Rates\Cities;
 
 /**
@@ -24,6 +27,15 @@ class Plugin {
 		}
 		Save::register();
 		RestApi::register();
+		// Las rutas de wp-admin son REST (fuera de `is_admin()`); los avisos y el tipo de campo
+		// solo se pintan en admin, pero su registro es incondicional para no depender del orden.
+		MapsAdminApi::register();
+		MapsNotices::register();
+		// El tipo de campo extiende una interfaz del Control Center: sin él (instalación a medias)
+		// se omite en vez de intentar cargar una clase que no puede declararse.
+		if ( interface_exists( \HWE\ControlCenter\FieldTypes\FieldType::class ) ) {
+			MapsTestType::register();
+		}
 		Revalidation::register();
 		ShippingCost::register();
 		FreeShipping::register();

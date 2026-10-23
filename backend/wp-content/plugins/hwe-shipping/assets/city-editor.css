@@ -33,3 +33,13 @@
 	align-items: center;
 	margin: 6px 0 0;
 }
+
+.hwe-shipping-city .hwe-shipping-validate-status {
+	display: inline-block;
+	margin-left: 8px;
+	color: #50575e;
+}
+
+.hwe-shipping-city .hwe-shipping-validate-status--error {
+	color: #b32d2e;
+}

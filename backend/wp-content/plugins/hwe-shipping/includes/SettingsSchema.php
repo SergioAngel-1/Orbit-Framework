@@ -2,6 +2,7 @@
 
 namespace HWE\Shipping;
 
+use HWE\Shipping\Admin\MapsTestType;
 use HWE\Shipping\Distance\Settings;
 
 /**
@@ -80,6 +81,11 @@ class SettingsSchema {
 				'default'     => Settings::DEFAULT_CACHE_TTL_HOURS,
 				'min'         => 1,
 				'description' => 'Horas que se guarda una distancia calculada antes de volver a pedirla.',
+			),
+			'distance_connection_test'         => array(
+				'type'        => MapsTestType::ID,
+				'label'       => 'Distancia — Probar conexión',
+				'description' => 'Hace una llamada real al proveedor de Integraciones → Mapas con la dirección que escribas (no se guarda nada): comprueba que la clave y las APIs responden.',
 			),
 		);
 		return $schema;

@@ -11,8 +11,10 @@ namespace HWE\Shipping\Distance;
  * - Un 200 con cuerpo que no es JSON es `provider_unavailable`, nunca un resultado vacío.
  * - La clave la pone quien llama, en una cabecera. Este helper no la toca ni la registra.
  *
- * Los errores llevan el estado HTTP en `data.status` para que el proveedor pueda decidir (p. ej.
- * un 404 de ruta en OpenRouteService).
+ * Los errores llevan el estado HTTP en `data.status` y, cuando el proveedor lo da en su cuerpo
+ * estructurado, el motivo corto en `data.reason` (p. ej. el `SERVICE_DISABLED` de Google). Ni el
+ * mensaje crudo ni la clave salen de aquí; el motivo sirve para distinguir «clave rechazada» de
+ * «API no habilitada» en la prueba de conexión de wp-admin.
  */
 final class ProviderHttp {
 
@@ -82,17 +84,50 @@ final class ProviderHttp {
 		);
 	}
 
-	/** Código estable para un error del proveedor. El estado y el estado textual de Google mandan. */
+	/**
+	 * Código estable para un error del proveedor. El estado, el estado textual de Google y el
+	 * motivo estructurado (`error.details[].reason`) mandan sobre el resto.
+	 *
+	 * Un `API_KEY_INVALID` llega con HTTP 400 pero es una clave rechazada; tratarlo como caída del
+	 * servicio haría que la prueba de conexión diera una pista equivocada.
+	 */
 	public static function httpError( int $status, mixed $body ): \WP_Error {
-		$text = is_array( $body ) && is_array( $body['error'] ?? null ) ? (string) ( $body['error']['status'] ?? '' ) : '';
+		$error  = is_array( $body ) && is_array( $body['error'] ?? null ) ? $body['error'] : array();
+		$text   = (string) ( $error['status'] ?? '' );
+		$reason = self::reason( $error );
+		$data   = array(
+			'status' => $status,
+			'reason' => $reason,
+		);
 
-		if ( in_array( $status, array( 401, 403 ), true ) || in_array( $text, array( 'PERMISSION_DENIED', 'UNAUTHENTICATED' ), true ) ) {
-			return new \WP_Error( 'provider_unauthorized', 'El proveedor de mapas rechazó la clave o el servicio no está habilitado.', array( 'status' => $status ) );
+		if ( 'API_KEY_INVALID' === $reason || in_array( $status, array( 401, 403 ), true ) || in_array( $text, array( 'PERMISSION_DENIED', 'UNAUTHENTICATED' ), true ) ) {
+			return new \WP_Error( 'provider_unauthorized', 'El proveedor de mapas rechazó la clave o el servicio no está habilitado.', $data );
 		}
 		if ( 429 === $status || 'RESOURCE_EXHAUSTED' === $text ) {
-			return new \WP_Error( 'provider_rate_limited', 'El proveedor de mapas alcanzó su límite de uso.', array( 'status' => $status ) );
+			return new \WP_Error( 'provider_rate_limited', 'El proveedor de mapas alcanzó su límite de uso.', $data );
 		}
 
-		return new \WP_Error( 'provider_unavailable', 'El proveedor de mapas no está disponible en este momento.', array( 'status' => $status ) );
+		return new \WP_Error( 'provider_unavailable', 'El proveedor de mapas no está disponible en este momento.', $data );
+	}
+
+	/**
+	 * Motivo corto del error estructurado del proveedor (`error.details[]`). Solo letras, números y
+	 * guion bajo: nunca se reenvía el mensaje libre, que puede traer datos de la petición.
+	 *
+	 * @param array<mixed> $error Nodo `error` del cuerpo del proveedor.
+	 */
+	private static function reason( array $error ): string {
+		$details = $error['details'] ?? null;
+		if ( ! is_array( $details ) ) {
+			return '';
+		}
+		foreach ( $details as $detail ) {
+			$value = is_array( $detail ) ? ( $detail['reason'] ?? null ) : null;
+			if ( is_string( $value ) && '' !== trim( $value ) ) {
+				$clean = preg_replace( '/[^A-Za-z0-9_]/', '', trim( $value ) );
+				return strtoupper( is_string( $clean ) ? $clean : '' );
+			}
+		}
+		return '';
 	}
 }

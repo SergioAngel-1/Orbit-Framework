@@ -95,6 +95,7 @@ class MetaBoxes {
 					<label for="hwe_shipping_city_origin_address"><?php esc_html_e( 'Dirección', 'hwe-shipping' ); ?></label><br>
 					<input type="text" class="regular-text" id="hwe_shipping_city_origin_address" name="hwe_shipping_city_origin_address" value="<?php echo esc_attr( $address ); ?>">
 					<button type="button" class="button" id="hwe_shipping_city_validate" disabled data-hwe-validate><?php esc_html_e( 'Validar', 'hwe-shipping' ); ?></button>
+					<span class="description hwe-shipping-validate-status" id="hwe_shipping_city_validate_status" role="status" aria-live="polite"></span>
 				</p>
 				<p class="hwe-field hwe-shipping-fields">
 					<label for="hwe_shipping_city_origin_lat"><?php esc_html_e( 'Latitud', 'hwe-shipping' ); ?></label>

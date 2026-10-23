@@ -146,7 +146,7 @@ final class DistanceSettingsTest extends TestCase
         $children = $schema['shipping']['children'];
 
         $this->assertSame(
-            ['reserve_enabled', 'reserve_name', 'reserve_cost', 'distance_method', 'distance_travel_mode', 'distance_straight_line_increment', 'distance_cache_ttl_hours'],
+            ['reserve_enabled', 'reserve_name', 'reserve_cost', 'distance_method', 'distance_travel_mode', 'distance_straight_line_increment', 'distance_cache_ttl_hours', 'distance_connection_test'],
             array_keys($children)
         );
         $this->assertSame('straight_line', $children['distance_method']['default']);

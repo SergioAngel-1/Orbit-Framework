@@ -173,15 +173,17 @@ final class DistanceService {
 	/** @return GeocodeResult[]|\WP_Error */
 	private static function geocodeChain( string $query, string $country, string $language ): array|\WP_Error {
 		if ( Settings::mapsConfigured() ) {
-			$id     = Settings::mapsProvider();
-			$result = self::guarded( $id, static fn (): mixed => ( self::providers()[ $id ] ?? null )?->geocode( $query, $country, $language ) ?? self::missing() );
-			if ( is_array( $result ) && array() !== $result ) {
-				return $result;
+			$id      = Settings::mapsProvider();
+			$result  = self::guarded( $id, static fn (): mixed => ( self::providers()[ $id ] ?? null )?->geocode( $query, $country, $language ) ?? self::missing() );
+			$results = is_array( $result ) ? self::stamp( $result, $id ) : array();
+			if ( array() !== $results ) {
+				return $results;
 			}
 			self::logGeocodingFallback( $id, $result );
 		}
 
-		return ( new StraightLineProvider() )->geocode( $query, $country, $language );
+		$fallback = ( new StraightLineProvider() )->geocode( $query, $country, $language );
+		return is_array( $fallback ) ? self::stamp( $fallback, self::NOMINATIM_ID ) : $fallback;
 	}
 
 	private static function reverseChain( GeoPoint $point, string $language ): GeocodeResult|\WP_Error {
@@ -189,12 +191,30 @@ final class DistanceService {
 			$id     = Settings::mapsProvider();
 			$result = self::guarded( $id, static fn (): mixed => ( self::providers()[ $id ] ?? null )?->reverse( $point, $language ) ?? self::missing() );
 			if ( $result instanceof GeocodeResult ) {
-				return $result;
+				return $result->withProvider( $id );
 			}
 			self::logGeocodingFallback( $id, $result );
 		}
 
-		return ( new StraightLineProvider() )->reverse( $point, $language );
+		$fallback = ( new StraightLineProvider() )->reverse( $point, $language );
+		return $fallback instanceof GeocodeResult ? $fallback->withProvider( self::NOMINATIM_ID ) : $fallback;
+	}
+
+	/**
+	 * Marca cada candidato con el proveedor que respondió. Un resultado que no sea `GeocodeResult`
+	 * (un proveedor de un filtro puede devolver cualquier cosa) se descarta en vez de romper.
+	 *
+	 * @param array<mixed> $results
+	 * @return GeocodeResult[]
+	 */
+	private static function stamp( array $results, string $provider ): array {
+		$stamped = array();
+		foreach ( $results as $result ) {
+			if ( $result instanceof GeocodeResult ) {
+				$stamped[] = $result->withProvider( $provider );
+			}
+		}
+		return $stamped;
 	}
 
 	/**
@@ -224,7 +244,7 @@ final class DistanceService {
 	}
 
 	/** Idioma principal del sitio (`brand.locale`), o el del WordPress, en minúsculas. */
-	private static function language(): string {
+	public static function language(): string {
 		$locale = class_exists( 'HWE\\ControlCenter\\Storage' ) ? \HWE\ControlCenter\Storage::get( array( 'brand', 'locale' ) ) : null;
 		if ( ! is_string( $locale ) || '' === trim( $locale ) ) {
 			$locale = get_locale();
@@ -272,13 +292,14 @@ final class DistanceService {
 		}
 	}
 
-	/** @return array{lat:float,lng:float,label:string,precision:string} */
+	/** @return array{lat:float,lng:float,label:string,precision:string,provider:string} */
 	private static function geocodeToArray( GeocodeResult $result ): array {
 		return array(
 			'lat'       => $result->point()->lat(),
 			'lng'       => $result->point()->lng(),
 			'label'     => $result->label(),
 			'precision' => $result->precision(),
+			'provider'  => $result->provider(),
 		);
 	}
 
@@ -288,7 +309,12 @@ final class DistanceService {
 		if ( null === $point ) {
 			return null;
 		}
-		return new GeocodeResult( $point, (string) ( $data['label'] ?? '' ), (string) ( $data['precision'] ?? '' ) );
+		return new GeocodeResult(
+			$point,
+			(string) ( $data['label'] ?? '' ),
+			(string) ( $data['precision'] ?? '' ),
+			(string) ( $data['provider'] ?? '' )
+		);
 	}
 
 	/**

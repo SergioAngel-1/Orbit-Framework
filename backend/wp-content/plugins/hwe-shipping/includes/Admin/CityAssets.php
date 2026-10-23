@@ -24,7 +24,8 @@ class CityAssets {
 		$url  = plugins_url( 'assets', $main );
 
 		wp_enqueue_style( 'hwe-shipping-city', $url . '/city-editor.css', [], self::version( 'assets/city-editor.css' ) );
-		wp_enqueue_script( 'hwe-shipping-city', $url . '/city-editor.js', [], self::version( 'assets/city-editor.js' ), true );
+		// `wp-api-fetch` pone la raíz y el nonce de `wp_rest`: «Validar» llama a la ruta del panel.
+		wp_enqueue_script( 'hwe-shipping-city', $url . '/city-editor.js', [ 'wp-api-fetch' ], self::version( 'assets/city-editor.js' ), true );
 	}
 
 	/** Versión para cache-busting: la del plugin más la fecha del archivo. */
