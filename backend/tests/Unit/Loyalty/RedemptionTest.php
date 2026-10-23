@@ -11,6 +11,7 @@ use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 require_once dirname(__DIR__, 2) . '/Stubs/wc-cart.php';
+require_once dirname(__DIR__, 2) . '/Stubs/wc-store-api.php';
 require_once dirname(__DIR__, 2) . '/Stubs/wc-order.php';
 
 /**
@@ -280,6 +281,32 @@ final class RedemptionTest extends TestCase
 
     // ── Update callback y contrato de la extensión ──────────────────────────
 
+    public function test_store_api_extension_registers_even_if_blocks_already_loaded(): void
+    {
+        // El módulo arranca en `plugins_loaded` (prioridad 20), DESPUÉS de que WooCommerce
+        // dispare `woocommerce_blocks_loaded`: engancharse a esa acción llega tarde y la
+        // extensión no se registraría nunca (visto en la pila real: «There is no such
+        // namespace registered: hwe-loyalty»).
+        Functions\when('did_action')->alias(
+            static fn (string $hook): int => 'woocommerce_blocks_loaded' === $hook ? 1 : 0
+        );
+        $registered = [];
+        Functions\when('woocommerce_store_api_register_endpoint_data')->alias(
+            static function (array $args) use (&$registered): void {
+                $registered[] = 'data:' . $args['namespace'];
+            }
+        );
+        Functions\when('woocommerce_store_api_register_update_callback')->alias(
+            static function (array $args) use (&$registered): void {
+                $registered[] = 'update:' . $args['namespace'];
+            }
+        );
+
+        \HWE_Loyalty_Redemption::register();
+
+        $this->assertSame(['data:hwe-loyalty', 'update:hwe-loyalty'], $registered);
+    }
+
     public function test_update_callback_stores_the_requested_points_in_the_woocommerce_session(): void
     {
         $this->credit(500);
@@ -399,7 +426,7 @@ final class RedemptionTest extends TestCase
         \HWE_Loyalty_Redemption::applyFee($cart);
 
         $this->assertSame(10.0, $this->feeDiscount($cart), 'El envío (5) queda por pagar.');
-        $this->assertSame(5.0, $cart->get_total());
+        $this->assertSame(5.0, $cart->get_total('edit'));
         $state = \HWE_Loyalty_Redemption::cartState();
         $this->assertSame(1000, $state['points_applied']);
         $this->assertSame('1000', $state['discount']);
@@ -414,7 +441,7 @@ final class RedemptionTest extends TestCase
         \HWE_Loyalty_Redemption::applyFee($cart);
 
         $this->assertSame(9.0, $this->feeDiscount($cart), 'Debe quedar 1.00 por pagar en dinero.');
-        $this->assertSame(1.0, $cart->get_total());
+        $this->assertSame(1.0, $cart->get_total('edit'));
     }
 
     public function test_a_cart_below_the_cash_minimum_cannot_redeem(): void
@@ -442,7 +469,7 @@ final class RedemptionTest extends TestCase
         \HWE_Loyalty_Redemption::applyFee($cart);
 
         $this->assertSame(15.0, $this->feeDiscount($cart));
-        $this->assertSame(0.0, $cart->get_total());
+        $this->assertSame(0.0, $cart->get_total('edit'));
         $state = \HWE_Loyalty_Redemption::cartState();
         $this->assertSame(1500, $state['points_applied']);
         $this->assertSame('1500', $state['discount']);
@@ -477,7 +504,7 @@ final class RedemptionTest extends TestCase
         $state = \HWE_Loyalty_Redemption::cartState();
 
         $this->assertSame(10.0, $this->feeDiscount($cart));
-        $this->assertSame(0.0, $cart->get_total());
+        $this->assertSame(0.0, $cart->get_total('edit'));
         $this->assertSame(333, $state['points_applied'], '333 × 0.03 = 9.99; el céntimo que falta es bonus.');
         $this->assertSame('1000', $state['discount']);
     }
@@ -661,6 +688,57 @@ final class RedemptionTest extends TestCase
         $this->assertSame([], $order->get_fees(), 'El pedido no puede quedarse con un descuento sin respaldo.');
         $this->assertSame('', (string) $order->get_meta('_fees_hash'), 'El reintento debe recrear los fees desde el carrito.');
         $this->assertSame(100.0, $order->get_total());
+    }
+
+    public function test_order_creation_fails_when_the_checkout_recalculation_already_dropped_the_fee(): void
+    {
+        // Lo que pasa en la Store API real: el checkout recalcula el carrito ANTES de crear el
+        // pedido, `applyFee` recorta al saldo vivo (0) y el pedido nace sin fee. El cliente vio
+        // un descuento: el checkout tiene que fallar con motivo claro, no cobrar el precio
+        // completo en silencio (Foco 1, visto en la pila real).
+        $this->credit(100);
+        $this->requestPoints(100);
+        \HWE_Loyalty_Redemption::applyFee($this->makeCart(50.0));
+        $this->assertSame(100, \HWE_Loyalty_Redemption::cartState()['points_applied']);
+
+        \HWE_Loyalty_Ledger::debit(self::USER, 100, 'admin_debit', 'concurrent:2');
+        $order = $this->makeOrder(56, [
+            'items' => [$this->lineItem(50.0)],
+            'fees'  => [],
+            'total' => 50.0,
+        ]);
+
+        try {
+            \HWE_Loyalty_Redemption::confirmOrder($order);
+            $this->fail('El checkout debía fallar: el descuento que vio el cliente ya no tiene respaldo.');
+        } catch (RouteException $error) {
+            $this->assertSame('hwe_loyalty_insufficient_points', $error->getErrorCode());
+        }
+
+        $this->assertNull($this->entryWithKey('redeem:order:56'));
+        $this->assertSame([], $order->get_fees());
+    }
+
+    public function test_a_confirmed_redemption_clears_the_requested_points_for_the_next_cart(): void
+    {
+        $this->credit(500);
+        $this->requestPoints(100);
+        \HWE_Loyalty_Redemption::applyFee($this->makeCart(100.0));
+        \HWE_Loyalty_Redemption::cartState();
+        $order = $this->makeOrder(57, [
+            'items' => [$this->lineItem(100.0)],
+            'fees'  => [$this->feeItem(100, 1.0)],
+            'total' => 99.0,
+        ]);
+
+        \HWE_Loyalty_Redemption::confirmOrder($order);
+
+        $this->assertNotNull($this->entryWithKey('redeem:order:57'));
+        // La siguiente compra no puede gastar puntos que el cliente no ha pedido para ella.
+        $this->assertSame(0, \HWE_Loyalty_Redemption::requestedPoints());
+        $next = $this->makeCart(100.0);
+        \HWE_Loyalty_Redemption::applyFee($next);
+        $this->assertSame([], $next->get_fees());
     }
 
     public function test_resending_the_same_draft_does_not_debit_twice(): void

@@ -112,14 +112,22 @@ namespace {
                 return $total;
             }
 
-            public function get_total(): float
+            /**
+             * Como `WC_Cart::get_total()`: en contexto `view` (el de por defecto) devuelve el
+             * precio formateado en HTML (`wc_price`), no un número; el importe es `'edit'`.
+             */
+            public function get_total(string $context = 'view'): float|string
             {
-                return max(
+                $total = max(
                     0.0,
                     $this->cart_contents_total + $this->cart_contents_tax
                     + $this->shipping_total + $this->shipping_tax
                     + $this->get_fee_total() + $this->get_fee_tax()
                 );
+
+                return 'view' === $context
+                    ? '<span class="woocommerce-Price-amount amount"><bdi>' . number_format($total, 2, ',', '.') . '&nbsp;&euro;</bdi></span>'
+                    : $total;
             }
         }
     }

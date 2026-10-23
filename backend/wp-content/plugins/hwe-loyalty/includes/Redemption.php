@@ -72,6 +72,14 @@ final class HWE_Loyalty_Redemption {
 	/** Clave de la sesión de WooCommerce con los puntos pedidos. */
 	public const SESSION_KEY = 'hwe_loyalty_points';
 
+	/**
+	 * Puntos aplicados la última vez que el cliente VIO el carrito (`cartState`). El checkout
+	 * recalcula el carrito antes de crear el pedido y `applyFee` recorta al saldo vivo: sin
+	 * esto, un saldo que bajó entremedias borraría el fee y el pedido saldría a precio completo
+	 * sin aviso (Foco 1).
+	 */
+	public const SHOWN_SESSION_KEY = 'hwe_loyalty_points_shown';
+
 	/** Prefijo del nombre visible del fee (y de las líneas de fee del pedido). */
 	public const FEE_PREFIX = 'Descuento de fidelización: ';
 
@@ -92,7 +100,13 @@ final class HWE_Loyalty_Redemption {
 
 	/** Engancha la extensión, el fee, la confirmación y la devolución. */
 	public static function register(): void {
-		add_action( 'woocommerce_blocks_loaded', array( self::class, 'registerStoreApi' ) );
+		// `HWE_Loyalty::boot()` corre en `plugins_loaded` (prioridad 20), después de que
+		// WooCommerce dispare `woocommerce_blocks_loaded`: si ya ocurrió, se registra en el acto.
+		if ( function_exists( 'did_action' ) && did_action( 'woocommerce_blocks_loaded' ) ) {
+			self::registerStoreApi();
+		} else {
+			add_action( 'woocommerce_blocks_loaded', array( self::class, 'registerStoreApi' ) );
+		}
 		add_action( 'woocommerce_cart_calculate_fees', array( self::class, 'applyFee' ) );
 		add_action( 'woocommerce_store_api_checkout_order_processed', array( self::class, 'confirmOrder' ) );
 		add_action( 'woocommerce_order_status_cancelled', array( self::class, 'onOrderCancelled' ) );
@@ -106,7 +120,7 @@ final class HWE_Loyalty_Redemption {
 
 	/**
 	 * Declara `extensions.hwe-loyalty` en el carrito y el update callback del namespace.
-	 * Lo llama el hook `woocommerce_blocks_loaded` de WooCommerce Blocks.
+	 * Lo llama `register()`: en el acto o en `woocommerce_blocks_loaded` si aún no ocurrió.
 	 */
 	public static function registerStoreApi(): void {
 		if ( function_exists( 'woocommerce_store_api_register_endpoint_data' ) ) {
@@ -175,7 +189,8 @@ final class HWE_Loyalty_Redemption {
 		}
 
 		$loyaltyDiscount = self::cartLoyaltyDiscount( $cart );
-		$total           = (float) $cart->get_total();
+		// `'edit'`: en el contexto por defecto (`view`) WooCommerce devuelve el HTML de `wc_price`.
+		$total           = (float) $cart->get_total( 'edit' );
 		$totalWithout    = max( 0.0, $total + $loyaltyDiscount );
 		$shipping        = (float) $cart->get_shipping_total() + (float) $cart->get_shipping_tax();
 		$items           = max( 0.0, $totalWithout - $shipping );
@@ -198,6 +213,11 @@ final class HWE_Loyalty_Redemption {
 			),
 			$settings
 		);
+
+		$session = self::session();
+		if ( null !== $session ) {
+			$session->set( self::SHOWN_SESSION_KEY, (int) $state['points_applied'] );
+		}
 
 		return array(
 			'available'              => (bool) $state['available'],
@@ -356,15 +376,20 @@ final class HWE_Loyalty_Redemption {
 			}
 			self::syncOrderDiscount( $order, $metaPoints, $discount, $settings );
 			self::writeOrderMetas( $order, $metaPoints, $discount, self::currentAttempt( $order ), $settings, false );
+			self::forgetRequest();
 			return;
 		}
 
 		$userId      = (int) $order->get_customer_id();
 		$active      = HWE_Loyalty_Settings::redeemActive();
 		$feeDiscount = self::orderLoyaltyDiscount( $order );
-		// El fee que la Store API copió del carrito es la fuente de verdad del canje aplicado:
-		// la sesión solo sirve para el recálculo del carrito. Si no hay fee, no hay canje.
-		$requested = self::pointsForDiscount( $feeDiscount, (float) $settings['point_value'] );
+		// El canje que se confirma es el que el cliente vio: el fee copiado del carrito o, si el
+		// recálculo del checkout ya lo recortó por saldo, los puntos que vio aplicados. Sin
+		// ninguno de los dos, no hay canje.
+		$requested = max(
+			self::pointsForDiscount( $feeDiscount, (float) $settings['point_value'] ),
+			self::shownPoints()
+		);
 
 		if ( ! $active || $userId <= 0 ) {
 			self::removeOrderDiscount( $order, $settings );
@@ -432,6 +457,7 @@ final class HWE_Loyalty_Redemption {
 					: self::money( $points * (float) $settings['point_value'] );
 				self::syncOrderDiscount( $order, $points, $discount, $settings );
 				self::writeOrderMetas( $order, $points, $discount, $attempt, $settings );
+				self::forgetRequest();
 				return;
 			}
 
@@ -449,6 +475,7 @@ final class HWE_Loyalty_Redemption {
 
 		self::syncOrderDiscount( $order, (int) $desired['points_applied'], (float) $desired['discount'], $settings );
 		self::writeOrderMetas( $order, (int) $desired['points_applied'], (float) $desired['discount'], $attempt, $settings );
+		self::forgetRequest();
 	}
 
 	// ------------------------------------------------------------------------
@@ -933,6 +960,30 @@ final class HWE_Loyalty_Redemption {
 	// ------------------------------------------------------------------------
 
 	/** Puntos pedidos por el cliente (0 si no hay sesión, programa apagado o valor inválido). */
+	/** Puntos que el cliente vio aplicados en su último carrito (ver `SHOWN_SESSION_KEY`). */
+	private static function shownPoints(): int {
+		$session = self::session();
+		if ( null === $session ) {
+			return 0;
+		}
+
+		return self::normalizePoints( $session->get( self::SHOWN_SESSION_KEY, 0 ) ) ?? 0;
+	}
+
+	/**
+	 * Canje confirmado: la petición se vacía para que la siguiente compra no gaste puntos que
+	 * el cliente no ha pedido para ella.
+	 */
+	private static function forgetRequest(): void {
+		$session = self::session();
+		if ( null === $session ) {
+			return;
+		}
+
+		$session->set( self::SESSION_KEY, 0 );
+		$session->set( self::SHOWN_SESSION_KEY, 0 );
+	}
+
 	public static function requestedPoints(): int {
 		if ( ! HWE_Loyalty_Settings::pointsActive() ) {
 			return 0;
