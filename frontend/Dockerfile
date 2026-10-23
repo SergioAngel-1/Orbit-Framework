@@ -133,9 +133,10 @@ RUN mkdir -p .next/cache/images && chown -R nextjs:nodejs .next/cache
 USER nextjs
 EXPOSE 3000
 
-# Healthcheck nativo de la imagen (independiente del de compose).
+# Healthcheck nativo de la imagen (independiente del de compose). Liveness: no
+# toca Redis ni WordPress (la readiness la decide el despliegue con ?ready=1).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://localhost:3000/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "server.js"]
 

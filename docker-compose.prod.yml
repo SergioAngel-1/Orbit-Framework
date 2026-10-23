@@ -91,6 +91,15 @@ services:
         condition: service_healthy
       wordpress:
         condition: service_healthy
+    healthcheck:
+      # La API de administración escucha solo en loopback y no toca el sitio:
+      # comprueba que Caddy está vivo y ha cargado su configuración, sin
+      # depender de que el upstream responda.
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     networks:
       - hwe_net
     deploy:
@@ -223,7 +232,10 @@ services:
       # next/image por la red interna, sin pasar por Caddy). Ver el propio archivo.
       - ./backend/config/apache-headers.conf:/etc/apache2/conf-enabled/zz-hwe-headers.conf:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/wp-json/ || exit 1"]
+      # Endpoint LIGERO (una categoría) en lugar de `/wp-json/`, que con
+      # WooCommerce devuelve >1 MB y arranca PHP entero cada 30 s. Mismo criterio
+      # que en desarrollo.
+      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/wp-json/wp/v2/categories?per_page=1 || exit 1"]
       interval: 30s
       timeout: 10s
       start_period: 90s
@@ -394,11 +406,17 @@ services:
       # con el dueño correcto; ver frontend/Dockerfile). Es OTRA que la ISR.
       - next_image_cache:/app/.next/cache/images
     healthcheck:
+      # Liveness puro (`/api/health`) devuelve 200 aunque Redis y WordPress estén
+      # caídos y hace dos pings de red cada 30 s: como sonda de contenedor, mide
+      # otra cosa. `/api/health/live` solo comprueba que el proceso responde; la
+      # readiness real (`?ready=1`) la exige el gate del despliegue.
       test:
-        - "CMD"
-        - "node"
-        - "-e"
-        - "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 5s
       start_period: 40s

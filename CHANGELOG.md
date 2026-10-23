@@ -16,6 +16,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   y el presupuesto real (10 + 104 + 6 × 60 = 474 MB de 512) está documentado en
   `docs/RUNBOOK.md` §5. `tests/unit/apache-mpm.test.ts` lee también `opcache.ini`, `uploads.ini`
   y el límite del compose: subir uno sin recalcular los demás ahora falla.
+- **Sondas de salud que miden lo que dicen medir.** El healthcheck del frontend (dev y prod)
+  llamaba a `/api/health`, que devuelve 200 aunque Redis y WordPress estén caídos y que hace dos
+  pings de red cada 30 s: ahora usa `/api/health/live` (liveness puro) y la readiness estricta
+  (`?ready=1`) sigue en el gate del despliegue. El de WordPress en producción pedía `/wp-json/`
+  (>1 MB con WooCommerce y arranque PHP completo cada 30 s) y pasa al endpoint ligero que ya
+  usaba desarrollo (`/wp-json/wp/v2/categories?per_page=1`). Caddy estrena sonda propia contra
+  su API de administración (loopback).
 
 ### Security
 - **Los límites de GraphQL no se aplicaban.** `graphql-protection.php` enganchaba

@@ -303,13 +303,16 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     healthcheck:
-      # Usa el fetch global de Node 24 (sin curl/wget) contra la sonda /api/health.
+      # Liveness puro: /api/health devuelve 200 aunque Redis/WP estén caídos, así
+      # que como sonda de contenedor medía otra cosa. El proceso vivo es lo único
+      # que debe reiniciar el contenedor; la readiness la comprueba el despliegue.
+      # Usa el fetch global de Node 24 (sin curl/wget).
       test:
         [
           "CMD",
           "node",
           "-e",
-          "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://localhost:3000/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 30s
       timeout: 5s

@@ -199,6 +199,32 @@ describe("docker-compose.prod.yml: hardening", () => {
   });
 });
 
+describe("sondas de salud: miden lo que dicen medir", () => {
+  // `/api/health` devuelve 200 aunque Redis y WordPress estén caídos (y hace dos
+  // pings de red cada 30 s): como sonda de contenedor, reiniciaba o dejaba "sano"
+  // por el motivo equivocado. La readiness estricta (`?ready=1`) la exige el
+  // despliegue, no el healthcheck.
+  it("el frontend de dev y de prod sondea liveness (`/api/health/live`)", () => {
+    for (const compose of [prod, dev]) {
+      const frontend = service(compose, "frontend");
+      expect(frontend).toContain("/api/health/live");
+      expect(frontend).not.toMatch(/api\/health(?!\/live)/);
+    }
+  });
+
+  it("WordPress se sondea con el endpoint ligero, no con /wp-json/ (>1 MB con WooCommerce)", () => {
+    const wordpress = service(prod, "wordpress");
+    expect(wordpress).toContain("wp-json/wp/v2/categories?per_page=1");
+    expect(wordpress).not.toMatch(/curl[^\n]*localhost\/wp-json\/["'\s]/);
+  });
+
+  it("Caddy tiene sonda propia (API de administración en loopback)", () => {
+    const caddyService = service(prod, "caddy");
+    expect(caddyService).toContain("healthcheck:");
+    expect(caddyService).toContain("http://localhost:2019/config/");
+  });
+});
+
 describe(".github/workflows/cd.yml", () => {
   it("el nombre de la imagen va en minúsculas (GHCR rechaza «Org/Repo»)", () => {
     expect(cd).toMatch(/IMAGE_LC="\$\{IMAGE,,\}"/);
