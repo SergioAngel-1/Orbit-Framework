@@ -277,7 +277,7 @@ dependencias de pruebas de Composer). Requiere, en *Settings → Code security*,
 | Qué | Cómo |
 |---|---|
 | Plugins de WordPress de `setup.sh` | `sh backend/scripts/check-versions.sh` (compara con wp.org y GitHub; `--strict` falla si alguno está por detrás) |
-| Imágenes Docker (WordPress, MariaDB, Redis, Caddy, Alpine, Node) | `docs/COMPATIBILITY.md` y las etiquetas de cada imagen en Docker Hub |
+| Imágenes Docker (WordPress, MariaDB, Redis, Caddy, Alpine, Node) | `docs/COMPATIBILITY.md` (política de tags y digest) y las etiquetas de Docker Hub. Actualizar es explícito: `docker compose pull` — el compose de producción no baja imágenes nuevas a mitad de un despliegue (`pull_policy: if_not_present`). |
 | Árbol npm | `npm audit` / `npm run audit:gate` (el gate de CI) y `npm outdated` en `frontend/` |
 
 **Cómo subir un plugin.** Pruébalo en staging y cambia a la vez la versión y su SHA-256

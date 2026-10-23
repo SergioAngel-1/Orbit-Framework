@@ -112,6 +112,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   atendiendo (cobros ya iniciados). El panel explica cómo dejar WhatsApp como único medio.
 
 ### Changed
+- **Imágenes con el minor fijado.** `node:24-alpine` y `redis:8-alpine` eran *majors*
+  flotantes: dos builds del mismo commit podían usar Node o Redis distintos y una regresión de
+  runtime entraba en producción sin pasar por CI. Ahora son `node:24.22-alpine` y
+  `redis:8.10-alpine` (MariaDB, Caddy y WordPress ya fijaban minor), y el compose de producción
+  declara `pull_policy: if_not_present` para que un `up -d` no cambie la base a mitad de un
+  despliegue. `docs/COMPATIBILITY.md` documenta la política y cómo fijar por digest si se quiere
+  reproducibilidad total.
 - **CI: menos minutos de runner y permisos mínimos.** El job `frontend` ejecutaba la suite dos
   veces (`npm run test` y `npm run test:coverage`, que ya corre los tests): ahora solo la segunda,
   con umbrales incluidos. Los navegadores de Playwright se cachean entre ejecuciones del job `e2e`

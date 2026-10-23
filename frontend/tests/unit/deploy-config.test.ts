@@ -404,6 +404,23 @@ describe("ci.yml: permisos y coste", () => {
   });
 });
 
+describe("imágenes: tags reproducibles", () => {
+  it("Node y Redis fijan al menos el minor (nada de major flotante)", () => {
+    // `node:24-alpine` y `redis:8-alpine` resuelven a versiones distintas según el
+    // día: dos builds del mismo commit podían no ser el mismo artefacto.
+    expect(dockerfile).toMatch(/FROM node:\d+\.\d+-alpine/);
+    for (const compose of [prod, dev]) {
+      expect(compose).toMatch(/image: redis:\d+\.\d+-alpine/);
+    }
+  });
+
+  it("producción no baja imágenes nuevas a mitad de un despliegue", () => {
+    for (const name of ["caddy", "db", "wordpress", "redis", "backup"]) {
+      expect(service(prod, name), name).toContain("pull_policy: if_not_present");
+    }
+  });
+});
+
 describe("Caddy: CI valida con la versión de producción", () => {
   it("la imagen del `caddy validate` de CI es la misma que la de docker-compose.prod.yml", () => {
     const image = (source: string) => /image:\s*(caddy:[\w.-]+)/.exec(source)?.[1];

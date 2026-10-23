@@ -57,6 +57,9 @@ services:
   # ── Caddy: reverse proxy + TLS automático ───────────────────────────────────
   caddy:
     image: caddy:2.11-alpine
+    # No se baja una imagen nueva a mitad de un despliegue: actualizar bases es un
+    # paso explícito (`docker compose pull`) revisable, no una sorpresa del `up -d`.
+    pull_policy: if_not_present
     container_name: hwe_caddy
     logging: *default-logging
     restart: unless-stopped
@@ -129,6 +132,7 @@ services:
   # ── Base de datos ──────────────────────────────────────────────────────────
   db:
     image: mariadb:11.8
+    pull_policy: if_not_present
     container_name: hwe_db
     logging: *default-logging
     restart: unless-stopped
@@ -191,6 +195,7 @@ services:
   # Puerto 8080 NO expuesto al host: solo accesible via Caddy en la red interna.
   wordpress:
     image: wordpress:7.1-php8.4-apache
+    pull_policy: if_not_present
     container_name: hwe_wordpress
     logging: *default-logging
     restart: unless-stopped
@@ -302,6 +307,7 @@ services:
   # ── WP-CLI (primer arranque, bajo demanda) ─────────────────────────────────
   wpcli:
     image: wordpress:cli-php8.4
+    pull_policy: if_not_present
     container_name: hwe_wpcli
     profiles: ["cli"]
     depends_on:
@@ -342,7 +348,10 @@ services:
 
   # ── Redis (caché de objetos WP + rate-limit BFF) ────────────────────────────
   redis:
-    image: redis:8-alpine
+    # El tag fija el minor: `redis:8-alpine` es un major flotante (hoy resuelve
+    # a 8.10.x) y dos despliegues del mismo commit podían usar versiones distintas.
+    image: redis:8.10-alpine
+    pull_policy: if_not_present
     container_name: hwe_redis
     logging: *default-logging
     restart: unless-stopped
@@ -522,6 +531,7 @@ services:
   # copia de seguridad, cancelaciones automáticas, Action Scheduler de WooCommerce).
   wp-cron:
     image: wordpress:cli-php8.4
+    pull_policy: if_not_present
     container_name: hwe_wp_cron
     logging: *default-logging
     restart: unless-stopped
@@ -581,6 +591,7 @@ services:
   # ── Backup cron (diario 03:00 UTC) ──────────────────────────────────────────
   backup:
     image: alpine:3.23
+    pull_policy: if_not_present
     container_name: hwe_backup
     logging: *default-logging
     restart: unless-stopped
@@ -637,6 +648,7 @@ services:
   # (30) y no toca el resto de la caché (ISR). Se regeneran bajo demanda.
   cache-prune:
     image: alpine:3.23
+    pull_policy: if_not_present
     container_name: hwe_cache_prune
     logging: *default-logging
     restart: unless-stopped

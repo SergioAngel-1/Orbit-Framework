@@ -14,7 +14,11 @@
 # ============================================================================
 
 # ---------- Base común ----------
-FROM node:24-alpine AS base
+# El tag fija el MINOR (24.22): `node:24-alpine` es un major flotante y dos
+# builds del mismo commit podían salir con Node distinto (una regresión de
+# runtime entrando sin pasar por CI). Los parches de seguridad dentro de 24.22
+# siguen llegando con `pull`; el bump de minor es un cambio revisable.
+FROM node:24.22-alpine AS base
 WORKDIR /app
 # libc6-compat: algunas dependencias nativas lo requieren en Alpine.
 RUN apk add --no-cache libc6-compat
@@ -105,7 +109,7 @@ COPY . .
 RUN npm run build
 
 # ---------- Runtime de producción (standalone) ----------
-FROM node:24-alpine AS prod
+FROM node:24.22-alpine AS prod
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

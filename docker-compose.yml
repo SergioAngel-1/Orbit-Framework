@@ -291,7 +291,9 @@ services:
   # Redis (cache / rate-limit / idempotencia para el BFF del frontend)
   # --------------------------------------------------------------------------
   redis:
-    image: redis:8-alpine
+    # El tag fija el minor: `redis:8-alpine` es un major flotante (hoy resuelve
+    # a 8.10.x) y dos despliegues del mismo commit podían usar versiones distintas.
+    image: redis:8.10-alpine
     container_name: hwe_redis
     logging: *default-logging
     restart: unless-stopped
