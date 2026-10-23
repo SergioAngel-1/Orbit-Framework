@@ -61,6 +61,25 @@ git fetch framework --tags
    y una prueba de humo manual (login, carrito, checkout). Despliega como cualquier otro
    cambio (`docs/DEPLOYMENT.md`).
 
+### Imágenes y plugins de una instancia ya desplegada
+
+El merge cambia etiquetas de imagen y versiones fijadas, pero no lo que ya corre: el despliegue del
+CD solo hace `pull` del frontend y `setup.sh` solo instala plugins en el primer arranque. Cuando el
+CHANGELOG suba una imagen o un plugin (p. ej. los parches de seguridad de octubre de 2026), en el
+servidor, tras desplegar:
+
+```bash
+# El frontend ya lo trae el CD; aquí, el resto de imágenes.
+docker compose -f docker-compose.prod.yml --env-file .env.prod pull caddy db wordpress redis wp-cron backup
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+docker exec hwe_wp_cron wp --allow-root plugin update woocommerce --version=<fijada>
+docker exec hwe_wp_cron wp --allow-root plugin update wp-graphql --version=<fijada>
+docker exec hwe_wp_cron wp --allow-root wc update
+```
+
+Las versiones fijadas son las de `backend/scripts/setup.sh`. Comprueba el resultado con
+`docker exec hwe_wordpress php -r 'echo PHP_VERSION;'` y la tabla de `docs/COMPATIBILITY.md`.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

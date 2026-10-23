@@ -137,7 +137,7 @@ services:
   # ── WordPress headless ──────────────────────────────────────────────────────
   # Puerto 8080 NO expuesto al host: solo accesible via Caddy en la red interna.
   wordpress:
-    image: wordpress:7.0-php8.4-apache
+    image: wordpress:7.1-php8.4-apache
     container_name: hwe_wordpress
     logging: *default-logging
     restart: unless-stopped

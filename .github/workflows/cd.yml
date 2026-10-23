@@ -148,6 +148,10 @@ jobs:
           context: ./frontend
           target: prod
           push: true
+          # Resuelve SIEMPRE `node:24-alpine` contra el registro: con la caché de
+          # GHA una base vieja (sin el último parche de seguridad de Node) podría
+          # colarse en la imagen.
+          pull: true
           # Lo que el build CONGELA (CSP, remotePatterns, URL del sitio). Sin
           # WORDPRESS_PUBLIC_URL el Dockerfile falla pronto y con un mensaje claro.
           build-args: |

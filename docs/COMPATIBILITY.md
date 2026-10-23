@@ -10,19 +10,19 @@
 
 | Componente | Versión | Notas |
 |------------|---------|-------|
-| WordPress  | `7.0` (PHP 8.4, Apache) | Imagen `wordpress:7.0-php8.4-apache`. WP-CLI: `wordpress:cli-php8.4`. |
-| PHP        | `8.4`   | Producción y CI (`config.platform.php` = `8.4.0`). El código propio declara `>=8.3`. Requerido por los mu-plugins (tipado, `aes-256-gcm`). |
+| WordPress  | `7.1` (PHP 8.4, Apache) | Imagen `wordpress:7.1-php8.4-apache`. WP-CLI: `wordpress:cli-php8.4`. |
+| PHP        | `8.4` (≥ 8.4.27) | Producción y CI (`config.platform.php` = `8.4.0`). El código propio declara `>=8.3`. Requerido por los mu-plugins (tipado, `aes-256-gcm`). |
 | MariaDB    | `11.8` LTS | Imagen `mariadb:11.8` (LTS, soporte hasta 2028). |
 | Redis      | `8` (dev y prod) | Imagen `redis:8-alpine`. Caché, rate-limit, idempotencia, locks, revocación, anti-replay, 2FA pendiente y estadísticas de consentimiento. **Compartido** con el BFF: WordPress usa el prefijo `hwe-wp:` y borra solo sus claves (ver `RUNBOOK.md`). |
 | Caddy      | `2.11`  | Solo producción (`docker-compose.prod.yml`): TLS automático + HTTP/3, sirve `/wp-content/*`. |
-| Node.js    | `24` LTS | Imágenes `node:24-alpine` y CI. El paquete exige `>=20.18.0`. |
+| Node.js    | `24` LTS (≥ 24.22.1) | Imágenes `node:24-alpine` y CI. El paquete exige `>=20.18.0`. |
 | Alpine     | `3.23`  | Contenedores auxiliares (`backup`, `wp-cron`). |
 
 ## Frontend (npm — ver `frontend/package.json`)
 
 | Paquete | Versión | Rol |
 |---------|---------|-----|
-| next | `16.4.0` | App Router, RSC, ISR, route handlers (BFF). Turbopack por defecto. Versión exacta: el parche de cabeceras ISR (`scripts/patch-next-isr-headers.mjs`, `postinstall`) comprueba la versión y falla ruidosamente si cambia. |
+| next | `16.4.1` | App Router, RSC, ISR, route handlers (BFF). Turbopack por defecto. Versión exacta: el parche de cabeceras ISR (`scripts/patch-next-isr-headers.mjs`, `postinstall`) comprueba la versión y falla ruidosamente si cambia. |
 | react / react-dom | `19.3.0` | UI (ref como prop, sin `forwardRef`). |
 | typescript | `6.0.3` | Tipado estricto. |
 | tailwindcss / @tailwindcss/postcss | `^4.3.3` | CSS-first (`@theme` en `globals.css`, sin `tailwind.config`). |
@@ -45,7 +45,7 @@
 | @playwright/test | `^1.64.0` |
 | @axe-core/playwright | `^4.13.0` |
 | @testing-library/react / jsdom | `^16.3.3` / `^30.1.2` |
-| eslint / eslint-config-next | `^9.39.5` / `16.4.0` (flat config en `eslint.config.mjs`; eslint-config-next 16 aún no soporta ESLint 10) |
+| eslint / eslint-config-next | `^9.39.5` / `16.4.1` (flat config en `eslint.config.mjs`; eslint-config-next 16 aún no soporta ESLint 10) |
 | @vitejs/plugin-react | `^6.1.2` |
 | prettier | `^3.9.10` |
 
@@ -62,10 +62,10 @@ Solo para las pruebas (`backend/composer.json`); nada de esto llega a producció
 
 | Plugin | Versión fijada | Variable de override | Notas |
 |--------|----------------|----------------------|-------|
-| WooCommerce | `10.9.4` | `WOOCOMMERCE_VERSION` | Tienda, Store API (carrito/checkout), wc/v3 (admin). |
-| WPGraphQL | `2.23.1` | `WPGRAPHQL_VERSION` | Lectura del catálogo/contenido (GraphQL). v2.x (monorepo). |
+| WooCommerce | `11.2.1` | `WOOCOMMERCE_VERSION` | Tienda, Store API (carrito/checkout), wc/v3 (admin). |
+| WPGraphQL | `2.25.0` | `WPGRAPHQL_VERSION` | Lectura del catálogo/contenido (GraphQL). v2.x (monorepo). |
 | WPGraphQL JWT Authentication | `0.7.2` | — (fijada + checksum SHA256: `JWT_AUTH_SHA256`) | Tokens de sesión; el «user secret» permite `logout-all` (el mu-plugin `hwe-auth` lo hace valer). Última release. |
-| WooGraphQL (wp-graphql-woocommerce) | `1.0.3` | `WOOGRAPHQL_WPORG_VERSION` | Tipos de WooCommerce en GraphQL (compatible con WPGraphQL 2.x). Su cabecera declara «WC tested up to 10.4.3»: la combinación con WooCommerce 10.9.x está validada aquí (introspección + consultas del frontend), **no** con WooCommerce 11. No está en wp.org: se instala del release de GitHub, con SHA-256. |
+| WooGraphQL (wp-graphql-woocommerce) | `1.0.3` | `WOOGRAPHQL_WPORG_VERSION` | Tipos de WooCommerce en GraphQL (compatible con WPGraphQL 2.x). Su cabecera declara «WC tested up to 10.4.3»: la combinación con WooCommerce 11.2.x está validada aquí (`verify-integration.sh`, `verify-modules.sh` y la compra de extremo a extremo de `purchase.spec.ts`). No está en wp.org: se instala del release de GitHub, con SHA-256. |
 | WPGraphQL CORS | `2.1.1` | — (fijada + `WPGRAPHQL_CORS_SHA256`) | Opcional; el mu-plugin `headless-config.php` ya cubre CORS. |
 | Redis Object Cache | `2.8.0` | `REDISCACHE_VERSION` | Caché de objetos de WordPress sobre Redis (con prefijo y flush selectivo). |
 

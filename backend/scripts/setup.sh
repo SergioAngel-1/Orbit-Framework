@@ -39,8 +39,8 @@ WPGRAPHQL_CORS_SHA256="${WPGRAPHQL_CORS_SHA256:-64b2593644dd08859ac3654a9c2f260e
 #  Si una versión fijada no existiera en wp.org, se degrada a la última estable
 #  con un AVISO (no rompe el primer arranque).
 # ----------------------------------------------------------------------------
-WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-2.23.1}"
-WOOCOMMERCE_VERSION="${WOOCOMMERCE_VERSION:-10.9.4}"
+WPGRAPHQL_VERSION="${WPGRAPHQL_VERSION:-2.25.0}"
+WOOCOMMERCE_VERSION="${WOOCOMMERCE_VERSION:-11.2.1}"
 WOOGRAPHQL_WPORG_VERSION="${WOOGRAPHQL_WPORG_VERSION:-1.0.3}"
 REDISCACHE_VERSION="${REDISCACHE_VERSION:-2.8.0}"
 

@@ -7,6 +7,20 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Security
+- **Parches de seguridad del 21 de octubre de 2026 (PHP y Node.js).** La imagen de WordPress pasa
+  de `wordpress:7.0-php8.4-apache` a `wordpress:7.1-php8.4-apache` (dev y prod): la etiqueta 7.0 ya
+  no se reconstruye y se había quedado en PHP 8.4.23, vulnerable a CVE-2026-109618 y CVE-2026-109619
+  («PHP2Shell», RCE sin autenticar, explotada activamente); la 7.1 trae PHP 8.4.27. Las imágenes
+  `node:24-alpine` ya traen Node 24.22.1 (CVE-2026-111497, RCE en el descompresor Brotli, y nueve
+  más); el build del CD pasa a `pull: true` para que la caché de GHA no cuele una base vieja. Tras
+  actualizar, `docker compose pull` y `docker compose build --pull frontend` (ver `docs/UPGRADE.md`).
+- **WooCommerce 11.2.1 y WPGraphQL 2.25.0.** `setup.sh` fijaba WooCommerce 10.9.4 (SQL injection,
+  corregida en 11.0, y CVE-2026-106608, escalada de privilegios de *shop manager* a administrador,
+  corregida en 11.2.0) y WPGraphQL 2.23.1 (CVE-2026-109703, lectura sin autenticar de datos
+  embebidos, y los GHSA de 2.24.1: SSRF por IPv6, lectura de contenido en la papelera y
+  comprobaciones de capacidad en mutaciones). WooGraphQL 1.0.3 se validó contra WooCommerce 11.2.1.
+- **Vitest 4.1.12.** `vitest` y `@vitest/coverage-v8` (desarrollo) corrigen GHSA-qxg6-89mg-rqv8 y
+  GHSA-xp26-3454-mjgp (`@vitest/mocker`).
 - **Vite 8.3.5.** `vite` (dependencia de desarrollo, vía `vitest` y `@vitejs/plugin-react`) pasa de
   8.0.16 a 8.3.5, que corrige GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw,
   GHSA-9jrq-w75r-8gcw y GHSA-rq7h-c2jc-7f22 (`launch-editor` y `server.fs.allow`). No llega a

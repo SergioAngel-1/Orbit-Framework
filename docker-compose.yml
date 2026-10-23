@@ -2,7 +2,7 @@
 #  HWE Orbit — Docker Compose (desarrollo)
 #  Servicios:
 #    - db        : MariaDB 11.8 LTS (persistencia en volumen nombrado)
-#    - wordpress : WordPress 7.0 (PHP 8.4 + Apache) como Headless CMS -> :8080
+#    - wordpress : WordPress 7.1 (PHP 8.4 + Apache) como Headless CMS -> :8080
 #    - wpcli     : WP-CLI para automatizar la instalación/configuración
 #    - redis     : Cache / rate-limit / idempotencia (BFF del frontend)
 #    - frontend  : Next.js (App Router) en modo desarrollo            -> :3000
@@ -39,7 +39,7 @@ services:
   # WordPress (Headless CMS)
   # --------------------------------------------------------------------------
   wordpress:
-    image: wordpress:7.0-php8.4-apache
+    image: wordpress:7.1-php8.4-apache
     container_name: hwe_wordpress
     restart: unless-stopped
     depends_on:
