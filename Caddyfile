@@ -5,13 +5,26 @@
 #    PUBLIC_DOMAIN=tienda.mi-dominio.com ACME_EMAIL=admin@mi.com \
 #    docker compose -f docker-compose.prod.yml up -d
 #
-#  En local (docker-compose.prod.yml con PUBLIC_DOMAIN=localhost) Caddy sirve
-#  en HTTP sin intentar obtener certificados.
+#  En local con PUBLIC_DOMAIN=localhost, Caddy hace auto-HTTPS con su CA interna
+#  (el navegador avisará de que el certificado no es de confianza). Para servir
+#  HTTP plano en ese caso hay que añadir `auto_https off` al bloque global.
 # ============================================================================
 
 {
     # Email para notificaciones de renovación de certificado.
     email {$ACME_EMAIL:admin@example.com}
+
+    # ── Timeouts del servidor ────────────────────────────────────────────────
+    # Sin ellos, una conexión que envía cabeceras o cuerpo a goteo ocupa un
+    # worker indefinidamente (slowloris). `read_body` es holgado a propósito:
+    # la medioteca admite subidas de 128 MB (uploads.ini).
+    servers {
+        timeouts {
+            read_header 10s
+            read_body 120s
+            idle 120s
+        }
+    }
 }
 
 # ─── Sitio principal ─────────────────────────────────────────────────────────
@@ -36,6 +49,18 @@
     header >Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
     header >X-Content-Type-Options "nosniff"
     header >Referrer-Policy "strict-origin-when-cross-origin"
+    # No anunciar el stack: Apache manda `Server: Apache/2.4.x (Debian)` y
+    # `X-Powered-By: PHP/8.4.x` en todo lo que proxyamos. Es fingerprinting gratis
+    # (y una pista para atacar la versión exacta). `>-` borra después del proxy.
+    header >-Server
+    header >-X-Powered-By
+
+    # ── Límite de cuerpo ─────────────────────────────────────────────────────
+    # Los medios necesitan 128 MB (uploads.ini); 130 MB deja margen. Sin tope, el
+    # cuerpo se bufferea en disco/RAM sin límite antes de llegar a WordPress.
+    request_body {
+        max_size 130MB
+    }
 
     # ── WordPress: admin, login y webhooks REST ──────────────────────────────
     # Estos paths van directamente a WordPress. El BFF Next.js llama a
@@ -133,6 +158,26 @@
     #
     # Los .php bajo wp-content SÍ siguen yendo a Apache: algún plugin los usa como
     # endpoint, y servirlos como texto plano sería además una fuga de código.
+    #
+    # EXCEPCIÓN: nada de `uploads/`. Ese directorio lo escriben los usuarios y los
+    # plugins; un `.php` que acabe ahí (subida mal validada, plugin comprometido) se
+    # ejecutaría como código. Se responde 404 antes de llegar a Apache.
+    @uploads_php path_regexp uploads_php ^/wp-content/uploads/.*\.php$
+    handle @uploads_php {
+        respond "Not Found" 404
+    }
+
+    # `uploads/` es INMUTABLE (WordPress versiona los nombres: foto-1.png), así que
+    # un año de caché es correcto. El resto de `/wp-content` (CSS/JS de temas y
+    # plugins) puede cambiar sin cambiar de URL: se cachea una hora y se revalida,
+    # o un asset actualizado quedaría obsoleto en los navegadores durante un año.
+    handle /wp-content/uploads/* {
+        root * /var/www/html
+        file_server
+        header >Cache-Control "public, max-age=31536000, stale-while-revalidate=86400"
+        header >X-Frame-Options "SAMEORIGIN"
+    }
+
     handle /wp-content/* {
         @php path *.php
         handle @php {
@@ -141,7 +186,7 @@
         handle {
             root * /var/www/html
             file_server
-            header >Cache-Control "public, max-age=31536000, stale-while-revalidate=86400"
+            header >Cache-Control "public, max-age=3600, must-revalidate"
             header >X-Frame-Options "SAMEORIGIN"
         }
     }
@@ -158,6 +203,15 @@
             lb_try_duration 30s
             lb_try_interval 250ms
         }
+    }
+
+    # ── Errores ──────────────────────────────────────────────────────────────
+    # Página propia y corta en vez de la de Caddy por defecto (que anuncia su
+    # versión) y sin cachear: un 502 durante el despliegue no debe quedarse en la
+    # caché de nadie.
+    handle_errors {
+        header >Cache-Control "no-store"
+        respond "{http.error.status_code} {http.error.status_text}" {http.error.status_code}
     }
 
     # Compresión de respuestas

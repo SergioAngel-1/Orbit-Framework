@@ -60,6 +60,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   exactos: un `.env.production` —lo natural al preparar un despliegue— entraba en el contexto y se
   horneaba en la imagen, con Next inlinando en `next build` cualquier `NEXT_PUBLIC_*` y dejando el
   resto en las capas del builder. Ahora el patrón es `.env*` con `!.env.example`.
+- **Caddy deja de anunciar el stack y acota la superficie pública.** Se borran `Server` y
+  `X-Powered-By` del upstream (Apache ya no emite la versión de PHP: `expose_php = Off`,
+  `ServerTokens Prod`, `ServerSignature Off`), se limita el cuerpo de la petición a 130 MB (los
+  medios necesitan 128), se añaden timeouts de servidor contra conexiones a goteo (slowloris) y un
+  `handle_errors` propio sin caché en vez de la página de error de Caddy. Un `.php` dentro de
+  `wp-content/uploads` responde **404** en vez de ejecutarse en Apache. Y el año de `Cache-Control`
+  queda solo para `uploads/` (inmutable): el resto de `/wp-content` (CSS/JS de temas y plugins)
+  pasa a una hora con revalidación, para que un asset actualizado no quede obsoleto un año en los
+  navegadores.
 
 ### Security
 - **Los límites de GraphQL no se aplicaban.** `graphql-protection.php` enganchaba
