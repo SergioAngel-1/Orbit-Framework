@@ -27,6 +27,7 @@ class Plugin {
 		Revalidation::register();
 		ShippingCost::register();
 		FreeShipping::register();
+		SettingsSchema::register();
 		ReserveZone::register();
 	}
 }

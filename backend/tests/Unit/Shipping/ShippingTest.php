@@ -9,6 +9,7 @@ use Brain\Monkey\Functions;
 use HWE\Shipping\FreeShipping;
 use HWE\Shipping\PostTypes;
 use HWE\Shipping\ReserveZone;
+use HWE\Shipping\SettingsSchema;
 use HWE\Shipping\RestApi;
 use HWE\Shipping\Revalidation;
 use HWE\Shipping\Save;
@@ -485,17 +486,20 @@ final class ShippingTest extends TestCase
 
     public function testElEsquemaDelControlCenterGanaLosCamposDeLaZonaDeReserva(): void
     {
-        $schema = ReserveZone::schema(['shipping' => ['type' => 'group', 'children' => []], 'ecommerce' => ['type' => 'group']]);
+        $schema = SettingsSchema::schema(['shipping' => ['type' => 'group', 'children' => []], 'ecommerce' => ['type' => 'group']]);
 
-        $this->assertSame(['reserve_enabled', 'reserve_name', 'reserve_cost'], array_keys($schema['shipping']['children']));
+        $this->assertSame(
+            ['reserve_enabled', 'reserve_name', 'reserve_cost', 'distance_method', 'distance_travel_mode', 'distance_straight_line_increment', 'distance_cache_ttl_hours'],
+            array_keys($schema['shipping']['children'])
+        );
         $this->assertTrue($schema['shipping']['children']['reserve_enabled']['default']);
         $this->assertSame(['type' => 'group'], $schema['ecommerce'], 'no toca otros grupos');
     }
 
     public function testUnEsquemaSinElGrupoOMalFormadoSeDevuelveIgual(): void
     {
-        $this->assertSame('roto', ReserveZone::schema('roto'));
-        $this->assertSame(['a' => 1], ReserveZone::schema(['a' => 1]));
+        $this->assertSame('roto', SettingsSchema::schema('roto'));
+        $this->assertSame(['a' => 1], SettingsSchema::schema(['a' => 1]));
     }
 
     public function testCreaLaZonaDeReservaConElPaisDeLaTiendaYElCosteConfigurado(): void

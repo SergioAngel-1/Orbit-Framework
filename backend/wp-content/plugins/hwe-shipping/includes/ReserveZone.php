@@ -12,7 +12,7 @@ namespace HWE\Shipping;
  * (`ecommerce.country`), con un único método `flat_rate` cuyo coste es el envío de las ciudades
  * SIN tarifa propia.
  *
- * Se configura en el Control Center → Envío (los campos los añade este plugin al esquema):
+ * Se configura en el Control Center → Envío (los campos los declara `SettingsSchema`):
  *   - `shipping.reserve_enabled`: crear y mantener la zona (por defecto, sí);
  *   - `shipping.reserve_name`: nombre de la zona y del método (lo que ve el cliente);
  *   - `shipping.reserve_cost`: coste, en la moneda de la tienda (0 = gratis).
@@ -26,42 +26,7 @@ class ReserveZone {
 	public const OPTION = 'hwe_shipping_reserve_zone_id';
 
 	public static function register(): void {
-		add_filter( 'hwe_control_center_schema', array( self::class, 'schema' ) );
 		add_action( 'hwe_control_center_saved', array( self::class, 'sync' ) );
-	}
-
-	/**
-	 * Campos del grupo «Envío» del Control Center (el grupo es del núcleo y viene vacío).
-	 *
-	 * @param mixed $schema
-	 * @return mixed
-	 */
-	public static function schema( $schema ) {
-		if ( ! is_array( $schema ) || ! isset( $schema['shipping']['children'] ) || ! is_array( $schema['shipping']['children'] ) ) {
-			return $schema;
-		}
-		$schema['shipping']['children'] += array(
-			'reserve_enabled' => array(
-				'type'        => 'boolean',
-				'label'       => 'Zona de reserva de WooCommerce',
-				'default'     => true,
-				'description' => 'Crea y mantiene una zona de envío que cubre el país de la tienda, con un único método de tarifa plana: el envío de las ciudades que no tienen tarifa propia. Sin una zona que cubra el país, el carrito no tiene envío.',
-			),
-			'reserve_name'    => array(
-				'type'        => 'text',
-				'label'       => 'Nombre del envío de reserva',
-				'default'     => 'Envío nacional',
-				'description' => 'Lo que ve el cliente en el carrito para las ciudades sin tarifa propia.',
-			),
-			'reserve_cost'    => array(
-				'type'        => 'number',
-				'label'       => 'Coste del envío de reserva',
-				'default'     => '0',
-				'min'         => 0,
-				'description' => 'En la moneda de la tienda, sin puntos ni decimales. 0 = envío gratis para las ciudades sin tarifa propia.',
-			),
-		);
-		return $schema;
 	}
 
 	/** Lee un ajuste del Control Center (`shipping.<clave>`) con el valor por defecto del módulo. */
