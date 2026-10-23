@@ -45,6 +45,15 @@ export const removeItemSchema = z.object({
   key: z.string().min(1).max(100),
 });
 
+/**
+ * Canje de fidelización del carrito: el cliente solo declara la CANTIDAD de
+ * puntos que quiere usar. El importe lo calcula y lo recorta WordPress en la
+ * extensión de la Store API; el BFF nunca acepta un importe desde el navegador.
+ */
+export const cartPointsSchema = z.object({
+  points: z.number().int().min(0),
+});
+
 /* ------------------------------ Cupones ------------------------------- */
 
 export const applyCouponSchema = z.object({
