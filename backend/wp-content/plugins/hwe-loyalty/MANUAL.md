@@ -75,6 +75,28 @@ El **CSV de movimientos** no incluye email ni login: lleva el id y el nombre vis
 puntos, la referencia, la nota del ajuste y las fechas. Así el archivo sirve para cuadrar sin
 sacar la identidad completa del panel.
 
+## Privacidad y datos personales
+
+El programa guarda datos personales (el historial de puntos y la red de referidos), así que el
+módulo responde a las herramientas de privacidad de WordPress: **Herramientas → Exportar datos
+personales** y **Herramientas → Borrar datos personales**, en el grupo **Fidelización**.
+
+- **Exportar**: entrega el saldo, el código de referido, el nombre visible de quien lo refirió,
+  el estado y las fechas de esa relación y el historial de movimientos (fecha, tipo, puntos,
+  caducidad, pedido y nota). Nunca incluye emails, logins ni identificadores de otras personas;
+  de una transferencia solo aparece el nombre visible de la otra parte.
+- **Borrar**: la cuenta puede seguir existiendo, así que se conservan los importes, los tipos y
+  las fechas de los movimientos —son la contabilidad del programa— pero se borran las notas, los
+  datos asociados y los vínculos de la red. El código de referido deja de funcionar y sus
+  referidos quedan sin referidor. La herramienta lo explica en su respuesta y puede ejecutarse
+  varias veces sin efecto adicional.
+- **Eliminar una cuenta** desde Usuarios: se borran su código y su saldo, sus referidos quedan
+  sin referidor y su historial se conserva anonimizado. Aunque WordPress ofrezca reasignar el
+  contenido de la cuenta a otra persona, **la red y los puntos no se heredan**.
+
+Consejo para el equipo: antes de borrar una cuenta, exporta sus datos si la persona los ha
+pedido; después, el historial conservado ya no permite identificar sus movimientos.
+
 ## Roles que participan
 
 Por defecto participan las cuentas con rol **Cliente** y **Suscriptor**. El registro del framework

@@ -7,8 +7,9 @@ niveles** que paga sus comisiones en esos puntos. Es un módulo opcional del cat
 
 > **Estado: en construcción (backend).** Están el arranque, los ajustes, el libro mayor con su
 > caducidad, los referidos, las ganancias por pedido y por eventos, el canje en la Store API, las
-> transferencias, las rutas internas de lectura y la administración en wp-admin. Las rutas del
-> BFF y el contrato del frontend llegan en las siguientes tareas del módulo.
+> transferencias, las rutas internas de lectura, el ciclo de privacidad de WordPress y la
+> administración en wp-admin. Las rutas del BFF y el contrato del frontend llegan en las
+> siguientes tareas del módulo.
 
 ## Qué aporta hoy
 
@@ -17,6 +18,7 @@ niveles** que paga sus comisiones en esos puntos. Es un módulo opcional del cat
 | `hwe-loyalty.php` | Clase `HWE_Loyalty`: comprueba que WooCommerce esté activo, carga `includes/` y engancha los ajustes y la administración a `plugins_loaded`. |
 | `includes/Settings.php` | Clase `HWE_Loyalty_Settings`: puebla el grupo reservado `loyalty` del Control Center y expone la lectura saneada. |
 | `includes/Admin/` | Menú «Fidelización», pantallas, ajuste manual, lote de códigos, CSV, perfil, columnas de usuarios y caja del pedido. |
+| `includes/Privacy.php` | Exportador y eliminador de datos personales de WordPress, y limpieza al eliminar una cuenta. |
 | Control Center → Fidelización | Todos los ajustes del módulo, con sus defaults. El grupo lo declara el núcleo vacío (`SchemaGroups/Loyalty.php`) y este plugin lo rellena con `hwe_control_center_schema`. |
 
 ## Ajustes (`config.loyalty`)
@@ -122,6 +124,54 @@ contrato de `data` por tipo (lista blanca: un tipo desconocido, p. ej. añadido 
 El texto de un ajuste manual puede mostrar su nota porque pertenece al propio usuario; las notas
 privadas de pedido del libro no salen por esta ruta. `data` no lleva ids de terceros.
 
+## Privacidad
+
+El módulo se engancha a las herramientas de privacidad de WordPress
+(**Herramientas → Exportar datos personales** y **Borrar datos personales**) con el grupo
+«Fidelización», más la acción `delete_user` para cuando se elimina una cuenta desde Usuarios.
+La lógica vive en `includes/Privacy.php` (`HWE_Loyalty_Privacy`); los logs de todo el ciclo
+llevan solo ids numéricos, nunca emails, logins ni nombres.
+
+### Exportador
+
+Paginado por lotes de 100 movimientos. La primera página lleva un elemento de resumen con
+saldo, total ganado, total usado, código de referido, nombre visible del referidor, estado de la
+atribución y sus fechas; las páginas siguientes solo movimientos. Cada movimiento exporta fecha
+(UTC), tipo técnico, puntos, caducidad (si la tiene), pedido (si lo tiene) y nota libre (si la
+tiene). En una transferencia se añade el **nombre visible de la otra parte**, nunca su id, email
+o login. Un usuario sin fila de referidos o sin movimientos devuelve `done: true`.
+
+### Eliminador
+
+La cuenta puede seguir existiendo; por eso **conserva la fila de saldo** y `user_id` en el libro
+(sin él, el saldo y la caducidad dejarían de cuadrar). Decisiones:
+
+- **Se conservan** los importes (`points`, `remaining_points`), el tipo, las fechas, el actor y
+  la referencia tipada (pedido, usuario…): son la contabilidad del programa y la base de la red.
+- **Se vacían** `note` y `data` de los movimientos del usuario: `data` puede llevar ids de la
+  otra parte de una transferencia, nombres o notas; el detalle que hace falta para cuadrar vive
+  en columnas propias. Las notas manuales del administrador (texto libre) desaparecen.
+- El **código de referido** se sustituye por uno con prefijo `ERASED-` que no pasa la validación
+  de formato (`NOT NULL UNIQUE` impide dejarlo vacío): ya no sirve para atribuir ni transferir y
+  el exportador lo omite.
+- Su **fila de referidos** queda sin referidor y en `pending`; sus **referidos quedan sin
+  referidor**. No se mueven puntos ya pagados.
+- Los movimientos se procesan por lotes de 100 sin cargar el libro entero en memoria; la
+  operación es **idempotente** (repetirla no cambia nada) y `done` es `false` mientras queden
+  movimientos con nota o datos por limpiar.
+- `items_retained` es `true` cuando hay movimientos, y el mensaje explica que se conservan
+  anonimizados por obligación contable. Los abonos de **otros** usuarios con referencia al
+  usuario eliminado no se tocan.
+
+### Cuenta eliminada (`delete_user`)
+
+Antes de que WordPress borre la cuenta: sus referidos quedan sin referidor, su propia fila de
+referidos se **elimina**, su fila de saldo se **elimina** (sale del circuito) y sus movimientos
+se conservan anonimizados con el mismo criterio que el eliminador, por lotes. El `reassign` de
+WordPress se **ignora a propósito**: ni la red ni los puntos se heredan. Como el libro y las
+referencias se conservan, las lecturas de red toleran referencias huérfanas, y una compra futura
+del antiguo referido ya no genera comisión para el id eliminado (Foco de revisión 4).
+
 ## Administración en wp-admin
 
 El menú **Fidelización** (título neutro, sin el nombre de la unidad) solo se registra con el
@@ -201,7 +251,9 @@ capacidades solo en `administrator`/`shop_manager`, escritura bloqueada sin `hwe
 nota y nonce obligatorios, cargo limitado al saldo, doble envío sin duplicado, perfil que no
 sobrescribe el saldo, referidor con autorreferido y ciclos rechazados, lote reanudable sin
 duplicados, celdas CSV inertes, ordenación de usuarios por SQL y escapado de un nombre con
-`<script>`. `SettingsTest.php` cubre el esquema y la lectura saneada; la paridad de defaults en
+`<script>`. `PrivacyTest.php` cubre el exportador (sin identidad de terceros y paginado), el
+eliminador (anonimización por lotes, red desvinculada, idempotencia) y `delete_user` (Foco de
+revisión 4). `SettingsTest.php` cubre el esquema y la lectura saneada; la paridad de defaults en
 TypeScript la fija `frontend/src/lib/config/defaults.test.ts`.
 
 ## Estructura
@@ -218,3 +270,4 @@ TypeScript la fija `frontend/src/lib/config/defaults.test.ts`.
 | `includes/Admin/Adjustments.php`, `Codes.php` | Ajuste manual idempotente y asignación de códigos reanudable. |
 | `includes/Admin/UserProfile.php`, `UserColumns.php`, `OrderBox.php`, `Users.php` | Perfil, columnas ordenables, caja del pedido y resolución de usuarios. |
 | `includes/Rest/ReadRoutes.php` | Rutas internas de lectura del monedero y la red (`hwe/v1/loyalty/{summary,transactions,referrals}`) para el BFF. |
+| `includes/Privacy.php` | Exportador y eliminador de datos personales; limpieza al eliminar una cuenta. |

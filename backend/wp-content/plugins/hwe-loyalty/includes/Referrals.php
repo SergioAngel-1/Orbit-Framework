@@ -48,6 +48,12 @@ final class HWE_Loyalty_Referrals {
 	private const ALPHABET    = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 	private const CODE_PATTERN = '/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$/';
 
+	/**
+	 * Prefijo del código que deja el eliminador de privacidad: no encaja con `CODE_PATTERN`,
+	 * así que `userByCode`/`attribute` lo rechazan y no sirve para atribuir a nadie.
+	 */
+	private const ANON_CODE_PREFIX = 'ERASED-';
+
 	/** Reintentos ante una colisión del índice único de `code`. */
 	private const MAX_CODE_ATTEMPTS = 10;
 
@@ -94,6 +100,22 @@ final class HWE_Loyalty_Referrals {
 		$row = self::ensureRow( $userId );
 
 		return null === $row ? '' : (string) $row->code;
+	}
+
+	/**
+	 * Código guardado del usuario, sin crearlo, sin comprobar ajustes y sin resolver la cuenta.
+	 * Es la lectura que usa el exportador de privacidad: exportar datos no debe escribir nada.
+	 * Un código ya anonimizado (`ERASED-…`) se devuelve como vacío: no es un dato de la persona.
+	 */
+	public static function storedCode( int $userId ): string {
+		$row = self::rowForUser( $userId );
+		if ( null === $row ) {
+			return '';
+		}
+
+		$code = (string) ( $row->code ?? '' );
+
+		return 0 === strpos( $code, self::ANON_CODE_PREFIX ) ? '' : $code;
 	}
 
 	/**
@@ -455,6 +477,117 @@ final class HWE_Loyalty_Referrals {
 		}
 
 		return true;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Privacidad
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Anonimiza la fila del usuario **sin borrarla**: el código pasa a uno inservible y la
+	 * atribución deja de existir. La cuenta puede seguir viva (eliminador de WordPress), así
+	 * que la fila se conserva para no romper el `UNIQUE` de `code` ni el histórico de la red.
+	 *
+	 * Idempotente: si ya está anonimizada no vuelve a cambiar el código. Devuelve `true` solo
+	 * cuando ha escrito algo.
+	 */
+	public static function anonymize( int $userId ): bool {
+		if ( $userId <= 0 ) {
+			return false;
+		}
+
+		$row = self::rowForUser( $userId );
+		if ( null === $row ) {
+			return false;
+		}
+
+		$code       = (string) ( $row->code ?? '' );
+		$referrerId = empty( $row->referrer_id ) ? null : (int) $row->referrer_id;
+		$status     = (string) ( $row->status ?? self::STATUS_PENDING );
+		$confirmed  = empty( $row->confirmed_at ) ? null : (string) $row->confirmed_at;
+		$already    = 0 === strpos( $code, self::ANON_CODE_PREFIX );
+
+		if ( $already && null === $referrerId && self::STATUS_PENDING === $status && null === $confirmed ) {
+			return false;
+		}
+
+		global $wpdb;
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . self::table()
+				. ' SET code = %s, referrer_id = NULL, status = %s, confirmed_at = NULL WHERE user_id = %d',
+				$already ? $code : self::anonymousCode( $userId ),
+				self::STATUS_PENDING,
+				$userId
+			)
+		);
+
+		if ( false === $updated ) {
+			self::log( 'no se pudo anonimizar la fila de referidos del usuario ' . $userId . '.' );
+			return false;
+		}
+
+		self::log( 'fila de referidos del usuario ' . $userId . ' anonimizada.' );
+		return true;
+	}
+
+	/**
+	 * Desvincula la red del usuario: sus referidos quedan sin referidor y su atribución vuelve
+	 * a `pending`. No borra filas ni mueve puntos ya pagados. Devuelve cuántas filas cambiaron.
+	 */
+	public static function unlinkNetwork( int $userId ): int {
+		if ( $userId <= 0 ) {
+			return 0;
+		}
+
+		global $wpdb;
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE ' . self::table()
+				. ' SET referrer_id = NULL, status = %s, confirmed_at = NULL WHERE referrer_id = %d',
+				self::STATUS_PENDING,
+				$userId
+			)
+		);
+
+		if ( false === $updated ) {
+			self::log( 'no se pudo desvincular la red del usuario ' . $userId . '.' );
+			return 0;
+		}
+
+		if ( $updated > 0 ) {
+			self::log( 'red del usuario ' . $userId . ' desvinculada (' . (int) $updated . ' filas).' );
+		}
+
+		return (int) $updated;
+	}
+
+	/**
+	 * Elimina la fila de referidos de una cuenta que WordPress va a borrar. Idempotente: sin
+	 * fila también devuelve `true`; solo `false` si la consulta falla.
+	 */
+	public static function forget( int $userId ): bool {
+		if ( $userId <= 0 ) {
+			return false;
+		}
+
+		global $wpdb;
+		$deleted = $wpdb->query(
+			$wpdb->prepare( 'DELETE FROM ' . self::table() . ' WHERE user_id = %d', $userId )
+		);
+
+		if ( false === $deleted ) {
+			self::log( 'no se pudo borrar la fila de referidos del usuario ' . $userId . '.' );
+			return false;
+		}
+
+		return true;
+	}
+
+	/** Código aleatorio que nunca pasa la validación de formato. */
+	private static function anonymousCode( int $userId ): string {
+		$suffix = strtoupper( bin2hex( random_bytes( 6 ) ) );
+		return substr( self::ANON_CODE_PREFIX . $userId . '-' . $suffix, 0, 32 );
 	}
 
 	// ------------------------------------------------------------------------

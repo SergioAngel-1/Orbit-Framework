@@ -35,12 +35,14 @@
  * completo con puntos), las transferencias entre usuarios por código de referido (mínimo,
  * comisión redondeada hacia arriba, tope diario y cargo/comisión/abono en una sola
  * transacción, con su ruta interna), las rutas internas de lectura que consume el BFF
- * (resumen del monedero, movimientos paginados y red de referidos con sus totales) y la
- * administración en wp-admin: menú «Fidelización» (resumen, movimientos con filtros y CSV,
- * red, ajuste manual y lote de códigos), perfil de usuario, columnas ordenables del listado
- * de usuarios y caja en el pedido, con las capacidades `hwe_loyalty_view` y
- * `hwe_loyalty_manage` concedidas a `administrator` y `shop_manager` al activar. Las rutas del
- * BFF llegan en las siguientes tareas del módulo (ver README.md y MANUAL.md de esta carpeta).
+ * (resumen del monedero, movimientos paginados y red de referidos con sus totales), el ciclo
+ * de privacidad de WordPress (exportador y eliminador de datos personales, y la limpieza al
+ * eliminar una cuenta) y la administración en wp-admin: menú «Fidelización» (resumen, movimientos
+ * con filtros y CSV, red, ajuste manual y lote de códigos), perfil de usuario, columnas
+ * ordenables del listado de usuarios y caja en el pedido, con las capacidades
+ * `hwe_loyalty_view` y `hwe_loyalty_manage` concedidas a `administrator` y `shop_manager` al
+ * activar. Las rutas del BFF llegan en las siguientes tareas del módulo (ver README.md y
+ * MANUAL.md de esta carpeta).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -61,6 +63,7 @@ require_once __DIR__ . '/includes/Scheduler.php';
 require_once __DIR__ . '/includes/Events.php';
 require_once __DIR__ . '/includes/Redemption.php';
 require_once __DIR__ . '/includes/Transfers.php';
+require_once __DIR__ . '/includes/Privacy.php';
 require_once __DIR__ . '/includes/Rest/ReferralRoutes.php';
 require_once __DIR__ . '/includes/Rest/TransferRoutes.php';
 require_once __DIR__ . '/includes/Rest/ReadRoutes.php';
@@ -87,6 +90,7 @@ final class HWE_Loyalty {
 		HWE_Loyalty_Earnings::register();
 		HWE_Loyalty_Events::register();
 		HWE_Loyalty_Redemption::register();
+		HWE_Loyalty_Privacy::register();
 		HWE_Loyalty_TransferRoutes::register();
 		HWE_Loyalty_ReferralRoutes::register();
 		HWE_Loyalty_ReadRoutes::register();
