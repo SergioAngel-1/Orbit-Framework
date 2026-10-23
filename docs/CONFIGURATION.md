@@ -169,7 +169,7 @@ Los valores de una instancia se siembran con `wp hwe setup instance.config.json`
 | Marca / diseño | `brand.*`, `design.colors.*`, `design.typography.*` | Los colores solo admiten `#rrggbb` y las fuentes un nombre simple; lo que no cumple cae al valor por defecto. |
 | Tienda (`ecommerce`) | `currency` (defecto `EUR`; fíjala siempre), `country`, `price_decimals` (calculado), `products_per_page`, flags `*_enabled`, `checkout_login_required`, `free_shipping.*` | `country` elige el paquete por país. El login se sincroniza con el ajuste nativo de Woo; el envío gratis lo aplica el módulo `shipping`. |
 | Pasarelas de pago | `provider`, `gateway_enabled`, `whatsapp_enabled`, `cash_enabled` (+ credenciales por pasarela) | El panel solo enseña las credenciales de la pasarela activa, y ninguna si el pago en línea está apagado. Lo público lo lee el checkout; los secretos solo salen por `hwe/v1/payments/credentials` (canal interno). El efectivo usa «Contra reembolso», que se sincroniza al guardar. |
-| Integraciones | ids de analítica, `consent_retention_years`, SMTP (+ `meta_capi_*` por canal interno) | Cada id activa su proveedor; vacío = desactivado. |
+| Integraciones | ids de analítica, Mapas (`maps_provider`, `maps_api_key`), `consent_retention_years`, SMTP (+ `meta_capi_*` por canal interno) | Cada id activa su proveedor; vacío = desactivado. La clave de mapas se guarda cifrada y solo la usa el servidor. |
 | Legal → Sedes | opcionales, hasta 5 (`location_1…location_5`) | Alimentan el JSON-LD `LocalBusiness` y la página de contacto. El panel solo enseña las que tienen datos y un botón «Añadir sede»; «Quitar sede» vacía el hueco al guardar. |
 | Acceso (`auth`) | `phone_login_enabled`, `phone_default_dial_code` | Login y registro con el teléfono (E.164, único). Apagado por defecto. |
 | SEO / GEO | `seo.*`, `geo.*` | Dos pestañas: «SEO» y «GEO (IA)». Las señales de entidad (`seo.organization_logo`, `founding_date`, `knows_about`, `alternate_names`, `founder_*`) se editan en GEO aunque su ruta siga en `seo.*`. `faq` y `faq_payments` son traducibles (formato «pregunta \| respuesta»). |
@@ -186,6 +186,23 @@ los suyos) tiene una variante `<campo>_<idioma>` por cada idioma de `i18n.locale
 **Un campo nuevo** se declara en `Schema.php` (o en su grupo de `SchemaGroups/`), con su valor por
 defecto en `frontend/src/lib/config/defaults.ts` (`CONFIG_DEFAULTS`, respaldo si WordPress no
 responde), y se consume con `getSiteConfig()`.
+
+### Mapas
+
+*Integraciones → Mapas* es la integración genérica de mapas del núcleo. La usa el módulo
+`shipping` para calcular distancias y geocodificar direcciones; cualquier otro módulo puede leer
+la misma configuración con `\HWE\ControlCenter\Storage::get(['integrations', 'maps_provider'])` y
+`\HWE\ControlCenter\SecretsStorage::get(['integrations', 'maps_api_key'])`. Ninguno de los dos
+campos sale por la API pública: el proveedor y la clave se resuelven en el servidor.
+
+| Campo | Valores | Notas |
+|-------|---------|-------|
+| Proveedor | `none`, `google_maps`, `openrouteservice` | Con `none` se calcula en línea recta y la geocodificación cae al servicio público de respaldo. |
+| Clave de API | — | Cifrada en reposo (AES-256-GCM). Solo la usa el servidor: no sale por `/wp-json/hwe/v1/config`, ni por el canal interno del BFF, ni en una URL o un log. Déjala en blanco al guardar para conservar la actual. |
+
+Para Google hay que habilitar las APIs **Routes** y **Geocoding** en el proyecto y restringir la
+clave por la **IP del servidor**, no por referer HTTP: las peticiones las hace WordPress, nunca el
+navegador.
 
 ### Módulos
 
