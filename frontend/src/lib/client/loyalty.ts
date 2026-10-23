@@ -18,6 +18,14 @@ import type { StoreCart } from "@/types/woocommerce";
 //  compone el texto de los movimientos) y las escrituras por `csrfFetch`.
 // ============================================================================
 
+/**
+ * Resumen que devuelve el BFF: el del lector más el valor del saldo en la
+ * moneda de la tienda (unidades mayores), calculado con `pointsToMoney`.
+ */
+export interface LoyaltySummaryResponse extends LoyaltySummary {
+  balance_value: number;
+}
+
 const TRANSFER_ERRORS: readonly LoyaltyTransferError[] = [
   "disabled",
   "invalid_request",
@@ -101,8 +109,8 @@ async function parseCart(res: Response): Promise<StoreCart> {
 
 export const loyaltyApi = {
   /** Resumen del monedero de la sesión. */
-  summary(): Promise<LoyaltySummary> {
-    return getJson<LoyaltySummary>("/api/loyalty/summary");
+  summary(): Promise<LoyaltySummaryResponse> {
+    return getJson<LoyaltySummaryResponse>("/api/loyalty/summary");
   },
 
   /** Movimientos paginados, con el texto ya compuesto por el BFF. */

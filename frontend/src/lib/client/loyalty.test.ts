@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LoyaltySummary } from "@/lib/loyalty/types";
-import { loyaltyApi } from "./loyalty";
+import { loyaltyApi, type LoyaltySummaryResponse } from "./loyalty";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status });
@@ -34,9 +33,10 @@ afterEach(() => {
 
 describe("loyaltyApi (lecturas)", () => {
   it("pide el resumen al BFF con el idioma de la página", async () => {
-    const summary: LoyaltySummary = {
+    const summary: LoyaltySummaryResponse = {
       participant: true,
       balance: 120,
+      balance_value: 60,
       earned: 200,
       used: 80,
       expiring: { points: 0, date: null },
