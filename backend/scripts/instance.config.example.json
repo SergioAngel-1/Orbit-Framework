@@ -119,6 +119,13 @@
     "allowed_roles": "customer, subscriber"
   },
 
+  "memberships": {
+    "_comment": "Módulo hwe-memberships (membresías, carné y beneficios). Estos son los únicos campos públicos: el TTL del token, los días de aviso y la exigencia de correo verificado se configuran en wp-admin → HWE Config. Incluye «memberships» en `modules` para activar el plugin.",
+    "card_enabled": false,
+    "card_verify_path": "/verify",
+    "member_number_prefix": ""
+  },
+
   "payments": {
     "provider": "noop",
     "gateway_enabled": true,

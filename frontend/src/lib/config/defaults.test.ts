@@ -68,12 +68,18 @@ describe("CONFIG_DEFAULTS", () => {
       "loyalty.events.review",
       "loyalty.events.birthday",
       "loyalty.transfer_daily_cap",
+      "memberships.card_enabled",
+      "memberships.card_verify_path",
+      "memberships.member_number_prefix",
       "shipping.distance_enabled",
     ]) {
       expect(keys, required).toContain(required);
     }
     expect(keys).not.toContain("brand.og_image");
     expect(keys).not.toContain("loyalty.allowed_roles");
+    expect(keys).not.toContain("memberships.card_token_ttl_hours");
+    expect(keys).not.toContain("memberships.expiring_notice_days");
+    expect(keys).not.toContain("memberships.referral_gift_requires_email_verification");
   });
 
   // El grupo `loyalty` lo puebla el plugin `hwe-loyalty` en el Control Center. Sus defaults
@@ -110,6 +116,17 @@ describe("CONFIG_DEFAULTS", () => {
       transfer_min: "100",
       transfer_fee_percent: "0",
       transfer_daily_cap: "0",
+    });
+  });
+
+  // El grupo `memberships` lo puebla el plugin `hwe-memberships` en el Control Center. Solo sus
+  // campos públicos cruzan a la config: el TTL del token, los días de aviso y la exigencia de
+  // correo verificado son ajustes operativos del backend.
+  it("trae los defaults públicos del módulo memberships en paridad con el Schema", () => {
+    expect(CONFIG_DEFAULTS.memberships).toEqual({
+      card_enabled: false,
+      card_verify_path: "/verify",
+      member_number_prefix: "",
     });
   });
 });
