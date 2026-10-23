@@ -14,7 +14,11 @@
 # ============================================================================
 
 # ---------- Base común ----------
-FROM node:24-alpine AS base
+# El tag fija el MINOR (24.22): `node:24-alpine` es un major flotante y dos
+# builds del mismo commit podían salir con Node distinto (una regresión de
+# runtime entrando sin pasar por CI). Los parches de seguridad dentro de 24.22
+# siguen llegando con `pull`; el bump de minor es un cambio revisable.
+FROM node:24.22-alpine AS base
 WORKDIR /app
 # libc6-compat: algunas dependencias nativas lo requieren en Alpine.
 RUN apk add --no-cache libc6-compat
@@ -105,37 +109,55 @@ COPY . .
 RUN npm run build
 
 # ---------- Runtime de producción (standalone) ----------
-FROM node:24-alpine AS prod
+FROM node:24.22-alpine AS prod
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
+# Metadatos OCI: trazabilidad de la imagen en el registro (y de qué commit salió,
+# si el CD pasa `OCI_REVISION`). `source`/`revision` van vacíos por defecto para
+# que la plantilla no fije un repositorio ajeno.
+ARG OCI_SOURCE=""
+ARG OCI_REVISION=""
+LABEL org.opencontainers.image.title="HWE Orbit frontend" \
+      org.opencontainers.image.description="Frontend Next.js (App Router) + BFF" \
+      org.opencontainers.image.source=$OCI_SOURCE \
+      org.opencontainers.image.revision=$OCI_REVISION
+
+# `libc6-compat` también aquí: el stage `base` lo tiene, pero `prod` parte de la
+# imagen limpia, y sharp (next/image) es una dependencia nativa. `apk upgrade`
+# recoge los parches de Alpine del momento del build: el `pull` del tag de Node
+# no los trae, y esta imagen no se reconstruye sola.
+RUN apk add --no-cache libc6-compat && apk upgrade --no-cache
+
 # Usuario sin privilegios.
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
 # Solo lo necesario para arrancar: server.js + estáticos + public.
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Destino de la caché de imágenes optimizadas (`<distDir>/cache/images`).
+# Destino de la caché de Next (`<distDir>/cache`: ISR, fetch-cache e imágenes).
 #
 # Se crea AQUÍ, ya con el dueño correcto, porque `docker-compose.prod.yml` monta
-# un volumen con nombre en esta ruta: Docker copia el contenido y los permisos
-# del directorio de la imagen al inicializar el volumen, así que si no existiera
-# el volumen nacería propiedad de root y el proceso `nextjs` (uid 1001) no podría
-# escribir — cada petición de imagen reoptimizaría sin poder guardar nada.
+# un volumen con nombre en `/app/.next/cache`: Docker copia el contenido y los
+# permisos del directorio de la imagen al inicializar el volumen, así que si no
+# existiera el volumen nacería propiedad de root y el proceso `nextjs` (uid 1001)
+# no podría escribir — cada página e imagen se regeneraría sin poder cachearse.
+# `images/` va incluido: `next/image` escribe ahí y falla si no existe.
 RUN mkdir -p .next/cache/images && chown -R nextjs:nodejs .next/cache
 
 USER nextjs
 EXPOSE 3000
 
-# Healthcheck nativo de la imagen (independiente del de compose).
+# Healthcheck nativo de la imagen (independiente del de compose). Liveness: no
+# toca Redis ni WordPress (la readiness la decide el despliegue con ?ready=1).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://localhost:3000/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "server.js"]
 

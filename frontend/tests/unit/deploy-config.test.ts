@@ -70,6 +70,19 @@ describe("frontend/Dockerfile", () => {
       readFileSync(fileURLToPath(new URL("../../public/.gitkeep", import.meta.url))),
     ).not.toThrow();
   });
+
+  it("el stage prod sube parches de Alpine y deja `public/` con el dueño del proceso", () => {
+    const prodStage = dockerfile.slice(dockerfile.indexOf("AS prod"));
+
+    // Paridad con `base` (sharp es nativo) y parches del sistema del momento del
+    // build: el `pull` del tag de Node no los trae.
+    expect(prodStage).toContain("apk add --no-cache libc6-compat");
+    expect(prodStage).toContain("apk upgrade --no-cache");
+    expect(prodStage).toContain(
+      "COPY --from=builder --chown=nextjs:nodejs /app/public ./public",
+    );
+    expect(prodStage).toContain("org.opencontainers.image.title");
+  });
 });
 
 describe("docker-compose.prod.yml", () => {
@@ -123,17 +136,155 @@ describe("docker-compose.prod.yml", () => {
     expect(service(prod, "frontend")).toMatch(/\n\s+WORDPRESS_PUBLIC_URL:/);
   });
 
-  it("la caché de imágenes tiene su volumen", () => {
-    expect(service(prod, "frontend")).toContain(
-      "next_image_cache:/app/.next/cache/images",
-    );
-    expect(prod).toMatch(/\n {2}next_image_cache:\n/);
+  it("persiste TODA la caché de Next (ISR + imágenes), no solo images/", () => {
+    expect(service(prod, "frontend")).toContain("next_cache:/app/.next/cache");
+    expect(prod).toMatch(/\n {2}next_cache:\n/);
+    // El volumen de solo imágenes dejaba el ISR en frío en cada despliegue.
+    expect(prod).not.toContain("next_image_cache");
+  });
+
+  it("purga la caché de imágenes, que `next/image` no recolecta nunca", () => {
+    const prune = service(prod, "cache-prune");
+
+    expect(prune).toContain("next_cache:/cache");
+    expect(prune).toContain("find /cache/images");
+    // `$$` es el escape de Compose: con un solo `$`, Compose sustituye la variable
+    // al RENDERIZAR y el `find` recibe `-mtime +""` (no borra nada) aunque el
+    // entorno del contenedor sí la defina.
+    expect(prune).toContain('-mtime +"$${CACHE_IMAGES_MAX_AGE_DAYS}"');
   });
 
   it("MariaDB lleva el buffer pool dimensionado al límite de memoria", () => {
     const db = service(prod, "db");
     expect(db).toContain("--innodb-buffer-pool-size=");
     expect(db).toContain("--max-connections=");
+  });
+
+  it("MariaDB acota conexiones y paquete, y deja rastro de las consultas lentas", () => {
+    const db = service(prod, "db");
+    expect(db).toContain("--max-connections=${MYSQL_MAX_CONNECTIONS:-50}");
+    // 16 MB (default) rompía un restore con filas grandes; 100 conexiones + 256 MB
+    // de buffer pool rozaban el OOM del contenedor.
+    expect(db).toContain("--max-allowed-packet=64M");
+    expect(db).toContain("--slow-query-log=1");
+    expect(db).toContain("--skip-name-resolve");
+  });
+
+  it("wp-cron no solapa corridas ni ignora SIGTERM", () => {
+    for (const compose of [prod, dev]) {
+      const cron = service(compose, "wp-cron");
+      expect(cron).toContain("flock -n /tmp/wp-cron.lock");
+      expect(cron).toContain("timeout 300");
+      expect(cron).toContain("trap 'exit 0' TERM");
+    }
+  });
+
+  it("Redis sigue escribiendo si falla el bgsave (aquí los datos son caché)", () => {
+    expect(service(prod, "redis")).toContain('"--stop-writes-on-bgsave-error", "no"');
+  });
+});
+
+describe("docker-compose.prod.yml: segmentación de red", () => {
+  /** Redes de un servicio (`networks:` → lista de items). */
+  function networksOf(block: string): string[] {
+    const list = block.match(/\n {4}networks:\n((?: {6}- *\w+\n)+)/);
+    return list ? [...list[1]!.matchAll(/- *(\w+)/g)].map((m) => m[1]!) : [];
+  }
+
+  it("la capa de datos es interna: ni Caddy ni el resto de la pila sale por ella", () => {
+    expect(prod).toMatch(/\n {2}data:\n {4}driver: bridge\n {4}internal: true/);
+  });
+
+  it("Caddy NO está en `data`: no puede resolver ni alcanzar db ni redis", () => {
+    const networks = networksOf(service(prod, "caddy"));
+
+    expect(networks).toContain("edge");
+    expect(networks).toContain("app");
+    expect(networks).not.toContain("data");
+  });
+
+  it("db y redis viven SOLO en `data` (red interna, sin salida a Internet)", () => {
+    for (const name of ["db", "redis"]) {
+      expect(networksOf(service(prod, name)), name).toEqual(["data"]);
+    }
+  });
+
+  it("WordPress, el frontend y wp-cli conservan salida a Internet", () => {
+    // WordPress: SMTP, actualizaciones de plugins y webhooks salientes.
+    // Frontend: pasarelas de pago y Sentry. wp-cli: `setup.sh` descarga WP y plugins.
+    for (const name of ["wordpress", "frontend", "wpcli", "wp-cron"]) {
+      const networks = networksOf(service(prod, name));
+      expect(networks, name).toContain("data");
+      expect(
+        networks.some((n) => n !== "data"),
+        name,
+      ).toBe(true);
+    }
+  });
+
+  it("WordPress y el frontend se hablan por `app` y Caddy llega a los dos", () => {
+    for (const name of ["wordpress", "frontend"]) {
+      expect(networksOf(service(prod, name)), name).toContain("app");
+    }
+    expect(networksOf(service(prod, "caddy"))).toContain("edge");
+  });
+});
+
+describe("docker-compose.prod.yml: ciclo de vida y recursos", () => {
+  it("los servicios con estado reciben SIGTERM y tienen tiempo para cerrar", () => {
+    // Sin `init`, Node es PID 1 y no reapea zombis; sin `stop_grace_period`,
+    // Docker espera 10 s y manda SIGKILL con peticiones en vuelo (y un bgsave de
+    // Redis o la caché de Next a medio escribir).
+    for (const name of ["frontend", "wordpress", "db", "redis", "caddy"]) {
+      const block = service(prod, name);
+      expect(block, name).toContain("init: true");
+      expect(block, name).toMatch(/stop_grace_period: \d+s/);
+    }
+  });
+
+  it("Caddy tiene margen de memoria para HTTP/3 y un límite de GC explícito", () => {
+    expect(service(prod, "caddy")).toContain("memory: 256m");
+    expect(service(prod, "caddy")).toContain('GOMEMLIMIT: "100MiB"');
+  });
+});
+
+describe("docker-compose.yml: desarrollo expuesto solo en loopback", () => {
+  /** Puertos publicados de un servicio (`ports:` → comillas). */
+  function publishedPorts(block: string): string[] {
+    const section = block.match(/\n {4}ports:\n((?: {6}- .*\n)+)/);
+    return section ? [...section[1]!.matchAll(/-\s*"([^"]+)"/g)].map((m) => m[1]!) : [];
+  }
+
+  // Sin el prefijo, MariaDB (wordpress/wordpress), Redis (sin auth) y WP/Next
+  // quedaban alcanzables desde la red local: cualquiera podía FLUSHALL del Redis
+  // que guarda revocaciones, rate-limit e idempotencia.
+  it.each(["db", "redis", "wordpress", "frontend"])(
+    "%s publica solo en 127.0.0.1",
+    (name) => {
+      const ports = publishedPorts(service(dev, name));
+
+      expect(ports.length, name).toBeGreaterThan(0);
+      for (const port of ports) {
+        expect(port, `${name}: ${port}`).toMatch(/^127\.0\.0\.1:/);
+      }
+    },
+  );
+});
+
+describe("frontend/.dockerignore: ningún .env* entra en el contexto de build", () => {
+  const ignore = root("frontend/.dockerignore");
+
+  it("excluye el patrón .env* (no solo .env y .env.local)", () => {
+    // Un `frontend/.env.production` —lo natural al preparar un despliegue— se
+    // colaba en el contexto y se horneaba en la imagen: Next lo lee en `next
+    // build` e inlinearía en el artefacto cualquier NEXT_PUBLIC_*.
+    expect(ignore).toMatch(/^\.env\*$/m);
+    expect(ignore).not.toMatch(/^\.env$/m);
+    expect(ignore).not.toMatch(/^\.env\.local$/m);
+  });
+
+  it("deja pasar la plantilla .env.example (no son secretos)", () => {
+    expect(ignore).toMatch(/^!\.env\.example$/m);
   });
 });
 
@@ -199,6 +350,32 @@ describe("docker-compose.prod.yml: hardening", () => {
   });
 });
 
+describe("sondas de salud: miden lo que dicen medir", () => {
+  // `/api/health` devuelve 200 aunque Redis y WordPress estén caídos (y hace dos
+  // pings de red cada 30 s): como sonda de contenedor, reiniciaba o dejaba "sano"
+  // por el motivo equivocado. La readiness estricta (`?ready=1`) la exige el
+  // despliegue, no el healthcheck.
+  it("el frontend de dev y de prod sondea liveness (`/api/health/live`)", () => {
+    for (const compose of [prod, dev]) {
+      const frontend = service(compose, "frontend");
+      expect(frontend).toContain("/api/health/live");
+      expect(frontend).not.toMatch(/api\/health(?!\/live)/);
+    }
+  });
+
+  it("WordPress se sondea con el endpoint ligero, no con /wp-json/ (>1 MB con WooCommerce)", () => {
+    const wordpress = service(prod, "wordpress");
+    expect(wordpress).toContain("wp-json/wp/v2/categories?per_page=1");
+    expect(wordpress).not.toMatch(/curl[^\n]*localhost\/wp-json\/["'\s]/);
+  });
+
+  it("Caddy tiene sonda propia (API de administración en loopback)", () => {
+    const caddyService = service(prod, "caddy");
+    expect(caddyService).toContain("healthcheck:");
+    expect(caddyService).toContain("http://localhost:2019/config/");
+  });
+});
+
 describe(".github/workflows/cd.yml", () => {
   it("el nombre de la imagen va en minúsculas (GHCR rechaza «Org/Repo»)", () => {
     expect(cd).toMatch(/IMAGE_LC="\$\{IMAGE,,\}"/);
@@ -211,6 +388,65 @@ describe(".github/workflows/cd.yml", () => {
       /build-push:[\s\S]*?if: \$\{\{ vars\.WORDPRESS_PUBLIC_URL != '' \}\}/,
     );
     expect(cd).toMatch(/sin-configurar:[\s\S]*?vars\.WORDPRESS_PUBLIC_URL == ''/);
+  });
+});
+
+describe("ci.yml: permisos y coste", () => {
+  /** Bloque de un job del workflow. */
+  function job(name: string): string {
+    const start = ci.indexOf(`\n  ${name}:\n`);
+    expect(start, `job ${name}`).toBeGreaterThanOrEqual(0);
+    const rest = ci.slice(start + 1);
+    const next = rest.slice(1).search(/\n {2}[a-z][\w-]*:\s*\n/);
+    return next === -1 ? rest : rest.slice(0, next + 1);
+  }
+
+  it("declara permisos mínimos: ningún job necesita escribir en el repositorio", () => {
+    expect(ci).toMatch(/\npermissions:\n {2}contents: read\n/);
+  });
+
+  it.each(["frontend", "phpunit", "contract", "e2e", "config"])(
+    "el job %s tiene timeout (nada de 6 h colgado)",
+    (name) => {
+      expect(job(name)).toMatch(/timeout-minutes: \d+/);
+    },
+  );
+
+  it("la suite de tests corre UNA vez (test:coverage ya ejecuta los tests)", () => {
+    const frontendJob = job("frontend");
+
+    expect(frontendJob).toContain("npm run test:coverage");
+    expect(frontendJob).not.toMatch(/run: npm run test$/m);
+  });
+});
+
+describe("imágenes: tags reproducibles", () => {
+  it("Node y Redis fijan al menos el minor (nada de major flotante)", () => {
+    // `node:24-alpine` y `redis:8-alpine` resuelven a versiones distintas según el
+    // día: dos builds del mismo commit podían no ser el mismo artefacto.
+    expect(dockerfile).toMatch(/FROM node:\d+\.\d+-alpine/);
+    for (const compose of [prod, dev]) {
+      expect(compose).toMatch(/image: redis:\d+\.\d+-alpine/);
+    }
+  });
+
+  it("producción no baja imágenes nuevas a mitad de un despliegue", () => {
+    for (const name of ["caddy", "db", "wordpress", "redis", "backup"]) {
+      expect(service(prod, name), name).toContain("pull_policy: if_not_present");
+    }
+  });
+});
+
+describe("core de WordPress: el volumen no se actualiza solo", () => {
+  it("los scripts (con update-core.sh) llegan al contenedor wpcli", () => {
+    for (const compose of [prod, dev]) {
+      expect(service(compose, "wpcli")).toContain("./backend/scripts:/scripts:ro");
+    }
+    expect(() => root("backend/scripts/update-core.sh")).not.toThrow();
+  });
+
+  it("el RUNBOOK documenta el paso que `docker compose pull` NO hace", () => {
+    expect(root("docs/RUNBOOK.md")).toContain("update-core.sh --apply");
   });
 });
 

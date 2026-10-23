@@ -21,6 +21,11 @@
   - [ ] `WP_ADMIN_PASSWORD` — fuerte y única, **obligatoria**: `setup.sh` ya no cae en `admin` y el compose de producción no arranca sin ella. `wp-login.php` limita a 5 intentos cada 5 min por IP.
 - [ ] `WC_CONSUMER_KEY` / `WC_CONSUMER_SECRET` generados con `generate-woo-keys.sh`.
 - [ ] Verificar que **ningún** secreto está en el repo (`gitleaks` corre en CI).
+- [ ] `.env.prod` con permisos `600` y propiedad del usuario de operación (`chmod 600 .env.prod`).
+      Todos los secretos viajan como variables de entorno del contenedor: quien pueda leer
+      `/proc/1/environ` o `docker inspect` (es decir, quien esté en el grupo `docker`) los ve
+      todos, incluidos los que descifran los secretos del Control Center. El grupo `docker` es,
+      de hecho, la frontera de confianza: trátalo como acceso root.
 
 ## 2. Dominios y red
 
@@ -40,6 +45,13 @@
 - [ ] Primer arranque: `docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm wpcli`.
 - [ ] Levantar: `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d`.
 - [ ] `WORDPRESS_DEBUG=0` y `WP_ENVIRONMENT_TYPE=production` (la introspección GraphQL se apaga).
+- [ ] Tras cada `pull` de la imagen de WordPress, actualizar el **core** del volumen
+      (`run --rm wpcli /scripts/update-core.sh --apply <versión>` + `restart wordpress`): subir la
+      etiqueta no lo actualiza. Ver `docs/RUNBOOK.md` §10.
+- [ ] Copias de seguridad **cifradas** y verificadas fuera del servidor (`docs/RUNBOOK.md` §1):
+      `./backups` en claro no protege del robo del disco.
+- [ ] Retención de imágenes del registro en el servidor (no solo `image prune -f`, que deja las
+      etiquetadas): guarda las N últimas para poder volver atrás sin llenar el disco.
 
 ## 4. Pagos
 
@@ -68,7 +80,22 @@
 - [ ] Sondas configuradas en tu orquestador: liveness `/api/health/live`, readiness `/api/health?ready=1`.
 - [ ] `SENTRY_DSN` (opcional) y revisión de logs (`pino`).
 
-## 8. Verificación final
+## 8. Endurecimiento opcional (probarlo en staging antes)
+
+La plantilla aplica `no-new-privileges` en todos los servicios y `cap_drop: ALL` en caddy, redis,
+frontend, wp-cron y backup. Queda pendiente, y conviene probarlo en staging:
+
+- [ ] `cap_drop: ALL` + `cap_add` mínimas en `wordpress` (CHOWN, DAC_OVERRIDE, SETUID, SETGID,
+      NET_BIND_SERVICE) y `user: 999:999` en `db` tras el primer init.
+- [ ] `read_only: true` + `tmpfs` en `frontend` (con el volumen `next_cache`) y en `caddy`
+      (con `/data` y `/config`).
+- [ ] Sacar `wp-content` del checkout (hoy es un bind del árbol de git y `setup.sh` escribe
+      plugins ahí): un `git reset --hard` no revierte plugins y un rollback de imagen tampoco.
+- [ ] `container_name` fijo impide que dos entornos convivan en el mismo host (blue/green).
+- [ ] Frontend de desarrollo como usuario no-root (`user:` + `security_opt`), probando antes que
+      los volúmenes de `node_modules`/`.next` son escribibles.
+
+## 9. Verificación final
 
 - [ ] `cd frontend && npx tsc --noEmit && npx next lint && npx next build` en verde.
 - [ ] `npm test` (unitarios) en verde; e2e de compra (`E2E_FULL=1`) contra staging sembrado.

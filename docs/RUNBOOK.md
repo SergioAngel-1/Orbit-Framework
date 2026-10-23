@@ -50,6 +50,15 @@ deja un *lock* que se retira solo cuando su dueño ya no existe o supera su edad
 **Regla de oro:** copia estos archivos **fuera del servidor** (S3/almacenamiento
 externo). Un backup que vive solo en la misma máquina no protege ante su pérdida.
 
+**Cifrado y verificación (recomendado en producción).** Los archivos de `./backups` contienen
+la base de datos completa **en claro** (clientes, pedidos, hashes): el robo del servidor o del
+disco es también el robo de esos datos. Cifra en origen con una clave pública que **no** viva
+en el servidor (`age -r "$(cat /etc/hwe/backup.pub)"` o `gpg --encrypt`) o sincroniza con un
+remoto cifrado de `rclone`, y programa ese envío en el cron del host (el contenedor `backup`
+no sale a Internet: solo está en la red `data`). Restringe además el directorio al usuario de
+operación (`chmod 700 backups`) y **verifica** tanto la llegada (`rclone check`) como una
+restauración de prueba (§2): una copia que nunca se restauró no es una copia.
+
 ### Desde la consola
 
 ```bash
@@ -163,23 +172,48 @@ Tras actualizar mu-plugins o plugins, reinicia ese contenedor.
 - **Readiness:** `GET /api/health?ready=1` → 503 si alguna dependencia está caída.
   `GET /api/health` (sin flag) devuelve siempre 200 con el detalle.
 
+**Presupuesto de memoria de WordPress.** El contenedor `wordpress` tiene 768 MB
+(`docker-compose.prod.yml`) y tres números tienen que cuadrar entre sí:
+
+| Archivo | Qué fija |
+|---|---|
+| `docker-compose.prod.yml` | `deploy.resources.limits.memory` (768 MB) |
+| `backend/config/opcache.ini` | Segmento COMPARTIDO: `memory_consumption` + `interned_strings_buffer` + `jit_buffer_size` (96 + 8 + 0 = 104 MB) |
+| `backend/config/apache-mpm.conf` | `MaxRequestWorkers` (5); cada hijo cuesta ~60 MB |
+| `backend/config/uploads.ini` | `memory_limit` = techo de UNA petición (256 MB, lo que recomienda WooCommerce), nunca el del contenedor |
+
+Presupuesto típico: `10 (padre) + 104 (OPcache) + 5 × 60 = 414 MB`; peor caso (una
+petición al tope de `memory_limit` y 4 workers normales): `10 + 104 + 256 + 4 × 60 = 610 MB`,
+con 158 MB de margen. Si
+subes cualquiera de ellos, recalcula el resto en la misma proporción;
+`npm run test` (`tests/unit/apache-mpm.test.ts`) falla si no cabe. Un import
+puntual que necesite más memoria se lanza con `wp --memory-limit=512M …`, no
+subiendo el `memory_limit` global.
+
 **Catálogo desactualizado.** WooCommerce revalida vía webhook a `/api/revalidate`.
 Si tras un cambio el catálogo no refresca, comprueba el webhook y su firma
 (`WC_WEBHOOK_SECRET`). Los cambios de configuración y de módulos revalidan por
 etiqueta (`site-config`, `banners`, `shipping`, `landings`, `geo`…) con
 `HWE_REVALIDATION_SECRET`.
 
-**Después de desplegar.** Cada despliegue deja en frío las páginas ISR del build
-anterior. Calienta de forma ordenada (una URL cada vez) en vez de dejar que público y
+**Después de desplegar.** El volumen `next_cache` conserva el Data Cache entre
+despliegues, pero las páginas ISR se regeneran. Calienta de forma ordenada (3 en
+paralelo por defecto, contra los 5 workers de WordPress) en vez de dejar que público y
 rastreadores regeneren a la vez:
 
 ```bash
 PUBLIC_DOMAIN=tienda.example.com sh backend/scripts/warm-cache.sh
 # y, en segundo plano, el resto del sitemap:
 WARM_OFFSET=120 WARM_MAX_URLS=0 WARM_KEY_ROUTES=0 PUBLIC_DOMAIN=… sh backend/scripts/warm-cache.sh
+# ¿WordPress va justo? Baja la concurrencia (WARM_CONCURRENCY=1 = secuencial).
 ```
 
 No borra ninguna caché a propósito: el Data Cache sobrevive al despliegue.
+
+**Purga de la caché de imágenes.** `next/image` no recolecta su caché en disco. El
+servicio `cache-prune` borra una vez al día las variantes de `/app/.next/cache/images`
+sin uso en `CACHE_IMAGES_MAX_AGE_DAYS` días (30 por defecto); se regeneran bajo demanda.
+No toca el resto de `.next/cache`.
 
 ---
 
@@ -216,6 +250,7 @@ intentos por IP cada 5 minutos.
 |---------|--------------------|--------|
 | Picos de 401/403 en `/api/*` | Logs `*.idor`, `csrf`, `origin` | Revisar `ALLOWED_ORIGIN`/CSRF; posible ataque → revisar IPs. |
 | Todo responde 404 desde el BFF a WordPress | `[hwe] bff-only:` en el log de PHP | `HWE_REVALIDATION_SECRET` distinto o ausente en un lado (ver §3). |
+| 500 intermitentes y el contenedor de WordPress se reinicia | `docker inspect hwe_wordpress` → `OOMKilled`, `docker stats` | Presupuesto de memoria (§5): revisar OPcache, `MaxRequestWorkers` y `memory_limit`. |
 | `payments.webhook.mismatch` | Importe/moneda no casan | NO marcar pagado a mano; investigar pedido y evento de la pasarela. |
 | Muchos 429 | Rate-limit disparado | ¿Ataque o cliente legítimo? Ajustar límites o bloquear IP en Caddy. |
 | `checkout.link_owner_failed` | Pedido no ligado al cliente | Conciliar manualmente `customer_id` del pedido en wc/v3. |
@@ -253,8 +288,26 @@ dependencias de pruebas de Composer). Requiere, en *Settings → Code security*,
 | Qué | Cómo |
 |---|---|
 | Plugins de WordPress de `setup.sh` | `sh backend/scripts/check-versions.sh` (compara con wp.org y GitHub; `--strict` falla si alguno está por detrás) |
-| Imágenes Docker (WordPress, MariaDB, Redis, Caddy, Alpine, Node) | `docs/COMPATIBILITY.md` y las etiquetas de cada imagen en Docker Hub |
+| Imágenes Docker (WordPress, MariaDB, Redis, Caddy, Alpine, Node) | `docs/COMPATIBILITY.md` (política de tags y digest) y las etiquetas de Docker Hub. Actualizar es explícito: `docker compose pull` — el compose de producción no baja imágenes nuevas a mitad de un despliegue (`pull_policy: if_not_present`). |
 | Árbol npm | `npm audit` / `npm run audit:gate` (el gate de CI) y `npm outdated` en `frontend/` |
+
+**Cómo actualizar el CORE de WordPress.** El core no se actualiza con `docker compose pull`: vive en
+el volumen `wordpress_core` y el entrypoint de la imagen solo lo copia si falta
+`/var/www/html/index.php`, así que el sitio sigue con la versión vieja (y los CVE del core no se
+corrigen con el despliegue). Tras subir la etiqueta de la imagen:
+
+```bash
+# 1. Estado: versión instalada + checksums (¿hay archivos modificados a mano?)
+docker compose -f docker-compose.prod.yml --env-file .env.prod \
+    run --rm wpcli /scripts/update-core.sh
+# 2. Actualizar a la versión de la imagen nueva (con copia de seguridad previa, §1)
+docker compose -f docker-compose.prod.yml --env-file .env.prod \
+    run --rm wpcli /scripts/update-core.sh --apply 7.2
+# 3. OPcache tiene validate_timestamps=0: sin reiniciar, sigue sirviendo el código viejo
+docker compose -f docker-compose.prod.yml --env-file .env.prod restart wordpress
+```
+
+Después, `sh backend/scripts/verify-security.sh` y una compra de prueba.
 
 **Cómo subir un plugin.** Pruébalo en staging y cambia a la vez la versión y su SHA-256
 en `setup.sh` (los de GitHub verifican hash); actualiza `docs/COMPATIBILITY.md`. Un salto de

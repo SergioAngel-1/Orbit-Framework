@@ -10,6 +10,15 @@
 #  Para producción usa docker-compose.prod.yml
 # ============================================================================
 
+# Rotación de logs compartida: sin límite, un `docker` con el driver json-file
+# (el de fábrica en muchas instalaciones) llena el disco del portátil tras
+# semanas de desarrollo. Mismo bloque que en producción.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # --------------------------------------------------------------------------
   # Base de datos
@@ -17,9 +26,12 @@ services:
   db:
     image: mariadb:11.8
     container_name: hwe_db
+    logging: *default-logging
     restart: unless-stopped
     ports:
-      - "3307:3306"
+      # Solo loopback: el modo híbrido (WordPress nativo contra `127.0.0.1:3307`)
+      # sigue funcionando, pero la BD deja de ser alcanzable desde la red local.
+      - "127.0.0.1:3307:3306"
     environment:
       MARIADB_DATABASE: "${MYSQL_DATABASE:-wordpress}"
       MARIADB_USER: "${MYSQL_USER:-wordpress}"
@@ -41,12 +53,15 @@ services:
   wordpress:
     image: wordpress:7.1-php8.4-apache
     container_name: hwe_wordpress
+    logging: *default-logging
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "${WORDPRESS_PORT:-8080}:80"
+      # Solo loopback. Para probar desde el móvil en la LAN, publica a propósito
+      # con `-p` o un override; no lo dejes abierto por defecto.
+      - "127.0.0.1:${WORDPRESS_PORT:-8080}:80"
     environment:
       WORDPRESS_DB_HOST: "db:3306"
       WORDPRESS_DB_USER: "${MYSQL_USER:-wordpress}"
@@ -130,6 +145,7 @@ services:
   wpcli:
     image: wordpress:cli-php8.4
     container_name: hwe_wpcli
+    logging: *default-logging
     profiles: ["cli"]
     depends_on:
       db:
@@ -190,6 +206,7 @@ services:
   wp-cron:
     image: wordpress:cli-php8.4
     container_name: hwe_wp_cron
+    logging: *default-logging
     restart: unless-stopped
     depends_on:
       db:
@@ -223,8 +240,12 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
+        trap 'exit 0' TERM INT
         while true; do
-          wp cron event run --due-now --allow-root --quiet 2>&1 | sed 's/^/[wp-cron] /'
+          # `flock -n`: si la corrida anterior sigue viva (Action Scheduler,
+          # backups), esta se SALTA en vez de arrancar en paralelo y duplicar
+          # acciones. `timeout 300`: una corrida colgada no se eterniza.
+          flock -n /tmp/wp-cron.lock timeout 300 wp cron event run --due-now --allow-root --quiet 2>&1 | sed 's/^/[wp-cron] /'
           sleep 60
         done
     networks:
@@ -237,6 +258,7 @@ services:
   backup:
     image: alpine:3.23
     container_name: hwe_backup
+    logging: *default-logging
     restart: unless-stopped
     depends_on:
       db:
@@ -269,11 +291,16 @@ services:
   # Redis (cache / rate-limit / idempotencia para el BFF del frontend)
   # --------------------------------------------------------------------------
   redis:
-    image: redis:8-alpine
+    # El tag fija el minor: `redis:8-alpine` es un major flotante (hoy resuelve
+    # a 8.10.x) y dos despliegues del mismo commit podían usar versiones distintas.
+    image: redis:8.10-alpine
     container_name: hwe_redis
+    logging: *default-logging
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      # Solo loopback: sin esto, cualquiera en la red local puede FLUSHALL el Redis
+      # que guarda la blocklist de revocación, el rate-limit y la idempotencia.
+      - "127.0.0.1:6379:6379"
     command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
     volumes:
       - redis_data:/data
@@ -294,6 +321,7 @@ services:
       dockerfile: Dockerfile
       target: dev # imagen de desarrollo con hot-reload (prod: --target prod)
     container_name: hwe_frontend
+    logging: *default-logging
     restart: unless-stopped
     depends_on:
       wordpress:
@@ -301,15 +329,18 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     healthcheck:
-      # Usa el fetch global de Node 24 (sin curl/wget) contra la sonda /api/health.
+      # Liveness puro: /api/health devuelve 200 aunque Redis/WP estén caídos, así
+      # que como sonda de contenedor medía otra cosa. El proceso vivo es lo único
+      # que debe reiniciar el contenedor; la readiness la comprueba el despliegue.
+      # Usa el fetch global de Node 24 (sin curl/wget).
       test:
         [
           "CMD",
           "node",
           "-e",
-          "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://localhost:3000/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 30s
       timeout: 5s

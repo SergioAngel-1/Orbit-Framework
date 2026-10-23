@@ -13,10 +13,30 @@
 | WordPress  | `7.1` (PHP 8.4, Apache) | Imagen `wordpress:7.1-php8.4-apache`. WP-CLI: `wordpress:cli-php8.4`. |
 | PHP        | `8.4` (≥ 8.4.27) | Producción y CI (`config.platform.php` = `8.4.0`). El código propio declara `>=8.3`. Requerido por los mu-plugins (tipado, `aes-256-gcm`). |
 | MariaDB    | `11.8` LTS | Imagen `mariadb:11.8` (LTS, soporte hasta 2028). |
-| Redis      | `8` (dev y prod) | Imagen `redis:8-alpine`. Caché, rate-limit, idempotencia, locks, revocación, anti-replay, 2FA pendiente y estadísticas de consentimiento. **Compartido** con el BFF: WordPress usa el prefijo `hwe-wp:` y borra solo sus claves (ver `RUNBOOK.md`). |
+| Redis      | `8.10` (dev y prod) | Imagen `redis:8.10-alpine` (minor fijado: `8-alpine` es un major flotante). Caché, rate-limit, idempotencia, locks, revocación, anti-replay, 2FA pendiente y estadísticas de consentimiento. **Compartido** con el BFF: WordPress usa el prefijo `hwe-wp:` y borra solo sus claves (ver `RUNBOOK.md`). |
 | Caddy      | `2.11`  | Solo producción (`docker-compose.prod.yml`): TLS automático + HTTP/3, sirve `/wp-content/*`. |
-| Node.js    | `24` LTS (≥ 24.22.1) | Imágenes `node:24-alpine` y CI. El paquete exige `>=20.18.0`. |
-| Alpine     | `3.23`  | Contenedores auxiliares (`backup`, `wp-cron`). |
+| Node.js    | `24.22` LTS | Imágenes `node:24.22-alpine` (minor fijado) y CI. El paquete exige `>=20.18.0`. |
+| Alpine     | `3.23`  | Contenedores auxiliares (`backup`, `cache-prune`). |
+
+### Política de etiquetas de imagen
+
+Los tags fijan al menos el **minor** (`node:24.22-alpine`, `redis:8.10-alpine`,
+`mariadb:11.8`, `caddy:2.11-alpine`, `wordpress:7.1-php8.4-apache`): dos builds del mismo
+commit no pueden usar versiones distintas, y los parches de seguridad dentro del minor siguen
+llegando con `docker compose pull`. `wordpress:cli-php8.4` no tiene etiqueta con versión de
+WP-CLI para PHP 8.4 en Docker Hub, así que queda como está.
+
+Para una reproducibilidad total en producción se puede fijar el **digest**
+(`redis:8.10-alpine@sha256:…`):
+
+```bash
+docker buildx imagetools inspect redis:8.10-alpine   # Digest (manifest list)
+```
+
+Con digest, `pull` ya no trae parches: el bump es un PR revisable (o se automatiza con un
+gestor de dependencias de imágenes). El compose de producción trae `pull_policy: if_not_present`
+para que un `up -d` no cambie la base a mitad de un despliegue; actualizar imágenes es un paso
+explícito (`docker compose pull`).
 
 ## Frontend (npm — ver `frontend/package.json`)
 

@@ -6,7 +6,79 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed
+- **Presupuesto de memoria de WordPress (OOM bajo carga).** `memory_limit` valía 512M —el
+  límite entero del contenedor— y OPcache reservaba 336 MB (256 de caché + 16 de interned + 64
+  de JIT), mientras el dimensionado de Apache (`apache-mpm.conf`) daba por sentados ~90 MB de
+  OPcache: un pico de WPGraphQL o el prerender podían consumir el cgroup y matar el contenedor
+  (`OOMKilled`), dejando el sitio en 500 hasta que Docker lo reiniciaba. Ahora `memory_limit` es
+  256M (techo por petición, lo que recomienda WooCommerce), Apache pasa a 5 workers, OPcache
+  baja a 96 + 8 MB con el JIT apagado (WordPress es I/O-bound) y el contenedor `wordpress` de
+  producción pasa de 512 a 768 MB. El presupuesto (típico 414 MB; peor caso, una petición al
+  tope y 4 workers normales, 610 MB) está documentado en `docs/RUNBOOK.md` §5.
+  `tests/unit/apache-mpm.test.ts` lee también `opcache.ini`, `uploads.ini` y el límite del
+  compose, y comprueba los dos casos: subir uno sin recalcular los demás ahora falla.
+- **Sondas de salud que miden lo que dicen medir.** El healthcheck del frontend (dev y prod)
+  llamaba a `/api/health`, que devuelve 200 aunque Redis y WordPress estén caídos y que hace dos
+  pings de red cada 30 s: ahora usa `/api/health/live` (liveness puro) y la readiness estricta
+  (`?ready=1`) sigue en el gate del despliegue. El de WordPress en producción pedía `/wp-json/`
+  (>1 MB con WooCommerce y arranque PHP completo cada 30 s) y pasa al endpoint ligero que ya
+  usaba desarrollo (`/wp-json/wp/v2/categories?per_page=1`). Caddy estrena sonda propia contra
+  su API de administración (loopback).
+- **Segmentación de red y ciclo de vida en producción.** La pila compartía una única red plana:
+  Caddy podía resolver y alcanzar `db:3306` y `redis:6379`, y cualquier contenedor comprometido
+  llegaba a la base de datos y al Redis de revocaciones, rate-limit e idempotencia. Ahora hay tres
+  capas (`edge`, `app`, `data`), `data` es **interna** y Caddy no está en ella; WordPress, el
+  frontend y wp-cli/wp-cron conservan salida a Internet por `app` (pasarelas, webhooks, SMTP,
+  descargas de `setup.sh`). Además: `init: true` y `stop_grace_period` (adiós al SIGKILL con
+  peticiones en vuelo), `cpus`/`pids` acotados, Caddy con 256 MB y `GOMEMLIMIT`, `db` con
+  `start_period` (el primer `up` ya no falla), y arranque por `service_started` en vez de
+  `service_healthy` para que un WordPress lento no impida servir el sitio cacheado.
+- **MariaDB, Redis y el cron, con parámetros coherentes.** MariaDB pasa a 50 conexiones
+  (`max-connections`) con `max-allowed-packet=64M` (el default de 16 MB rompía un restore con
+  filas grandes), `slow-query-log` con `long-query-time=1` (sin él no se ve la consulta que tumba
+  el sitio) y `skip-name-resolve`. Redis deja de bloquear escrituras si falla el `bgsave`
+  (`stop-writes-on-bgsave-error no`: aquí los datos son caché y estado reconstruible). El bucle de
+  `wp-cron` toma un `flock` (una corrida larga ya no se solapa con la siguiente y duplica acciones),
+  se acota con `timeout 300` y atiende SIGTERM. Desarrollo estrena la misma rotación de logs que
+  producción.
+- **La caché de Next sobrevive al despliegue y las imágenes se purgan.** Solo se persistía
+  `/app/.next/cache/images`, así que cada `up -d` dejaba el ISR en frío y todo el sitio se
+  regeneraba contra WordPress a la vez. Ahora el volumen `next_cache` cubre todo
+  `/app/.next/cache` (ISR, fetch-cache e imágenes) y un servicio `cache-prune` borra a diario las
+  variantes de imagen sin uso en `CACHE_IMAGES_MAX_AGE_DAYS` (30) días, que `next/image` no
+  recolecta nunca. `warm-cache.sh` calienta con 3 peticiones en paralelo (contra los 5 workers de
+  WordPress) en vez de una cada segundo, y sigue admitiendo `WARM_CONCURRENCY=1`.
+
 ### Security
+- **Desarrollo deja de exponer la pila a la red local.** MariaDB (`3307`), Redis (`6379`),
+  WordPress (`8080`) y el frontend (`3000`) se publicaban en `0.0.0.0` con las credenciales por
+  defecto y Redis sin auth: en una red compartida cualquiera podía entrar a la base de datos o
+  hacer `FLUSHALL` del Redis que guarda la blocklist de revocación, el rate-limit y la
+  idempotencia del checkout. Ahora los cuatro se publican solo en `127.0.0.1`; el modo híbrido
+  (WordPress nativo contra `127.0.0.1:3307` y `npm run dev`) sigue igual. Para probar desde el
+  móvil hay que publicar a propósito con un override.
+- **`frontend/.dockerignore` excluye todos los `.env*`.** Antes solo excluía `.env` y `.env.local`
+  exactos: un `.env.production` —lo natural al preparar un despliegue— entraba en el contexto y se
+  horneaba en la imagen, con Next inlinando en `next build` cualquier `NEXT_PUBLIC_*` y dejando el
+  resto en las capas del builder. Ahora el patrón es `.env*` con `!.env.example`.
+- **Caddy deja de anunciar el stack y acota la superficie pública.** Se borran `Server` y
+  `X-Powered-By` del upstream (Apache ya no emite la versión de PHP: `expose_php = Off`,
+  `ServerTokens Prod`, `ServerSignature Off`), se limita el cuerpo de la petición a 130 MB (los
+  medios necesitan 128), se añaden timeouts de servidor contra conexiones a goteo (slowloris) y un
+  `handle_errors` propio sin caché en vez de la página de error de Caddy. Un `.php` dentro de
+  `wp-content/uploads` responde **404** en vez de ejecutarse en Apache. Y el año de `Cache-Control`
+  queda solo para `uploads/` (inmutable): el resto de `/wp-content` (CSS/JS de temas y plugins)
+  pasa a una hora con revalidación, para que un asset actualizado no quede obsoleto un año en los
+  navegadores.
+- **El core de WordPress ya no queda congelado en el volumen.** El core vive en
+  `wordpress_core:/var/www/html` y el entrypoint de la imagen oficial solo lo copia si falta
+  `/var/www/html/index.php`: subir la etiqueta (`wordpress:7.1` → `7.2`) **no actualizaba nada**,
+  así que los parches de seguridad del core no llegaban por la vía que se creía. Se añade
+  `backend/scripts/update-core.sh` (estado + `verify-checksums`, y `--apply <versión>` para
+  actualizar), documentado en `docs/RUNBOOK.md` §10 y `docs/UPGRADE.md`, con el reinicio que exige
+  `opcache.validate_timestamps=0`. La actualización sigue siendo un paso explícito de operación
+  (no automática) para no cambiar de versión de core en un `up -d`.
 - **Los límites de GraphQL no se aplicaban.** `graphql-protection.php` enganchaba
   `graphql_query_max_depth` y `graphql_query_complexity`, filtros que WPGraphQL no tiene: `/graphql`
   aceptaba consultas de cualquier profundidad y complejidad (DoS). Ahora el límite de profundidad va
@@ -48,6 +120,27 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   atendiendo (cobros ya iniciados). El panel explica cómo dejar WhatsApp como único medio.
 
 ### Changed
+- **Imagen de producción del frontend: trazabilidad y paridad de runtime.** El stage `prod` lleva
+  etiquetas OCI (`source`/`revision` opcionales por build-arg), instala `libc6-compat` como el
+  stage base (sharp es nativo) y aplica los parches de Alpine del momento del build con
+  `apk upgrade` —el `pull` del tag de Node no los trae—. `public/` se copia con `--chown`, así que
+  no queda de root. `docs/GO-LIVE.md` documenta además el endurecimiento que queda pendiente
+  (capabilities de WordPress/MariaDB, `read_only` en frontend/Caddy, `wp-content` fuera del
+  checkout), los permisos de `.env.prod`, la actualización del core y el cifrado/verificación de
+  las copias.
+- **Imágenes con el minor fijado.** `node:24-alpine` y `redis:8-alpine` eran *majors*
+  flotantes: dos builds del mismo commit podían usar Node o Redis distintos y una regresión de
+  runtime entraba en producción sin pasar por CI. Ahora son `node:24.22-alpine` y
+  `redis:8.10-alpine` (MariaDB, Caddy y WordPress ya fijaban minor), y el compose de producción
+  declara `pull_policy: if_not_present` para que un `up -d` no cambie la base a mitad de un
+  despliegue. `docs/COMPATIBILITY.md` documenta la política y cómo fijar por digest si se quiere
+  reproducibilidad total.
+- **CI: menos minutos de runner y permisos mínimos.** El job `frontend` ejecutaba la suite dos
+  veces (`npm run test` y `npm run test:coverage`, que ya corre los tests): ahora solo la segunda,
+  con umbrales incluidos. Los navegadores de Playwright se cachean entre ejecuciones del job `e2e`
+  (cientos de MB por PR) y el workflow declara `permissions: contents: read` con
+  `timeout-minutes` por job, para que un cuelgue no consuma horas de runner y el `GITHUB_TOKEN`
+  no nazca con escritura.
 - **`brand.url` tiene predeterminado.** Vacío en el Control Center, el frontend usa su URL pública
   (`NEXT_PUBLIC_SITE_URL`) y lo registra (`site_config.brand_url_default`): las canónicas, el
   JSON-LD, el sitemap y el enlace de referido ya no salen relativos en una instancia sin configurar.

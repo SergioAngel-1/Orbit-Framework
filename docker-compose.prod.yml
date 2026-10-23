@@ -6,9 +6,9 @@
 #    ✔ Frontend usa imagen pre-construida standalone (sin volúmenes de código).
 #    ✔ WordPress y Redis sin puertos expuestos al host (solo acceso via Caddy).
 #    ✔ WORDPRESS_DEBUG=0, WP_ENVIRONMENT_TYPE=production.
-#    ✔ Límites de memoria por servicio.
+#    ✔ Límites de memoria/CPU/procesos por servicio y una red interna para db/redis.
 #    ✔ Servicio `backup` con cron diario (03:00 UTC).
-#    ✔ WordPress con healthcheck real (REST API).
+#    ✔ WordPress con healthcheck real (endpoint ligero, no /wp-json/).
 #    ✔ Hardening: `security_opt: no-new-privileges` en todos los servicios.
 #
 #  Endurecimiento adicional recomendado (según tu plataforma; puede requerir
@@ -18,6 +18,10 @@
 #      su init/Apache necesita capacidades; endurécelos tras probar en staging.
 #    - `read_only: true` + `tmpfs` APLICADO a redis. No se aplica a frontend
 #      (caché ISR) ni a WordPress (escribe en disco) por defecto.
+#    - Redes: `data` es INTERNA (sin salida a Internet) y solo la comparten
+#      db, redis y sus consumidores; Caddy vive en `edge`+`app` y no puede
+#      alcanzarla. WordPress, el frontend y wp-cli conservan salida por `app`
+#      (SMTP, pasarelas, webhooks, descargas de setup.sh): no los muevas a `data`.
 #    - Fijar imágenes por DIGEST (image: repo@sha256:...) para builds reproducibles.
 #    - Restore PROBADO con backend/scripts/restore.sh (ver docs/RUNBOOK.md).
 #
@@ -53,6 +57,9 @@ services:
   # ── Caddy: reverse proxy + TLS automático ───────────────────────────────────
   caddy:
     image: caddy:2.11-alpine
+    # No se baja una imagen nueva a mitad de un despliegue: actualizar bases es un
+    # paso explícito (`docker compose pull`) revisable, no una sorpresa del `up -d`.
+    pull_policy: if_not_present
     container_name: hwe_caddy
     logging: *default-logging
     restart: unless-stopped
@@ -86,21 +93,46 @@ services:
       # el sitio del panel lo define caddy/conf.d/admin.caddy (ver caddy/README.md).
       ADMIN_DOMAIN:  "${ADMIN_DOMAIN:-}"
       ACME_EMAIL:    "${ACME_EMAIL:?ACME_EMAIL must be set}"
+      # Red de seguridad del runtime Go: si el proceso se acerca al límite del
+      # contenedor, el GC aprieta ANTES de que el kernel lo mate.
+      GOMEMLIMIT: "100MiB"
     depends_on:
+      # `service_started`, no `healthy`: el BFF está diseñado para degradar
+      # (catálogo cacheado, rate-limit fail-open) y Caddy tiene `lb_try_duration`,
+      # así que un WordPress lento no debe impedir arrancar el sitio entero. La
+      # readiness real la exige el gate del despliegue (`?ready=1`).
       frontend:
-        condition: service_healthy
+        condition: service_started
       wordpress:
-        condition: service_healthy
+        condition: service_started
+    healthcheck:
+      # La API de administración escucha solo en loopback y no toca el sitio:
+      # comprueba que Caddy está vivo y ha cargado su configuración, sin
+      # depender de que el upstream responda.
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    # `edge` la comunica con el frontend; `app` con WordPress (panel, REST y
+    # medios). NO está en `data`: Caddy no puede resolver ni alcanzar `db` ni
+    # `redis` — el aislamiento es de red, no solo de aplicación.
     networks:
-      - hwe_net
+      - edge
+      - app
+    init: true
+    stop_grace_period: 30s
     deploy:
       resources:
         limits:
-          memory: 128m
+          memory: 256m
+          cpus: "1"
+          pids: 512
 
   # ── Base de datos ──────────────────────────────────────────────────────────
   db:
     image: mariadb:11.8
+    pull_policy: if_not_present
     container_name: hwe_db
     logging: *default-logging
     restart: unless-stopped
@@ -114,30 +146,56 @@ services:
     # Los defaults de MariaDB (innodb_buffer_pool_size=128M, max_connections=151)
     # no tienen en cuenta el límite de memoria del contenedor (512m, abajo). 256M
     # de buffer pool (50 %) deja margen para conexiones, sort buffers y el SO; y
-    # 100 conexiones sobran: todo el tráfico pasa por el BFF, no hay muchos
+    # 50 conexiones sobran: todo el tráfico pasa por el BFF, no hay muchos
     # clientes concurrentes directos. Si subes el límite de memoria, sube también
     # `MYSQL_INNODB_BUFFER_POOL_SIZE` (≈ 50 % del límite).
+    #
+    # `max-allowed-packet=64M`: el default (16M) rompía un restore de un dump con
+    # filas grandes; 64M es la mitad de `post_max_size` (uploads.ini) y evita
+    # reservar de más por conexión.
+    # `slow-query-log` + `long-query-time=1`: sin él no hay forma de ver la
+    # consulta que tumba el sitio. `skip-name-resolve`: no resolver DNS inverso
+    # por conexión (todo llega por IP de la red interna).
     command:
       - --innodb-buffer-pool-size=${MYSQL_INNODB_BUFFER_POOL_SIZE:-256M}
-      - --max-connections=${MYSQL_MAX_CONNECTIONS:-100}
+      - --max-connections=${MYSQL_MAX_CONNECTIONS:-50}
+      - --max-allowed-packet=64M
+      - --slow-query-log=1
+      - --long-query-time=1
+      - --skip-name-resolve
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
+      # El init de MariaDB sobre un volumen vacío puede tardar más que los
+      # reintentos: sin `start_period`, el primer `up` fallaba por
+      # `depends_on: service_healthy` y había que repetirlo.
+      start_period: 60s
       retries: 10
+    # Solo en `data` (interna): la base de datos no necesita —ni debe tener—
+    # salida a Internet, y Caddy no puede alcanzarla.
     networks:
-      - hwe_net
+      - data
+    init: true
+    stop_grace_period: 60s
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     deploy:
       resources:
         limits:
           memory: 512m
+          cpus: "2"
+          pids: 512
 
   # ── WordPress headless ──────────────────────────────────────────────────────
   # Puerto 8080 NO expuesto al host: solo accesible via Caddy en la red interna.
   wordpress:
     image: wordpress:7.1-php8.4-apache
+    pull_policy: if_not_present
     container_name: hwe_wordpress
     logging: *default-logging
     restart: unless-stopped
@@ -167,10 +225,10 @@ services:
         // WordPress (wordpress, wpcli y wp-cron) la definen igual.
         define( 'WP_CONTENT_URL', 'https://${PUBLIC_DOMAIN}/wp-content' );
         define( 'HWE_REVALIDATION_SECRET',  '${HWE_REVALIDATION_SECRET:?HWE_REVALIDATION_SECRET must be set}' );
-        // Claves AES dedicadas (estables entre recreaciones del contenedor). En
-        // prod el core de WP NO se persiste, así que NO se puede depender del
-        // fallback a AUTH_KEY autogenerado: si cambiara, los secretos del Control
-        // Center y los secretos 2FA cifrados quedarían indescifrables.
+        // Claves AES dedicadas (estables entre recreaciones del contenedor). NO se
+        // depende del fallback a AUTH_KEY autogenerado: si el volumen del core se
+        // recrea o el core se reinstala, AUTH_KEY cambiaría y los secretos del
+        // Control Center y los 2FA cifrados quedarían indescifrables.
         define( 'HWE_SECRETS_KEY', '${HWE_SECRETS_KEY:?HWE_SECRETS_KEY must be set}' );
         define( 'HWE_2FA_KEY',     '${HWE_2FA_KEY:?HWE_2FA_KEY must be set}' );
         define( 'HWE_BACKUPS_DIR', '/var/www/hwe-backups' );
@@ -202,6 +260,11 @@ services:
       # contenedor vive con su propia copia y wp-cli nunca ve el wp-config.php que
       # este servicio genera al arrancar («This does not seem to be a WordPress
       # installation»).
+      #
+      # ⚠ Consecuencia: el core NO se actualiza al subir la etiqueta de la imagen
+      # (el entrypoint solo copia si falta index.php). Tras un `pull`, ejecuta
+      # `wpcli /scripts/update-core.sh --apply <versión>` y reinicia este servicio;
+      # procedimiento en docs/RUNBOOK.md §10.
       - wordpress_core:/var/www/html
       - ./backend/wp-content:/var/www/html/wp-content
       - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
@@ -223,21 +286,33 @@ services:
       # next/image por la red interna, sin pasar por Caddy). Ver el propio archivo.
       - ./backend/config/apache-headers.conf:/etc/apache2/conf-enabled/zz-hwe-headers.conf:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/wp-json/ || exit 1"]
+      # Endpoint LIGERO (una categoría) en lugar de `/wp-json/`, que con
+      # WooCommerce devuelve >1 MB y arranca PHP entero cada 30 s. Mismo criterio
+      # que en desarrollo.
+      test: ["CMD-SHELL", "curl -sf -o /dev/null http://localhost/wp-json/wp/v2/categories?per_page=1 || exit 1"]
       interval: 30s
       timeout: 10s
       start_period: 90s
       retries: 5
+    # `app` para Caddy y para la salida a Internet que WordPress necesita
+    # (SMTP, actualizaciones de plugins, webhooks salientes); `data` para db y
+    # redis (red interna, sin ruta al exterior).
     networks:
-      - hwe_net
+      - app
+      - data
+    init: true
+    stop_grace_period: 30s
     deploy:
       resources:
         limits:
-          memory: 512m
+          memory: 768m
+          cpus: "2"
+          pids: 512
 
   # ── WP-CLI (primer arranque, bajo demanda) ─────────────────────────────────
   wpcli:
     image: wordpress:cli-php8.4
+    pull_policy: if_not_present
     container_name: hwe_wpcli
     profiles: ["cli"]
     depends_on:
@@ -269,12 +344,19 @@ services:
     # Corre como 33:33 y no usa sudo/su: no necesita ganar privilegios.
     security_opt:
       - no-new-privileges:true
+    # `app` para que `setup.sh` pueda descargar WordPress, WooCommerce y los
+    # plugins (necesita Internet); `data` para hablar con db y redis.
     networks:
-      - hwe_net
+      - app
+      - data
+    init: true
 
   # ── Redis (caché de objetos WP + rate-limit BFF) ────────────────────────────
   redis:
-    image: redis:8-alpine
+    # El tag fija el minor: `redis:8-alpine` es un major flotante (hoy resuelve
+    # a 8.10.x) y dos despliegues del mismo commit podían usar versiones distintas.
+    image: redis:8.10-alpine
+    pull_policy: if_not_present
     container_name: hwe_redis
     logging: *default-logging
     restart: unless-stopped
@@ -298,7 +380,16 @@ services:
         "--save", "900", "1",
         "--loglevel", "warning",
         "--maxmemory", "220mb",
+        # allkeys-lru (no volatile-lru): las claves de seguridad no siempre tienen
+        # TTL y con una política que solo expulsa claves volátiles, al llenarse el
+        # límite Redis devolvería error de escritura y el rate-limit dejaría de
+        # contar. Perder una clave por presión de memoria es menos malo que un
+        # Redis que se niega a escribir.
         "--maxmemory-policy", "allkeys-lru",
+        # Si el `bgsave` falla (disco lleno), Redis deja de aceptar escrituras por
+        # defecto —justo cuando el disco está mal—. Aquí los datos son caché y
+        # estado reconstruible: seguir sirviendo es mejor que fallar cerrado.
+        "--stop-writes-on-bgsave-error", "no",
       ]
     volumes:
       - redis_data:/data
@@ -307,12 +398,22 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+    # Solo en `data` (interna): nadie fuera del stack la alcanza y ella no sale.
     networks:
-      - hwe_net
+      - data
+    init: true
+    # Margen para que termine el `bgsave` en curso antes del SIGKILL.
+    stop_grace_period: 30s
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     deploy:
       resources:
         limits:
           memory: 256m
+          cpus: "1"
+          pids: 256
 
   # ── Frontend (Next.js standalone — imagen pre-construida) ───────────────────
   # Puerto 3000 NO expuesto al host: Caddy es el punto de entrada público.
@@ -328,7 +429,7 @@ services:
       # config por defecto y ISR regenera las páginas con el contenido real al
       # primer acceso (sin pila de WordPress en el build es el modo normal). Si
       # quieres que el build prerenderice contra WordPress, pon aquí el nombre REAL
-      # de la red (`<proyecto>_hwe_net`, sin prefijo automático en `build.network`)
+      # de la red (`<proyecto>_app`, sin prefijo automático en `build.network`)
       # y construye con el builder clásico (`DOCKER_BUILDKIT=0`), el único que
       # admite una red por nombre.
       args:
@@ -353,10 +454,13 @@ services:
     cap_drop:
       - ALL
     depends_on:
+      # `service_started`: el frontend sabe servir catálogo cacheado y degradar
+      # si WordPress/Redis aún no están listos; bloquear su arranque convertía un
+      # WordPress lento en un sitio entero caído. La readiness la exige el CD.
       wordpress:
-        condition: service_healthy
+        condition: service_started
       redis:
-        condition: service_healthy
+        condition: service_started
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_SITE_URL:             "https://${PUBLIC_DOMAIN}"
@@ -390,25 +494,41 @@ services:
       CONFIG_TIMEOUT_MS:                "${RUNTIME_CONFIG_TIMEOUT_MS:-15000}"
       LOG_LEVEL:                        "${LOG_LEVEL:-info}"
     volumes:
-      # Caché de imágenes optimizadas: persiste entre despliegues (la imagen la crea
-      # con el dueño correcto; ver frontend/Dockerfile). Es OTRA que la ISR.
-      - next_image_cache:/app/.next/cache/images
+      # Toda la caché de Next (ISR + fetch-cache + imágenes optimizadas): antes
+      # solo se persistía `cache/images`, así que cada `up -d` dejaba el ISR en
+      # frío y todo el sitio se regeneraba contra WordPress a la vez. La imagen
+      # crea `.next/cache` con el dueño correcto (uid 1001); ver frontend/Dockerfile.
+      - next_cache:/app/.next/cache
     healthcheck:
+      # Liveness puro (`/api/health`) devuelve 200 aunque Redis y WordPress estén
+      # caídos y hace dos pings de red cada 30 s: como sonda de contenedor, mide
+      # otra cosa. `/api/health/live` solo comprueba que el proceso responde; la
+      # readiness real (`?ready=1`) la exige el gate del despliegue.
       test:
-        - "CMD"
-        - "node"
-        - "-e"
-        - "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 5s
       start_period: 40s
       retries: 3
     networks:
-      - hwe_net
+      # `edge` para Caddy, `app` para WordPress y `data` para db/redis. Sale a
+      # Internet por `edge` (pasarelas de pago, Sentry, webhooks salientes).
+      - edge
+      - app
+      - data
+    init: true
+    stop_grace_period: 30s
     deploy:
       resources:
         limits:
           memory: 512m
+          cpus: "2"
+          pids: 512
 
   # ── WP-Cron (eventos programados de WordPress y de los plugins) ─────────────
   # `DISABLE_WP_CRON` está activo en `wordpress`: este servicio ejecuta por WP-CLI
@@ -416,6 +536,7 @@ services:
   # copia de seguridad, cancelaciones automáticas, Action Scheduler de WooCommerce).
   wp-cron:
     image: wordpress:cli-php8.4
+    pull_policy: if_not_present
     container_name: hwe_wp_cron
     logging: *default-logging
     restart: unless-stopped
@@ -449,22 +570,33 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
+        trap 'exit 0' TERM INT
         while true; do
-          wp cron event run --due-now --allow-root --quiet 2>&1 | sed 's/^/[wp-cron] /'
+          # `flock -n`: si la corrida anterior sigue viva (Action Scheduler,
+          # backups), esta se SALTA en vez de arrancar en paralelo y duplicar
+          # acciones. `timeout 300`: una corrida colgada no se eterniza.
+          flock -n /tmp/wp-cron.lock timeout 300 wp cron event run --due-now --allow-root --quiet 2>&1 | sed 's/^/[wp-cron] /'
           sleep 60
         done
+    # `app` porque algunos eventos hacen peticiones salientes (webhooks de
+    # pasarela, ERP) y `data` para db/redis.
     networks:
-      - hwe_net
+      - app
+      - data
+    init: true
     # Trabajo de fondo: cede ante el tráfico.
     cpu_shares: 256
     deploy:
       resources:
         limits:
           memory: 256m
+          cpus: "1"
+          pids: 256
 
   # ── Backup cron (diario 03:00 UTC) ──────────────────────────────────────────
   backup:
     image: alpine:3.23
+    pull_policy: if_not_present
     container_name: hwe_backup
     logging: *default-logging
     restart: unless-stopped
@@ -502,12 +634,55 @@ services:
       BACKUP_HOUR_UTC:     "${BACKUP_HOUR_UTC:-3}"
       HWE_BACKUP_LOCK_MAX_AGE_MIN: "${HWE_BACKUP_LOCK_MAX_AGE_MIN:-360}"
     entrypoint: ["/bin/sh", "/opt/hwe/scripts/backup-entrypoint.sh"]
+    # Solo en `data`: habla con `db`, escribe en ./backups y no necesita Internet
+    # (el envío cifrado fuera del servidor, si se configura, es un cron del host).
     networks:
-      - hwe_net
+      - data
+    init: true
     deploy:
       resources:
         limits:
           memory: 128m
+          cpus: "1"
+          pids: 256
+
+  # ── Purga de la caché de imágenes ──────────────────────────────────────────
+  # `next/image` no hace GC de su caché en disco: cada variante redimensionada se
+  # queda para siempre y crece hasta llenar el disco. Este servicio borra una vez
+  # al día las variantes que no se usan desde hace `CACHE_IMAGES_MAX_AGE_DAYS`
+  # (30) y no toca el resto de la caché (ISR). Se regeneran bajo demanda.
+  cache-prune:
+    image: alpine:3.23
+    pull_policy: if_not_present
+    container_name: hwe_cache_prune
+    logging: *default-logging
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      # Lectura-escritura: este servicio BORRA dentro de `images/`.
+      - next_cache:/cache
+    environment:
+      CACHE_IMAGES_MAX_AGE_DAYS: "${CACHE_IMAGES_MAX_AGE_DAYS:-30}"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        trap 'exit 0' TERM INT
+        while true; do
+          find /cache/images -type f -mtime +"$${CACHE_IMAGES_MAX_AGE_DAYS}" -print -delete 2>/dev/null | sed 's/^/[cache-prune] borrada /'
+          sleep 86400
+        done
+    # No necesita red de ningún tipo.
+    network_mode: none
+    init: true
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: "0.25"
+          pids: 64
 
 # ── Volúmenes ──────────────────────────────────────────────────────────────────
 volumes:
@@ -525,16 +700,33 @@ volumes:
     name: ${HWE_DB_VOLUME:-hwe_db_data}
   redis_data:
     driver: local
-  # Caché de imágenes optimizadas de next/image: sobrevive al despliegue. Es
-  # regenerable (se rehace bajo demanda), pero rehacerla cuesta CPU de sharp.
-  next_image_cache:
+  # Caché de Next compartida (ISR + fetch-cache + imágenes): sobrevive al
+  # despliegue. Es regenerable, pero rehacerla cuesta CPU de sharp y una tormenta
+  # de peticiones a WordPress.
+  next_cache:
     driver: local
   caddy_data:
     driver: local
   caddy_config:
     driver: local
 
-# ── Red interna ────────────────────────────────────────────────────────────────
+# ── Redes ─────────────────────────────────────────────────────────────────────
+# Tres capas en vez de una red plana. Antes, Caddy podía resolver y alcanzar
+# `db:3306` y `redis:6379`, y cualquier contenedor comprometido llegaba a la base
+# de datos y al Redis que guarda revocaciones, rate-limit e idempotencia.
+#
+#   edge : Caddy ↔ frontend (tráfico HTTP interno).
+#   app  : Caddy ↔ frontend ↔ WordPress, y salida a Internet de WordPress, del
+#          BFF (pasarelas de pago, Sentry) y de wp-cli/wp-cron (descargas,
+#          webhooks salientes). NO es interna a propósito: sin salida, `setup.sh`
+#          no podría descargar WordPress/plugins y las pasarelas no responderían.
+#   data : INTERNA (sin ruta al exterior). Solo db, redis y sus consumidores.
+#          Caddy no está aquí, así que no puede alcanzar la capa de datos.
 networks:
-  hwe_net:
+  edge:
     driver: bridge
+  app:
+    driver: bridge
+  data:
+    driver: bridge
+    internal: true

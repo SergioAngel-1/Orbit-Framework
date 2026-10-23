@@ -165,3 +165,59 @@ describe("Caddyfile: X-Frame-Options SAMEORIGIN en lo que sirve WordPress", () =
     expect(nextHeaderValue("X-Frame-Options")).toBe("DENY");
   });
 });
+
+// ============================================================================
+//  Endurecimiento de la cara pública: menos fingerprinting, límites de cuerpo y
+//  timeouts, un error propio, y `uploads/` que nunca ejecuta PHP.
+// ============================================================================
+
+describe("Caddyfile: endurecimiento de la cara pública", () => {
+  const global = code.slice(0, code.indexOf("{$PUBLIC_DOMAIN"));
+
+  it("deja de anunciar el stack (Server y X-Powered-By del upstream)", () => {
+    expect(siteLevel).toContain("header >-Server");
+    expect(siteLevel).toContain("header >-X-Powered-By");
+  });
+
+  it("acota el cuerpo de la petición (los medios necesitan 128 MB)", () => {
+    expect(code).toContain("request_body {");
+    expect(code).toMatch(/max_size 130MB/);
+  });
+
+  it("pone timeouts de servidor contra conexiones a goteo", () => {
+    expect(global).toContain("servers {");
+    expect(global).toMatch(/read_header \d+s/);
+    expect(global).toMatch(/idle \d+s/);
+  });
+
+  it("responde con un error propio y sin caché, no con la página de Caddy", () => {
+    expect(code).toContain("handle_errors {");
+    expect(code).toMatch(/handle_errors \{[\s\S]*?Cache-Control "no-store"/);
+  });
+
+  it("un .php en uploads responde 404 y no llega a Apache", () => {
+    const start = code.indexOf("handle @uploads_php {");
+    const block = code.slice(start, code.indexOf("}", start));
+
+    expect(code).toContain("@uploads_php path_regexp");
+    expect(block).toContain('respond "Not Found" 404');
+    expect(block).not.toContain("reverse_proxy");
+    // Antes del bloque genérico: en Caddy gana el primero que casa.
+    expect(start).toBeGreaterThan(-1);
+    expect(start).toBeLessThan(code.indexOf("handle /wp-content/* {"));
+  });
+
+  it("el año de caché es solo para uploads; el resto de wp-content revalida", () => {
+    const uploadsStart = code.indexOf("handle /wp-content/uploads/* {");
+    const genericStart = code.indexOf("handle /wp-content/* {");
+
+    expect(uploadsStart).toBeGreaterThan(-1);
+    expect(uploadsStart).toBeLessThan(genericStart);
+    const uploads = code.slice(uploadsStart, genericStart);
+    const generic = code.slice(genericStart);
+
+    expect(uploads).toContain("max-age=31536000");
+    expect(generic).not.toContain("max-age=31536000");
+    expect(generic).toContain("max-age=3600, must-revalidate");
+  });
+});

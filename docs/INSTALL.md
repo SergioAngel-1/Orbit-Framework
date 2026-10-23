@@ -100,10 +100,16 @@ docker compose up -d --build
 
 | Servicio   | URL                   | Descripción                 |
 |------------|-----------------------|-----------------------------|
-| `db`       | (interno)             | MariaDB 11                  |
+| `db`       | `127.0.0.1:3307` (solo loopback) | MariaDB 11        |
 | `wordpress`| http://localhost:8080 | WordPress (Headless CMS)    |
-| `redis`    | (interno)             | Cache + rate-limit          |
+| `redis`    | `127.0.0.1:6379` (solo loopback) | Cache + rate-limit |
 | `frontend` | http://localhost:3000 | Next.js (dev, hot-reload)   |
+
+> **Los puertos se publican solo en `127.0.0.1`.** Así el modo híbrido sigue
+> funcionando (WordPress nativo y `npm run dev` en la misma máquina ven la DB y
+> Redis en `127.0.0.1`), pero MariaDB, Redis y WordPress no quedan alcanzables
+> desde la red local. Si necesitas probar desde el móvil, publica a propósito
+> (`docker compose run -p …` o un override) y vuelve a cerrarlo después.
 
 ### Opción B: Híbrido (WordPress + frontend nativos, recomendado)
 
@@ -132,8 +138,8 @@ npm run dev
 
 | Servicio   | Dónde corre     | Puerto | URL                   |
 |------------|-----------------|--------|-----------------------|
-| **MariaDB**| Docker          | `3307` | (interno)             |
-| **Redis**  | Docker          | `6379` | (interno)             |
+| **MariaDB**| Docker          | `3307` | `127.0.0.1:3307` (loopback) |
+| **Redis**  | Docker          | `6379` | `127.0.0.1:6379` (loopback) |
 | **WordPress**| Nativo (PHP)  | `8080` | http://localhost:8080 |
 | **Frontend**| Nativo (Node) | `3000` | http://localhost:3000 |
 
