@@ -35,6 +35,7 @@ framework nunca toca, y se engancha al núcleo por hooks estables, versionados p
 | `hwe_product_fields` | filtro | Declarar campos de producto (`clave => ['label', 'type', 'translatable', 'box', 'description', 'options', 'max']`): el núcleo pinta la caja en la ficha, sanea y expone `Product.hweFields(locale)`. El frontend los declara en `instanceRegistry.productFields`. |
 | `hwe_order_item_details` | filtro | Declarar detalles de línea de pedido (`clave => ['label', 'validate', 'applies_to', 'required', 'meta_key']`): el núcleo los toma de `extensions` en `cart/add-item`, los valida en el servidor, impide pagar una línea sin ellos y los guarda como meta **visible** de la línea (correos, wp-admin, API). El validador devuelve el valor, `['value', 'data']` o un `WP_Error`. |
 | `hwe_product_landing_icons` | filtro | Ampliar los íconos del selector de la landing de producto (clave en minúsculas → etiqueta); la instancia declara los mismos dibujos en su frontend. |
+| `hwe_control_center_public_config` | filtro | `( array $public ): array`. Añade campos **públicos** (nunca secretos) a `GET /wp-json/hwe/v1/config`, p. ej. `shipping.distance_enabled` del módulo `shipping`. Lo aplica `RestApi` del Control Center justo antes de responder. |
 
 **Grupos reservados a un módulo:** el núcleo declara vacíos los grupos raíz `shipping`,
 `landings` y `loyalty`; el plugin del módulo los puebla con `hwe_control_center_schema` (no van en
@@ -74,6 +75,19 @@ El módulo consume además tres hooks del núcleo o de otros módulos, que tambi
   devuelve `false` por defecto y el módulo de fidelización solo los consume.
 - `hwe_site_review_published( int $reviewId, int $userId, int $orderId )` — lo dispara
   `hwe-site-reviews` cuando una reseña con autor pasa a publicada.
+
+### Hooks estables del módulo `shipping`
+
+Publicados también en `backend/wp-content/plugins/hwe-shipping/README.md` («Hooks estables»):
+
+| Hook | Tipo | Firma / para qué |
+|---|---|---|
+| `hwe_shipping_free_rule` | filtro | `( array $rule ): array` con `['enabled' => bool, 'min_amount' => float, 'categories' => slug[], 'products' => slug[]]`. La entrega la Control Center → Tienda → «Envío gratis»; el plugin no guarda la regla. |
+| `hwe_shipping_distance_providers` | filtro | `( array<string,Provider> $providers ): array`. Añade o sustituye proveedores de distancia y geocodificación por id. Cada valor debe implementar `HWE\Shipping\Distance\Provider` (`id()`, `distance()`, `geocode()`, `reverse()`); los que no lo hagan se descartan y se registran. Los proveedores del núcleo son `google_maps`, `openrouteservice` y `straight_line`. |
+| `hwe_shipping_rate_cost` | filtro | `( float $cost, array $context ): float`, con `$context` = `city`, `option_id`, `type` (`fixed` \| `distance` \| `reserve`) y `km` (`float` o `null`). Ajusta el coste de una tarifa antes del envío gratis y del cupón. Un valor no numérico, infinito o negativo **omite** la tarifa y se registra; no hay un coste por defecto. |
+
+Ninguno de estos filtros recibe ni devuelve la clave de un proveedor: el proveedor solo recibe
+puntos y devuelve resultados, y la clave la lee el propio proveedor de `Settings::mapsKey()`.
 
 **La frontera también te protege a ti:** el núcleo (`src/lib/**`, `src/app/api/**`,
 `src/proxy.ts`, `src/components/ui/**`) no puede importar `@/components/**` (salvo `ui/`)

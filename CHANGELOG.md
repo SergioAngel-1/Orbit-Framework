@@ -120,6 +120,14 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   atendiendo (cobros ya iniciados). El panel explica cómo dejar WhatsApp como único medio.
 
 ### Changed
+- **(BREAKING) Módulo `shipping`: modelo de tarifas por ciudad rediseñado, sin migración.** Cada ciudad
+  tiene un único tipo, *fija* o *por distancia*, y sus importes pasan a **opciones de entrega** repetibles
+  (id estable, nombre y casilla de envío gratis por opción). La tarifa la produce un método de envío propio
+  de WooCommerce (`hwe_city_rate`) en la zona de reserva, en lugar del filtro `applyCityRate` y del
+  `flat_rate` que se sustituía. `shipping.reserve_enabled` pasa a significar «enviar también a las ciudades
+  sin configurar». Las ciudades del modelo anterior no producen tarifa hasta reconfigurarlas: wp-admin lo
+  avisa con la lista. El checkout sin tarifa responde **409** `{ error, status }` (antes **422**) antes de
+  crear el pedido; el frontend debe leer el `status` de `extensions.hwe_shipping`. Versión del plugin 2.0.0.
 - **Imagen de producción del frontend: trazabilidad y paridad de runtime.** El stage `prod` lleva
   etiquetas OCI (`source`/`revision` opcionales por build-arg), instala `libc6-compat` como el
   stage base (sharp es nativo) y aplica los parches de Alpine del momento del build con
@@ -180,6 +188,24 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `package.json` y `composer.json` a «Sergio Jauregui».
 
 ### Added
+- **Envío por distancia en el módulo `shipping`.** Ciudades por distancia con dirección de referencia (con
+  «Validar»), radio de cobertura y precio por km con mínimo y máximo, calculado en WooCommerce con
+  `Pricing` (una sola implementación). Proveedores intercambiables: Google (Routes y Geocoding v4),
+  OpenRouteService y línea recta con Nominatim, que es además el respaldo automático y se marca como tal.
+  Caché de distancias y geocodificaciones en transients; backoff de Nominatim. El pin del cliente llega
+  por la Store API (`hwe_shipping`), se guarda en la sesión ligado a la calle y WordPress lo valida; sin
+  pin no hay tarifa (`needs_location`). Estado del envío en `cart.extensions.hwe_shipping`, `rate_ids` del
+  envío gratis, metas de tarifa y de línea de pedido, y avisos de wp-admin.
+- **Integración genérica de mapas en Control Center → Integraciones.** `maps_provider` (`none`,
+  `google_maps`, `openrouteservice`) y `maps_api_key` (cifrada). Solo la usa WordPress; no sale por la
+  configuración pública ni por el BFF.
+- **BFF del mapa del checkout.** `PUT /api/store/shipping/destination` acepta `address_1` y `location`
+  (con validación de coordenadas: 422 antes de llegar a WordPress). Nuevas rutas `POST
+  /api/shipping/geocode` y `POST /api/shipping/reverse-geocode`, con `requireModule`, `guardMutation` y
+  límite propio de 10 por minuto. La libreta de direcciones guarda la ubicación y la borra si cambia la
+  calle o la ciudad.
+- **Filtros estables del módulo:** `hwe_shipping_distance_providers` y `hwe_shipping_rate_cost`, además
+  del filtro núcleo `hwe_control_center_public_config`, con el que el módulo publica `shipping.distance_enabled`.
 - **Módulo `loyalty` (fidelización).** Monedero de puntos y referidos de dos niveles, sin UI: el
   plugin `hwe-loyalty` es la fuente de verdad (libro mayor transaccional con consumo FIFO y
   caducidad, ganancias por pedido y por eventos, canje en la Store API con fee negativo y
