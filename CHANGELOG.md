@@ -112,6 +112,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   atendiendo (cobros ya iniciados). El panel explica cómo dejar WhatsApp como único medio.
 
 ### Changed
+- **CI: menos minutos de runner y permisos mínimos.** El job `frontend` ejecutaba la suite dos
+  veces (`npm run test` y `npm run test:coverage`, que ya corre los tests): ahora solo la segunda,
+  con umbrales incluidos. Los navegadores de Playwright se cachean entre ejecuciones del job `e2e`
+  (cientos de MB por PR) y el workflow declara `permissions: contents: read` con
+  `timeout-minutes` por job, para que un cuelgue no consuma horas de runner y el `GITHUB_TOKEN`
+  no nazca con escritura.
 - **`brand.url` tiene predeterminado.** Vacío en el Control Center, el frontend usa su URL pública
   (`NEXT_PUBLIC_SITE_URL`) y lo registra (`site_config.brand_url_default`): las canónicas, el
   JSON-LD, el sitemap y el enlace de referido ya no salen relativos en una instancia sin configurar.

@@ -11,6 +11,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Permisos mínimos para TODO el workflow: ningún job escribe en el repositorio
+# (publicar imagen y desplegar vive en cd.yml). Sin este bloque, el
+# GITHUB_TOKEN de cada job nace con permisos de escritura por defecto.
+permissions:
+  contents: read
+
 jobs:
   # --------------------------------------------------------------------------
   # Calidad del frontend: tipos + lint + tests + build de producción.
@@ -18,6 +24,8 @@ jobs:
   frontend:
     name: Frontend (lint · types · test · build)
     runs-on: ubuntu-latest
+    # Un job colgado consume hasta 6 h de runner; con esto, como mucho 30 min.
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: frontend
@@ -47,10 +55,10 @@ jobs:
       - name: Paridad i18n (es ↔ en)
         run: npm run i18n:check
 
-      - name: Tests unitarios
-        run: npm run test
-
-      - name: Cobertura
+      # `test:coverage` ejecuta TODA la suite (`vitest run --coverage`) y además
+      # aplica los umbrales: una pasada, no dos. Antes se corría `npm run test`
+      # otra vez y se gastaban minutos de runner sin cubrir nada nuevo.
+      - name: Tests y cobertura
         run: npm run test:coverage
 
       # `next build` prerenderiza y consulta GraphQL durante el build; un runner
@@ -83,6 +91,7 @@ jobs:
   phpunit:
     name: PHPUnit (PHP 8.4)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend
@@ -121,6 +130,7 @@ jobs:
   anti-instance:
     name: Puerta anti-instancia
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -135,6 +145,7 @@ jobs:
   contract:
     name: Contrato de instancia (ejemplo vivo)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -193,6 +204,7 @@ jobs:
   secret-scan:
     name: Secret scanning (gitleaks)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -205,6 +217,7 @@ jobs:
   e2e:
     name: E2E (Playwright)
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: frontend
@@ -242,6 +255,14 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Instalar dependencias
         run: npm ci
+      # Los navegadores pesan cientos de MB y cambian solo al subir Playwright:
+      # cachearlos ahorra la descarga en cada PR. `--with-deps` sigue corriendo
+      # (apt es cuestión de segundos) por si cambian las dependencias del sistema.
+      - name: Caché de navegadores de Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
       - name: Instalar navegadores Playwright
         run: npx playwright install --with-deps chromium
       # Mismo stub que en el job `frontend`: el build lo necesita igual, y
@@ -299,6 +320,7 @@ jobs:
   config:
     name: Config (Compose · Caddy · scripts)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 

@@ -375,6 +375,35 @@ describe(".github/workflows/cd.yml", () => {
   });
 });
 
+describe("ci.yml: permisos y coste", () => {
+  /** Bloque de un job del workflow. */
+  function job(name: string): string {
+    const start = ci.indexOf(`\n  ${name}:\n`);
+    expect(start, `job ${name}`).toBeGreaterThanOrEqual(0);
+    const rest = ci.slice(start + 1);
+    const next = rest.slice(1).search(/\n {2}[a-z][\w-]*:\s*\n/);
+    return next === -1 ? rest : rest.slice(0, next + 1);
+  }
+
+  it("declara permisos mínimos: ningún job necesita escribir en el repositorio", () => {
+    expect(ci).toMatch(/\npermissions:\n {2}contents: read\n/);
+  });
+
+  it.each(["frontend", "phpunit", "contract", "e2e", "config"])(
+    "el job %s tiene timeout (nada de 6 h colgado)",
+    (name) => {
+      expect(job(name)).toMatch(/timeout-minutes: \d+/);
+    },
+  );
+
+  it("la suite de tests corre UNA vez (test:coverage ya ejecuta los tests)", () => {
+    const frontendJob = job("frontend");
+
+    expect(frontendJob).toContain("npm run test:coverage");
+    expect(frontendJob).not.toMatch(/run: npm run test$/m);
+  });
+});
+
 describe("Caddy: CI valida con la versión de producción", () => {
   it("la imagen del `caddy validate` de CI es la misma que la de docker-compose.prod.yml", () => {
     const image = (source: string) => /image:\s*(caddy:[\w.-]+)/.exec(source)?.[1];
