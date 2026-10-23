@@ -2,6 +2,7 @@
 
 namespace HWE\Shipping;
 
+use HWE\Shipping\Admin\OrderShippingMeta;
 use HWE\Shipping\Distance\DistanceResult;
 use HWE\Shipping\Rates\City;
 use HWE\Shipping\Rates\DeliveryOption;
@@ -20,13 +21,11 @@ use HWE\Shipping\Rates\Pricing;
  * Cada coste pasa por el filtro `hwe_shipping_rate_cost`. Un coste que el filtro deja no válido (negativo,
  * no numérico) omite esa tarifa y se registra: nunca un envío a 0 por error.
  *
- * Metas de la tarifa (WooCommerce las copia a la línea de envío del pedido y la Store API las expone en
- * `shipping_rates[].meta_data`, sin filtro por prefijo: por eso no llevan `_`):
- *   - para el frontend: `hwe_option_id`, `hwe_city_type` (`fixed`|`distance`|`reserve`), y en distancia
- *     `hwe_distance_km` y `hwe_fallback` (`yes`|`no`);
- *   - para wp-admin y el pedido: proveedor, motivo del respaldo, duración, punto de entrega (lat/lng) y un
- *     enlace al mapa del punto («Ubicación de entrega»). Son visibles para el cliente en la Store API; no
- *     contienen secretos ni datos de la referencia de la ciudad.
+ * Metas de la tarifa (WooCommerce las copia a la línea de envío del pedido; claves en `OrderShippingMeta`):
+ *   - para el frontend, sin `_` (la Store API las publica en `shipping_rates[].meta_data`): `hwe_option_id`,
+ *     `hwe_city_type` (`fixed`|`distance`|`reserve`), y en distancia `hwe_distance_km` y `hwe_fallback` (`yes`|`no`);
+ *   - para wp-admin, con `_` (la Store API omite las metas protegidas): proveedor, motivo del respaldo,
+ *     duración y punto de entrega. `OrderShippingMeta` las pinta en la ficha del pedido.
  */
 class CityRateMethod extends \WC_Shipping_Method {
 
@@ -150,27 +149,23 @@ class CityRateMethod extends \WC_Shipping_Method {
 	 */
 	private static function meta( string $optionId, string $type, ?DistanceResult $distance, ?GeoPoint $point ): array {
 		$meta = array(
-			'hwe_option_id'  => $optionId,
-			'hwe_city_type'  => $type,
+			OrderShippingMeta::OPTION_ID => $optionId,
+			OrderShippingMeta::CITY_TYPE => $type,
 		);
 		if ( null === $distance || null === $point ) {
 			return $meta;
 		}
 
-		$meta['hwe_distance_km'] = (string) round( $distance->km(), 2 );
-		$meta['hwe_fallback']    = $distance->fallback() ? 'yes' : 'no';
+		$meta[ OrderShippingMeta::DISTANCE_KM ] = (string) round( $distance->km(), 2 );
+		$meta[ OrderShippingMeta::FALLBACK ]    = $distance->fallback() ? 'yes' : 'no';
 
-		$meta[ __( 'Proveedor de distancia', 'hwe-shipping' ) ] = $distance->provider();
+		// Operación (con `_`): la Store API no las publica; WooCommerce las copia a la línea del pedido.
+		$meta[ OrderShippingMeta::PROVIDER ] = $distance->provider();
 		if ( $distance->fallback() ) {
-			$meta[ __( 'Motivo del respaldo', 'hwe-shipping' ) ] = $distance->fallbackReason();
+			$meta[ OrderShippingMeta::FALLBACK_REASON ] = $distance->fallbackReason();
 		}
-		$meta[ __( 'Duración estimada', 'hwe-shipping' ) ] = $distance->durationMin() . ' min';
-		$meta[ __( 'Punto de entrega', 'hwe-shipping' ) ]  = sprintf( '%.6F, %.6F', $point->lat(), $point->lng() );
-		$meta[ __( 'Ubicación de entrega', 'hwe-shipping' ) ] = sprintf(
-			'https://www.openstreetmap.org/?mlat=%1$.6F&mlon=%2$.6F#map=17/%1$.6F/%2$.6F',
-			$point->lat(),
-			$point->lng()
-		);
+		$meta[ OrderShippingMeta::DURATION_MIN ]   = (string) $distance->durationMin();
+		$meta[ OrderShippingMeta::DELIVERY_POINT ] = OrderShippingMeta::pointValue( $point->lat(), $point->lng() );
 
 		return $meta;
 	}

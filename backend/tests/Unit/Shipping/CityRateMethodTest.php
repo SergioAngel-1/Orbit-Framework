@@ -318,9 +318,12 @@ final class CityRateMethodTest extends TestCase
         $this->assertSame('lento1', $meta['hwe_option_id']);
         $this->assertSame((string) round($km, 2), $meta['hwe_distance_km']);
         $this->assertSame('no', $meta['hwe_fallback']);
-        $this->assertSame('straight_line', $meta['Proveedor de distancia']);
-        $this->assertArrayNotHasKey('Motivo del respaldo', $meta);
-        $this->assertStringContainsString('mlat=' . number_format(self::NEAR_LAT, 6, '.', ''), $meta['Ubicación de entrega']);
+        $this->assertSame('straight_line', $meta['_hwe_distance_provider']);
+        $this->assertArrayNotHasKey('_hwe_fallback_reason', $meta);
+        $this->assertSame(number_format(self::NEAR_LAT, 6, '.', '') . ',' . number_format(self::ORIGIN_LNG, 6, '.', ''), $meta['_hwe_delivery_point']);
+        // Lo que publica la Store API (las metas sin `_`) es solo el contrato con el frontend.
+        $public = array_values(array_filter(array_keys($meta), static fn (string $key): bool => !str_starts_with($key, '_')));
+        $this->assertSame(['hwe_option_id', 'hwe_city_type', 'hwe_distance_km', 'hwe_fallback'], $public);
 
         $status = ShippingStatus::forPackage($this->package());
         $this->assertSame('distance', $status['mode']);
@@ -379,7 +382,7 @@ final class CityRateMethodTest extends TestCase
 
         $meta = $rates['hwe_city_rate:lento1']->meta;
         $this->assertSame('yes', $meta['hwe_fallback']);
-        $this->assertSame('not_configured', $meta['Motivo del respaldo']);
+        $this->assertSame('not_configured', $meta['_hwe_fallback_reason']);
         $this->assertGreaterThan(0.0, $rates['hwe_city_rate:lento1']->cost);
         $this->assertTrue($this->hasLogLike('[hwe] shipping:'));
         $status = ShippingStatus::forPackage($this->package());

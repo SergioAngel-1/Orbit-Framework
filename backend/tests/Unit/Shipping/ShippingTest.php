@@ -367,7 +367,7 @@ final class ShippingTest extends TestCase
 
         $this->assertSame(0.0, $standard->cost);
         $this->assertSame([], $standard->taxes);
-        $this->assertSame('Compra mínima de 50.00 € alcanzada', $standard->meta['Envío gratis']);
+        $this->assertSame('Compra mínima de 50.00 € alcanzada', $standard->meta['_hwe_free_shipping_reason']);
         $this->assertSame(15.0, $express->cost, 'la opción no marcada se cobra');
         $this->assertSame([], $express->meta);
     }

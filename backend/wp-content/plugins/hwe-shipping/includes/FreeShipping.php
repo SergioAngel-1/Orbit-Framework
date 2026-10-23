@@ -2,6 +2,7 @@
 
 namespace HWE\Shipping;
 
+use HWE\Shipping\Admin\OrderShippingMeta;
 use HWE\Shipping\Rates\City;
 use HWE\Shipping\Rates\Cities;
 
@@ -74,7 +75,8 @@ class FreeShipping {
 			}
 			$rate->set_cost( 0 );
 			$rate->set_taxes( [] );
-			$rate->add_meta_data( __( 'Envío gratis', 'hwe-shipping' ), $reason );
+			// Solo para wp-admin (`_`): el cliente ya lo sabe por `rate_ids` y el coste a 0.
+			$rate->add_meta_data( OrderShippingMeta::FREE_REASON, $reason );
 		}
 
 		return $rates;

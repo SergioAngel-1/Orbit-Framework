@@ -294,9 +294,8 @@ frontend nunca calcula ni firma un importe; solo muestra lo que devuelve la Stor
 - **Metas de cada tarifa** (`shipping_rates[].meta_data`, ids `hwe_city_rate:<optionId>` y
   `hwe_city_rate:reserve`): `hwe_option_id`, `hwe_city_type` (`fixed` | `distance` | `reserve`), y solo en
   distancia `hwe_distance_km` (cadena numérica) y `hwe_fallback` (`yes` | `no`). `readRateDetails(rate)` las
-  lee. **La Store API expone todas las metas de la tarifa**, también las de wp-admin (proveedor, duración,
-  punto de entrega y enlace al mapa). Son datos del propio cliente: no los pintes a terceros, y no leas de
-  ahí nada que decida un importe.
+  lee. Son las únicas que publica la Store API: las de operación (proveedor, duración, punto de entrega,
+  motivo del envío gratis) llevan `_` y no salen de WordPress. No leas de ahí nada que decida un importe.
 - **Envío gratis por opción.** `cart.extensions.hwe_free_shipping.rate_ids: string[]` lista las tarifas que
   la regla deja a 0. `FreeShippingState.rateIds` las recoge en `lib`. El resto de campos no cambia.
 - **Configuración pública.** `config.modules.shipping` y `config.shipping.distance_enabled` (booleano, por

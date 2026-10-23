@@ -8,6 +8,7 @@ use HWE\Shipping\Admin\LegacyNotice;
 use HWE\Shipping\Admin\MapsAdminApi;
 use HWE\Shipping\Admin\MapsNotices;
 use HWE\Shipping\Admin\MapsTestType;
+use HWE\Shipping\Admin\OrderShippingMeta;
 use HWE\Shipping\Rates\Cities;
 use HWE\Shipping\Rest\GeocodeApi;
 
@@ -25,6 +26,7 @@ class Plugin {
 			CityAssets::register();
 			CityErrors::register();
 			LegacyNotice::register();
+			OrderShippingMeta::register();
 		}
 		Save::register();
 		RestApi::register();

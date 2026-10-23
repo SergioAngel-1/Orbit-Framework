@@ -159,19 +159,18 @@ WooCommerce copia las metas de la tarifa a la **línea de envío** del pedido.
 | `hwe_city_type` | `fixed` \| `distance` \| `reserve` | Frontend |
 | `hwe_distance_km` | número en texto, 2 decimales | Frontend (solo en distancia) |
 | `hwe_fallback` | `yes` \| `no` | Frontend (solo en distancia) |
-| Proveedor de distancia | id del proveedor | wp-admin |
-| Motivo del respaldo | motivo corto (solo si hay respaldo) | wp-admin |
-| Duración estimada | minutos | wp-admin |
-| Punto de entrega | `lat, lng` | wp-admin y repartidor |
-| Ubicación de entrega | enlace a OpenStreetMap del punto | wp-admin y repartidor |
+| `_hwe_distance_provider` | id del proveedor | wp-admin (solo distancia) |
+| `_hwe_fallback_reason` | motivo corto (solo si hay respaldo) | wp-admin |
+| `_hwe_duration_min` | minutos | wp-admin (solo distancia) |
+| `_hwe_delivery_point` | `lat,lng` | wp-admin y repartidor (solo distancia) |
+| `_hwe_free_shipping_reason` | motivo del envío gratis (lo pone `FreeShipping`) | wp-admin |
 
-Lo que pone la dirección de referencia **no** se copia al pedido. Las etiquetas de wp-admin se
-traducen con `__()`, así que su nombre depende del idioma del admin en el momento de guardar el
-pedido (ver «Pendiente»).
-
-**Atención:** la Store API expone **todas** las metas de la tarifa en `shipping_rates[].meta_data`,
-también las de wp-admin. El punto de entrega y el enlace al mapa viajan, por tanto, a quien tenga el
-token del carrito (el propio cliente). El frontend debe pintar solo las metas que necesita.
+La Store API publica en `shipping_rates[].meta_data` **solo las metas sin `_`**: el cliente recibe
+únicamente las cuatro del contrato. Las de operación (con `_`) no salen del servidor; `OrderShippingMeta`
+las pinta en la ficha del pedido de wp-admin con etiquetas traducidas al mostrarlas (las claves son
+estables), junto con un enlace a OpenStreetMap del punto, y oculta allí las del contrato como claves en
+crudo. No aparecen en los correos ni en la cuenta del cliente. La dirección de referencia **no** se copia
+al pedido.
 
 ## Envío gratis por opción
 
@@ -297,12 +296,6 @@ nueva no hay nada que convertir.
 - `shipping.reserve_enabled` cambia de significado (ver «Zona de reserva»).
 - El checkout sin tarifa responde 409 en lugar de 422.
 
-## Pendiente
-
-- Las etiquetas de las metas de wp-admin se traducen con `__()`: si el idioma del admin cambia, las
-  claves de los pedidos nuevos cambian también. Convendría fijar claves no traducibles y dejar la
-  etiqueta en la presentación.
-
 ## Pruebas
 
 `backend/tests/Unit/Shipping/` (PHPUnit 12 + Brain Monkey): `PricingTest`, `CitiesTest`, `SaveCityTest`,
@@ -310,4 +303,4 @@ nueva no hay nada que convertir.
 reserva y REST), `ShippingStatusExtensionTest`, `DeliveryPointTest`, `DistanceSettingsTest`,
 `HaversineTest`, `ProvidersTest` (HTTP simulado: éxito y cada clase de error), `DistanceServiceTest`
 (caché, respaldo y backoff), `AddressNormalizerTest`, `MapsAdminApiTest`, `MapsAdminUiTest`,
-`GeocodeApiTest`.
+`GeocodeApiTest`, `OrderShippingMetaTest` (metas de la línea de envío en wp-admin).

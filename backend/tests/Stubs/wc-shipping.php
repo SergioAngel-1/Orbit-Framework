@@ -235,3 +235,19 @@ if (!class_exists('WC_Shipping_Zone')) {
         }
     }
 }
+
+if (!class_exists('WC_Order_Item_Shipping')) {
+    /** Línea de envío de un pedido: solo sus metas, lo que lee `OrderShippingMeta`. */
+    class WC_Order_Item_Shipping
+    {
+        /** @param array<string,mixed> $meta */
+        public function __construct(public array $meta = [])
+        {
+        }
+
+        public function get_meta(string $key, bool $single = true)
+        {
+            return $this->meta[$key] ?? '';
+        }
+    }
+}

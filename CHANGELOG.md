@@ -195,7 +195,8 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   Caché de distancias y geocodificaciones en transients; backoff de Nominatim. El pin del cliente llega
   por la Store API (`hwe_shipping`), se guarda en la sesión ligado a la calle y WordPress lo valida; sin
   pin no hay tarifa (`needs_location`). Estado del envío en `cart.extensions.hwe_shipping`, `rate_ids` del
-  envío gratis, metas de tarifa y de línea de pedido, y avisos de wp-admin.
+  envío gratis, metas de tarifa (al cliente solo las del contrato; las de operación, con `_`, solo en la
+  ficha del pedido de wp-admin) y avisos de wp-admin.
 - **Integración genérica de mapas en Control Center → Integraciones.** `maps_provider` (`none`,
   `google_maps`, `openrouteservice`) y `maps_api_key` (cifrada). Solo la usa WordPress; no sale por la
   configuración pública ni por el BFF.
