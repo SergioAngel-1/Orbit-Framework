@@ -152,6 +152,5 @@ export function assertSecrets(): void {
     // Abortar: mejor caer al arrancar que servir con secretos por defecto.
     throw new Error(message);
   }
-  // eslint-disable-next-line no-console
   console.warn(message);
 }

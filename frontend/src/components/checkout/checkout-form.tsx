@@ -439,8 +439,14 @@ export function CheckoutForm({
 
       // Efectivo o link por WhatsApp: no hay cobro en línea; «gracias» dice
       // cómo sigue (pago al recibir, o el link que enviará la tienda).
+      //
+      // Navegación completa a propósito (no `router.push`): el carrito del
+      // servidor ya se vació al crear el pedido y la pantalla de «gracias» es
+      // dinámica — necesita releer el pedido con cookies limpias y descartar el
+      // estado de checkout del cliente. Es el mismo destino absoluto que usa la
+      // pasarela para volver.
       if (!shouldStartGatewayPayment(effectiveChoice)) {
-        window.location.href = returnUrl;
+        window.location.assign(returnUrl);
         return;
       }
 
@@ -448,7 +454,11 @@ export function CheckoutForm({
       // devuelve un checkout alojado, redirige. Si no, el pedido ya existe y el
       // carrito se vació: «gracias» lo dice y ofrece reintentar el pago.
       const redirected = await startPayment(order.order_id, returnUrl);
-      if (!redirected) window.location.href = `${returnUrl}&retry=1`;
+      if (!redirected) {
+        const retryUrl = new URL(returnUrl);
+        retryUrl.searchParams.set("retry", "1");
+        window.location.assign(retryUrl.href);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : tCheckout.genericError);
     } finally {

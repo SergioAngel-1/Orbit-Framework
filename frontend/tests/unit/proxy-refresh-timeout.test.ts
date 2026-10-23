@@ -58,10 +58,10 @@ describe("timeout del refresh de JWT en el proxy", () => {
   });
 
   it("pasa un AbortSignal al fetch de refresh", async () => {
-    // Los parámetros están tipados (aunque el cuerpo no los use) para que
-    // `mock.calls[0][1]` sea un `RequestInit`.
-    const fetchMock = vi.fn(
-      async (_url: string, _init: RequestInit): Promise<Response> =>
+    // La firma del mock está tipada (aunque el cuerpo no use los argumentos)
+    // para que `mock.calls[0][1]` sea un `RequestInit`.
+    const fetchMock = vi.fn<(input: string, init: RequestInit) => Promise<Response>>(
+      async () =>
         new Response(
           JSON.stringify({ data: { refreshJwtAuthToken: { authToken: "nuevo" } } }),
           { status: 200 },

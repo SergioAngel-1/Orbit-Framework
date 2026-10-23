@@ -33,6 +33,20 @@ const COUNTRY_OPTIONS = [
   { code: "US", name: "United States" },
 ];
 
+/**
+ * Lee la libreta de direcciones del BFF. `null` = no se pudo leer (red, 4xx…):
+ * la libreta se queda como está y la vista sale del estado de carga.
+ */
+async function readAddresses(): Promise<SavedAddress[] | null> {
+  try {
+    const res = await fetch("/api/store/addresses", { credentials: "same-origin" });
+    if (!res.ok) return null;
+    return (await res.json()) as SavedAddress[];
+  } catch {
+    return null;
+  }
+}
+
 export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }) {
   const defaultCountry = packCountry(geoPack);
   // El país de la tienda siempre es elegible, aunque la lista fija no lo traiga.
@@ -51,21 +65,26 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
   const [message, setMessage] = useState<string | null>(null);
 
   const fetchAddresses = useCallback(async () => {
-    try {
-      const res = await fetch("/api/store/addresses", { credentials: "same-origin" });
-      if (res.ok) {
-        setAddresses((await res.json()) as SavedAddress[]);
-      }
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(false);
-    }
+    const next = await readAddresses();
+    if (next) setAddresses(next);
+    setLoading(false);
   }, []);
 
+  // Carga inicial. Los `setState` van DESPUÉS del `await` (no en el cuerpo
+  // síncrono del efecto) y `active` evita escribirlos si el componente se
+  // desmontó con la petición en vuelo.
   useEffect(() => {
-    fetchAddresses();
-  }, [fetchAddresses]);
+    let active = true;
+    void (async () => {
+      const next = await readAddresses();
+      if (!active) return;
+      if (next) setAddresses(next);
+      setLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function startNew() {
     setEditing("new");

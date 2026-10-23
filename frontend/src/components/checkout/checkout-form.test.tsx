@@ -151,11 +151,18 @@ beforeEach(() => {
   vi.unstubAllGlobals();
   tracking.consent = false;
   cartState.cart = baseCart();
-  Object.defineProperty(window, "location", {
-    value: {
-      href: "https://tienda.example/checkout",
-      origin: "https://tienda.example",
+  // `CheckoutForm` sale del checkout con `window.location.assign` (navegación
+  // completa intencionada, ver el componente). jsdom no navega: el doble
+  // refleja el destino en `href`, que es lo que comprueban los tests.
+  const locationStub = {
+    href: "https://tienda.example/checkout",
+    origin: "https://tienda.example",
+    assign: (url: string) => {
+      locationStub.href = url;
     },
+  };
+  Object.defineProperty(window, "location", {
+    value: locationStub,
     writable: true,
   });
 });

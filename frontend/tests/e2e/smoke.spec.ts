@@ -153,7 +153,7 @@ test("la página de productos no tiene violaciones críticas de accesibilidad", 
 test("la página 404 no tiene violaciones críticas de accesibilidad", async ({
   page,
 }) => {
-  const res = await page.goto("/pagina-que-no-existe");
+  await page.goto("/pagina-que-no-existe");
   // 404 should still render the error page
   const results = await new AxeBuilder({ page }).analyze();
   expect(

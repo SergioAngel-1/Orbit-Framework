@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ProductCard } from "./product-card";
 import type { CatalogProduct } from "@/types/catalog";
@@ -12,6 +12,10 @@ interface Props {
   wishlistEnabled?: boolean;
 }
 
+// El estado nace de las props iniciales; cuando el listado cambia (filtros,
+// orden, idioma…) el padre remonta el componente con una `key` distinta (ver
+// `app/[locale]/products/page.tsx`). Así no hace falta un efecto que copie
+// props → estado en cada render.
 export function InfiniteProductGrid({
   initialProducts,
   initialPageInfo,
@@ -25,12 +29,7 @@ export function InfiniteProductGrid({
   const [loading, setLoading] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setProducts(initialProducts);
-    setPageInfo(initialPageInfo);
-  }, [initialProducts, initialPageInfo]);
-
-  async function loadMore() {
+  const loadMore = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -56,7 +55,7 @@ export function InfiniteProductGrid({
     } finally {
       setLoading(false);
     }
-  }
+  }, [filters, locale, pageInfo]);
 
   useEffect(() => {
     if (!pageInfo.hasNextPage || loading) return;
@@ -64,7 +63,7 @@ export function InfiniteProductGrid({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && pageInfo.hasNextPage && !loading) {
-          loadMore();
+          void loadMore();
         }
       },
       { rootMargin: "200px" },
@@ -75,7 +74,7 @@ export function InfiniteProductGrid({
     return () => {
       if (sentinel) observer.unobserve(sentinel);
     };
-  }, [pageInfo, loading, filters]);
+  }, [pageInfo, loading, loadMore]);
 
   if (products.length === 0) {
     return (

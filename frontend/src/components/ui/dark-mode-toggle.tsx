@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { Button } from "./button";
 
 // ============================================================================
@@ -7,6 +7,47 @@ import { Button } from "./button";
 //  Guarda la preferencia en localStorage; al cargar la página el script inline
 //  DarkModeScript aplica la clase antes del primer paint (sin FOUC).
 // ============================================================================
+
+const THEME_KEY = "hwe-theme";
+
+/**
+ * El tema NO es estado de React: la fuente de verdad es la clase `dark` de
+ * `<html>` (la aplica el script inline antes del primer paint y la cambia el
+ * propio toggle). Se lee como store externo con `useSyncExternalStore`: el
+ * servidor pinta el valor por defecto y el cliente se sincroniza al hidratar,
+ * sin un `setState` síncrono dentro de un efecto de montaje.
+ */
+const themeListeners = new Set<() => void>();
+
+function subscribeTheme(listener: () => void): () => void {
+  themeListeners.add(listener);
+  return () => {
+    themeListeners.delete(listener);
+  };
+}
+
+function getThemeSnapshot(): boolean {
+  return document.documentElement.classList.contains("dark");
+}
+
+function getServerThemeSnapshot(): boolean {
+  return false;
+}
+
+/** Aplica el tema y avisa a los suscriptores (el toggle). */
+function applyDarkClass(dark: boolean): void {
+  document.documentElement.classList.toggle("dark", dark);
+  themeListeners.forEach((listener) => listener());
+}
+
+/** Persiste la preferencia (si el navegador lo permite). */
+function persistTheme(dark: boolean): void {
+  try {
+    localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+  } catch {
+    /* localStorage bloqueado (modo privado, políticas): el tema dura la sesión */
+  }
+}
 
 function MoonIcon() {
   return (
@@ -48,22 +89,16 @@ function SunIcon() {
 }
 
 export function DarkModeToggle({ className }: { className?: string }) {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
-  }, []);
+  const isDark = useSyncExternalStore(
+    subscribeTheme,
+    getThemeSnapshot,
+    getServerThemeSnapshot,
+  );
 
   const toggle = () => {
-    const html = document.documentElement;
-    const nextDark = !html.classList.contains("dark");
-    html.classList.toggle("dark", nextDark);
-    try {
-      localStorage.setItem("hwe-theme", nextDark ? "dark" : "light");
-    } catch {
-      /* ignore */
-    }
-    setIsDark(nextDark);
+    const nextDark = !document.documentElement.classList.contains("dark");
+    applyDarkClass(nextDark);
+    persistTheme(nextDark);
   };
 
   return (
@@ -79,8 +114,6 @@ export function DarkModeToggle({ className }: { className?: string }) {
   );
 }
 
-const THEME_KEY = "hwe-theme";
-
 /** Aplica el tema guardado (o el del sistema) a `<html>`. Misma lógica que el script inline. */
 function applyStoredTheme() {
   try {
@@ -88,7 +121,7 @@ function applyStoredTheme() {
     const dark =
       stored === "dark" ||
       (stored === null && window.matchMedia("(prefers-color-scheme:dark)").matches);
-    document.documentElement.classList.toggle("dark", dark);
+    applyDarkClass(dark);
   } catch {
     // localStorage bloqueado (modo privado, políticas): se queda el tema por defecto.
   }

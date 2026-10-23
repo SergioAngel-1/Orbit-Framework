@@ -55,7 +55,9 @@ export function useCart(): CartState {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<StoreCart | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Arranca en carga: el carrito real todavía no se ha leído del servidor. Así
+  // el efecto de montaje no tiene que encender el flag de forma síncrona.
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -79,9 +81,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Carga inicial del carrito. Equivale a `refresh()` pero sin llamar a una
+  // función que hace `setState` en el cuerpo síncrono del efecto: la respuesta
+  // se aplica en el `.then` (asíncrono) y `active` descarta el resultado si el
+  // provider se desmontó. El mismo guard de orden que las mutaciones evita que
+  // una respuesta vieja pise a otra más reciente.
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let active = true;
+    const requestId = ++requestIdRef.current;
+    const isLatest = () => active && requestId === requestIdRef.current;
+    void cartApi
+      .get()
+      .then((result) => {
+        if (isLatest()) setCart(result);
+      })
+      .catch(() => {
+        /* carrito no disponible: se reintenta en la próxima acción */
+      })
+      .finally(() => {
+        if (isLatest()) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const run = useCallback(async (action: () => Promise<StoreCart>) => {
     const requestId = ++requestIdRef.current;

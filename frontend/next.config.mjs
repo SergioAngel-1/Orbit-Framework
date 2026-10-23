@@ -1,7 +1,5 @@
 import { analyticsCspHosts } from "./csp-analytics.mjs";
 import createNextIntlPlugin from "next-intl/plugin";
-import path from "path";
-import fs from "fs";
 import {
   staticGenerationOptions,
   staticPageGenerationTimeout,

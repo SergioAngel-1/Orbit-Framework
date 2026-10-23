@@ -97,7 +97,6 @@ export function HeroCarousel({
 
   useEffect(() => {
     if (!autoPlay || isHovered || loading || isDragging || count <= 1) {
-      setProgress(0);
       return;
     }
     const timer = setInterval(next, interval);
@@ -166,7 +165,13 @@ export function HeroCarousel({
         "relative cursor-grab overflow-hidden rounded-2xl shadow-xl active:cursor-grabbing",
         className,
       )}
-      onMouseEnter={() => setIsHovered(true)}
+      onMouseEnter={() => {
+        setIsHovered(true);
+        // La barra de progreso se reinicia al pausar el autoplay. Antes lo hacía
+        // el efecto con un `setState` síncrono (render en cascada); ahora el
+        // reset ocurre en el mismo evento que provoca la pausa.
+        setProgress(0);
+      }}
       onMouseLeave={() => setIsHovered(false)}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

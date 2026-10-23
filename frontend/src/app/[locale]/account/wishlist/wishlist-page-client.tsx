@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { CmsImage } from "@/components/ui/cms-image";
 import { useFormatPrice } from "@/components/ui/currency-context";
 import type { CatalogProduct } from "@/types/catalog";
 
@@ -13,13 +14,12 @@ export function WishlistPageClient({ initialIds }: Props) {
   const t = useTranslations("wishlist");
   const formatPrice = useFormatPrice();
   const [products, setProducts] = useState<CatalogProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Sin ids guardados no hay nada que pedir: se nace sin estado de carga en vez
+  // de apagarlo desde un efecto (setState síncrono → render en cascada).
+  const [loading, setLoading] = useState(initialIds.length > 0);
 
   useEffect(() => {
-    if (initialIds.length === 0) {
-      setLoading(false);
-      return;
-    }
+    if (initialIds.length === 0) return;
     fetch(`/api/store/products?include=${initialIds.join(",")}`)
       .then((res) => res.json())
       .then((data) => {
@@ -54,10 +54,12 @@ export function WishlistPageClient({ initialIds }: Props) {
           <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
             <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800">
               {product.image?.sourceUrl ? (
-                <img
+                <CmsImage
                   src={product.image.sourceUrl}
                   alt={product.image.altText || product.name}
-                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                  fill
+                  sizes="(max-width: 768px) 50vw, 25vw"
+                  className="transition-transform group-hover:scale-105"
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-3xl font-bold text-gray-300">

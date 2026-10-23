@@ -99,6 +99,19 @@ export default async function ProductsPage({
 
   const filters = { search, category, minPrice, maxPrice, sort };
 
+  // Estado que define el listado servido. La grilla acumula páginas en estado
+  // local; remontarla con esta clave cuando cambia algo evita un efecto que
+  // copie props → estado (y reinicia las páginas y el cursor acumulados).
+  const listingKey = [
+    locale,
+    search ?? "",
+    category ?? "",
+    minPrice ?? "",
+    maxPrice ?? "",
+    sort ?? "",
+    after ?? "",
+  ].join("|");
+
   let products: Awaited<ReturnType<typeof getProducts>>["products"] = [];
   let pageInfo = { hasNextPage: false, endCursor: null as string | null };
   let errorMessage: string | null = null;
@@ -293,6 +306,7 @@ export default async function ProductsPage({
         </div>
       ) : (
         <InfiniteProductGrid
+          key={listingKey}
           initialProducts={products}
           initialPageInfo={pageInfo}
           filters={filters}

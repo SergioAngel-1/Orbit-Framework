@@ -4,7 +4,6 @@ import { Link } from "@/i18n/navigation";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { ProductCardHorizontal } from "./product-card-horizontal";
-import { cn } from "@/lib/utils";
 import type { CatalogProduct } from "@/types/catalog";
 
 export interface SearchResultItem {
@@ -47,12 +46,18 @@ export function SearchModal({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) {
-      const id = setTimeout(() => inputRef.current?.focus(), 100);
-      return () => clearTimeout(id);
-    }
-    setQuery("");
+    if (!open) return;
+    const id = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(id);
   }, [open]);
+
+  // Cerrar limpia la consulta. Se hace en el evento que cierra (backdrop,
+  // Escape, botón «Cerrar», clic en un resultado) en vez de en un efecto que
+  // observa `open`: sin `setState` síncrono ni un render extra al cerrar.
+  const handleClose = () => {
+    setQuery("");
+    onClose();
+  };
 
   const handleChange = (value: string) => {
     setQuery(value);
@@ -62,7 +67,13 @@ export function SearchModal({
   const hasResults = productResults.length > 0 || otherResults.length > 0;
 
   return (
-    <Modal open={open} onClose={onClose} title="Buscar" size="lg" className="max-w-xl">
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title="Buscar"
+      size="lg"
+      className="max-w-xl"
+    >
       <div className="flex flex-col gap-4">
         <Input
           ref={inputRef}
@@ -94,7 +105,7 @@ export function SearchModal({
                     <ProductCardHorizontal
                       key={product.id}
                       product={product}
-                      onClick={onClose}
+                      onClick={handleClose}
                     />
                   ))}
                 </div>
@@ -111,7 +122,7 @@ export function SearchModal({
                     <Link
                       key={result.id}
                       href={result.href}
-                      onClick={onClose}
+                      onClick={handleClose}
                       className="flex items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition-all duration-150 hover:border-gray-200 hover:bg-surface dark:hover:border-gray-700 dark:hover:bg-gray-800"
                     >
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface text-[--foreground]/50 dark:bg-gray-800">
