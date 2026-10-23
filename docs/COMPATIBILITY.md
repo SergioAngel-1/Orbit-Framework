@@ -71,7 +71,7 @@ Solo para las pruebas (`backend/composer.json`); nada de esto llega a producció
 
 Los **módulos del framework** (`hwe-banners`, `hwe-shipping`, `hwe-product-landing`,
 `hwe-landings`, `hwe-consent-log`, `hwe-site-reviews`, `hwe-coupon-rules`,
-`hwe-customer-identity`, `hwe-external-integration`) son código propio versionado en este
+`hwe-customer-identity`, `hwe-external-integration`, `hwe-loyalty`) son código propio versionado en este
 repositorio (`backend/wp-content/plugins/`): no se instalan, se activan (`modules` en
 `instance.config.json`). El contrato núcleo ↔ instancia es `HWE_CORE_CONTRACT_VERSION`
 (`2.0.0`, `mu-plugins/hwe-instance-loader.php`).

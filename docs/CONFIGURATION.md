@@ -174,7 +174,7 @@ Los valores de una instancia se siembran con `wp hwe setup instance.config.json`
 | SEO / GEO | `seo.*`, `geo.*` | Dos pestañas: «SEO» y «GEO (IA)». Las señales de entidad (`seo.organization_logo`, `founding_date`, `knows_about`, `alternate_names`, `founder_*`) se editan en GEO aunque su ruta siga en `seo.*`. `faq` y `faq_payments` son traducibles (formato «pregunta \| respuesta»). |
 | Backups | frecuencia, retención, `keep_only_latest`, `exclude_thumbnails`, `include_config_export`, `notify_email` | Ver `RUNBOOK.md`: el panel escribe `hwe-backup-config.json` y el contenedor `backup` lo lee. |
 | `instance` | lo que declare la instancia | Pestaña «Instancia»; los campos `public` salen en `instance.<grupo>.<campo>`. Ver `docs/PLUGIN_DEVELOPMENT.md`. |
-| `shipping`, `landings` | los puebla el módulo | Grupos raíz reservados: solo los rellena el plugin del módulo. |
+| `shipping`, `landings`, `loyalty` | los puebla el módulo | Grupos raíz reservados: solo los rellena el plugin del módulo. |
 
 **Campos traducibles.** Un campo marcado `'translatable' => true` en el schema (hoy
 `brand.tagline`, `brand.description`, `geo.faq` y `geo.faq_payments`; una instancia puede marcar
@@ -204,10 +204,32 @@ nulo, sus rutas del BFF responden 404 y su UI no se pinta.
 | `site-reviews` | Reseñas del **sitio**: la calificación que un cliente da a un pedido completado (una por pedido) | WooCommerce → «Reseñas del sitio» (solo lectura) |
 | `coupon-rules` | Reglas de cupón (ventana de validez, primera compra, requiere sesión, alcance, visibilidad) y anuncio de los públicos | Marketing → Cupones |
 | `customer-identity` | Documento de identidad y aceptación de términos | Tipos y patrones del paquete de país |
+| `loyalty` | Monedero de puntos (ganar, caducar, canjear y transferir) y referidos de dos niveles | Control Center → Fidelización (`loyalty.*`); menú «Fidelización» de wp-admin |
 | `external-integration` | Acceso de un integrador externo a pedidos | `HWE_INTEGRATION_ALLOWED_IPS` |
 
 Comprobar que cada módulo está completo y que encender/apagar hace lo prometido:
 `sh backend/scripts/verify-modules.sh` (ver `RUNBOOK.md`).
+
+### Fidelización (`loyalty`)
+
+La pestaña **HWE Config → Fidelización** la puebla el plugin `hwe-loyalty` en el grupo reservado
+`loyalty`; el detalle de cada campo está en su `README.md`. Los ajustes que más cambian el
+comportamiento:
+
+| Campo | Default | Qué hace |
+|---|---|---|
+| `points_enabled` | `false` | Interruptor general del monedero. Sin él, referidos y transferencias se comportan como apagados. |
+| `referrals_enabled` | `false` | Comisiones y puntos por alta de referidos (exige puntos). |
+| `currency_name` / `currency_name_plural` / `currency_icon` | `punto` / `puntos` / vacío | Nombre e icono de la unidad en todos los textos del módulo. |
+| `point_value` | `0.01` | Valor de una unidad en la moneda de la tienda. Con `0` o menos, el canje queda apagado. |
+| `min_redeem`, `max_redeem_per_order` | `100`, `0` | Mínimo para canjear y tope por pedido (`0` = sin tope). |
+| `full_payment_enabled`, `min_cash_due` | `false`, `0.01` | Si el canje puede cubrir el pedido completo; con el pago completo apagado, importe que siempre queda por pagar en dinero. |
+| `expiry_days` | `0` | Caducidad de los abonos (`0` = no caducan). |
+| `cashback_enabled`, `cashback_percent` | `false`, `0` | Devolución al comprador sobre la base de la compra. |
+| `events.*` | `0` | Unidades por registrarse, reseñar y cumplir años (`0` = evento apagado). |
+| `referral_signup_points_l1` / `_l2`, `commission_*`, `level2_enabled`, `commission_duration_days` | `0` / `false` | Primas de alta, comisiones por compra y ventana de comisión. |
+| `transfers_enabled`, `transfer_min`, `transfer_fee_percent`, `transfer_daily_cap` | `false`, `100`, `0`, `0` | Transferencias entre clientes por código, con mínimo, comisión y tope diario. |
+| `allowed_roles` | `customer, subscriber` | Roles que participan. **No público**; se amplía con el filtro `hwe_loyalty_participant_roles`. |
 
 ---
 

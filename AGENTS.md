@@ -30,7 +30,7 @@ repo y es clave no confundirlas:
 
 | Capa | Qué incluye | ¿Quién la mantiene? |
 |---|---|---|
-| **Núcleo del framework** | WordPress headless + WooCommerce (`backend/`, salvo las rutas de instancia), el **BFF**: `frontend/src/app/api/*` y `frontend/src/lib/*` (auth, seguridad, proxy a WooCommerce, pagos, config del HWE Control Center), `frontend/src/proxy.ts`, `frontend/src/components/ui/*` (primitivas sin negocio: Button, Input, Modal…) y los **9 módulos** (`backend/wp-content/plugins/hwe-*`) | El framework. Se actualiza, se documenta, se versiona como una unidad reutilizable entre instancias (`docs/UPGRADE.md`). |
+| **Núcleo del framework** | WordPress headless + WooCommerce (`backend/`, salvo las rutas de instancia), el **BFF**: `frontend/src/app/api/*` y `frontend/src/lib/*` (auth, seguridad, proxy a WooCommerce, pagos, config del HWE Control Center), `frontend/src/proxy.ts`, `frontend/src/components/ui/*` (primitivas sin negocio: Button, Input, Modal…) y los **10 módulos** (`backend/wp-content/plugins/hwe-*`) | El framework. Se actualiza, se documenta, se versiona como una unidad reutilizable entre instancias (`docs/UPGRADE.md`). |
 | **Responsabilidad de cada proyecto/instancia** | **Rutas reservadas** que el framework nunca toca: `backend/wp-content/mu-plugins/instance/`, los plugins `hwe-instance-*` y `frontend/src/instance/*`. Más `frontend/src/components/**` (excepto `ui/`) y **todas las vistas** bajo `frontend/src/app/[locale]/*` (layout visual, home, listados, fichas, marketing, footer…), que se heredan **una vez** al clonar como starter neutro | **La instancia.** Cámbialo, bórralo, reescríbelo — es 100% tuyo desde el clone. |
 
 **El contrato de instancia** (cómo enchufa su código sin tocar el núcleo; detalle en
@@ -123,7 +123,7 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 │   └── wp-content/
 │       ├── themes/hwe-headless-base/  # ⭐ único tema versionado: sin funcionalidad real (headless),
 │       │                              #    evita depender de un tema de wordpress.org (ver setup.sh)
-│       ├── plugins/              # ⭐ los 9 módulos opcionales `hwe-<id>` (ver §6.9); WooCommerce y demás los instala setup.sh
+│       ├── plugins/              # ⭐ los 10 módulos opcionales `hwe-<id>` (ver §6.9); WooCommerce y demás los instala setup.sh
 │       └── mu-plugins/           # ⭐ comportamiento headless + endpoints propios (ver §6.2/§6.4)
 │           ├── hwe-instance-loader.php  # carga `instance/*.php` (TU código; ver §1.1)
 │           ├── instance/                #   rutas de la instancia: el framework solo versiona su README
@@ -165,7 +165,8 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
     │   │                        #    se heredan al clonar y pasan a ser responsabilidad de la instancia.
     │   │                        #    Inventario de lo heredado: docs/FRONTEND_CONNECT.md §B.2.
     │   └── lib/                 # ⭐ toda la lógica de servidor/cliente (SÍ es núcleo, ver §6).
-    │                            #    `lib/config/` = config dinámica del negocio (getSiteConfig(), §6.7)
+    │                            #    `lib/config/` = config dinámica del negocio (getSiteConfig(), §6.7);
+    │                            #    `lib/loyalty/` = monedero y referidos (módulo `loyalty`, §6.9)
 ```
 
 Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por dominio
@@ -207,6 +208,7 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 | E-commerce (catálogo, carrito, checkout ligado a cliente **o de invitado**, cuenta) | ✅ |
 | Cuenta avanzada (wishlist, reseñas, direcciones — **meta atómica con lock**) | ✅ |
 | Cupones (reglas, avisos) y envío (por ciudad, extras, gratis por regla) | ✅ (módulos `coupon-rules` y `shipping`) |
+| Fidelización (puntos: ganar, caducar, canjear y transferir; referidos N1/N2) | ✅ (módulo `loyalty`) |
 | Verificación de email (**opcional**, con expiración de token) | 🟡 (no bloqueante) |
 | 2FA TOTP (secreto cifrado AES-GCM, recuperación, **sin tokens antes del segundo factor**) | ✅ |
 | SEO + GEO (metadatos, JSON-LD, sitemap segmentado, robots y llms.txt por idioma) | ✅ |
@@ -218,7 +220,7 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 | Webhooks de pedido (transición real + dispatcher de efectos) | 🟡 (email al cliente lo hace Woo; ganchos ERP por conectar) |
 | HWE Control Center (config central, tipos de campo extensibles, secretos cifrados, backups desde el panel) | ✅ |
 | Contrato de instancia (`mu-plugins/instance/`, `src/instance/`, registro, ejemplo vivo) + puerta anti-instancia | ✅ |
-| 9 módulos opcionales (`banners`, `shipping`, `product-landing`, `landings`, `consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`, `external-integration`) | ✅ |
+| 10 módulos opcionales (`banners`, `shipping`, `product-landing`, `landings`, `consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`, `external-integration`, `loyalty`) | ✅ |
 | Campos de producto y detalles de línea de pedido declarativos | ✅ |
 | Calidad / CI (lint, tipos, formato, i18n, Vitest, PHPUnit, build, audit, gitleaks, e2e con stub, «contrato», anti-instancia) | ✅ |
 | Verificación en vivo (`verify-security/modules/integration.sh`) | ✅ (la compra completa `E2E_FULL` es opt-in) |
@@ -293,7 +295,7 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   access token; `getSession` lo comprueba. `app/api/auth/logout-all` rota el secreto JWT del
   usuario en WP (invalida refresh tokens). Fail-open si Redis no responde.
 - **WordPress solo atiende al BFF**: el mu-plugin `hwe-bff-only` responde 404 a GraphQL, la Store
-  API y `hwe/v1/auth|consent` salvo con `X-HWE-Internal-Secret` (= `HWE_REVALIDATION_SECRET`,
+  API y `hwe/v1/auth|consent|loyalty` salvo con `X-HWE-Internal-Secret` (= `HWE_REVALIDATION_SECRET`,
   comparación en tiempo constante) o desde WP-CLI. **Toda** llamada del BFF a WordPress pasa por un
   cliente que lo añade (`wpFetch` en `lib/wordpress/internal-fetch.ts`, o los clientes de GraphQL,
   wc/v3 y Store API); un test (`lib/security/wordpress-calls.test.ts`) rompe si una ruta nueva usa
@@ -469,8 +471,8 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
 ### 6.9 Módulos opcionales
 - Un módulo es un plugin regular `backend/wp-content/plugins/hwe-<id>/` (con `README.md` técnico
   y `MANUAL.md` para editores). Catálogo: `banners`, `shipping`, `product-landing`, `landings`,
-  `consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`, `external-integration`
-  (qué hace cada uno: `docs/CONFIGURATION.md`, «Módulos»).
+  `consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`, `external-integration`,
+  `loyalty` (qué hace cada uno: `docs/CONFIGURATION.md`, «Módulos»).
 - Se encienden con la clave `modules` de `instance.config.json` (`wp hwe setup` activa los
   listados y **desactiva los demás**) o desde `wp-admin → Plugins`. La config pública expone
   `modules: { <id>: boolean }`, calculado según si el plugin está activo.
@@ -479,6 +481,11 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   la tienda) y su UI no se pinta (`isModuleEnabled`). Cada módulo registra su tag ISR en
   `hwe_revalidation_tags`. Comprobación en vivo: `sh backend/scripts/verify-modules.sh`; en CI hay
   una segunda pasada e2e sin módulos (`tests/e2e/modules-off.spec.ts`).
+- **`loyalty`** suma sus propios interruptores en `config.loyalty` (`points_enabled`,
+  `referrals_enabled`, `transfers_enabled`): `requireLoyalty` (`lib/loyalty/guard.ts`) corta con
+  404 la ruta de la función apagada, aunque el plugin esté activo. El canje viaja por la Store API
+  (extensión `hwe-loyalty`) y la prueba de un pedido pagado con puntos es la meta
+  `_hwe_loyalty_paid_with_points`, escrita contra el libro; nunca el navegador.
 - Añadir un módulo: ver `docs/PLUGIN_DEVELOPMENT.md` (README + MANUAL, tag ISR, lector con
   `requireModule`, tests PHPUnit con dobles en `backend/tests/Stubs/`, stub de CI y
   `STUB_SITE_CONFIG_EXTRA`).

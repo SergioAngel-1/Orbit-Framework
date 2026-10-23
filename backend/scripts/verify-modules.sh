@@ -10,7 +10,10 @@
 #                 de WordPress de `docker-compose.yml` (sin el montaje no se puede activar).
 #    toggle       con la pila: por cada módulo, apagado → `config.modules[<id>]` es false y sus
 #                 rutas REST responden 404; encendido → es true y responden algo distinto de 404.
-#                 Deja cada módulo como estaba (también si se interrumpe).
+#                 Deja cada módulo como estaba (también si se interrumpe). `loyalty` añade:
+#                 tablas propias, rutas internas con el secreto interno y la extensión
+#                 `hwe-loyalty` de la Store API, con «Puntos»/«Referidos» encendidos de forma
+#                 temporal y restaurados al salir.
 #    i18n         con la pila: una traducción a un segundo idioma guardada en la meta de un
 #                 producto llega por `Product.translation(locale)`, y un idioma no declarado no.
 #    country      con la pila: el paquete del país de la tienda está en `/hwe/v1/geo`.
@@ -56,6 +59,8 @@ SECRET=""
 # Estado inicial de cada plugin tocado, «id=active|inactive», para restaurarlo al salir.
 TOUCHED=""
 FIXTURE_PRODUCT=""
+# Marca de que se guardó la config del módulo `loyalty` para restaurarla al salir.
+LOYALTY_CONFIG_SAVED=0
 
 MODULES_PHP="backend/wp-content/mu-plugins/hwe-control-center/Modules.php"
 MODULES_TS="frontend/src/lib/config/modules.ts"
@@ -151,7 +156,59 @@ set_module() { # <id> on|off
   fi
 }
 
+# ── loyalty: ajustes temporales ─────────────────────────────────────────────
+# Las rutas internas y el canje solo existen con «Puntos»/«Referidos» encendidos, y los
+# defaults del módulo nacen apagados. Se guarda la config en una opción aparte y se restaura
+# al salir (también si el script se interrumpe): la verificación no puede dejar la tienda
+# repartiendo puntos ni cambiar los ajustes de la instancia.
+loyalty_config_save() {
+  [ "$LOYALTY_CONFIG_SAVED" = 1 ] && return 0
+  if cli eval 'update_option("hwe_verify_loyalty_config_backup", array("exists" => null !== get_option("hwe_config", null), "config" => get_option("hwe_config", array())), false);' >/dev/null 2>&1; then
+    LOYALTY_CONFIG_SAVED=1
+  fi
+}
+
+loyalty_config_enable() {
+  # Sin copia de seguridad no se toca la config: un fallo a medias dejaría la tienda repartiendo
+  # puntos con los ajustes cambiados.
+  [ "$LOYALTY_CONFIG_SAVED" = 1 ] || return 1
+  cli eval '$c = get_option("hwe_config", array()); if (!is_array($c)) { $c = array(); } $l = isset($c["loyalty"]) && is_array($c["loyalty"]) ? $c["loyalty"] : array(); $l["points_enabled"] = true; $l["referrals_enabled"] = true; $l["transfers_enabled"] = true; $c["loyalty"] = $l; update_option("hwe_config", $c, false);' >/dev/null 2>&1
+}
+
+loyalty_config_restore() {
+  [ "$LOYALTY_CONFIG_SAVED" = 0 ] && return 0
+  LOYALTY_CONFIG_SAVED=0
+  cli eval '$b = get_option("hwe_verify_loyalty_config_backup", null); if (is_array($b)) { if (!empty($b["exists"])) { update_option("hwe_config", $b["config"], false); } else { delete_option("hwe_config"); } delete_option("hwe_verify_loyalty_config_backup"); }' >/dev/null 2>&1
+}
+
+# Comprobaciones propias de `loyalty`, con el plugin activo y sus interruptores encendidos:
+# tablas del libro, rutas internas (con y sin el secreto) y la extensión de la Store API.
+loyalty_checks() {
+  tables="$(cli eval 'global $wpdb; $names = array("hwe_loyalty_ledger","hwe_loyalty_balances","hwe_loyalty_ledger_consumptions","hwe_loyalty_referrals"); $missing = array(); foreach ($names as $name) { $table = $wpdb->prefix . $name; if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table)) !== $table) { $missing[] = $name; } } echo $missing ? "faltan:" . implode(",", $missing) : "todas";' 2>/dev/null | grep -aE '^(todas|faltan:)' | tail -n1)"
+  check "loyalty activo: las tablas del libro y la red" "$tables" '^todas$'
+
+  for route in summary transactions referrals; do
+    code="$(wp_get "/wp-json/hwe/v1/loyalty/$route?user_id=1")"
+    [ "$code" = 200 ] && ok "loyalty activo: /hwe/v1/loyalty/$route con el secreto → 200" \
+      || fail "loyalty activo: /hwe/v1/loyalty/$route debía responder 200" "responde $code"
+  done
+  code="$(wp_get "/wp-json/hwe/v1/loyalty/validate-code?code=ABCDEFGH")"
+  [ "$code" = 200 ] && ok "loyalty activo: /hwe/v1/loyalty/validate-code con el secreto → 200" \
+    || fail "loyalty activo: /hwe/v1/loyalty/validate-code debía responder 200" "responde $code"
+
+  # Sin el secreto, `hwe-bff-only` responde 404: no confirma que la ruta exista.
+  code="$(docker exec hwe_wordpress curl -s -o /dev/null -w '%{http_code}' \
+    "http://localhost/wp-json/hwe/v1/loyalty/summary?user_id=1")"
+  [ "$code" = 404 ] && ok "loyalty: las rutas internas se cierran sin el secreto (404)" \
+    || fail "loyalty: una ruta interna respondió $code sin el secreto" "debía ser 404"
+
+  cart="$(docker exec hwe_wordpress curl -s -H "X-HWE-Internal-Secret: $SECRET" \
+    http://localhost/wp-json/wc/store/v1/cart)"
+  check "loyalty activo: la Store API publica extensions.hwe-loyalty" "$cart" '"hwe-loyalty"'
+}
+
 restore() {
+  loyalty_config_restore
   for entry in $TOUCHED; do
     id="${entry%%=*}"
     state="${entry#*=}"
@@ -236,6 +293,12 @@ section_toggle() {
     routes_off="$(routes)"
 
     set_module "$id" on
+    if [ "$id" = loyalty ]; then
+      # Las rutas y el canje existen siempre, pero solo responden con los interruptores
+      # encendidos: se encienden de forma temporal y `restore` devuelve la config original.
+      loyalty_config_save
+      loyalty_config_enable
+    fi
     flag_on="$(module_flag "$id")"
     routes_on="$(routes)"
 
@@ -243,6 +306,10 @@ section_toggle() {
       || fail "$id apagado: config.modules debía ser false" "vale $flag_off"
     [ "$flag_on" = true ] && ok "$id encendido: config.modules = true" \
       || fail "$id encendido: config.modules debía ser true" "vale $flag_on"
+
+    if [ "$id" = loyalty ]; then
+      loyalty_checks
+    fi
 
     # Rutas que solo existen con el módulo encendido.
     f_off="$(mktemp)"

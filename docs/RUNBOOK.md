@@ -192,7 +192,7 @@ Ninguno imprime secretos.
 | Script | Qué comprueba |
 |--------|---------------|
 | `sh backend/scripts/verify-security.sh [--strict]` | WordPress solo atiende al BFF, webhooks firmados, 2FA, cabeceras. Ver `docs/SECURITY.md`. |
-| `sh backend/scripts/verify-modules.sh [static\|toggle\|i18n\|country\|integration\|all]` | Cada módulo está completo y montado; encenderlo/apagarlo cambia `config.modules` y registra/retira sus rutas; traducción a un segundo idioma; paquete de país. **Enciende y apaga módulos de verdad** y los deja como estaban: no lo ejecutes contra producción con tráfico sin avisar. |
+| `sh backend/scripts/verify-modules.sh [static\|toggle\|i18n\|country\|integration\|all]` | Cada módulo está completo y montado; encenderlo/apagarlo cambia `config.modules` y registra/retira sus rutas; `loyalty` añade sus tablas, las rutas internas con el secreto y la extensión de la Store API; traducción a un segundo idioma; paquete de país. **Enciende y apaga módulos de verdad** (y en `loyalty` toca los ajustes de forma temporal, restaurándolos) y los deja como estaban: no lo ejecutes contra producción con tráfico sin avisar. |
 | `sh backend/scripts/verify-integration.sh [tracking\|gate\|access\|guard\|all]` | Puerta de red, rol y contraseña de aplicación, y política de GraphQL del módulo `external-integration`. Crea un usuario y un pedido desechables y los borra. |
 
 Qué no puede verificarse en local: que Caddy vea la IP real del integrador ni que la

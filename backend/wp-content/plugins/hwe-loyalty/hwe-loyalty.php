@@ -41,8 +41,8 @@
  * con filtros y CSV, red, ajuste manual y lote de códigos), perfil de usuario, columnas
  * ordenables del listado de usuarios y caja en el pedido, con las capacidades
  * `hwe_loyalty_view` y `hwe_loyalty_manage` concedidas a `administrator` y `shop_manager` al
- * activar. Las rutas del BFF llegan en las siguientes tareas del módulo (ver README.md y
- * MANUAL.md de esta carpeta).
+ * activar. El BFF consume las rutas internas y la extensión `hwe-loyalty` de la Store API
+ * (contrato en README.md y MANUAL.md de esta carpeta).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

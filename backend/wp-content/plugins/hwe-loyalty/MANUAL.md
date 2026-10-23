@@ -4,8 +4,9 @@ El módulo de fidelización premia a los clientes con **puntos** que pueden canj
 con **comisiones por referidos**. Se configura en **HWE Config → Fidelización** y se activa o
 desactiva como cualquier módulo del framework (Plugins de WordPress).
 
-> **En construcción (backend).** Los ajustes y las pantallas de administración ya están; las
-> vistas públicas del programa las construye el frontend de cada instancia.
+> **El módulo no trae vistas.** Entrega el contrato (configuración, rutas del BFF y extensión del
+> carrito); la UI pública (saldo, canje, enlace de referido, transferencias) la construye el
+> frontend de cada instancia. El contrato completo está en `docs/FRONTEND_CONNECT.md`.
 
 ## Para qué sirve
 
@@ -13,6 +14,29 @@ desactiva como cualquier módulo del framework (Plugins de WordPress).
   reseñar o por su cumpleaños, y las usa para pagar parte del pedido.
 - **Referidos**: cada cliente tiene un código propio. Quien se registra con él queda vinculado, y
   el referidor cobra una comisión (en puntos) sobre sus compras.
+
+## Qué ve el cliente
+
+- **Su saldo** y el valor aproximado en dinero, lo que ha ganado y gastado, y cuántas unidades le
+  caducan pronto.
+- **El canje en el carrito**: elige cuántas unidades usar; la web nunca decide el descuento, lo
+  calcula la tienda y lo recorta a su saldo, al máximo por pedido y a lo que el carrito permite.
+  Si no puede usarse, el carrito explica el motivo (sin sesión, cuenta no participante, programa
+  apagado, por debajo del mínimo o carrito por debajo del mínimo a pagar en dinero).
+- **El pago completo** solo si está encendido: puede dejar el pedido en cero, envío incluido. Sin
+  ese ajuste, siempre queda por pagar en dinero el mínimo configurado.
+- **Su enlace de referido** para compartir y el estado de su red (quién se registró con su código,
+  pendiente o confirmado, y cuántas unidades le ha generado).
+- **Transferencias**, si están encendidas: enviar unidades a otra persona por su código, con el
+  mínimo, la comisión y el tope diario que hayas configurado. El recibo muestra el nombre visible
+  del receptor, nunca su usuario ni su correo.
+- **Su historial**: cada movimiento con una descripción en su idioma.
+
+Si el saldo cambia mientras el cliente está comprando (usa otra pestaña, recibe una transferencia
+o le caducan unidades), el pedido **no se crea** con un descuento sin respaldo: la tienda avisa y
+el cliente vuelve al carrito, que ya muestra lo que su saldo cubre en ese momento. Tras una compra
+con canje confirmado, la cantidad pedida se descarta para que la siguiente compra no gaste
+unidades que nadie eligió.
 
 ## Ajustes que puedes tocar
 

@@ -36,17 +36,44 @@ framework nunca toca, y se engancha al núcleo por hooks estables, versionados p
 | `hwe_order_item_details` | filtro | Declarar detalles de línea de pedido (`clave => ['label', 'validate', 'applies_to', 'required', 'meta_key']`): el núcleo los toma de `extensions` en `cart/add-item`, los valida en el servidor, impide pagar una línea sin ellos y los guarda como meta **visible** de la línea (correos, wp-admin, API). El validador devuelve el valor, `['value', 'data']` o un `WP_Error`. |
 | `hwe_product_landing_icons` | filtro | Ampliar los íconos del selector de la landing de producto (clave en minúsculas → etiqueta); la instancia declara los mismos dibujos en su frontend. |
 
-**Grupos reservados a un módulo:** el núcleo declara vacíos los grupos raíz `shipping` y
-`landings`; el plugin del módulo los puebla con `hwe_control_center_schema` (no van en `instance`:
-una clave raíz ajena al núcleo se descarta).
+**Grupos reservados a un módulo:** el núcleo declara vacíos los grupos raíz `shipping`,
+`landings` y `loyalty`; el plugin del módulo los puebla con `hwe_control_center_schema` (no van en
+`instance`: una clave raíz ajena al núcleo se descarta).
 
 **Módulos opcionales:** la instancia los elige en `instance.config.json` (`modules:
 [<id>…]`); `wp hwe setup` activa los listados y desactiva los demás del catálogo
 (`banners`, `shipping`, `product-landing`, `landings`, `consent-log`, `site-reviews`,
-`coupon-rules`, `customer-identity`, `external-integration`). La config pública expone
+`coupon-rules`, `customer-identity`, `external-integration`, `loyalty`). La config pública expone
 `modules: { <id>: boolean }` según si cada plugin está activo: es la fuente de verdad que
 el frontend usa con `isModuleEnabled(config, id)` y `requireModule(id)` (las rutas BFF de
 un módulo apagado responden 404).
+
+### Hooks estables de los módulos
+
+Un módulo que quiera ser contrato publica sus hooks en su `README.md` y aquí. Los del módulo
+`loyalty` (fidelización), ya estables:
+
+| Hook | Tipo | Firma / para qué |
+|---|---|---|
+| `hwe_loyalty_credited` | acción | `( int $userId, int $points, string $type, array $ref )` tras un abono; `$ref` = `['type', 'id']`. |
+| `hwe_loyalty_debited` | acción | `( int $userId, int $points, string $type, array $ref )` tras un cargo. |
+| `hwe_loyalty_expired` | acción | `( int $userId, int $points, string $type, array $ref )` tras caducar un abono (`$ref = ['type' => 'entry', 'id' => …]`). |
+| `hwe_loyalty_transferred` | acción | `( int $fromUserId, int $toUserId, int $points, int $received, int $fee )`. |
+| `hwe_loyalty_attribution_confirmed` | acción | `( int $userId, ?int $referrerId )` la primera vez que una atribución pasa a confirmada. |
+| `hwe_loyalty_order_earnings` | filtro | `( array $earnings, WC_Order $order, float $base, array $settings ): array` para reglas propias de puntos por compra. |
+| `hwe_loyalty_collected_on_completion` | filtro | `( string[] $methods ): string[]` medios que esperan a `completed` (defecto `cod`). |
+| `hwe_loyalty_entry_types` | filtro | `( array<string, "credit"\|"debit"> $types ): array` tipos de movimiento extra. |
+| `hwe_loyalty_participant_roles` | filtro | `( string[] $roles ): string[]` roles que participan. |
+
+El módulo consume además tres hooks del núcleo o de otros módulos, que también son contrato:
+
+- `hwe_email_verified( int $userId )` — lo dispara `hwe-auth` una vez al verificar el email. Una
+  cuenta creada en wp-admin se considera confirmada sin pasar por él.
+- `hwe_account_approved( int $userId )` y el filtro `hwe_account_is_pending( bool $pending, int
+  $userId )` — contrato **provisional** con el futuro módulo de «login privado»; hoy el filtro
+  devuelve `false` por defecto y el módulo de fidelización solo los consume.
+- `hwe_site_review_published( int $reviewId, int $userId, int $orderId )` — lo dispara
+  `hwe-site-reviews` cuando una reseña con autor pasa a publicada.
 
 **La frontera también te protege a ti:** el núcleo (`src/lib/**`, `src/app/api/**`,
 `src/proxy.ts`, `src/components/ui/**`) no puede importar `@/components/**` (salvo `ui/`)

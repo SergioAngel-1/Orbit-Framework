@@ -47,6 +47,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `package.json` y `composer.json` a «Sergio Jauregui».
 
 ### Added
+- **Módulo `loyalty` (fidelización).** Monedero de puntos y referidos de dos niveles, sin UI: el
+  plugin `hwe-loyalty` es la fuente de verdad (libro mayor transaccional con consumo FIFO y
+  caducidad, ganancias por pedido y por eventos, canje en la Store API con fee negativo y
+  confirmación contra el libro, transferencias atómicas, administración en wp-admin y
+  privacidad). El BFF expone `/api/loyalty/{summary,transactions,referrals,referral-link,
+  validate-code,transfer}` y `/api/store/cart/points`, con `paid_with_points` en el checkout y la
+  cookie `hwe_ref` para el registro. Ajustes en el Control Center → Fidelización (grupo reservado
+  `loyalty`), hooks estables `hwe_loyalty_*` y cobertura en CI: stub con el módulo encendido,
+  pasada e2e sin módulos y `verify-modules.sh`.
 - **Marca de HWE Orbit en el panel** (mu-plugin `hwe-admin-branding`). Esquema de color «HWE Orbit»
   (tinta, cadmio y ultramar), compilado con el `_admin.scss` del core y aplicado por defecto a quien
   tenga el esquema de WordPress (`fresh`), más un login con el símbolo de Orbit. El tema
