@@ -50,6 +50,15 @@ deja un *lock* que se retira solo cuando su dueño ya no existe o supera su edad
 **Regla de oro:** copia estos archivos **fuera del servidor** (S3/almacenamiento
 externo). Un backup que vive solo en la misma máquina no protege ante su pérdida.
 
+**Cifrado y verificación (recomendado en producción).** Los archivos de `./backups` contienen
+la base de datos completa **en claro** (clientes, pedidos, hashes): el robo del servidor o del
+disco es también el robo de esos datos. Cifra en origen con una clave pública que **no** viva
+en el servidor (`age -r "$(cat /etc/hwe/backup.pub)"` o `gpg --encrypt`) o sincroniza con un
+remoto cifrado de `rclone`, y programa ese envío en el cron del host (el contenedor `backup`
+no sale a Internet: solo está en la red `data`). Restringe además el directorio al usuario de
+operación (`chmod 700 backups`) y **verifica** tanto la llegada (`rclone check`) como una
+restauración de prueba (§2): una copia que nunca se restauró no es una copia.
+
 ### Desde la consola
 
 ```bash
