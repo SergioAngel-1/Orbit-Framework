@@ -179,10 +179,10 @@ Tras actualizar mu-plugins o plugins, reinicia ese contenedor.
 |---|---|
 | `docker-compose.prod.yml` | `deploy.resources.limits.memory` (512 MB) |
 | `backend/config/opcache.ini` | Segmento COMPARTIDO: `memory_consumption` + `interned_strings_buffer` + `jit_buffer_size` (96 + 8 + 0 = 104 MB) |
-| `backend/config/apache-mpm.conf` | `MaxRequestWorkers` (6); cada hijo cuesta ~60 MB |
-| `backend/config/uploads.ini` | `memory_limit` = techo de UNA petición (128 MB), nunca el del contenedor |
+| `backend/config/apache-mpm.conf` | `MaxRequestWorkers` (5); cada hijo cuesta ~60 MB |
+| `backend/config/uploads.ini` | `memory_limit` = techo de UNA petición (256 MB, lo que recomienda WooCommerce), nunca el del contenedor |
 
-Presupuesto: `10 (padre) + 104 (OPcache) + 6 × 60 = 474 MB` → 38 MB de margen. Si
+Presupuesto: `10 (padre) + 104 (OPcache) + 5 × 60 = 414 MB` → 98 MB de margen. Si
 subes cualquiera de ellos, recalcula el resto en la misma proporción;
 `npm run test` (`tests/unit/apache-mpm.test.ts`) falla si no cabe. Un import
 puntual que necesite más memoria se lanza con `wp --memory-limit=512M …`, no
@@ -196,7 +196,7 @@ etiqueta (`site-config`, `banners`, `shipping`, `landings`, `geo`…) con
 
 **Después de desplegar.** El volumen `next_cache` conserva el Data Cache entre
 despliegues, pero las páginas ISR se regeneran. Calienta de forma ordenada (3 en
-paralelo por defecto, contra los 6 workers de WordPress) en vez de dejar que público y
+paralelo por defecto, contra los 5 workers de WordPress) en vez de dejar que público y
 rastreadores regeneren a la vez:
 
 ```bash

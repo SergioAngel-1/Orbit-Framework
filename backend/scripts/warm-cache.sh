@@ -29,7 +29,7 @@
 #  calienta con los intentos fallidos: se queda atascado.
 #
 #  Este script convierte esa estampida en una cola ORDENADA. Va con 3 peticiones
-#  en paralelo por defecto: WordPress tiene 6 workers (apache-mpm.conf) y el
+#  en paralelo por defecto: WordPress tiene 5 workers (apache-mpm.conf) y el
 #  resto de la capacidad queda para el público. Con `WARM_CONCURRENCY=1` vuelve
 #  al modo estrictamente secuencial de antes.
 #
@@ -88,7 +88,7 @@ resultados=$(mktemp)
 trap 'rm -f "$lista" "$resultados"' EXIT INT TERM
 
 echo "== Calentando caché ISR de ${BASE} =="
-echo "   (${WARM_CONCURRENCY} en paralelo; WordPress tiene 6 workers)"
+echo "   (${WARM_CONCURRENCY} en paralelo; WordPress tiene 5 workers)"
 echo
 
 if [ "$KEY_ROUTES" != "0" ]; then

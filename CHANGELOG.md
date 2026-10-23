@@ -12,9 +12,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   de JIT), mientras el dimensionado de Apache (`apache-mpm.conf`) daba por sentados ~90 MB de
   OPcache: un pico de WPGraphQL o el prerender podían consumir el cgroup y matar el contenedor
   (`OOMKilled`), dejando el sitio en 500 hasta que Docker lo reiniciaba. Ahora `memory_limit` es
-  128M (techo por petición), OPcache baja a 96 + 8 MB con el JIT apagado (WordPress es I/O-bound)
-  y el presupuesto real (10 + 104 + 6 × 60 = 474 MB de 512) está documentado en
-  `docs/RUNBOOK.md` §5. `tests/unit/apache-mpm.test.ts` lee también `opcache.ini`, `uploads.ini`
+  256M (techo por petición, lo que recomienda WooCommerce), Apache pasa a 5 workers, OPcache
+  baja a 96 + 8 MB con el JIT apagado (WordPress es I/O-bound) y el presupuesto real
+  (10 + 104 + 5 × 60 = 414 MB de 512) está documentado en `docs/RUNBOOK.md` §5. `tests/unit/apache-mpm.test.ts` lee también `opcache.ini`, `uploads.ini`
   y el límite del compose: subir uno sin recalcular los demás ahora falla.
 - **Sondas de salud que miden lo que dicen medir.** El healthcheck del frontend (dev y prod)
   llamaba a `/api/health`, que devuelve 200 aunque Redis y WordPress estén caídos y que hace dos
@@ -45,7 +45,7 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   regeneraba contra WordPress a la vez. Ahora el volumen `next_cache` cubre todo
   `/app/.next/cache` (ISR, fetch-cache e imágenes) y un servicio `cache-prune` borra a diario las
   variantes de imagen sin uso en `CACHE_IMAGES_MAX_AGE_DAYS` (30) días, que `next/image` no
-  recolecta nunca. `warm-cache.sh` calienta con 3 peticiones en paralelo (contra los 6 workers de
+  recolecta nunca. `warm-cache.sh` calienta con 3 peticiones en paralelo (contra los 5 workers de
   WordPress) en vez de una cada segundo, y sigue admitiendo `WARM_CONCURRENCY=1`.
 
 ### Security
