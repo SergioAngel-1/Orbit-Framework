@@ -80,6 +80,7 @@ describe("pushCartDestination", () => {
       method: "POST",
       body: {
         shipping_address: {
+          address_1: "Calle 1",
           city: "Bogotá",
           country: "CO",
           state: "CO-DC",
@@ -90,6 +91,20 @@ describe("pushCartDestination", () => {
       authToken: "jwt",
     });
     expect(result?.cartToken).toBe("cart-token-2");
+  });
+
+  it("el pin del cliente no viaja a Woo: no es un campo de su dirección", async () => {
+    await pushCartDestination(
+      7,
+      [address({ is_default: true, location: { lat: 4.6533, lng: -74.0836 } })],
+      AUTH,
+    );
+
+    const [, options] = vi.mocked(storeFetch).mock.calls[0] as unknown as [
+      string,
+      { body: { shipping_address: Record<string, unknown> } },
+    ];
+    expect(options.body.shipping_address).not.toHaveProperty("location");
   });
 
   it("con el módulo apagado no hace nada", async () => {

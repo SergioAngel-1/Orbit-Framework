@@ -3,6 +3,22 @@ import { checkAddress, packCountry } from "@/lib/geo/address";
 import type { GeoPack } from "@/lib/geo/types";
 
 /**
+ * Pin del cliente: coordenadas en grados decimales. Son números JSON, no cadenas: un valor
+ * mal formado se rechaza (422 en el BFF) y nunca llega a WordPress. `(0, 0)` es el valor por
+ * defecto de un mapa sin marcar, no una ubicación real, así que también se rechaza.
+ */
+export const locationSchema = z
+  .object({
+    lat: z.number().finite().min(-90).max(90),
+    lng: z.number().finite().min(-180).max(180),
+  })
+  .refine((point) => point.lat !== 0 || point.lng !== 0, {
+    message: "Ubicación inválida.",
+  });
+
+export type Location = z.infer<typeof locationSchema>;
+
+/**
  * Esquema de una dirección de la libreta, según el paquete de país de la tienda
  * (`getGeoPack()`): el país por defecto es el de la tienda, la división se valida
  * contra la lista del paquete (y contra la ciudad si el paquete lo pide), y el
@@ -31,6 +47,7 @@ export function buildAddressSchema(pack: GeoPack) {
       phone: z.string().max(30).optional().default(""),
       is_default: z.boolean().optional().default(false),
       label: z.string().max(50).optional().default(""),
+      location: locationSchema.optional(),
     })
     .superRefine((address, ctx) => {
       for (const issue of checkAddress(pack, address).issues) {

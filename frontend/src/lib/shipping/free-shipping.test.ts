@@ -14,6 +14,7 @@ const BASE: FreeShippingState = {
   city: "unknown",
   all_cities: false,
   scoped: false,
+  rateIds: [],
 };
 
 function cart(state: Partial<FreeShippingState> | null, needsShipping = true) {
@@ -122,5 +123,35 @@ describe("resolveFreeShippingNotice", () => {
       kind: "pendingCity",
       hints: { selectedCities: true, selectedProducts: false },
     });
+  });
+});
+
+describe("readFreeShipping: rate_ids", () => {
+  // La extensión viaja con el nombre del contrato (`rate_ids`), no con el de la interfaz.
+  const WIRE = Object.fromEntries(
+    Object.entries(BASE).filter(([key]) => key !== "rateIds"),
+  );
+  const withRateIds = (rate_ids: unknown) => ({
+    extensions: { hwe_free_shipping: { ...WIRE, rate_ids } },
+  });
+
+  it("lee las tarifas que la regla deja a 0", () => {
+    const state = readFreeShipping(
+      withRateIds(["hwe_city_rate:a1b2", "hwe_city_rate:c3d4"]),
+    );
+    expect(state?.rateIds).toEqual(["hwe_city_rate:a1b2", "hwe_city_rate:c3d4"]);
+  });
+
+  it("sin rate_ids (WordPress anterior) la lista es vacía, sin invalidar el resto", () => {
+    const state = readFreeShipping({ extensions: { hwe_free_shipping: WIRE } });
+    expect(state?.rateIds).toEqual([]);
+    expect(state?.enabled).toBe(true);
+  });
+
+  it("descarta lo que no es texto y filtra una lista malformada", () => {
+    expect(readFreeShipping(withRateIds(["ok", 7, null, "", "otra"]))?.rateIds).toEqual(
+      ["ok", "otra"],
+    );
+    expect(readFreeShipping(withRateIds("hwe_city_rate:x"))?.rateIds).toEqual([]);
   });
 });

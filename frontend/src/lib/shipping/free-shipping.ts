@@ -17,6 +17,11 @@ export interface FreeShippingState {
   city: "eligible" | "not_eligible" | "unknown";
   all_cities: boolean;
   scoped: boolean;
+  /**
+   * Ids de las tarifas que la regla deja a 0 (las de las opciones marcadas, `hwe_city_rate:*`).
+   * Vacío si WordPress no las publica (versión anterior).
+   */
+  rateIds: string[];
 }
 
 export type FreeShippingNotice =
@@ -80,7 +85,15 @@ export function readFreeShipping(
     city: state.city,
     all_cities: state.all_cities === true,
     scoped: state.scoped === true,
+    rateIds: readRateIds(raw),
   };
+}
+
+/** Ids de tarifa de la extensión; lo que no es texto no nombra ninguna tarifa y se descarta. */
+function readRateIds(raw: object): string[] {
+  const ids = (raw as { rate_ids?: unknown }).rate_ids;
+  if (!Array.isArray(ids)) return [];
+  return ids.filter((id): id is string => typeof id === "string" && id !== "");
 }
 
 /**

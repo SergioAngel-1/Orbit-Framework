@@ -74,9 +74,19 @@ export async function pushCartDestination(
   }
   noDestination.delete(key);
   try {
+    // El pin (`location`) no es un campo de WooCommerce: lo fija el BFF aparte, por la extensión
+    // del punto de entrega. Aquí solo van los campos de dirección de Woo (la calle incluida).
     return await storeFetch<StoreCart>("/cart/update-customer", {
       method: "POST",
-      body: { shipping_address: destination },
+      body: {
+        shipping_address: {
+          address_1: destination.address_1,
+          city: destination.city,
+          country: destination.country,
+          state: destination.state,
+          postcode: destination.postcode,
+        },
+      },
       cartToken: auth.cartToken,
       authToken: auth.authToken,
     });

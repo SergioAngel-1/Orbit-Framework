@@ -109,6 +109,13 @@ export interface SiteConfig {
     enabled: boolean;
   };
   /**
+   * Envío del módulo `shipping`. `distance_enabled`: hay al menos una ciudad por distancia, así
+   * que el mapa del pin es obligatorio para esas ciudades. Lo calcula WordPress (no es un ajuste).
+   */
+  shipping: {
+    distance_enabled: boolean;
+  };
+  /**
    * Programa de fidelización (módulo `loyalty`): monedero de puntos y referidos. Los valores
    * numéricos viajan como texto, igual que el resto de campos `number` del Control Center; los
    * convierte quien opera con ellos. Con el módulo apagado llegan los defaults y el BFF responde
