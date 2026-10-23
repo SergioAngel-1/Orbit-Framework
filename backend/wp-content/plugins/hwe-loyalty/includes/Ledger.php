@@ -100,6 +100,14 @@ final class HWE_Loyalty_Ledger {
 			return null;
 		}
 
+		// Clave repetida: el camino idempotente normal. Se detecta con el saldo ya bloqueado en
+		// vez de dejar que MySQL rechace el INSERT (WordPress registraría «Duplicate entry» cada
+		// vez); el índice único sigue de red por si dos usuarios comparten clave.
+		if ( null !== self::entryIdByKey( $key ) ) {
+			self::rollback();
+			return null;
+		}
+
 		$inserted = $wpdb->insert(
 			HWE_Loyalty_Schema::ledgerTable(),
 			array(
@@ -198,6 +206,10 @@ final class HWE_Loyalty_Ledger {
 			self::rollback();
 			self::log( 'no se pudo bloquear el saldo del usuario ' . $userId . '.' );
 			return null;
+		}
+		if ( null !== self::entryIdByKey( $key ) ) {
+			self::rollback();
+			return null; // Clave repetida: idempotente (ver `credit`).
 		}
 		if ( (int) $balance->balance < $points ) {
 			self::rollback();

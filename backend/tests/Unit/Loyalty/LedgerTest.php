@@ -129,6 +129,27 @@ final class LedgerTest extends TestCase
         $this->assertSame(100, \HWE_Loyalty_Ledger::balance(self::USER)['balance']);
     }
 
+    public function testARepeatedKeyIsDetectedBeforeInsertingSoMysqlLogsNoDuplicateError(): void
+    {
+        \HWE_Loyalty_Ledger::credit(self::USER, 100, 'cashback', 'earn:order:56');
+        \HWE_Loyalty_Ledger::credit(self::USER, 200, 'cashback', 'earn:order:57');
+        \HWE_Loyalty_Ledger::debit(self::USER, 10, 'redeem', 'redeem:order:9');
+        $GLOBALS['wpdb']->inserts = [];
+
+        // El camino idempotente normal (estado repetido, reseña repetida, otra pasada del
+        // cumpleaños) no puede depender de que MySQL rechace el INSERT: WordPress registraría
+        // «Duplicate entry» en el log de errores cada vez.
+        $this->assertNull(\HWE_Loyalty_Ledger::credit(self::USER, 100, 'cashback', 'earn:order:56'));
+        $this->assertNull(\HWE_Loyalty_Ledger::debit(self::USER, 10, 'redeem', 'redeem:order:9'));
+
+        $ledgerInserts = array_filter(
+            $GLOBALS['wpdb']->inserts,
+            static fn (array $insert): bool => str_ends_with($insert[0], 'hwe_loyalty_ledger')
+        );
+        $this->assertSame([], array_values($ledgerInserts));
+        $this->assertSame(290, \HWE_Loyalty_Ledger::balance(self::USER)['balance']);
+    }
+
     public function testDefaultExpiryComesFromSettingsAndZeroMeansNoExpiry(): void
     {
         $this->config['loyalty'] = ['expiry_days' => 30];
