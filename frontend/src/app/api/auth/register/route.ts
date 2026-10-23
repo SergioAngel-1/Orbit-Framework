@@ -8,7 +8,11 @@ import {
   REFRESH_COOKIE,
   REFRESH_TOKEN_MAX_AGE,
 } from "@/lib/auth/constants";
-import { sessionCookieOptions, refreshCookieOptions } from "@/lib/security/cookies";
+import {
+  sessionCookieOptions,
+  refreshCookieOptions,
+  expiredCookieOptions,
+} from "@/lib/security/cookies";
 import { getTokenMaxAgeSeconds } from "@/lib/auth/jwt";
 import { guardMutation } from "@/lib/api/guard";
 import { syncAuthenticatedCart } from "@/lib/woocommerce/cart-session";
@@ -25,6 +29,9 @@ import { isModuleEnabled } from "@/lib/config/modules";
 import { identityPolicy } from "@/lib/customer/policy";
 import { attachIdentity, isDocumentAvailable } from "@/lib/customer/identity-api";
 import { checkDocument } from "@/lib/validation/identity";
+import { attributeReferral } from "@/lib/loyalty/server";
+import { normalizeReferralCode } from "@/lib/loyalty/referral-code";
+import { REF_COOKIE } from "@/lib/loyalty/ref-cookie";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +74,67 @@ async function sendVerificationEmail(authToken: string, locale: string): Promise
 }
 
 /**
+ * Retira la cookie `hwe_ref`: la atribución ya se intentó (o no hay a quién
+ * atribuir) y no volvería a usarse en este navegador.
+ */
+async function forgetReferralCookie(): Promise<void> {
+  const store = await cookies();
+  store.set(REF_COOKIE, "", expiredCookieOptions("/"));
+}
+
+/**
+ * Atribuye la cuenta recién creada al dueño del código de referido. Es
+ * BEST-EFFORT: `attributeReferral` no lanza (normaliza los fallos), y aun así
+ * aquí se blinda con `try` para que nada impida retirar la cookie ni romper el
+ * alta. Nunca se registra el código ni el email: solo el id y el motivo.
+ */
+async function attributeRegistrationReferral(
+  userId: number,
+  code: string,
+): Promise<void> {
+  try {
+    const result = await attributeReferral(userId, code);
+    if (result.ok) {
+      logger.info(
+        { event: "auth.register.referral_attributed", userId },
+        "Cuenta atribuida al código de referido",
+      );
+    } else if (result.reason === "unavailable") {
+      logger.error(
+        {
+          event: "auth.register.referral_not_attributed",
+          reason: result.reason,
+          userId,
+        },
+        "No se pudo atribuir el referido: WordPress no respondió",
+      );
+    } else {
+      logger.warn(
+        {
+          event: "auth.register.referral_not_attributed",
+          reason: result.reason,
+          userId,
+        },
+        "El referido no se atribuyó (código no válido o cuenta ya referida)",
+      );
+    }
+  } catch (error) {
+    logger.error(
+      {
+        event: "auth.register.referral_not_attributed",
+        reason: "exception",
+        userId,
+        err: error instanceof Error ? error.name : "error",
+      },
+      "La atribución del referido lanzó; el registro continúa",
+    );
+  } finally {
+    // La cookie ya cumplió su función, salga como salga la atribución.
+    await forgetReferralCookie();
+  }
+}
+
+/**
  * POST /api/auth/register
  * Crea un usuario (requiere registro habilitado en WordPress) y, si tiene éxito,
  * inicia sesión automáticamente fijando las cookies httpOnly.
@@ -103,6 +171,27 @@ export async function POST(request: Request) {
   // El paquete de país solo se lee con el módulo encendido: un registro normal no
   // depende de él.
   const config = await getSiteConfig();
+
+  // 0b) Código de referido (módulo `loyalty` + «Referidos»): el cuerpo gana a la
+  //     cookie que dejó el proxy. Con el módulo o «Referidos» apagados no se lee
+  //     ninguno de los dos y no se llama a WordPress; la cookie puede quedarse
+  //     (el proxy la deja siempre porque no conoce la config).
+  const referralsEnabled =
+    isModuleEnabled(config, "loyalty") &&
+    config.loyalty?.points_enabled === true &&
+    config.loyalty?.referrals_enabled === true;
+  let referralCode: string | null = null;
+  if (referralsEnabled) {
+    const fromBody = parsed.data.referral_code;
+    if (typeof fromBody === "string" && fromBody.trim() !== "") {
+      // Presente en el cuerpo (aunque el formato sea inválido): no se cae a la
+      // cookie. Un código inválido simplemente no atribuye nada.
+      referralCode = normalizeReferralCode(fromBody);
+    } else {
+      referralCode = normalizeReferralCode((await cookies()).get(REF_COOKIE)?.value);
+    }
+  }
+
   const policy = identityPolicy(
     config,
     isModuleEnabled(config, "customer-identity")
@@ -180,9 +269,12 @@ export async function POST(request: Request) {
     }
   }
 
-  // 1) Crear el usuario.
+  // 1) Crear el usuario. Se guarda el id real de WordPress que devuelve la
+  //    mutación: la atribución del referido va con él y no depende del
+  //    auto-login (si ese falla, la cuenta ya está atribuida).
+  let newUserId: number | undefined;
   try {
-    await fetchGraphQL<RegisterResponse>(REGISTER_USER_MUTATION, {
+    const registered = await fetchGraphQL<RegisterResponse>(REGISTER_USER_MUTATION, {
       variables: {
         username: parsed.data.username,
         email: parsed.data.email,
@@ -190,6 +282,7 @@ export async function POST(request: Request) {
       },
       revalidate: 0,
     });
+    newUserId = registered?.registerUser?.user?.databaseId;
   } catch (error) {
     const message = error instanceof Error ? error.message.toLowerCase() : "";
     const exists =
@@ -207,6 +300,24 @@ export async function POST(request: Request) {
     { event: "auth.register.success", username: parsed.data.username },
     "Usuario creado",
   );
+
+  // 1b) Atribución del referido: tras crear la cuenta, con su id real y como
+  //     best-effort. Un fallo no cambia la respuesta del registro; la cookie se
+  //     retira igualmente.
+  if (referralCode) {
+    if (typeof newUserId === "number" && newUserId > 0) {
+      await attributeRegistrationReferral(newUserId, referralCode);
+    } else {
+      logger.error(
+        {
+          event: "auth.register.referral_not_attributed",
+          reason: "missing_user_id",
+        },
+        "No se pudo atribuir el referido: WordPress no devolvió el id de la cuenta",
+      );
+      await forgetReferralCookie();
+    }
+  }
 
   // 2) Auto-login para dejar la sesión iniciada.
   try {

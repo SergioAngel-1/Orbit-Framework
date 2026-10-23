@@ -15,6 +15,8 @@ import {
 } from "@/lib/observability/request-id";
 import { isSignedRoute } from "@/lib/security/signed-routes";
 import { internalSecretHeaders } from "@/lib/security/internal-secret";
+import { normalizeReferralCode } from "@/lib/loyalty/referral-code";
+import { REF_COOKIE, refCookieOptions } from "@/lib/loyalty/ref-cookie";
 
 // ============================================================================
 //  Proxy compuesto (antes "middleware"; Next 16 renombró el convenio a `proxy`,
@@ -23,6 +25,8 @@ import { internalSecretHeaders } from "@/lib/security/internal-secret";
 //   2. next-intl: detección/redirect/rewrite de locale (solo páginas).
 //   3. Refresh transparente del JWT: si caducó, lo renueva y lo propaga al
 //      navegador y al request en curso (para que el SSR vea el token fresco).
+//   4. Captura de `?ref=<código>` en páginas: deja la cookie httpOnly `hwe_ref`
+//      sin consultar WordPress ni la config (edge). La URL no cambia.
 //
 //  next-intl NO debe tocar /api ni archivos (sitemap.xml, *.png…): el matcher
 //  excluye rutas con punto, y /api se gestiona en su propia rama.
@@ -210,6 +214,14 @@ export async function proxy(request: NextRequest) {
 
   // 3) Páginas: refresca (reconstruyendo el request) y deja que next-intl
   //    construya la respuesta de locale sobre el request ya actualizado.
+  //
+  //    Un `?ref=<código>` con formato válido se guarda en una cookie httpOnly
+  //    (30 días). Aquí NO se consulta WordPress ni la config: el proxy corre en
+  //    edge y la decisión de usarlo es del registro, que conoce el módulo y sus
+  //    interruptores. Un formato inválido no toca la cookie que ya hubiera y la
+  //    URL se queda como está (sin redirección para limpiar el parámetro).
+  const referralCode = normalizeReferralCode(request.nextUrl.searchParams.get("ref"));
+
   let workingRequest = new NextRequest(request.url, { headers: fwd });
   let newToken: string | null = null;
   let clearAuth = false;
@@ -229,6 +241,9 @@ export async function proxy(request: NextRequest) {
   const response = intlMiddleware(workingRequest);
   if (newToken) response.cookies.set(authCookie(newToken));
   if (clearAuth) response.cookies.delete(AUTH_COOKIE);
+  // El último código que llega reemplaza al anterior; si no hay, la cookie que
+  // ya tuviera el navegador se queda intacta.
+  if (referralCode) response.cookies.set(REF_COOKIE, referralCode, refCookieOptions());
   response.headers.set(REQUEST_ID_HEADER, requestId);
   return response;
 }
