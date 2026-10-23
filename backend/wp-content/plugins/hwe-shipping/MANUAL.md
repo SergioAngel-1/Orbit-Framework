@@ -116,6 +116,9 @@ entrega y un enlace al mapa para quien reparte. La dirección de referencia no a
 - **El carrito no ofrece ningún envío:** comprueba que **Control Center → Envío → Zona de reserva** está
   activada y que el país de la tienda es el correcto (Control Center → Tienda). Si todas tus ciudades son
   por distancia, comprueba también que el cliente haya marcado su ubicación en el mapa.
+- **Salen tarifas que no son las de tus ciudades:** en WooCommerce → Ajustes → Envío, otra zona tuya (o una
+  zona sin regiones, que coincide con todo) está antes que la del módulo. Muévela detrás, quítale el país o
+  añádele el método «Envío por ciudad».
 - **Una ciudad no recibe su tarifa:** el título debe ser el nombre de la ciudad tal como la escribe el
   cliente (las mayúsculas y las tildes no importan). Si el cliente escribe otra variante («Madrid capital»),
   no coincide.

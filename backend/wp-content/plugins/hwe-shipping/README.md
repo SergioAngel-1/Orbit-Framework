@@ -221,6 +221,12 @@ activo la zona existe **siempre**, aunque `reserve_enabled` esté apagado. Si la
 El método es nativo: el comerciante puede añadirlo además a otras zonas suyas. El cálculo no depende
 de la zona en la que esté.
 
+**Ojo con el orden de zonas.** WooCommerce usa la **primera** zona que coincide con el destino, y una
+zona **sin regiones** coincide con todo. Si una zona propia del comerciante (o una vacía) va antes que la
+de reserva y no lleva `hwe_city_rate`, el destino nunca llega a este método y las tarifas por ciudad no
+aparecen (el estado `extensions.hwe_shipping` sí se calcula). Solución: añadir `hwe_city_rate` a esa
+zona, quitarle el país base o moverla detrás de la de reserva (WooCommerce → Ajustes → Envío).
+
 Se sincroniza al guardar el panel, al activar el plugin y con `wp hwe setup`.
 
 ## Contrato con el frontend
