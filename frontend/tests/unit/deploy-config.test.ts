@@ -70,6 +70,19 @@ describe("frontend/Dockerfile", () => {
       readFileSync(fileURLToPath(new URL("../../public/.gitkeep", import.meta.url))),
     ).not.toThrow();
   });
+
+  it("el stage prod sube parches de Alpine y deja `public/` con el dueño del proceso", () => {
+    const prodStage = dockerfile.slice(dockerfile.indexOf("AS prod"));
+
+    // Paridad con `base` (sharp es nativo) y parches del sistema del momento del
+    // build: el `pull` del tag de Node no los trae.
+    expect(prodStage).toContain("apk add --no-cache libc6-compat");
+    expect(prodStage).toContain("apk upgrade --no-cache");
+    expect(prodStage).toContain(
+      "COPY --from=builder --chown=nextjs:nodejs /app/public ./public",
+    );
+    expect(prodStage).toContain("org.opencontainers.image.title");
+  });
 });
 
 describe("docker-compose.prod.yml", () => {

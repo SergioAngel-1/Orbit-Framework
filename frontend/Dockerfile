@@ -116,12 +116,28 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
+# Metadatos OCI: trazabilidad de la imagen en el registro (y de qué commit salió,
+# si el CD pasa `OCI_REVISION`). `source`/`revision` van vacíos por defecto para
+# que la plantilla no fije un repositorio ajeno.
+ARG OCI_SOURCE=""
+ARG OCI_REVISION=""
+LABEL org.opencontainers.image.title="HWE Orbit frontend" \
+      org.opencontainers.image.description="Frontend Next.js (App Router) + BFF" \
+      org.opencontainers.image.source=$OCI_SOURCE \
+      org.opencontainers.image.revision=$OCI_REVISION
+
+# `libc6-compat` también aquí: el stage `base` lo tiene, pero `prod` parte de la
+# imagen limpia, y sharp (next/image) es una dependencia nativa. `apk upgrade`
+# recoge los parches de Alpine del momento del build: el `pull` del tag de Node
+# no los trae, y esta imagen no se reconstruye sola.
+RUN apk add --no-cache libc6-compat && apk upgrade --no-cache
+
 # Usuario sin privilegios.
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
 # Solo lo necesario para arrancar: server.js + estáticos + public.
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 

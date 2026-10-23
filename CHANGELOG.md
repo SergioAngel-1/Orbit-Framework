@@ -120,6 +120,14 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   atendiendo (cobros ya iniciados). El panel explica cómo dejar WhatsApp como único medio.
 
 ### Changed
+- **Imagen de producción del frontend: trazabilidad y paridad de runtime.** El stage `prod` lleva
+  etiquetas OCI (`source`/`revision` opcionales por build-arg), instala `libc6-compat` como el
+  stage base (sharp es nativo) y aplica los parches de Alpine del momento del build con
+  `apk upgrade` —el `pull` del tag de Node no los trae—. `public/` se copia con `--chown`, así que
+  no queda de root. `docs/GO-LIVE.md` documenta además el endurecimiento que queda pendiente
+  (capabilities de WordPress/MariaDB, `read_only` en frontend/Caddy, `wp-content` fuera del
+  checkout), los permisos de `.env.prod`, la actualización del core y el cifrado/verificación de
+  las copias.
 - **Imágenes con el minor fijado.** `node:24-alpine` y `redis:8-alpine` eran *majors*
   flotantes: dos builds del mismo commit podían usar Node o Redis distintos y una regresión de
   runtime entraba en producción sin pasar por CI. Ahora son `node:24.22-alpine` y
