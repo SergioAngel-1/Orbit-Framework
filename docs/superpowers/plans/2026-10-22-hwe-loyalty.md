@@ -477,3 +477,36 @@ primera tarea; las referencias `§N` de abajo apuntan a él).
 - [ ] Si la pila está disponible: `sh backend/scripts/verify-modules.sh all` y una prueba manual de
       canje + pedido cobrado → abono; si no, declararlo como no verificado en vivo.
 - [ ] Commit `docs(loyalty): documentación, stub de CI y verificación del módulo`.
+
+### Tarea 18: Revisión de extremo a extremo del módulo
+
+Revisión de solo lectura del plugin y de todos sus flujos, una vez terminada la Tarea 17. **No la
+ejecuta un worker de opencode**: la hace un subagente de Claude (Opus, esfuerzo medio) lanzado por
+el coordinador.
+
+**Alcance:**
+- `hwe-loyalty` completo.
+- Sus enganches en el núcleo (`Modules.php` y el grupo reservado `loyalty`) y en
+  `hwe-site-reviews` (`hwe_site_review_published`).
+- El BFF y `lib/loyalty` (Tareas 13–16).
+
+**Flujos:** ganar (pedido, eventos, referidos), revertir, canjear (carrito → checkout → devolución),
+transferir, caducar, administración, privacidad y contrato con el frontend.
+
+**Qué busca:**
+- Bugs.
+- Incoherencias entre capas o con el spec.
+- Algoritmos o consultas por optimizar.
+- Refactorizaciones con beneficio claro.
+- Huecos de seguridad o de concurrencia.
+
+**Qué reporta:** solo hallazgos de severidad **media, alta o grave**, cada uno con:
+- `archivo:línea`;
+- escenario concreto de fallo;
+- impacto;
+- arreglo propuesto.
+
+Nada cosmético ni de estilo.
+
+- [ ] El coordinador valida cada hallazgo, lo reproduce con un test en rojo cuando proceda,
+      corrige y commitea por hallazgo; lo que no se arregle queda anotado con su motivo.
