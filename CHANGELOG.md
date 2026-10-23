@@ -7,6 +7,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Security
+- **Vite 8.3.5.** `vite` (dependencia de desarrollo, vía `vitest` y `@vitejs/plugin-react`) pasa de
+  8.0.16 a 8.3.5, que corrige GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw,
+  GHSA-9jrq-w75r-8gcw y GHSA-rq7h-c2jc-7f22 (`launch-editor` y `server.fs.allow`). No llega a
+  producción (`npm audit --omit=dev` ya estaba limpio), pero `npm run audit:gate` vuelve a pasar.
 - **Next.js 16.4.1.** Se sube `next` y `eslint-config-next` de 16.4.0 a 16.4.1, que corrige dos RCE
   críticas (ejecución de código en `use cache` con *typed arrays* y en el optimizador de imágenes
   con SVG) y un DoS en Server Actions. `sharp` queda en 0.35.5 en el lock. El parche de cabeceras
