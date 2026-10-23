@@ -437,12 +437,6 @@ final class HWE_Loyalty_ReadRoutes {
 
 	/** Nombre visible de un usuario; vacío si la cuenta ya no existe. Nunca email ni login. */
 	private static function displayName( int $userId ): string {
-		if ( $userId <= 0 || ! function_exists( 'get_userdata' ) ) {
-			return '';
-		}
-
-		$user = get_userdata( $userId );
-
-		return is_object( $user ) && isset( $user->display_name ) ? trim( (string) $user->display_name ) : '';
+		return HWE_Loyalty_PublicName::of( $userId );
 	}
 }

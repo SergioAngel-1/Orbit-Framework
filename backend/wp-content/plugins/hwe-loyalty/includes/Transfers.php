@@ -150,13 +150,7 @@ final class HWE_Loyalty_Transfers {
 
 	/** Nombre visible del receptor; cadena vacía si la cuenta ya no existe. Nunca login ni email. */
 	private static function displayName( int $userId ): string {
-		$user = function_exists( 'get_userdata' ) ? get_userdata( $userId ) : false;
-		if ( ! is_object( $user ) || ! isset( $user->display_name ) || ! is_scalar( $user->display_name ) ) {
-			return '';
-		}
-
-		$name = trim( (string) $user->display_name );
-		return function_exists( 'sanitize_text_field' ) ? (string) sanitize_text_field( $name ) : $name;
+		return HWE_Loyalty_PublicName::of( $userId );
 	}
 
 	/** Nota libre: texto plano, una sola línea y acotado; vacía se guarda como `null`. */

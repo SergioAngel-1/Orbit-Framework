@@ -668,8 +668,7 @@ final class HWE_Loyalty_Referrals {
 				continue;
 			}
 
-			$user = function_exists( 'get_userdata' ) ? get_userdata( $referredId ) : false;
-			$name = is_object( $user ) && isset( $user->display_name ) ? (string) $user->display_name : '';
+			$name = HWE_Loyalty_PublicName::of( $referredId );
 
 			$points = (int) $wpdb->get_var(
 				$wpdb->prepare(

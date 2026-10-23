@@ -645,6 +645,22 @@ final class ReferralsTest extends TestCase
         );
     }
 
+    public function test_network_never_shows_a_login_used_as_display_name(): void
+    {
+        // Las cuentas creadas por el registro del BFF tienen el login como `display_name`.
+        $this->users[self::REFERRED]->display_name = $this->users[self::REFERRED]->user_login;
+        \HWE_Loyalty_Referrals::setReferrer(self::REFERRED, self::REFERRER);
+
+        $level1 = \HWE_Loyalty_Referrals::network(self::REFERRER, 1, 1, 10);
+        $byUser = array_column($level1['items'], null, 'user_id');
+
+        $this->assertSame('', $byUser[self::REFERRED]['name']);
+        $this->assertStringNotContainsString(
+            (string) $this->users[self::REFERRED]->user_login,
+            json_encode($level1) ?: ''
+        );
+    }
+
     public function test_network_points_generated_ignore_transfers_from_the_network(): void
     {
         \HWE_Loyalty_Referrals::setReferrer(self::REFERRED, self::REFERRER);

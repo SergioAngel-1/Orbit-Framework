@@ -417,16 +417,7 @@ final class HWE_Loyalty_Privacy {
 
 	/** Nombre visible; nunca login ni email. Vacío si la cuenta ya no existe. */
 	private static function displayName( ?int $userId ): string {
-		if ( null === $userId || $userId <= 0 || ! function_exists( 'get_userdata' ) ) {
-			return '';
-		}
-
-		$user = get_userdata( $userId );
-		if ( ! is_object( $user ) || ! isset( $user->display_name ) || ! is_scalar( $user->display_name ) ) {
-			return '';
-		}
-
-		return trim( (string) $user->display_name );
+		return null === $userId ? '' : HWE_Loyalty_PublicName::of( $userId );
 	}
 
 	private static function statusLabel( string $status ): string {

@@ -56,6 +56,7 @@ require_once __DIR__ . '/includes/Settings.php';
 require_once __DIR__ . '/includes/EntryTypes.php';
 require_once __DIR__ . '/includes/Schema.php';
 require_once __DIR__ . '/includes/Ledger.php';
+require_once __DIR__ . '/includes/PublicName.php';
 require_once __DIR__ . '/includes/Referrals.php';
 require_once __DIR__ . '/includes/ProductBonus.php';
 require_once __DIR__ . '/includes/Earnings.php';
