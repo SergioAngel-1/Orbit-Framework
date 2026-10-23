@@ -5,7 +5,7 @@
  *               por regla y una zona de reserva de WooCommerce para el resto del país. Expuesto
  *               en /wp-json/hwe-shipping/v1. Genérico: el país base es el de la tienda.
  * Author:       Sergio Jauregui
- * Version:      1.0.0
+ * Version:      2.0.0
  * Requires PHP: 8.0
  * Text Domain:  hwe-shipping
  *
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HWE_SHIPPING_VERSION', '1.0.0' );
+define( 'HWE_SHIPPING_VERSION', '2.0.0' );
 define( 'HWE_SHIPPING_DIR', __DIR__ );
 
 // No toca tablas de pedidos (solo CPTs propios + el filtro de cálculo de tarifas, que no

@@ -2,6 +2,8 @@
 
 namespace HWE\Shipping;
 
+use HWE\Shipping\Rates\Cities;
+
 /**
  * Envío gratis por regla: mínimo de compra + alcance (categorías/productos) +
  * ciudades.
@@ -10,7 +12,8 @@ namespace HWE\Shipping;
  * filtro `hwe_shipping_free_rule` (HWE Control Center → Tienda → Envío gratis),
  * con la forma
  * `{ enabled, min_amount, categories: slug[], products: slug[] }`. Las
- * CIUDADES sí son de aquí: la casilla «Aplica envío gratis» de cada tarifa.
+ * CIUDADES sí son de aquí: una ciudad admite el envío gratis si alguna de sus
+ * opciones de entrega lo marca (`Cities`).
  *
  * Una sola función (`evaluate`) decide, y la usan los dos consumidores:
  *   - `applyToRates`: pone a 0 las tarifas del paquete (lo que se cobra).
@@ -91,7 +94,7 @@ class FreeShipping {
 			return $off;
 		}
 
-		$cities = ShippingCost::freeShippingCities();
+		$cities = Cities::freeEligibilityByCity();
 		if ( ! in_array( true, $cities, true ) ) {
 			// Ninguna ciudad lo admite: la regla no puede cumplirse nunca.
 			return $off;
@@ -238,7 +241,7 @@ class FreeShipping {
 			return $scope;
 		}
 
-		$scope['cities'] = ShippingCost::freeShippingCityNames();
+		$scope['cities'] = Cities::freeEligibleCityNames();
 
 		$selected = [];
 		foreach ( $rule['categories'] as $slug ) {

@@ -121,12 +121,18 @@ final class ShippingTest extends TestCase
         };
         $out = [];
         if (PostTypes::RATE_SLUG === $type) {
+            // Cada ciudad es fija con una única opción: «free» decide si esa opción aplica envío gratis.
             foreach ($this->rates as $r) {
-                $this->postMeta[$r['id']]['_hwe_shipping_rate_amount'] = $r['amount'];
-                $this->postMeta[$r['id']]['_hwe_shipping_rate_free_eligible'] = $r['free'];
-                if (isset($args['meta_key']) && ($this->postMeta[$r['id']][$args['meta_key']] ?? '') !== $args['meta_value']) {
-                    continue;
-                }
+                $this->postMeta[$r['id']]['_hwe_shipping_city_type'] = 'fixed';
+                $this->postMeta[$r['id']]['_hwe_shipping_city_options'] = json_encode([[
+                    'id' => 'opt' . $r['id'],
+                    'name' => 'Estándar',
+                    'free_eligible' => '1' === $r['free'],
+                    'amount' => (float) $r['amount'],
+                    'price_per_km' => null,
+                    'min_cost' => 0.0,
+                    'max_cost' => 0.0,
+                ]]);
                 $out[] = $make($r['id'], $r['title']);
             }
             if (($args['orderby'] ?? '') === 'title') {
@@ -176,63 +182,6 @@ final class ShippingTest extends TestCase
         $this->assertSame('CO', ShippingCost::baseCountry());
     }
 
-    public function testLaTarifaDeLaCiudadSustituyeElCosteDeLaTarifaPlana(): void
-    {
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-        $pickup = new \WC_Shipping_Rate('local_pickup', 0);
-
-        $rates = ShippingCost::applyCityRate(['a' => $flat, 'b' => $pickup], ['destination' => ['city' => ' MADRID ', 'country' => 'ES']]);
-
-        $this->assertSame(8.0, $rates['a']->cost);
-        $this->assertSame(0.0, $rates['b']->cost, 'solo la tarifa plana');
-    }
-
-    public function testUnaCiudadSinTarifaConservaElCosteDeLaZona(): void
-    {
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-
-        ShippingCost::applyCityRate(['a' => $flat], ['destination' => ['city' => 'Pamplona', 'country' => 'ES']]);
-
-        $this->assertSame(3.0, $flat->cost);
-    }
-
-    public function testUnaTarifaSinImporteNoCuentaComoGratis(): void
-    {
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-
-        ShippingCost::applyCityRate(['a' => $flat], ['destination' => ['city' => 'Bilbao', 'country' => 'ES']]);
-
-        $this->assertSame(3.0, $flat->cost, 'Bilbao no tiene importe: cae al de la zona');
-    }
-
-    public function testUnImporteCeroExplicitoSiEsGratis(): void
-    {
-        $this->rates[] = ['id' => 14, 'title' => 'Gijón', 'amount' => '0', 'free' => '0'];
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-
-        ShippingCost::applyCityRate(['a' => $flat], ['destination' => ['city' => 'Gijon', 'country' => 'ES']]);
-
-        $this->assertSame(0.0, $flat->cost);
-    }
-
-    public function testUnaCiudadHomonimaDeOtroPaisNoHeredaLaTarifa(): void
-    {
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-
-        ShippingCost::applyCityRate(['a' => $flat], ['destination' => ['city' => 'Madrid', 'country' => 'CO']]);
-
-        $this->assertSame(3.0, $flat->cost);
-    }
-
-    public function testSinCiudadNoHaceNada(): void
-    {
-        $flat = new \WC_Shipping_Rate('flat_rate', 3);
-
-        ShippingCost::applyCityRate(['a' => $flat], ['destination' => ['country' => 'ES']]);
-
-        $this->assertSame(3.0, $flat->cost);
-    }
-
     public function testUnCuponConEnvioGratisDejaTodasLasTarifasAcero(): void
     {
         \WC_Coupon::$free = ['GRATIS' => true, 'NORMAL' => false];
@@ -253,12 +202,6 @@ final class ShippingTest extends TestCase
         ShippingCost::applyCouponFreeShipping(['a' => $a], ['applied_coupons' => ['NORMAL', 'NOEXISTE']]);
 
         $this->assertSame(8.0, $a->cost);
-    }
-
-    public function testLasCiudadesConEnvioGratisYSusNombres(): void
-    {
-        $this->assertSame(['madrid' => true, 'sevilla' => false, 'bilbao' => true], ShippingCost::freeShippingCities());
-        $this->assertSame(['Bilbao', 'Madrid'], ShippingCost::freeShippingCityNames());
     }
 
     // --- envío gratis por regla ------------------------------------------------------------------
@@ -485,39 +428,6 @@ final class ShippingTest extends TestCase
 
     // --- guardado --------------------------------------------------------------------------------
 
-    public function testGuardaLaTarifaComoEnteroNoNegativoYLaCasillaDeEnvioGratis(): void
-    {
-        $written = [];
-        Functions\when('update_post_meta')->alias(function (int $id, string $key, $value) use (&$written): bool {
-            $written[$key] = $value;
-            return true;
-        });
-        $_POST = ['hwe_shipping_rate_nonce' => 'x', 'hwe_shipping_rate_amount' => '12.6', 'hwe_shipping_rate_free_eligible' => '1'];
-
-        Save::saveRate(11);
-
-        $this->assertSame('13', $written['_hwe_shipping_rate_amount']);
-        $this->assertSame('1', $written['_hwe_shipping_rate_free_eligible']);
-    }
-
-    public function testUnaTarifaNegativaOSinNumeroQuedaEnCero(): void
-    {
-        $written = [];
-        Functions\when('update_post_meta')->alias(function (int $id, string $key, $value) use (&$written): bool {
-            $written[$key] = $value;
-            return true;
-        });
-
-        $_POST = ['hwe_shipping_rate_nonce' => 'x', 'hwe_shipping_rate_amount' => '-4'];
-        Save::saveRate(11);
-        $this->assertSame('0', $written['_hwe_shipping_rate_amount']);
-
-        $_POST = ['hwe_shipping_rate_nonce' => 'x', 'hwe_shipping_rate_amount' => 'abc'];
-        Save::saveRate(11);
-        $this->assertSame('0', $written['_hwe_shipping_rate_amount']);
-        $this->assertSame('0', $written['_hwe_shipping_rate_free_eligible']);
-    }
-
     public function testGuardaElMetodoYBorraElValorAgregadoVacio(): void
     {
         $written = [];
@@ -535,15 +445,6 @@ final class ShippingTest extends TestCase
 
         $this->assertSame('1', $written['_hwe_shipping_method_enabled']);
         $this->assertSame('borrado', $written['_hwe_shipping_method_added_value']);
-    }
-
-    public function testSinNonceValidoNoSeGuardaNada(): void
-    {
-        Functions\when('wp_verify_nonce')->justReturn(false);
-        Functions\expect('update_post_meta')->never();
-        $_POST = ['hwe_shipping_rate_nonce' => 'x', 'hwe_shipping_rate_amount' => '5'];
-
-        Save::saveRate(11);
     }
 
     // --- revalidación ----------------------------------------------------------------------------
