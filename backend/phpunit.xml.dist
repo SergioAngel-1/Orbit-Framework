@@ -32,6 +32,7 @@
             <directory>wp-content/plugins/hwe-shipping</directory>
             <directory>wp-content/plugins/hwe-product-landing</directory>
             <directory>wp-content/plugins/hwe-landings</directory>
+            <directory>wp-content/plugins/hwe-loyalty</directory>
             <directory>wp-content/plugins/hwe-external-integration</directory>
             <directory>wp-content/themes/hwe-headless-base</directory>
         </include>

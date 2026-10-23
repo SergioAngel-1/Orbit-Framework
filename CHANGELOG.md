@@ -54,6 +54,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   proceso. Medido en la misma máquina: de 309 s a 75 s en frío y 72 s en caliente (83/80 s con la
   máquina cargada), con los mismos 1.233 tests y 5.660 aserciones. El comando no cambia y las cachés
   se invalidan solas cuando cambia el fuente o `patchwork.json`; se pueden borrar en cualquier momento.
+- **La cobertura incluye `hwe-loyalty`.** Faltaba en `<source>` de `phpunit.xml.dist` (solo estaban
+  9 de los 10 módulos), así que cualquier informe con `--coverage-*` omitía en silencio el módulo
+  con más código (265 tests en 16 clases).
 - **`brand.url` tiene predeterminado.** Vacío en el Control Center, el frontend usa su URL pública
   (`NEXT_PUBLIC_SITE_URL`) y lo registra (`site_config.brand_url_default`): las canónicas, el
   JSON-LD, el sitemap y el enlace de referido ya no salen relativos en una instancia sin configurar.
