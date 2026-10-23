@@ -35,6 +35,7 @@ plantillas; nunca subas claves reales.**
 | `COMPOSE_FILE` | `docker-compose.prod.yml` en `.env.prod`: sin `-f`, un `docker compose …` a secas usaría el de **desarrollo** y recrearía db y wordpress con otra configuración. |
 | `HWE_DB_VOLUME` | Nombre del volumen **externo** de la base de datos (se crea una vez con `docker volume create`). Si ya tenías una instalación, el nombre de tu volumen actual (`docker volume ls`). |
 | `FRONTEND_IMAGE` | Imagen del frontend construida para producción (`hwe-frontend:prod`); de aquí toma el build los *build-args*. |
+| `CACHE_IMAGES_MAX_AGE_DAYS` | (opc.) Días sin uso tras los que el servicio `cache-prune` borra una variante de imagen optimizada. El ISR no se purga. |
 
 ### Dominio y TLS (producción)
 

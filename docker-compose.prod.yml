@@ -480,9 +480,11 @@ services:
       CONFIG_TIMEOUT_MS:                "${RUNTIME_CONFIG_TIMEOUT_MS:-15000}"
       LOG_LEVEL:                        "${LOG_LEVEL:-info}"
     volumes:
-      # Caché de imágenes optimizadas: persiste entre despliegues (la imagen la crea
-      # con el dueño correcto; ver frontend/Dockerfile). Es OTRA que la ISR.
-      - next_image_cache:/app/.next/cache/images
+      # Toda la caché de Next (ISR + fetch-cache + imágenes optimizadas): antes
+      # solo se persistía `cache/images`, así que cada `up -d` dejaba el ISR en
+      # frío y todo el sitio se regeneraba contra WordPress a la vez. La imagen
+      # crea `.next/cache` con el dueño correcto (uid 1001); ver frontend/Dockerfile.
+      - next_cache:/app/.next/cache
     healthcheck:
       # Liveness puro (`/api/health`) devuelve 200 aunque Redis y WordPress estén
       # caídos y hace dos pings de red cada 30 s: como sonda de contenedor, mide
@@ -628,6 +630,43 @@ services:
           cpus: "1"
           pids: 256
 
+  # ── Purga de la caché de imágenes ──────────────────────────────────────────
+  # `next/image` no hace GC de su caché en disco: cada variante redimensionada se
+  # queda para siempre y crece hasta llenar el disco. Este servicio borra una vez
+  # al día las variantes que no se usan desde hace `CACHE_IMAGES_MAX_AGE_DAYS`
+  # (30) y no toca el resto de la caché (ISR). Se regeneran bajo demanda.
+  cache-prune:
+    image: alpine:3.23
+    container_name: hwe_cache_prune
+    logging: *default-logging
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      # Lectura-escritura: este servicio BORRA dentro de `images/`.
+      - next_cache:/cache
+    environment:
+      CACHE_IMAGES_MAX_AGE_DAYS: "${CACHE_IMAGES_MAX_AGE_DAYS:-30}"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        trap 'exit 0' TERM INT
+        while true; do
+          find /cache/images -type f -mtime +"${CACHE_IMAGES_MAX_AGE_DAYS}" -print -delete 2>/dev/null | sed 's/^/[cache-prune] borrada /'
+          sleep 86400
+        done
+    # No necesita red de ningún tipo.
+    network_mode: none
+    init: true
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: "0.25"
+          pids: 64
+
 # ── Volúmenes ──────────────────────────────────────────────────────────────────
 volumes:
   # Núcleo de WordPress compartido entre wordpress, wpcli, wp-cron y caddy (solo lectura).
@@ -644,9 +683,10 @@ volumes:
     name: ${HWE_DB_VOLUME:-hwe_db_data}
   redis_data:
     driver: local
-  # Caché de imágenes optimizadas de next/image: sobrevive al despliegue. Es
-  # regenerable (se rehace bajo demanda), pero rehacerla cuesta CPU de sharp.
-  next_image_cache:
+  # Caché de Next compartida (ISR + fetch-cache + imágenes): sobrevive al
+  # despliegue. Es regenerable, pero rehacerla cuesta CPU de sharp y una tormenta
+  # de peticiones a WordPress.
+  next_cache:
     driver: local
   caddy_data:
     driver: local

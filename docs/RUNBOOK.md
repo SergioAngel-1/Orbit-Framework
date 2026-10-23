@@ -185,17 +185,24 @@ Si tras un cambio el catálogo no refresca, comprueba el webhook y su firma
 etiqueta (`site-config`, `banners`, `shipping`, `landings`, `geo`…) con
 `HWE_REVALIDATION_SECRET`.
 
-**Después de desplegar.** Cada despliegue deja en frío las páginas ISR del build
-anterior. Calienta de forma ordenada (una URL cada vez) en vez de dejar que público y
+**Después de desplegar.** El volumen `next_cache` conserva el Data Cache entre
+despliegues, pero las páginas ISR se regeneran. Calienta de forma ordenada (3 en
+paralelo por defecto, contra los 6 workers de WordPress) en vez de dejar que público y
 rastreadores regeneren a la vez:
 
 ```bash
 PUBLIC_DOMAIN=tienda.example.com sh backend/scripts/warm-cache.sh
 # y, en segundo plano, el resto del sitemap:
 WARM_OFFSET=120 WARM_MAX_URLS=0 WARM_KEY_ROUTES=0 PUBLIC_DOMAIN=… sh backend/scripts/warm-cache.sh
+# ¿WordPress va justo? Baja la concurrencia (WARM_CONCURRENCY=1 = secuencial).
 ```
 
 No borra ninguna caché a propósito: el Data Cache sobrevive al despliegue.
+
+**Purga de la caché de imágenes.** `next/image` no recolecta su caché en disco. El
+servicio `cache-prune` borra una vez al día las variantes de `/app/.next/cache/images`
+sin uso en `CACHE_IMAGES_MAX_AGE_DAYS` días (30 por defecto); se regeneran bajo demanda.
+No toca el resto de `.next/cache`.
 
 ---
 

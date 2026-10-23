@@ -121,13 +121,14 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Destino de la caché de imágenes optimizadas (`<distDir>/cache/images`).
+# Destino de la caché de Next (`<distDir>/cache`: ISR, fetch-cache e imágenes).
 #
 # Se crea AQUÍ, ya con el dueño correcto, porque `docker-compose.prod.yml` monta
-# un volumen con nombre en esta ruta: Docker copia el contenido y los permisos
-# del directorio de la imagen al inicializar el volumen, así que si no existiera
-# el volumen nacería propiedad de root y el proceso `nextjs` (uid 1001) no podría
-# escribir — cada petición de imagen reoptimizaría sin poder guardar nada.
+# un volumen con nombre en `/app/.next/cache`: Docker copia el contenido y los
+# permisos del directorio de la imagen al inicializar el volumen, así que si no
+# existiera el volumen nacería propiedad de root y el proceso `nextjs` (uid 1001)
+# no podría escribir — cada página e imagen se regeneraría sin poder cachearse.
+# `images/` va incluido: `next/image` escribe ahí y falla si no existe.
 RUN mkdir -p .next/cache/images && chown -R nextjs:nodejs .next/cache
 
 USER nextjs

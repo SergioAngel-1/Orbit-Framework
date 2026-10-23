@@ -40,6 +40,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `wp-cron` toma un `flock` (una corrida larga ya no se solapa con la siguiente y duplica acciones),
   se acota con `timeout 300` y atiende SIGTERM. Desarrollo estrena la misma rotación de logs que
   producción.
+- **La caché de Next sobrevive al despliegue y las imágenes se purgan.** Solo se persistía
+  `/app/.next/cache/images`, así que cada `up -d` dejaba el ISR en frío y todo el sitio se
+  regeneraba contra WordPress a la vez. Ahora el volumen `next_cache` cubre todo
+  `/app/.next/cache` (ISR, fetch-cache e imágenes) y un servicio `cache-prune` borra a diario las
+  variantes de imagen sin uso en `CACHE_IMAGES_MAX_AGE_DAYS` (30) días, que `next/image` no
+  recolecta nunca. `warm-cache.sh` calienta con 3 peticiones en paralelo (contra los 6 workers de
+  WordPress) en vez de una cada segundo, y sigue admitiendo `WARM_CONCURRENCY=1`.
 
 ### Security
 - **Los límites de GraphQL no se aplicaban.** `graphql-protection.php` enganchaba

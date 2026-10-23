@@ -123,11 +123,19 @@ describe("docker-compose.prod.yml", () => {
     expect(service(prod, "frontend")).toMatch(/\n\s+WORDPRESS_PUBLIC_URL:/);
   });
 
-  it("la caché de imágenes tiene su volumen", () => {
-    expect(service(prod, "frontend")).toContain(
-      "next_image_cache:/app/.next/cache/images",
-    );
-    expect(prod).toMatch(/\n {2}next_image_cache:\n/);
+  it("persiste TODA la caché de Next (ISR + imágenes), no solo images/", () => {
+    expect(service(prod, "frontend")).toContain("next_cache:/app/.next/cache");
+    expect(prod).toMatch(/\n {2}next_cache:\n/);
+    // El volumen de solo imágenes dejaba el ISR en frío en cada despliegue.
+    expect(prod).not.toContain("next_image_cache");
+  });
+
+  it("purga la caché de imágenes, que `next/image` no recolecta nunca", () => {
+    const prune = service(prod, "cache-prune");
+
+    expect(prune).toContain("next_cache:/cache");
+    expect(prune).toContain("find /cache/images");
+    expect(prune).toMatch(/-mtime \+/);
   });
 
   it("MariaDB lleva el buffer pool dimensionado al límite de memoria", () => {
