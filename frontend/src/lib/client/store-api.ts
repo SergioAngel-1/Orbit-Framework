@@ -132,6 +132,8 @@ export const cartApi = {
 };
 
 export interface ShippingDestination {
+  /** Calle: con el pin del cliente, el punto de entrega queda ligado a ella. */
+  address_1?: string;
   city: string;
   country: string;
   state?: string;

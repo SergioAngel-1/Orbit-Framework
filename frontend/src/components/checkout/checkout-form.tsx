@@ -268,6 +268,7 @@ export function CheckoutForm({
   // cada vez que cambia la ciudad (o el país/la división) se le comunica y el carrito vuelve
   // con `shipping_rates` recalculadas. Con el debounce, escribir la ciudad letra a letra no
   // dispara una petición por tecla; el ref evita reenviar el mismo destino (al volver `cart`).
+  const destinationAddress1 = values.address_1.trim();
   const destinationCity = values.city.trim();
   const destinationCountry = (values.country || defaultCountry).trim().toUpperCase();
   const destinationState = values.state;
@@ -282,6 +283,7 @@ export function CheckoutForm({
   // El BFF ya fija el destino del cliente con sesión al abrirla: si el carrito llega con el
   // de la dirección elegida, no hace falta otra ida a WordPress.
   const destinationInSync = cartHasDestination(cart, {
+    address_1: destinationAddress1,
     city: destinationCity,
     country: destinationCountry,
     state: checkedDestination.state,
@@ -293,7 +295,12 @@ export function CheckoutForm({
     if (!shippingEnabled || !needsShipping || !destinationCity || !destinationValid)
       return;
     if (destinationCountry.length !== 2) return;
-    const key = [destinationCountry, destinationState, destinationCity].join("|");
+    const key = [
+      destinationCountry,
+      destinationState,
+      destinationCity,
+      destinationAddress1,
+    ].join("|");
     if (lastDestinationRef.current === key) return;
     if (destinationInSync) {
       lastDestinationRef.current = key;
@@ -302,6 +309,7 @@ export function CheckoutForm({
     const timer = setTimeout(() => {
       lastDestinationRef.current = key;
       void setShippingDestination({
+        address_1: destinationAddress1 || undefined,
         city: destinationCity,
         country: destinationCountry,
         state: destinationState || undefined,
@@ -316,6 +324,7 @@ export function CheckoutForm({
     destinationCountry,
     destinationState,
     destinationPostcode,
+    destinationAddress1,
     destinationInSync,
     destinationValid,
     setShippingDestination,

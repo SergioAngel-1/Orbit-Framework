@@ -257,16 +257,59 @@ describe("quién puede comprar", () => {
 });
 
 describe("guard de envío del servidor", () => {
-  it("un carrito que necesita envío y no tiene tarifa no crea pedido (422) y libera la clave", async () => {
+  it("un carrito que necesita envío y no tiene tarifa no crea pedido (409) y libera la clave", async () => {
     vi.mocked(isValidIdempotencyKey).mockReturnValue(true);
     vi.mocked(reserveIdempotencyKey).mockResolvedValue({ status: "reserved" } as never);
     cartIs({ needs_shipping: true, shipping_rates: [{ shipping_rates: [] }] });
 
     const res = await POST(checkout("hwe_offline"));
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(409);
     expect(orderPosts()).toHaveLength(0);
     expect(releaseIdempotencyKey).toHaveBeenCalled();
+  });
+
+  it("sin tarifa por falta de pin responde 409 con el estado del envío y no crea pedido", async () => {
+    cartIs({
+      needs_shipping: true,
+      shipping_rates: [{ shipping_rates: [] }],
+      extensions: {
+        hwe_shipping: { mode: "distance", status: "needs_location" },
+      },
+    });
+
+    const res = await POST(checkout("hwe_offline"));
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.status).toBe("needs_location");
+    expect(typeof body.error).toBe("string");
+    expect(orderPosts()).toHaveLength(0);
+  });
+
+  it("fuera de cobertura responde 409 con su estado", async () => {
+    cartIs({
+      needs_shipping: true,
+      shipping_rates: [{ shipping_rates: [] }],
+      extensions: {
+        hwe_shipping: { mode: "distance", status: "out_of_coverage" },
+      },
+    });
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).status).toBe("out_of_coverage");
+    expect(orderPosts()).toHaveLength(0);
+  });
+
+  it("sin la extensión del módulo, el 409 lleva `status: null`", async () => {
+    cartIs({ needs_shipping: true, shipping_rates: [{ shipping_rates: [] }] });
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).status).toBeNull();
   });
 
   it("con tarifa disponible, crea el pedido", async () => {

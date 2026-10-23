@@ -11,6 +11,8 @@ import { shippingDestinationSchema } from "@/lib/validation/store";
 import { getSiteConfig } from "@/lib/config";
 import { getGeoPack } from "@/lib/geo";
 import { checkAddress } from "@/lib/geo/address";
+import { syncDeliveryPoint } from "@/lib/shipping/delivery-point";
+import { shippingErrorText } from "@/lib/shipping/errors";
 import { logger } from "@/lib/observability/logger";
 import type { StoreCart } from "@/types/woocommerce";
 
@@ -30,6 +32,11 @@ export const dynamic = "force-dynamic";
  * El estado se valida y normaliza con el paquete de país (código de la división que
  * exige WooCommerce): un departamento que no existe o no corresponde a la ciudad es
  * un 422, nunca se rellena uno por defecto.
+ *
+ * El pin (`location`) va aparte: después de fijar el destino, la extensión
+ * `hwe_shipping` fija el punto de entrega con la MISMA calle, ciudad y país (la huella
+ * de WordPress). Sin pin, borra el punto: la petición describe el destino completo, así
+ * que lo que no trae no se conserva. Un pin sin calle no tiene huella: 422.
  */
 export async function PUT(request: Request) {
   const blocked = await guardMutation(request, {
@@ -63,7 +70,17 @@ export async function PUT(request: Request) {
     );
   }
 
-  const { city, country, state, postcode } = parsed.data;
+  const { address_1, location, city, country, state, postcode } = parsed.data;
+  const locale = requestLocale(request.headers);
+
+  if (location && !address_1) {
+    const message = shippingErrorText(locale, "locationNeedsAddress");
+    return NextResponse.json(
+      { error: message, details: { address_1: [message] } },
+      { status: 422 },
+    );
+  }
+
   const checked = checkAddress(geoPack, { city, country, state });
   if (checked.issues.length > 0) {
     return NextResponse.json(
@@ -77,10 +94,11 @@ export async function PUT(request: Request) {
 
   try {
     const { cartToken: token, authToken } = await getCartRequestAuth();
-    const { data, cartToken } = await storeFetch<StoreCart>("/cart/update-customer", {
+    const destination = await storeFetch<StoreCart>("/cart/update-customer", {
       method: "POST",
       body: {
         shipping_address: {
+          ...(address_1 !== undefined ? { address_1 } : {}),
           city,
           country,
           state: checked.state,
@@ -90,10 +108,16 @@ export async function PUT(request: Request) {
       cartToken: token,
       authToken,
     });
-    await writeCartToken(cartToken);
-    return NextResponse.json(
-      await completeStoreCart(data, requestLocale(request.headers)),
+    await writeCartToken(destination.cartToken);
+
+    const point = await syncDeliveryPoint(
+      { address_1: address_1 ?? "", city, country },
+      location,
+      { cartToken: destination.cartToken ?? token, authToken },
     );
+    await writeCartToken(point.cartToken);
+
+    return NextResponse.json(await completeStoreCart(point.data, locale));
   } catch (error) {
     logger.error(
       {

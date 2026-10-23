@@ -1,161 +1,154 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { wcFetch } from "@/lib/woocommerce/client";
-import { getGeoPack, GENERIC_PACK } from "@/lib/geo";
-import { CO_PACK } from "../../../../../tests/helpers/geo-pack";
+import { getGeoPack } from "@/lib/geo";
 import { pushCartDestination } from "@/lib/woocommerce/cart-destination";
-import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
-import { POST, PUT, DELETE } from "./route";
+import { CO_PACK } from "../../../../../tests/helpers/geo-pack";
+import type { SavedAddress } from "@/types/address";
+import { PUT } from "./route";
 
-// La libreta de direcciones valida contra el paquete de país de la tienda: el
-// departamento se guarda como código, y uno que no existe o no corresponde a la
-// ciudad se rechaza (nunca se rellena uno por defecto).
+// PUT /api/store/addresses: el pin del cliente (`location`) viaja con su dirección. Se conserva
+// mientras no cambien la calle ni la ciudad; si cambian, se borra y hay que volver a marcarlo.
 
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
 vi.mock("@/lib/auth/session", () => ({
-  requireSession: vi.fn(async () => ({ token: "t", userId: "7" })),
+  requireSession: vi.fn(async () => ({ userId: "7" })),
+}));
+vi.mock("@/lib/security/lock", () => ({
+  withLock: vi.fn(async (_key: string, fn: () => Promise<unknown>) => fn()),
 }));
 vi.mock("@/lib/woocommerce/client", () => ({ wcFetch: vi.fn() }));
-vi.mock("@/lib/security/lock", () => ({
-  withLock: async (_key: string, fn: () => Promise<unknown>) => fn(),
+vi.mock("@/lib/geo", () => ({ getGeoPack: vi.fn() }));
+vi.mock("@/lib/woocommerce/cart-destination", () => ({
+  pushCartDestination: vi.fn(async () => null),
 }));
-vi.mock("@/lib/woocommerce/cart-destination", () => ({ pushCartDestination: vi.fn() }));
+vi.mock("@/lib/woocommerce/cart-session", () => ({
+  getCartRequestAuth: vi.fn(async () => ({ cartToken: null, authToken: null })),
+}));
 vi.mock("@/lib/woocommerce/cart-cookie", () => ({
   writeCartToken: vi.fn(async () => undefined),
 }));
-vi.mock("@/lib/woocommerce/cart-session", () => ({
-  getCartRequestAuth: vi.fn(async () => ({
-    cartToken: "ct",
-    authToken: "jwt",
-    userId: "7",
-  })),
-}));
-vi.mock("@/lib/geo", async () => ({
-  getGeoPack: vi.fn(),
-  GENERIC_PACK: (await import("@/lib/geo/generic")).GENERIC_PACK,
-}));
 vi.mock("@/lib/observability/logger", () => ({
-  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+  logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
 }));
 
-const ADDRESS = { address_1: "Calle 1 # 2-3", city: "Pasto" };
+const PIN = { lat: 4.6533, lng: -74.0836 };
 
-function req(method: "POST" | "PUT", body: unknown) {
-  return new Request("https://tienda.example/api/store/addresses", {
-    method,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+function saved(overrides: Partial<SavedAddress> = {}): SavedAddress {
+  return {
+    first_name: "Ana",
+    last_name: "Pérez",
+    company: "",
+    address_1: "Calle 72 # 10-34",
+    address_2: "",
+    city: "Bogotá",
+    state: "",
+    postcode: "",
+    country: "CO",
+    phone: "3001234567",
+    is_default: true,
+    label: "Casa",
+    ...overrides,
+  };
 }
 
-/** Lo que se guardó en la meta de la libreta del cliente. */
-function saved(): Array<Record<string, unknown>> {
-  const put = vi.mocked(wcFetch).mock.calls.find(([, init]) => init?.method === "PUT");
-  const meta = (put?.[1] as { body: { meta_data: Array<{ value: string }> } }).body
-    .meta_data;
-  return JSON.parse(meta[0].value);
+/** Lo que WordPress tiene guardado en la libreta del cliente tras la última escritura. */
+let book: SavedAddress[] = [];
+
+function editBody(address: Record<string, unknown>) {
+  return {
+    index: 0,
+    address: {
+      first_name: "Ana",
+      last_name: "Pérez",
+      address_1: "Calle 72 # 10-34",
+      city: "Bogotá",
+      country: "CO",
+      phone: "3001234567",
+      is_default: true,
+      label: "Casa",
+      ...address,
+    },
+  };
+}
+
+function edit(body: unknown) {
+  return PUT(
+    new Request("https://tienda.example/api/store/addresses", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
+/** Lo que quedó escrito en la meta de la libreta (la última escritura de wc/v3). */
+function storedBook(): SavedAddress[] {
+  const writes = vi
+    .mocked(wcFetch)
+    .mock.calls.filter(
+      ([, options]) => (options as { method?: string })?.method === "PUT",
+    );
+  const last = writes.at(-1)?.[1] as { body: { meta_data: { value: string }[] } };
+  return JSON.parse(last.body.meta_data[0].value) as SavedAddress[];
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getGeoPack).mockResolvedValue(CO_PACK);
-  vi.mocked(wcFetch).mockResolvedValue({ meta_data: [] } as never);
-  vi.mocked(pushCartDestination).mockResolvedValue(null);
+  book = [saved({ location: PIN })];
+  vi.mocked(wcFetch).mockImplementation((async (
+    _path: string,
+    options?: { method?: string },
+  ) => {
+    if (options?.method === "PUT") return {} as never;
+    return {
+      meta_data: [{ key: "hwe_addresses", value: JSON.stringify(book) }],
+    } as never;
+  }) as never);
 });
 
-describe("POST /api/store/addresses", () => {
-  it("guarda el departamento como código y el país de la tienda por defecto", async () => {
-    const res = await POST(req("POST", { ...ADDRESS, state: "Nariño" }));
+describe("PUT /api/store/addresses — ubicación (pin) de la dirección", () => {
+  it("editar el teléfono conserva el pin de la dirección", async () => {
+    const res = await edit(editBody({ phone: "3109999999" }));
 
-    expect(res.status).toBe(201);
-    expect(saved()[0]).toMatchObject({
-      state: "CO-NAR",
-      country: "CO",
-      is_default: true,
-    });
+    expect(res.status).toBe(200);
+    expect(storedBook()[0].location).toEqual(PIN);
   });
 
-  it("sin departamento válido responde 422 por campo y no guarda nada", async () => {
-    const res = await POST(req("POST", ADDRESS));
+  it("cambiar la calle borra el pin: hay que volver a marcarlo", async () => {
+    await edit(editBody({ address_1: "Carrera 7 # 32-16" }));
+
+    expect(storedBook()[0]).not.toHaveProperty("location");
+  });
+
+  it("cambiar la ciudad borra el pin", async () => {
+    await edit(editBody({ city: "Medellín", state: "Antioquia" }));
+
+    expect(storedBook()[0]).not.toHaveProperty("location");
+  });
+
+  it("un pin nuevo en la edición reemplaza al guardado", async () => {
+    const nuevo = { lat: 4.7, lng: -74.1 };
+    await edit(editBody({ location: nuevo }));
+
+    expect(storedBook()[0].location).toEqual(nuevo);
+  });
+
+  it("una ubicación inválida es un 422 y no escribe la libreta", async () => {
+    const res = await edit(editBody({ location: { lat: 0, lng: 0 } }));
 
     expect(res.status).toBe(422);
-    expect((await res.json()).details.state).toEqual(["Departamento requerido"]);
-    expect(wcFetch).not.toHaveBeenCalled();
-  });
-
-  it("con el paquete genérico exige el país y deja el estado libre", async () => {
-    vi.mocked(getGeoPack).mockResolvedValue(GENERIC_PACK);
-
-    expect((await POST(req("POST", ADDRESS))).status).toBe(422);
-    const res = await POST(req("POST", { ...ADDRESS, country: "PE", state: "Lima" }));
-
-    expect(res.status).toBe(201);
-    expect(saved()[0]).toMatchObject({ state: "Lima", country: "PE" });
-  });
-});
-
-describe("PUT /api/store/addresses", () => {
-  it("la actualización pasa por el mismo paquete", async () => {
-    vi.mocked(wcFetch).mockResolvedValue({
-      meta_data: [
-        {
-          key: "hwe_addresses",
-          value: JSON.stringify([{ ...ADDRESS, state: "CO-NAR" }]),
-        },
-      ],
-    } as never);
-
-    const bad = await PUT(
-      req("PUT", {
-        index: 0,
-        address: { ...ADDRESS, city: "Bogotá", state: "Antioquia" },
-      }),
+    expect(wcFetch).not.toHaveBeenCalledWith(
+      "/customers/7",
+      expect.objectContaining({ method: "PUT" }),
     );
-    expect(bad.status).toBe(422);
-
-    const ok = await PUT(
-      req("PUT", { index: 0, address: { ...ADDRESS, city: "Bogotá" } }),
-    );
-    expect(ok.status).toBe(200);
-    expect(saved()[0]).toMatchObject({ city: "Bogotá", state: "CO-DC" });
-  });
-});
-
-describe("destino de envío del carrito tras cambiar la libreta (módulo shipping)", () => {
-  const saved = [{ ...ADDRESS, state: "CO-NAR", country: "CO", is_default: true }];
-  const withBook = () =>
-    vi.mocked(wcFetch).mockResolvedValue({
-      meta_data: [{ key: "hwe_addresses", value: JSON.stringify(saved) }],
-    } as never);
-
-  it("al crear una dirección empuja el destino con la libreta resultante", async () => {
-    vi.mocked(pushCartDestination).mockResolvedValue({
-      data: {},
-      cartToken: "nuevo",
-    } as never);
-
-    const res = await POST(req("POST", { ...ADDRESS, state: "Nariño" }));
-
-    expect(res.status).toBe(201);
-    const [userId, book, auth] = vi.mocked(pushCartDestination).mock.calls[0];
-    expect(userId).toBe("7");
-    expect(book).toHaveLength(1);
-    expect(auth).toEqual({ cartToken: "ct", authToken: "jwt" });
-    expect(writeCartToken).toHaveBeenCalledWith("nuevo");
   });
 
-  it("al actualizar y al borrar también", async () => {
-    withBook();
-    await PUT(req("PUT", { index: 0, address: { ...ADDRESS, state: "CO-NAR" } }));
-    await DELETE(req("PUT", { index: 0 }));
+  it("al guardar, el destino predeterminada (con su pin) se empuja al carrito", async () => {
+    await edit(editBody({ phone: "3109999999" }));
 
-    expect(pushCartDestination).toHaveBeenCalledTimes(2);
-  });
-
-  it("sin cambio de destino (módulo apagado) no toca la cookie del carrito", async () => {
-    vi.mocked(pushCartDestination).mockResolvedValue(null);
-
-    await POST(req("POST", { ...ADDRESS, state: "Nariño" }));
-
-    expect(writeCartToken).not.toHaveBeenCalled();
+    expect(pushCartDestination).toHaveBeenCalledTimes(1);
+    const [, addresses] = vi.mocked(pushCartDestination).mock.calls[0];
+    expect(addresses[0].location).toEqual(PIN);
   });
 });

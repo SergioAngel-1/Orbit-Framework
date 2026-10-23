@@ -107,6 +107,42 @@ describe("pushCartDestination", () => {
     expect(options.body.shipping_address).not.toHaveProperty("location");
   });
 
+  it("con pin en la dirección predeterminada, fija el punto con los mismos datos que la calle", async () => {
+    await pushCartDestination(
+      7,
+      [address({ is_default: true, location: { lat: 4.6533, lng: -74.0836 } })],
+      AUTH,
+    );
+
+    expect(storeFetch).toHaveBeenNthCalledWith(2, "/cart/extensions", {
+      method: "POST",
+      body: {
+        namespace: "hwe_shipping",
+        data: {
+          action: "set_point",
+          lat: 4.6533,
+          lng: -74.0836,
+          address_1: "Calle 1",
+          city: "Bogotá",
+          country: "CO",
+        },
+      },
+      cartToken: "cart-token-2",
+      authToken: "jwt",
+    });
+  });
+
+  it("sin pin en la dirección predeterminada, borra el punto (no arrastra uno anterior)", async () => {
+    await pushCartDestination(7, [address({ is_default: true })], AUTH);
+
+    expect(storeFetch).toHaveBeenNthCalledWith(2, "/cart/extensions", {
+      method: "POST",
+      body: { namespace: "hwe_shipping", data: { action: "clear_point" } },
+      cartToken: "cart-token-2",
+      authToken: "jwt",
+    });
+  });
+
   it("con el módulo apagado no hace nada", async () => {
     vi.mocked(getSiteConfig).mockResolvedValue({ modules: {} } as never);
 
@@ -143,7 +179,8 @@ describe("syncCartDestination", () => {
     await syncCartDestination(7, AUTH);
 
     expect(wcFetch).toHaveBeenCalledWith("/customers/7");
-    expect(storeFetch).toHaveBeenCalledTimes(1);
+    expect(storeFetch).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(storeFetch).mock.calls[1][0]).toBe("/cart/extensions");
   });
 
   it("si no se puede leer la libreta, null y sin tocar el carrito", async () => {
