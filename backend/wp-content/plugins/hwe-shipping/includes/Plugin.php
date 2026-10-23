@@ -37,6 +37,7 @@ class Plugin {
 			MapsTestType::register();
 		}
 		Revalidation::register();
+		DeliveryPoint::register();
 		ShippingCost::register();
 		FreeShipping::register();
 		SettingsSchema::register();
