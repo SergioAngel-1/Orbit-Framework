@@ -259,10 +259,12 @@ class Save {
 		$origin = $data['origin'];
 
 		update_post_meta( $postId, Cities::META_TYPE, $data['type'] );
+		// `update_post_meta` quita las barras (`wp_unslash`): sin `wp_slash` el JSON pierde sus escapes
+		// y un nombre con tilde se lee «u00e1», o con comillas deja de ser JSON y la ciudad se queda sin opciones.
 		update_post_meta(
 			$postId,
 			Cities::META_OPTIONS,
-			wp_json_encode( array_map( static fn ( DeliveryOption $option ): array => $option->toArray(), $data['options'] ) )
+			wp_slash( wp_json_encode( array_map( static fn ( DeliveryOption $option ): array => $option->toArray(), $data['options'] ) ) )
 		);
 		update_post_meta( $postId, Cities::META_ORIGIN_ADDRESS, $distance ? $data['origin_address'] : '' );
 		update_post_meta( $postId, Cities::META_ORIGIN_LAT, $distance && null !== $origin ? (string) $origin->lat() : '' );
@@ -282,7 +284,7 @@ class Save {
 	 * @param string[] $errors
 	 */
 	private static function reject( \WP_Post $post, array $errors ): void {
-		update_post_meta( $post->ID, self::ERRORS_META, wp_json_encode( $errors ) );
+		update_post_meta( $post->ID, self::ERRORS_META, wp_slash( wp_json_encode( $errors ) ) );
 
 		if ( 'draft' === $post->post_status ) {
 			return;

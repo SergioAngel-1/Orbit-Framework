@@ -58,10 +58,13 @@ final class SaveCityTest extends TestCase
             }
             return $out;
         });
+        // Como WordPress: `update_post_meta` quita las barras del valor (`wp_unslash`), así que un
+        // JSON guardado sin `wp_slash` pierde sus escapes (tildes `\u00e1`, comillas `\"`).
         Functions\when('update_post_meta')->alias(function (int $id, string $key, $value): bool {
-            $this->meta[$key] = $value;
+            $this->meta[$key] = is_string($value) ? stripslashes($value) : $value;
             return true;
         });
+        Functions\when('wp_slash')->alias(static fn ($value) => is_string($value) ? addslashes($value) : $value);
         Functions\when('delete_post_meta')->alias(function (int $id, string $key): bool {
             $this->deleted[] = $key;
             return true;
@@ -383,6 +386,28 @@ final class SaveCityTest extends TestCase
         ]));
 
         $this->assertSame(['Express', 'Estándar'], array_column($this->storedOptions(), 'name'));
+    }
+
+    public function testLosNombresConTildesYComillasSobrevivenAlGuardado(): void
+    {
+        $this->submit($this->fixedForm([
+            $this->fixedRow('Rápido «24 h»', '8', 'aaaa1111'),
+            $this->fixedRow('Envío "puerta a puerta" \\ nocturno', '15', 'bbbb2222'),
+        ]));
+
+        $this->assertSame(
+            ['Rápido «24 h»', 'Envío "puerta a puerta" \\ nocturno'],
+            array_column($this->storedOptions(), 'name')
+        );
+    }
+
+    public function testLosErroresConTildesSeLeenIgualQueSeGuardaron(): void
+    {
+        $this->submit($this->fixedForm([]));
+
+        foreach ($this->storedErrors() as $error) {
+            $this->assertStringNotContainsString('u00', $error);
+        }
     }
 
     public function testLaCasillaDeEnvioGratisSeGuardaPorOpcion(): void
