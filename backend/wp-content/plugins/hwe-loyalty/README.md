@@ -18,6 +18,7 @@ niveles** que paga sus comisiones en esos puntos. Es un módulo opcional del cat
 | `includes/Settings.php` | Clase `HWE_Loyalty_Settings`: puebla el grupo reservado `loyalty` del Control Center y expone la lectura saneada. |
 | `includes/Schema.php` | Tablas propias del módulo (`ledger`, `balances`, `consumptions`, `referrals`) con versión de esquema y migración perezosa. |
 | `includes/Ledger.php` | Libro mayor transaccional: abonos, cargos FIFO, devoluciones con su caducidad, caducidad por lotes y saldo. |
+| `includes/Api.php` | Punto de entrada estable para otros módulos: `hwe_loyalty_available()`, `hwe_loyalty_credit()` y `hwe_loyalty_reverse_credit()`. |
 | `includes/Scheduler.php` | Evento diario `hwe_loyalty_daily` (caducidad y cumpleaños), programado al activar y retirado al desactivar. |
 | `includes/Referrals.php` | Códigos, atribución pendiente → confirmada, red N1/N2 y primas de alta. |
 | `includes/Earnings.php`, `ProductBonus.php` | Cashback, comisiones, bono por producto, reversión y estado de las ganancias del pedido. |
@@ -295,7 +296,7 @@ contrato de `data` por tipo (lista blanca: un tipo desconocido, p. ej. añadido 
 |---|---|
 | `cashback`, `referral_commission_l1`, `referral_commission_l2`, `referral_product_bonus` | `order` (entero) |
 | `redeem` | `order`, `discount` (importe como texto) |
-| `redeem_refund`, `earn_reversal` | `order`; `earn_reversal` añade `original_type` |
+| `redeem_refund`, `earn_reversal` | `order` (si la referencia original es un pedido); `earn_reversal` añade `original_type` y, si la reversión viene de `hwe_loyalty_reverse_credit()`, `credit` (id del abono revertido) |
 | `referral_signup_l1`, `referral_signup_l2`, `registration`, `expire` | sin claves |
 | `review` | `source` (`product` \| `site`) |
 | `birthday` | `year` |
@@ -325,6 +326,25 @@ Filtros:
 | `hwe_loyalty_collected_on_completion` | `( string[] $methods ): string[]` | Medios que esperan a `completed` para contar como cobrados. Por defecto `['cod']`. |
 | `hwe_loyalty_entry_types` | `( array<string, "credit"\|"debit"> $types ): array` | Tipos de movimiento extra. Se descarta y se registra una entrada mal formada. |
 | `hwe_loyalty_participant_roles` | `( string[] $roles ): string[]` | Roles que participan. Los defaults son `customer` y `subscriber`. |
+
+### Funciones públicas (contrato para otros módulos)
+
+`includes/Api.php` publica el punto de entrada que usan otros módulos (por ejemplo, membresías)
+para abonar o revertir puntos sin conocer las clases internas. Las tres funciones existen **solo
+con el plugin cargado**: quien las consume comprueba `function_exists()` y, además, la función
+concreta con `hwe_loyalty_available()`.
+
+| Función | Firma | Qué hace |
+|---|---|---|
+| `hwe_loyalty_available` | `( string $feature ): bool` | `points` exige el módulo activo y «Puntos» encendido; `referrals`, además, «Referidos». Cualquier otro valor devuelve `false` (y se registra). |
+| `hwe_loyalty_credit` | `( int $userId, int $points, string $type, string $key, array $ref = [], array $data = [] ): ?int` | Abona por el libro, con la caducidad configurada y la idempotencia por `$key`. Devuelve el id del movimiento o `null` sin escribir si los puntos están apagados, el usuario no participa, el tipo no está declarado como abono o la clave ya existía. `$ref` es la referencia tipada habitual; `$data`, la nota estructurada (sin textos de cliente). |
+| `hwe_loyalty_reverse_credit` | `( string $key, string $reversalKey ): ?int` | Revierte el abono `$key` con un cargo `earn_reversal` limitado al saldo actual (nunca deja el saldo negativo) e idempotente por `$reversalKey` (el cargo se guarda como `reversal:<reversalKey>`). Devuelve el id del cargo o `null` si la clave original no existe o no es un abono, si no queda saldo o si esa reversión ya se aplicó. |
+
+El tipo de movimiento propio se declara antes con `hwe_loyalty_entry_types`; sin declararlo,
+`hwe_loyalty_credit()` falla cerrado y no escribe. Revertir no exige que «Puntos» siga
+encendido: es una corrección contable y debe funcionar aunque el programa se apagara después
+del abono. Todos los rechazos se registran con `error_log('[hwe] loyalty: …')` y solo con ids y
+claves técnicas.
 
 Hooks del núcleo y de otros módulos que consume:
 
@@ -462,7 +482,9 @@ alguna para auditar sin el módulo activo.
 (saldo no negativo, FIFO, caducidad, devoluciones e idempotencia), la programación diaria, los
 referidos (códigos, ciclos, confirmación y primas), las ganancias por pedido y eventos, el canje
 (recortes, mínimos, pago completo y Foco 1), las transferencias, las rutas internas (secreto y
-guardas), la administración y la privacidad. `PublicNameTest.php` fija la regla del nombre visible.
+guardas), la administración, la privacidad y el contrato público de `Api.php` (disponibilidad,
+abono idempotente y reversión limitada al saldo). `PublicNameTest.php` fija la regla del nombre
+visible.
 
 En el frontend, los tests colocados de `frontend/src/lib/loyalty/` cubren los helpers puros y los
 lectores de servidor; los de `app/api/loyalty/*`, `app/api/store/cart/points` y
@@ -481,6 +503,7 @@ internas y la extensión de la Store API) y la pasada e2e sin módulos
 | `includes/EntryTypes.php` | Tipos de movimiento (`credit`/`debit`) en un solo sitio, ampliables por filtro. |
 | `includes/Schema.php` | Tablas, versión de esquema y migración perezosa. |
 | `includes/Ledger.php` | Libro transaccional, FIFO, caducidad, devoluciones, saldo e historial. |
+| `includes/Api.php` | Punto de entrada estable para otros módulos (disponibilidad, abono y reversión). |
 | `includes/Scheduler.php` | Evento diario de caducidad y cumpleaños. |
 | `includes/Referrals.php` | Códigos, atribución, confirmación, red y primas de alta. |
 | `includes/Earnings.php` | Ganancias por pedido, estado en la meta y reversión. |
