@@ -281,6 +281,24 @@ final class RedemptionTest extends TestCase
 
     // ── Update callback y contrato de la extensión ──────────────────────────
 
+    public function test_the_loyalty_fee_never_carries_taxes(): void
+    {
+        // WooCommerce reparte impuestos sobre CUALQUIER fee negativo, aunque no sea imponible
+        // (`WC_Cart_Totals::get_fees_from_cart`): con un IVA del 19 % un canje de 5000 bajaba el
+        // total 5950. El descuento por puntos vale exactamente lo que valen los puntos.
+        \HWE_Loyalty_Redemption::register();
+        $this->assertNotFalse(has_filter(
+            'woocommerce_cart_totals_get_fees_from_cart_taxes',
+            [\HWE_Loyalty_Redemption::class, 'feeTaxes']
+        ));
+
+        $loyalty = (object) ['object' => (object) ['name' => \HWE_Loyalty_Redemption::FEE_PREFIX . '5000 créditos']];
+        $other   = (object) ['object' => (object) ['name' => 'Envío urgente']];
+
+        $this->assertSame([], \HWE_Loyalty_Redemption::feeTaxes([1 => -95000.0], $loyalty));
+        $this->assertSame([1 => 1900.0], \HWE_Loyalty_Redemption::feeTaxes([1 => 1900.0], $other));
+    }
+
     public function test_store_api_extension_registers_even_if_blocks_already_loaded(): void
     {
         // El módulo arranca en `plugins_loaded` (prioridad 20), DESPUÉS de que WooCommerce

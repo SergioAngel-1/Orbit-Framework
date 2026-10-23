@@ -108,6 +108,7 @@ final class HWE_Loyalty_Redemption {
 			add_action( 'woocommerce_blocks_loaded', array( self::class, 'registerStoreApi' ) );
 		}
 		add_action( 'woocommerce_cart_calculate_fees', array( self::class, 'applyFee' ) );
+		add_filter( 'woocommerce_cart_totals_get_fees_from_cart_taxes', array( self::class, 'feeTaxes' ), 10, 2 );
 		add_action( 'woocommerce_store_api_checkout_order_processed', array( self::class, 'confirmOrder' ) );
 		add_action( 'woocommerce_order_status_cancelled', array( self::class, 'onOrderCancelled' ) );
 		add_action( 'woocommerce_order_status_failed', array( self::class, 'onOrderFailed' ) );
@@ -348,6 +349,24 @@ final class HWE_Loyalty_Redemption {
 			-1.0 * (float) $state['discount'],
 			false
 		);
+	}
+
+	/**
+	 * El fee de fidelización nunca lleva impuestos. WooCommerce reparte impuestos sobre
+	 * CUALQUIER fee negativo aunque no sea imponible (`WC_Cart_Totals::get_fees_from_cart`):
+	 * con un IVA del 19 %, un canje de 5000 bajaba el total 5950 y saltaba los topes del canje.
+	 * El descuento vale exactamente lo que valen los puntos (spec §7.2: fee no imponible).
+	 *
+	 * @param mixed $taxes Impuestos calculados para el fee.
+	 * @param mixed $fee   Fee de `WC_Cart_Totals` (`->object->name`).
+	 * @return mixed
+	 */
+	public static function feeTaxes( mixed $taxes, mixed $fee = null ): mixed {
+		$name = is_object( $fee ) && isset( $fee->object ) && is_object( $fee->object ) && isset( $fee->object->name )
+			? (string) $fee->object->name
+			: '';
+
+		return '' !== $name && self::isLoyaltyFeeName( $name ) ? array() : $taxes;
 	}
 
 	// ------------------------------------------------------------------------
