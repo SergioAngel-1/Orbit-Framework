@@ -697,11 +697,17 @@ final class RedemptionTest extends TestCase
         // un descuento: el checkout tiene que fallar con motivo claro, no cobrar el precio
         // completo en silencio (Foco 1, visto en la pila real).
         $this->credit(100);
+        $cart = $this->makeCart(50.0);
         $this->requestPoints(100);
-        \HWE_Loyalty_Redemption::applyFee($this->makeCart(50.0));
+        \HWE_Loyalty_Redemption::applyFee($cart);
         $this->assertSame(100, \HWE_Loyalty_Redemption::cartState()['points_applied']);
 
         \HWE_Loyalty_Ledger::debit(self::USER, 100, 'admin_debit', 'concurrent:2');
+        // El BFF lee el carrito justo antes del checkout (`GET /cart`): esa lectura ya ve el
+        // saldo nuevo y no puede borrar lo que el cliente vio al pedir sus puntos.
+        $cart->fees = [];
+        \HWE_Loyalty_Redemption::applyFee($cart);
+        \HWE_Loyalty_Redemption::cartState();
         $order = $this->makeOrder(56, [
             'items' => [$this->lineItem(50.0)],
             'fees'  => [],
@@ -717,6 +723,42 @@ final class RedemptionTest extends TestCase
 
         $this->assertNull($this->entryWithKey('redeem:order:56'));
         $this->assertSame([], $order->get_fees());
+    }
+
+    public function test_after_an_insufficient_points_error_the_retry_charges_what_the_cart_now_shows(): void
+    {
+        $this->credit(300);
+        $cart = $this->makeCart(50.0);
+        $this->requestPoints(300);
+        \HWE_Loyalty_Ledger::debit(self::USER, 100, 'admin_debit', 'concurrent:3');
+        // Quedan 200: por encima del mínimo de canje (100), por debajo de lo que vio (300).
+
+        try {
+            \HWE_Loyalty_Redemption::confirmOrder($this->makeOrder(58, [
+                'items' => [$this->lineItem(50.0)],
+                'fees'  => [],
+                'total' => 50.0,
+            ]));
+            $this->fail('El primer intento debía fallar.');
+        } catch (RouteException $error) {
+            $this->assertSame('hwe_loyalty_insufficient_points', $error->getErrorCode());
+        }
+
+        // El cliente vuelve al carrito, que ya muestra 200, y reintenta sin pedir otra cantidad:
+        // no puede quedarse atascado en el mismo error.
+        $cart->fees = [];
+        \HWE_Loyalty_Redemption::applyFee($cart);
+        $this->assertSame(200, \HWE_Loyalty_Redemption::cartState()['points_applied']);
+        $retry = $this->makeOrder(59, [
+            'items' => [$this->lineItem(50.0)],
+            'fees'  => [$this->feeItem(200, 2.0)],
+            'total' => 48.0,
+        ]);
+
+        \HWE_Loyalty_Redemption::confirmOrder($retry);
+
+        $this->assertSame(-200, (int) $this->entryWithKey('redeem:order:59')['points']);
+        $this->assertSame(0, $this->balance());
     }
 
     public function test_a_confirmed_redemption_clears_the_requested_points_for_the_next_cart(): void

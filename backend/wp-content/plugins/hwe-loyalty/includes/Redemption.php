@@ -73,7 +73,7 @@ final class HWE_Loyalty_Redemption {
 	public const SESSION_KEY = 'hwe_loyalty_points';
 
 	/**
-	 * Puntos aplicados la última vez que el cliente VIO el carrito (`cartState`). El checkout
+	 * Puntos que el cliente vio aplicados al pedirlos (`updatePoints`). El checkout
 	 * recalcula el carrito antes de crear el pedido y `applyFee` recorta al saldo vivo: sin
 	 * esto, un saldo que bajó entremedias borraría el fee y el pedido saldría a precio completo
 	 * sin aviso (Foco 1).
@@ -172,6 +172,10 @@ final class HWE_Loyalty_Redemption {
 		}
 
 		$session->set( self::SESSION_KEY, $points );
+		// Lo que el cliente pasa a ver aplicado al pedir sus puntos. Se registra AQUÍ y no en
+		// cada respuesta del carrito: el BFF lee el carrito justo antes del checkout y esa
+		// lectura, con un saldo que ya bajó, borraría lo que el cliente vio (Foco 1).
+		$session->set( self::SHOWN_SESSION_KEY, (int) self::computeState()['points_applied'] );
 	}
 
 	/**
@@ -181,6 +185,27 @@ final class HWE_Loyalty_Redemption {
 	 * @return array<string,mixed>
 	 */
 	public static function cartState(): array {
+		$state = self::computeState();
+
+		return array(
+			'available'              => (bool) $state['available'],
+			'reason'                 => $state['reason'],
+			'balance'                => (int) $state['balance'],
+			'points_applied'         => (int) $state['points_applied'],
+			'discount'               => self::toMinorUnits( (float) $state['discount'] ),
+			'max_redeemable'         => (int) $state['max_redeemable'],
+			'min_redeem'             => (int) $state['min_redeem'],
+			'full_payment_available' => (bool) $state['full_payment_available'],
+		);
+	}
+
+	/**
+	 * Estado del canje del carrito actual, sin efectos. Lo usan `cartState()` (cada respuesta
+	 * del carrito) y `updatePoints()` (lo que el cliente pasa a ver al pedir sus puntos).
+	 *
+	 * @return array<string,mixed>
+	 */
+	private static function computeState(): array {
 		$settings = HWE_Loyalty_Settings::get();
 		$cart     = self::cart();
 
@@ -214,21 +239,7 @@ final class HWE_Loyalty_Redemption {
 			$settings
 		);
 
-		$session = self::session();
-		if ( null !== $session ) {
-			$session->set( self::SHOWN_SESSION_KEY, (int) $state['points_applied'] );
-		}
-
-		return array(
-			'available'              => (bool) $state['available'],
-			'reason'                 => $state['reason'],
-			'balance'                => (int) $state['balance'],
-			'points_applied'         => (int) $state['points_applied'],
-			'discount'               => self::toMinorUnits( (float) $state['discount'] ),
-			'max_redeemable'         => (int) $state['max_redeemable'],
-			'min_redeem'             => (int) $state['min_redeem'],
-			'full_payment_available' => (bool) $state['full_payment_available'],
-		);
+		return $state;
 	}
 
 	/**
@@ -427,6 +438,9 @@ final class HWE_Loyalty_Redemption {
 				'el pedido ' . $orderId . ' no puede confirmar el canje: saldo vivo ' . $live
 				. ' < ' . (int) $desired['points_applied'] . ' unidades.'
 			);
+			// El cliente vuelve al carrito, que ya muestra lo que su saldo cubre: el reintento debe
+			// confirmar eso y no repetir el error con la cantidad vieja.
+			self::forgetShown();
 			throw self::insufficientPoints( $settings );
 		}
 
@@ -982,6 +996,13 @@ final class HWE_Loyalty_Redemption {
 
 		$session->set( self::SESSION_KEY, 0 );
 		$session->set( self::SHOWN_SESSION_KEY, 0 );
+	}
+
+	private static function forgetShown(): void {
+		$session = self::session();
+		if ( null !== $session ) {
+			$session->set( self::SHOWN_SESSION_KEY, 0 );
+		}
 	}
 
 	public static function requestedPoints(): int {
