@@ -172,8 +172,8 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   que lo devuelven): `coupons[].description` y `coupons[].freeShipping`, y `items[].name` como
   texto (sin entidades HTML). Los errores 4xx de WooCommerce llegan como texto plano.
 - **Guard de envío:** si el carrito necesita envío y no hay ninguna tarifa, `POST
-  /api/store/checkout` responde 422 sin crear el pedido (`canSubmitCheckout`, la misma regla que
-  aplica el formulario).
+  /api/store/checkout` responde **409** `{ error, status }` sin crear el pedido (`canSubmitCheckout`, la
+  misma regla que aplica el formulario; ver «Checkout sin tarifa» en «Envío por distancia»).
 - **Medio de pago frente a WooCommerce:** `payment_methods` del carrito dice qué gateways ofrece
   Woo ahora. Efectivo o WhatsApp no ofrecidos → 422 (no se sustituyen); el pago en línea cae a
   otro medio de cobro, nunca a efectivo.
@@ -277,8 +277,11 @@ frontend nunca calcula ni firma un importe; solo muestra lo que devuelve la Stor
 
 - **Pin obligatorio en las ciudades por distancia.** `PUT /api/store/shipping/destination` acepta
   `location: { lat, lng }` junto a `address_1`. Con `location` fija el punto de entrega; **la calle es
-  obligatoria** con pin (sin calle: 422 con `details.address_1`). Sin `location` el BFF borra el punto,
-  porque la petición describe el destino completo. Coordenadas NaN, cadenas, fuera de rango o `0,0` dan
+  obligatoria** con pin (sin calle: 422 con `details.address_1`). **`location` ausente = no se toca el
+  punto** (el pin pudo marcarse en otra pantalla y el formulario del checkout no lo envía; WordPress lo
+  invalida solo si cambian calle, ciudad o país); **`location: null` = borrarlo** (`clear_point`). Lo mismo
+  vale para el destino que el BFF fija desde la libreta de un cliente con sesión: sin `location` en la
+  dirección, el punto de la sesión no se toca. Coordenadas NaN, cadenas, fuera de rango o `0,0` dan
   422 **antes de llamar a WordPress**. El punto viaja por la Store API (extensión `hwe_shipping`,
   `set_point`/`clear_point`) con la calle, la ciudad y el país; WordPress lo ignora si no coincide con el
   destino de la sesión. Cambiar la calle (aunque la ciudad sea la misma) invalida el pin: el carrito pasa a

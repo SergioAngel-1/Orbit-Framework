@@ -103,6 +103,12 @@ describe("shippingDestinationSchema", () => {
     expect(r.location).toEqual({ lat: 4.6533, lng: -74.0836 });
   });
 
+  it("`location: null` es el borrado explícito del pin; ausente no lo toca", () => {
+    const cleared = shippingDestinationSchema.parse({ ...base, location: null });
+    expect(cleared.location).toBeNull();
+    expect(shippingDestinationSchema.parse(base).location).toBeUndefined();
+  });
+
   it.each([
     ["pin 0,0", { lat: 0, lng: 0 }],
     ["pin fuera de rango", { lat: 200, lng: -74 }],

@@ -35,8 +35,9 @@ export const dynamic = "force-dynamic";
  *
  * El pin (`location`) va aparte: después de fijar el destino, la extensión
  * `hwe_shipping` fija el punto de entrega con la MISMA calle, ciudad y país (la huella
- * de WordPress). Sin pin, borra el punto: la petición describe el destino completo, así
- * que lo que no trae no se conserva. Un pin sin calle no tiene huella: 422.
+ * de WordPress). `location` ausente = no se toca el punto (el pin pudo marcarse en otra
+ * pantalla y el formulario del checkout no lo envía; WordPress lo invalida solo si cambian
+ * calle, ciudad o país); `location: null` = borrarlo. Un pin sin calle no tiene huella: 422.
  */
 export async function PUT(request: Request) {
   const blocked = await guardMutation(request, {
@@ -115,9 +116,11 @@ export async function PUT(request: Request) {
       location,
       { cartToken: destination.cartToken ?? token, authToken },
     );
-    await writeCartToken(point.cartToken);
+    // Sin `location` no hay llamada al punto: vale el carrito de `update-customer`.
+    const final = point ?? destination;
+    if (point) await writeCartToken(point.cartToken);
 
-    return NextResponse.json(await completeStoreCart(point.data, locale));
+    return NextResponse.json(await completeStoreCart(final.data, locale));
   } catch (error) {
     logger.error(
       {

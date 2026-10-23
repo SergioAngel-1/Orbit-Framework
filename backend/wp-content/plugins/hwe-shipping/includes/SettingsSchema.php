@@ -30,9 +30,9 @@ class SettingsSchema {
 		$schema['shipping']['children'] += array(
 			'reserve_enabled'                  => array(
 				'type'        => 'boolean',
-				'label'       => 'Zona de reserva de WooCommerce',
+				'label'       => 'Enviar también a las ciudades sin tarifa propia',
 				'default'     => true,
-				'description' => 'Crea y mantiene una zona de envío que cubre el país de la tienda, con un único método de tarifa plana: el envío de las ciudades que no tienen tarifa propia. Sin una zona que cubra el país, el carrito no tiene envío.',
+				'description' => 'Con el módulo activo, la zona de envío que cubre el país de la tienda existe siempre y calcula las tarifas por ciudad. Activado, las ciudades sin tarifa propia pagan el envío de reserva (nombre y coste de abajo); desactivado, esas ciudades no tienen envío y solo se vende a las ciudades configuradas.',
 			),
 			'reserve_name'                     => array(
 				'type'        => 'text',

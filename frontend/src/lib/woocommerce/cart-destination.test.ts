@@ -132,15 +132,13 @@ describe("pushCartDestination", () => {
     });
   });
 
-  it("sin pin en la dirección predeterminada, borra el punto (no arrastra uno anterior)", async () => {
-    await pushCartDestination(7, [address({ is_default: true })], AUTH);
+  it("sin pin en la dirección predeterminada no toca el punto de la sesión (WordPress lo invalida si cambia la calle)", async () => {
+    const result = await pushCartDestination(7, [address({ is_default: true })], AUTH);
 
-    expect(storeFetch).toHaveBeenNthCalledWith(2, "/cart/extensions", {
-      method: "POST",
-      body: { namespace: "hwe_shipping", data: { action: "clear_point" } },
-      cartToken: "cart-token-2",
-      authToken: "jwt",
-    });
+    expect(storeFetch).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(storeFetch).mock.calls[0][0]).toBe("/cart/update-customer");
+    // Sin punto que fijar, el resultado es el carrito de `update-customer`.
+    expect(result?.cartToken).toBe("cart-token-2");
   });
 
   it("con el módulo apagado no hace nada", async () => {
@@ -179,8 +177,8 @@ describe("syncCartDestination", () => {
     await syncCartDestination(7, AUTH);
 
     expect(wcFetch).toHaveBeenCalledWith("/customers/7");
-    expect(storeFetch).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(storeFetch).mock.calls[1][0]).toBe("/cart/extensions");
+    expect(storeFetch).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(storeFetch).mock.calls[0][0]).toBe("/cart/update-customer");
   });
 
   it("si no se puede leer la libreta, null y sin tocar el carrito", async () => {

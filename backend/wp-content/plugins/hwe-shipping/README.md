@@ -36,7 +36,8 @@ nunca envía ni firma un importe: la Store API devuelve las tarifas ya calculada
 y un radio de cobertura mayor que 0 km. Para un destino en el país base:
 
 1. Sin punto de entrega válido para ese destino → ninguna tarifa (`needs_location`).
-2. Punto fuera del radio → ninguna tarifa, **no** cae a la reserva (`out_of_coverage`).
+2. Punto fuera del radio → ninguna tarifa, **no** cae a la reserva (`out_of_coverage`). Si ya está fuera en
+   línea recta (con un pequeño margen) se descarta sin pedir la distancia al proveedor de mapas.
 3. Dentro del radio → distancia desde la referencia y **una tarifa por opción**:
    `coste = clamp(round(km × price_per_km), min_cost, max_cost)`.
 
@@ -126,7 +127,9 @@ El pin es el punto de entrega. Llega por la Store API con el update callback de 
   cadenas, fuera de rango y 0,0 se rechazan) y exige la calle. Guarda el punto en la sesión de
   WooCommerce (`hwe_shipping_delivery_point`) junto a su **huella**: calle, ciudad normalizada y país,
   en minúsculas, sin tildes y con los espacios colapsados.
-- `{ action: 'clear_point' }` borra el punto.
+- `{ action: 'clear_point' }` borra el punto. El BFF solo lo envía si el cliente lo pide de forma explícita
+  (`location: null`); con `location` ausente no toca el punto, porque la huella ya lo invalida si cambian
+  calle, ciudad o país.
 - `DeliveryPoint::forDestination()` devuelve el punto **solo si la huella coincide con el destino**.
   Si el cliente cambia la calle (aunque siga en la misma ciudad), el punto deja de valer y el carrito
   pasa a `needs_location`. Cambiar solo mayúsculas o tildes no lo invalida.

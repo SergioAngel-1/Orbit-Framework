@@ -3,6 +3,7 @@ import { storeFetch } from "@/lib/woocommerce/store-client";
 import { getSiteConfig } from "@/lib/config";
 import { getGeoPack } from "@/lib/geo";
 import { guardMutation } from "@/lib/api/guard";
+import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { CO_PACK } from "../../../../../../tests/helpers/geo-pack";
 import { PUT } from "./route";
 
@@ -153,8 +154,23 @@ describe("pin del cliente (punto de entrega por la Store API)", () => {
     ]);
   });
 
-  it("sin ubicación borra el punto con clear_point (el destino se describe completo)", async () => {
+  it("sin `location` no toca el punto (ausente = conservar; WordPress lo invalida si cambia la calle)", async () => {
     const res = await put({ address_1: STREET, city: "Bogotá", country: "CO" });
+
+    expect(res.status).toBe(200);
+    expect(extensionCalls()).toEqual([]);
+    // La respuesta es el carrito que devolvió `update-customer`, y su token se guarda.
+    expect(await res.json()).toEqual({ items: [] });
+    expect(writeCartToken).toHaveBeenCalledWith("ct2");
+  });
+
+  it("`location: null` borra el punto explícitamente con clear_point", async () => {
+    const res = await put({
+      address_1: STREET,
+      location: null,
+      city: "Bogotá",
+      country: "CO",
+    });
 
     expect(res.status).toBe(200);
     expect(extensionCalls()).toEqual([

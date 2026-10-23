@@ -355,6 +355,19 @@ final class CityRateMethodTest extends TestCase
         $this->assertSame(['mode' => 'distance', 'status' => 'out_of_coverage'], ShippingStatus::forPackage($this->package()));
     }
 
+    public function testUnPinMuyLejosDelRadioSeDescartaSinPedirLaDistanciaAlProveedor(): void
+    {
+        // Barcelona está a ~500 km en línea recta de la referencia (radio 10 km): ninguna ruta puede
+        // ser más corta que la línea recta, así que no hace falta ni caché ni petición de pago.
+        $this->city(1, 'Madrid', 'distance', [$this->option('lento1', 'Lento', ['price_per_km' => 2.0])], $this->originOfMadrid());
+        $this->setPoint(41.3874, 2.1686);
+        $this->transientReads = 0;
+
+        $this->assertSame([], $this->rates($this->package()));
+        $this->assertSame(['mode' => 'distance', 'status' => 'out_of_coverage'], ShippingStatus::forPackage($this->package()));
+        $this->assertSame(0, $this->transientReads, 'Un pin fuera de cobertura por línea recta no consulta la distancia.');
+    }
+
     public function testElRespaldoAStraightLineSeMarcaEnLasMetasYNuncaCuestaCero(): void
     {
         // Método «maps» sin proveedor ni clave: la distancia cae a línea recta marcada como respaldo.

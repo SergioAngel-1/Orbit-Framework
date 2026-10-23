@@ -4,6 +4,7 @@ namespace HWE\Shipping;
 
 use HWE\Shipping\Distance\DistanceResult;
 use HWE\Shipping\Distance\DistanceService;
+use HWE\Shipping\Distance\Haversine;
 use HWE\Shipping\Rates\City;
 use HWE\Shipping\Rates\Cities;
 use HWE\Shipping\Rates\GeoPoint;
@@ -21,8 +22,9 @@ use HWE\Shipping\Rates\GeoPoint;
  *   2. sin calle o sin ciudad → `needs_address`;
  *   3. ciudad sin registro (o del modelo anterior) → `reserve` si la reserva está activa, si no `none`;
  *   4. ciudad fija → `fixed`;
- *   5. ciudad por distancia → sin pin, `needs_location`; fuera del radio, `out_of_coverage`; si no,
- *      `distance` con la distancia desde la referencia de la ciudad.
+ *   5. ciudad por distancia → sin pin, `needs_location`; fuera del radio, `out_of_coverage` (si ya lo
+ *      está en línea recta, sin pedir la distancia al proveedor); si no, `distance` con la distancia
+ *      desde la referencia de la ciudad.
  *
  * Los importes no salen de aquí: cada opción se cobra con `Pricing` en el método.
  */
@@ -125,6 +127,14 @@ final class ShippingStatus {
 		}
 		if ( null === $point ) {
 			return self::result( 'distance', 'needs_location', $cityName, $city, null, null );
+		}
+
+		// Ninguna ruta es más corta que la línea recta: un pin claramente fuera del radio se descarta sin
+		// pedir la distancia al proveedor (de pago). El margen cubre la esfera frente al elipsoide y el
+		// ajuste de los puntos a la carretera; los casos dudosos siguen el camino normal.
+		$coverage = $city->coverageKm();
+		if ( Haversine::km( $origin, $point ) > $coverage + max( 0.5, $coverage * 0.01 ) ) {
+			return self::result( 'distance', 'out_of_coverage', $cityName, $city, null, $point );
 		}
 
 		// Misma distancia que se cobra: una sola petición por paquete y ciudad.

@@ -200,7 +200,8 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `google_maps`, `openrouteservice`) y `maps_api_key` (cifrada). Solo la usa WordPress; no sale por la
   configuración pública ni por el BFF.
 - **BFF del mapa del checkout.** `PUT /api/store/shipping/destination` acepta `address_1` y `location`
-  (con validación de coordenadas: 422 antes de llegar a WordPress). Nuevas rutas `POST
+  (con validación de coordenadas: 422 antes de llegar a WordPress; `location` ausente conserva el punto de
+  entrega del carrito y `location: null` lo borra). Nuevas rutas `POST
   /api/shipping/geocode` y `POST /api/shipping/reverse-geocode`, con `requireModule`, `guardMutation` y
   límite propio de 10 por minuto. La libreta de direcciones guarda la ubicación y la borra si cambia la
   calle o la ciudad.
