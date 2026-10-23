@@ -54,6 +54,18 @@ final class HWE_Loyalty_Referrals {
 	/** Tope de la cadena que se recorre al buscar ciclos (defensa ante datos ya corruptos). */
 	private const MAX_CHAIN = 50;
 
+	/**
+	 * Abonos que cuentan como «generados por la red». Una transferencia también lleva `ref` de
+	 * tipo `user` (quien la envía), así que filtrar solo por la referencia la contaría.
+	 */
+	private const NETWORK_EARNING_TYPES = array(
+		'referral_signup_l1',
+		'referral_signup_l2',
+		'referral_commission_l1',
+		'referral_commission_l2',
+		'referral_product_bonus',
+	);
+
 	/** Tope de elementos por página de la red, igual que el historial del libro. */
 	private const NETWORK_MAX = 100;
 
@@ -456,9 +468,9 @@ final class HWE_Loyalty_Referrals {
 	 * `date` (ISO 8601 UTC de la atribución), `status` y `points_generated` (abonos que ese
 	 * referido generó para el referidor). Nunca email ni login. Tolera filas huérfanas.
 	 *
-	 * `points_generated` suma los abonos del libro cuyo `ref` es `['type' => 'user', 'id' =>
-	 * <referido>]`; las ganancias por pedido (tarea 6) deben usar esa referencia para que la
-	 * red cuadre.
+	 * `points_generated` suma los abonos de referido (`NETWORK_EARNING_TYPES`) cuyo `ref` es
+	 * `['type' => 'user', 'id' => <referido>]`; las ganancias por pedido (tarea 6) usan esa
+	 * referencia para que la red cuadre. Una transferencia del referido no cuenta.
 	 *
 	 * @return array{items:list<array<string,mixed>>,total:int,page:int,per_page:int}
 	 */
@@ -529,10 +541,12 @@ final class HWE_Loyalty_Referrals {
 			$points = (int) $wpdb->get_var(
 				$wpdb->prepare(
 					'SELECT COALESCE(SUM(points), 0) FROM ' . HWE_Loyalty_Schema::ledgerTable()
-					. ' WHERE user_id = %d AND points > 0 AND ref_type = %s AND ref_id = %s',
+					. ' WHERE user_id = %d AND points > 0 AND ref_type = %s AND ref_id = %s'
+					. ' AND type IN (' . self::typePlaceholders() . ')',
 					$userId,
 					'user',
-					(string) $referredId
+					(string) $referredId,
+					...self::NETWORK_EARNING_TYPES
 				)
 			);
 
@@ -546,6 +560,69 @@ final class HWE_Loyalty_Referrals {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Totales de la red de un referidor para el resumen de referidos del BFF.
+	 *
+	 * `level1` y `level2` cuentan las cuentas atribuidas en cada nivel; `pending` cuenta las
+	 * atribuciones sin confirmar de **toda** la red (los dos niveles); `earned` suma los abonos
+	 * que la red ha generado al referidor (referencias `user` a un miembro de su red), la misma
+	 * definición que usa `points_generated` en `network()`.
+	 *
+	 * Un usuario sin red devuelve todo a cero. Los abonos con referencia a un pedido (cashback)
+	 * no cuentan como «generado por la red».
+	 *
+	 * @return array{level1:int,level2:int,pending:int,earned:int}
+	 */
+	public static function networkTotals( int $userId ): array {
+		$totals = array( 'level1' => 0, 'level2' => 0, 'pending' => 0, 'earned' => 0 );
+
+		if ( $userId <= 0 ) {
+			return $totals;
+		}
+
+		global $wpdb;
+		$table = self::table();
+
+		$totals['level1'] = (int) $wpdb->get_var(
+			$wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE referrer_id = %d", $userId )
+		);
+
+		$totals['level2'] = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} r INNER JOIN {$table} p ON p.user_id = r.referrer_id"
+				. ' WHERE p.referrer_id = %d',
+				$userId
+			)
+		);
+
+		$totals['pending'] = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} r WHERE r.status = %s"
+				. " AND (r.referrer_id = %d OR r.referrer_id IN (SELECT user_id FROM {$table} WHERE referrer_id = %d))",
+				self::STATUS_PENDING,
+				$userId,
+				$userId
+			)
+		);
+
+		$totals['earned'] = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COALESCE(SUM(l.points), 0) FROM ' . HWE_Loyalty_Schema::ledgerTable() . ' l'
+				. " INNER JOIN {$table} r ON r.user_id = CAST(l.ref_id AS UNSIGNED)"
+				. ' WHERE l.user_id = %d AND l.points > 0 AND l.ref_type = %s'
+				. " AND (r.referrer_id = %d OR r.referrer_id IN (SELECT user_id FROM {$table} WHERE referrer_id = %d))"
+				. ' AND l.type IN (' . self::typePlaceholders() . ')',
+				$userId,
+				'user',
+				$userId,
+				$userId,
+				...self::NETWORK_EARNING_TYPES
+			)
+		);
+
+		return $totals;
 	}
 
 	// ------------------------------------------------------------------------
@@ -801,6 +878,11 @@ final class HWE_Loyalty_Referrals {
 		self::log( $line . '.' );
 
 		return 'ignored:' . $reason;
+	}
+
+	/** `%s, %s, …` para el `IN` de {@see self::NETWORK_EARNING_TYPES}. */
+	private static function typePlaceholders(): string {
+		return implode( ', ', array_fill( 0, count( self::NETWORK_EARNING_TYPES ), '%s' ) );
 	}
 
 	private static function table(): string {

@@ -598,6 +598,81 @@ final class ReferralsTest extends TestCase
         $this->assertSame(2, $page['page']);
     }
 
+    public function test_network_totals_count_levels_pending_and_points_generated(): void
+    {
+        \HWE_Loyalty_Referrals::setReferrer(self::REFERRED, self::REFERRER);
+        \HWE_Loyalty_Referrals::setReferrer(self::OTHER, self::REFERRER);
+        \HWE_Loyalty_Referrals::setReferrer(self::REFERRER, self::GRANDPARENT);
+
+        // La red de GRANDPARENT: N1 = REFERRER; N2 = REFERRED y OTHER. Los abonos con
+        // referencia a un miembro de la red son lo «generado»; el cashback (pedido) no cuenta.
+        \HWE_Loyalty_Ledger::credit(
+            self::GRANDPARENT,
+            15,
+            'referral_commission_l2',
+            'test:totals:1',
+            ['type' => 'user', 'id' => self::REFERRED]
+        );
+        \HWE_Loyalty_Ledger::credit(
+            self::GRANDPARENT,
+            5,
+            'referral_commission_l2',
+            'test:totals:2',
+            ['type' => 'user', 'id' => self::OTHER]
+        );
+        \HWE_Loyalty_Ledger::credit(
+            self::GRANDPARENT,
+            7,
+            'cashback',
+            'test:totals:3',
+            ['type' => 'order', 'id' => 55]
+        );
+        \HWE_Loyalty_Ledger::credit(
+            self::REFERRER,
+            9,
+            'cashback',
+            'test:totals:4',
+            ['type' => 'user', 'id' => self::REFERRED]
+        );
+
+        $this->assertSame(
+            ['level1' => 1, 'level2' => 2, 'pending' => 3, 'earned' => 20],
+            \HWE_Loyalty_Referrals::networkTotals(self::GRANDPARENT)
+        );
+        $this->assertSame(
+            ['level1' => 0, 'level2' => 0, 'pending' => 0, 'earned' => 0],
+            \HWE_Loyalty_Referrals::networkTotals(self::MISSING)
+        );
+    }
+
+    public function test_network_points_generated_ignore_transfers_from_the_network(): void
+    {
+        \HWE_Loyalty_Referrals::setReferrer(self::REFERRED, self::REFERRER);
+        \HWE_Loyalty_Referrals::setReferrer(self::REFERRER, self::GRANDPARENT);
+
+        \HWE_Loyalty_Ledger::credit(
+            self::REFERRER,
+            30,
+            'referral_commission_l1',
+            'test:generated:1',
+            ['type' => 'user', 'id' => self::REFERRED]
+        );
+        // Una transferencia también referencia al usuario que la envía, pero no la «genera la
+        // red»: no puede contar como comisión ni en la lista ni en los totales.
+        \HWE_Loyalty_Ledger::credit(
+            self::REFERRER,
+            500,
+            'transfer_in',
+            'test:generated:2',
+            ['type' => 'user', 'id' => self::REFERRED]
+        );
+
+        $level1 = \HWE_Loyalty_Referrals::network(self::REFERRER, 1, 1, 10);
+        $byUser = array_column($level1['items'], null, 'user_id');
+        $this->assertSame(30, $byUser[self::REFERRED]['points_generated']);
+        $this->assertSame(30, \HWE_Loyalty_Referrals::networkTotals(self::REFERRER)['earned']);
+    }
+
     // ── Administración ───────────────────────────────────────────────────────
 
     public function test_set_code_validates_the_format_and_uniqueness(): void
@@ -841,15 +916,51 @@ final class TestReferralsWpdb
         $this->queries[] = $sql;
         $args = $this->args($sql);
 
-        if (str_contains($sql, 'COALESCE(SUM')) {
+        if (str_contains($sql, 'r.status = %s')) {
+            $status = (string) ($args[0] ?? '');
+            $userId = (int) ($args[1] ?? 0);
+            $count  = 0;
+            foreach ($this->referrals as $row) {
+                if ((string) ($row['status'] ?? '') !== $status) {
+                    continue;
+                }
+                $referrer = null === $row['referrer_id'] ? null : (int) $row['referrer_id'];
+                if ($referrer === $userId || $this->parentOf($referrer) === $userId) {
+                    $count++;
+                }
+            }
+            return $count;
+        }
+
+        if (str_contains($sql, 'CAST(l.ref_id AS UNSIGNED)')) {
             $userId  = (int) ($args[0] ?? 0);
             $refType = (string) ($args[1] ?? '');
-            $refId   = (string) ($args[2] ?? '');
+            $members = array_map('strval', $this->networkMembers($userId));
+            $types   = array_map('strval', array_slice($args, 4));
             $sum     = 0;
             foreach ($this->ledger as $row) {
                 if ((int) $row['user_id'] === $userId
                     && (int) $row['points'] > 0
                     && (string) ($row['ref_type'] ?? '') === $refType
+                    && ([] === $types || in_array((string) $row['type'], $types, true))
+                    && in_array((string) ($row['ref_id'] ?? ''), $members, true)) {
+                    $sum += (int) $row['points'];
+                }
+            }
+            return $sum;
+        }
+
+        if (str_contains($sql, 'COALESCE(SUM')) {
+            $userId  = (int) ($args[0] ?? 0);
+            $refType = (string) ($args[1] ?? '');
+            $refId   = (string) ($args[2] ?? '');
+            $types   = array_map('strval', array_slice($args, 3));
+            $sum     = 0;
+            foreach ($this->ledger as $row) {
+                if ((int) $row['user_id'] === $userId
+                    && (int) $row['points'] > 0
+                    && (string) ($row['ref_type'] ?? '') === $refType
+                    && ([] === $types || in_array((string) $row['type'], $types, true))
                     && (string) ($row['ref_id'] ?? '') === $refId) {
                     $sum += (int) $row['points'];
                 }
@@ -970,6 +1081,29 @@ final class TestReferralsWpdb
             }
         }
         return null;
+    }
+
+    /** @return list<int> Miembros de la red directa y de segundo nivel. */
+    private function networkMembers(int $userId): array
+    {
+        $members = [];
+        foreach ($this->referrals as $row) {
+            $referrer = null === $row['referrer_id'] ? null : (int) $row['referrer_id'];
+            if ($referrer === $userId || $this->parentOf($referrer) === $userId) {
+                $members[] = (int) $row['user_id'];
+            }
+        }
+        return $members;
+    }
+
+    /** Referidor de un usuario, para resolver el segundo nivel. */
+    private function parentOf(?int $userId): ?int
+    {
+        if (null === $userId) {
+            return null;
+        }
+        $row = $this->referralForUser($userId);
+        return null === $row || null === $row['referrer_id'] ? null : (int) $row['referrer_id'];
     }
 
     private function referralIdForUser(int $userId): ?int

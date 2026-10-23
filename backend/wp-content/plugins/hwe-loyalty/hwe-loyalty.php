@@ -34,8 +34,10 @@
  * pedido de la Store API (fee negativo, confirmación contra el libro, devolución y pago
  * completo con puntos) y las transferencias entre usuarios por código de referido (mínimo,
  * comisión redondeada hacia arriba, tope diario y cargo/comisión/abono en una sola
- * transacción, con su ruta interna). La administración y las rutas del BFF llegan en las
- * siguientes tareas del módulo (ver README.md y MANUAL.md de esta carpeta).
+ * transacción, con su ruta interna), y las rutas internas de lectura que consume el BFF
+ * (resumen del monedero, movimientos paginados y red de referidos con sus totales). La
+ * administración y las rutas del BFF llegan en las siguientes tareas del módulo (ver README.md
+ * y MANUAL.md de esta carpeta).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -58,6 +60,7 @@ require_once __DIR__ . '/includes/Redemption.php';
 require_once __DIR__ . '/includes/Transfers.php';
 require_once __DIR__ . '/includes/Rest/ReferralRoutes.php';
 require_once __DIR__ . '/includes/Rest/TransferRoutes.php';
+require_once __DIR__ . '/includes/Rest/ReadRoutes.php';
 
 final class HWE_Loyalty {
 
@@ -82,6 +85,7 @@ final class HWE_Loyalty {
 		HWE_Loyalty_Redemption::register();
 		HWE_Loyalty_TransferRoutes::register();
 		HWE_Loyalty_ReferralRoutes::register();
+		HWE_Loyalty_ReadRoutes::register();
 	}
 
 	/** Aviso en wp-admin si el plugin se activó sin WooCommerce (la cabecera ya lo impide). */

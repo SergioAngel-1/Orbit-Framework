@@ -73,6 +73,54 @@ se usan los defaults de `HWE_Loyalty_Settings::DEFAULTS` y nada falla.
 - Con el módulo apagado, los lectores deben devolver vacío y las rutas del BFF responder 404.
   Esta parte se implementa en las siguientes tareas.
 
+## Rutas internas de lectura (`hwe/v1/loyalty/…`)
+
+Las consume **solo el BFF**, con `X-HWE-Internal-Secret`; `hwe-bff-only` cierra todo
+`/hwe/v1/loyalty/` y el `user_id` sale siempre de la sesión verificada, nunca del navegador.
+Con el módulo o el interruptor de la función apagados responden `404 rest_no_route`.
+
+| Ruta | Guarda | Devuelve |
+|---|---|---|
+| `GET loyalty/summary?user_id` | Puntos | `{ participant, balance, earned, used, expiring: { points, date } }`. El aviso de caducidad mira 30 días (spec §5.3). |
+| `GET loyalty/transactions?user_id&page&per_page` | Puntos | `{ items: [{ id, type, points, data, created_at, expires_at }], total, pages }`, del más nuevo al más antiguo. `per_page` por defecto 20, mínimo 1 y tope 100; `pages = ceil(total / per_page)`. |
+| `GET loyalty/referrals?user_id&level=1\|2&page&per_page` | Referidos | `{ items: [{ name, date, status, points_generated }], total, pages, totals: { level1, level2, pending, earned } }`. `level` por defecto 1; fuera de `1\|2`, 400. |
+
+Decisiones de contrato:
+
+- **Sin `user_id` válido (> 0), 400** `{ error: "invalid_request" }`. Un usuario inexistente o con
+  un rol que no participa **no** es un error: `summary` responde `participant: false` con ceros y
+  las dos listas van vacías. Así la ruta no sirve para enumerar cuentas.
+- **`level=2` con `level2_enabled` apagado**: 200 con `items` vacío, no 404. La ruta sigue
+  existiendo y `totals` conserva el histórico de la red (la guarda de la función es
+  `referralsActive()`).
+- **Red sin datos personales**: cada referido lleva solo `name` (nombre visible), `date`, `status`
+  y `points_generated`; nunca `user_id`, email ni login. Una cuenta eliminada deja `name` vacío.
+- **Fechas** en ISO 8601 UTC (`2026-10-22T10:00:00Z`); `date`/`expires_at` pueden ser `null`.
+- **`totals.earned`** son los puntos que la red ha generado al referidor (abonos con referencia
+  `user` a un miembro de su red), la misma definición que `points_generated` por referido.
+
+### Dónde se compone el texto de un movimiento
+
+**En el BFF** (Tarea 13, `lib/loyalty/describe.ts`), no en WordPress: así sigue el idioma de la
+petición con `messages/` y su paridad de idiomas, y el backend no guarda descripciones con el
+nombre de la unidad (spec §5.1). `transactions` devuelve `type` + `data` estructurado; este es el
+contrato de `data` por tipo (lista blanca: un tipo desconocido, p. ej. añadido por
+`hwe_loyalty_entry_types`, viaja con `data` vacía):
+
+| `type` | Claves de `data` |
+|---|---|
+| `cashback`, `referral_commission_l1`, `referral_commission_l2`, `referral_product_bonus` | `order` (entero) |
+| `redeem` | `order`, `discount` (importe como texto) |
+| `redeem_refund`, `earn_reversal` | `order`; `earn_reversal` añade `original_type` |
+| `referral_signup_l1`, `referral_signup_l2`, `registration`, `expire` | sin claves |
+| `review` | `source` (`product` \| `site`) |
+| `birthday` | `year` |
+| `transfer_out`, `transfer_fee`, `transfer_in` | `counterpart_name` (nombre visible de la otra parte) y `fee`; **nunca** su id, email o login |
+| `admin_credit`, `admin_debit` | `note` (la nota libre del ajuste, si existe) |
+
+El texto de un ajuste manual puede mostrar su nota porque pertenece al propio usuario; las notas
+privadas de pedido del libro no salen por esta ruta. `data` no lleva ids de terceros.
+
 ## Pruebas
 
 `backend/tests/Unit/Loyalty/SettingsTest.php` (PHPUnit + Brain Monkey): el esquema puebla el
@@ -87,3 +135,4 @@ roles. La paridad de defaults en TypeScript la fija
 |---|---|
 | `hwe-loyalty.php` | Arranque, comprobación de WooCommerce y carga de `includes/`. |
 | `includes/Settings.php` | Esquema del grupo `loyalty` y lectura saneada de los ajustes. |
+| `includes/Rest/ReadRoutes.php` | Rutas internas de lectura del monedero y la red (`hwe/v1/loyalty/{summary,transactions,referrals}`) para el BFF. |
