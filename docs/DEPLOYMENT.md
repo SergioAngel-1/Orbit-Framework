@@ -23,6 +23,14 @@ Internet
 - El BFF (Next.js) llama a WordPress por la red interna Docker, sin pasar por Caddy.
 - Solo Caddy tiene puertos públicos (80 y 443).
 
+**Redes.** El compose de producción separa tres capas: `edge` (Caddy ↔ frontend),
+`app` (Caddy ↔ frontend ↔ WordPress, con salida a Internet para WordPress, el BFF y
+wp-cli/wp-cron) y `data`, **interna**: solo db, redis y sus consumidores. Caddy no está
+en `data`, así que no puede resolver ni alcanzar `db:3306` o `redis:6379`; un contenedor
+comprometido en la capa pública no llega a la base de datos ni al Redis que guarda
+revocaciones, rate-limit e idempotencia. Lo fijan `docker-compose.prod.yml` y
+`frontend/tests/unit/deploy-config.test.ts`.
+
 ---
 
 ## Opción A — VPS con Docker Compose (recomendada)

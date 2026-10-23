@@ -23,6 +23,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   (>1 MB con WooCommerce y arranque PHP completo cada 30 s) y pasa al endpoint ligero que ya
   usaba desarrollo (`/wp-json/wp/v2/categories?per_page=1`). Caddy estrena sonda propia contra
   su API de administración (loopback).
+- **Segmentación de red y ciclo de vida en producción.** La pila compartía una única red plana:
+  Caddy podía resolver y alcanzar `db:3306` y `redis:6379`, y cualquier contenedor comprometido
+  llegaba a la base de datos y al Redis de revocaciones, rate-limit e idempotencia. Ahora hay tres
+  capas (`edge`, `app`, `data`), `data` es **interna** y Caddy no está en ella; WordPress, el
+  frontend y wp-cli/wp-cron conservan salida a Internet por `app` (pasarelas, webhooks, SMTP,
+  descargas de `setup.sh`). Además: `init: true` y `stop_grace_period` (adiós al SIGKILL con
+  peticiones en vuelo), `cpus`/`pids` acotados, Caddy con 256 MB y `GOMEMLIMIT`, `db` con
+  `start_period` (el primer `up` ya no falla), y arranque por `service_started` en vez de
+  `service_healthy` para que un WordPress lento no impida servir el sitio cacheado.
 
 ### Security
 - **Los límites de GraphQL no se aplicaban.** `graphql-protection.php` enganchaba

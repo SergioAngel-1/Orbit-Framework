@@ -137,6 +137,70 @@ describe("docker-compose.prod.yml", () => {
   });
 });
 
+describe("docker-compose.prod.yml: segmentación de red", () => {
+  /** Redes de un servicio (`networks:` → lista de items). */
+  function networksOf(block: string): string[] {
+    const list = block.match(/\n {4}networks:\n((?: {6}- *\w+\n)+)/);
+    return list ? [...list[1]!.matchAll(/- *(\w+)/g)].map((m) => m[1]!) : [];
+  }
+
+  it("la capa de datos es interna: ni Caddy ni el resto de la pila sale por ella", () => {
+    expect(prod).toMatch(/\n {2}data:\n {4}driver: bridge\n {4}internal: true/);
+  });
+
+  it("Caddy NO está en `data`: no puede resolver ni alcanzar db ni redis", () => {
+    const networks = networksOf(service(prod, "caddy"));
+
+    expect(networks).toContain("edge");
+    expect(networks).toContain("app");
+    expect(networks).not.toContain("data");
+  });
+
+  it("db y redis viven SOLO en `data` (red interna, sin salida a Internet)", () => {
+    for (const name of ["db", "redis"]) {
+      expect(networksOf(service(prod, name)), name).toEqual(["data"]);
+    }
+  });
+
+  it("WordPress, el frontend y wp-cli conservan salida a Internet", () => {
+    // WordPress: SMTP, actualizaciones de plugins y webhooks salientes.
+    // Frontend: pasarelas de pago y Sentry. wp-cli: `setup.sh` descarga WP y plugins.
+    for (const name of ["wordpress", "frontend", "wpcli", "wp-cron"]) {
+      const networks = networksOf(service(prod, name));
+      expect(networks, name).toContain("data");
+      expect(
+        networks.some((n) => n !== "data"),
+        name,
+      ).toBe(true);
+    }
+  });
+
+  it("WordPress y el frontend se hablan por `app` y Caddy llega a los dos", () => {
+    for (const name of ["wordpress", "frontend"]) {
+      expect(networksOf(service(prod, name)), name).toContain("app");
+    }
+    expect(networksOf(service(prod, "caddy"))).toContain("edge");
+  });
+});
+
+describe("docker-compose.prod.yml: ciclo de vida y recursos", () => {
+  it("los servicios con estado reciben SIGTERM y tienen tiempo para cerrar", () => {
+    // Sin `init`, Node es PID 1 y no reapea zombis; sin `stop_grace_period`,
+    // Docker espera 10 s y manda SIGKILL con peticiones en vuelo (y un bgsave de
+    // Redis o la caché de Next a medio escribir).
+    for (const name of ["frontend", "wordpress", "db", "redis", "caddy"]) {
+      const block = service(prod, name);
+      expect(block, name).toContain("init: true");
+      expect(block, name).toMatch(/stop_grace_period: \d+s/);
+    }
+  });
+
+  it("Caddy tiene margen de memoria para HTTP/3 y un límite de GC explícito", () => {
+    expect(service(prod, "caddy")).toContain("memory: 256m");
+    expect(service(prod, "caddy")).toContain('GOMEMLIMIT: "100MiB"');
+  });
+});
+
 describe("docker-compose.prod.yml: la base de datos no se pierde por descuido", () => {
   const envProd = root(".env.prod.example");
 

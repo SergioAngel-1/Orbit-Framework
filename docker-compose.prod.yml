@@ -6,9 +6,9 @@
 #    ✔ Frontend usa imagen pre-construida standalone (sin volúmenes de código).
 #    ✔ WordPress y Redis sin puertos expuestos al host (solo acceso via Caddy).
 #    ✔ WORDPRESS_DEBUG=0, WP_ENVIRONMENT_TYPE=production.
-#    ✔ Límites de memoria por servicio.
+#    ✔ Límites de memoria/CPU/procesos por servicio y una red interna para db/redis.
 #    ✔ Servicio `backup` con cron diario (03:00 UTC).
-#    ✔ WordPress con healthcheck real (REST API).
+#    ✔ WordPress con healthcheck real (endpoint ligero, no /wp-json/).
 #    ✔ Hardening: `security_opt: no-new-privileges` en todos los servicios.
 #
 #  Endurecimiento adicional recomendado (según tu plataforma; puede requerir
@@ -18,6 +18,10 @@
 #      su init/Apache necesita capacidades; endurécelos tras probar en staging.
 #    - `read_only: true` + `tmpfs` APLICADO a redis. No se aplica a frontend
 #      (caché ISR) ni a WordPress (escribe en disco) por defecto.
+#    - Redes: `data` es INTERNA (sin salida a Internet) y solo la comparten
+#      db, redis y sus consumidores; Caddy vive en `edge`+`app` y no puede
+#      alcanzarla. WordPress, el frontend y wp-cli conservan salida por `app`
+#      (SMTP, pasarelas, webhooks, descargas de setup.sh): no los muevas a `data`.
 #    - Fijar imágenes por DIGEST (image: repo@sha256:...) para builds reproducibles.
 #    - Restore PROBADO con backend/scripts/restore.sh (ver docs/RUNBOOK.md).
 #
@@ -86,11 +90,18 @@ services:
       # el sitio del panel lo define caddy/conf.d/admin.caddy (ver caddy/README.md).
       ADMIN_DOMAIN:  "${ADMIN_DOMAIN:-}"
       ACME_EMAIL:    "${ACME_EMAIL:?ACME_EMAIL must be set}"
+      # Red de seguridad del runtime Go: si el proceso se acerca al límite del
+      # contenedor, el GC aprieta ANTES de que el kernel lo mate.
+      GOMEMLIMIT: "100MiB"
     depends_on:
+      # `service_started`, no `healthy`: el BFF está diseñado para degradar
+      # (catálogo cacheado, rate-limit fail-open) y Caddy tiene `lb_try_duration`,
+      # así que un WordPress lento no debe impedir arrancar el sitio entero. La
+      # readiness real la exige el gate del despliegue (`?ready=1`).
       frontend:
-        condition: service_healthy
+        condition: service_started
       wordpress:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       # La API de administración escucha solo en loopback y no toca el sitio:
       # comprueba que Caddy está vivo y ha cargado su configuración, sin
@@ -100,12 +111,20 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
+    # `edge` la comunica con el frontend; `app` con WordPress (panel, REST y
+    # medios). NO está en `data`: Caddy no puede resolver ni alcanzar `db` ni
+    # `redis` — el aislamiento es de red, no solo de aplicación.
     networks:
-      - hwe_net
+      - edge
+      - app
+    init: true
+    stop_grace_period: 30s
     deploy:
       resources:
         limits:
-          memory: 128m
+          memory: 256m
+          cpus: "1"
+          pids: 512
 
   # ── Base de datos ──────────────────────────────────────────────────────────
   db:
@@ -135,13 +154,27 @@ services:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
+      # El init de MariaDB sobre un volumen vacío puede tardar más que los
+      # reintentos: sin `start_period`, el primer `up` fallaba por
+      # `depends_on: service_healthy` y había que repetirlo.
+      start_period: 60s
       retries: 10
+    # Solo en `data` (interna): la base de datos no necesita —ni debe tener—
+    # salida a Internet, y Caddy no puede alcanzarla.
     networks:
-      - hwe_net
+      - data
+    init: true
+    stop_grace_period: 60s
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     deploy:
       resources:
         limits:
           memory: 512m
+          cpus: "2"
+          pids: 512
 
   # ── WordPress headless ──────────────────────────────────────────────────────
   # Puerto 8080 NO expuesto al host: solo accesible via Caddy en la red interna.
@@ -240,12 +273,20 @@ services:
       timeout: 10s
       start_period: 90s
       retries: 5
+    # `app` para Caddy y para la salida a Internet que WordPress necesita
+    # (SMTP, actualizaciones de plugins, webhooks salientes); `data` para db y
+    # redis (red interna, sin ruta al exterior).
     networks:
-      - hwe_net
+      - app
+      - data
+    init: true
+    stop_grace_period: 30s
     deploy:
       resources:
         limits:
           memory: 512m
+          cpus: "2"
+          pids: 512
 
   # ── WP-CLI (primer arranque, bajo demanda) ─────────────────────────────────
   wpcli:
@@ -281,8 +322,12 @@ services:
     # Corre como 33:33 y no usa sudo/su: no necesita ganar privilegios.
     security_opt:
       - no-new-privileges:true
+    # `app` para que `setup.sh` pueda descargar WordPress, WooCommerce y los
+    # plugins (necesita Internet); `data` para hablar con db y redis.
     networks:
-      - hwe_net
+      - app
+      - data
+    init: true
 
   # ── Redis (caché de objetos WP + rate-limit BFF) ────────────────────────────
   redis:
@@ -319,12 +364,22 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
+    # Solo en `data` (interna): nadie fuera del stack la alcanza y ella no sale.
     networks:
-      - hwe_net
+      - data
+    init: true
+    # Margen para que termine el `bgsave` en curso antes del SIGKILL.
+    stop_grace_period: 30s
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     deploy:
       resources:
         limits:
           memory: 256m
+          cpus: "1"
+          pids: 256
 
   # ── Frontend (Next.js standalone — imagen pre-construida) ───────────────────
   # Puerto 3000 NO expuesto al host: Caddy es el punto de entrada público.
@@ -340,7 +395,7 @@ services:
       # config por defecto y ISR regenera las páginas con el contenido real al
       # primer acceso (sin pila de WordPress en el build es el modo normal). Si
       # quieres que el build prerenderice contra WordPress, pon aquí el nombre REAL
-      # de la red (`<proyecto>_hwe_net`, sin prefijo automático en `build.network`)
+      # de la red (`<proyecto>_app`, sin prefijo automático en `build.network`)
       # y construye con el builder clásico (`DOCKER_BUILDKIT=0`), el único que
       # admite una red por nombre.
       args:
@@ -365,10 +420,13 @@ services:
     cap_drop:
       - ALL
     depends_on:
+      # `service_started`: el frontend sabe servir catálogo cacheado y degradar
+      # si WordPress/Redis aún no están listos; bloquear su arranque convertía un
+      # WordPress lento en un sitio entero caído. La readiness la exige el CD.
       wordpress:
-        condition: service_healthy
+        condition: service_started
       redis:
-        condition: service_healthy
+        condition: service_started
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_SITE_URL:             "https://${PUBLIC_DOMAIN}"
@@ -422,11 +480,19 @@ services:
       start_period: 40s
       retries: 3
     networks:
-      - hwe_net
+      # `edge` para Caddy, `app` para WordPress y `data` para db/redis. Sale a
+      # Internet por `edge` (pasarelas de pago, Sentry, webhooks salientes).
+      - edge
+      - app
+      - data
+    init: true
+    stop_grace_period: 30s
     deploy:
       resources:
         limits:
           memory: 512m
+          cpus: "2"
+          pids: 512
 
   # ── WP-Cron (eventos programados de WordPress y de los plugins) ─────────────
   # `DISABLE_WP_CRON` está activo en `wordpress`: este servicio ejecuta por WP-CLI
@@ -471,14 +537,20 @@ services:
           wp cron event run --due-now --allow-root --quiet 2>&1 | sed 's/^/[wp-cron] /'
           sleep 60
         done
+    # `app` porque algunos eventos hacen peticiones salientes (webhooks de
+    # pasarela, ERP) y `data` para db/redis.
     networks:
-      - hwe_net
+      - app
+      - data
+    init: true
     # Trabajo de fondo: cede ante el tráfico.
     cpu_shares: 256
     deploy:
       resources:
         limits:
           memory: 256m
+          cpus: "1"
+          pids: 256
 
   # ── Backup cron (diario 03:00 UTC) ──────────────────────────────────────────
   backup:
@@ -520,12 +592,17 @@ services:
       BACKUP_HOUR_UTC:     "${BACKUP_HOUR_UTC:-3}"
       HWE_BACKUP_LOCK_MAX_AGE_MIN: "${HWE_BACKUP_LOCK_MAX_AGE_MIN:-360}"
     entrypoint: ["/bin/sh", "/opt/hwe/scripts/backup-entrypoint.sh"]
+    # Solo en `data`: habla con `db`, escribe en ./backups y no necesita Internet
+    # (el envío cifrado fuera del servidor, si se configura, es un cron del host).
     networks:
-      - hwe_net
+      - data
+    init: true
     deploy:
       resources:
         limits:
           memory: 128m
+          cpus: "1"
+          pids: 256
 
 # ── Volúmenes ──────────────────────────────────────────────────────────────────
 volumes:
@@ -552,7 +629,23 @@ volumes:
   caddy_config:
     driver: local
 
-# ── Red interna ────────────────────────────────────────────────────────────────
+# ── Redes ─────────────────────────────────────────────────────────────────────
+# Tres capas en vez de una red plana. Antes, Caddy podía resolver y alcanzar
+# `db:3306` y `redis:6379`, y cualquier contenedor comprometido llegaba a la base
+# de datos y al Redis que guarda revocaciones, rate-limit e idempotencia.
+#
+#   edge : Caddy ↔ frontend (tráfico HTTP interno).
+#   app  : Caddy ↔ frontend ↔ WordPress, y salida a Internet de WordPress, del
+#          BFF (pasarelas de pago, Sentry) y de wp-cli/wp-cron (descargas,
+#          webhooks salientes). NO es interna a propósito: sin salida, `setup.sh`
+#          no podría descargar WordPress/plugins y las pasarelas no responderían.
+#   data : INTERNA (sin ruta al exterior). Solo db, redis y sus consumidores.
+#          Caddy no está aquí, así que no puede alcanzar la capa de datos.
 networks:
-  hwe_net:
+  edge:
     driver: bridge
+  app:
+    driver: bridge
+  data:
+    driver: bridge
+    internal: true
