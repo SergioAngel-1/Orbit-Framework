@@ -2,24 +2,27 @@
 
 namespace HWE\Shipping;
 
+use HWE\Shipping\Rates\City;
 use HWE\Shipping\Rates\Cities;
 
 /**
  * Envío gratis por regla: mínimo de compra + alcance (categorías/productos) +
- * ciudades.
+ * ciudades y opciones de entrega.
  *
  * La REGLA no vive en este plugin: la entrega quien la administre por el
  * filtro `hwe_shipping_free_rule` (HWE Control Center → Tienda → Envío gratis),
  * con la forma
- * `{ enabled, min_amount, categories: slug[], products: slug[] }`. Las
- * CIUDADES sí son de aquí: una ciudad admite el envío gratis si alguna de sus
- * opciones de entrega lo marca (`Cities`).
+ * `{ enabled, min_amount, categories: slug[], products: slug[] }`. Lo que es de
+ * aquí es QUÉ opciones de entrega lo admiten: el envío gratis se marca por
+ * opción (`freeEligible`), no por ciudad. Una ciudad es elegible si alguna de
+ * sus opciones lo marca, y la regla deja a 0 solo las tarifas de esas opciones
+ * (`hwe_city_rate:<optionId>`); las demás se cobran y la reserva nunca es gratis.
  *
  * Una sola función (`evaluate`) decide, y la usan los dos consumidores:
- *   - `applyToRates`: pone a 0 las tarifas del paquete (lo que se cobra).
+ *   - `applyToRates`: pone a 0 las tarifas de las opciones marcadas (lo que se cobra).
  *   - la extensión `hwe_free_shipping` del carrito de la Store API: el estado
- *     ya calculado («te faltan $X»), para que el frontend no reimplemente la
- *     regla.
+ *     ya calculado («te faltan $X») y los ids de tarifa que la regla deja a 0
+ *     (`rate_ids`), para que el frontend no reimplemente la regla.
  *
  * Qué suma para el mínimo: los artículos del alcance que necesitan envío, por
  * su importe YA descontado (cupones). Si la suma llega, es gratis el envío de
@@ -61,13 +64,41 @@ class FreeShipping {
 			)
 			: __( 'Regla de envío gratis de la tienda', 'hwe-shipping' );
 
+		// Solo las opciones marcadas de la ciudad de destino. La decisión del envío ya dice cuál es la
+		// ciudad: no se vuelve a resolver aquí.
+		$free = self::freeRateIds( ShippingStatus::decide( $package )['city'] );
+
 		foreach ( $rates as $rate ) {
+			if ( ! in_array( $rate->get_id(), $free, true ) ) {
+				continue;
+			}
 			$rate->set_cost( 0 );
 			$rate->set_taxes( [] );
 			$rate->add_meta_data( __( 'Envío gratis', 'hwe-shipping' ), $reason );
 		}
 
 		return $rates;
+	}
+
+	/**
+	 * Ids de tarifa (`hwe_city_rate:<optionId>`) de las opciones de la ciudad que aplican envío gratis.
+	 * Sin ciudad (sin registro, fuera del país, sin dirección) no hay ninguna: la reserva nunca es gratis.
+	 *
+	 * @return string[]
+	 */
+	public static function freeRateIds( ?City $city ): array {
+		if ( null === $city ) {
+			return [];
+		}
+
+		$ids = [];
+		foreach ( $city->options() as $option ) {
+			if ( $option->isFreeEligible() ) {
+				$ids[] = CityRateMethod::ID . ':' . $option->id();
+			}
+		}
+
+		return $ids;
 	}
 
 	/**
@@ -350,15 +381,19 @@ class FreeShipping {
 		$cart     = function_exists( 'WC' ) ? WC()->cart : null;
 		$customer = function_exists( 'WC' ) ? WC()->customer : null;
 
-		$state = self::evaluate(
-			$cart ? $cart->get_cart() : [],
-			$customer ? (string) $customer->get_shipping_country() : '',
-			$customer ? (string) $customer->get_shipping_city() : ''
-		);
+		$country = $customer ? (string) $customer->get_shipping_country() : '';
+		$city    = $customer ? (string) $customer->get_shipping_city() : '';
+
+		$state = self::evaluate( $cart ? $cart->get_cart() : [], $country, $city );
 
 		foreach ( [ 'threshold', 'eligible_subtotal', 'remaining' ] as $key ) {
 			$state[ $key ] = self::toMinorUnits( $state[ $key ] );
 		}
+
+		// Las tarifas que la regla deja a 0 en este destino (vacío si la regla no se cumple). La ciudad
+		// sale de la misma decisión que el método de envío, sobre el primer paquete del carrito.
+		$package           = $state['qualifies'] ? StoreApiExtension::firstPackage() : null;
+		$state['rate_ids'] = null === $package ? [] : self::freeRateIds( ShippingStatus::decide( $package )['city'] );
 
 		return $state;
 	}
@@ -384,6 +419,13 @@ class FreeShipping {
 			'eligible_subtotal' => $money( 'Suma de los artículos que cuentan para el mínimo, en unidades menores.' ),
 			'remaining'         => $money( 'Lo que falta para el mínimo, en unidades menores.' ),
 			'qualifies'         => $flag( 'El pedido ya tiene envío gratis.' ),
+			'rate_ids'          => [
+				'description' => 'Ids de las tarifas (hwe_city_rate:<optionId>) que la regla deja a 0 en este carrito.',
+				'type'        => 'array',
+				'items'       => [ 'type' => 'string' ],
+				'context'     => [ 'view', 'edit' ],
+				'readonly'    => true,
+			],
 			'city'              => [
 				'description' => 'Si la ciudad de destino admite envío gratis.',
 				'type'        => 'string',

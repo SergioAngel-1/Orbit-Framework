@@ -46,6 +46,8 @@ class Plugin {
 		);
 		ShippingCost::register();
 		FreeShipping::register();
+		StoreApiExtension::register();
+		PublicConfig::register();
 		SettingsSchema::register();
 		ReserveZone::register();
 	}

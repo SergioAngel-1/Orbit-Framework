@@ -57,6 +57,30 @@ final class RestApiTest extends TestCase
         $this->assertSame(0, $this->publicConfig()['ecommerce']['price_decimals']);
     }
 
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testLosModulosAnadenSusValoresConElFiltroDeLaConfigPublica(): void {
+        Functions\when('apply_filters')->alias(
+            static fn (string $hook, mixed $value): mixed => 'hwe_control_center_public_config' === $hook
+                ? array_merge($value, ['shipping' => ['distance_enabled' => true]])
+                : $value
+        );
+
+        $this->assertTrue($this->publicConfig()['shipping']['distance_enabled']);
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testUnFiltroQueNoDevuelveUnaConfigValidaNoCambiaNada(): void {
+        Functions\when('apply_filters')->alias(
+            static fn (string $hook, mixed $value): mixed => 'hwe_control_center_public_config' === $hook ? null : $value
+        );
+        $before = $this->publicConfig();
+
+        $this->assertArrayHasKey('modules', $before);
+        $this->assertArrayNotHasKey('distance_enabled', $before['shipping'] ?? []);
+    }
+
     public function testWithoutASiteIconTheBrandIconIsNull(): void {
         $this->assertNull($this->publicConfig()['brand']['icon_url']);
     }

@@ -19,6 +19,11 @@ if (!class_exists('WC_Shipping_Rate')) {
         {
         }
 
+        public function get_id(): string
+        {
+            return $this->id;
+        }
+
         public function set_cost($cost): void
         {
             $this->cost = (float) $cost;

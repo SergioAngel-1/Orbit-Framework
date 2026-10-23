@@ -12,8 +12,8 @@ namespace HWE\Shipping;
  * ShippingCost (server-side, dentro de WooCommerce) — el checkout nunca
  * necesita pedirlo, porque la Store API ya devuelve el coste correcto en
  * `shipping_rates`. `/rates` solo expone los NOMBRES de ciudad con tarifa
- * configurada, para que el frontend pueda ofrecerlos como opciones en el
- * selector de ciudad del formulario de dirección (nunca el importe).
+ * configurada, con su tipo (`fixed` o `distance`), para que el frontend pueda ofrecerlos en el
+ * selector de ciudad y saber si debe pedir el pin (nunca el importe ni la referencia).
  */
 class RestApi {
 
@@ -80,18 +80,20 @@ class RestApi {
 		return new \WP_REST_Response( $out, 200 );
 	}
 
-	/** Nombres de ciudad (solo publicadas), ordenados alfabéticamente. Sin importe. */
+	/**
+	 * Ciudades con tarifa configurada, ordenadas por nombre normalizado, como `{ name, type }`. Sin importes,
+	 * ni referencias, ni las ciudades del modelo anterior (no tienen tarifa).
+	 */
 	public static function getRates( \WP_REST_Request $request ): \WP_REST_Response {
-		$posts = get_posts( [
-			'post_type'      => PostTypes::RATE_SLUG,
-			'post_status'    => 'publish',
-			'posts_per_page' => -1,
-			'orderby'        => 'title',
-			'order'          => 'ASC',
-			'fields'         => 'ids',
-		] );
+		$out = [];
+		foreach ( Rates\Cities::all() as $city ) {
+			$out[] = [
+				'name' => $city->name(),
+				'type' => $city->type(),
+			];
+		}
 
-		$out = array_map( 'get_the_title', $posts );
+		usort( $out, static fn ( array $a, array $b ): int => strcmp( ShippingCost::normalizeCity( $a['name'] ), ShippingCost::normalizeCity( $b['name'] ) ) );
 
 		return new \WP_REST_Response( $out, 200 );
 	}
