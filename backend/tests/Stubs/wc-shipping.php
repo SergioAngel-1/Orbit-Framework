@@ -11,6 +11,9 @@ if (!class_exists('WC_Shipping_Rate')) {
     {
         public array $meta = [];
         public array $taxes = [1];
+        public string $id = '';
+        public string $label = '';
+        public int $instance_id = 0;
 
         public function __construct(public string $method_id = 'flat_rate', public float $cost = 0.0)
         {
@@ -76,6 +79,67 @@ if (!class_exists('WC_Coupon')) {
     }
 }
 
+if (!class_exists('WC_Shipping_Method')) {
+    /**
+     * Lo mínimo de `WC_Shipping_Method` que usa el método propio: ser instanciable por
+     * WooCommerce con un id de instancia y acumular tarifas con `add_rate()`.
+     */
+    abstract class WC_Shipping_Method
+    {
+        public string $id = '';
+        public int $instance_id = 0;
+        public string $method_title = '';
+        public string $method_description = '';
+        public string $enabled = 'yes';
+        public string $title = '';
+        /** @var list<string> */
+        public array $supports = [];
+        /** @var array<string,WC_Shipping_Rate> */
+        public array $rates = [];
+
+        public function __construct($instance_id = 0)
+        {
+            $this->instance_id = (int) $instance_id;
+        }
+
+        public function calculate_shipping($package = []): void
+        {
+        }
+
+        public function add_rate($args = []): void
+        {
+            $id = (string) ($args['id'] ?? '');
+            $label = (string) ($args['label'] ?? '');
+            if ('' === $id || '' === $label) {
+                return;
+            }
+
+            $rate = new WC_Shipping_Rate((string) ($args['method_id'] ?? $this->id), (float) ($args['cost'] ?? 0));
+            $rate->id = $id;
+            $rate->label = $label;
+            $rate->instance_id = (int) ($args['instance_id'] ?? $this->instance_id);
+            $rate->taxes = (array) ($args['taxes'] ?? []);
+            foreach ((array) ($args['meta_data'] ?? []) as $key => $value) {
+                $rate->add_meta_data((string) $key, $value);
+            }
+            $this->rates[$id] = $rate;
+        }
+
+        public function get_rate_id($suffix = ''): string
+        {
+            $parts = [$this->id];
+            if ($this->instance_id) {
+                $parts[] = (string) $this->instance_id;
+            }
+            if ('' !== $suffix) {
+                $parts[] = (string) $suffix;
+            }
+
+            return implode(':', $parts);
+        }
+    }
+}
+
 if (!class_exists('WC_Shipping_Method_Fake')) {
     class WC_Shipping_Method_Fake
     {
@@ -136,6 +200,17 @@ if (!class_exists('WC_Shipping_Zone')) {
             $instance = self::$nextInstance++;
             $this->methods[] = new WC_Shipping_Method_Fake($type, $instance);
             return $instance;
+        }
+
+        public function delete_shipping_method($instance_id): bool
+        {
+            $before = count($this->methods);
+            $this->methods = array_values(array_filter(
+                $this->methods,
+                static fn (WC_Shipping_Method_Fake $method): bool => $method->instance_id !== (int) $instance_id
+            ));
+
+            return count($this->methods) < $before;
         }
 
         /** @return list<WC_Shipping_Method_Fake> */

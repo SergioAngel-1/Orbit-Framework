@@ -38,6 +38,12 @@ class Plugin {
 		}
 		Revalidation::register();
 		DeliveryPoint::register();
+		// Un cierre, no `[CityRateMethod::class, …]`: la clase extiende WC_Shipping_Method, que puede no
+		// estar cargado al arrancar (este plugin carga antes que WooCommerce); solo se toca al invocarlo.
+		add_filter(
+			'woocommerce_shipping_methods',
+			static fn ( array $methods ): array => CityRateMethod::registerMethod( $methods )
+		);
 		ShippingCost::register();
 		FreeShipping::register();
 		SettingsSchema::register();

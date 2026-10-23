@@ -8,7 +8,6 @@ use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use HWE\Shipping\FreeShipping;
 use HWE\Shipping\PostTypes;
-use HWE\Shipping\ReserveZone;
 use HWE\Shipping\SettingsSchema;
 use HWE\Shipping\RestApi;
 use HWE\Shipping\Revalidation;
@@ -474,15 +473,7 @@ final class ShippingTest extends TestCase
         $this->assertSame('shipping', json_decode($bodies[0], true)['tag']);
     }
 
-    // --- zona de reserva -------------------------------------------------------------------------
-
-    private function resetZones(): void
-    {
-        \WC_Shipping_Zone::$store = [];
-        \WC_Shipping_Zone::$nextId = 1;
-        \WC_Shipping_Zone::$nextInstance = 100;
-        \WC_Shipping_Zone::$saves = 0;
-    }
+    // --- esquema de la zona de reserva (su sincronización está en ReserveZoneTest) ----------------
 
     public function testElEsquemaDelControlCenterGanaLosCamposDeLaZonaDeReserva(): void
     {
@@ -500,84 +491,5 @@ final class ShippingTest extends TestCase
     {
         $this->assertSame('roto', SettingsSchema::schema('roto'));
         $this->assertSame(['a' => 1], SettingsSchema::schema(['a' => 1]));
-    }
-
-    public function testCreaLaZonaDeReservaConElPaisDeLaTiendaYElCosteConfigurado(): void
-    {
-        $this->resetZones();
-        $this->config = ['ecommerce' => ['country' => 'ES'], 'shipping' => ['reserve_name' => 'Envío península', 'reserve_cost' => '7']];
-
-        ReserveZone::sync();
-
-        $zone = \WC_Shipping_Zone::$store[1];
-        $this->assertSame('Envío península', $zone['name']);
-        $this->assertSame([['ES', 'country']], $zone['locations']);
-        $this->assertCount(1, $zone['methods']);
-        $this->assertSame('flat_rate', $zone['methods'][0]->id);
-        $settings = $this->options['woocommerce_flat_rate_100_settings'];
-        $this->assertSame(['title' => 'Envío península', 'tax_status' => 'none', 'cost' => '7'], $settings);
-        $this->assertSame(1, $this->options['hwe_shipping_reserve_zone_id']);
-    }
-
-    public function testSincronizarDosVecesNoDuplicaLaZonaNiElMetodo(): void
-    {
-        $this->resetZones();
-        $this->config = ['ecommerce' => ['country' => 'ES']];
-        ReserveZone::sync();
-
-        $this->config = ['ecommerce' => ['country' => 'PT'], 'shipping' => ['reserve_cost' => '9']];
-        ReserveZone::sync();
-
-        $this->assertCount(1, \WC_Shipping_Zone::$store);
-        $this->assertCount(1, \WC_Shipping_Zone::$store[1]['methods']);
-        $this->assertSame([['PT', 'country']], \WC_Shipping_Zone::$store[1]['locations'], 'sigue al país de la tienda');
-        $this->assertSame('9', $this->options['woocommerce_flat_rate_100_settings']['cost']);
-    }
-
-    public function testRespetaLosAjustesAjenosDelMetodoYSoloPisaLosSuyos(): void
-    {
-        $this->resetZones();
-        $this->options['woocommerce_flat_rate_100_settings'] = ['requires' => 'min_amount', 'cost' => '1'];
-        $this->config = ['ecommerce' => ['country' => 'ES']];
-        ReserveZone::sync();
-        // El método ya existía con id 100? No: la zona es nueva y crea el 100.
-        $settings = $this->options['woocommerce_flat_rate_100_settings'];
-
-        $this->assertSame('min_amount', $settings['requires']);
-        $this->assertSame('0', $settings['cost']);
-    }
-
-    public function testApagadaNoCreaNingunaZona(): void
-    {
-        $this->resetZones();
-        $this->config = ['ecommerce' => ['country' => 'ES'], 'shipping' => ['reserve_enabled' => false]];
-
-        ReserveZone::sync();
-
-        $this->assertSame([], \WC_Shipping_Zone::$store);
-    }
-
-    public function testSiLaZonaSeBorroSeCreaOtra(): void
-    {
-        $this->resetZones();
-        $this->options['hwe_shipping_reserve_zone_id'] = 55;
-        $this->config = ['ecommerce' => ['country' => 'ES']];
-
-        ReserveZone::sync();
-
-        $this->assertSame(1, $this->options['hwe_shipping_reserve_zone_id']);
-    }
-
-    public function testSinPaisNoCreaLaZonaYLoRegistra(): void
-    {
-        $this->resetZones();
-        $this->config = ['ecommerce' => ['country' => '']];
-        Functions\when('hwe_geo_store_country')->justReturn('');
-        Functions\when('wc_get_base_location')->justReturn(['country' => '']);
-
-        ReserveZone::sync();
-
-        $this->assertSame([], \WC_Shipping_Zone::$store);
-        $this->assertStringContainsString('[hwe] shipping:', $this->logged[0]);
     }
 }

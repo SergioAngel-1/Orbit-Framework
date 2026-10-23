@@ -17,17 +17,15 @@ final class Pricing {
 	 * es un error de programación (el método de envío no debería llegar aquí sin distancia).
 	 */
 	public static function cost( DeliveryOption $option, ?float $km ): float {
-		$decimals = function_exists( 'wc_get_price_decimals' ) ? (int) wc_get_price_decimals() : 2;
-
 		if ( null !== $option->amount() ) {
-			return round( $option->amount(), $decimals );
+			return self::round( $option->amount() );
 		}
 
 		if ( null === $option->pricePerKm() || null === $km ) {
 			throw new \LogicException( 'Una opción por distancia necesita precio por km y distancia.' );
 		}
 
-		$cost = round( $km * $option->pricePerKm(), $decimals );
+		$cost = self::round( $km * $option->pricePerKm() );
 		if ( $option->minCost() > 0 && $cost < $option->minCost() ) {
 			$cost = $option->minCost();
 		}
@@ -35,6 +33,13 @@ final class Pricing {
 			$cost = $option->maxCost();
 		}
 
-		return round( $cost, $decimals );
+		return self::round( $cost );
+	}
+
+	/** Redondea a los decimales de la moneda de WooCommerce (2 si no está cargado). */
+	public static function round( float $amount ): float {
+		$decimals = function_exists( 'wc_get_price_decimals' ) ? (int) wc_get_price_decimals() : 2;
+
+		return round( $amount, $decimals );
 	}
 }
