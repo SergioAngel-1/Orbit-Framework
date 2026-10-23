@@ -69,8 +69,6 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   queda solo para `uploads/` (inmutable): el resto de `/wp-content` (CSS/JS de temas y plugins)
   pasa a una hora con revalidación, para que un asset actualizado no quede obsoleto un año en los
   navegadores.
-
-### Security
 - **El core de WordPress ya no queda congelado en el volumen.** El core vive en
   `wordpress_core:/var/www/html` y el entrypoint de la imagen oficial solo lo copia si falta
   `/var/www/html/index.php`: subir la etiqueta (`wordpress:7.1` → `7.2`) **no actualizaba nada**,
