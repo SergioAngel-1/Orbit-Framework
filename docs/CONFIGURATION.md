@@ -91,7 +91,7 @@ plantillas; nunca subas claves reales.**
 | Variable | Descripción |
 |----------|-------------|
 | `WORDPRESS_INTERNAL_API_URL` | Endpoint GraphQL por red interna Docker (`http://wordpress:80/graphql`). El navegador no habla con WordPress: no existe `NEXT_PUBLIC_WORDPRESS_API_URL`. |
-| `NEXT_PUBLIC_SITE_URL` | URL pública (enlaces de auth y respaldo mientras WordPress no responde). El nombre y la marca *reales* salen de `getSiteConfig()` (Control Center → Marca): no hay variable de entorno para el nombre. |
+| `NEXT_PUBLIC_SITE_URL` | URL pública (enlaces de auth, respaldo mientras WordPress no responde y **predeterminado de `brand.url`** si el Control Center lo deja vacío; se registra `site_config.brand_url_default`). El nombre y la marca *reales* salen de `getSiteConfig()` (Control Center → Marca): no hay variable de entorno para el nombre. |
 
 ### WooCommerce (BFF, solo servidor)
 

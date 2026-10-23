@@ -24,6 +24,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   atendiendo (cobros ya iniciados). El panel explica cómo dejar WhatsApp como único medio.
 
 ### Changed
+- **`brand.url` tiene predeterminado.** Vacío en el Control Center, el frontend usa su URL pública
+  (`NEXT_PUBLIC_SITE_URL`) y lo registra (`site_config.brand_url_default`): las canónicas, el
+  JSON-LD, el sitemap y el enlace de referido ya no salen relativos en una instancia sin configurar.
 - **Control Center: sedes, pagos y GEO más claros.** Las sedes de Legal son opcionales y pasan de
   4 a 5 (`legal.locations.location_5`, nuevo en `SiteConfig` y `CONFIG_DEFAULTS`): el panel solo
   enseña las que tienen datos, con «Añadir sede» y «Quitar sede». En Pasarelas de pago solo se ven
