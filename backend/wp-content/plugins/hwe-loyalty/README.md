@@ -5,17 +5,18 @@ comprar, referir y participar, y que canjea en el checkout; más un programa de 
 niveles** que paga sus comisiones en esos puntos. Es un módulo opcional del catálogo, como
 `coupon-rules` o `shipping`.
 
-> **Estado: en construcción.** Esta entrega cubre el arranque del plugin y los ajustes del
-> Control Center. El libro mayor, la caducidad, el canje en la Store API, los referidos, la
-> administración y las rutas del BFF llegan en las siguientes tareas del módulo. Todavía no hay
-> lógica de saldo, canje ni referidos.
+> **Estado: en construcción (backend).** Están el arranque, los ajustes, el libro mayor con su
+> caducidad, los referidos, las ganancias por pedido y por eventos, el canje en la Store API, las
+> transferencias, las rutas internas de lectura y la administración en wp-admin. Las rutas del
+> BFF y el contrato del frontend llegan en las siguientes tareas del módulo.
 
 ## Qué aporta hoy
 
 | Pieza | Detalle |
 |---|---|
-| `hwe-loyalty.php` | Clase `HWE_Loyalty`: comprueba que WooCommerce esté activo, carga `includes/` y engancha los ajustes a `plugins_loaded`. |
+| `hwe-loyalty.php` | Clase `HWE_Loyalty`: comprueba que WooCommerce esté activo, carga `includes/` y engancha los ajustes y la administración a `plugins_loaded`. |
 | `includes/Settings.php` | Clase `HWE_Loyalty_Settings`: puebla el grupo reservado `loyalty` del Control Center y expone la lectura saneada. |
+| `includes/Admin/` | Menú «Fidelización», pantallas, ajuste manual, lote de códigos, CSV, perfil, columnas de usuarios y caja del pedido. |
 | Control Center → Fidelización | Todos los ajustes del módulo, con sus defaults. El grupo lo declara el núcleo vacío (`SchemaGroups/Loyalty.php`) y este plugin lo rellena con `hwe_control_center_schema`. |
 
 ## Ajustes (`config.loyalty`)
@@ -121,13 +122,87 @@ contrato de `data` por tipo (lista blanca: un tipo desconocido, p. ej. añadido 
 El texto de un ajuste manual puede mostrar su nota porque pertenece al propio usuario; las notas
 privadas de pedido del libro no salen por esta ruta. `data` no lleva ids de terceros.
 
+## Administración en wp-admin
+
+El menú **Fidelización** (título neutro, sin el nombre de la unidad) solo se registra con el
+plugin activo. Si el interruptor «Puntos» está apagado, las pantallas siguen disponibles en modo
+de auditoría (leer el histórico y la red) con un aviso; las acciones manuales siguen siendo una
+herramienta del equipo y no dependen de que la tienda reparta puntos automáticamente.
+
+| Pantalla | Qué hace |
+|---|---|
+| **Resumen** | Puntos en circulación, emitidos, canjeados y caducados en el periodo (30/90/365 días), referidos confirmados y pendientes, y los mejores referidores. |
+| **Movimientos** | Listado paginado con filtros por usuario (id, email o login), tipo, rango de fechas y pedido. El botón **Exportar CSV** descarga con el mismo filtro. |
+| **Red** | Busca un usuario y muestra su referidor, los totales de la red y sus referidos N1/N2 paginados. Nunca muestra email ni login de los referidos. |
+| **Ajuste manual** | Abona o carga unidades con **nota obligatoria**. Un cargo mayor que el saldo se rechaza y nunca deja saldo negativo. |
+| **Códigos** | Asigna código de referido solo a participantes que no tienen, por lotes acotados. Si la petición se corta, volver a pulsar continúa donde quedó: las filas ya creadas no se repiten. |
+
+### Capacidades
+
+- `hwe_loyalty_view`: leer el menú, el perfil, las columnas y la caja del pedido.
+- `hwe_loyalty_manage`: ajustar saldo, cambiar código o referidor y lanzar el lote.
+
+Se conceden **solo** a `administrator` y `shop_manager`, al activar el plugin
+(`activated_plugin`) y de forma idempotente. `admin_init` las autorrepara si faltan en alguno de
+esos dos roles —por una actualización o una edición manual de roles— y lo registra; un rol creado
+por una instancia nunca se toca. Toda escritura comprueba capacidad **y** nonce, y los manejadores
+de `admin-post.php` vuelven a comprobar la capacidad aunque la pantalla ya la haya comprobado.
+
+### Ajuste manual e idempotencia
+
+La pantalla genera una clave de idempotencia por render del formulario. El libro la guarda en su
+índice único: un doble clic o un reenvío del navegador devuelve «ya aplicado» y no mueve puntos.
+El movimiento queda con tipo `admin_credit`/`admin_debit`, actor `admin`, el id del administrador y
+la nota en su columna. El cargo comprueba el saldo y, si otra petición lo gastó entre la
+comprobación y la escritura, el libro vuelve a rechazarlo.
+
+### Perfil de usuario
+
+Muestra saldo, total ganado/usado, código editable, referidor editable y los últimos diez
+movimientos. **No existe un campo de saldo**: el saldo se cambia con un abono o un cargo
+explícito (misma clase y mismas garantías que la pantalla de ajuste). Los cambios de código y
+referidor delegan en `HWE_Loyalty_Referrals`, que valida formato, unicidad, autorreferido y
+ciclos; un valor rechazado deja aviso y no escribe. Leer o guardar el perfil no crea códigos: la
+lectura consulta la fila existente y el lote es la vía para generarlos.
+
+### Listado de usuarios
+
+Dos columnas, **Saldo** y **Referidor**, ordenables. La ordenación se resuelve en SQL con un
+`LEFT JOIN` a `hwe_loyalty_balances` o `hwe_loyalty_referrals` y su `ORDER BY`; no se cargan todos
+los usuarios para ordenarlos en PHP.
+
+### Pedido
+
+Caja «Fidelización» con puntos canjeados, descuento aplicado, marca de pago completo con puntos y
+las ganancias generadas con su estado (`processed`/`skipped`/`reversed`) y sus beneficiarios. Usa
+las constantes de `HWE_Loyalty_Redemption` y `HWE_Loyalty_Earnings`, nunca nombres de meta
+repetidos. Se registra en `shop_order` y en la pantalla de
+`wc_get_page_screen_id( 'shop-order' )` (HPOS).
+
+### CSV de movimientos
+
+Columnas: `id`, `fecha_utc`, `usuario_id`, `usuario` (nombre visible), `tipo`, `cantidad`,
+`remanente`, `referencia`, `actor`, `nota`, `caduca_utc`. **No** incluye email ni login: el
+listado de usuarios ya los muestra al equipo y un archivo descargado no necesita la identidad
+completa. El volcado va por lotes de 500 filas directamente a la salida (streaming) y cada celda
+pasa por `csvCell`, que antepone `'` a lo que empiece por `=`, `+`, `-`, `@`, tabulador o retorno
+de carro para que Excel no lo ejecute como fórmula.
+
+### Módulo apagado
+
+Con el plugin inactivo no se registra el menú ni ninguna caja, columna o manejador: la puerta está
+en `HWE_Loyalty_Admin::register()` y el plugin ni siquiera llega a arrancar. No se mantiene lectura
+alguna para auditar sin el módulo activo.
+
 ## Pruebas
 
-`backend/tests/Unit/Loyalty/SettingsTest.php` (PHPUnit + Brain Monkey): el esquema puebla el
-grupo con todos los campos y sus defaults, `allowed_roles` no se publica, el saneado recorta los
-valores absurdos, los interruptores dependen de puntos y módulo, y `canParticipate` respeta los
-roles. La paridad de defaults en TypeScript la fija
-`frontend/src/lib/config/defaults.test.ts`.
+`backend/tests/Unit/Loyalty/AdminTest.php` (PHPUnit + Brain Monkey) fija las reglas del panel:
+capacidades solo en `administrator`/`shop_manager`, escritura bloqueada sin `hwe_loyalty_manage`,
+nota y nonce obligatorios, cargo limitado al saldo, doble envío sin duplicado, perfil que no
+sobrescribe el saldo, referidor con autorreferido y ciclos rechazados, lote reanudable sin
+duplicados, celdas CSV inertes, ordenación de usuarios por SQL y escapado de un nombre con
+`<script>`. `SettingsTest.php` cubre el esquema y la lectura saneada; la paridad de defaults en
+TypeScript la fija `frontend/src/lib/config/defaults.test.ts`.
 
 ## Estructura
 
@@ -135,4 +210,11 @@ roles. La paridad de defaults en TypeScript la fija
 |---|---|
 | `hwe-loyalty.php` | Arranque, comprobación de WooCommerce y carga de `includes/`. |
 | `includes/Settings.php` | Esquema del grupo `loyalty` y lectura saneada de los ajustes. |
+| `includes/Admin/Admin.php` | Arranque del panel, puerta del módulo y avisos de una sola vez. |
+| `includes/Admin/Capabilities.php` | `hwe_loyalty_view`/`hwe_loyalty_manage`, concesión y autorreparación. |
+| `includes/Admin/Menu.php` | Menú «Fidelización» y URLs de sus pantallas. |
+| `includes/Admin/Pages.php` | Resumen, movimientos, red, ajuste manual y lote de códigos. |
+| `includes/Admin/Movements.php`, `Stats.php`, `Csv.php` | Consultas filtradas, cifras y exportación por lotes. |
+| `includes/Admin/Adjustments.php`, `Codes.php` | Ajuste manual idempotente y asignación de códigos reanudable. |
+| `includes/Admin/UserProfile.php`, `UserColumns.php`, `OrderBox.php`, `Users.php` | Perfil, columnas ordenables, caja del pedido y resolución de usuarios. |
 | `includes/Rest/ReadRoutes.php` | Rutas internas de lectura del monedero y la red (`hwe/v1/loyalty/{summary,transactions,referrals}`) para el BFF. |

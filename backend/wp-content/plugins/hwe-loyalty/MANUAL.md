@@ -4,8 +4,8 @@ El módulo de fidelización premia a los clientes con **puntos** que pueden canj
 con **comisiones por referidos**. Se configura en **HWE Config → Fidelización** y se activa o
 desactiva como cualquier módulo del framework (Plugins de WordPress).
 
-> **En construcción.** Por ahora esta pantalla solo guarda los ajustes. El saldo, el historial, el
-> canje, los referidos y las pantallas de administración todavía no están disponibles.
+> **En construcción (backend).** Los ajustes y las pantallas de administración ya están; las
+> vistas públicas del programa las construye el frontend de cada instancia.
 
 ## Para qué sirve
 
@@ -42,6 +42,39 @@ Todo lo que gasta dinero o amplía el programa nace **apagado**: devolución al 
 completo, transferencias y nivel 2. Los porcentajes y los importes por evento nacen en cero. Así
 una tienda no empieza a repartir puntos sin haberlo decidido.
 
+## El panel «Fidelización»
+
+En el menú lateral de wp-admin aparece **Fidelización** cuando el plugin está activo. Lo ven las
+cuentas con la capacidad de lectura (por defecto, administradores y responsables de tienda); para
+ajustar saldos, códigos o referidores hace falta la capacidad de gestión. Las dos se conceden
+solas al activar el plugin y se reparan si faltan.
+
+- **Resumen**: cuántas unidades hay en circulación, cuántas se dieron, se canjearon y caducaron en
+  los últimos 30, 90 o 365 días, y el estado de los referidos. Los «mejores referidores» son
+  quienes más altas confirmadas acumulan.
+- **Movimientos**: el historial completo. Puedes filtrar por persona (id, email o login), tipo de
+  movimiento, fechas y número de pedido. **Exportar CSV** descarga exactamente lo filtrado.
+- **Red**: busca a una persona por id, email o login y verás su referidor, cuántos referidos tiene
+  en cada nivel y cuántas unidades ha generado su red. No muestra emails ni logins de los
+  referidos: solo su nombre visible.
+- **Códigos**: asigna un código a quien todavía no tiene, en tandas. Si la operación se corta,
+  vuelve a pulsar: continúa donde quedó y no repite códigos ni usuarios.
+- **Ajuste manual**: abona o carga unidades con una nota obligatoria. Un cargo nunca puede dejar
+  el saldo en negativo: si la persona no tiene suficiente, se rechaza y no se mueve nada.
+
+El **perfil de cada persona** (Usuarios → editar) muestra su saldo y sus últimos movimientos, y
+permite cambiar su código o su referidor. El saldo **no se escribe a mano**: se usa el abono o el
+cargo explícito de la misma sección. Cambiar el referidor no mueve puntos ya pagados y respeta las
+reglas de la red (nadie puede referirse a sí mismo ni crear un ciclo).
+
+En el **listado de usuarios** hay dos columnas nuevas, **Saldo** y **Referidor**, que se pueden
+ordenar. En la **ficha de cada pedido** hay una caja con las unidades canjeadas, el descuento y las
+ganancias que generó, con su estado.
+
+El **CSV de movimientos** no incluye email ni login: lleva el id y el nombre visible, el tipo, los
+puntos, la referencia, la nota del ajuste y las fechas. Así el archivo sirve para cuadrar sin
+sacar la identidad completa del panel.
+
 ## Roles que participan
 
 Por defecto participan las cuentas con rol **Cliente** y **Suscriptor**. El registro del framework
@@ -52,6 +85,9 @@ filtro `hwe_loyalty_participant_roles`.
 ## Si algo no cuadra
 
 - La pestaña no aparece: el plugin **HWE Loyalty** no está activo.
+- El menú **Fidelización** no aparece o las acciones están bloqueadas: tu cuenta no tiene la
+  capacidad de lectura o de gestión. Un administrador puede concederlas; no se dan a roles
+  creados por la instancia.
 - Cambias un ajuste y la web no lo refleja: la configuración se sirve cacheada unos minutos;
   espera a que caduque o pide que se revalide.
 - WooCommerce no está activo: el módulo no arranca y deja un aviso en el panel. Sin pedidos no hay

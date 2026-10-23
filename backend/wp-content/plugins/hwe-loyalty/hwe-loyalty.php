@@ -32,12 +32,15 @@
  * comisiones N1/N2, bono por producto y su reversión), las ganancias por eventos (una reseña
  * por pedido, de producto o del sitio, y el cumpleaños anual), el canje en el carrito y en el
  * pedido de la Store API (fee negativo, confirmación contra el libro, devolución y pago
- * completo con puntos) y las transferencias entre usuarios por código de referido (mínimo,
+ * completo con puntos), las transferencias entre usuarios por código de referido (mínimo,
  * comisión redondeada hacia arriba, tope diario y cargo/comisión/abono en una sola
- * transacción, con su ruta interna), y las rutas internas de lectura que consume el BFF
- * (resumen del monedero, movimientos paginados y red de referidos con sus totales). La
- * administración y las rutas del BFF llegan en las siguientes tareas del módulo (ver README.md
- * y MANUAL.md de esta carpeta).
+ * transacción, con su ruta interna), las rutas internas de lectura que consume el BFF
+ * (resumen del monedero, movimientos paginados y red de referidos con sus totales) y la
+ * administración en wp-admin: menú «Fidelización» (resumen, movimientos con filtros y CSV,
+ * red, ajuste manual y lote de códigos), perfil de usuario, columnas ordenables del listado
+ * de usuarios y caja en el pedido, con las capacidades `hwe_loyalty_view` y
+ * `hwe_loyalty_manage` concedidas a `administrator` y `shop_manager` al activar. Las rutas del
+ * BFF llegan en las siguientes tareas del módulo (ver README.md y MANUAL.md de esta carpeta).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -61,6 +64,7 @@ require_once __DIR__ . '/includes/Transfers.php';
 require_once __DIR__ . '/includes/Rest/ReferralRoutes.php';
 require_once __DIR__ . '/includes/Rest/TransferRoutes.php';
 require_once __DIR__ . '/includes/Rest/ReadRoutes.php';
+require_once __DIR__ . '/includes/Admin/Admin.php';
 
 final class HWE_Loyalty {
 
@@ -86,6 +90,7 @@ final class HWE_Loyalty {
 		HWE_Loyalty_TransferRoutes::register();
 		HWE_Loyalty_ReferralRoutes::register();
 		HWE_Loyalty_ReadRoutes::register();
+		HWE_Loyalty_Admin::register();
 	}
 
 	/** Aviso en wp-admin si el plugin se activó sin WooCommerce (la cabecera ya lo impide). */
@@ -110,3 +115,9 @@ if ( function_exists( 'register_activation_hook' ) ) {
 if ( function_exists( 'register_deactivation_hook' ) ) {
 	register_deactivation_hook( __FILE__, array( 'HWE_Loyalty_Scheduler', 'unschedule' ) );
 }
+
+// La concesión de capacidades va en `activated_plugin`, que se dispara en la misma petición de
+// activación después de cargar este archivo (el hook de activación registrado arriba queda para
+// el evento diario). `onActivated()` filtra el plugin y llama a `grant()`, idempotente;
+// `admin_init` la autorrepara si falta.
+add_action( 'activated_plugin', array( 'HWE_Loyalty_Admin_Capabilities', 'onActivated' ) );
