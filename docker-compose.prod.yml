@@ -225,10 +225,10 @@ services:
         // WordPress (wordpress, wpcli y wp-cron) la definen igual.
         define( 'WP_CONTENT_URL', 'https://${PUBLIC_DOMAIN}/wp-content' );
         define( 'HWE_REVALIDATION_SECRET',  '${HWE_REVALIDATION_SECRET:?HWE_REVALIDATION_SECRET must be set}' );
-        // Claves AES dedicadas (estables entre recreaciones del contenedor). En
-        // prod el core de WP NO se persiste, así que NO se puede depender del
-        // fallback a AUTH_KEY autogenerado: si cambiara, los secretos del Control
-        // Center y los secretos 2FA cifrados quedarían indescifrables.
+        // Claves AES dedicadas (estables entre recreaciones del contenedor). NO se
+        // depende del fallback a AUTH_KEY autogenerado: si el volumen del core se
+        // recrea o el core se reinstala, AUTH_KEY cambiaría y los secretos del
+        // Control Center y los 2FA cifrados quedarían indescifrables.
         define( 'HWE_SECRETS_KEY', '${HWE_SECRETS_KEY:?HWE_SECRETS_KEY must be set}' );
         define( 'HWE_2FA_KEY',     '${HWE_2FA_KEY:?HWE_2FA_KEY must be set}' );
         define( 'HWE_BACKUPS_DIR', '/var/www/hwe-backups' );
@@ -260,6 +260,11 @@ services:
       # contenedor vive con su propia copia y wp-cli nunca ve el wp-config.php que
       # este servicio genera al arrancar («This does not seem to be a WordPress
       # installation»).
+      #
+      # ⚠ Consecuencia: el core NO se actualiza al subir la etiqueta de la imagen
+      # (el entrypoint solo copia si falta index.php). Tras un `pull`, ejecuta
+      # `wpcli /scripts/update-core.sh --apply <versión>` y reinicia este servicio;
+      # procedimiento en docs/RUNBOOK.md §10.
       - wordpress_core:/var/www/html
       - ./backend/wp-content:/var/www/html/wp-content
       - ./backend/config/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro

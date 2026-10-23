@@ -71,6 +71,14 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   navegadores.
 
 ### Security
+- **El core de WordPress ya no queda congelado en el volumen.** El core vive en
+  `wordpress_core:/var/www/html` y el entrypoint de la imagen oficial solo lo copia si falta
+  `/var/www/html/index.php`: subir la etiqueta (`wordpress:7.1` → `7.2`) **no actualizaba nada**,
+  así que los parches de seguridad del core no llegaban por la vía que se creía. Se añade
+  `backend/scripts/update-core.sh` (estado + `verify-checksums`, y `--apply <versión>` para
+  actualizar), documentado en `docs/RUNBOOK.md` §10 y `docs/UPGRADE.md`, con el reinicio que exige
+  `opcache.validate_timestamps=0`. La actualización sigue siendo un paso explícito de operación
+  (no automática) para no cambiar de versión de core en un `up -d`.
 - **Los límites de GraphQL no se aplicaban.** `graphql-protection.php` enganchaba
   `graphql_query_max_depth` y `graphql_query_complexity`, filtros que WPGraphQL no tiene: `/graphql`
   aceptaba consultas de cualquier profundidad y complejidad (DoS). Ahora el límite de profundidad va

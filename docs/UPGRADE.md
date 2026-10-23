@@ -80,6 +80,22 @@ docker exec hwe_wp_cron wp --allow-root wc update
 Las versiones fijadas son las de `backend/scripts/setup.sh`. Comprueba el resultado con
 `docker exec hwe_wordpress php -r 'echo PHP_VERSION;'` y la tabla de `docs/COMPATIBILITY.md`.
 
+**El core de WordPress no se actualiza con `pull`.** Vive en el volumen `wordpress_core` y el
+entrypoint de la imagen solo copia el core si falta `/var/www/html/index.php`: subir la etiqueta
+de la imagen no cambia lo que sirve el sitio. Tras el `pull`, actualízalo a la versión de la
+imagen y reinicia (OPcache usa `validate_timestamps=0`):
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod \
+    run --rm wpcli /scripts/update-core.sh            # estado + checksums
+docker compose -f docker-compose.prod.yml --env-file .env.prod \
+    run --rm wpcli /scripts/update-core.sh --apply <versión>   # p. ej. 7.2
+docker compose -f docker-compose.prod.yml --env-file .env.prod restart wordpress
+```
+
+Haz copia de seguridad antes (`docs/RUNBOOK.md` §1). El script aborta si no encuentra el core y
+avisa si los checksums no cuadran.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

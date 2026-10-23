@@ -280,6 +280,24 @@ dependencias de pruebas de Composer). Requiere, en *Settings → Code security*,
 | Imágenes Docker (WordPress, MariaDB, Redis, Caddy, Alpine, Node) | `docs/COMPATIBILITY.md` (política de tags y digest) y las etiquetas de Docker Hub. Actualizar es explícito: `docker compose pull` — el compose de producción no baja imágenes nuevas a mitad de un despliegue (`pull_policy: if_not_present`). |
 | Árbol npm | `npm audit` / `npm run audit:gate` (el gate de CI) y `npm outdated` en `frontend/` |
 
+**Cómo actualizar el CORE de WordPress.** El core no se actualiza con `docker compose pull`: vive en
+el volumen `wordpress_core` y el entrypoint de la imagen solo lo copia si falta
+`/var/www/html/index.php`, así que el sitio sigue con la versión vieja (y los CVE del core no se
+corrigen con el despliegue). Tras subir la etiqueta de la imagen:
+
+```bash
+# 1. Estado: versión instalada + checksums (¿hay archivos modificados a mano?)
+docker compose -f docker-compose.prod.yml --env-file .env.prod \
+    run --rm wpcli /scripts/update-core.sh
+# 2. Actualizar a la versión de la imagen nueva (con copia de seguridad previa, §1)
+docker compose -f docker-compose.prod.yml --env-file .env.prod \
+    run --rm wpcli /scripts/update-core.sh --apply 7.2
+# 3. OPcache tiene validate_timestamps=0: sin reiniciar, sigue sirviendo el código viejo
+docker compose -f docker-compose.prod.yml --env-file .env.prod restart wordpress
+```
+
+Después, `sh backend/scripts/verify-security.sh` y una compra de prueba.
+
 **Cómo subir un plugin.** Pruébalo en staging y cambia a la vez la versión y su SHA-256
 en `setup.sh` (los de GitHub verifican hash); actualiza `docs/COMPATIBILITY.md`. Un salto de
 *major* (p. ej. WooCommerce 10 → 11) exige comprobar antes que WooGraphQL lo declara

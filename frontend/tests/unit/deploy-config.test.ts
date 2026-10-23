@@ -421,6 +421,19 @@ describe("imágenes: tags reproducibles", () => {
   });
 });
 
+describe("core de WordPress: el volumen no se actualiza solo", () => {
+  it("los scripts (con update-core.sh) llegan al contenedor wpcli", () => {
+    for (const compose of [prod, dev]) {
+      expect(service(compose, "wpcli")).toContain("./backend/scripts:/scripts:ro");
+    }
+    expect(() => root("backend/scripts/update-core.sh")).not.toThrow();
+  });
+
+  it("el RUNBOOK documenta el paso que `docker compose pull` NO hace", () => {
+    expect(root("docs/RUNBOOK.md")).toContain("update-core.sh --apply");
+  });
+});
+
 describe("Caddy: CI valida con la versión de producción", () => {
   it("la imagen del `caddy validate` de CI es la misma que la de docker-compose.prod.yml", () => {
     const image = (source: string) => /image:\s*(caddy:[\w.-]+)/.exec(source)?.[1];
