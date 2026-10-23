@@ -434,7 +434,8 @@ final class ReadRoutesTest extends TestCase
             array_keys($page['items'][0])
         );
         $this->assertSame(
-            ['level1' => 2, 'level2' => 1, 'pending' => 2, 'earned' => 55],
+            // El `transfer_in` de Carla (30) no es «generado por la red»: solo los 25 de comisión.
+            ['level1' => 2, 'level2' => 1, 'pending' => 2, 'earned' => 25],
             $page['totals']
         );
 
@@ -443,7 +444,7 @@ final class ReadRoutesTest extends TestCase
         $this->assertSame('confirmed', $byName['Beto Visible']['status']);
         $this->assertSame(0, $byName['Beto Visible']['points_generated']);
         $this->assertSame('pending', $byName['Carla Visible']['status']);
-        $this->assertSame(30, $byName['Carla Visible']['points_generated']);
+        $this->assertSame(0, $byName['Carla Visible']['points_generated'], 'Una transferencia no cuenta como generado.');
         $this->assertMatchesRegularExpression(
             '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/',
             $byName['Beto Visible']['date']
@@ -476,7 +477,7 @@ final class ReadRoutesTest extends TestCase
                 'items'  => [],
                 'total'  => 0,
                 'pages'  => 0,
-                'totals' => ['level1' => 2, 'level2' => 1, 'pending' => 2, 'earned' => 55],
+                'totals' => ['level1' => 2, 'level2' => 1, 'pending' => 2, 'earned' => 25],
             ],
             $response->get_data(),
             'Los totales conservan el histórico de la red.'
@@ -586,7 +587,7 @@ final class TestReadRoutesWpdb
         }
 
         if (str_contains($sql, 'CAST(l.ref_id AS UNSIGNED)')) {
-            return $this->networkEarned((int) ($args[0] ?? 0), (string) ($args[1] ?? ''));
+            return $this->networkEarned((int) ($args[0] ?? 0), (string) ($args[1] ?? ''), array_map('strval', array_slice($args, 4)));
         }
 
         if (str_contains($sql, 'COALESCE(SUM(points)')) {
@@ -641,6 +642,33 @@ final class TestReadRoutesWpdb
     public function get_results(string $sql): array
     {
         $this->queries[] = $sql;
+        if (str_contains($sql, 'GROUP BY ref_id')) {
+            // Puntos generados por cada referido de la página (`Referrals::generatedBy`):
+            // [referidor, 'user', ...ids, ...5 tipos de ganancia por referido].
+            $groupArgs = $this->args($sql);
+            $owner     = (int) ($groupArgs[0] ?? 0);
+            $refType   = (string) ($groupArgs[1] ?? '');
+            $rest      = array_slice($groupArgs, 2);
+            $types     = array_map('strval', array_slice($rest, -5));
+            $ids       = array_map('strval', array_slice($rest, 0, -5));
+            $sums      = [];
+            foreach ($this->ledger as $entry) {
+                $refId = (string) ($entry['ref_id'] ?? '');
+                if ((int) ($entry['user_id'] ?? 0) === $owner
+                    && (int) ($entry['points'] ?? 0) > 0
+                    && (string) ($entry['ref_type'] ?? '') === $refType
+                    && in_array($refId, $ids, true)
+                    && in_array((string) ($entry['type'] ?? ''), $types, true)) {
+                    $sums[$refId] = ($sums[$refId] ?? 0) + (int) $entry['points'];
+                }
+            }
+            $out = [];
+            foreach ($sums as $refId => $sum) {
+                $out[] = (object) ['ref_id' => (string) $refId, 'generated' => $sum];
+            }
+            return $out;
+        }
+
         $args = $this->args($sql);
 
         if (str_contains($sql, 'ORDER BY created_at DESC')) {
@@ -708,7 +736,8 @@ final class TestReadRoutesWpdb
         return $members;
     }
 
-    private function networkEarned(int $userId, string $refType): int
+    /** @param list<string> $types Tipos de ganancia por referido; vacío = sin filtro. */
+    private function networkEarned(int $userId, string $refType, array $types = []): int
     {
         $members = array_map('strval', $this->networkMembers($userId));
         $sum     = 0;
@@ -716,6 +745,7 @@ final class TestReadRoutesWpdb
             if ((int) ($row['user_id'] ?? 0) === $userId
                 && (int) ($row['points'] ?? 0) > 0
                 && (string) ($row['ref_type'] ?? '') === $refType
+                && ([] === $types || in_array((string) ($row['type'] ?? ''), $types, true))
                 && in_array((string) ($row['ref_id'] ?? ''), $members, true)) {
                 $sum += (int) $row['points'];
             }

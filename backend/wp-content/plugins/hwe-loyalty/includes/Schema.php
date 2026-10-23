@@ -27,7 +27,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class HWE_Loyalty_Schema {
 
 	/** Subir esta versión vuelve a ejecutar `dbDelta` en la siguiente petición. */
-	public const DB_VERSION = '1';
+	public const DB_VERSION = '2';
 
 	/** Opción donde se guarda la versión instalada. */
 	public const DB_VERSION_OPTION = 'hwe_loyalty_db_version';
@@ -90,6 +90,7 @@ final class HWE_Loyalty_Schema {
   UNIQUE KEY idempotency_key (idempotency_key),
   KEY user_created (user_id,created_at),
   KEY user_expiry (user_id,expires_at),
+  KEY user_ref (user_id,ref_type,ref_id),
   KEY type_created (type,created_at)
 ) ENGINE=InnoDB {$charset};
 CREATE TABLE {$balances} (

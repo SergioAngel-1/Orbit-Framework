@@ -662,32 +662,27 @@ final class HWE_Loyalty_Referrals {
 
 		$result['total'] = $total;
 
+		$ids = array();
+		foreach ( (array) $rows as $row ) {
+			$referredId = (int) ( $row->user_id ?? 0 );
+			if ( $referredId > 0 ) {
+				$ids[] = $referredId;
+			}
+		}
+		$generated = self::generatedBy( $userId, $ids );
+
 		foreach ( (array) $rows as $row ) {
 			$referredId = (int) ( $row->user_id ?? 0 );
 			if ( $referredId <= 0 ) {
 				continue;
 			}
 
-			$name = HWE_Loyalty_PublicName::of( $referredId );
-
-			$points = (int) $wpdb->get_var(
-				$wpdb->prepare(
-					'SELECT COALESCE(SUM(points), 0) FROM ' . HWE_Loyalty_Schema::ledgerTable()
-					. ' WHERE user_id = %d AND points > 0 AND ref_type = %s AND ref_id = %s'
-					. ' AND type IN (' . self::typePlaceholders() . ')',
-					$userId,
-					'user',
-					(string) $referredId,
-					...self::NETWORK_EARNING_TYPES
-				)
-			);
-
 			$result['items'][] = array(
 				'user_id'          => $referredId,
-				'name'             => $name,
+				'name'             => HWE_Loyalty_PublicName::of( $referredId ),
 				'date'             => self::iso( $row->attributed_at ?? null ),
 				'status'           => (string) ( $row->status ?? self::STATUS_PENDING ),
-				'points_generated' => $points,
+				'points_generated' => $generated[ $referredId ] ?? 0,
 			);
 		}
 
@@ -1010,6 +1005,41 @@ final class HWE_Loyalty_Referrals {
 		self::log( $line . '.' );
 
 		return 'ignored:' . $reason;
+	}
+
+	/**
+	 * Puntos que cada referido de la página generó para el referidor, en UNA consulta agrupada
+	 * (antes, una por referido). La sirve el índice `user_ref (user_id, ref_type, ref_id)`.
+	 *
+	 * @param list<int> $referredIds
+	 * @return array<int,int> referido → puntos generados
+	 */
+	private static function generatedBy( int $userId, array $referredIds ): array {
+		if ( array() === $referredIds ) {
+			return array();
+		}
+
+		global $wpdb;
+		$ids  = array_map( 'strval', $referredIds );
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT ref_id, COALESCE(SUM(points), 0) AS generated FROM ' . HWE_Loyalty_Schema::ledgerTable()
+				. ' WHERE user_id = %d AND points > 0 AND ref_type = %s'
+				. ' AND ref_id IN (' . implode( ', ', array_fill( 0, count( $ids ), '%s' ) ) . ')'
+				. ' AND type IN (' . self::typePlaceholders() . ') GROUP BY ref_id',
+				$userId,
+				'user',
+				...$ids,
+				...self::NETWORK_EARNING_TYPES
+			)
+		);
+
+		$generated = array();
+		foreach ( (array) $rows as $row ) {
+			$generated[ (int) ( $row->ref_id ?? 0 ) ] = (int) ( $row->generated ?? 0 );
+		}
+
+		return $generated;
 	}
 
 	/** `%s, %s, …` para el `IN` de {@see self::NETWORK_EARNING_TYPES}. */

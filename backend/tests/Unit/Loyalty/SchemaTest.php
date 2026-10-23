@@ -88,11 +88,16 @@ final class SchemaTest extends TestCase
         $this->assertStringContainsString('UNIQUE KEY user_id (user_id)', $sql, 'Un participante, una fila de referidos.');
         $this->assertStringContainsString('UNIQUE KEY code (code)', $sql);
         $this->assertStringContainsString('UNIQUE KEY debit_credit (debit_id,credit_id)', $sql);
+        $this->assertStringContainsString(
+            'KEY user_ref (user_id,ref_type,ref_id)',
+            $sql,
+            'La red suma los puntos generados por referido con este índice (sin él, recorre todo el libro del referidor).'
+        );
         $this->assertSame(4, substr_count($sql, 'ENGINE=InnoDB'), 'Todas las tablas admiten transacciones.');
 
-        $this->assertSame('1', $this->options['hwe_loyalty_db_version']);
+        $this->assertSame(\HWE_Loyalty_Schema::DB_VERSION, $this->options['hwe_loyalty_db_version']);
         $this->assertSame(
-            [['hwe_loyalty_db_version', '1', true]],
+            [['hwe_loyalty_db_version', \HWE_Loyalty_Schema::DB_VERSION, true]],
             $this->optionWrites,
             'La versión se guarda con autoload para leerla en cada petición.'
         );

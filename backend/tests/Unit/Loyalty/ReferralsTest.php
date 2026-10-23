@@ -645,6 +645,25 @@ final class ReferralsTest extends TestCase
         );
     }
 
+    public function test_network_sums_the_generated_points_of_a_whole_page_in_one_query(): void
+    {
+        // Una consulta por referido (hasta 100 por página), cada una recorriendo los movimientos
+        // del referidor, escalaba con los mejores referidores: una sola consulta agrupada.
+        \HWE_Loyalty_Referrals::setReferrer(self::REFERRED, self::REFERRER);
+        \HWE_Loyalty_Referrals::setReferrer(self::OTHER, self::REFERRER);
+        \HWE_Loyalty_Ledger::credit(self::REFERRER, 30, 'referral_commission_l1', 'test:page:1', ['type' => 'user', 'id' => self::REFERRED]);
+        \HWE_Loyalty_Ledger::credit(self::REFERRER, 12, 'referral_product_bonus', 'test:page:2', ['type' => 'user', 'id' => self::OTHER]);
+        $GLOBALS['wpdb']->queries = [];
+
+        $level1 = \HWE_Loyalty_Referrals::network(self::REFERRER, 1, 1, 10);
+
+        $byUser = array_column($level1['items'], null, 'user_id');
+        $this->assertSame(30, $byUser[self::REFERRED]['points_generated']);
+        $this->assertSame(12, $byUser[self::OTHER]['points_generated']);
+        $sums = array_filter($GLOBALS['wpdb']->queries, static fn (string $sql): bool => str_contains($sql, 'SUM(points)'));
+        $this->assertCount(1, $sums);
+    }
+
     public function test_network_never_shows_a_login_used_as_display_name(): void
     {
         // Las cuentas creadas por el registro del BFF tienen el login como `display_name`.
@@ -1046,6 +1065,33 @@ final class TestReferralsWpdb
     public function get_results(string $sql): array
     {
         $this->queries[] = $sql;
+        if (str_contains($sql, 'GROUP BY ref_id')) {
+            // Puntos generados por cada referido de la página (`Referrals::generatedBy`):
+            // [referidor, 'user', ...ids, ...5 tipos de ganancia por referido].
+            $groupArgs = $this->args($sql);
+            $owner     = (int) ($groupArgs[0] ?? 0);
+            $refType   = (string) ($groupArgs[1] ?? '');
+            $rest      = array_slice($groupArgs, 2);
+            $types     = array_map('strval', array_slice($rest, -5));
+            $ids       = array_map('strval', array_slice($rest, 0, -5));
+            $sums      = [];
+            foreach ($this->ledger as $entry) {
+                $refId = (string) ($entry['ref_id'] ?? '');
+                if ((int) ($entry['user_id'] ?? 0) === $owner
+                    && (int) ($entry['points'] ?? 0) > 0
+                    && (string) ($entry['ref_type'] ?? '') === $refType
+                    && in_array($refId, $ids, true)
+                    && in_array((string) ($entry['type'] ?? ''), $types, true)) {
+                    $sums[$refId] = ($sums[$refId] ?? 0) + (int) $entry['points'];
+                }
+            }
+            $out = [];
+            foreach ($sums as $refId => $sum) {
+                $out[] = (object) ['ref_id' => (string) $refId, 'generated' => $sum];
+            }
+            return $out;
+        }
+
         $args = $this->args($sql);
         $userId = (int) ($args[0] ?? 0);
         $limit  = (int) ($args[1] ?? 10);
