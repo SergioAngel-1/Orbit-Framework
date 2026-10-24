@@ -5,9 +5,10 @@ por QR, renovaciones y regalos por referido. Es un módulo opcional del catálog
 `shipping`, y no trae vistas: entrega el contrato de configuración y la lógica del backend.
 
 > **Estado: backend del módulo en desarrollo.** Ya existen los ajustes, los niveles, las
-> concesiones, las compras, el carné, la privacidad y los beneficios conectados con `loyalty`.
-> Las rutas internas, la extensión de la Store API y la UI del frontend llegan en entregas
-> posteriores; este README y `MANUAL.md` se completan con ellas.
+> concesiones, las compras, el carné, la privacidad, los beneficios conectados con `loyalty` y
+> la extensión de la Store API con el bloqueo de compra por requisito. Las rutas internas y la
+> UI del frontend llegan en entregas posteriores; este README y `MANUAL.md` se completan con
+> ellas.
 
 ## Qué aporta hoy
 
@@ -17,6 +18,7 @@ por QR, renovaciones y regalos por referido. Es un módulo opcional del catálog
 | `includes/Settings.php` | Clase `HWE_Memberships_Settings`: puebla el grupo reservado `memberships` del Control Center y expone la lectura saneada. |
 | `includes/Benefits/` | Registro de tipos de beneficio y los que dependen de `loyalty`: puntos por activación, comisión extra de referidos y regalo de membresía al referido. |
 | `includes/LoyaltyBridge.php` | Único punto de conversación con el contrato de `loyalty` (disponibilidad, tipos de movimiento, abono y reversión). |
+| `includes/StoreApi.php` | Extensión `hwe-memberships` del carrito y bloqueo de compra por requisito de acceso, en el alta y al crear el pedido. |
 
 ## Beneficios conectados con `loyalty`
 
@@ -150,8 +152,9 @@ En la respuesta de `wc/v3` para el BFF se conservan, además, los campos operati
 `purchasable`, `stock_status`, `manage_stock`, `stock_quantity` y `backorders_allowed` del
 producto: no son contenido (§6.2 prohíbe las variaciones y su stock, no la disponibilidad del
 propio producto) y son los que necesita «volver a pedir» para decidir la cantidad. La Store API
-mantiene la lista estricta: allí la autorización real del carrito la hace la Store API con el JWT
-del socio (Tarea 11). Las variaciones siguen reducidas a su identificador.
+mantiene la lista estricta: allí la autorización real del carrito la hacen la extensión
+`hwe-memberships` (bloqueo por requisito) y las reglas de compra de la membresía. Las variaciones
+siguen reducidas a su identificador.
 
 En las respuestas REST el requisito viaja en `hwe_membership.required_level` (slug, rank y name)
 y `hwe_membership.opens_at` (ISO 8601 UTC o null), y la marca en `locked`. En GraphQL el mismo
@@ -165,10 +168,37 @@ devuelve productos). Si una instancia añade una ruta nueva que devuelva descrip
 atributos, variaciones o campos de producto, debe aplicar `HWE_Memberships_Teaser` en su
 respuesta.
 
+## Compra y bloqueo en la Store API
+
+Una línea cuyo requisito de acceso no cumple el usuario se rechaza al añadirla al carrito y otra
+vez al crear el pedido, porque el nivel puede caducar, congelarse o retirarse con la línea ya en
+el carrito. Los motivos son estables (`membership_required`, `membership_early_access`) y el
+conflicto responde **409** con `reason`, `min_rank`, `level_id`, `level_slug`, `level_name` y
+`opens_at` en los datos del error. Una variación se evalúa con el requisito de su producto padre.
+El texto que ve el cliente lo compone el BFF; WordPress solo devuelve el motivo y los datos.
+
+En `extensions.hwe-memberships` del carrito viajan:
+
+| Campo | Contenido |
+|---|---|
+| `level` | `{id, slug, rank, name}` del nivel efectivo, o `null` (sin membresía o congelado). |
+| `member_discount` | `{total, lines}` con importes en unidades menores de la moneda, como string. Lo completa el beneficio de descuento de miembro. |
+| `free_delivery` | `{available, remaining, requested, applied, reason}`. Lo completa el beneficio de envíos gratis; `requested` refleja solo lo que declaró el cliente. |
+| `blocked_items` | Lista de `{key, product_id, reason, min_rank, level_slug, level_name, opens_at}` de las líneas que hoy no puede comprar. |
+| `purchase_notice` | `renewal`, `upgrade`, `scheduled` o `null` para la línea de membresía: misma referencia, subida de rango o compra que espera detrás de la cobertura actual o de la cola. |
+
+El navegador **solo declara que quiere usar un envío gratis** en el update callback
+(`{free_delivery: bool}`); el valor se guarda en la sesión de WooCommerce y cualquier otra clave o
+un valor no booleano se ignora y se registra. El filtro interno
+`hwe_memberships_store_api_cart_data` permite a las tareas de descuentos y envíos aportar sus dos
+ramas; `level`, `blocked_items` y `purchase_notice` siempre se recalculan en el módulo para que un
+filtro no pueda retirar una línea bloqueada.
+
 ## Con el módulo apagado
 
-`config.modules.memberships` es `false`, no hay ajustes activos y las rutas del BFF responderán
-404 cuando existan. Los datos que se hayan guardado se conservan para cuando vuelva a activarse.
+`config.modules.memberships` es `false`, no hay ajustes activos, no se registra la extensión de la
+Store API, no se valida ninguna línea y las rutas del BFF responderán 404 cuando existan. Los datos
+que se hayan guardado se conservan para cuando vuelva a activarse.
 
 ## Verificación
 

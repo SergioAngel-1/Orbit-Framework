@@ -29,9 +29,9 @@
  * servicio transaccional de concesiones (alta, renovación, mejora, revocación, retirada,
  * congelación y descongelación) con su historial y sus hooks, los productos de membresía y su
  * compra con activación al cobrar, los requisitos de acceso al catálogo con acceso anticipado y
- * la ficha de escaparate en GraphQL, la Store API y WC REST. Las rutas internas, la extensión de
- * la Store API y la UI del frontend llegan en entregas posteriores; README.md y MANUAL.md se
- * completan con ellas.
+ * la ficha de escaparate en GraphQL, la Store API y WC REST, y la extensión de la Store API con
+ * el bloqueo de compra por requisito. Las rutas internas y la UI del frontend llegan en entregas
+ * posteriores; README.md y MANUAL.md se completan con ellas.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -63,6 +63,7 @@ require_once __DIR__ . '/includes/Graphql.php';
 require_once __DIR__ . '/includes/Admin/TermFields.php';
 require_once __DIR__ . '/includes/Products.php';
 require_once __DIR__ . '/includes/Purchase.php';
+require_once __DIR__ . '/includes/StoreApi.php';
 require_once __DIR__ . '/includes/Privacy.php';
 require_once __DIR__ . '/includes/Card.php';
 require_once __DIR__ . '/includes/Rest/CardRoutes.php';
@@ -93,6 +94,7 @@ final class HWE_Memberships {
 		HWE_Memberships_Admin_TermFields::register();
 		HWE_Memberships_Products::register();
 		HWE_Memberships_Purchase::register();
+		HWE_Memberships_StoreApi::register();
 		HWE_Memberships_Privacy::register();
 		HWE_Memberships_Card::register();
 		HWE_Memberships_CardRoutes::register();
