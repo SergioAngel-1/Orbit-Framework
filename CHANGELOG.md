@@ -7,6 +7,19 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **Rutas públicas configurables por la instancia (`InstanceRegistry.publicPaths`).** Una
+  instancia puede servir las carpetas de `app/[locale]/` con otros tramos públicos (p. ej. en
+  español) declarando solo datos en `frontend/src/instance/registry.ts` (`"/products":
+  "/productos"`; los hijos heredan el prefijo y una entrada propia manda; el valor puede ser un
+  mapa por idioma). Un módulo puro (`lib/instance/public-paths.ts`) traduce en los dos sentidos
+  rutas concretas (casa plantillas `[slug]`, conserva `?…`/`#…`) y lo usan `localizedPath`
+  (canónicas, `hreflang`, sitemap, JSON-LD, `llms.txt` y enlaces de los correos), la navegación
+  (`Link`, `redirect`, `permanentRedirect`, `getPathname`, `useRouter`), `robots.txt` (veta la
+  forma pública y la interna), los segmentos reservados de landings, `?return=` (`safeInternalPath`
+  acepta las dos formas), los banners y la extracción de enlaces del blog. `proxy.ts` reescribe la
+  URL pública a la carpeta interna y responde **308** de la ruta interna antigua a la pública; el
+  mapa se valida al arrancar (choques, `api`, idiomas, rutas mal formadas) con un error claro. Sin
+  mapa, todas las URL son idénticas a las de `v2.1.0`.
 - **Instancia de un solo idioma.** El núcleo deja de suponer que existe un catálogo `en`:
   `i18n/request.ts` deriva los idiomas y los mensajes de `routing.locales` (el tipo `Locale`
   sale de ahí), los catálogos viven en un único módulo (`src/i18n/messages/catalogs.ts`) al que

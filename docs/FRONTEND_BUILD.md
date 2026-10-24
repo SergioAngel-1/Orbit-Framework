@@ -229,7 +229,7 @@ reemplazarlo sin miedo si no encaja con el negocio.
 ### 9.1 Obligatorios — siempre de `components/ui/` (núcleo del framework)
 
 No reinventes estos con HTML/CSS suelto: son el vocabulario visual base, ya accesibles,
-consistentes con los design tokens (§A.4 de `docs/FRONTEND_CONNECT.md`) y con soporte de modo
+consistentes con los design tokens (§A.5 de `docs/FRONTEND_CONNECT.md`) y con soporte de modo
 oscuro.
 
 | Componente | Úsalo para |

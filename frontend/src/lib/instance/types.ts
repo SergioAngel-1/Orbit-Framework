@@ -113,9 +113,31 @@ export interface ProductFieldDeclaration {
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ProductFieldValues {}
 
+/**
+ * Valor de una ruta pública: el mismo tramo para todos los idiomas (`"/productos"`) o uno por
+ * idioma (`{ es: "/productos", en: "/products" }`). Un idioma sin entrada conserva el tramo
+ * interno en ese idioma.
+ */
+export type PublicPathValue = string | Readonly<Record<string, string>>;
+
+/** Mapa ruta interna → ruta pública (`"/products": "/productos"`). */
+export type PublicPathMap = Readonly<Record<string, PublicPathValue>>;
+
 export interface InstanceRegistry {
   /** Tags ISR extra que `/api/revalidate` acepta además de los del núcleo. */
   revalidationTags: string[];
+  /**
+   * Rutas públicas de la instancia: ruta **interna** (el formato de `pathnames` de next-intl,
+   * p. ej. `"/products"` o `"/products/[slug]"`) → tramo **público** con el que se sirve, igual
+   * para todos los idiomas (`"/products": "/productos"`) o por idioma
+   * (`"/products": { es: "/productos", en: "/products" }`).
+   *
+   * Un hijo sin entrada propia hereda el prefijo de su padre: declarar `"/account": "/cuenta"`
+   * mueve `/account/orders` a `/cuenta/orders`; una entrada propia manda. Las carpetas de
+   * `app/[locale]/` NO cambian: el núcleo traduce, redirige la ruta interna (308) y reescribe la
+   * pública a la interna. Sin este campo, todas las URL son las de siempre.
+   */
+  publicPaths?: PublicPathMap;
   /**
    * Zona horaria de la tienda (IANA, p. ej. `"America/Bogota"`), igual para todos los idiomas
    * o por idioma (`{ es: "America/Bogota", en: "America/New_York" }`). La usa

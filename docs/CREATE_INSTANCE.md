@@ -260,6 +260,38 @@ Es **fail-closed**: cualquier otro valor (o su ausencia) mantiene el comportamie
 framework. Si el CI de tu instancia sigue ejecutando la puerta anti-instancia, la variable no
 está puesta o no vale exactamente `true`.
 
+### Rutas públicas en otro idioma
+
+Las carpetas de `app/[locale]/` y las rutas internas del núcleo están en inglés (`/products`,
+`/account`, `/checkout/return`). Si tu tienda publica en español (o cualquier otro idioma), **no
+renombres esas carpetas ni edites núcleo**: declara el mapa en `frontend/src/instance/registry.ts`
+(solo datos) y el framework traduce enlaces, canónicas, sitemap, JSON-LD, `llms.txt`, correos y
+robots, y sirve la URL pública sobre la misma vista:
+
+```ts
+export const instanceRegistry: InstanceRegistry = {
+  revalidationTags: [],
+  publicPaths: {
+    "/products": "/productos",      // /products/vela → /productos/vela
+    "/categories": "/categorias",
+    "/cart": "/carrito",
+    "/checkout": "/pago",           // /checkout/return → /pago/return
+    "/account": "/cuenta",          // /account/orders → /cuenta/orders
+    "/login": "/entrar",
+    "/register": "/registro",
+    "/forgot-password": "/recuperar",
+    "/reset-password": "/restablecer",
+    "/verify-email": "/verificar",
+  },
+};
+```
+
+Los hijos heredan el prefijo del padre (una entrada propia manda), el mapa se valida al arrancar
+(choques, `api`, un idioma, rutas mal formadas → error claro) y la ruta interna antigua responde
+**308** a la pública: no quedan URL duplicadas. Si un idioma conserva el tramo interno, declara el
+valor por idioma (`{ es: "/novedades", en: "/blog" }`). Contrato completo:
+`docs/FRONTEND_CONNECT.md` §A.4.
+
 ### Instancia de un solo idioma
 
 El framework trae `es` (principal) y `en`. Una tienda que solo publica en un idioma **no

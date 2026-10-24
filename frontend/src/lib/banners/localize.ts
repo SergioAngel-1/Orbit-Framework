@@ -1,6 +1,7 @@
 import "server-only";
 import { routing } from "@/i18n/routing";
 import { getCategories, getProductsBySlugs } from "@/lib/catalog/products";
+import { publicAliases } from "@/lib/instance/public-paths";
 import { logReadFailure } from "@/lib/observability/read-failure";
 import type { BannerPlacement, BannerSlide } from "./types";
 
@@ -15,26 +16,42 @@ import type { BannerPlacement, BannerSlide } from "./types";
 //  del idioma —una redirección que señalan las auditorías SEO—.
 //
 //  Vale para CUALQUIER idioma del sitio (`routing.locales`); en el idioma por
-//  defecto los slugs nativos ya son los de la URL y no se consulta nada.
+//  defecto los slugs nativos ya son los de la URL y no se consulta nada. La ruta
+//  puede venir en la forma INTERNA (`/products/x`) o en la PÚBLICA de la instancia
+//  (`/productos/x`): las dos se reconocen.
 // ============================================================================
 
 const HREF_KEYS = ["ctaHref", "cta2Href", "link"] as const;
-const CATALOG_PATH = /^\/(products|categories)\/([^/?#]+)(.*)$/;
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Primeros segmentos aceptados por tipo, con la forma interna y las públicas. */
+function catalogSegments(kind: CatalogKind): string[] {
+  return [kind, ...publicAliases(kind)];
+}
 
 type CatalogKind = "products" | "categories";
 
 export function parseCatalogHref(
   href: string,
 ): { kind: CatalogKind; slug: string; rest: string } | null {
-  const match = CATALOG_PATH.exec(href);
-  if (!match) return null;
-  let slug = match[2];
-  try {
-    slug = decodeURIComponent(slug);
-  } catch {
-    /* un % mal formado: se usa tal cual */
+  for (const kind of ["products", "categories"] as const) {
+    const pattern = new RegExp(
+      `^/(${catalogSegments(kind).map(escapeRegExp).join("|")})/([^/?#]+)(.*)$`,
+    );
+    const match = pattern.exec(href);
+    if (!match) continue;
+    let slug = match[2];
+    try {
+      slug = decodeURIComponent(slug);
+    } catch {
+      /* un % mal formado: se usa tal cual */
+    }
+    return { kind, slug, rest: match[3] };
   }
-  return { kind: match[1] as CatalogKind, slug, rest: match[3] };
+  return null;
 }
 
 /** Slugs nativos de producto y de categoría que enlazan los slides. */

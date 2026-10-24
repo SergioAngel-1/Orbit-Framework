@@ -15,6 +15,7 @@ import {
 } from "@/lib/observability/request-id";
 import { isSignedRoute } from "@/lib/security/signed-routes";
 import { internalSecretHeaders } from "@/lib/security/internal-secret";
+import { toInternalPath, toPublicPath } from "@/lib/instance/public-paths";
 import { normalizeReferralCode } from "@/lib/loyalty/referral-code";
 import { REF_COOKIE, refCookieOptions } from "@/lib/loyalty/ref-cookie";
 
@@ -168,6 +169,49 @@ function authCookie(token: string) {
   };
 }
 
+/** Parte un pathname en su prefijo de idioma y la ruta sin prefijo. */
+function splitLocale(pathname: string): {
+  prefix: string;
+  rest: string;
+  locale: string;
+} {
+  const parts = pathname.split("/");
+  const first = parts[1] ?? "";
+  if ((routing.locales as readonly string[]).includes(first)) {
+    const rest = parts.length > 2 ? `/${parts.slice(2).join("/")}` : "/";
+    return { prefix: `/${first}`, rest, locale: first };
+  }
+  return {
+    prefix: "",
+    rest: pathname === "" ? "/" : pathname,
+    locale: routing.defaultLocale,
+  };
+}
+
+function isRedirect(response: NextResponse): boolean {
+  return response.status >= 300 && response.status < 400;
+}
+
+/**
+ * Un redirect de next-intl puede llevar en `Location` una ruta INTERNA (si venía de una
+ * ruta interna): se publica antes de devolverlo. La consulta se conserva.
+ */
+function publicizeRedirect(response: NextResponse, baseUrl: string): NextResponse {
+  const location = response.headers.get("location");
+  if (!location) return response;
+  try {
+    const url = new URL(location, baseUrl);
+    const { prefix, rest, locale } = splitLocale(url.pathname);
+    const publicRest = toPublicPath(rest, locale);
+    if (publicRest === rest) return response;
+    url.pathname = `${prefix}${publicRest}`;
+    response.headers.set("location", url.toString());
+  } catch {
+    /* una Location que no es una URL: se devuelve tal cual */
+  }
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -238,7 +282,44 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const response = intlMiddleware(workingRequest);
+  // Rutas públicas de la instancia (`InstanceRegistry.publicPaths`): la URL pública sirve
+  // la carpeta INTERNA de `app/[locale]/` (rewrite) y la ruta interna antigua redirige 308
+  // a la pública, para no dejar dos URLs del mismo contenido. Sin mapa, las dos funciones
+  // son la identidad y no se toca nada (comportamiento idéntico al del framework).
+  const localePath = splitLocale(request.nextUrl.pathname);
+  const internalRest = toInternalPath(localePath.rest, localePath.locale);
+  const publicRest = toPublicPath(localePath.rest, localePath.locale);
+
+  let response = intlMiddleware(workingRequest);
+
+  if (internalRest === localePath.rest && publicRest !== localePath.rest) {
+    // URL interna → 308 a la pública.
+    const url = new URL(request.url);
+    url.pathname = `${localePath.prefix}${publicRest}`;
+    response = NextResponse.redirect(url, 308);
+  } else if (internalRest !== localePath.rest) {
+    // URL pública → se renderiza la carpeta interna (rewrite) con el idioma que resolvió
+    // next-intl (que ya ha aplicado su detección y sus redirects de prefijo).
+    if (!isRedirect(response)) {
+      const headers = new Headers(workingRequest.headers);
+      const intlLocale = response.headers.get(
+        "x-middleware-request-x-next-intl-locale",
+      );
+      if (intlLocale) headers.set("x-next-intl-locale", intlLocale);
+      const url = new URL(workingRequest.url);
+      // La carpeta de `app/[locale]/` necesita SIEMPRE el tramo de idioma interno (`/es/...`
+      // para el principal), igual que hace next-intl con su propio rewrite.
+      url.pathname = `/${localePath.locale}${internalRest}`;
+      const rewritten = NextResponse.rewrite(url, { request: { headers } });
+      for (const cookie of response.cookies.getAll()) rewritten.cookies.set(cookie);
+      const alternate = response.headers.get("link");
+      if (alternate) rewritten.headers.set("link", alternate);
+      response = rewritten;
+    } else {
+      response = publicizeRedirect(response, request.url);
+    }
+  }
+
   if (newToken) response.cookies.set(authCookie(newToken));
   if (clearAuth) response.cookies.delete(AUTH_COOKIE);
   // El último código que llega reemplaza al anterior; si no hay, la cookie que

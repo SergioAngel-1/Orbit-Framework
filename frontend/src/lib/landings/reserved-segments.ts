@@ -1,5 +1,9 @@
 import { routing } from "@/i18n/routing";
 import { instanceRegistry } from "@/instance/registry";
+import { publicRootSegments } from "@/lib/instance/public-paths";
+import { AREA_SEGMENT, CORE_ROOT_SEGMENTS } from "./core-segments";
+
+export { AREA_SEGMENT, CORE_ROOT_SEGMENTS };
 
 // ============================================================================
 //  Tramos de la RAÍZ que una landing no puede ocupar.
@@ -16,38 +20,24 @@ import { instanceRegistry } from "@/instance/registry";
 //
 //  `tests/unit/landings-reserved-segments.test.ts` recorre `app/[locale]/` y
 //  falla si una carpeta de ruta no está aquí: añadir una ruta sin reservarla es
-//  el fallo silencioso que esto evita.
+//  el fallo silencioso que esto evita. La lista vive en `core-segments.ts` (la comparte la
+//  validación de rutas públicas, que no puede depender de este módulo: aquí se importa
+//  `routing.ts`).
 // ============================================================================
 
-/** Rutas de un solo tramo del starter (`app/[locale]/*`) y el área de las landings. */
-export const CORE_ROOT_SEGMENTS: readonly string[] = [
-  "about",
-  "account",
-  "blog",
-  "cart",
-  "categories",
-  "checkout",
-  "contact",
-  "forgot-password",
-  "learn",
-  "legal",
-  "llms.txt",
-  "login",
-  "products",
-  "register",
-  "reset-password",
-  "verify-email",
-];
-
-/** El tramo del área educativa: `/learn/<tramo>`. */
-export const AREA_SEGMENT = "learn";
-
 /**
- * Tramos reservados: los del núcleo, los códigos de idioma, `api` y los de la
- * instancia.
+ * Tramos reservados: los del núcleo, los códigos de idioma, `api`, los de la instancia y los
+ * tramos PÚBLICOS de las rutas remapeadas (una landing en `/productos` también sería
+ * inalcanzable detrás de la ruta pública de la tienda).
  */
 export function reservedRootSegments(
   extra: readonly string[] = instanceRegistry.landings?.reservedRootSegments ?? [],
 ): ReadonlySet<string> {
-  return new Set<string>([...CORE_ROOT_SEGMENTS, ...routing.locales, "api", ...extra]);
+  return new Set<string>([
+    ...CORE_ROOT_SEGMENTS,
+    ...routing.locales,
+    "api",
+    ...publicRootSegments(),
+    ...extra,
+  ]);
 }
