@@ -24,7 +24,8 @@
  * devuelven vacío y las rutas del BFF responden 404. La puerta la calcula el núcleo con
  * `config.modules.memberships`, que refleja si este plugin está activo.
  *
- * Estado: arranque, ajustes, esquema de datos, niveles editables, la tarea diaria que materializa las transiciones, el
+ * Estado: arranque, ajustes, esquema de datos, niveles editables, el registro de tipos de
+ * beneficio (con la ventaja informativa), la tarea diaria que materializa las transiciones, el
  * servicio transaccional de concesiones (alta, renovación, mejora, revocación, retirada,
  * congelación y descongelación) con su historial y sus hooks, los productos de membresía y su
  * compra con activación al cobrar. Las rutas internas, la extensión de la Store API y la UI del
@@ -46,6 +47,9 @@ require_once __DIR__ . '/includes/Events.php';
 require_once __DIR__ . '/includes/Members.php';
 require_once __DIR__ . '/includes/Grants.php';
 require_once __DIR__ . '/includes/Scheduler.php';
+require_once __DIR__ . '/includes/Benefits/Benefit.php';
+require_once __DIR__ . '/includes/Benefits/InfoPerk.php';
+require_once __DIR__ . '/includes/Benefits/Registry.php';
 require_once __DIR__ . '/includes/Products.php';
 require_once __DIR__ . '/includes/Purchase.php';
 require_once __DIR__ . '/includes/Privacy.php';
@@ -67,6 +71,7 @@ final class HWE_Memberships {
 		HWE_Memberships_Schema::register();
 		HWE_Memberships_Levels::register();
 		HWE_Memberships_Scheduler::register();
+		HWE_Memberships_Benefits::register();
 		HWE_Memberships_Products::register();
 		HWE_Memberships_Purchase::register();
 		HWE_Memberships_Privacy::register();
