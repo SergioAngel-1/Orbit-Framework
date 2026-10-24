@@ -59,7 +59,12 @@ SH);
 
     public function testWarmsKeyRoutesFirstThenEverySitemapUrlInOrder(): void
     {
-        $result = $this->sh($this->script('warm-cache.sh'), ['https://t.example'], ['WARM_DELAY' => '0']);
+        // El orden se comprueba en secuencial: con `WARM_CONCURRENCY` > 1 (por defecto 3) `xargs -P`
+        // lanza las peticiones en paralelo y el orden del registro del curl falso varía.
+        $result = $this->sh($this->script('warm-cache.sh'), ['https://t.example'], [
+            'WARM_DELAY' => '0',
+            'WARM_CONCURRENCY' => '1',
+        ]);
 
         $this->assertSame(0, $result['code']);
         $this->assertSame(
