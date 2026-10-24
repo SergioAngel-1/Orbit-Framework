@@ -213,6 +213,11 @@ final class HWE_Memberships_Benefit_Free_Deliveries extends HWE_Memberships_Bene
 
 		add_filter( 'hwe_memberships_order_box_rows', array( $this, 'orderBoxRows' ), 10, 2 );
 
+		// WooCommerce guarda en la sesión las tarifas ya filtradas, con un hash del paquete como
+		// llave. Que el socio pida el envío gratis, o que aún quede cupo, no está en ese hash:
+		// hay que meterlo en el paquete para que el cambio recalcule las tarifas.
+		add_filter( 'woocommerce_cart_shipping_packages', array( $this, 'markPackages' ), 20, 1 );
+
 		// La reserva va después de las validaciones del checkout (Tareas 6 y 11) y antes del cobro.
 		add_action( 'woocommerce_store_api_checkout_update_order_from_request', array( $this, 'reserveForOrder' ), 20, 2 );
 		add_action( 'woocommerce_order_status_processing', array( $this, 'onOrderCollected' ), 20, 1 );
@@ -238,6 +243,39 @@ final class HWE_Memberships_Benefit_Free_Deliveries extends HWE_Memberships_Bene
 		// Sin módulo shipping: el beneficio pone a 0 las tarifas que no son de recogida. Va después
 		// del envío gratis por cupón (30), así un envío que ya salía a 0 no se atribuye al cupo.
 		add_filter( 'woocommerce_package_rates', array( $this, 'applyToRates' ), 35, 2 );
+	}
+
+	// ------------------------------------------------------------------------
+	//  Caché de tarifas de WooCommerce
+	// ------------------------------------------------------------------------
+
+	/** Clave que se añade a cada paquete de envío del carrito. */
+	public const PACKAGE_KEY = 'hwe_free_delivery';
+
+	/**
+	 * `woocommerce_cart_shipping_packages`: marca cada paquete con «el socio pidió el envío gratis
+	 * y le queda cupo». WooCommerce calcula el hash con que reutiliza las tarifas de la sesión a
+	 * partir del paquete; sin esta marca, pedir o quitar el envío gratis devolvía las tarifas de
+	 * antes (pedirlo no lo aplicaba y quitarlo lo dejaba aplicado, con el pedido sin cupo
+	 * reservado). Sin petición no se consulta el cupo.
+	 *
+	 * @param mixed $packages
+	 * @return mixed
+	 */
+	public function markPackages( mixed $packages ): mixed {
+		if ( ! is_array( $packages ) ) {
+			return $packages;
+		}
+
+		$wanted = $this->requested() && $this->quotaFor( self::currentUserId() )['available'];
+
+		foreach ( $packages as $index => $package ) {
+			if ( is_array( $package ) ) {
+				$packages[ $index ][ self::PACKAGE_KEY ] = $wanted ? 'requested' : 'no';
+			}
+		}
+
+		return $packages;
 	}
 
 	// ------------------------------------------------------------------------

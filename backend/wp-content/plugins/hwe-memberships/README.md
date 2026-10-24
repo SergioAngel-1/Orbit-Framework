@@ -218,6 +218,12 @@ etiqueta. Si el envío ya salía a 0 por otra regla, no se reserva cupo (`reason
 Motivos estables: `membership_free_delivery`, `already_free`, `quota_exhausted`, `not_eligible` y
 `not_available`; los textos los compone el BFF.
 
+**Caché de tarifas de WooCommerce.** WooCommerce guarda en la sesión las tarifas ya filtradas
+(`woocommerce_package_rates`) con un hash del paquete como llave, y ese hash no incluye la petición
+del socio ni su cupo. Por eso `woocommerce_cart_shipping_packages` añade `hwe_free_delivery`
+(`requested` si pidió el envío gratis y queda cupo, `no` en el resto) a cada paquete: al pedirlo,
+quitarlo o agotar el cupo, las tarifas se recalculan en vez de reutilizar las anteriores.
+
 ## Beneficios conectados con `loyalty`
 
 Los tres beneficios de fidelización son opcionales y dependen de `loyalty`. Si el módulo está

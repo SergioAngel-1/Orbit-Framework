@@ -452,6 +452,57 @@ final class FreeDeliveriesTest extends TestCase
         $this->assertSame('', (string) $notEligible->get_meta(\HWE_Memberships_Grants::META_FREE_DELIVERY_GRANT));
     }
 
+    /**
+     * WooCommerce guarda las tarifas YA filtradas (`woocommerce_package_rates`) en la sesión,
+     * identificadas por un hash del paquete (contenido, cupones, destino, usuario). El envío gratis
+     * depende de algo que el hash no ve —la petición del socio y el cupo—, así que sin marcarlo en
+     * el paquete, pedir o quitar el envío gratis reutilizaba las tarifas viejas: pedirlo no lo
+     * aplicaba, y quitarlo lo dejaba aplicado (un pedido con envío gratis sin reservar cupo).
+     */
+    public function testThePackageCarriesTheRequestSoWooCommerceDoesNotReuseStaleRates(): void
+    {
+        $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 1]]);
+        $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:package');
+        $benefit = new \HWE_Memberships_Benefit_Free_Deliveries();
+        $benefit->register();
+
+        $callbacks = $this->callbacks('woocommerce_cart_shipping_packages', 'filter');
+        $this->assertCount(1, $callbacks, 'El beneficio marca los paquetes de envío del carrito.');
+
+        $packages = [['contents' => [], 'destination' => ['country' => 'CO']]];
+        $mark     = static fn (array $in): array => ($callbacks[0]['callback'])($in);
+
+        $this->requestFreeDelivery(false);
+        $without = $mark($packages);
+
+        $this->requestFreeDelivery(true);
+        $with = $mark($packages);
+
+        $this->assertNotSame($without, $with, 'Pedir el envío gratis cambia el paquete, y con él el hash de WooCommerce.');
+        $this->assertSame($packages[0]['destination'], $with[0]['destination'], 'No se toca nada más del paquete.');
+
+        // Quitar la petición devuelve el paquete original: las tarifas vuelven a calcularse.
+        $this->requestFreeDelivery(false);
+        $this->assertSame($without, $mark($packages));
+    }
+
+    public function testAnExhaustedQuotaChangesThePackageToo(): void
+    {
+        $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 1]]);
+        $grant   = $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:package-quota');
+        $benefit = new \HWE_Memberships_Benefit_Free_Deliveries();
+        $benefit->register();
+        $mark    = $this->callbacks('woocommerce_cart_shipping_packages', 'filter')[0]['callback'];
+        $this->requestFreeDelivery(true);
+
+        $packages  = [['contents' => []]];
+        $available = $mark($packages);
+
+        $this->wpdb->grants[$grant]['shipping_quota_used'] = 1;
+
+        $this->assertNotSame($available, $mark($packages), 'Sin cupo, las tarifas ya no pueden salir gratis: otro hash.');
+    }
+
     // ------------------------------------------------------------------------
     //  Integración con shipping (filtro estable)
     // ------------------------------------------------------------------------
