@@ -706,6 +706,45 @@ final class StoreApiTest extends TestCase
         $this->assertTrue($state['free_delivery']['requested']);
     }
 
+    /**
+     * La petición de envío gratis es del carrito, no de la cuenta: si sobrevive al pedido, el
+     * siguiente carrito hereda `requested = true` y el checkout reserva una unidad que el
+     * cliente no ha pedido; si sobrevive al vaciado, lo mismo. Se olvida en los dos momentos,
+     * como hace `loyalty` con su canje.
+     */
+    public function testTheFreeDeliveryRequestIsForgottenAfterTheOrderAndWhenTheCartIsEmptied(): void
+    {
+        /** @var array<string,list<array{callback:callable,priority:int,accepted:int}>> $hooks */
+        $hooks = [];
+        Functions\when('add_action')->alias(
+            function (string $hook, callable $callback, int $priority = 10, int $accepted = 1) use (&$hooks): bool {
+                $hooks[$hook][] = ['callback' => $callback, 'priority' => $priority, 'accepted' => $accepted];
+                return true;
+            }
+        );
+
+        \HWE_Memberships_StoreApi::register();
+
+        $processed = $hooks['woocommerce_store_api_checkout_order_processed'][0] ?? null;
+        $this->assertNotNull($processed, 'El pedido procesado olvida la petición.');
+        $this->assertSame([\HWE_Memberships_StoreApi::class, 'forgetRequest'], $processed['callback']);
+
+        $emptied = $hooks['woocommerce_cart_emptied'][0] ?? null;
+        $this->assertNotNull($emptied, 'El carrito vaciado olvida la petición.');
+        $this->assertSame([\HWE_Memberships_StoreApi::class, 'forgetRequest'], $emptied['callback']);
+        $this->assertSame(0, $emptied['accepted']);
+
+        $this->session()->set(\HWE_Memberships_StoreApi::SESSION_FREE_DELIVERY, true);
+        ($processed['callback'])(new \WC_Order());
+        $this->assertFalse($this->session()->get(\HWE_Memberships_StoreApi::SESSION_FREE_DELIVERY, false));
+        $this->assertFalse(\HWE_Memberships_StoreApi::requestedFreeDelivery());
+
+        $this->session()->set(\HWE_Memberships_StoreApi::SESSION_FREE_DELIVERY, true);
+        ($emptied['callback'])();
+        $this->assertFalse($this->session()->get(\HWE_Memberships_StoreApi::SESSION_FREE_DELIVERY, false));
+        $this->assertFalse(\HWE_Memberships_StoreApi::requestedFreeDelivery());
+    }
+
     // ── Avisos de compra ────────────────────────────────────────────────────
 
     public function testBuyingTheSameLevelIsAnnouncedAsARenewal(): void

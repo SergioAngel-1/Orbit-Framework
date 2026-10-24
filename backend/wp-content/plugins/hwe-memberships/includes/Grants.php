@@ -602,9 +602,14 @@ final class HWE_Memberships_Grants {
 		}
 		$state = self::readOrderMeta( $order, self::META_FREE_DELIVERY_STATE );
 		if ( self::FREE_DELIVERY_RELEASED === $state ) {
-			self::rollback();
-			self::log( 'el pedido ' . $orderId . ' ya devolvió su envío gratis; no se vuelve a reservar.' );
-			return false;
+			// WooCommerce reutiliza el pedido cuando un intento del checkout falla y el cliente
+			// reintenta: la devolución del intento anterior no puede bloquear la reserva del
+			// siguiente (409 con el cupo intacto). Un pedido ya cobrado y reembolsado del todo
+			// no vuelve a cobrarse: su unidad no se reserva de nuevo.
+			if ( ! self::releasedOrderCanReserve( $order, $orderId ) ) {
+				self::rollback();
+				return false;
+			}
 		}
 		if ( in_array( $state, array( self::FREE_DELIVERY_RESERVED, self::FREE_DELIVERY_CONSUMED ), true ) ) {
 			self::rollback();
@@ -770,8 +775,12 @@ final class HWE_Memberships_Grants {
 	/**
 	 * Devuelve la unidad de un pedido cancelado o fallido antes de cobrarse (`reserved`) o la de un
 	 * reembolso total (`consumed`). Idempotente por pedido: un pedido ya devuelto no mueve nada.
+	 *
+	 * `$reservationOnly` limita la devolución a una reserva viva. El reintento de un borrador y el
+	 * cobro de un pedido que ya no lleva el envío de membresía nunca devuelven una unidad que otro
+	 * aviso ya consumió.
 	 */
-	public static function releaseFreeDelivery( int $orderId ): bool {
+	public static function releaseFreeDelivery( int $orderId, bool $reservationOnly = false ): bool {
 		$order = self::order( $orderId );
 		if ( null === $order ) {
 			self::log( 'no se pudo cargar el pedido ' . $orderId . ' para devolver su envío gratis.' );
@@ -786,6 +795,10 @@ final class HWE_Memberships_Grants {
 		}
 		if ( ! in_array( $state, array( self::FREE_DELIVERY_RESERVED, self::FREE_DELIVERY_CONSUMED ), true ) ) {
 			self::log( 'el pedido ' . $orderId . ' tiene un estado de envío gratis desconocido («' . $state . '»).' );
+			return false;
+		}
+		if ( $reservationOnly && self::FREE_DELIVERY_CONSUMED === $state ) {
+			self::log( 'el pedido ' . $orderId . ' ya se cobró; su envío gratis no se devuelve como reserva.' );
 			return false;
 		}
 
@@ -831,6 +844,13 @@ final class HWE_Memberships_Grants {
 			self::rollback();
 			return false;
 		}
+		if ( $reservationOnly && self::FREE_DELIVERY_CONSUMED === $state ) {
+			// Otro aviso lo cobró mientras se esperaba el bloqueo: no se devuelve una unidad ya
+			// consumida desde un camino que solo pretendía retirar una reserva viva.
+			self::rollback();
+			self::log( 'el pedido ' . $orderId . ' se cobró mientras se devolvía su reserva; no se toca el cupo.' );
+			return false;
+		}
 
 		$row = self::rowById( $grantId );
 		if ( null === $row ) {
@@ -869,6 +889,43 @@ final class HWE_Memberships_Grants {
 		}
 
 		return true;
+	}
+
+	/**
+	 * ¿Se puede reservar otra vez un pedido cuya meta dice `released`? Solo si nunca se cobró.
+	 * WooCommerce reutiliza el mismo borrador cuando el cliente reintenta tras un fallo (pasarela,
+	 * admin u otro plugin) y esa devolución no debe bloquear el intento siguiente. Un pedido
+	 * cobrado y reembolsado del todo tampoco vuelve a cobrarse: falla cerrado.
+	 */
+	private static function releasedOrderCanReserve( object $order, int $orderId ): bool {
+		$paid = self::orderWasPaid( $order );
+		if ( true === $paid ) {
+			self::log( 'el pedido ' . $orderId . ' ya se cobró; no se vuelve a reservar su envío gratis.' );
+			return false;
+		}
+		if ( null === $paid ) {
+			self::log( 'no se pudo saber si el pedido ' . $orderId . ' se cobró; no se vuelve a reservar su envío gratis.' );
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * ¿El pedido se ha cobrado alguna vez? `null` si el objeto del pedido no permite saberlo (se
+	 * falla cerrado). La fecha de cobro (`date_paid`) no se borra al reembolsar ni al cancelar, así
+	 * que distingue un borrador reintentado de un pedido que ya se cobró una vez;
+	 * `is_paid()` es el respaldo para pedidos marcados como cobrados sin fecha.
+	 */
+	private static function orderWasPaid( object $order ): ?bool {
+		if ( method_exists( $order, 'get_date_paid' ) && null !== $order->get_date_paid() ) {
+			return true;
+		}
+		if ( method_exists( $order, 'is_paid' ) ) {
+			return (bool) $order->is_paid();
+		}
+
+		return null;
 	}
 
 	/**

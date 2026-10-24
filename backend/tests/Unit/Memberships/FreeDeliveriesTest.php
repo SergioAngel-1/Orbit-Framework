@@ -426,6 +426,201 @@ final class FreeDeliveriesTest extends TestCase
     }
 
     // ------------------------------------------------------------------------
+    //  Reintentos sobre el mismo borrador (A-1)
+    // ------------------------------------------------------------------------
+
+    /**
+     * WooCommerce reutiliza el pedido cuando un intento del checkout falla: rehace las líneas,
+     * el envío y los cupones, pero NO las metas del pedido. Si el cliente quita el envío gratis
+     * (o el destino deja de ser elegible) antes de reintentar, la reserva del intento anterior
+     * quedaba viva y el cobro consumía una unidad que el pedido no llevaba: pagaba el envío y
+     * además perdía un envío gratis.
+     */
+    public function testARetryThatNoLongerAppliesTheBenefitReleasesTheStaleReservation(): void
+    {
+        $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 1]]);
+        $grant   = $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:retry-release');
+        $benefit = new \HWE_Memberships_Benefit_Free_Deliveries();
+        $order   = $this->appliedOrder(910);
+        $this->requestFreeDelivery(true);
+
+        $this->assertTrue($benefit->reserveForOrder($order));
+        $this->assertSame(1, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved']);
+
+        // Reintento sobre el mismo borrador: el cliente quitó la petición y el envío se cobra.
+        $this->requestFreeDelivery(false);
+        $order->shipping_items = [new \WC_Order_Item_Shipping([])];
+        $order->shipping_total = 7.0;
+
+        $this->assertFalse($benefit->reserveForOrder($order));
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved'], 'La reserva obsoleta vuelve al cupo.');
+        $this->assertSame(1, $benefit->quotaFor(self::USER)['remaining']);
+        $this->assertSame(
+            \HWE_Memberships_Grants::FREE_DELIVERY_RELEASED,
+            (string) $order->get_meta(\HWE_Memberships_Grants::META_FREE_DELIVERY_STATE)
+        );
+
+        // El cobro de ese pedido no consume nada: el envío se pagó.
+        $order->status = 'processing';
+        $order->paid   = true;
+        $benefit->onOrderCollected(910);
+
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_used']);
+        $this->assertSame(1, $benefit->quotaFor(self::USER)['remaining']);
+
+        // Lo mismo cuando el destino deja de ser elegible: la petición sigue viva, pero la línea
+        // se rehízo con coste y ya no lleva la marca del beneficio.
+        $notEligible = $this->appliedOrder(911);
+        $this->requestFreeDelivery(true);
+        $this->assertTrue($benefit->reserveForOrder($notEligible));
+        $notEligible->shipping_items = [new \WC_Order_Item_Shipping([])];
+        $notEligible->shipping_total = 8.0;
+
+        $this->assertFalse($benefit->reserveForOrder($notEligible));
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved']);
+        $this->assertSame(
+            \HWE_Memberships_Grants::FREE_DELIVERY_RELEASED,
+            (string) $notEligible->get_meta(\HWE_Memberships_Grants::META_FREE_DELIVERY_STATE)
+        );
+    }
+
+    /**
+     * El cupón de envío gratis también deja sin efecto el beneficio en un reintento: la reserva
+     * anterior no puede acabar consumida por un pedido cuyo envío ya pagaba el cupón.
+     */
+    public function testARetryCoveredByAFreeShippingCouponReleasesTheStaleReservation(): void
+    {
+        if (!defined('HWE_SHIPPING_FREE_REASON_FILTER')) {
+            define('HWE_SHIPPING_FREE_REASON_FILTER', \HWE_Memberships_Benefit_Free_Deliveries::SHIPPING_FILTER);
+        }
+        $this->activePlugins = ['hwe-memberships/hwe-memberships.php', 'hwe-shipping/hwe-shipping.php'];
+        $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 1]]);
+        $grant   = $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:retry-coupon');
+        $benefit = new \HWE_Memberships_Benefit_Free_Deliveries();
+        $order   = $this->appliedOrder(911);
+        $this->requestFreeDelivery(true);
+
+        $this->assertTrue($benefit->reserveForOrder($order));
+        $order->coupon_codes = ['GRATIS'];
+        \WC_Coupon::$free   = ['GRATIS' => true];
+
+        $this->assertFalse($benefit->reserveForOrder($order));
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved']);
+
+        $order->status = 'processing';
+        $order->paid   = true;
+        $benefit->onOrderCollected(911);
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_used']);
+
+        \WC_Coupon::$free = [];
+    }
+
+    /**
+     * Un pedido que falló devuelve su reserva. WooCommerce lo reutiliza cuando el cliente
+     * reintenta con el mismo carrito: con el envío gratis aún pedido y cupo intacto la reserva
+     * debe hacerse otra vez (antes respondía 409 para siempre).
+     */
+    public function testARetryAfterAFailedAttemptCanReserveAgainWithFreeQuota(): void
+    {
+        $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 1]]);
+        $grant   = $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:retry-failed');
+        $benefit = new \HWE_Memberships_Benefit_Free_Deliveries();
+        $order   = $this->appliedOrder(920);
+        $this->requestFreeDelivery(true);
+
+        $this->assertTrue($benefit->reserveForOrder($order));
+        $benefit->onOrderFailed(920);
+
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved']);
+        $this->assertSame(
+            \HWE_Memberships_Grants::FREE_DELIVERY_RELEASED,
+            (string) $order->get_meta(\HWE_Memberships_Grants::META_FREE_DELIVERY_STATE)
+        );
+
+        // Reintento del mismo pedido con el envío gratis todavía pedido.
+        $order->status = 'pending';
+        $this->assertTrue($benefit->reserveForOrder($order), 'La devolución del intento fallido no bloquea el reintento.');
+        $this->assertSame(1, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved']);
+        $this->assertSame(
+            \HWE_Memberships_Grants::FREE_DELIVERY_RESERVED,
+            (string) $order->get_meta(\HWE_Memberships_Grants::META_FREE_DELIVERY_STATE)
+        );
+
+        $order->status = 'processing';
+        $order->paid   = true;
+        $benefit->onOrderCollected(920);
+        $this->assertSame(1, (int) $this->wpdb->grants[$grant]['shipping_quota_used']);
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved']);
+    }
+
+    /**
+     * Si la línea de envío del pedido deja de llevar la marca antes de cobrarse (se rehízo con
+     * coste), el cobro devuelve la reserva en vez de consumirla: la meta del pedido refleja lo
+     * que el pedido lleva.
+     */
+    public function testACollectedOrderWithoutTheBenefitDoesNotConsumeTheReservation(): void
+    {
+        $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 1]]);
+        $grant   = $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:collected-mismatch');
+        $benefit = new \HWE_Memberships_Benefit_Free_Deliveries();
+        $order   = $this->appliedOrder(930);
+        $this->requestFreeDelivery(true);
+
+        $this->assertTrue($benefit->reserveForOrder($order));
+        $order->shipping_items = [new \WC_Order_Item_Shipping([])];
+        $order->shipping_total = 7.0;
+        $order->status         = 'processing';
+        $order->paid           = true;
+
+        $benefit->onOrderCollected(930);
+
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_used']);
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved']);
+        $this->assertSame(
+            \HWE_Memberships_Grants::FREE_DELIVERY_RELEASED,
+            (string) $order->get_meta(\HWE_Memberships_Grants::META_FREE_DELIVERY_STATE)
+        );
+    }
+
+    /**
+     * Un pedido cobrado y reembolsado del todo ya devolvió su envío y no vuelve a cobrarse: la
+     * meta `released` no autoriza reutilizar el cupo al reintentar.
+     */
+    public function testAReleasedOrderThatWasPaidCannotReserveAgain(): void
+    {
+        $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 1]]);
+        $grant   = $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:refunded-reserve');
+        $benefit = new \HWE_Memberships_Benefit_Free_Deliveries();
+        $order   = $this->appliedOrder(940);
+        $order->total = 100.0;
+        $this->requestFreeDelivery(true);
+
+        $this->assertTrue($benefit->reserveForOrder($order));
+        $order->date_paid = $this->now; // como `payment_complete()`
+        $order->status    = 'processing';
+        $order->paid      = true;
+        $benefit->onOrderCollected(940);
+        $this->assertSame(1, (int) $this->wpdb->grants[$grant]['shipping_quota_used']);
+
+        // WooCommerce conserva `date_paid` y pasa el estado a `refunded`: `is_paid()` ya es falso.
+        $order->total_refunded = 100.0;
+        $order->status         = 'refunded';
+        $order->paid           = false;
+        $benefit->onOrderRefunded(940);
+
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_used']);
+        try {
+            $benefit->reserveForOrder($order);
+            $this->fail('Un pedido cobrado y reembolsado no debe volver a reservar cupo.');
+        } catch (RouteException $exception) {
+            $this->assertSame('hwe_membership_free_delivery_unavailable', $exception->getErrorCode());
+        }
+
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved']);
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_used']);
+    }
+
+    // ------------------------------------------------------------------------
     //  Cuándo NO se reserva (§7.3)
     // ------------------------------------------------------------------------
 
