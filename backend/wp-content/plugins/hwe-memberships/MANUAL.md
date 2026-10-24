@@ -198,6 +198,12 @@ productos y categorías, carnés y configuración siguen ahí para cuando vuelva
 apagas solo la fidelización o el envío, las ventajas que dependen de ellos desaparecen para el
 cliente y su configuración se conserva.
 
+Al desactivar el plugin, sus **productos de membresía publicados pasan a borrador** para que no
+se puedan comprar mientras no haya módulo que entregue la membresía. Al volver a activarlo se
+restauran solos si nadie los cambió a mano, y los pedidos que se cobraron durante el apagón se
+concilian en ese momento (la membresía se concede una sola vez, con la clave de la línea del
+pedido). Si tenías productos de membresía en borrador por otro motivo, no se tocan.
+
 ## Comprobaciones antes de abrir al público
 
 1. Crea al menos un nivel publicado y comprable, con su rango.
