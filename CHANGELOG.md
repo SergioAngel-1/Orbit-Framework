@@ -6,6 +6,18 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **El CI del núcleo funciona dentro del repo de una instancia.** `.github/**` es núcleo y no
+  se edita, pero dos jobs solo tenían sentido en el repositorio del framework: `anti-instance`
+  persigue justo los tokens del código de la instancia y `contract` superpone
+  `examples/instance-minimal/` al repo, pisando su `registry.ts` y sus `mu-plugins/instance/`.
+  El interruptor es la variable de repositorio `HWE_INSTANCE`, con el valor exacto `true`
+  (cualquier otro valor o su ausencia mantiene el comportamiento del framework): los dos jobs
+  llevan `if: ${{ vars.HWE_INSTANCE != 'true' }}`, el job del frontend la recibe como `env`,
+  `check-anti-instance.sh` sale con 0 y un mensaje, y `gitignore.test.ts` omite solo los bloques
+  que describen la política del framework (carpeta de instancia ignorada y patrón de plugins
+  comentado); los de secretos y copias se comprueban siempre.
+
 ### Changed
 - **La puerta anti-instancia conoce el token de una instancia nueva.** El patrón de
   `.github/scripts/check-anti-instance.sh` incorpora el token de la instancia que empieza a

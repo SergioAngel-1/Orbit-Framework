@@ -66,6 +66,13 @@ bajo `app/api/*`, el endpoint público `/wp-json/hwe/v1/config` (marca/diseño/f
 contrato de auth (cookies httpOnly + CSRF). Ese contrato está documentado en
 **`docs/FRONTEND_CONNECT.md`** — es la referencia que sobrevive aunque reescribas toda la UI.
 
+**El CI también es núcleo.** `.github/**` no se edita en una instancia (ni siquiera para
+adaptarlo a su repositorio): se declara la **variable de repositorio `HWE_INSTANCE=true`** y el
+propio CI se salta la puerta anti-instancia —perseguiría los tokens de la instancia— y el job
+«contrato» —que superpone `examples/instance-minimal/` y pisaría su `registry.ts`—. Sin la
+variable, el CI se comporta como el del framework (fail-closed). Ver
+`docs/CREATE_INSTANCE.md`, «CI de la instancia».
+
 ---
 
 ## 2. El principio que lo explica casi todo: **el BFF**

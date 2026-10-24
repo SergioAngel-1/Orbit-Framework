@@ -206,6 +206,38 @@ campos de producto, un detalle de línea de pedido y una vista. Los
 hooks y sus reglas: `backend/wp-content/mu-plugins/instance/README.md`,
 `frontend/src/instance/README.md` y `docs/PLUGIN_DEVELOPMENT.md`.
 
+### CI de la instancia
+
+`.github/**` es núcleo (`docs/UPGRADE.md` §1): **no lo edites**, cada merge choca. Pero dos
+jobs del CI solo tienen sentido en el repositorio del framework y, sin tocarlos, en una
+instancia fallarían o probarían otra cosa:
+
+- `anti-instance` persigue justo los tokens que el código de tu instancia lleva (el de esta
+  instancia está en el patrón desde el primer día).
+- `contract` superpone `examples/instance-minimal/` al repo y **pisa** tu `registry.ts` y tus
+  `mu-plugins/instance/`: estaría probando el ejemplo, no tu código.
+- `gitignore.test.ts` describe la política del framework (tu carpeta de instancia ignorada y el
+  patrón de plugins comentado), que en tu repo es exactamente al revés.
+
+El interruptor es **una variable de repositorio de GitHub** (no un secreto; se lee como
+`vars.HWE_INSTANCE`): en el repositorio de la instancia, *Settings → Secrets and variables →
+Actions → Variables → New repository variable*, nombre `HWE_INSTANCE`, valor **`true`** exacto.
+Con ella, los dos jobs se saltan (`if: ${{ vars.HWE_INSTANCE != 'true' }}`), el job del frontend
+la recibe y `gitignore.test.ts` solo omite los bloques de la política del framework. El resto de
+la batería (lint, tipos, formato, i18n, tests, cobertura, build, PHPUnit, gitleaks) sigue
+corriendo igual y es la que dice si un merge del framework rompió tu instancia.
+
+En local, expórtala antes de `npm run test` (o de `bash .github/scripts/check-anti-instance.sh`)
+para que veas lo que verá el CI:
+
+```bash
+export HWE_INSTANCE=true
+```
+
+Es **fail-closed**: cualquier otro valor (o su ausencia) mantiene el comportamiento del
+framework. Si el CI de tu instancia sigue ejecutando la puerta anti-instancia, la variable no
+está puesta o no vale exactamente `true`.
+
 Lo único que es un contrato estable (y a lo que cualquier vista, heredada o nueva, debe
 ajustarse) es el backend/BFF: WPGraphQL/WooGraphQL, los endpoints REST bajo `app/api/*`, el
 endpoint de config `/wp-json/hwe/v1/config` y los flags `ecommerce.*_enabled` y `modules.*` —

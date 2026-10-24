@@ -29,6 +29,12 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    env:
+      # En el repositorio de una instancia hay que exportar el mismo interruptor que
+      # usan los jobs `anti-instance`/`contract` para saltarse: `gitignore.test.ts`
+      # describe la política del framework (su carpeta de instancia ignorada, el
+      # patrón de plugins comentado) y en una instancia es justo al revés.
+      HWE_INSTANCE: ${{ vars.HWE_INSTANCE }}
     steps:
       - uses: actions/checkout@v4
 
@@ -131,6 +137,9 @@ jobs:
     name: Puerta anti-instancia
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # En el repositorio de una instancia su propio código lleva los tokens del patrón:
+    # la puerta solo aplica al framework. Interruptor fail-closed (solo `true`).
+    if: ${{ vars.HWE_INSTANCE != 'true' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -146,6 +155,10 @@ jobs:
     name: Contrato de instancia (ejemplo vivo)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # El job superpone `examples/instance-minimal/` al repo: en una instancia PISA su
+    # `registry.ts` y sus `mu-plugins/instance/`, así que probaría otra cosa. Solo corre
+    # en el repositorio del framework (interruptor fail-closed, valor exacto `true`).
+    if: ${{ vars.HWE_INSTANCE != 'true' }}
     steps:
       - uses: actions/checkout@v4
 

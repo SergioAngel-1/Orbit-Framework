@@ -45,13 +45,14 @@ final class CheckAntiInstanceTest extends ShellScriptTestCase
     }
 
     /** @return array{code: int, output: string} */
-    private function gate(): array
+    private function gate(array $env = []): array
     {
         $process = proc_open(
             ['bash', $this->dir . '/.github/scripts/check-anti-instance.sh'],
             [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes,
             $this->dir,
+            array_merge(getenv(), $env),
         );
         $out = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
 
@@ -130,6 +131,47 @@ final class CheckAntiInstanceTest extends ShellScriptTestCase
         $this->git('add', '-A');
 
         $result = $this->gate();
+
+        $this->assertSame(1, $result['code'], $result['output']);
+        $this->assertStringContainsString('frontend/src/lib/a.ts', $result['output']);
+    }
+
+    /**
+     * En el repositorio de una instancia la puerta no aplica: su propio código lleva
+     * los tokens que el patrón persigue. El interruptor es fail-closed: solo el valor
+     * exacto `true` la desactiva.
+     */
+    public function testAnInstanceRepositorySkipsTheGate(): void
+    {
+        $this->write('frontend/src/lib/a.ts', "// la tienda " . self::TOKEN_A . "\n");
+        $this->git('add', '-A');
+
+        $result = $this->gate(['HWE_INSTANCE' => 'true']);
+
+        $this->assertSame(0, $result['code'], $result['output']);
+        $this->assertStringContainsString('repositorio de instancia', $result['output']);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function nonInstanceValues(): array
+    {
+        return [
+            'vacío' => [''],
+            'false' => ['false'],
+            '1' => ['1'],
+            'TRUE en mayúsculas' => ['TRUE'],
+            'true con espacios' => [' true '],
+        ];
+    }
+
+    /** @dataProvider nonInstanceValues */
+    #[\PHPUnit\Framework\Attributes\DataProvider('nonInstanceValues')]
+    public function testAnyOtherValueKeepsTheGateOn(string $value): void
+    {
+        $this->write('frontend/src/lib/a.ts', "// la tienda " . self::TOKEN_A . "\n");
+        $this->git('add', '-A');
+
+        $result = $this->gate(['HWE_INSTANCE' => $value]);
 
         $this->assertSame(1, $result['code'], $result['output']);
         $this->assertStringContainsString('frontend/src/lib/a.ts', $result['output']);

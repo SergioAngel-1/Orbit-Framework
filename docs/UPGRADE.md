@@ -38,6 +38,12 @@ dependencias del núcleo; la instancia puede haber añadido las suyas) y
 `frontend/src/i18n/routing.ts` (si la instancia añadió locales) y `.gitignore` (la instancia
 quita las líneas que ignoran sus carpetas de instancia para versionarlas).
 
+`.github/workflows/**` **no** es zona gris aunque tu instancia tenga su propio CI: sigue siendo
+núcleo y no se edita. Para que el CI del núcleo no falle ni pruebe otra cosa en tu repositorio,
+declara la variable de repositorio `HWE_INSTANCE=true` (`docs/CREATE_INSTANCE.md`, «CI de la
+instancia»): salta la puerta anti-instancia —persigue tus propios tokens— y el job «contrato»,
+que pisaría tu `registry.ts`. Es fail-closed: sin ella, el CI se comporta como el del framework.
+
 ## 2. Preparación (una vez por instancia)
 
 ```bash
