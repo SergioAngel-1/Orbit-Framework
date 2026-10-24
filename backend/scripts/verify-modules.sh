@@ -302,6 +302,31 @@ memberships_fixture_check() {
   fi
   check "memberships activo: la Store API marca el producto como bloqueado" "$body" '"locked":true'
   check "memberships activo: la Store API publica el nivel mínimo del requisito" "$body" "\"rank\":$MEMBERSHIP_FIXTURE_RANK"
+
+  # La Store API también sirve el producto por slug.
+  body="$(wp_get_body "/wp-json/wc/store/v1/products/verify-memberships")"
+  if printf '%s' "$body" | grep -q 'contenido-privado-de-verificacion'; then
+    fail "memberships activo: la Store API por slug no publica la descripción del producto bloqueado" "salida: $(printf '%s' "$body" | head -c 300)"
+  else
+    ok "memberships activo: la Store API por slug no publica la descripción del producto bloqueado"
+  fi
+
+  # WooCommerce registra el producto con `show_in_rest`: la REST de WordPress tampoco puede
+  # devolver su contenido.
+  body="$(wp_get_body "/wp-json/wp/v2/product/$MEMBERSHIP_FIXTURE_PRODUCT")"
+  if printf '%s' "$body" | grep -qE 'contenido-privado-de-verificacion|resumen-privado-de-verificacion'; then
+    fail "memberships activo: wp/v2/product no publica el contenido del producto bloqueado" "salida: $(printf '%s' "$body" | head -c 300)"
+  else
+    ok "memberships activo: wp/v2/product no publica el contenido del producto bloqueado"
+  fi
+
+  # La búsqueda no puede ser un oráculo del contenido: buscar una frase de la descripción no
+  # encuentra el producto, ni por GraphQL ni por la REST de WordPress.
+  q="{\"query\":\"{ products(where: { search: \\\"contenido-privado-de-verificacion\\\" }) { nodes { databaseId } } }\"}"
+  out="$(bff "$q")"
+  check "memberships activo: la búsqueda de GraphQL no compara contra la descripción bloqueada" "$out" '"nodes":\[\]'
+  body="$(wp_get_body "/wp-json/wp/v2/product?search=contenido-privado-de-verificacion&_fields=id")"
+  check "memberships activo: la búsqueda de wp/v2/product no compara contra la descripción bloqueada" "$body" '^\[\]$'
 }
 
 memberships_checks() {
