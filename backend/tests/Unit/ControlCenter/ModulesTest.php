@@ -200,15 +200,22 @@ final class ModulesTest extends TestCase
 
     // ── revalidación al activar/desactivar a mano ───────────────────────────
 
-    public function testTogglingACatalogPluginRevalidatesTheConfig(): void {
-        $calls = 0;
-        \Patchwork\redefine(\HWE\ControlCenter\Revalidation::class . '::trigger', function () use (&$calls): void {
-            $calls++;
-        });
+    public function testTogglingACatalogPluginRevalidatesConfigCatalogAndMemberships(): void {
+        $tags = [];
+        \Patchwork\redefine(
+            \HWE\ControlCenter\Revalidation::class . '::trigger',
+            function (string $tag = 'site-config') use (&$tags): void {
+                $tags[] = $tag;
+            }
+        );
 
         Modules::onPluginToggled('hwe-banners/hwe-banners.php');
         Modules::onPluginToggled('woocommerce/woocommerce.php');
 
-        $this->assertSame(1, $calls, 'Solo los plugins del catálogo de módulos revalidan.');
+        $this->assertSame(
+            ['site-config', 'products', 'memberships'],
+            $tags,
+            'Alternar un módulo cambia la config, el catálogo (membresías restringe fichas) y los niveles; un plugin ajeno no revalida.'
+        );
     }
 }

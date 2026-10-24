@@ -87,6 +87,22 @@ final class HWE_Loyalty_Settings {
 	/** Engancha el esquema del panel. Lo llama `HWE_Loyalty::boot()` con WooCommerce presente. */
 	public static function register(): void {
 		add_filter( 'hwe_control_center_schema', array( self::class, 'schema' ) );
+		add_action( 'hwe_control_center_saved', array( self::class, 'onSaved' ), 10, 1 );
+	}
+
+	/**
+	 * Los niveles de membresía anuncian como «beneficios disponibles» los que dependen de estos
+	 * interruptores (puntos, referidos, envío): al guardar la config se invalida su tag ISR o la
+	 * lista seguiría prometiendo ventajas apagadas hasta que caduque la ventana ISR. El tag es del
+	 * núcleo del Control Center, así que se puede invalidar aunque `memberships` esté apagado.
+	 *
+	 * @param mixed $publicData Config pública ya persistida (no se usa: cualquier guardado puede
+	 *                          cambiar los interruptores de los que dependen los beneficios).
+	 */
+	public static function onSaved( $publicData = null ): void {
+		if ( class_exists( 'HWE\\ControlCenter\\Revalidation' ) ) {
+			\HWE\ControlCenter\Revalidation::trigger( 'memberships' );
+		}
 	}
 
 	// ------------------------------------------------------------------------

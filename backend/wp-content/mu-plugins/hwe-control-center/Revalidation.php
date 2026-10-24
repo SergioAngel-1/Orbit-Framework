@@ -9,9 +9,10 @@ namespace HWE\ControlCenter;
  * petición con HWE_REVALIDATION_SECRET (compartido con el BFF) para que el
  * endpoint `/api/revalidate` confíe en la petición.
  *
- * TAGS. El núcleo acepta `site-config`; una instancia o un módulo registra los suyos con el
- * filtro `hwe_revalidation_tags` y el frontend debe declararlos también (ver
- * mu-plugins/instance/README.md). Un tag no registrado no se envía: el frontend lo rechazaría.
+ * TAGS. El núcleo acepta los suyos (`site-config`, `products`, `memberships`, `banners`, `posts` y
+ * `menus`); una instancia o un módulo registra los suyos con el filtro `hwe_revalidation_tags` y el
+ * frontend debe declararlos también (ver mu-plugins/instance/README.md). Un tag no registrado no se
+ * envía: el frontend lo rechazaría.
  *
  * SIN FALLOS SILENCIOSOS. Si falta el secreto, o se pide un tag no registrado, no se envía nada
  * y se registra el motivo (una vez por proceso): antes la revalidación «se omitía
@@ -20,10 +21,14 @@ namespace HWE\ControlCenter;
 class Revalidation {
 
     /**
-     * Tags que acepta el núcleo (los demás los registran instancias y módulos): la config,
-     * los banners, las entradas del blog y los menús de navegación.
+     * Tags que acepta el núcleo: la config, el catálogo de productos, las membresías, los
+     * banners, las entradas del blog y los menús de navegación.
+     *
+     * `products` y `memberships` son del núcleo aunque sus datos los sirvan módulos: al APAGAR el
+     * módulo que los registra hay que poder invalidarlos igualmente, porque lo cacheado en el
+     * frontend con ese tag sigue ahí (ver `Modules::onPluginToggled`).
      */
-    private const CORE_TAGS = ['site-config', 'banners', 'posts', 'menus'];
+    private const CORE_TAGS = ['site-config', 'products', 'memberships', 'banners', 'posts', 'menus'];
 
     /** Formato de un tag: minúsculas, dígitos, punto, guion y guion bajo; hasta 64 caracteres. */
     private const TAG_PATTERN = '/^[a-z0-9][a-z0-9._-]{0,63}$/';

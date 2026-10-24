@@ -18,6 +18,16 @@ namespace HWE\ControlCenter;
  */
 final class Modules {
 
+    /**
+     * Tags ISR que se invalidan al activar o desactivar un módulo del catálogo.
+     *
+     * No basta `site-config`: `memberships` filtra fichas del catálogo (tag `products`) y los
+     * niveles (`memberships`) anuncian como disponibles los beneficios que dependen de los
+     * módulos `loyalty`/`shipping`. Se revalidan siempre los tres —el BFF los conoce— en vez de
+     * mantener una tabla módulo → tags que se quedaría corta al añadir un módulo.
+     */
+    private const TOGGLE_TAGS = ['site-config', 'products', 'memberships'];
+
     /** Ids del catálogo del núcleo: los once plugins `plugins/hwe-<id>/` del framework. */
     public const CORE_IDS = [
         'banners',
@@ -92,6 +102,9 @@ final class Modules {
      * Activar o desactivar un módulo a mano (wp-admin → Plugins) cambia `config.modules`:
      * se revalida la config del frontend para que no siga gateando con el estado viejo
      * hasta que caduque la ventana ISR. `wp hwe setup` revalida por su cuenta.
+     *
+     * Además de la config se invalidan los tags que dependen del estado de los módulos (ver
+     * `TOGGLE_TAGS`): el catálogo y los niveles de membresía.
      */
     public static function register(): void {
         add_action('activated_plugin', [self::class, 'onPluginToggled']);
@@ -102,7 +115,9 @@ final class Modules {
     public static function onPluginToggled($pluginFile): void {
         foreach (self::catalog() as $slug) {
             if ($pluginFile === self::pluginFile($slug)) {
-                Revalidation::trigger();
+                foreach (self::TOGGLE_TAGS as $tag) {
+                    Revalidation::trigger($tag);
+                }
                 return;
             }
         }
