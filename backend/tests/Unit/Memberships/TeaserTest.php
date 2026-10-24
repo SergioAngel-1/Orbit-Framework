@@ -648,6 +648,47 @@ final class TeaserTest extends TestCase
         $this->assertSame($plain, \HWE_Memberships_Teaser::graphqlSearchArgs($plain));
     }
 
+    public function testTheStoreApiSearchAndSkuAreRedirectedToTheRestrictedWpSearch(): void
+    {
+        $this->postMetaRankExists = true;
+
+        $bySearch = $this->fakeQuery(['post_type' => 'product', 'search' => 'SKU-501']);
+        \HWE_Memberships_Teaser::storeSearchArgs($bySearch);
+        $this->assertSame('', $bySearch->query_vars['search'], 'WooCommerce no debe comparar el texto contra el SKU.');
+        $this->assertSame('', $bySearch->query_vars['sku']);
+        $this->assertSame('SKU-501', $bySearch->query_vars['s'], 'Se busca por el nombre, que searchColumns ya acota.');
+
+        $bySku = $this->fakeQuery(['post_type' => 'product', 'sku' => 'SKU-501']);
+        \HWE_Memberships_Teaser::storeSearchArgs($bySku);
+        $this->assertSame('', $bySku->query_vars['sku'], 'Un SKU adivinado no puede confirmar un producto bloqueado.');
+        $this->assertSame('', $bySku->query_vars['search']);
+        $this->assertSame('SKU-501', $bySku->query_vars['s']);
+
+        // Una consulta que no es de producto no se toca.
+        $post = $this->fakeQuery(['post_type' => 'post', 'sku' => 'SKU-501']);
+        \HWE_Memberships_Teaser::storeSearchArgs($post);
+        $this->assertSame('SKU-501', $post->query_vars['sku']);
+        $this->assertArrayNotHasKey('s', $post->query_vars);
+    }
+
+    public function testTheStoreApiSearchIsUntouchedWithoutLockedProductsOrWithTheModuleOff(): void
+    {
+        $query = $this->fakeQuery(['post_type' => 'product', 'search' => 'SKU-501']);
+
+        $this->postMetaRankExists = false;
+        \HWE_Memberships_Access::flush();
+        \HWE_Memberships_Teaser::storeSearchArgs($query);
+        $this->assertSame('SKU-501', $query->query_vars['search'], 'Sin requisitos, la búsqueda sigue igual.');
+        $this->assertArrayNotHasKey('s', $query->query_vars);
+
+        $this->postMetaRankExists = true;
+        $this->activePlugins      = [];
+        \HWE_Memberships_Access::flush();
+        $off = $this->fakeQuery(['post_type' => 'product', 'search' => 'SKU-501']);
+        \HWE_Memberships_Teaser::storeSearchArgs($off);
+        $this->assertSame('SKU-501', $off->query_vars['search'], 'Con el módulo apagado, igual.');
+    }
+
     // ── Hooks ───────────────────────────────────────────────────────────────
 
     public function testRegisterHooksTheRestFiltersOnlyWhenTheModuleIsActive(): void
@@ -661,6 +702,9 @@ final class TeaserTest extends TestCase
         Filters\expectAdded('woocommerce_rest_prepare_product_variation_object')
             ->once()
             ->with([\HWE_Memberships_Teaser::class, 'prepareWcVariation'], 999, 3);
+        Actions\expectAdded('pre_get_posts')
+            ->once()
+            ->with([\HWE_Memberships_Teaser::class, 'storeSearchArgs'], 999, 1);
 
         \HWE_Memberships_Teaser::register();
 
@@ -668,10 +712,40 @@ final class TeaserTest extends TestCase
         Filters\expectAdded('rest_request_after_callbacks')->never();
         Filters\expectAdded('woocommerce_rest_prepare_product_object')->never();
         Filters\expectAdded('woocommerce_rest_prepare_product_variation_object')->never();
+        Actions\expectAdded('pre_get_posts')->never();
         \HWE_Memberships_Teaser::register();
     }
 
     // ── Datos de prueba ─────────────────────────────────────────────────────
+
+    /**
+     * Consulta mínima con la forma que usa `WP_Query` en `pre_get_posts`.
+     *
+     * @param array<string,mixed> $vars
+     */
+    private function fakeQuery(array $vars): object
+    {
+        return new class ($vars) {
+            /** @var array<string,mixed> */
+            public array $query_vars;
+
+            /** @param array<string,mixed> $vars */
+            public function __construct(array $vars)
+            {
+                $this->query_vars = $vars;
+            }
+
+            public function get(string $key): mixed
+            {
+                return $this->query_vars[$key] ?? '';
+            }
+
+            public function set(string $key, mixed $value): void
+            {
+                $this->query_vars[$key] = $value;
+            }
+        };
+    }
 
     /** @return array<string,mixed> Respuesta de `wp/v2/product`. */
     private function wpProduct(int $id): array

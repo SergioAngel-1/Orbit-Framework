@@ -12,9 +12,10 @@
  *  · REST de WordPress `wp/v2/product` (WooCommerce registra el producto con `show_in_rest`:
  *    sin este recorte devolvería `content` y `excerpt` a cualquiera);
  *  · GraphQL (lo aplica `HWE_Memberships_Graphql`);
- *  · la búsqueda (GraphQL, `wp/v2`): comparar contra la descripción o el extracto de un producto
- *    bloqueado sería un oráculo para sondear su contenido, así que con requisitos en el catálogo
- *    solo se compara el nombre.
+ *  · la búsqueda (GraphQL, `wp/v2`, Store API): comparar contra la descripción, el extracto o
+ *    el SKU de un producto bloqueado sería un oráculo para sondear su contenido, así que con
+ *    requisitos en el catálogo solo se compara el nombre. En la Store API, los parámetros
+ *    propios `search` y `sku` se reencaminan por la búsqueda de WordPress.
  *
  * La lista es BLANCA: solo salen id, nombre, slug, tipo, imagen principal, precio público (rango
  * en variables), categorías, el requisito y la marca `locked`. Cualquier campo que añada otro
@@ -45,6 +46,7 @@ final class HWE_Memberships_Teaser {
 		add_filter( 'rest_prepare_product', array( self::class, 'prepareWpProduct' ), 999, 3 );
 		add_filter( 'post_search_columns', array( self::class, 'searchColumns' ), 999, 3 );
 		add_filter( 'graphql_product_connection_query_args', array( self::class, 'graphqlSearchArgs' ), 999, 1 );
+		add_action( 'pre_get_posts', array( self::class, 'storeSearchArgs' ), 999, 1 );
 	}
 
 	/** ¿Hay que recortar este producto para este usuario? `0` = visitante sin sesión. */
@@ -559,6 +561,45 @@ final class HWE_Memberships_Teaser {
 		unset( $args['search'] );
 
 		return $args;
+	}
+
+	/**
+	 * `pre_get_posts`: la Store API busca con sus propios parámetros `search` y `sku`, que
+	 * WooCommerce (`ProductQuery::add_query_clauses`) compara contra el título **y el SKU**.
+	 * Con requisitos en el catálogo se reencaminan por la búsqueda de WordPress, que
+	 * `searchColumns()` limita al nombre: un SKU adivinado no confirma que exista un producto
+	 * bloqueado. Sin requisitos, los parámetros no se tocan. Solo se actúa sobre consultas que
+	 * pueden devolver productos y llevan alguno de esos parámetros (los pone la Store API).
+	 *
+	 * @param mixed $query WP_Query de `pre_get_posts`.
+	 */
+	public static function storeSearchArgs( $query ): void {
+		if (
+			! is_object( $query )
+			|| ! method_exists( $query, 'get' )
+			|| ! method_exists( $query, 'set' )
+			|| ! self::moduleActive()
+			|| ! self::queryReachesProducts( $query )
+		) {
+			return;
+		}
+
+		$search = $query->get( 'search' );
+		$sku    = $query->get( 'sku' );
+		$search = is_scalar( $search ) ? trim( (string) $search ) : '';
+		$sku    = is_scalar( $sku ) ? trim( (string) $sku ) : '';
+
+		if ( '' === $search && '' === $sku ) {
+			return;
+		}
+		if ( ! HWE_Memberships_Access::anyRequirementExists() ) {
+			return;
+		}
+
+		$term = '' !== $search ? $search : $sku;
+		$query->set( 'search', '' );
+		$query->set( 'sku', '' );
+		$query->set( 's', $term );
 	}
 
 	/** ¿La consulta puede devolver productos? (`post_type` vacío es `post`; `any` los incluye.) */

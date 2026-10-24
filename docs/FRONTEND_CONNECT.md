@@ -642,8 +642,8 @@ precio público (rango en variables), categorías, el requisito y `locked`. No l
 descripción corta, galería, atributos, variaciones ni su stock, `hweFields`, landing, SEO ni
 descargas. Una variación directa de un producto bloqueado se anula. Con algún requisito en el
 catálogo, la búsqueda de productos (`where: { search }` de GraphQL, `?search=` de la REST de
-WordPress) compara solo el nombre: no se puede buscar por la descripción ni por el SKU de lo
-bloqueado. El recorte lo hace WordPress;
+WordPress y `?search=`/`?sku=` de la Store API) compara solo el nombre: no se puede buscar por la
+descripción ni por el SKU de lo bloqueado. El recorte lo hace WordPress;
 no lo reimplementes en el frontend.
 
 **Rutas del BFF** (`app/api/memberships/*`). Todas exigen la guarda del módulo (404):
