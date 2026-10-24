@@ -7,6 +7,17 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **Tope de canje de puntos en porcentaje (`loyalty`) y filtro `hwe_loyalty_max_redeemable`.**
+  El nuevo ajuste público `loyalty.max_redeem_percent` (entero 0–100, `0` = sin tope, acotado al
+  sanear) limita el descuento a ese porcentaje de la base **sin envío** (`items_total` +
+  `fees_total`, la suma que reparten distinto los tres llamadores de `quote()`), convertido a
+  puntos hacia abajo, y se combina con el saldo, `max_redeem_per_order` y `min_cash_due` tomando
+  el menor. El filtro estable `hwe_loyalty_max_redeemable` `( int $max, array $context ): int`
+  se aplica dentro de `quote()` sobre el máximo ya calculado, con `items_total`,
+  `shipping_total`, `fees_total`, `balance` y `settings`: **solo puede endurecer** (un valor
+  mayor, negativo o no entero se ignora y se registra; `0` cierra el canje). Como todo pasa por
+  `quote()`, rige igual en el carrito, en la extensión `hwe-loyalty` y en la confirmación del
+  pedido. `maxRedeemable` del frontend replica el cálculo para la UI.
 - **El CI del núcleo funciona dentro del repo de una instancia.** `.github/**` es núcleo y no
   se edita, pero dos jobs solo tenían sentido en el repositorio del framework: `anti-instance`
   persigue justo los tokens del código de la instancia y `contract` superpone

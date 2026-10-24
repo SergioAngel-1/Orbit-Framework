@@ -577,7 +577,8 @@ responde **404** como si la ruta no existiera:
   max_redeemable, min_redeem, full_payment_available }`. `discount` va en **unidades menores**
   (string): formatéalo con `formatStoreAmount`. `reason` es `null` si el canje puede aplicarse o
   `guest` \| `not_participant` \| `disabled` \| `below_minimum` \| `cart_below_cash_minimum`.
-  WordPress recorta la cantidad a saldo, `max_redeem_per_order` y el tope del carrito; con el pago
+  WordPress recorta la cantidad a saldo, `max_redeem_per_order`, `max_redeem_percent` (porcentaje
+  de la base sin envío) y el tope del carrito; con el pago
   completo apagado, el descuento no cubre el envío ni deja el total por debajo de `min_cash_due`.
 - **Checkout:** si el saldo bajó entre el carrito y la creación del pedido, el checkout responde
   **409** con `reason: "loyalty_insufficient_points"` y **no crea el pedido**; el reintento cobra
@@ -860,7 +861,8 @@ modules: { banners, shipping, product-landing, landings, consent-log, site-revie
 instance: { … }                           // lo que añada la instancia (vacío en el framework)
 banners: { enabled }
 loyalty: { points_enabled, referrals_enabled, currency_name, currency_name_plural, currency_icon,
-           point_value, min_redeem, max_redeem_per_order, full_payment_enabled, min_cash_due,
+           point_value, min_redeem, max_redeem_per_order, max_redeem_percent,
+           full_payment_enabled, min_cash_due,
            expiry_days, cashback_enabled, cashback_percent,
            events: { registration, review, birthday },
            referral_signup_points_l1, referral_signup_points_l2, commission_first_percent,
@@ -905,8 +907,9 @@ y `/api/store/products?search=` (búsqueda; el listado sin búsqueda sigue sirvi
 - `banners.enabled` — activa/desactiva el renderizado de banners. La autoría de los banners
   vive en el plugin **HWE Banners** (CPT `hwe_banner`, REST `hwe-banners/v1/banners`). Lector
   core: `lib/banners/getBanner(type, location, locale)` con ISR tag `banners`.
-- `loyalty.*` — configuración pública del módulo `loyalty` (nombres de la unidad, valor, topes,
-  eventos, comisiones y transferencias). `allowed_roles` es operativo y **no** se publica. Con el
+- `loyalty.*` — configuración pública del módulo `loyalty` (nombres de la unidad, valor, topes
+  —`max_redeem_per_order` y `max_redeem_percent`—, eventos, comisiones y transferencias).
+  `allowed_roles` es operativo y **no** se publica. Con el
   módulo apagado llegan los defaults y las rutas del BFF responden 404; con `points_enabled`
   apagado, las de puntos; con `referrals_enabled` o `transfers_enabled` apagados, las suyas.
 - `memberships.*` — solo los tres campos públicos del carné (`card_enabled`, `card_verify_path`,

@@ -89,6 +89,7 @@ final class SettingsTest extends TestCase
             'point_value',
             'min_redeem',
             'max_redeem_per_order',
+            'max_redeem_percent',
             'full_payment_enabled',
             'min_cash_due',
             'expiry_days',
@@ -152,6 +153,7 @@ final class SettingsTest extends TestCase
         $this->assertSame('0.01', $children['point_value']['default']);
         $this->assertSame('100', $children['min_redeem']['default']);
         $this->assertSame('0', $children['max_redeem_per_order']['default']);
+        $this->assertSame('0', $children['max_redeem_percent']['default']);
         $this->assertSame(false, $children['full_payment_enabled']['default']);
         $this->assertSame('0.01', $children['min_cash_due']['default']);
         $this->assertSame('0', $children['expiry_days']['default']);
@@ -273,6 +275,7 @@ final class SettingsTest extends TestCase
             'expiry_days'               => '-30',
             'min_redeem'                => '-5',
             'max_redeem_per_order'      => '12.9',
+            'max_redeem_percent'        => '150',
             'cashback_percent'          => '150',
             'commission_first_percent'  => '130',
             'commission_next_percent'   => '-5',
@@ -296,6 +299,7 @@ final class SettingsTest extends TestCase
         $this->assertSame(0, $settings['expiry_days']);
         $this->assertSame(0, $settings['min_redeem']);
         $this->assertSame(12, $settings['max_redeem_per_order']);
+        $this->assertSame(100, $settings['max_redeem_percent'], 'Un porcentaje por encima de 100 se acota.');
         $this->assertSame(100, $settings['cashback_percent']);
         $this->assertSame(100, $settings['commission_first_percent']);
         $this->assertSame(0, $settings['commission_next_percent']);
@@ -308,6 +312,20 @@ final class SettingsTest extends TestCase
         $this->assertSame(0, $settings['events']['registration']);
         $this->assertSame(3, $settings['events']['review']);
         $this->assertSame(1, $settings['events']['birthday']);
+    }
+
+    public function testANegativeOrNonNumericMaxRedeemPercentFallsToTheNoCapValue(): void
+    {
+        $this->load();
+
+        $this->config['loyalty'] = ['max_redeem_percent' => '-5'];
+        $this->assertSame(0, \HWE_Loyalty_Settings::get()['max_redeem_percent']);
+
+        $this->config['loyalty'] = ['max_redeem_percent' => 'diez'];
+        $this->assertSame(0, \HWE_Loyalty_Settings::get()['max_redeem_percent']);
+
+        $this->config['loyalty'] = ['max_redeem_percent' => '33.9'];
+        $this->assertSame(33, \HWE_Loyalty_Settings::get()['max_redeem_percent']);
     }
 
     public function testBooleanTextIsNormalized(): void
@@ -364,6 +382,7 @@ final class SettingsTest extends TestCase
                 'point_value',
                 'min_redeem',
                 'max_redeem_per_order',
+                'max_redeem_percent',
                 'full_payment_enabled',
                 'min_cash_due',
                 'expiry_days',

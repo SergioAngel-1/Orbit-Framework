@@ -65,6 +65,7 @@ Un módulo que quiera ser contrato publica sus hooks en su `README.md` y aquí. 
 | `hwe_loyalty_collected_on_completion` | filtro | `( string[] $methods ): string[]` medios que esperan a `completed` (defecto `cod`). |
 | `hwe_loyalty_entry_types` | filtro | `( array<string, "credit"\|"debit"> $types ): array` tipos de movimiento extra. |
 | `hwe_loyalty_participant_roles` | filtro | `( string[] $roles ): string[]` roles que participan. |
+| `hwe_loyalty_max_redeemable` | filtro | `( int $max, array $context ): int` tope de canje ya calculado; `$context` = `items_total`, `shipping_total`, `fees_total`, `balance`, `settings`. **Solo puede endurecer** (un valor mayor, negativo o no entero se ignora y se registra; `0` cierra el canje). Ajuste asociado: `loyalty.max_redeem_percent`. |
 
 **Funciones públicas de `loyalty`:** además de los hooks, el módulo publica cuatro funciones
 globales (en `includes/Api.php`, cargadas con el plugin) para que otro módulo abone o revierta

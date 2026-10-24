@@ -43,6 +43,8 @@ function integerConfig(value: string | undefined): number {
  *
  *  - el saldo,
  *  - `max_redeem_per_order` (0 = sin tope),
+ *  - `max_redeem_percent` (0 = sin tope): porcentaje de la base sin envío
+ *    (productos + fees ajenos), convertido a unidades hacia abajo,
  *  - el tope del carrito: con pago completo apagado no cubre el envío ni deja
  *    el total por debajo de `min_cash_due`; con pago completo encendido puede
  *    cubrir el total (envío incluido).
@@ -60,6 +62,7 @@ export function maxRedeemable(
     | "point_value"
     | "min_redeem"
     | "max_redeem_per_order"
+    | "max_redeem_percent"
     | "full_payment_enabled"
     | "min_cash_due"
   >,
@@ -77,6 +80,7 @@ export function maxRedeemable(
   const balance = Math.max(0, Math.trunc(input.balance) || 0);
   const minRedeem = integerConfig(config.min_redeem);
   const maxPerOrder = integerConfig(config.max_redeem_per_order);
+  const maxPercent = Math.min(100, integerConfig(config.max_redeem_percent));
   const minCash = nonNegative(Number(config.min_cash_due));
   const full = config.full_payment_enabled === true;
 
@@ -100,6 +104,12 @@ export function maxRedeemable(
 
   let max = Math.min(balance, maxByCash);
   if (maxPerOrder > 0) max = Math.min(max, maxPerOrder);
+  if (maxPercent > 0) {
+    // La base es productos + fees ajenos; el envío nunca cuenta (la suma cuadra con
+    // los tres llamadores de `quote()` en WordPress, que reparten distinto).
+    const percentBase = Math.max(0, items + fees);
+    max = Math.min(max, Math.floor((percentBase * maxPercent) / 100 / value + EPSILON));
+  }
   max = Math.max(0, max);
 
   if (max < minRedeem || max <= 0) return 0;
