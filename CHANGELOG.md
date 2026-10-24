@@ -6,6 +6,19 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.1.0] — 2026-10-24
+
+Parches de seguridad de octubre de 2026 (PHP 8.4.27 vía `wordpress:7.1`, Node 24.22.1,
+WooCommerce 11.2.1, WPGraphQL 2.25.0, Next.js 16.4.1 y los límites de GraphQL que no se
+aplicaban), los módulos `loyalty` y `memberships`, el envío por distancia de `shipping` y la
+coexistencia de los tres. `HWE_CORE_CONTRACT_VERSION` pasa a `2.1.0` por los hooks estables
+nuevos. **Para actualizar una instancia** sigue `docs/UPGRADE.md` §3 (merge del tag) y, si se creó
+sin el historial del framework, §3.1 antes. Después, en el servidor, actualiza las imágenes, los
+plugins fijados y el core («Imágenes y plugins de una instancia ya desplegada»): el merge no cambia
+lo que ya corre. Una excepción a SemVer, aceptada a propósito: el rediseño de tarifas del módulo
+`shipping` es **BREAKING** (ver «Changed») y sale en un *minor*, porque solo afecta a instancias
+con `shipping` encendido y tarifas por ciudad ya configuradas, que deben reconfigurarlas.
+
 ### Fixed
 - **Crear una instancia ya no la deja sin actualizaciones.** `docs/CREATE_INSTANCE.md` mandaba
   clonar `main` y reiniciar el historial (`rm -rf .git && git init`), y `docs/UPGRADE.md` actualiza
@@ -599,5 +612,7 @@ están corregidos arriba.
 - Fase 6 — SEO + i18n (next-intl, sitemap, hreflang, JSON-LD).
 - Fase 7 — Pagos: capa de pasarelas agnóstica (provider-agnostic) + proveedor `noop`.
 
-[Sin publicar]: https://example.com/compare/v1.0.0...HEAD
+[Sin publicar]: https://example.com/compare/v2.1.0...HEAD
+[2.1.0]: https://example.com/compare/v2.0.0...v2.1.0
+[2.0.0]: https://example.com/compare/v1.0.0...v2.0.0
 [1.0.0]: https://example.com/releases/v1.0.0

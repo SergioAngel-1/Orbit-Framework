@@ -1,6 +1,6 @@
 {
   "name": "hwe-frontend",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": "Sergio Jauregui",
   "private": true,
   "description": "Frontend Next.js (App Router) y BFF de HWE Orbit",
