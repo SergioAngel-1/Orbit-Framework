@@ -362,7 +362,13 @@ final class LifecycleTest extends TestCase
         \HWE_Memberships_Lifecycle::onActivate();
 
         $this->assertArrayNotHasKey(\HWE_Memberships_Lifecycle::OPTION_HIDDEN, $this->options);
-        $this->assertSame([], $this->logged);
+        // Solo cuentan los avisos del módulo: el Control Center puede registrar que falta el
+        // secreto de revalidación (`products` y `memberships` son tags del núcleo).
+        $ownLogs = array_values(array_filter(
+            $this->logged,
+            static fn (string $line): bool => str_starts_with($line, '[hwe] memberships:')
+        ));
+        $this->assertSame([], $ownLogs);
     }
 
     // ── Activación: conciliación diferida ──────────────────────────────────
