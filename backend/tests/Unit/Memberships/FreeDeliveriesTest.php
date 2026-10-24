@@ -294,6 +294,87 @@ final class FreeDeliveriesTest extends TestCase
         $this->assertSame(\HWE_Memberships_Grants::FREE_DELIVERY_RELEASED, (string) $order->get_meta(\HWE_Memberships_Grants::META_FREE_DELIVERY_STATE));
     }
 
+    /**
+     * Dos avisos simultáneos del mismo pedido (redirect + webhook): el segundo cargó el pedido
+     * ANTES de que el primero lo consumiera y espera el bloqueo del socio. Al obtenerlo debe
+     * releer el pedido; si usara su copia vieja (`reserved`) consumiría la unidad dos veces.
+     */
+    public function testAConcurrentNotificationDoesNotConsumeTheSameOrderTwice(): void
+    {
+        $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 3]]);
+        $grant = $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:race-consume');
+        $this->wpdb->grants[$grant]['shipping_quota_used'] = 1; // lo que dejó el primer aviso
+
+        $fresh = $this->appliedOrder(320);
+        $this->tagFreeDelivery($fresh, $grant, \HWE_Memberships_Grants::FREE_DELIVERY_CONSUMED);
+        $stale = clone $fresh;
+        $stale->update_meta_data(\HWE_Memberships_Grants::META_FREE_DELIVERY_STATE, \HWE_Memberships_Grants::FREE_DELIVERY_RESERVED);
+        $this->serveStaleOrderFirst(320, $stale, $fresh);
+
+        $this->assertTrue(\HWE_Memberships_Grants::consumeFreeDelivery(320));
+
+        $this->assertSame(1, (int) $this->wpdb->grants[$grant]['shipping_quota_used'], 'No se consume dos veces.');
+    }
+
+    public function testAConcurrentCancellationDoesNotReleaseTheSameOrderTwice(): void
+    {
+        $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 3]]);
+        $grant = $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:race-release');
+        $this->wpdb->grants[$grant]['shipping_quota_reserved'] = 1; // otro pedido distinto sigue reservado
+
+        $fresh = $this->appliedOrder(321);
+        $this->tagFreeDelivery($fresh, $grant, \HWE_Memberships_Grants::FREE_DELIVERY_RELEASED);
+        $stale = clone $fresh;
+        $stale->update_meta_data(\HWE_Memberships_Grants::META_FREE_DELIVERY_STATE, \HWE_Memberships_Grants::FREE_DELIVERY_RESERVED);
+        $this->serveStaleOrderFirst(321, $stale, $fresh);
+
+        $this->assertTrue(\HWE_Memberships_Grants::releaseFreeDelivery(321));
+
+        $this->assertSame(1, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved'], 'La reserva de otro pedido no se toca.');
+    }
+
+    /**
+     * La reserva se hace al preparar el pedido de la Store API, antes del cobro. Si el cliente
+     * abandona tras un error del checkout, WooCommerce borra el borrador a las 24 h sin pasar por
+     * `cancelled` ni `failed`: la unidad reservada debe volver al cupo al borrarse el pedido.
+     */
+    public function testDeletingAnUnpaidDraftOrderReturnsItsReservation(): void
+    {
+        $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 1]]);
+        $grant   = $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:draft');
+        $benefit = new \HWE_Memberships_Benefit_Free_Deliveries();
+        $order   = $this->appliedOrder(330);
+        $this->requestFreeDelivery(true);
+
+        $benefit->reserveForOrder($order);
+        $this->assertSame(1, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved']);
+
+        $benefit->onOrderDeleted(330);
+
+        $this->assertSame(0, (int) $this->wpdb->grants[$grant]['shipping_quota_reserved']);
+        $this->assertSame(1, $benefit->quotaFor(self::USER)['remaining']);
+        $this->assertSame(\HWE_Memberships_Grants::FREE_DELIVERY_RELEASED, (string) $order->get_meta(\HWE_Memberships_Grants::META_FREE_DELIVERY_STATE));
+    }
+
+    public function testDeletingAPaidOrderKeepsItsConsumedUnit(): void
+    {
+        $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 1]]);
+        $grant   = $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:paid-delete');
+        $benefit = new \HWE_Memberships_Benefit_Free_Deliveries();
+        $order   = $this->appliedOrder(331);
+        $this->requestFreeDelivery(true);
+
+        $benefit->reserveForOrder($order);
+        $order->status = 'processing';
+        $order->paid   = true;
+        $benefit->onOrderCollected(331);
+
+        $benefit->onOrderDeleted(331);
+
+        $this->assertSame(1, (int) $this->wpdb->grants[$grant]['shipping_quota_used'], 'Un pedido cobrado ya gastó su envío.');
+        $this->assertSame(\HWE_Memberships_Grants::FREE_DELIVERY_CONSUMED, (string) $order->get_meta(\HWE_Memberships_Grants::META_FREE_DELIVERY_STATE));
+    }
+
     public function testCancelledOrFailedOrdersReturnTheReservation(): void
     {
         $this->makeLevel(self::LEVEL, 5, ['free_deliveries' => ['enabled' => true, 'count' => 2]]);
@@ -695,6 +776,27 @@ final class FreeDeliveriesTest extends TestCase
     // ------------------------------------------------------------------------
     //  Utilidades del caso
     // ------------------------------------------------------------------------
+
+    /** Marca en el pedido el estado del envío gratis de miembro. */
+    private function tagFreeDelivery(\WC_Order $order, int $grantId, string $state): void
+    {
+        $order->update_meta_data(\HWE_Memberships_Grants::META_FREE_DELIVERY_GRANT, $grantId);
+        $order->update_meta_data(\HWE_Memberships_Grants::META_FREE_DELIVERY_STATE, $state);
+        $order->update_meta_data(\HWE_Memberships_Grants::META_FREE_DELIVERY_USER, self::USER);
+    }
+
+    /** `wc_get_order()` devuelve primero la copia vieja de un pedido y después la actual. */
+    private function serveStaleOrderFirst(int $orderId, \WC_Order $stale, \WC_Order $fresh): void
+    {
+        $calls = 0;
+        Functions\when('wc_get_order')->alias(function (int $id) use (&$calls, $orderId, $stale, $fresh) {
+            if ($id !== $orderId) {
+                return $this->orders[$id] ?? false;
+            }
+
+            return 1 === ++$calls ? $stale : $fresh;
+        });
+    }
 
     private function makeLevel(int $id, int $rank, array $benefits = []): void
     {

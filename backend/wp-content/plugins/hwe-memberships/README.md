@@ -207,8 +207,8 @@ con la fila del socio bloqueada y en la misma transacción que comprueba el disp
 |---|---|
 | Carrito | El cliente declara `free_delivery: true`. Si el beneficio está activo y queda cupo, la tarifa elegible baja a 0 y la extensión publica el estado. |
 | Crear el pedido | Se **reserva** una unidad. Sin cupo, el checkout responde 409 `hwe_membership_free_delivery_unavailable`. El pedido guarda `_hwe_membership_free_delivery_grant`, `_hwe_membership_free_delivery_state` y `_hwe_membership_free_delivery_user`. |
-| Cobrar | Se **consume** la reserva. Las notificaciones repetidas no consumen dos veces. |
-| Cancelar, fallar antes de cobrar o reembolsar del todo | Se **devuelve** la reserva o el consumo. |
+| Cobrar | Se **consume** la reserva. Las notificaciones repetidas, incluso simultáneas, no consumen dos veces: el pedido se relee con la fila del socio bloqueada. |
+| Cancelar, fallar antes de cobrar, reembolsar del todo, o borrar un pedido que aún solo tenía la reserva | Se **devuelve** la reserva o el consumo. El borrado cubre los borradores de la Store API que WooCommerce elimina a las 24 h (`woocommerce_before_delete_order`). |
 
 Con el módulo `shipping` activo, esta clase no toca las tarifas: pide el envío gratis por el
 filtro estable `hwe_shipping_free_reason` y `shipping` aplica su lógica (solo opciones elegibles,

@@ -584,7 +584,13 @@ final class HWE_Memberships_Grants {
 		}
 
 		// La fila del socio está bloqueada: a partir de aquí la lectura del estado del pedido y la
-		// de los contadores no pueden cruzarse con otra operación del mismo usuario.
+		// de los contadores no pueden cruzarse con otra operación del mismo usuario. El pedido se
+		// vuelve a cargar: la copia de antes de esperar el bloqueo puede estar obsoleta.
+		$order = self::order( $orderId );
+		if ( null === $order ) {
+			self::fail( 'no se pudo recargar el pedido ' . $orderId . ' al reservar su envío gratis.' );
+			return false;
+		}
 		$state = self::readOrderMeta( $order, self::META_FREE_DELIVERY_STATE );
 		if ( self::FREE_DELIVERY_RELEASED === $state ) {
 			self::rollback();
@@ -701,7 +707,14 @@ final class HWE_Memberships_Grants {
 			return false;
 		}
 
-		// Relectura dentro de la transacción: otro aviso pudo consumirlo mientras esperábamos.
+		// Relectura dentro de la transacción: otro aviso pudo consumirlo mientras esperábamos. El
+		// pedido se recarga, porque la copia de antes del bloqueo guarda el estado viejo y dejaría
+		// consumir dos veces la misma unidad.
+		$order = self::order( $orderId );
+		if ( null === $order ) {
+			self::fail( 'no se pudo recargar el pedido ' . $orderId . ' al consumir su envío gratis.' );
+			return false;
+		}
 		$state = self::readOrderMeta( $order, self::META_FREE_DELIVERY_STATE );
 		if ( self::FREE_DELIVERY_CONSUMED === $state ) {
 			self::rollback();
@@ -794,6 +807,12 @@ final class HWE_Memberships_Grants {
 			return false;
 		}
 
+		// Igual que al consumir: tras esperar el bloqueo se relee el pedido, no se usa la copia vieja.
+		$order = self::order( $orderId );
+		if ( null === $order ) {
+			self::fail( 'no se pudo recargar el pedido ' . $orderId . ' al devolver su envío gratis.' );
+			return false;
+		}
 		$state = self::readOrderMeta( $order, self::META_FREE_DELIVERY_STATE );
 		if ( self::FREE_DELIVERY_RELEASED === $state ) {
 			self::rollback();

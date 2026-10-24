@@ -220,6 +220,7 @@ final class HWE_Memberships_Benefit_Free_Deliveries extends HWE_Memberships_Bene
 		add_action( 'woocommerce_payment_complete', array( $this, 'onOrderCollected' ), 20, 1 );
 		add_action( 'woocommerce_order_status_cancelled', array( $this, 'onOrderCancelled' ), 20, 1 );
 		add_action( 'woocommerce_order_status_failed', array( $this, 'onOrderFailed' ), 20, 1 );
+		add_action( 'woocommerce_before_delete_order', array( $this, 'onOrderDeleted' ), 20, 1 );
 		add_action( 'woocommerce_order_status_refunded', array( $this, 'onOrderRefunded' ), 20, 1 );
 
 		if ( self::shippingModuleActive() ) {
@@ -531,6 +532,26 @@ final class HWE_Memberships_Benefit_Free_Deliveries extends HWE_Memberships_Bene
 
 	/** Fallido antes de cobrarse: devuelve la reserva. */
 	public function onOrderFailed( int $orderId ): void {
+		$this->release( $orderId );
+	}
+
+	/**
+	 * Borrado de un pedido con la unidad aún reservada. WooCommerce elimina a las 24 h los
+	 * borradores de la Store API que el cliente abandonó (por ejemplo tras un error del checkout)
+	 * sin pasar por `cancelled` ni `failed`: sin esto la reserva quedaría viva hasta que muriera
+	 * la concesión. Un pedido cobrado ya gastó su envío y conserva su unidad.
+	 */
+	public function onOrderDeleted( int $orderId ): void {
+		$order = self::order( $orderId );
+		if ( null === $order || ! method_exists( $order, 'get_meta' ) ) {
+			return;
+		}
+
+		$state = trim( (string) $order->get_meta( HWE_Memberships_Grants::META_FREE_DELIVERY_STATE ) );
+		if ( HWE_Memberships_Grants::FREE_DELIVERY_RESERVED !== $state ) {
+			return;
+		}
+
 		$this->release( $orderId );
 	}
 
