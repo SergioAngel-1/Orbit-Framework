@@ -249,6 +249,20 @@ if (!class_exists('WC_Shipping_Zone')) {
             self::$store[$this->id] = ['name' => $this->name, 'locations' => $this->locations, 'methods' => $this->methods];
             return $this->id;
         }
+
+        /**
+         * Borra la zona de la tienda, como `WC_Shipping_Zone::delete()`. Devuelve `false` si la
+         * zona no existía (id 0), igual que WooCommerce.
+         */
+        public function delete(bool $force = false): bool
+        {
+            if (0 === $this->id) {
+                return false;
+            }
+            unset(self::$store[$this->id]);
+            $this->id = 0;
+            return true;
+        }
     }
 }
 

@@ -226,7 +226,9 @@ de reserva y no lleva `hwe_city_rate`, el destino nunca llega a este método y l
 aparecen (el estado `extensions.hwe_shipping` sí se calcula). Solución: añadir `hwe_city_rate` a esa
 zona, quitarle el país base o moverla detrás de la de reserva (WooCommerce → Ajustes → Envío).
 
-Se sincroniza al guardar el panel, al activar el plugin y con `wp hwe setup`.
+Se sincroniza al guardar el panel, al activar el plugin y con `wp hwe setup`; al desactivar el
+plugin, la zona se retira (`ReserveZone::remove()`) para no dejar una zona sin métodos por delante de
+las del comerciante.
 
 ## Contrato con el frontend
 

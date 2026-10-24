@@ -59,4 +59,11 @@ spl_autoload_register(
 // Al activar el plugin se crea la zona de reserva (si el Control Center la tiene encendida).
 register_activation_hook( __FILE__, array( \HWE\Shipping\ReserveZone::class, 'sync' ) );
 
+// Al desactivarlo se retira esa zona: sin el método del plugin seguiría cubriendo el país base y,
+// si va primera, dejaría al resto de zonas sin tarifas. En WordPress la función existe siempre; el
+// `function_exists` mantiene el plugin cargable fuera de WordPress (tests unitarios) sin fatal.
+if ( function_exists( 'register_deactivation_hook' ) ) {
+	register_deactivation_hook( __FILE__, array( \HWE\Shipping\ReserveZone::class, 'remove' ) );
+}
+
 HWE\Shipping\Plugin::boot();

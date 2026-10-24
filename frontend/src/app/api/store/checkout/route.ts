@@ -171,8 +171,9 @@ export async function POST(request: Request) {
   const input = { ...parsed.data, ...geo.addresses };
 
   // Extras de envío elegidos (módulo `shipping`). Se calculan aquí —no después
-  // de crear el pedido— porque un pedido ya pagado con puntos no puede recibir
-  // cargos posteriores: si se piden a la vez, el checkout responde 422.
+  // de crear el pedido— porque un pedido que nace en total 0 (puntos, cupón del
+  // 100 %, descuento de socio…) lo deja WooCommerce pagado por su camino nativo y
+  // ningún cargo posterior se cobra: si se piden a la vez, el checkout responde 422.
   const methodIds = isModuleEnabled(config, "shipping")
     ? (parsed.data.shipping_method_ids ?? [])
     : [];
@@ -338,30 +339,36 @@ export async function POST(request: Request) {
     const totalRaw = cartCheck.data.totals?.total_price;
     const totalMinor =
       typeof totalRaw === "string" && totalRaw.trim() !== "" ? Number(totalRaw) : NaN;
+    const totalIsZero = Number.isFinite(totalMinor) && totalMinor === 0;
     const paidWithPoints =
-      loyaltyCart !== null &&
-      loyaltyCart.points_applied > 0 &&
-      Number.isFinite(totalMinor) &&
-      totalMinor === 0;
+      totalIsZero && loyaltyCart !== null && loyaltyCart.points_applied > 0;
 
-    // Los extras de envío se suman por wc/v3 DESPUÉS de crear el pedido: en un
-    // pedido ya pagado con puntos dejarían importe pendiente. Se rechaza antes
-    // de crear nada (y antes de leer los métodos de envío).
-    if (paidWithPoints && methodIds.length > 0) {
+    // Los extras de envío se suman por wc/v3 DESPUÉS de crear el pedido. Un pedido
+    // que nace en total 0 lo cobra WooCommerce por su camino nativo
+    // (`process_without_payment` → `payment_complete`): nace pagado y ningún cargo
+    // posterior se cobra. Da igual la causa del 0 —puntos, cupón del 100 %,
+    // descuento de socio—: se rechaza antes de crear nada (y antes de leer los
+    // métodos de envío). El motivo de puntos se conserva por compatibilidad.
+    if (totalIsZero && methodIds.length > 0) {
       if (useIdempotency) await releaseIdempotencyKey(idemKey);
+      const reason = paidWithPoints
+        ? "loyalty_full_payment_with_shipping_extras"
+        : "zero_total_with_shipping_extras";
       logger.warn(
         {
-          event: "checkout.loyalty_extras_incompatible",
+          event: "checkout.zero_total_extras_blocked",
+          reason,
           userId: session?.userId ?? null,
           count: methodIds.length,
         },
-        "Pago completo con fidelización incompatible con extras de envío",
+        "Pedido en total 0 incompatible con extras de envío",
       );
       return NextResponse.json(
         {
-          error:
-            "El pago completo con fidelización no admite extras de envío. Quita los extras e inténtalo de nuevo.",
-          reason: "loyalty_full_payment_with_shipping_extras",
+          error: paidWithPoints
+            ? "El pago completo con fidelización no admite extras de envío. Quita los extras e inténtalo de nuevo."
+            : "El total de este pedido ya es 0 (cupón, descuento o puntos) y no admite extras de envío. Quita los extras e inténtalo de nuevo.",
+          reason,
         },
         { status: 422 },
       );

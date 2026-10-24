@@ -70,6 +70,11 @@ final class ReserveZoneTest extends TestCase
 
             return true;
         });
+        Functions\when('delete_option')->alias(function (string $key): bool {
+            unset($this->options[$key]);
+
+            return true;
+        });
 
         $this->loadOwnFile('mu-plugins/hwe-geo/packs.php');
         $this->loadOwnFile('plugins/hwe-shipping/hwe-shipping.php');
@@ -176,5 +181,63 @@ final class ReserveZoneTest extends TestCase
 
         $this->assertSame([], \WC_Shipping_Zone::$store);
         $this->assertStringContainsString('[hwe] shipping:', $this->logged[0]);
+    }
+
+    // ── Desactivación (M-1) ─────────────────────────────────────────────────
+
+    public function testDesactivarRetiraLaZonaDeReservaYOlvidaSuId(): void
+    {
+        ReserveZone::sync();
+
+        ReserveZone::remove();
+
+        $this->assertSame([], \WC_Shipping_Zone::$store, 'Sin el método del plugin, la zona deja el país base sin tarifas si va primera.');
+        $this->assertArrayNotHasKey('hwe_shipping_reserve_zone_id', $this->options);
+    }
+
+    public function testDesactivarNoTocaLasZonasDelComerciante(): void
+    {
+        $this->seedZone(2, 'Otra zona', 'FR', [['flat_rate', 200]]);
+        ReserveZone::sync();
+
+        ReserveZone::remove();
+
+        $this->assertSame('Otra zona', \WC_Shipping_Zone::$store[2]['name']);
+        $this->assertSame([['FR', 'country']], \WC_Shipping_Zone::$store[2]['locations']);
+        $this->assertSame(['flat_rate'], $this->methodIds(2));
+    }
+
+    public function testSinZonaRegistradaDesactivarNoHaceNada(): void
+    {
+        $this->seedZone(2, 'Otra zona', 'FR', [['flat_rate', 200]]);
+
+        ReserveZone::remove();
+
+        $this->assertSame(['Otra zona'], array_column(\WC_Shipping_Zone::$store, 'name'));
+    }
+
+    public function testReactivarTrasDesactivarVuelveACrearLaZonaDeFormaIdempotente(): void
+    {
+        ReserveZone::sync();
+        ReserveZone::remove();
+
+        ReserveZone::sync();
+        ReserveZone::sync();
+
+        $id = (int) $this->options['hwe_shipping_reserve_zone_id'];
+
+        $this->assertCount(1, \WC_Shipping_Zone::$store, 'La zona retirada no reaparece: se crea una sola.');
+        $this->assertSame([['ES', 'country']], \WC_Shipping_Zone::$store[$id]['locations']);
+        $this->assertSame(['hwe_city_rate'], $this->methodIds($id));
+    }
+
+    public function testSiLaZonaYaNoExisteDesactivarSoloOlvidaSuId(): void
+    {
+        $this->options['hwe_shipping_reserve_zone_id'] = 55;
+
+        ReserveZone::remove();
+
+        $this->assertSame([], \WC_Shipping_Zone::$store);
+        $this->assertArrayNotHasKey('hwe_shipping_reserve_zone_id', $this->options);
     }
 }
