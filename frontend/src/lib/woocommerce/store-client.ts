@@ -81,11 +81,16 @@ export async function storeFetch<T>(
     const data = text ? JSON.parse(text) : null;
 
     if (!response.ok) {
-      const storeError = data as { message?: string; code?: string } | null;
+      const storeError = data as {
+        message?: string;
+        code?: string;
+        data?: unknown;
+      } | null;
       throw new WooCommerceError(
         storeError?.message ?? `Error de la Store API (${response.status}).`,
         response.status,
         storeError?.code,
+        storeError?.data,
       );
     }
 
