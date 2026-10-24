@@ -6,6 +6,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Changed
+- **La puerta anti-instancia conoce el token de una instancia nueva.** El patrón de
+  `.github/scripts/check-anti-instance.sh` incorpora el token de la instancia que empieza a
+  usar este framework (la única aparición del nombre en el repositorio: el script se excluye a
+  sí mismo del escaneo). Un caso de `CheckAntiInstanceTest` lo fija con el token partido en dos
+  cadenas, como los demás, para que el test no se cace a sí mismo.
+
 ## [2.1.0] — 2026-10-24
 
 Parches de seguridad de octubre de 2026 (PHP 8.4.27 vía `wordpress:7.1`, Node 24.22.1,

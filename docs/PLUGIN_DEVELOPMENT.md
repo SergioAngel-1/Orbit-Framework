@@ -164,10 +164,13 @@ incluido). `InstanceRegistry` son solo datos, nunca componentes.
 **Vocabulario prohibido en el núcleo:** el gate `bash .github/scripts/check-anti-instance.sh`
 falla si en cualquier archivo versionado (núcleo, starter, tests, scripts y documentación;
 no `examples/` ni `docs/superpowers/`) aparece el vocabulario de una instancia conocida; la
-lista está en el propio script. Ojo al español corriente: algunos adjetivos y sustantivos
-comunes contienen uno de esos tokens; el script dice cuál y en qué línea, y basta con usar un
-sinónimo. En tu código de instancia puedes usar las palabras que quieras; en el framework,
-ninguna de esas.
+lista está en el propio script. Cuando una instancia nueva empieza a trabajar sobre el
+framework, su token se añade a ese patrón **antes** de escribir código (es la única aparición
+permitida de su nombre, porque el script se excluye a sí mismo del escaneo) y
+`CheckAntiInstanceTest` gana un caso con el token partido en dos cadenas para que el test no se
+cace a sí mismo. Ojo al español corriente: algunos adjetivos y sustantivos comunes contienen
+uno de esos tokens; el script dice cuál y en qué línea, y basta con usar un sinónimo. En tu
+código de instancia puedes usar las palabras que quieras; en el framework, ninguna de esas.
 
 **Ejemplo vivo:** `examples/instance-minimal/` replica las rutas de instancia con un campo,
 un tag y una vista. El job «contrato» de CI lo superpone al repo y ejecuta `composer

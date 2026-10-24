@@ -19,6 +19,7 @@ final class CheckAntiInstanceTest extends ShellScriptTestCase
     private const TOKEN_B = 'atl' . 'as';
     private const TOKEN_C = 'dormi' . 'lab';
     private const TOKEN_D = 'masc' . 'ota';
+    private const TOKEN_E = 'doo' . 'hi';
 
     private const SCRIPT = __DIR__ . '/../../../../.github/scripts/check-anti-instance.sh';
 
@@ -117,5 +118,20 @@ final class CheckAntiInstanceTest extends ShellScriptTestCase
         $result = $this->gate();
 
         $this->assertSame(0, $result['code'], $result['output']);
+    }
+
+    /**
+     * El token de la instancia nueva está en el patrón desde que se autorizó el lote:
+     * sin él, el código de esa instancia entraría en el framework sin que la puerta lo vea.
+     */
+    public function testItCatchesTheNewInstanceToken(): void
+    {
+        $this->write('frontend/src/lib/a.ts', "// la tienda " . self::TOKEN_E . "\n");
+        $this->git('add', '-A');
+
+        $result = $this->gate();
+
+        $this->assertSame(1, $result['code'], $result['output']);
+        $this->assertStringContainsString('frontend/src/lib/a.ts', $result['output']);
     }
 }

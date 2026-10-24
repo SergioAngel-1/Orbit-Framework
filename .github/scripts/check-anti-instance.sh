@@ -21,7 +21,7 @@
 # («esenciales», «presencia» contienen «esencia»). Usa «imprescindible», «sedes», etc.
 set -euo pipefail
 
-PATTERN='siu|sheilak|mascota|essence|esencia|dormilab|atlas|tutuava'
+PATTERN='siu|sheilak|mascota|essence|esencia|dormilab|atlas|tutuava|doohi'
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
