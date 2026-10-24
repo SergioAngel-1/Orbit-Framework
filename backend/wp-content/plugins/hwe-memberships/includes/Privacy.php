@@ -7,12 +7,15 @@
  *  · El **exportador** entrega solo los datos del propio sujeto: estado del socio, sus
  *    concesiones y su historial. Nunca emails, logins ni ids de terceros; de una concesión se
  *    exporta la referencia al pedido (contabilidad), pero no los datos estructurados en bruto
- *    del origen, que pueden identificar a otras cuentas.
+ *    del origen, que pueden identificar a otras cuentas. La única relación con otra cuenta que
+ *    se exporta es el **id numérico** del referidor heredado (`_hwe_membership_referrer`), sin
+ *    su nombre, email ni login: es un dato del sujeto y sin él la exportación quedaría
+ *    incompleta.
  *  · El **eliminador** conserva las concesiones de origen pedido y el historial ligado a ellas
  *    porque son contabilidad de pedidos: vacía notas y datos libres y desvincula el actor
  *    cuando apunta al propio sujeto. El resto de concesiones y eventos del usuario se borran,
- *    igual que los tokens del carné y la fila de `members` (el número de socio no se reutiliza:
- *    el contador no se toca).
+ *    igual que los tokens del carné, la fila de `members` y la meta heredada del referidor (el
+ *    número de socio no se reutiliza: el contador no se toca).
  *  · El borrado de datos personales **termina la membresía**: las concesiones de pedido que
  *    sigan `active` o `scheduled` se revocan en la misma transacción (`revoked_at = ahora` y,
  *    si estaban activas, `ends_at = ahora`), sin hooks ni eventos nuevos. El carné y la fila
@@ -166,6 +169,13 @@ final class HWE_Memberships_Privacy {
 			$data[] = self::datum( 'Niveles en cola', implode( ', ', $queued ) );
 		}
 
+		// Meta heredada de versiones anteriores. Solo se exporta el id numérico: acredita la
+		// relación con otra cuenta sin revelar su nombre, email o login.
+		$legacyReferrer = self::legacyReferrer( $userId );
+		if ( $legacyReferrer > 0 ) {
+			$data[] = self::datum( 'Referidor (ID)', (string) $legacyReferrer );
+		}
+
 		return self::item( 'summary', $userId, $data );
 	}
 
@@ -269,6 +279,13 @@ final class HWE_Memberships_Privacy {
 			return self::eraseResult( false, false, array(), true );
 		}
 
+		// La meta heredada no participa en la transacción de la contabilidad: se borra antes y
+		// su fallo obliga a reintentar la página (es idempotente).
+		$metaRemoved = self::forgetReferrerMeta( $userId );
+		if ( null === $metaRemoved ) {
+			return self::eraseResult( false, false, array( self::RETRY_MESSAGE ), false );
+		}
+
 		if ( ! self::begin() ) {
 			self::log( 'eliminador: no se pudo abrir la transacción del usuario ' . $userId . '.' );
 			return self::eraseResult( false, false, array( self::RETRY_MESSAGE ), false );
@@ -278,7 +295,7 @@ final class HWE_Memberships_Privacy {
 			return self::eraseResult( false, false, array( self::RETRY_MESSAGE ), false );
 		}
 
-		$removed = false;
+		$removed = $metaRemoved;
 		$failed  = false;
 
 		foreach ( self::cleanupSteps( $userId ) as $step ) {
@@ -356,6 +373,12 @@ final class HWE_Memberships_Privacy {
 	public static function deleteUserData( int $userId ): void {
 		if ( $userId <= 0 ) {
 			return;
+		}
+
+		// WordPress borrará todas sus metas al eliminar la cuenta, pero la limpieza se hace aquí
+		// también: el borrado debe ser explícito e idempotente si el hook se ejecuta solo.
+		if ( null === self::forgetReferrerMeta( $userId ) ) {
+			self::log( 'cuenta eliminada: no se pudo borrar la meta heredada del referidor del usuario ' . $userId . '.' );
 		}
 
 		if ( ! self::begin() ) {
@@ -906,6 +929,53 @@ final class HWE_Memberships_Privacy {
 		$user = get_user_by( 'email', $email );
 
 		return is_object( $user ) && isset( $user->ID ) ? (int) $user->ID : 0;
+	}
+
+	/** Id del referidor guardado en la meta heredada; `0` si no hay o no es un id válido. */
+	private static function legacyReferrer( int $userId ): int {
+		if ( $userId <= 0 || ! function_exists( 'get_user_meta' ) ) {
+			return 0;
+		}
+
+		$raw = get_user_meta( $userId, HWE_Memberships_LoyaltyBridge::REFERRER_META, true );
+
+		return is_scalar( $raw ) ? max( 0, (int) $raw ) : 0;
+	}
+
+	/**
+	 * Borra la meta `_hwe_membership_referrer` de versiones anteriores. Devuelve `true` si había
+	 * algo y se borró, `false` si no había nada y `null` si no se pudo comprobar o borrar.
+	 *
+	 * Idempotente: repetirlo sobre un usuario sin la meta no es un error.
+	 */
+	private static function forgetReferrerMeta( int $userId ): ?bool {
+		if ( $userId <= 0 ) {
+			return false;
+		}
+		if ( ! function_exists( 'delete_user_meta' ) ) {
+			self::log( 'no se pudo borrar la meta del referidor del usuario ' . $userId . ': falta delete_user_meta().' );
+			return null;
+		}
+
+		if ( function_exists( 'metadata_exists' ) ) {
+			$existed = (bool) metadata_exists( 'user', $userId, HWE_Memberships_LoyaltyBridge::REFERRER_META );
+		} else {
+			$raw     = function_exists( 'get_user_meta' )
+				? get_user_meta( $userId, HWE_Memberships_LoyaltyBridge::REFERRER_META, true )
+				: '';
+			$existed = is_scalar( $raw ) && '' !== (string) $raw;
+		}
+
+		if ( ! $existed ) {
+			return false;
+		}
+
+		if ( ! delete_user_meta( $userId, HWE_Memberships_LoyaltyBridge::REFERRER_META ) ) {
+			self::log( 'no se pudo borrar la meta del referidor del usuario ' . $userId . '.' );
+			return null;
+		}
+
+		return true;
 	}
 
 	/**

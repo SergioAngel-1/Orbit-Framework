@@ -29,6 +29,8 @@ final class SchemaTest extends TestCase
     private array $dbDelta = [];
     /** @var list<array{0:string,1:mixed,2:mixed}> */
     private array $optionWrites = [];
+    /** @var list<array{0:string,1:int,2:string,3:mixed,4:bool}> */
+    private array $metadataDeletes = [];
     /** @var list<string> */
     private array $logged = [];
 
@@ -36,10 +38,11 @@ final class SchemaTest extends TestCase
     {
         parent::setUp();
 
-        $this->options      = [];
-        $this->dbDelta      = [];
-        $this->optionWrites = [];
-        $this->logged       = [];
+        $this->options         = [];
+        $this->dbDelta         = [];
+        $this->optionWrites    = [];
+        $this->metadataDeletes = [];
+        $this->logged          = [];
 
         $GLOBALS['wpdb'] = new TestMembershipsSchemaWpdb();
 
@@ -51,11 +54,18 @@ final class SchemaTest extends TestCase
             $this->optionWrites[] = [$name, $value, $autoload];
             return true;
         });
+        Functions\when('delete_metadata')->alias(
+            function (string $type, int $objectId, string $key, mixed $value = '', bool $all = false): bool {
+                $this->metadataDeletes[] = [$type, $objectId, $key, $value, $all];
+                return true;
+            }
+        );
         Functions\when('error_log')->alias(function (string $message): bool {
             $this->logged[] = $message;
             return true;
         });
 
+        $this->loadOwnFile('plugins/hwe-memberships/includes/LoyaltyBridge.php');
         $this->loadOwnFile('plugins/hwe-memberships/includes/Schema.php');
     }
 
@@ -119,6 +129,11 @@ final class SchemaTest extends TestCase
             $this->optionWrites,
             'La versión se guarda con autoload para leerla en cada petición.'
         );
+        $this->assertSame(
+            [['user', 0, \HWE_Memberships_LoyaltyBridge::REFERRER_META, '', true]],
+            $this->metadataDeletes,
+            'La instalación retira la meta heredada del referidor.'
+        );
     }
 
     public function testTheCurrentVersionDoesNotRunTheSchemaAgain(): void
@@ -130,6 +145,7 @@ final class SchemaTest extends TestCase
 
         $this->assertSame([], $this->dbDelta);
         $this->assertSame([], $this->optionWrites);
+        $this->assertSame([], $this->metadataDeletes, 'Sin migración no se toca ninguna meta.');
     }
 
     /**
@@ -156,7 +172,22 @@ final class SchemaTest extends TestCase
         // La selección es un criterio, nunca una lista de ids de usuarios pendientes.
         $this->assertStringNotContainsString('user_ids', $sql);
 
-        $this->assertSame('2', $this->options['hwe_memberships_db_version']);
+        $this->assertSame(\HWE_Memberships_Schema::DB_VERSION, $this->options['hwe_memberships_db_version']);
+    }
+
+    public function testTheMigrationFromVersionTwoRemovesTheLegacyReferrerMeta(): void
+    {
+        $this->options['hwe_memberships_db_version'] = '2';
+        $this->installWithDbDelta();
+
+        \HWE_Memberships_Schema::maybeInstall();
+
+        $this->assertSame(
+            [['user', 0, \HWE_Memberships_LoyaltyBridge::REFERRER_META, '', true]],
+            $this->metadataDeletes,
+            'El borrado es global, idempotente y no depende de una lista de usuarios.'
+        );
+        $this->assertSame(\HWE_Memberships_Schema::DB_VERSION, $this->options['hwe_memberships_db_version']);
     }
 
     public function testActivationForcesTheInstallEvenWhenTheVersionMatches(): void

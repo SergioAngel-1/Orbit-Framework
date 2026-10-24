@@ -62,6 +62,11 @@
  * La versión vive en la opción `hwe_memberships_db_version`, con autoload: se lee en cada
  * petición y, cuando no coincide, se vuelve a ejecutar `dbDelta` (migración perezosa al detectar
  * una versión vieja, también fuera de la activación). Mismo patrón que `HWE_Loyalty_Schema`.
+ *
+ * La versión 3 no cambia tablas: retira la meta `_hwe_membership_referrer` que escribían las
+ * versiones anteriores para cachear la atribución de `loyalty`. Desde el arreglo de la comisión
+ * extra el referidor se lee del contrato de `loyalty` en cada cálculo, así que la copia solo
+ * podía divergir. El borrado es idempotente y se repite en cada migración.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -71,7 +76,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class HWE_Memberships_Schema {
 
 	/** Subir esta versión vuelve a ejecutar `dbDelta` en la siguiente petición. */
-	public const DB_VERSION = '2';
+	public const DB_VERSION = '3';
 
 	/** Opción donde se guarda la versión instalada. */
 	public const DB_VERSION_OPTION = 'hwe_memberships_db_version';
@@ -224,7 +229,39 @@ CREATE TABLE {$batches} (
 ) ENGINE=InnoDB {$charset};"
 		);
 
+		self::dropLegacyReferrerMeta();
+
 		update_option( self::DB_VERSION_OPTION, self::DB_VERSION, true );
+	}
+
+	/**
+	 * Borra la meta `_hwe_membership_referrer` de las versiones anteriores (migración 3).
+	 *
+	 * Idempotente: si ya no queda ninguna fila, no hace nada. Usa `delete_metadata` con
+	 * `$delete_all` para invalidar también la caché de meta de WordPress; si no estuviera
+	 * disponible, cae al `DELETE` directo.
+	 */
+	private static function dropLegacyReferrerMeta(): void {
+		if ( function_exists( 'delete_metadata' ) ) {
+			delete_metadata( 'user', 0, HWE_Memberships_LoyaltyBridge::REFERRER_META, '', true );
+			return;
+		}
+
+		global $wpdb;
+		if ( ! isset( $wpdb ) || ! is_object( $wpdb ) || empty( $wpdb->usermeta ) ) {
+			self::log( 'no se pudo borrar la meta heredada del referidor: falta $wpdb->usermeta.' );
+			return;
+		}
+
+		$deleted = $wpdb->query(
+			$wpdb->prepare(
+				'DELETE FROM ' . $wpdb->usermeta . ' WHERE meta_key = %s',
+				HWE_Memberships_LoyaltyBridge::REFERRER_META
+			)
+		);
+		if ( false === $deleted ) {
+			self::log( 'no se pudo borrar la meta heredada del referidor.' );
+		}
 	}
 
 	public static function grantsTable(): string {

@@ -164,6 +164,10 @@ poder consultar el listado.
 - **La comisión extra de referidos no aplica la ventana de comisión de Fidelización** (ni
   comprueba la participación del referidor): se paga cuando llega el pedido. Si quieres limitarla
   en el tiempo, hazlo en el filtro `hwe_loyalty_order_earnings` o desactiva el beneficio.
+- **La comisión extra solo cuenta con una atribución confirmada y sigue la vigente.** Si el
+  equipo reasigna el referidor de un cliente en Fidelización, la comisión de sus próximos pedidos
+  va al nuevo referidor; si se anonimiza o se desvincula la red, deja de pagarse. Los pedidos ya
+  cobrados no se recalculan.
 - **Las reseñas de un producto bloqueado son visibles.** La ficha de escaparate oculta la
   descripción, la galería, las variaciones y los atributos, pero no el texto de las reseñas.
 
