@@ -21,9 +21,10 @@ require_once HWE_BACKEND_DIR . '/tests/Stubs/wc-cart.php';
  * publicado se vendería y se cobraría sin conceder nada. Se prueba la DECISIÓN del ciclo:
  *  · desactivar retira de la venta los productos vinculados publicados y recuerda cuáles eran;
  *  · activar restaura solo esos y solo si siguen en el estado que puso el plugin (un cambio
- *    manual del administrador no se pisa);
- *  · la conciliación concede la membresía de un pedido cobrado durante el apagón una sola vez y
- *    repetirla no crea otra concesión;
+ *    manual del administrador no se pisa), y **no** concilia en el hook: programa un evento único
+ *    porque WordPress activa antes de escribir `active_plugins`;
+ *  · el manejador diferido concede la membresía de un pedido cobrado durante el apagón una sola
+ *    vez, abona los puntos de activación y repetirlo no crea otra concesión;
  *  · la lista de productos retirados y el instante de la desactivación quedan en opciones para
  *    sobrevivir a la petición que apaga el plugin.
  *
@@ -58,6 +59,10 @@ final class LifecycleTest extends TestCase
     private array $createdOrderIds = [];
     /** @var list<string> */
     private array $logged = [];
+    /** @var list<string> Plugins activos según `active_plugins`. */
+    private array $activePlugins = [];
+    /** @var array<string,int> Eventos de cron programados por hook. */
+    private array $events = [];
     /** @var array<string,list<array{type:string,callback:callable,priority:int,accepted:int}>> */
     private array $hooks = [];
     /** @var list<array{0:string,1:mixed}> */
@@ -79,6 +84,8 @@ final class LifecycleTest extends TestCase
         $this->paidOrderIds    = [];
         $this->createdOrderIds = [];
         $this->logged          = [];
+        $this->activePlugins   = ['hwe-memberships/hwe-memberships.php', 'hwe-loyalty/hwe-loyalty.php'];
+        $this->events          = [];
         $this->hooks           = [];
         $this->activationHooks = [];
         $this->deactivationHooks = [];
@@ -119,7 +126,7 @@ final class LifecycleTest extends TestCase
         Functions\when('get_option')->alias(function (string $name, mixed $default = false): mixed {
             return match ($name) {
                 'hwe_config'     => [],
-                'active_plugins' => ['hwe-memberships/hwe-memberships.php', 'hwe-loyalty/hwe-loyalty.php'],
+                'active_plugins' => $this->activePlugins,
                 default          => $this->options[$name] ?? $default,
             };
         });
@@ -191,6 +198,19 @@ final class LifecycleTest extends TestCase
         });
         Functions\when('wc_get_order')->alias(fn (int $id) => $this->orders[$id] ?? false);
         Functions\when('wc_get_is_paid_statuses')->alias(static fn (): array => ['processing', 'completed']);
+        Functions\when('wp_next_scheduled')->alias(fn (string $hook): int|false => $this->events[$hook] ?? false);
+        Functions\when('wp_schedule_single_event')->alias(function (int $timestamp, string $hook): bool {
+            if (isset($this->events[$hook])) {
+                return false;
+            }
+            $this->events[$hook] = $timestamp;
+            return true;
+        });
+        Functions\when('wp_clear_scheduled_hook')->alias(function (string $hook): int {
+            $had = isset($this->events[$hook]);
+            unset($this->events[$hook]);
+            return $had ? 1 : 0;
+        });
         Functions\stubs([
             'register_activation_hook'  => function (string $file, mixed $callback): void {
                 $this->activationHooks[] = [$file, $callback];
@@ -218,8 +238,23 @@ final class LifecycleTest extends TestCase
         return $list;
     }
 
+    /**
+     * Carga el archivo principal y arranca el plugin como en una petición normal (no como en el
+     * hook de activación): así `booted()` es verdadero y los beneficios quedan registrados.
+     */
+    private function bootPlugin(): void
+    {
+        if (!class_exists('WooCommerce')) {
+            class_alias(\stdClass::class, 'WooCommerce');
+        }
+
+        $this->loadOwnFile('plugins/hwe-memberships/hwe-memberships.php');
+        \HWE_Memberships::boot();
+    }
+
     private function makeLevel(int $id, int $rank, bool $purchasable): void
-    {        $post                  = new \WP_Post();
+    {
+        $post                  = new \WP_Post();
         $post->ID              = $id;
         $post->post_type       = \HWE_Memberships_Levels::POST_TYPE;
         $post->post_status     = 'publish';
@@ -298,7 +333,6 @@ final class LifecycleTest extends TestCase
             self::OTHER   => 'publish',
             self::FREE    => 'publish',
         ];
-        $this->options[\HWE_Memberships_Lifecycle::OPTION_DEACTIVATED_AT] = $this->now - 60;
 
         $this->products[self::PRODUCT]->set_status('draft');
         $this->products[self::OTHER]->set_status('private');
@@ -314,6 +348,11 @@ final class LifecycleTest extends TestCase
         $this->assertSame('publish', $this->products[self::FREE]->get_status());
         $this->assertSame('draft', $notTouched->get_status(), 'Un producto que no está en la lista no se toca.');
         $this->assertArrayNotHasKey(\HWE_Memberships_Lifecycle::OPTION_HIDDEN, $this->options);
+        $this->assertArrayNotHasKey(
+            \HWE_Memberships_Lifecycle::HOOK_RECONCILE,
+            $this->events,
+            'Sin ventana registrada no se programa ninguna conciliación.'
+        );
     }
 
     public function testActivatingSkipsADeletedProduct(): void
@@ -326,86 +365,182 @@ final class LifecycleTest extends TestCase
         $this->assertSame([], $this->logged);
     }
 
-    // ── Activación: conciliación de pedidos ────────────────────────────────
+    // ── Activación: conciliación diferida ──────────────────────────────────
 
-    public function testReconciliationGrantsAPaidMembershipOrderOnce(): void
+    /**
+     * WordPress dispara `activate_{plugin}` antes de escribir `active_plugins`: en el hook el
+     * módulo aún figura inactivo. Antes se conciliaba ahí y la concesión se creaba sin registrar
+     * los beneficios (sin puntos de activación ni `points_skipped`). Ahora el hook solo programa
+     * el evento y no concede nada.
+     */
+    public function testActivationDefersTheReconciliationBecauseActivePluginsIsNotUpdatedYet(): void
     {
+        $this->activePlugins = [];
         $this->options[\HWE_Memberships_Lifecycle::OPTION_DEACTIVATED_AT] = $this->now - 3600;
-        $order = $this->makeOrder(900, self::BUYER, 9, self::PRODUCT);
+        $this->makeOrder(900, self::BUYER, 9, self::PRODUCT);
         $this->paidOrderIds = [900];
 
         \HWE_Memberships_Lifecycle::onActivate();
+        $this->assertSame([], $this->wpdb->grants, 'El hook de activación no concilia: el módulo todavía no figura activo.');
+        $this->assertSame(
+            $this->now,
+            $this->events[\HWE_Memberships_Lifecycle::HOOK_RECONCILE] ?? null,
+            'La conciliación se difiere a una petición con el plugin ya arrancado.'
+        );
 
-        $grant = $this->wpdb->grantByKey('order:900:item:9');
+        // Aun llamando al manejador en esa misma petición, el módulo sigue inactivo: no concede.
+        \HWE_Memberships_Lifecycle::runScheduledReconciliation();
+        $this->assertSame([], $this->wpdb->grants);
+        $this->assertNotEmpty(array_filter(
+            $this->logged,
+            static fn (string $line): bool => str_contains($line, 'la conciliación de pedidos se omite')
+        ));
+    }
+
+    public function testTheDeferredHandlerDoesNotRunBeforeThePluginBoots(): void
+    {
+        $this->options[\HWE_Memberships_Lifecycle::OPTION_DEACTIVATED_AT] = $this->now - 3600;
+        $this->makeOrder(905, self::BUYER, 14, self::PRODUCT);
+        $this->paidOrderIds = [905];
+
+        \HWE_Memberships_Lifecycle::runScheduledReconciliation();
+
+        $this->assertSame([], $this->wpdb->grants, 'Sin el arranque normal no se concilia.');
+        $this->assertNotEmpty(array_filter(
+            $this->logged,
+            static fn (string $line): bool => str_contains($line, 'el plugin no ha arrancado')
+        ));
+    }
+
+    public function testBootRegistersTheDeferredReconciliationHook(): void
+    {
+        $this->bootPlugin();
+
+        $callbacks = array_column(
+            array_filter(
+                $this->hooks[\HWE_Memberships_Lifecycle::HOOK_RECONCILE] ?? [],
+                static fn (array $entry): bool => 'action' === $entry['type']
+            ),
+            'callback'
+        );
+
+        $this->assertContains([\HWE_Memberships_Lifecycle::class, 'runScheduledReconciliation'], $callbacks);
+    }
+
+    public function testTheDeferredHandlerGrantsAPaidMembershipOrderOnce(): void
+    {
+        $this->bootPlugin();
+        $this->options[\HWE_Memberships_Lifecycle::OPTION_DEACTIVATED_AT] = $this->now - 3600;
+        $order = $this->makeOrder(901, self::BUYER, 10, self::PRODUCT);
+        $this->paidOrderIds = [901];
+
+        \HWE_Memberships_Lifecycle::runScheduledReconciliation();
+
+        $grant = $this->wpdb->grantByKey('order:901:item:10');
         $this->assertNotNull($grant, 'El pedido cobrado durante el apagón concede su membresía.');
         $this->assertSame(self::LEVEL, (int) $grant['level_id']);
         $this->assertSame('order', $grant['origin']);
         $this->assertSame('processed', $order->get_meta(\HWE_Memberships_Purchase::META_ORDER_STATE)['status'] ?? null);
         $this->assertCount(1, $this->wpdb->grants);
 
-        // Una segunda activación (o un reintento manual) no vuelve a conceder.
+        // Otra pasada con la ventana reabierta no vuelve a conceder.
         $this->options[\HWE_Memberships_Lifecycle::OPTION_DEACTIVATED_AT] = $this->now - 3600;
-        \HWE_Memberships_Lifecycle::onActivate();
+        \HWE_Memberships_Lifecycle::runScheduledReconciliation();
 
         $this->assertCount(1, $this->wpdb->grants, 'La clave por línea y el estado del pedido impiden la doble concesión.');
         $this->assertSame('processed', $order->get_meta(\HWE_Memberships_Purchase::META_ORDER_STATE)['status'] ?? null);
     }
 
-    public function testReconciliationAlsoFindsAnOlderOrderPaidDuringTheWindow(): void
+    public function testTheDeferredHandlerAlsoFindsAnOlderOrderPaidDuringTheWindow(): void
     {
+        $this->bootPlugin();
         $this->options[\HWE_Memberships_Lifecycle::OPTION_DEACTIVATED_AT] = $this->now - 3600;
-        $order = $this->makeOrder(901, self::BUYER, 10, self::OTHER);
+        $order = $this->makeOrder(902, self::BUYER, 11, self::OTHER);
         $this->paidOrderIds    = [];
-        $this->createdOrderIds = [901];
+        $this->createdOrderIds = [902];
 
-        \HWE_Memberships_Lifecycle::onActivate();
+        \HWE_Memberships_Lifecycle::runScheduledReconciliation();
 
-        $this->assertNotNull($this->wpdb->grantByKey('order:901:item:10'));
+        $this->assertNotNull($this->wpdb->grantByKey('order:902:item:11'));
         $this->assertSame('processed', $order->get_meta(\HWE_Memberships_Purchase::META_ORDER_STATE)['status'] ?? null);
     }
 
-    public function testReconciliationRegistersTheBenefitsAndCreditsActivationPoints(): void
+    public function testTheDeferredHandlerCreditsActivationPointsAndIsIdempotent(): void
     {
         $this->postMeta[self::LEVEL][\HWE_Memberships_Levels::BENEFITS_META] = [
             'activation_points' => ['enabled' => true, 'points' => 50],
         ];
         $this->options[\HWE_Memberships_Lifecycle::OPTION_DEACTIVATED_AT] = $this->now - 3600;
-        $this->makeOrder(902, self::BUYER, 11, self::PRODUCT);
-        $this->paidOrderIds = [902];
+        $this->makeOrder(903, self::BUYER, 12, self::PRODUCT);
+        $this->paidOrderIds = [903];
 
         $credits = [];
+        $types   = [];
         Functions\when('hwe_loyalty_available')->alias(static fn (string $feature): bool => 'points' === $feature);
-        Functions\when('hwe_loyalty_credit')->alias(function (int $userId, int $points, string $type, string $key) use (&$credits): int {
+        Functions\when('hwe_loyalty_credit')->alias(function (int $userId, int $points, string $type, string $key) use (&$credits, &$types): int {
             $credits[$key] = $points;
+            $types[$key]   = $type;
             return 1;
         });
         Functions\when('hwe_loyalty_reverse_credit')->alias(static fn (string $key, string $reversalKey): int => 1);
 
-        \HWE_Memberships_Lifecycle::onActivate();
+        $this->bootPlugin();
+        \HWE_Memberships_Lifecycle::runScheduledReconciliation();
 
         $this->assertSame(
             50,
-            $credits['membership:order:902:item:11'] ?? null,
-            'La conciliación registra los beneficios y abona los puntos como el cobro normal.'
+            $credits['membership:order:903:item:12'] ?? null,
+            'El manejador corre con los beneficios registrados y abona los puntos como el cobro normal.'
         );
+        $this->assertSame('membership_activation', $types['membership:order:903:item:12'] ?? null, 'El abono entra por el puente de loyalty.');
+        $this->assertCount(1, $this->wpdb->grants);
+
+        // Repetir el manejador no vuelve a abonar ni a conceder.
+        $this->options[\HWE_Memberships_Lifecycle::OPTION_DEACTIVATED_AT] = $this->now - 3600;
+        \HWE_Memberships_Lifecycle::runScheduledReconciliation();
+
+        $this->assertCount(1, $credits);
+        $this->assertCount(1, $this->wpdb->grants);
     }
 
-    public function testAFailingReconciliationDoesNotBlockActivation(): void
+    public function testAFailingDeferredReconciliationKeepsTheWindow(): void
     {
-        $this->options[\HWE_Memberships_Lifecycle::OPTION_HIDDEN] = [self::PRODUCT => 'publish'];
+        $this->bootPlugin();
         $this->options[\HWE_Memberships_Lifecycle::OPTION_DEACTIVATED_AT] = $this->now - 3600;
-        $this->products[self::PRODUCT]->set_status('draft');
         $this->paidOrderIds = [900];
 
         Functions\when('wc_get_orders')->alias(static function (array $args): array {
             throw new \RuntimeException('sin base de datos');
         });
 
-        \HWE_Memberships_Lifecycle::onActivate();
+        \HWE_Memberships_Lifecycle::runScheduledReconciliation();
 
-        $this->assertSame('publish', $this->products[self::PRODUCT]->get_status(), 'La restauración se completa igual.');
         $this->assertArrayHasKey(\HWE_Memberships_Lifecycle::OPTION_DEACTIVATED_AT, $this->options, 'El fallo deja la ventana para reintentar.');
         $this->assertNotEmpty(array_filter($this->logged, static fn (string $line): bool => str_contains($line, 'la consulta de pedidos cobrados')));
+    }
+
+    public function testTheDailyTaskReconcilesAPendingWindowAsFallback(): void
+    {
+        $this->bootPlugin();
+        $this->options[\HWE_Memberships_Lifecycle::OPTION_DEACTIVATED_AT] = $this->now - 3600;
+        $this->makeOrder(904, self::BUYER, 13, self::PRODUCT);
+        $this->paidOrderIds = [904];
+
+        \HWE_Memberships_Scheduler::run(1);
+
+        $this->assertNotNull(
+            $this->wpdb->grantByKey('order:904:item:13'),
+            'Si el evento único no llegó, la tarea diaria retoma la ventana pendiente.'
+        );
+    }
+
+    public function testDeactivationClearsTheScheduledReconciliation(): void
+    {
+        $this->events[\HWE_Memberships_Lifecycle::HOOK_RECONCILE] = $this->now + 60;
+
+        \HWE_Memberships_Lifecycle::onDeactivate();
+
+        $this->assertArrayNotHasKey(\HWE_Memberships_Lifecycle::HOOK_RECONCILE, $this->events);
     }
 
     // ── Hooks del archivo principal ────────────────────────────────────────

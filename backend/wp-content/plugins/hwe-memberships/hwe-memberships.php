@@ -36,11 +36,12 @@
  * la construye el frontend de cada instancia con el contrato de `docs/FRONTEND_CONNECT.md`.
  *
  * **Ciclo de vida.** Al desactivar, `includes/Lifecycle.php` retira de la venta los productos de
- * membresía publicados (a borrador, recordando su estado en una opción) y anota el instante;
- * al activar los restaura si nadie los cambió a mano y concilia los pedidos cobrados durante el
- * apagón con las claves de idempotencia por línea de `Purchase`. La UI de la tienda vuelve a
- * ofrecer el producto en la siguiente petición; la revalidación del catálogo se pide si el
- * Control Center está disponible.
+ * membresía publicados (a borrador, recordando su estado en una opción) y anota el instante; al
+ * activar los restaura si nadie los cambió a mano y deja **programada** la conciliación de los
+ * pedidos cobrados durante el apagón. La conciliación no corre en el hook de activación (WordPress
+ * lo dispara antes de escribir `active_plugins`), sino en una petición posterior con el plugin ya
+ * arrancado: evento único de WP-Cron y, como red, la tarea diaria. La revalidación del catálogo se
+ * pide si el Control Center está disponible.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -119,6 +120,7 @@ final class HWE_Memberships {
 		HWE_Memberships_Admin_TermFields::register();
 		HWE_Memberships_Products::register();
 		HWE_Memberships_Purchase::register();
+		HWE_Memberships_Lifecycle::register();
 		HWE_Memberships_StoreApi::register();
 		HWE_Memberships_Pricing::register();
 		HWE_Memberships_Privacy::register();

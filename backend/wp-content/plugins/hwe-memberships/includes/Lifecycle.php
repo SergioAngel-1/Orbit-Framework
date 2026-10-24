@@ -6,8 +6,8 @@
  * validaciones de `Purchase` y la activación al cobrar viven solo aquí. Para que un producto de
  * membresía no siga a la venta y se cobre sin conceder nada, la desactivación lo retira de la
  * venta (`draft`) y recuerda en una opción su estado anterior; la activación restaura
- * exactamente esos —si nadie los cambió a mano— y concilia los pedidos cobrados durante el
- * apagón con las claves de idempotencia por línea que ya usa `Purchase`.
+ * exactamente esos —si nadie los cambió a mano— y deja programada la conciliación de los pedidos
+ * cobrados durante el apagón con las claves de idempotencia por línea que ya usa `Purchase`.
  *
  * Reglas:
  *  · Desactivar **no borra** el vínculo producto ↔ nivel: al encender el módulo el producto
@@ -15,8 +15,13 @@
  *  · Restaurar solo toca los productos que siguen en el estado que puso este código (`draft`);
  *    un cambio manual del administrador (publicado, privado, papelera…) se respeta.
  *  · La conciliación usa `wc_get_orders` (compatible con HPOS), filtra por fecha de cobro y va
- *    en lotes con un techo por activación. `Purchase::processOrder` ya es idempotente por línea,
+ *    en lotes con un techo por ejecución. `Purchase::processOrder` ya es idempotente por línea,
  *    así que repetir la conciliación no concede dos veces.
+ *  · La conciliación **no** corre en el hook de activación: WordPress dispara `activate_{plugin}`
+ *    antes de escribir `active_plugins`, así que en esa petición el módulo todavía figura
+ *    inactivo y los beneficios no están registrados. La activación solo restaura los productos y
+ *    programa un evento único de WP-Cron; el manejador corre en una petición con el plugin ya
+ *    arrancado (`moduleActive()` y `booted()`), y la tarea diaria lo retoma si queda pendiente.
  *  · Ningún paso bloquea la activación ni la desactivación: un fallo se registra con
  *    `error_log('[hwe] memberships: …')` y se continúa con el resto.
  */
@@ -33,13 +38,16 @@ final class HWE_Memberships_Lifecycle {
 	/** Opción con el instante (timestamp UTC) de la última desactivación registrada. */
 	public const OPTION_DEACTIVATED_AT = 'hwe_memberships_deactivated_at';
 
+	/** Hook del evento único que concilia los pedidos con el plugin ya arrancado. */
+	public const HOOK_RECONCILE = 'hwe_memberships_reconcile_orders';
+
 	/** Estado al que se llevan los productos de membresía mientras el plugin está apagado. */
 	private const HIDDEN_STATUS = 'draft';
 
 	/** Pedidos que se piden por lote en la conciliación. */
 	private const ORDER_BATCH = 50;
 
-	/** Lotes máximos por activación: acota el tiempo de la petición de activación. */
+	/** Lotes máximos por ejecución: acota el tiempo de la petición que concilia. */
 	private const MAX_ORDER_BATCHES = 10;
 
 	// ------------------------------------------------------------------------
@@ -47,10 +55,21 @@ final class HWE_Memberships_Lifecycle {
 	// ------------------------------------------------------------------------
 
 	/**
+	 * Engancha el manejador del evento único. Lo llama `HWE_Memberships::boot()`: el hook tiene
+	 * que estar registrado en la petición en la que el plugin ya arrancó con normalidad.
+	 */
+	public static function register(): void {
+		add_action( self::HOOK_RECONCILE, array( self::class, 'runScheduledReconciliation' ) );
+	}
+
+	/**
 	 * Desactivación: retira de la venta los productos de membresía publicados y recuerda el
 	 * instante para conciliar después los pedidos cobrados en el apagón.
 	 */
 	public static function onDeactivate(): void {
+		// Un evento pendiente de una activación anterior no debe sobrevivir al apagón.
+		self::unscheduleReconciliation();
+
 		// El instante se anota ANTES de tocar productos: cualquier cobro que ocurra mientras se
 		// apagan (o justo después) entra en la ventana de conciliación.
 		self::safely(
@@ -69,8 +88,10 @@ final class HWE_Memberships_Lifecycle {
 	}
 
 	/**
-	 * Activación: devuelve a la venta los productos que retiró este código y concilia los
-	 * pedidos cobrados desde la desactivación registrada.
+	 * Activación: devuelve a la venta los productos que retiró este código y deja programada la
+	 * conciliación de los pedidos cobrados durante el apagón. **No** concilia aquí: WordPress
+	 * dispara el hook de activación antes de escribir `active_plugins`, así que el módulo aún
+	 * figura inactivo y los beneficios no están registrados.
 	 */
 	public static function onActivate(): void {
 		self::safely(
@@ -80,17 +101,91 @@ final class HWE_Memberships_Lifecycle {
 			}
 		);
 
-		$since = (int) get_option( self::OPTION_DEACTIVATED_AT, 0 );
-		if ( $since > 0 ) {
-			self::safely(
-				'conciliar los pedidos cobrados durante el apagón',
-				static function () use ( $since ): void {
-					self::reconcileOrders( $since );
-				}
-			);
-		}
+		self::safely(
+			'programar la conciliación de pedidos',
+			static function (): void {
+				self::scheduleReconciliation();
+			}
+		);
 
 		self::revalidate();
+	}
+
+	/**
+	 * Callback del evento único. Una petición normal de WP-Cron o WP-CLI carga el plugin como
+	 * siempre, así que `moduleActive()` y `booted()` ya dicen la verdad.
+	 */
+	public static function runScheduledReconciliation(): void {
+		self::runPendingReconciliation();
+	}
+
+	/**
+	 * Concilia la ventana pendiente si el módulo está activo y el plugin ha arrancado. Es
+	 * idempotente: `Purchase::processOrder` salta los pedidos ya procesados y las claves por
+	 * línea impiden una segunda concesión. La tarea diaria lo llama como red.
+	 */
+	public static function runPendingReconciliation(): void {
+		$since = (int) get_option( self::OPTION_DEACTIVATED_AT, 0 );
+		if ( $since <= 0 ) {
+			return;
+		}
+
+		if (
+			! class_exists( 'HWE_Memberships_Settings' )
+			|| ! HWE_Memberships_Settings::moduleActive()
+		) {
+			self::log( 'la conciliación de pedidos se omite: el módulo no está activo.' );
+			return;
+		}
+
+		if ( ! class_exists( 'HWE_Memberships' ) || ! HWE_Memberships::booted() ) {
+			self::log( 'la conciliación de pedidos se omite: el plugin no ha arrancado en esta petición.' );
+			return;
+		}
+
+		self::safely(
+			'conciliar los pedidos cobrados durante el apagón',
+			static function () use ( $since ): void {
+				self::reconcileOrders( $since );
+			}
+		);
+	}
+
+	/**
+	 * Programa un único evento inmediato si queda una ventana por conciliar. No se duplica si
+	 * ya hay uno pendiente. Si WP-Cron no está disponible, se registra: la tarea diaria del
+	 * Scheduler recoge la ventana igualmente.
+	 */
+	private static function scheduleReconciliation(): void {
+		if ( (int) get_option( self::OPTION_DEACTIVATED_AT, 0 ) <= 0 ) {
+			return;
+		}
+		if ( ! function_exists( 'wp_next_scheduled' ) || ! function_exists( 'wp_schedule_single_event' ) ) {
+			self::log( 'no se pudo programar la conciliación de pedidos: falta la API de WP-Cron.' );
+			return;
+		}
+		if ( wp_next_scheduled( self::HOOK_RECONCILE ) ) {
+			return;
+		}
+
+		$scheduled = wp_schedule_single_event( time(), self::HOOK_RECONCILE );
+		if (
+			false === $scheduled
+			|| ( function_exists( 'is_wp_error' ) && is_wp_error( $scheduled ) )
+		) {
+			self::log( 'no se pudo programar la conciliación de pedidos; la tarea diaria la retomará.' );
+		}
+	}
+
+	/** Retira el evento único pendiente, si lo hay. */
+	private static function unscheduleReconciliation(): void {
+		if ( ! function_exists( 'wp_clear_scheduled_hook' ) ) {
+			return;
+		}
+
+		if ( false === wp_clear_scheduled_hook( self::HOOK_RECONCILE ) ) {
+			self::log( 'no se pudo retirar el evento de conciliación de pedidos pendiente.' );
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -300,11 +395,6 @@ final class HWE_Memberships_Lifecycle {
 			return;
 		}
 
-		// En la petición de activación el plugin acaba de activarse y `plugins_loaded` ya pasó:
-		// el arranque normal no ha registrado los beneficios. Sin esto, la concesión se crearía
-		// pero los puntos por activación no se abonarían (ni quedaría `points_skipped`).
-		self::ensureBenefitHooks();
-
 		$statuses = function_exists( 'wc_get_is_paid_statuses' )
 			? (array) wc_get_is_paid_statuses()
 			: array( 'processing', 'completed' );
@@ -352,7 +442,7 @@ final class HWE_Memberships_Lifecycle {
 		$truncated = $batches >= self::MAX_ORDER_BATCHES && $lastCount >= self::ORDER_BATCH;
 
 		if ( $truncated ) {
-			self::log( 'la conciliación alcanzó el tope de ' . ( self::MAX_ORDER_BATCHES * self::ORDER_BATCH ) . ' pedidos en la activación; quedan pedidos cobrados por conciliar.' );
+			self::log( 'la conciliación alcanzó el tope de ' . ( self::MAX_ORDER_BATCHES * self::ORDER_BATCH ) . ' pedidos en una ejecución; quedan pedidos cobrados por conciliar.' );
 		}
 
 		if ( $ok && ! $truncated ) {
@@ -361,7 +451,7 @@ final class HWE_Memberships_Lifecycle {
 		}
 
 		if ( $ok ) {
-			self::log( 'se conserva el instante de la desactivación para conciliar en una próxima activación los pedidos que quedaron fuera del tope.' );
+			self::log( 'se conserva el instante de la desactivación para conciliar los pedidos que quedaron fuera del tope.' );
 			return;
 		}
 
@@ -439,27 +529,6 @@ final class HWE_Memberships_Lifecycle {
 			$step();
 		} catch ( \Throwable $e ) {
 			self::log( 'no se pudo ' . $what . ': ' . $e->getMessage() );
-		}
-	}
-
-	/**
-	 * Registra los hooks de beneficios si el arranque normal no se ha ejecutado (activación).
-	 * Con el plugin ya arrancado no se toca nada: registrar dos veces duplicaría abonos.
-	 */
-	private static function ensureBenefitHooks(): void {
-		if ( class_exists( 'HWE_Memberships' ) && HWE_Memberships::booted() ) {
-			return;
-		}
-
-		try {
-			if ( class_exists( 'HWE_Memberships_LoyaltyBridge' ) ) {
-				HWE_Memberships_LoyaltyBridge::register();
-			}
-			if ( class_exists( 'HWE_Memberships_Benefits' ) ) {
-				HWE_Memberships_Benefits::register();
-			}
-		} catch ( \Throwable $e ) {
-			self::log( 'no se pudieron registrar los beneficios para conciliar los pedidos: ' . $e->getMessage() );
 		}
 	}
 

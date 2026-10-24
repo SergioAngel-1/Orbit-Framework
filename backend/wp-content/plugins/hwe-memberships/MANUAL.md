@@ -201,8 +201,9 @@ cliente y su configuración se conserva.
 Al desactivar el plugin, sus **productos de membresía publicados pasan a borrador** para que no
 se puedan comprar mientras no haya módulo que entregue la membresía. Al volver a activarlo se
 restauran solos si nadie los cambió a mano, y los pedidos que se cobraron durante el apagón se
-concilian en ese momento (la membresía se concede una sola vez, con la clave de la línea del
-pedido). Si tenías productos de membresía en borrador por otro motivo, no se tocan.
+concilian en la siguiente petición con el plugin ya arrancado (un evento único; la tarea diaria lo
+retoma si queda pendiente). La membresía se concede una sola vez, con la clave de la línea del
+pedido. Si tenías productos de membresía en borrador por otro motivo, no se tocan.
 
 ### Procedimiento de apagado seguro
 

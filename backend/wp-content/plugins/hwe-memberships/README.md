@@ -26,7 +26,7 @@ pública la construye el frontend de cada instancia con el contrato de
 | `includes/Events.php` | Historial (`hwe_memberships_events`) y hooks del ciclo, disparados **después** del COMMIT. |
 | `includes/Members.php` | Lectura del estado efectivo del socio (tabla `hwe_memberships_members`). |
 | `includes/Purchase.php` | Reglas de compra y activación al cobrar el pedido; reversión por cancelación o reembolso total. |
-| `includes/Lifecycle.php` | Ciclo de vida del plugin: retira de la venta los productos de membresía al desactivar, los restaura al activar y concilia los pedidos cobrados durante el apagón. |
+| `includes/Lifecycle.php` | Ciclo de vida del plugin: retira de la venta los productos de membresía al desactivar, los restaura al activar y deja programada la conciliación de los pedidos cobrados durante el apagón. |
 | `includes/Products.php` | Vínculo producto ↔ nivel y duración; pestaña «Membresía» de la ficha y requisitos de acceso. |
 | `includes/Access.php` | Única fuente del requisito efectivo de un producto o categoría y del acceso anticipado. |
 | `includes/Teaser.php` | Ficha de escaparate en Store API, carrito y WC REST (`wc/v3`). |
@@ -386,10 +386,12 @@ Además, la desactivación del plugin **retira de la venta** los productos de me
 (los pasa a borrador y recuerda su estado en `hwe_memberships_hidden_products`): sin la compuerta
 de compra del módulo, un producto ligado a un nivel se cobraría sin conceder nada. La activación
 restaura exactamente esos productos si siguen en el estado que puso el plugin —un cambio manual
-del administrador no se pisa— y concilia en lotes los pedidos cobrados durante el apagón, con las
-claves de idempotencia por línea de `Purchase`. El barrido se acota por la fecha de cobro y por
-un tope por activación; si algo falla, se registra con `[hwe] memberships: …` sin bloquear la
-activación.
+del administrador no se pisa— y **deja programada** la conciliación de los pedidos cobrados
+durante el apagón, con las claves de idempotencia por línea de `Purchase`. La conciliación corre en
+una petición posterior con el plugin ya arrancado (evento único de WP-Cron; la tarea diaria la
+retoma si queda pendiente), porque en el hook de activación WordPress todavía no ha escrito
+`active_plugins`. El barrido se acota por la fecha de cobro y por un tope por ejecución; si algo
+falla, se registra con `[hwe] memberships: …` sin bloquear la activación.
 
 ## Verificación
 
