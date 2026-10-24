@@ -47,6 +47,7 @@ require_once __DIR__ . '/includes/Members.php';
 require_once __DIR__ . '/includes/Grants.php';
 require_once __DIR__ . '/includes/Products.php';
 require_once __DIR__ . '/includes/Purchase.php';
+require_once __DIR__ . '/includes/Privacy.php';
 
 final class HWE_Memberships {
 
@@ -66,6 +67,7 @@ final class HWE_Memberships {
 		HWE_Memberships_Levels::register();
 		HWE_Memberships_Products::register();
 		HWE_Memberships_Purchase::register();
+		HWE_Memberships_Privacy::register();
 	}
 
 	/** Aviso en wp-admin si el plugin se activó sin WooCommerce (la cabecera ya lo impide). */
