@@ -5,9 +5,9 @@ se puede verificar con el móvil, ventajas por nivel, renovaciones y regalos por
 Se configura en **HWE Config → Membresías** y se activa o desactiva como cualquier módulo del
 framework (Plugins de WordPress).
 
-> **El módulo está en construcción.** Hoy existen el arranque y los ajustes; las pantallas de
-> niveles, concesiones y beneficios, el carné y las rutas del frontend llegan en entregas
-> posteriores. Este manual se completa con ellas.
+> **El módulo está en construcción.** Ya existen los niveles, las concesiones, las compras, el
+> carné, los beneficios y el descuento de miembro; las rutas internas y la UI pública del
+> frontend llegan en entregas posteriores. Este manual se completa con ellas.
 
 > **El módulo no trae vistas.** Entrega el contrato (configuración y, más adelante, rutas del BFF);
 > la UI pública la construye el frontend de cada instancia.
@@ -23,7 +23,21 @@ framework (Plugins de WordPress).
 - **Regalos por referido**: quien invita a un nuevo cliente puede regalarle una membresía, con la
   opción de exigir que el referido confirme su correo antes de concederla.
 - **Beneficios por nivel**: además de las ventajas informativas, un nivel puede abonar puntos al
-  comprar, pagar una comisión extra a quien refirió al socio y regalar una membresía al referido.
+  comprar, pagar una comisión extra a quien refirió al socio, regalar una membresía al referido y
+  aplicar un descuento de miembro en el carrito.
+
+## Descuento de miembro
+
+Cada nivel puede aplicar un porcentaje de descuento (0–100) a todo el catálogo o solo a las
+categorías que elijas. Elegir una categoría incluye también sus subcategorías. El descuento se
+calcula sobre el precio que la tienda cobraría en ese momento (con la oferta incluida), se aplica
+en el carrito del socio y nunca a los productos de membresía. Los cupones se aplican después y los
+impuestos se calculan sobre el precio ya rebajado.
+
+Si el socio pierde el nivel, la membresía se congela o el beneficio se apaga, el siguiente
+recálculo del carrito devuelve el precio normal: el descuento no se queda «pegado». En el pedido
+queda registrado el precio original, el descuento y el nivel/porcentaje aplicados, para que el
+equipo pueda revisarlo.
 
 ## Beneficios que usan la fidelización
 

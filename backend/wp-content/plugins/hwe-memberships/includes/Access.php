@@ -118,6 +118,30 @@ final class HWE_Memberships_Access {
 	}
 
 	/**
+	 * Ids de las categorías del producto y de todos sus ancestros. Es la misma cadena que usa el
+	 * requisito de acceso; aquí se expone para el alcance del descuento de miembro: una categoría
+	 * elegida cubre también a sus descendientes. Lanza si la jerarquía no se puede leer (quien
+	 * decide si falla abierto o cerrado es el llamador).
+	 *
+	 * @return list<int>
+	 */
+	public static function categoryChainIds( int $productId ): array {
+		if ( $productId <= 0 ) {
+			return array();
+		}
+
+		$ids = array();
+		foreach ( self::productCategoryIds( $productId ) as $termId ) {
+			$ids[ $termId ] = true;
+			foreach ( self::ancestorIds( $termId ) as $ancestorId ) {
+				$ids[ $ancestorId ] = true;
+			}
+		}
+
+		return array_keys( $ids );
+	}
+
+	/**
 	 * Requisito efectivo de una categoría: el mayor rango de ella misma y de toda su cadena de
 	 * ancestros. No lleva fecha de apertura (es una propiedad del producto).
 	 *

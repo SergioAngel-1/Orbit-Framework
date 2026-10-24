@@ -5,10 +5,10 @@ por QR, renovaciones y regalos por referido. Es un módulo opcional del catálog
 `shipping`, y no trae vistas: entrega el contrato de configuración y la lógica del backend.
 
 > **Estado: backend del módulo en desarrollo.** Ya existen los ajustes, los niveles, las
-> concesiones, las compras, el carné, la privacidad, los beneficios conectados con `loyalty` y
-> la extensión de la Store API con el bloqueo de compra por requisito. Las rutas internas y la
-> UI del frontend llegan en entregas posteriores; este README y `MANUAL.md` se completan con
-> ellas.
+> concesiones, las compras, el carné, la privacidad, los beneficios conectados con `loyalty`, la
+> extensión de la Store API con el bloqueo de compra por requisito y el descuento de miembro en
+> el carrito y el pedido. Las rutas internas y la UI del frontend llegan en entregas posteriores;
+> este README y `MANUAL.md` se completan con ellas.
 
 ## Qué aporta hoy
 
@@ -19,6 +19,8 @@ por QR, renovaciones y regalos por referido. Es un módulo opcional del catálog
 | `includes/Benefits/` | Registro de tipos de beneficio y los que dependen de `loyalty`: puntos por activación, comisión extra de referidos y regalo de membresía al referido. |
 | `includes/LoyaltyBridge.php` | Único punto de conversación con el contrato de `loyalty` (disponibilidad, tipos de movimiento, abono y reversión). |
 | `includes/StoreApi.php` | Extensión `hwe-memberships` del carrito y bloqueo de compra por requisito de acceso, en el alta y al crear el pedido. |
+| `includes/Benefits/MemberDiscount.php` | Beneficio `member_discount`: porcentaje y alcance (todo el catálogo o categorías con herencia). |
+| `includes/Pricing.php` | Descuento de miembro en el precio de línea, metas del pedido, fila de la caja y `priceFor()` para el BFF. |
 
 ## Beneficios conectados con `loyalty`
 
@@ -193,6 +195,37 @@ un valor no booleano se ignora y se registra. El filtro interno
 `hwe_memberships_store_api_cart_data` permite a las tareas de descuentos y envíos aportar sus dos
 ramas; `level`, `blocked_items` y `purchase_notice` siempre se recalculan en el módulo para que un
 filtro no pueda retirar una línea bloqueada.
+
+## Descuento de miembro
+
+El nivel puede configurar un **porcentaje** (0–100) y el **alcance**: todo el catálogo o una lista
+de categorías. Elegir una categoría cubre también sus descendientes. El descuento se aplica solo
+al socio con el beneficio activo y nunca a las líneas de membresía.
+
+La mecánica rebaja el **precio de línea** del carrito en `woocommerce_before_calculate_totals`
+(prioridad 999, después de WooCommerce y de los plugins que fijan precios), partiendo siempre del
+precio que la tienda cobraría hoy (oferta incluida) y nunca del ya rebajado. Así los impuestos se
+calculan sobre lo rebajado, el cupón se aplica después y la base de ganancias de `loyalty` lo
+refleja sola. En cada recálculo se restaura el precio original si el socio perdió el nivel, el
+beneficio se apagó o la línea dejó de estar en el alcance (Foco 3), sin encadenar rebajas.
+
+`HWE_Memberships_Pricing::priceFor( int $userId, int $productId, ?int $variationId = null ): array`
+es el precio de referencia que usan el carrito y el BFF. Devuelve strings decimales de WooCommerce
+(`wc_get_price_decimals()`):
+
+| Campo | Qué es |
+|---|---|
+| `regular` | Precio regular del producto. |
+| `price` | Precio que el carrito cobraría hoy (oferta incluida). |
+| `member_price` | Precio con el descuento de miembro; igual a `price` si no hay descuento. |
+| `percent` | Porcentaje aplicado (0 si no hay descuento). |
+
+En el pedido, cada línea guarda el precio original y el descuento **por unidad**
+(`_hwe_membership_line_original`, `_hwe_membership_line_discount`), y el pedido el nivel y el
+porcentaje (`_hwe_membership_discount_level`, `_hwe_membership_discount_percent`). La caja del
+pedido muestra una sola fila con el nivel y el porcentaje mediante el filtro
+`hwe_memberships_order_box_rows`. La extensión `hwe-memberships` del carrito publica el total y el
+detalle por línea en `member_discount`, en unidades menores.
 
 ## Con el módulo apagado
 

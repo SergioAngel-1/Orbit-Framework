@@ -30,8 +30,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class HWE_Memberships_Benefits {
 
 	/**
-	 * Claves del núcleo que todavía no tienen clase (Tareas 9, 12 y 13). Se reservan desde ya
-	 * para que un tipo de instancia no pueda ocuparlas antes de que existan.
+	 * Claves del núcleo que se reservan siempre: una clase cargada las ocupa igualmente y una
+	 * declaración de instancia nunca puede pisarlas. `member_discount` y `early_access` ya
+	 * tienen clase; se mantienen aquí como red de seguridad si su archivo no se carga.
 	 *
 	 * @var list<string>
 	 */
@@ -60,6 +61,7 @@ final class HWE_Memberships_Benefits {
 			HWE_Memberships_Benefit_Activation_Points::class,
 			HWE_Memberships_Benefit_Referral_Bonus::class,
 			HWE_Memberships_Benefit_Referral_Gift::class,
+			HWE_Memberships_Benefit_Member_Discount::class,
 		);
 	}
 
