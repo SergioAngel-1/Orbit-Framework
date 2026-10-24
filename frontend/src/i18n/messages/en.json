@@ -657,6 +657,70 @@
       "unknown": "Loyalty movement"
     }
   },
+  "memberships": {
+    "benefits": {
+      "member_discount_all": "{percent}% off everything in the store",
+      "member_discount_categories": "{percent}% off participating categories",
+      "member_discount": "Member discount",
+      "early_access": "Early access to new releases",
+      "activation_points": "Extra points when you activate your membership: {points}",
+      "activation_points_plain": "Extra points when you activate your membership",
+      "referral_bonus": "Extra referral commission: {percent}%",
+      "referral_bonus_plain": "Extra referral commission",
+      "referral_gift": "Give up to {max} {days}-day memberships",
+      "referral_gift_short": "Give memberships to your referrals",
+      "free_deliveries": "Free deliveries included: {count}",
+      "free_deliveries_short": "Free deliveries included",
+      "info_perk": "Member perk",
+      "unknown": "Membership perk"
+    },
+    "history": {
+      "activated": "Membership activated",
+      "renewed": "Membership renewed",
+      "upgraded": "Membership level upgraded",
+      "deferred": "Membership scheduled",
+      "granted_by_admin": "Membership granted by the store",
+      "referral_gift_granted": "Gift membership received",
+      "revoked": "Membership revoked",
+      "removed_by_admin": "Membership removed by the store",
+      "expiring": "Your membership expires in {duration}",
+      "expiring_soon": "Your membership is about to expire",
+      "expired": "Membership expired",
+      "frozen": "Membership frozen",
+      "unfrozen": "Membership resumed",
+      "points_skipped": "No points for this purchase",
+      "referral_gift_limit_reached": "No membership gifts left this period",
+      "with_duration": "{text} for {duration}",
+      "unknown": "Membership update"
+    },
+    "durations": {
+      "days": "{days} days",
+      "one_day": "1 day",
+      "infinite": "Unlimited",
+      "undated": "No date"
+    },
+    "purchase": {
+      "login_required": "Sign in to buy this level.",
+      "one_per_cart": "You can only buy one membership per order.",
+      "not_purchasable": "This level is not available for purchase.",
+      "account_too_new": "Your account needs {duration} more to access this level.",
+      "account_too_new_plain": "Your account is still too new for this level.",
+      "account_pending": "Your account is still pending verification.",
+      "already_indefinite": "You already have an unlimited membership that covers this level.",
+      "unknown": "You cannot buy this level right now."
+    },
+    "checkout": {
+      "membership_required": "This product requires an active membership. Check your membership and try again.",
+      "membership_early_access": "This product is not yet available for your membership. Check the opening date and try again.",
+      "membership_free_delivery_unavailable": "No free delivery is left on your membership. Review your cart and try again.",
+      "membership_login_required": "Sign in to buy a membership.",
+      "membership_one_per_cart": "You can only buy one membership per order, with a quantity of 1.",
+      "membership_not_purchasable": "That membership level is not available for purchase.",
+      "membership_account_too_new": "Your account does not yet meet the minimum age to buy this level.",
+      "membership_account_pending": "Your account is pending approval.",
+      "membership_already_indefinite": "You already have that membership level, or a higher one, with no expiry."
+    }
+  },
   "llms": {
     "sections": {
       "pages": "Main pages",

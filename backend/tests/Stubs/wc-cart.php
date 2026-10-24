@@ -10,14 +10,34 @@ namespace Automattic\WooCommerce\StoreApi\Exceptions {
     if (!class_exists(RouteException::class)) {
         class RouteException extends \Exception
         {
-            public function __construct(private string $error_code, string $message, int $http_status_code = 400)
-            {
+            /** @var array<string,mixed> */
+            private array $data;
+
+            /** @param array<string,mixed> $data */
+            public function __construct(
+                private string $error_code,
+                string $message,
+                private int $http_status_code = 400,
+                array $data = []
+            ) {
                 parent::__construct($message, $http_status_code);
+                $this->data = $data;
             }
 
             public function getErrorCode(): string
             {
                 return $this->error_code;
+            }
+
+            public function getHTTPStatusCode(): int
+            {
+                return $this->http_status_code;
+            }
+
+            /** @return array<string,mixed> */
+            public function getAdditionalData(): array
+            {
+                return $this->data;
             }
         }
     }
@@ -39,6 +59,8 @@ namespace {
             public float $shipping_tax = 0.0;
             /** @var array<string,object> */
             public array $fees = [];
+            /** @var list<string> */
+            public array $applied_coupons = [];
 
             /** @param array<string,array<string,mixed>> $items */
             public function __construct(private array $items = [])
@@ -49,6 +71,18 @@ namespace {
             public function get_cart(): array
             {
                 return $this->items;
+            }
+
+            /** Un carrito normal necesita envío; un test puede sobrescribirlo si no. */
+            public function needs_shipping(): bool
+            {
+                return true;
+            }
+
+            /** @return list<string> */
+            public function get_applied_coupons(): array
+            {
+                return $this->applied_coupons;
             }
 
             public function add_fee(string $name, float $amount, bool $taxable = false, string $tax_class = ''): void
@@ -140,12 +174,22 @@ namespace {
             public int $id = 0;
             public float $total = 0.0;
             public float $total_tax = 0.0;
+            public int $product_id = 0;
+            public int $quantity = 1;
+            public int $saved = 0;
 
-            public function __construct(int $id = 0, float $total = 0.0, float $total_tax = 0.0)
-            {
-                $this->id        = $id;
-                $this->total     = $total;
-                $this->total_tax = $total_tax;
+            public function __construct(
+                int $id = 0,
+                float $total = 0.0,
+                float $total_tax = 0.0,
+                int $product_id = 0,
+                int $quantity = 1
+            ) {
+                $this->id         = $id;
+                $this->total      = $total;
+                $this->total_tax  = $total_tax;
+                $this->product_id = $product_id;
+                $this->quantity   = $quantity;
             }
 
             public function add_meta_data(string $key, $value, bool $unique = false): void
@@ -153,9 +197,40 @@ namespace {
                 $this->meta[$key] = $value;
             }
 
+            public function update_meta_data(string $key, $value): void
+            {
+                $this->meta[$key] = $value;
+            }
+
+            public function get_meta(string $key, bool $single = true)
+            {
+                return $this->meta[$key] ?? '';
+            }
+
+            public function delete_meta_data(string $key): void
+            {
+                unset($this->meta[$key]);
+            }
+
+            public function save(): int
+            {
+                $this->saved++;
+                return $this->id;
+            }
+
             public function get_id(): int
             {
                 return $this->id;
+            }
+
+            public function get_product_id(): int
+            {
+                return $this->product_id;
+            }
+
+            public function get_quantity(): int
+            {
+                return $this->quantity;
             }
 
             public function get_total(): float

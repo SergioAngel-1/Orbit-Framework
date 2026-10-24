@@ -27,6 +27,7 @@ const CORE_HWE_TAGS = [
   "geo",
   "shipping",
   "landings",
+  "memberships",
 ] as const;
 
 export function resolveHweTag(raw: unknown): string | null {

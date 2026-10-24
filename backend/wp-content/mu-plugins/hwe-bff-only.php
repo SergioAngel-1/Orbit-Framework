@@ -1,10 +1,10 @@
 <?php
 /**
  * Plugin Name: HWE — Endpoints solo para el BFF
- * Description: GraphQL, la Store API de WooCommerce, /hwe/v1/auth/*, /hwe/v1/consent/* y
- *              /hwe/v1/loyalty/* solo atienden al BFF (Next.js), que se identifica con el secreto interno
- *              compartido (cabecera X-HWE-Internal-Secret), o a WP-CLI. Cualquier otra
- *              petición recibe un 404, llegue por la ruta o por parámetro.
+ * Description: GraphQL, la Store API de WooCommerce, /hwe/v1/auth/*, /hwe/v1/consent/*,
+ *              /hwe/v1/loyalty/* y /hwe/v1/memberships/* solo atienden al BFF (Next.js), que se
+ *              identifica con el secreto interno compartido (cabecera X-HWE-Internal-Secret), o a
+ *              WP-CLI. Cualquier otra petición recibe un 404, llegue por la ruta o por parámetro.
  * Author:      Sergio Jauregui
  * Version:     2.1.0
  *
@@ -96,7 +96,7 @@ function hwe_bff_only_has_valid_secret(): bool
     if ($expected === '') {
         hwe_bff_only_log_throttled(
             'no-secret',
-            'HWE_REVALIDATION_SECRET no está definido: GraphQL, la Store API y hwe/v1/auth|consent '
+            'HWE_REVALIDATION_SECRET no está definido: GraphQL, la Store API y hwe/v1/auth|consent|loyalty|memberships '
             . 'solo atienden a WP-CLI. Defínelo en wp-config.php con el mismo valor que el frontend.',
             3600
         );
@@ -208,7 +208,8 @@ function hwe_bff_only_is_bff_rest_route(string $route): bool
     return str_starts_with($route, '/wc/store')
         || str_starts_with($route, '/hwe/v1/auth/')
         || str_starts_with($route, '/hwe/v1/consent/')
-        || str_starts_with($route, '/hwe/v1/loyalty/');
+        || str_starts_with($route, '/hwe/v1/loyalty/')
+        || str_starts_with($route, '/hwe/v1/memberships/');
 }
 
 /** Termina la petición. Aislado para que los tests puedan sustituirlo (`exit` mataría PHPUnit). */

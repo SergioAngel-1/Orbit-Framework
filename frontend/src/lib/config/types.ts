@@ -123,6 +123,13 @@ export interface SiteConfig {
    */
   loyalty: LoyaltyConfig;
   /**
+   * Membresías (módulo `memberships`): solo los campos públicos del carné y su verificación. Los
+   * niveles y beneficios son contenido editable y llegan por su propia ruta, no por `config`. El
+   * TTL del token, los días de aviso y la exigencia de correo verificado son del backend y no
+   * forman parte de este contrato. Con el módulo apagado llegan los defaults y el BFF responde 404.
+   */
+  memberships: MembershipsConfig;
+  /**
    * Landings editoriales (módulo `landings`): el registro y el contenido de cada una. Vacío con
    * el módulo apagado o sin landings.
    */
@@ -341,6 +348,19 @@ export interface LoyaltyConfig {
   transfer_daily_cap: string;
 }
 
+/**
+ * Configuración pública del módulo `memberships` (spec §10.1). Solo los campos que necesita el
+ * frontend para pintar y verificar el carné; el resto de ajustes son operativos del backend.
+ */
+export interface MembershipsConfig {
+  /** Enciende el carné digital con su verificación por QR. */
+  card_enabled: boolean;
+  /** Ruta del frontend a la que apunta el QR del carné (por defecto `/verify`). */
+  card_verify_path: string;
+  /** Texto corto que precede al número de socio. Vacío = sin prefijo. */
+  member_number_prefix: string;
+}
+
 /** Ids del catálogo de módulos (spec §4.1). Debe coincidir con `Modules::CORE_IDS` en PHP. */
 export type ModuleId =
   | "banners"
@@ -352,7 +372,8 @@ export type ModuleId =
   | "coupon-rules"
   | "customer-identity"
   | "external-integration"
-  | "loyalty";
+  | "loyalty"
+  | "memberships";
 
 /**
  * Ajustes propios de la instancia. Vacía en el framework: cada instancia la

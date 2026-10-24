@@ -33,6 +33,15 @@ class FreeShipping {
 
 	public const EXTENSION = 'hwe_free_shipping';
 
+	/**
+	 * Filtro estable con el que otro módulo pide el envío gratis por un motivo propio.
+	 * Firma: `( ?string $reason, array $package, array $context ): ?string`; si devuelve un
+	 * texto no vacío, este plugin pone a 0 las tarifas de las opciones elegibles del destino
+	 * (nunca la reserva) y lo escribe en la meta `_hwe_free_shipping_reason`. La regla de la
+	 * tienda tiene prioridad: si ya califica, no se consulta.
+	 */
+	public const FILTER_REASON = 'hwe_shipping_free_reason';
+
 	public static function register(): void {
 		// Entre la tarifa por ciudad (20) y el cupón de envío gratis (30).
 		add_filter( 'woocommerce_package_rates', [ self::class, 'applyToRates' ], 25, 2 );
@@ -50,24 +59,26 @@ class FreeShipping {
 			(string) ( $package['destination']['country'] ?? '' ),
 			(string) ( $package['destination']['city'] ?? '' )
 		);
-		if ( ! $state['qualifies'] ) {
+
+		// Solo las opciones marcadas de la ciudad de destino. La decisión del envío ya dice cuál es la
+		// ciudad: no se vuelve a resolver aquí. La reserva nunca está en la lista.
+		$decision = ShippingStatus::decide( $package );
+		$free     = self::freeRateIds( $decision['city'] );
+		if ( [] === $free ) {
 			return $rates;
 		}
 
-		// El motivo viaja con la tarifa: WooCommerce copia la meta de la tarifa
-		// elegida a la línea de envío del pedido, así que wp-admin la enseña
-		// bajo «Envío» y un envío a 0 no parece un error de configuración.
-		$reason = $state['threshold'] > 0
-			? sprintf(
-				/* translators: %s: importe mínimo de compra, con formato de moneda */
-				__( 'Compra mínima de %s alcanzada', 'hwe-shipping' ),
-				html_entity_decode( wp_strip_all_tags( wc_price( $state['threshold'] ) ), ENT_QUOTES, 'UTF-8' )
-			)
-			: __( 'Regla de envío gratis de la tienda', 'hwe-shipping' );
-
-		// Solo las opciones marcadas de la ciudad de destino. La decisión del envío ya dice cuál es la
-		// ciudad: no se vuelve a resolver aquí.
-		$free = self::freeRateIds( ShippingStatus::decide( $package )['city'] );
+		// La regla de la tienda manda: si ya se cumple, su motivo es el que queda en el pedido y
+		// no se consulta a ningún otro módulo. Si no, otro módulo puede pedir el envío gratis con
+		// su propio motivo (el filtro estable `hwe_shipping_free_reason`).
+		if ( $state['qualifies'] ) {
+			$reason = self::thresholdReason( $state['threshold'] );
+		} else {
+			$reason = self::externalReason( $package, $free, $state, (string) ( $decision['mode'] ?? 'none' ) );
+		}
+		if ( null === $reason ) {
+			return $rates;
+		}
 
 		foreach ( $rates as $rate ) {
 			if ( ! in_array( $rate->get_id(), $free, true ) ) {
@@ -80,6 +91,64 @@ class FreeShipping {
 		}
 
 		return $rates;
+	}
+
+	/** Motivo del envío gratis de la regla de la tienda. */
+	private static function thresholdReason( float $threshold ): string {
+		// El motivo viaja con la tarifa: WooCommerce copia la meta de la tarifa elegida a la línea
+		// de envío del pedido, así que wp-admin la enseña bajo «Envío» y un envío a 0 no parece un
+		// error de configuración.
+		return $threshold > 0
+			? sprintf(
+				/* translators: %s: importe mínimo de compra, con formato de moneda */
+				__( 'Compra mínima de %s alcanzada', 'hwe-shipping' ),
+				html_entity_decode( wp_strip_all_tags( wc_price( $threshold ) ), ENT_QUOTES, 'UTF-8' )
+			)
+			: __( 'Regla de envío gratis de la tienda', 'hwe-shipping' );
+	}
+
+	/**
+	 * Motivo que pide otro módulo por el filtro estable. Se devuelve tal cual si es un texto no
+	 * vacío; cualquier otro valor se descarta y se registra (nunca deja tarifas a 0 por error).
+	 *
+	 * @param array<string,mixed> $package
+	 * @param string[]            $free    Ids de las tarifas elegibles del destino.
+	 * @param array<string,mixed> $state   Evaluación de la regla de la tienda.
+	 * @param string              $mode    Modo del destino (`fixed`, `distance`, `reserve` o `none`).
+	 */
+	private static function externalReason( array $package, array $free, array $state, string $mode ): ?string {
+		if ( ! function_exists( 'apply_filters' ) ) {
+			return null;
+		}
+
+		$raw = apply_filters(
+			self::FILTER_REASON,
+			null,
+			$package,
+			[
+				'qualifies' => (bool) ( $state['qualifies'] ?? false ),
+				'mode'      => $mode,
+				'rate_ids'  => array_values( $free ),
+			]
+		);
+
+		if ( null === $raw ) {
+			return null;
+		}
+		if ( ! is_string( $raw ) ) {
+			error_log(
+				'[hwe] shipping: el filtro ' . self::FILTER_REASON . ' devolvió '
+				. get_debug_type( $raw ) . '; se ignora y las tarifas no cambian.'
+			);
+			return null;
+		}
+
+		$reason = trim( $raw );
+		if ( function_exists( 'sanitize_text_field' ) ) {
+			$reason = (string) sanitize_text_field( $reason );
+		}
+
+		return '' === $reason ? null : $reason;
 	}
 
 	/**

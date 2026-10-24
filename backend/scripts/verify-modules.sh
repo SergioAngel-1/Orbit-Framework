@@ -13,18 +13,29 @@
 #                 Deja cada módulo como estaba (también si se interrumpe). `loyalty` añade:
 #                 tablas propias, rutas internas con el secreto interno y la extensión
 #                 `hwe-loyalty` de la Store API, con «Puntos»/«Referidos» encendidos de forma
-#                 temporal y restaurados al salir.
+#                 temporal y restaurados al salir. `memberships` añade: sus cinco tablas, las
+#                 rutas internas con y sin el secreto, la extensión `hwe-memberships` de la
+#                 Store API y un producto de prueba bloqueado por nivel que se recorta en
+#                 GraphQL y en la Store API y se borra al salir (también su nivel).
 #    i18n         con la pila: una traducción a un segundo idioma guardada en la meta de un
 #                 producto llega por `Product.translation(locale)`, y un idioma no declarado no.
 #    country      con la pila: el paquete del país de la tienda está en `/hwe/v1/geo`.
 #    integration  con la pila: activa `external-integration`, ejecuta `verify-integration.sh all`
 #                 y deja el módulo como estaba. Necesita `HWE_INTEGRATION_ALLOWED_IPS` con la IP
-#                 de pruebas EN LA PILA y en el entorno de este script (cada `docker compose run`
-#                 recrea `wordpress` si su entorno difiere del de la pila en marcha):
+#                 de pruebas EN LA PILA y en el entorno de este script:
 #                   export HWE_INTEGRATION_ALLOWED_IPS=198.51.100.7
 #                   docker compose up -d --no-deps wordpress wp-cron
 #                   sh backend/scripts/verify-modules.sh integration
 #    all          (por defecto) todo lo anterior.
+#
+#  WP-CLI nunca recrea servicios. Primero ejecuta dentro de un contenedor que ya está en marcha
+#  y tiene `wp` (`hwe_wp_cron`, `hwe_wpcli` o `hwe_wordpress`): `docker exec <contenedor> wp
+#  --allow-root`. Si no hay ninguno, el respaldo es un `docker compose run` del servicio `wpcli`
+#  con `--project-name` del proyecto de la pila en marcha (leído de su etiqueta de contenedor) y
+#  con el `.env` del repo cargado como datos (`lib/load-env.sh`): así no se arranca ni se recrea
+#  `wordpress` con otro entorno. Además el respaldo lleva `--no-deps`, que impide a compose
+#  recrear `db` o `wordpress` incluso si el `.env` no existe (el fallo que aparecía al ejecutar
+#  desde un worktree sin `.env`). Con los contenedores en marcha, `cli()` no llama a compose.
 #
 #  Uso (raíz del repo, con `docker compose up -d` y `hwe_wordpress` healthy):
 #    sh backend/scripts/verify-modules.sh [static|toggle|i18n|country|integration|all] [--strict]
@@ -38,7 +49,16 @@
 #  desconocida o la pila no responde.
 # ============================================================================
 set -u
-cd "$(dirname "$0")/../.." || exit 1
+HERE="$(cd "$(dirname "$0")" && pwd)" || exit 1
+cd "$HERE/../.." || exit 1
+
+# `.env` del repo como DATOS (nunca se ejecuta). Solo afecta al `compose run` de respaldo: con
+# un contenedor en marcha no se usa. Si no hay archivo, `hwe_load_env` no hace nada.
+if [ -f "$HERE/lib/load-env.sh" ]; then
+  # shellcheck source=lib/load-env.sh
+  . "$HERE/lib/load-env.sh"
+  hwe_load_env "${HWE_ENV_FILE:-.env}"
+fi
 
 SECTION="all"
 STRICT=0
@@ -59,6 +79,10 @@ SECRET=""
 # Estado inicial de cada plugin tocado, «id=active|inactive», para restaurarlo al salir.
 TOUCHED=""
 FIXTURE_PRODUCT=""
+# Fixtures de `memberships`: un nivel publicado y un producto bloqueado por ese nivel.
+MEMBERSHIP_FIXTURE_LEVEL=""
+MEMBERSHIP_FIXTURE_PRODUCT=""
+MEMBERSHIP_FIXTURE_RANK=""
 # Marca de que se guardó la config del módulo `loyalty` para restaurarla al salir.
 LOYALTY_CONFIG_SAVED=0
 
@@ -67,11 +91,74 @@ MODULES_TS="frontend/src/lib/config/modules.ts"
 COMPOSE="docker-compose.yml"
 PLUGINS="backend/wp-content/plugins"
 
+# Contenedor ya en marcha que ejecutará WP-CLI. Se resuelve una sola vez por ejecución.
+CLI_CONTAINER=""
+CLI_CONTAINER_RESOLVED=0
+# Proyecto de compose de la pila en marcha; solo lo usa el respaldo.
+COMPOSE_PROJECT=""
+COMPOSE_PROJECT_RESOLVED=0
+
+# ¿Hay un contenedor en marcha con `wp`? `hwe_wp_cron` es el normal (imagen de WP-CLI);
+# `hwe_wpcli` puede existir si otra verificación está en curso; `hwe_wordpress` se acepta solo
+# si su imagen trae WP-CLI. No se arranca nada: `docker exec` falla y se prueba el siguiente.
+cli_container() {
+  if [ "$CLI_CONTAINER_RESOLVED" = 1 ]; then
+    [ -n "$CLI_CONTAINER" ]
+    return
+  fi
+  CLI_CONTAINER_RESOLVED=1
+  for _hwe_container in hwe_wp_cron hwe_wpcli hwe_wordpress; do
+    if docker exec "$_hwe_container" sh -c 'command -v wp >/dev/null 2>&1' >/dev/null 2>&1; then
+      CLI_CONTAINER="$_hwe_container"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Proyecto de compose de la pila en marcha (etiqueta del contenedor de WordPress). Sin él,
+# `compose run` crearía un proyecto nuevo con volúmenes y red propios. Si no se puede leer, se
+# deja vacío: el respaldo sigue llevando `--no-deps`, así que no recrea servicios.
+compose_project() {
+  if [ "$COMPOSE_PROJECT_RESOLVED" = 1 ]; then
+    [ -n "$COMPOSE_PROJECT" ]
+    return
+  fi
+  COMPOSE_PROJECT_RESOLVED=1
+  COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-}"
+  _hwe_project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' hwe_wordpress 2>/dev/null | head -n1)"
+  case "$_hwe_project" in
+    '' | '<no value>' | *[!A-Za-z0-9_.-]*) ;;
+    *) COMPOSE_PROJECT="$_hwe_project" ;;
+  esac
+  case "$COMPOSE_PROJECT" in
+    *[!A-Za-z0-9_.-]*) COMPOSE_PROJECT="" ;;
+  esac
+  unset _hwe_project
+  [ -n "$COMPOSE_PROJECT" ]
+}
+
+# WP-CLI SEGURO: dentro de un contenedor en marcha y, solo si no hay ninguno, `compose run` con
+# `--no-deps` (nunca crea ni recrea `db`/`wordpress`) y el proyecto de la pila.
 cli() {
+  if cli_container; then
+    docker exec "$CLI_CONTAINER" wp --allow-root --path=/var/www/html "$@"
+    return
+  fi
+
+  compose_project >/dev/null 2>&1 || true
   if [ "${DEBUG:-}" = "1" ]; then
-    docker compose --profile cli run --rm -T --entrypoint wp wpcli --path=/var/www/html "$@"
+    if [ -n "$COMPOSE_PROJECT" ]; then
+      docker compose --project-name "$COMPOSE_PROJECT" --profile cli run --rm --no-deps -T --entrypoint wp wpcli --path=/var/www/html "$@"
+    else
+      docker compose --profile cli run --rm --no-deps -T --entrypoint wp wpcli --path=/var/www/html "$@"
+    fi
   else
-    docker compose --profile cli run --rm -T --entrypoint wp wpcli --path=/var/www/html "$@" 2>/dev/null
+    if [ -n "$COMPOSE_PROJECT" ]; then
+      docker compose --project-name "$COMPOSE_PROJECT" --profile cli run --rm --no-deps -T --entrypoint wp wpcli --path=/var/www/html "$@" 2>/dev/null
+    else
+      docker compose --profile cli run --rm --no-deps -T --entrypoint wp wpcli --path=/var/www/html "$@" 2>/dev/null
+    fi
   fi
 }
 
@@ -127,6 +214,11 @@ setup_secret() {
 wp_get() {
   docker exec hwe_wordpress curl -s -o /dev/null -w '%{http_code}' \
     -H "X-HWE-Internal-Secret: $SECRET" "http://localhost$1"
+}
+
+# wp_get_body <ruta> — cuerpo de un GET con el secreto interno (como el BFF).
+wp_get_body() {
+  docker exec hwe_wordpress curl -s -H "X-HWE-Internal-Secret: $SECRET" "http://localhost$1"
 }
 
 bff() { # <json> — POST a /graphql como el BFF
@@ -207,6 +299,134 @@ loyalty_checks() {
   check "loyalty activo: la Store API publica extensions.hwe-loyalty" "$cart" '"hwe-loyalty"'
 }
 
+# ── memberships: comprobaciones propias ─────────────────────────────────────
+# El módulo no necesita encender ningún interruptor para publicar la extensión de la Store API
+# ni para registrar sus rutas internas. El carné (`card_enabled`) se deja como esté: sus rutas
+# solo se sondean cuando está encendido y eso no forma parte de esta verificación.
+memberships_tables_check() {
+  tables="$(cli eval 'global $wpdb; $names = array("hwe_memberships_grants","hwe_memberships_members","hwe_memberships_events","hwe_memberships_card_tokens","hwe_memberships_batches"); $missing = array(); foreach ($names as $name) { $table = $wpdb->prefix . $name; if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table)) !== $table) { $missing[] = $name; } } echo $missing ? "faltan:" . implode(",", $missing) : "todas";' 2>/dev/null | grep -aE '^(todas|faltan:)' | tail -n1)"
+  check "memberships activo: las 5 tablas existen" "$tables" '^todas$'
+}
+
+# Rutas internas del contrato: siempre con el secreto interno, nunca desde el navegador.
+memberships_routes_check() {
+  for route in "levels" "me?user_id=1" "history?user_id=1" "prices?user_id=1&ids=1"; do
+    code="$(wp_get "/wp-json/hwe/v1/memberships/$route")"
+    [ "$code" = 200 ] && ok "memberships activo: /hwe/v1/memberships/$route con el secreto → 200" \
+      || fail "memberships activo: /hwe/v1/memberships/$route debía responder 200" "responde $code"
+
+    code="$(docker exec hwe_wordpress curl -s -o /dev/null -w '%{http_code}' \
+      "http://localhost/wp-json/hwe/v1/memberships/$route")"
+    [ "$code" = 404 ] && ok "memberships: /hwe/v1/memberships/$route sin el secreto → 404" \
+      || fail "memberships: /hwe/v1/memberships/$route respondió $code sin el secreto" "debía ser 404"
+  done
+}
+
+# Fixture: un nivel publicado y un producto que lo exige. El rango se calcula por encima de los
+# niveles existentes para no chocar con la configuración de la instancia; el producto es nuevo y
+# se borra al salir. Cualquier fallo deja el fixture a medias, y `restore` limpia lo que exista.
+memberships_fixture_create() {
+  MEMBERSHIP_FIXTURE_RANK="$(cli eval 'if (!class_exists("HWE_Memberships_Levels")) { echo 1; return; } $max = 0; foreach (HWE_Memberships_Levels::all() as $level) { $max = max($max, (int) ($level["rank"] ?? 0)); } echo $max + 1;' 2>/dev/null | grep -a '^[0-9][0-9]*$' | tail -n1)"
+  if [ -z "$MEMBERSHIP_FIXTURE_RANK" ]; then
+    fail "memberships activo: no se pudo calcular el rango del nivel de prueba"
+    return 1
+  fi
+
+  MEMBERSHIP_FIXTURE_LEVEL="$(cli eval "
+    \$level = wp_insert_post(array(
+      'post_type'   => 'hwe_membership_level',
+      'post_status' => 'publish',
+      'post_title'  => 'verify-memberships',
+      'post_name'   => 'verify-memberships',
+    ), true);
+    if (is_wp_error(\$level) || !\$level) { echo 0; } else { update_post_meta(\$level, '_hwe_membership_rank', $MEMBERSHIP_FIXTURE_RANK); echo \$level; }
+  " 2>/dev/null | grep -a '^[0-9][0-9]*$' | tail -n1)"
+  if [ -z "$MEMBERSHIP_FIXTURE_LEVEL" ] || [ "$MEMBERSHIP_FIXTURE_LEVEL" = 0 ]; then
+    fail "memberships activo: no se pudo crear el nivel de prueba"
+    return 1
+  fi
+
+  MEMBERSHIP_FIXTURE_PRODUCT="$(cli eval "
+    \$product = new WC_Product_Simple();
+    \$product->set_name('verify-memberships');
+    \$product->set_status('publish');
+    \$product->set_regular_price('1');
+    \$product->set_description('contenido-privado-de-verificacion');
+    \$product->set_short_description('resumen-privado-de-verificacion');
+    \$product->save();
+    update_post_meta(\$product->get_id(), '_hwe_membership_min_rank', $MEMBERSHIP_FIXTURE_RANK);
+    echo \$product->get_id();
+  " 2>/dev/null | grep -a '^[0-9][0-9]*$' | tail -n1)"
+  if [ -z "$MEMBERSHIP_FIXTURE_PRODUCT" ]; then
+    fail "memberships activo: no se pudo crear el producto de prueba (¿WooCommerce activo?)"
+    return 1
+  fi
+
+  echo "  (nivel de prueba #$MEMBERSHIP_FIXTURE_LEVEL rango $MEMBERSHIP_FIXTURE_RANK, producto #$MEMBERSHIP_FIXTURE_PRODUCT)"
+}
+
+memberships_fixture_check() {
+  memberships_fixture_create || return 0
+
+  q="{\"query\":\"{ product(id: \\\"$MEMBERSHIP_FIXTURE_PRODUCT\\\", idType: DATABASE_ID) { name ... on SimpleProduct { description shortDescription } hweMembership { locked requiredLevel { rank name slug } } } }\"}"
+  out="$(bff "$q")"
+  check "memberships activo: GraphQL oculta la descripción del producto bloqueado" "$out" '"description":null'
+  check "memberships activo: GraphQL marca el producto como bloqueado" "$out" '"locked":true'
+  check "memberships activo: GraphQL publica el nivel mínimo del requisito" "$out" "\"rank\":$MEMBERSHIP_FIXTURE_RANK"
+
+  body="$(wp_get_body "/wp-json/wc/store/v1/products/$MEMBERSHIP_FIXTURE_PRODUCT")"
+  if printf '%s' "$body" | grep -qE '"(short_)?description"'; then
+    fail "memberships activo: la Store API no publica la descripción del producto bloqueado" "salida: $(printf '%s' "$body" | head -c 300)"
+  else
+    ok "memberships activo: la Store API no publica la descripción del producto bloqueado"
+  fi
+  check "memberships activo: la Store API marca el producto como bloqueado" "$body" '"locked":true'
+  check "memberships activo: la Store API publica el nivel mínimo del requisito" "$body" "\"rank\":$MEMBERSHIP_FIXTURE_RANK"
+
+  # La Store API también sirve el producto por slug.
+  body="$(wp_get_body "/wp-json/wc/store/v1/products/verify-memberships")"
+  if printf '%s' "$body" | grep -q 'contenido-privado-de-verificacion'; then
+    fail "memberships activo: la Store API por slug no publica la descripción del producto bloqueado" "salida: $(printf '%s' "$body" | head -c 300)"
+  else
+    ok "memberships activo: la Store API por slug no publica la descripción del producto bloqueado"
+  fi
+
+  # WooCommerce registra el producto con `show_in_rest`: la REST de WordPress tampoco puede
+  # devolver su contenido.
+  body="$(wp_get_body "/wp-json/wp/v2/product/$MEMBERSHIP_FIXTURE_PRODUCT")"
+  if printf '%s' "$body" | grep -qE 'contenido-privado-de-verificacion|resumen-privado-de-verificacion'; then
+    fail "memberships activo: wp/v2/product no publica el contenido del producto bloqueado" "salida: $(printf '%s' "$body" | head -c 300)"
+  else
+    ok "memberships activo: wp/v2/product no publica el contenido del producto bloqueado"
+  fi
+
+  # La búsqueda no puede ser un oráculo del contenido: buscar una frase de la descripción no
+  # encuentra el producto, ni por GraphQL ni por la REST de WordPress.
+  q="{\"query\":\"{ products(where: { search: \\\"contenido-privado-de-verificacion\\\" }) { nodes { databaseId } } }\"}"
+  out="$(bff "$q")"
+  check "memberships activo: la búsqueda de GraphQL no compara contra la descripción bloqueada" "$out" '"nodes":\[\]'
+  body="$(wp_get_body "/wp-json/wp/v2/product?search=contenido-privado-de-verificacion&_fields=id")"
+  check "memberships activo: la búsqueda de wp/v2/product no compara contra la descripción bloqueada" "$body" '^\[\]$'
+}
+
+memberships_checks() {
+  memberships_tables_check
+  memberships_routes_check
+  cart="$(wp_get_body "/wp-json/wc/store/v1/cart")"
+  check "memberships activo: la Store API publica extensions.hwe-memberships" "$cart" '"hwe-memberships"'
+  memberships_fixture_check
+}
+
+# Con el módulo apagado no queda ninguna ruta interna registrada. El genérico de `toggle` ya
+# comprueba que las rutas que había con el módulo encendido responden 404.
+memberships_off_checks() {
+  if routes | cut -f1 | grep -q '^/hwe/v1/memberships/'; then
+    fail "memberships apagado: las rutas internas no están registradas" "siguen registradas"
+  else
+    ok "memberships apagado: las rutas internas no están registradas"
+  fi
+}
+
 restore() {
   loyalty_config_restore
   for entry in $TOUCHED; do
@@ -215,6 +435,14 @@ restore() {
     if [ "$state" = active ]; then set_module "$id" on; else set_module "$id" off; fi
   done
   TOUCHED=""
+  if [ -n "$MEMBERSHIP_FIXTURE_PRODUCT" ]; then
+    cli eval "wp_delete_post($MEMBERSHIP_FIXTURE_PRODUCT, true);" >/dev/null 2>&1
+    MEMBERSHIP_FIXTURE_PRODUCT=""
+  fi
+  if [ -n "$MEMBERSHIP_FIXTURE_LEVEL" ]; then
+    cli eval "wp_delete_post($MEMBERSHIP_FIXTURE_LEVEL, true);" >/dev/null 2>&1
+    MEMBERSHIP_FIXTURE_LEVEL=""
+  fi
   if [ -n "$FIXTURE_PRODUCT" ]; then
     cli eval "wp_delete_post($FIXTURE_PRODUCT, true);" >/dev/null 2>&1
     FIXTURE_PRODUCT=""
@@ -311,6 +539,10 @@ section_toggle() {
       loyalty_checks
     fi
 
+    if [ "$id" = memberships ]; then
+      memberships_checks
+    fi
+
     # Rutas que solo existen con el módulo encendido.
     f_off="$(mktemp)"
     f_on="$(mktemp)"
@@ -320,6 +552,11 @@ section_toggle() {
     rm -f "$f_off" "$f_on"
     # Solo las rutas literales (las de expresión regular no se pueden sondear tal cual).
     own="$(printf '%s\n' "$own" | grep -v '(' | grep -v '^$')"
+    if [ "$id" = memberships ]; then
+      # Las rutas del carné solo responden con `card_enabled`, que este script no enciende. La
+      # comprobación de memberships no las incluye; el resto de rutas sí se sondean.
+      own="$(printf '%s\n' "$own" | grep -v '/hwe/v1/memberships/card' | grep -v '/hwe/v1/memberships/verify')"
+    fi
     if [ -z "$own" ]; then
       ok "$id: no declara rutas REST propias (solo GraphQL o la config)"
       continue
@@ -356,6 +593,10 @@ section_toggle() {
     done > "$OUT_OFF"
     cat "$OUT_OFF"
     FAILS=$((FAILS + $(grep -c '^  FALLA' "$OUT_OFF")))
+
+    if [ "$id" = memberships ]; then
+      memberships_off_checks
+    fi
   done
   rm -f "$OUT_ON" "$OUT_OFF"
   restore

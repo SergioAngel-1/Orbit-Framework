@@ -28,12 +28,19 @@ const WC_CONSUMER_SECRET = process.env.WC_CONSUMER_SECRET ?? "";
 export class WooCommerceError extends Error {
   readonly status: number;
   readonly code?: string;
+  /**
+   * Datos estructurados del error, cuando el endpoint los envía (la Store API
+   * de WooCommerce los publica en `data`: `days_left`, `level_slug`…). No se
+   * reenvían al navegador tal cual: cada lector elige su lista blanca.
+   */
+  readonly data?: unknown;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(message: string, status: number, code?: string, data?: unknown) {
     super(message);
     this.name = "WooCommerceError";
     this.status = status;
     this.code = code;
+    this.data = data;
   }
 }
 

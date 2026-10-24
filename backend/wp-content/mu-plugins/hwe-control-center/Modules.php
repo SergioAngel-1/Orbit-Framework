@@ -18,7 +18,7 @@ namespace HWE\ControlCenter;
  */
 final class Modules {
 
-    /** Ids del catálogo del núcleo: los diez plugins `plugins/hwe-<id>/` del framework. */
+    /** Ids del catálogo del núcleo: los once plugins `plugins/hwe-<id>/` del framework. */
     public const CORE_IDS = [
         'banners',
         'shipping',
@@ -30,6 +30,7 @@ final class Modules {
         'customer-identity',
         'external-integration',
         'loyalty',
+        'memberships',
     ];
 
     /**

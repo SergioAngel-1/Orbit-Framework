@@ -176,6 +176,11 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     transfer_fee_percent: "0",
     transfer_daily_cap: "0",
   },
+  memberships: {
+    card_enabled: false,
+    card_verify_path: "/verify",
+    member_number_prefix: "",
+  },
   landings: {
     registry: "",
     editorial: {},
@@ -234,6 +239,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     "customer-identity": false,
     "external-integration": false,
     loyalty: false,
+    memberships: false,
   },
   instance: {},
 };

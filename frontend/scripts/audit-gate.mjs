@@ -43,15 +43,8 @@ const BLOCKING_SEVERITIES = new Set(["high", "critical"]);
  * @type {AllowEntry[]}
  */
 export const ALLOWLIST = [
-  {
-    id: "GHSA-vfj7-8cjw-p6xm",
-    reason:
-      "braces <=3.0.3 (DoS por patrones anidados). No existe versión corregida " +
-      "publicada: 3.0.3 es la última. Solo llega por eslint-config-next → " +
-      "fast-glob → micromatch, es decir, herramientas de desarrollo que no se " +
-      "empaquetan ni se ejecutan en producción (`npm audit --omit=dev` está " +
-      "limpio). Retirar cuando se publique un braces corregido.",
-  },
+  // Vacía: el árbol completo está limpio. Si aparece un aviso sin parche publicado, añade aquí
+  // `{ id, reason }` con el motivo y la condición para retirarlo.
 ];
 
 /** Identificador estable de un aviso: el GHSA de su URL o, si falta, su `source`. */

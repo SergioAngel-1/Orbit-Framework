@@ -22,6 +22,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'HWE_SHIPPING_VERSION', '2.0.0' );
 define( 'HWE_SHIPPING_DIR', __DIR__ );
 
+// Contrato estable con otros módulos: si esta constante existe, el envío gratis admite el filtro
+// `hwe_shipping_free_reason` (ver includes/FreeShipping.php y README.md, «Hooks estables»). Un
+// módulo que quiera pedir el envío gratis comprueba `defined()` y no toca las tarifas por su
+// cuenta cuando `shipping` está activo.
+if ( ! defined( 'HWE_SHIPPING_FREE_REASON_FILTER' ) ) {
+	define( 'HWE_SHIPPING_FREE_REASON_FILTER', 'hwe_shipping_free_reason' );
+}
+
 // No toca tablas de pedidos (solo CPTs propios + el filtro de cálculo de tarifas, que no
 // lee/escribe el pedido): compatible con HPOS.
 add_action(

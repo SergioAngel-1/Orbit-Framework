@@ -47,7 +47,7 @@ describe("fixture site-config.ci.json", () => {
 });
 
 describe("buildSiteConfig", () => {
-  it("expone solo `design.colors`: nada de tipografía (traería Google Fonts) ni metadatos", () => {
+  it("con un fixture mínimo expone solo `design.colors`: nada de tipografía (traería Google Fonts) ni metadatos", () => {
     const config = buildSiteConfig({
       _comentario: "no debe salir",
       design: { colors: { brand: "#111111" }, typography: { font_url: "https://x" } },
@@ -66,6 +66,31 @@ describe("buildSiteConfig", () => {
     });
   });
 
+  it("sirve los defaults públicos de `memberships` y el módulo apagado del fixture", () => {
+    const config = buildSiteConfig(fixture);
+
+    expect(config.memberships).toEqual({
+      card_enabled: false,
+      card_verify_path: "/verify",
+      member_number_prefix: "",
+    });
+    expect(config.modules).toEqual({ memberships: false });
+  });
+
+  it("`extra` puede encender un módulo o un ajuste del carné sin perder los demás", () => {
+    const config = buildSiteConfig(fixture, {
+      modules: { memberships: true },
+      memberships: { card_enabled: true },
+    });
+
+    expect(config.modules).toEqual({ memberships: true });
+    expect(config.memberships).toEqual({
+      card_enabled: true,
+      card_verify_path: "/verify",
+      member_number_prefix: "",
+    });
+  });
+
   it("`extra` no puede sustituir la paleta del fixture", () => {
     const config = buildSiteConfig(
       { design: { colors: { brand: "#111111" } } },
@@ -76,14 +101,14 @@ describe("buildSiteConfig", () => {
 });
 
 describe("createStubServer", () => {
-  it("la ruta de config devuelve la paleta del fixture", async () => {
+  it("la ruta de config devuelve la paleta del fixture y el módulo apagado", async () => {
     const base = await startStub();
 
     const res = await fetch(`${base}/wp-json/hwe/v1/config`);
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("application/json");
-    expect(await res.json()).toEqual({ design: { colors: fixture.design.colors } });
+    expect(await res.json()).toEqual(buildSiteConfig(fixture));
   });
 
   it("la ruta de config ignora la query string", async () => {
@@ -140,6 +165,9 @@ describe("landing de producto de prueba (GraphQL)", () => {
       slug: "e2e-landing",
     });
     expect(product.data.product.tr_en.slug).toBe("e2e-landing-en");
+    // Con el módulo `memberships` encendido la consulta del catálogo pide este
+    // campo; el fixture lo sirve público para que el stub siga siendo válido.
+    expect(product.data.product.hweMembership).toBeNull();
   });
 
   it("un producto que no es el de prueba no tiene landing ni ficha", async () => {

@@ -606,6 +606,111 @@ responde **404** como si la ruta no existiera:
   las rutas. Los nombres de la unidad salen siempre de `config.loyalty.currency_name` /
   `currency_name_plural` / `currency_icon`; nunca los escribas a mano.
 
+### Membresías: niveles, catálogo exclusivo y carné (módulo `memberships`)
+
+Un frontend que consuma el módulo `memberships` (plugin `hwe-memberships`) tiene este contrato.
+Todo se apaga con `config.modules.memberships`: sus rutas del BFF responden **404**, el catálogo
+no pide el campo de GraphQL, la extensión de la Store API no se registra y no se engancha nada en
+`loyalty` ni en `shipping`. Los datos guardados se conservan.
+
+**Config pública** (`config.memberships`):
+`card_enabled`, `card_verify_path` (ruta del QR, normalizada) y `member_number_prefix`. El resto de
+ajustes son operativos de WordPress y no salen por la config. El BFF expone los tipos y helpers en
+`lib/memberships/` (`MembershipLevel`, `MembershipState`, `MembershipHistoryPage`,
+`MembershipsCartExtension`, `MembershipVerification`…, `parseMembershipsCartExtension`,
+`normalizeMembershipRequirement`, `describeBenefit`, `describeHistoryEntry`, `formatMemberNumber`,
+`buildVerifyUrl`).
+
+**Catálogo (GraphQL).** Con el módulo activo, `Product` y `ProductCategory` exponen:
+
+```
+hweMembership {
+  requiredLevel { slug rank name }   # null si el producto/categoría es público
+  opensAt                            # ISO 8601 UTC o null
+  locked                             # true si esta petición ve la ficha de escaparate
+}
+```
+
+En `ProductCategory` el nombre, la imagen y la descripción son públicos: la categoría publica su
+requisito pero `locked` siempre es `false` (los productos que contiene sí se recortan). El campo
+**no existe** en el esquema con el módulo apagado: pedirlo haría fallar toda la consulta.
+Por eso `lib/catalog/products.ts` elige entre dos variantes de cada documento con
+`membershipsCatalogEnabled()`, y `types/catalog.ts` tipa `membership` como
+`MembershipRequirement | null`. Quien no cumple el requisito sigue viendo el producto en listados,
+búsqueda y sitemap, pero solo con la ficha de escaparate: id, nombre, slug, tipo, imagen principal,
+precio público (rango en variables), categorías, el requisito y `locked`. No llegan descripción,
+descripción corta, galería, atributos, variaciones ni su stock, `hweFields`, landing, SEO ni
+descargas. Una variación directa de un producto bloqueado se anula. Con algún requisito en el
+catálogo, la búsqueda de productos (`where: { search }` de GraphQL, `?search=` de la REST de
+WordPress y `?search=`/`?sku=` de la Store API) compara solo el nombre: no se puede buscar por la
+descripción ni por el SKU de lo bloqueado. El recorte lo hace WordPress;
+no lo reimplementes en el frontend.
+
+**Rutas del BFF** (`app/api/memberships/*`). Todas exigen la guarda del módulo (404):
+`requireModule(config, "memberships")` o, en el carné y su verificación,
+`requireMembershipCard(config)`, que además exige `card_enabled`. Usan `wpFetch` con el secreto
+interno. El `user_id` sale **siempre** de la sesión verificada, nunca de la query ni del cuerpo.
+
+| Ruta | Acceso | Respuesta |
+|---|---|---|
+| `GET /api/memberships/levels` | pública | `{items: MembershipLevel[]}`. `Cache-Control: public, s-maxage=60, stale-while-revalidate=300` y `Vary` por idioma. Cada nivel lleva nombre/descripción/slug traducidos, `slugs` por idioma, `rank`, `icon`, `color`, `purchasable`, `min_account_age_days`, `benefits` (clave + datos + texto ya compuesto) y `products` de compra (`id`, `price`, `days`, `duration`). |
+| `GET /api/memberships/me` | sesión (401) | `MembershipState`: `status` (`none`/`active`/`frozen`), `level` (`{id,rank}` o `null`), `ends_at`, `member_since`, `member_number`, `queue`, `benefits`, `gifts` (`max`/`used`/`remaining`) y `purchasable` (`MembershipPurchaseEligibility[]`). Sin caché. |
+| `GET /api/memberships/history?page&per_page` | sesión (401) | `{items, total, pages}`. `per_page` se recorta a 1..100 (defecto 20). Cada evento lleva `type`, niveles, datos de lista blanca y `description` ya compuesta en el idioma de la petición. |
+| `GET /api/memberships/prices?ids=1,2` | sesión **opcional** | `{items:[{id, regular, price, member_price, percent}]}` con decimales de WooCommerce. Sin sesión devuelve los precios públicos, sin inventar descuento. Tope de 50 ids: más es 400 `invalid_request`; ninguno es `{items:[]}`. |
+| `GET /api/memberships/products/[slug]` | sesión (401) | Ficha completa si el socio cumple el requisito; la misma ficha de escaparate si no (la decide WordPress). Incluye `locked` y `hwe_membership`. Sin caché compartida: la misma URL devuelve dos formas. |
+| `GET /api/memberships/card` | sesión + carné (404/401) | `{token, expires_at, verify_url}`; `verify_url` se compone con `config.brand.url` y `card_verify_path`, nunca con `home_url()`. Sin nivel: 403 `membership_card_unavailable`. Sin `brand.url` válido: 500 `invalid_config` (no se publica un QR a un dominio inventado). |
+| `GET /api/memberships/verify/[token]` | pública + carné (404) | Rate-limit 30/60 s por IP. Token con formato hexadecimal de 64: `{valid:false}` o `{valid:true, level:{name,slug}, member_since, member_number, member_name, document?}`. Un token inexistente, caducado o revocado da exactamente `{valid:false}`. Nunca se cachea. |
+
+Los fallos tipados de los lectores se traducen a 400/403/404/503/502 con `{error, code}`; un fallo
+de WordPress nunca se convierte en un estado inventado.
+
+**Escritura del carrito.** El navegador solo declara que quiere gastar un envío gratis; el importe
+y la decisión son de WordPress:
+
+| Ruta | Acceso | Respuesta |
+|---|---|---|
+| `POST /api/store/cart/free-delivery` | sesión (401) + `guardMutation` + módulo | Declara `free_delivery: true` y devuelve el carrito recalculado. |
+| `DELETE /api/store/cart/free-delivery` | ídem | Retira la declaración y devuelve el carrito. |
+
+Ambas ignoran el cuerpo y reenvían solo `{free_delivery: true|false}` al update callback de la
+extensión con el `Cart-Token` y el JWT. Un rechazo de negocio responde **409** con `{error,
+reason, ...details}` (`membership_free_delivery_unavailable`, `membership_required`…).
+
+**Extensión de la Store API.** El carrito publica `extensions["hwe-memberships"]`:
+
+| Campo | Contenido |
+|---|---|
+| `level` | `{id, slug, rank, name}` del nivel efectivo, o `null` sin membresía/congelada. |
+| `member_discount` | `{total, lines}` con importes en **unidades menores** de la moneda, como string. Formatea con `formatStoreAmount`. |
+| `free_delivery` | `{available, remaining, requested, applied, reason}`. `requested` es solo lo declarado por el cliente; `reason` es `membership_free_delivery`, `already_free`, `quota_exhausted`, `not_eligible`, `not_available` o `null`. |
+| `blocked_items` | `{key, product_id, reason, min_rank, level_slug, level_name, opens_at}[]` de líneas que hoy no puede comprar. `reason` = `membership_required` o `membership_early_access`. |
+| `purchase_notice` | `renewal`, `upgrade`, `scheduled` o `null` para la línea de membresía. |
+
+`parseMembershipsCartExtension` tolera que la extensión no exista (módulo apagado) y motivos
+futuros. Las líneas bloqueadas se muestran con sus datos estructurados, no se eliminan del carrito
+por iniciativa del frontend.
+
+**Checkout.** Si el nivel cambia con el carrito ya lleno (caduca, se congela, se retira, se apaga
+el módulo) el checkout responde **409** y **no crea el pedido**. Los `reason` estables son
+`membership_required`, `membership_early_access`, `membership_free_delivery_unavailable`,
+`membership_login_required`, `membership_one_per_cart`, `membership_not_purchasable`,
+`membership_account_too_new`, `membership_account_pending` y `membership_already_indefinite`. Los
+detalles de la lista blanca son `days_left`, `min_account_age_days`, `account_age_days`,
+`level_id`, `current_level_id`, `min_rank`, `level_slug`, `level_name`, `opens_at`, `product_id`,
+`item_id`, `key` y `lines`. El campo `error` del 409 es un texto de respaldo compuesto con
+`messages.memberships.checkout` en el idioma de la petición (`X-HWE-Locale`); la UI debe decidir por
+`reason` y componer sus frases como prefiera (`messages.memberships.purchase` tiene las de la ficha).
+
+**Carné y verificación.** El token dura `card_token_ttl_hours` (24 por defecto) y el BFF devuelve
+la URL absoluta del QR; el frontend solo tiene que pintar el QR y enlazar la verificación. La
+página de verificación puede ser pública: no necesita sesión, pero sí que el módulo y el carné
+estén encendidos. El nombre del nivel se traduce con `/levels` y, si falla, se conserva el nombre
+nativo (el contenido falla suave).
+
+**Módulo apagado.** `/api/memberships/{levels,me,history,prices,card,products/[slug],verify/[token]}`
+y los dos métodos de `/api/store/cart/free-delivery` responden 404. La pasada e2e sin módulos lo
+comprueba en `frontend/tests/e2e/modules-off.spec.ts`.
+
 ### Analítica y medición
 
 - **Servicios** (`config.integrations`: `analytics_provider` + `analytics_id`, `gtm_id`,
@@ -747,7 +852,8 @@ ecommerce: { currency, price_decimals, country, products_per_page, reviews_enabl
 i18n:    { locales }                      // idiomas secundarios, p. ej. "en, fr"
 auth:    { phone_login_enabled, phone_default_dial_code }
 modules: { banners, shipping, product-landing, landings, consent-log, site-reviews,
-           coupon-rules, customer-identity, external-integration, loyalty }   // boolean cada uno
+           coupon-rules, customer-identity, external-integration, loyalty,
+           memberships }   // boolean cada uno
 instance: { … }                           // lo que añada la instancia (vacío en el framework)
 banners: { enabled }
 loyalty: { points_enabled, referrals_enabled, currency_name, currency_name_plural, currency_icon,
@@ -758,6 +864,7 @@ loyalty: { points_enabled, referrals_enabled, currency_name, currency_name_plura
            commission_next_percent, level2_enabled, commission_level2_percent,
            commission_duration_days, transfers_enabled, transfer_min, transfer_fee_percent,
            transfer_daily_cap }
+memberships: { card_enabled, card_verify_path, member_number_prefix }
 integrations: { analytics_provider, analytics_id }
 seo: { title_template, robots, google_site_verification, default_og, og_image, product_brand,
        shipping_amount, return_days, return_category, return_method, return_fees,
@@ -799,6 +906,10 @@ y `/api/store/products?search=` (búsqueda; el listado sin búsqueda sigue sirvi
   eventos, comisiones y transferencias). `allowed_roles` es operativo y **no** se publica. Con el
   módulo apagado llegan los defaults y las rutas del BFF responden 404; con `points_enabled`
   apagado, las de puntos; con `referrals_enabled` o `transfers_enabled` apagados, las suyas.
+- `memberships.*` — solo los tres campos públicos del carné (`card_enabled`, `card_verify_path`,
+  `member_number_prefix`). El TTL del token, los días de aviso y la exigencia de correo verificado
+  son operativos y **no** se publican. Los niveles y los requisitos de catálogo son contenido y se
+  leen por su propia ruta. Con el módulo apagado llegan los defaults y el BFF responde 404.
 
 ### Banners — `GET /wp-json/hwe-banners/v1/banners[/{type}]` (módulo `banners`)
 

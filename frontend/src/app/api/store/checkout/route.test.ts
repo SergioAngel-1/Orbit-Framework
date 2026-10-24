@@ -999,3 +999,119 @@ describe("pago completo con puntos (módulo loyalty)", () => {
     expect(await res.json()).not.toHaveProperty("paid_with_points");
   });
 });
+
+describe("errores del módulo memberships al crear el pedido", () => {
+  // La Store API rechaza la compra con códigos `hwe_membership_*` cuando la
+  // membresía cambia con el carrito ya lleno. El BFF los separa del 400 de
+  // validación y los devuelve como 409 con un motivo estable y sus datos.
+  const MEMBERSHIP_CODES = [
+    "membership_required",
+    "membership_early_access",
+    "membership_free_delivery_unavailable",
+    "membership_login_required",
+    "membership_one_per_cart",
+    "membership_not_purchasable",
+    "membership_account_too_new",
+    "membership_account_pending",
+    "membership_already_indefinite",
+  ] as const;
+
+  /** El carrito se lee bien; la creación del pedido falla con el código indicado. */
+  function checkoutFails(code: string, data: Record<string, unknown> = {}) {
+    vi.mocked(storeFetch).mockImplementation((async (path: string) => {
+      if (path === "/cart") {
+        return {
+          data: { needs_shipping: false, shipping_rates: [] },
+          cartToken: "cart-token",
+        };
+      }
+      throw new WooCommerceError(
+        "La membresía no permite esta compra.",
+        400,
+        code,
+        data,
+      );
+    }) as never);
+  }
+
+  const errorEvents = () =>
+    vi.mocked(logger.error).mock.calls.map(([o]) => (o as { event: string }).event);
+
+  it.each(MEMBERSHIP_CODES)("traduce hwe_%s a 409 con su motivo", async (reason) => {
+    checkoutFails(`hwe_${reason}`);
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ reason });
+    expect(errorEvents()).toContain("checkout.membership_error");
+  });
+
+  it("compone el texto del 409 en el idioma de la petición", async () => {
+    checkoutFails("hwe_membership_required");
+
+    const en = await POST(checkout("hwe_offline", {}, { "X-HWE-Locale": "en" }));
+    const es = await POST(checkout("hwe_offline", {}, { "X-HWE-Locale": "es" }));
+
+    const enBody = await en.json();
+    const esBody = await es.json();
+    expect(enBody.reason).toBe("membership_required");
+    expect(enBody.error).toMatch(/membership/i);
+    expect(esBody.error).toMatch(/membresía/i);
+    expect(enBody.error).not.toBe(esBody.error);
+  });
+
+  it("conserva las fechas y el nivel que explican el bloqueo", async () => {
+    checkoutFails("hwe_membership_early_access", {
+      level_slug: "nivel-a",
+      level_name: "Nivel A",
+      opens_at: "2026-11-01T00:00:00Z",
+      min_rank: 2,
+      product_id: 99,
+      key: "linea-2",
+    });
+
+    const body = await (await POST(checkout("hwe_offline"))).json();
+
+    expect(body).toMatchObject({
+      reason: "membership_early_access",
+      level_slug: "nivel-a",
+      level_name: "Nivel A",
+      opens_at: "2026-11-01T00:00:00Z",
+      min_rank: 2,
+      product_id: 99,
+      key: "linea-2",
+    });
+  });
+
+  it("conserva los días que faltan para poder comprar", async () => {
+    checkoutFails("hwe_membership_account_too_new", {
+      days_left: 4,
+      min_account_age_days: 30,
+      account_age_days: 26,
+      level_id: 3,
+    });
+
+    const body = await (await POST(checkout("hwe_offline"))).json();
+
+    expect(body).toMatchObject({
+      reason: "membership_account_too_new",
+      days_left: 4,
+      min_account_age_days: 30,
+      account_age_days: 26,
+      level_id: 3,
+    });
+  });
+
+  it("un error ajeno sigue su camino actual", async () => {
+    checkoutFails("woocommerce_rest_invalid_address");
+
+    const res = await POST(checkout("hwe_offline"));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.code).toBe("woocommerce_rest_invalid_address");
+    expect(body.reason).toBeUndefined();
+    expect(errorEvents()).not.toContain("checkout.membership_error");
+  });
+});

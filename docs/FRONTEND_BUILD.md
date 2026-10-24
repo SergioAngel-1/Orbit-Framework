@@ -139,6 +139,7 @@ Preguntas:
 - ¿Medios de pago: pago en línea (¿qué pasarela?), pedido por WhatsApp, efectivo? ¿Compra de
   invitado o solo con cuenta?
 - ¿Piden documento de identidad o aceptación de términos al comprar o registrarse?
+- ¿Venden membresías con niveles, ventajas, catálogo exclusivo o carné de socio?
 - ¿Un sistema externo (ERP, logística) que deba leer los pedidos?
 
 **Determina**:
@@ -146,7 +147,8 @@ Preguntas:
   tipos de documento, direcciones), `ecommerce.free_shipping.*` y
   `ecommerce.checkout_login_required` en `instance.config.json`.
 - Módulos: `shipping` (tarifa por ciudad y extras; las tarifas se cargan en el menú «Envío» de
-  wp-admin, no en el JSON), `customer-identity`, `external-integration`, `coupon-rules`.
+  wp-admin, no en el JSON), `customer-identity`, `external-integration`, `coupon-rules`,
+  `memberships`.
 - Pasarela: **Wompi y Aval Pay ya están de punta a punta** y se eligen desde el panel
   (`payments.provider`, `gateway_enabled`, `whatsapp_enabled`, `cash_enabled`); PayU y Bold son
   stubs. Otra pasarela = implementar `PaymentProvider` en `frontend/src/lib/payments/providers/`
@@ -189,6 +191,7 @@ interfaz sin pintar).
 | Usa cupones con condiciones (primera compra, ventana, alcance) | `coupon-rules` | Aparte del flag `coupons_enabled` |
 | Necesita documento de identidad o aceptación de términos | `customer-identity` | Tipos de documento y patrones del paquete de país |
 | Quiere fidelizar con puntos y referidos | `loyalty` | Control Center → Fidelización; canje en el carrito y BFF `/api/loyalty/*` (sin UI propia; ver `docs/FRONTEND_CONNECT.md`) |
+| Vende membresías con niveles, catálogo exclusivo, ventajas o carné | `memberships` | Menú «Membresías» y Control Center → Membresías; el frontend consume `/api/memberships/*`, la extensión del carrito y `hweMembership` (sin UI propia; ver `docs/FRONTEND_CONNECT.md`) |
 | Conecta un ERP u otro sistema que lee pedidos | `external-integration` | IP exacta + contraseña de aplicación; política cerrada |
 
 Además, dos mecanismos **siempre activos** que se declaran en la instancia, sin módulo:

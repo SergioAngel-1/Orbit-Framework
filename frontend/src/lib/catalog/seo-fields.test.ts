@@ -4,6 +4,10 @@ const fetchGraphQL = vi.fn();
 vi.mock("@/lib/graphql-client", () => ({
   fetchGraphQL: (...a: unknown[]) => fetchGraphQL(...a),
 }));
+// Sin el módulo `memberships` activo, la consulta del catálogo no pide su campo.
+vi.mock("@/lib/memberships/catalog-flag", () => ({
+  membershipsCatalogEnabled: vi.fn(async () => false),
+}));
 
 import { getCategory, getProductBySlug, getProductsBySlugs } from "./products";
 

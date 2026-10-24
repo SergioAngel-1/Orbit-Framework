@@ -88,6 +88,8 @@ backend/wp-content/mu-plugins/instance/*
 !backend/wp-content/plugins/hwe-external-integration/**
 !backend/wp-content/plugins/hwe-loyalty/
 !backend/wp-content/plugins/hwe-loyalty/**
+!backend/wp-content/plugins/hwe-memberships/
+!backend/wp-content/plugins/hwe-memberships/**
 
 # Mantén el tema base del framework versionado (headless: no renderiza nada
 # público, solo evita depender de un tema de wordpress.org — ver setup.sh).

@@ -25,10 +25,14 @@ if (!class_exists('WC_Order')) {
         public array $line_items = [];
         /** @var list<object> */
         public array $fee_items = [];
+        /** @var list<object> */
+        public array $shipping_items = [];
         public float $total = 0.0;
         public float $total_refunded = 0.0;
         public float $shipping_total = 0.0;
         public float $shipping_tax = 0.0;
+        /** @var list<string> */
+        public array $coupon_codes = [];
         /** @var list<array{note:string,is_customer_note:bool}> */
         public array $notes = [];
         private int $nextFeeId = 1;
@@ -46,6 +50,33 @@ if (!class_exists('WC_Order')) {
         public function get_meta(string $key)
         {
             return $this->meta[$key] ?? '';
+        }
+
+        /**
+         * Meta del pedido con la forma de WooCommerce (`get_data(): ['key'=>…,'value'=>…]`).
+         *
+         * @return list<object>
+         */
+        public function get_meta_data(): array
+        {
+            $out = array();
+            foreach ($this->meta as $key => $value) {
+                $out[] = new class ($key, $value) {
+                    private string $key;
+                    private mixed $value;
+                    public function __construct(string $key, mixed $value)
+                    {
+                        $this->key   = $key;
+                        $this->value = $value;
+                    }
+                    /** @return array{key:string,value:mixed} */
+                    public function get_data(): array
+                    {
+                        return array('key' => $this->key, 'value' => $this->value);
+                    }
+                };
+            }
+            return $out;
         }
 
         public function save_meta_data(): void
@@ -105,6 +136,12 @@ if (!class_exists('WC_Order')) {
         public function get_shipping_total(): float
         {
             return $this->shipping_total;
+        }
+
+        /** @return list<string> */
+        public function get_coupon_codes(): array
+        {
+            return $this->coupon_codes;
         }
 
         public function get_shipping_tax(): float
@@ -171,6 +208,9 @@ if (!class_exists('WC_Order')) {
             }
             if (in_array('fee', $types, true)) {
                 $items = array_merge($items, $this->fee_items);
+            }
+            if (in_array('shipping', $types, true)) {
+                $items = array_merge($items, $this->shipping_items);
             }
             return $items;
         }

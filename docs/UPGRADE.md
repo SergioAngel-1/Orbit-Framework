@@ -19,7 +19,7 @@
 - `docs/**` (salvo notas propias de la instancia)
 - `frontend/tests/unit/**` (tests del núcleo)
 
-- `backend/wp-content/plugins/hwe-*` (los 10 módulos del framework, salvo los `hwe-instance-*`)
+- `backend/wp-content/plugins/hwe-*` (los módulos del framework, salvo los `hwe-instance-*`)
 
 **Instancia** — la actualización NUNCA debe tocarlo (si un merge lo toca, resuelve a favor
 de lo local):

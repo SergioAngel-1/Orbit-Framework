@@ -16,6 +16,7 @@ final class VerifyModulesTest extends ShellScriptTestCase
     {
         $root = $this->dir . '/repo';
         $this->write('repo/backend/scripts/verify-modules.sh', (string) file_get_contents($this->script('verify-modules.sh')));
+        $this->write('repo/backend/scripts/lib/load-env.sh', (string) file_get_contents($this->script('lib/load-env.sh')));
         $this->write('repo/backend/wp-content/mu-plugins/hwe-control-center/Modules.php', <<<PHP
         <?php
             public const CORE_IDS = [
@@ -42,10 +43,175 @@ final class VerifyModulesTest extends ShellScriptTestCase
         return $root;
     }
 
-    /** @return array{code:int,stdout:string,stderr:string} */
-    private function runIn(string $root, array $args): array
+    /**
+     * Árbol mínimo con un solo módulo (`memberships`). Así la sección `toggle` no depende de
+     * módulos ajenos y se puede comprobar en detalle lo que exige la verificación del módulo.
+     */
+    private function membershipsRepo(): string
     {
-        return $this->sh($root . '/backend/scripts/verify-modules.sh', $args, [], null, $root);
+        $root = $this->dir . '/repo-memberships';
+        $this->write('repo-memberships/backend/scripts/verify-modules.sh', (string) file_get_contents($this->script('verify-modules.sh')));
+        $this->write('repo-memberships/backend/scripts/lib/load-env.sh', (string) file_get_contents($this->script('lib/load-env.sh')));
+        $this->write('repo-memberships/backend/wp-content/mu-plugins/hwe-control-center/Modules.php', <<<PHP
+        <?php
+            public const CORE_IDS = [
+                'memberships',
+            ];
+        PHP);
+        $this->write('repo-memberships/frontend/src/lib/config/modules.ts', <<<TS
+        export const MODULE_IDS: readonly ModuleId[] = [
+          "memberships",
+        ];
+        TS);
+        $this->write('repo-memberships/backend/wp-content/plugins/hwe-memberships/hwe-memberships.php', "<?php\n/**\n * Plugin Name: HWE Memberships\n */\n");
+        $this->write('repo-memberships/backend/wp-content/plugins/hwe-memberships/README.md', '# readme');
+        $this->write('repo-memberships/backend/wp-content/plugins/hwe-memberships/MANUAL.md', '# manual');
+        $compose = "services:\n";
+        foreach (['wordpress', 'wpcli', 'wp-cron'] as $service) {
+            $compose .= "  $service:\n    volumes:\n      - ./backend/wp-content/plugins/hwe-memberships:/var/www/html/wp-content/plugins/hwe-memberships\n";
+        }
+        $this->write('repo-memberships/docker-compose.yml', $compose);
+
+        return $root;
+    }
+
+    /**
+     * Pila de pega para el módulo `memberships`: el estado del plugin vive en un archivo, así
+     * `plugin activate`/`deactivate` cambian lo que responden la config, las rutas y la Store API.
+     */
+    private function membershipsStack(): string
+    {
+        $state = $this->dir . '/memberships-state';
+        mkdir($state, 0777, true);
+        file_put_contents($state . '/active', '1');
+
+        $this->fakeBinary('docker', <<<'SH'
+echo "docker $*" >> "$CALLS_LOG"
+echo "env:${FAKE_ENV_FROM_DOT_ENV:-}" >> "$CALLS_LOG"
+active() { [ -f "$FAKE_STATE/active" ]; }
+case "$*" in
+  *"exec hwe_wp_cron sh -c"* | *"exec hwe_wpcli sh -c"* | *"exec hwe_wordpress sh -c"*)
+    [ "${FAKE_NO_WP_CONTAINER:-}" = "1" ] && exit 1
+    exit 0
+    ;;
+  *"inspect -f"*) printf '%s\n' "${FAKE_PROJECT:-pila-en-marcha}" ;;
+  *"exec hwe_wordpress true"*) exit 0 ;;
+  *"printenv WORDPRESS_CONFIG_EXTRA"*) printf "define( 'HWE_REVALIDATION_SECRET', 'secreto' );\n" ;;
+  *"test -f"*) exit 0 ;;
+  *"plugin is-active"*) active && exit 0 || exit 1 ;;
+  *"plugin activate"*) : > "$FAKE_STATE/active" ;;
+  *"plugin deactivate"*) rm -f "$FAKE_STATE/active" ;;
+  *"wp-json/hwe/v1/config"*)
+    if active; then echo '{"modules":{"memberships":true}}'; else echo '{"modules":{"memberships":false}}'; fi
+    ;;
+  *"SHOW TABLES"*) echo "todas" ;;
+  *"HWE_Memberships_Levels"*) echo "7" ;;
+  *"rest_get_server"*)
+    if active; then
+      printf '/hwe/v1/memberships/card\tGET\n'
+      printf '/hwe/v1/memberships/history\tGET\n'
+      printf '/hwe/v1/memberships/levels\tGET\n'
+      printf '/hwe/v1/memberships/me\tGET\n'
+      printf '/hwe/v1/memberships/prices\tGET\n'
+      printf '/hwe/v1/memberships/product\tGET\n'
+      printf '/hwe/v1/memberships/verify\tGET\n'
+    else
+      printf '/otra\tGET\n'
+    fi
+    ;;
+  *"wp_insert_post"*"hwe_membership_level"*) echo "901" ;;
+  *"new WC_Product_Simple"*) echo "902" ;;
+  *"wp_delete_post"*) : ;;
+  *"exec hwe_wordpress curl"*)
+    if printf '%s' "$*" | grep -q -- "-o /dev/null"; then
+      case "$*" in
+        *"X-HWE-Internal-Secret"*"/memberships/product"*) active && echo "400" || echo "404" ;;
+        *"X-HWE-Internal-Secret"*"/memberships/"*) active && echo "200" || echo "404" ;;
+        *) echo "404" ;;
+      esac
+    else
+      case "$*" in
+        *"/graphql"*"search:"*) echo '{"data":{"products":{"nodes":[]}}}' ;;
+        *"/graphql"*)
+          if [ "${FAKE_GRAPHQL_LEAK:-}" = "1" ]; then
+            echo '{"data":{"product":{"description":"contenido-privado","hweMembership":{"locked":true,"requiredLevel":{"rank":7,"name":"verify-memberships"}}}}}'
+          else
+            echo '{"data":{"product":{"description":null,"shortDescription":null,"hweMembership":{"locked":true,"requiredLevel":{"rank":7,"name":"verify-memberships"}}}}}'
+          fi
+          ;;
+        *"/wc/store/v1/cart"*) echo '{"extensions":{"hwe-memberships":{}}}' ;;
+        *"/wp/v2/product?search"*) echo '[]' ;;
+        *"/wp/v2/product/902"*) echo '{"id":902,"locked":true}' ;;
+        *"/wc/store/v1/products/verify-memberships"*) echo '{"id":902,"name":"verify-memberships","locked":true}' ;;
+        *"/wc/store/v1/products/902"*) echo '{"id":902,"name":"verify-memberships","locked":true,"hwe_membership":{"required_level":{"rank":7,"name":"verify-memberships"}}}' ;;
+        *) echo '{}' ;;
+      esac
+    fi
+    ;;
+esac
+exit 0
+SH);
+
+        return $state;
+    }
+
+    /** @return array{code:int,stdout:string,stderr:string} */
+    private function runIn(string $root, array $args, array $env = []): array
+    {
+        return $this->sh($root . '/backend/scripts/verify-modules.sh', $args, $env, null, $root);
+    }
+
+    // ── memberships ───────────────────────────────────────────────────────────
+
+    public function testMembershipsCompruebaTablasRutasStoreApiYRecorteDelCatalogo(): void
+    {
+        $state = $this->membershipsStack();
+        $root = $this->membershipsRepo();
+
+        $result = $this->runIn($root, ['toggle'], ['FAKE_STATE' => $state]);
+        $out = $result['stdout'] . $result['stderr'];
+
+        $this->assertSame(0, $result['code'], $out);
+        // Tablas y rutas internas con el secreto.
+        $this->assertStringContainsString('memberships activo: las 5 tablas existen', $out);
+        foreach (['levels', 'me?user_id=1', 'history?user_id=1', 'prices?user_id=1&ids=1'] as $route) {
+            $this->assertStringContainsString("memberships activo: /hwe/v1/memberships/$route con el secreto → 200", $out);
+            $this->assertStringContainsString("memberships: /hwe/v1/memberships/$route sin el secreto → 404", $out);
+        }
+        // Extensión de la Store API y recorte en las dos vías públicas.
+        $this->assertStringContainsString('memberships activo: la Store API publica extensions.hwe-memberships', $out);
+        $this->assertStringContainsString('memberships activo: GraphQL oculta la descripción del producto bloqueado', $out);
+        $this->assertStringContainsString('memberships activo: GraphQL marca el producto como bloqueado', $out);
+        $this->assertStringContainsString('memberships activo: la Store API no publica la descripción del producto bloqueado', $out);
+        $this->assertStringContainsString('memberships activo: la Store API marca el producto como bloqueado', $out);
+        $this->assertStringContainsString('memberships activo: la Store API por slug no publica la descripción del producto bloqueado', $out);
+        $this->assertStringContainsString('memberships activo: wp/v2/product no publica el contenido del producto bloqueado', $out);
+        $this->assertStringContainsString('memberships activo: la búsqueda de GraphQL no compara contra la descripción bloqueada', $out);
+        $this->assertStringContainsString('memberships activo: la búsqueda de wp/v2/product no compara contra la descripción bloqueada', $out);
+        // Apagado: no queda ninguna ruta interna registrada.
+        $this->assertStringContainsString('memberships apagado: las rutas internas no están registradas', $out);
+        $this->assertStringContainsString('memberships apagado: /hwe/v1/memberships/levels → 404', $out);
+
+        // Los fixtures se borran al salir, también el nivel además del producto.
+        $this->assertStringContainsString('wp_delete_post(902, true)', $this->calls());
+        $this->assertStringContainsString('wp_delete_post(901, true)', $this->calls());
+    }
+
+    public function testMembershipsFallaSiGraphQLNoRecortaLaDescripcion(): void
+    {
+        $state = $this->membershipsStack();
+        $root = $this->membershipsRepo();
+
+        $result = $this->runIn($root, ['toggle'], [
+            'FAKE_STATE' => $state,
+            'FAKE_GRAPHQL_LEAK' => '1',
+        ]);
+
+        $this->assertSame(1, $result['code'], $result['stdout']);
+        $this->assertStringContainsString(
+            'FALLA  memberships activo: GraphQL oculta la descripción del producto bloqueado',
+            $result['stdout']
+        );
     }
 
     public function testElScriptTieneSintaxisValida(): void
@@ -53,6 +219,58 @@ final class VerifyModulesTest extends ShellScriptTestCase
         $result = $this->sh('-n', [$this->script('verify-modules.sh')]);
 
         $this->assertSame(0, $result['code'], $result['stderr']);
+    }
+
+    public function testWpCliSeEjecutaDentroDeUnContenedorEnMarchaYNuncaConCompose(): void
+    {
+        $state = $this->membershipsStack();
+        $root = $this->membershipsRepo();
+
+        $result = $this->runIn($root, ['toggle'], ['FAKE_STATE' => $state]);
+
+        $this->assertSame(0, $result['code'], $result['stdout'] . $result['stderr']);
+        $calls = $this->calls();
+        $this->assertStringContainsString(
+            'exec hwe_wp_cron wp --allow-root --path=/var/www/html plugin activate hwe-memberships',
+            $calls,
+            'Con un contenedor en marcha, WP-CLI corre dentro de él.'
+        );
+        $this->assertStringNotContainsString(
+            'compose',
+            $calls,
+            'No debe llamar a compose: podría recrear wordpress con otro entorno.'
+        );
+    }
+
+    public function testSinContenedorElRespaldoNoPuedeRecrearServiciosYUsaElEnvDelRepo(): void
+    {
+        $state = $this->membershipsStack();
+        $root = $this->membershipsRepo();
+        file_put_contents($root . '/.env', "FAKE_ENV_FROM_DOT_ENV=puesto\n");
+
+        $result = $this->runIn($root, ['toggle'], [
+            'FAKE_STATE' => $state,
+            'FAKE_NO_WP_CONTAINER' => '1',
+            'FAKE_PROJECT' => 'pila-en-marcha',
+        ]);
+
+        $this->assertSame(0, $result['code'], $result['stdout'] . $result['stderr']);
+
+        $calls = $this->calls();
+        $this->assertStringContainsString(
+            'compose --project-name pila-en-marcha --profile cli run --rm --no-deps',
+            $calls,
+            'El respaldo usa el proyecto de la pila y no arranca dependencias.'
+        );
+        $this->assertStringContainsString('env:puesto', $calls, 'El .env del repo se carga como datos para el respaldo.');
+
+        foreach (preg_split('/\R/', $calls) ?: [] as $line) {
+            if (!str_contains($line, 'docker compose ')) {
+                continue;
+            }
+            $this->assertStringContainsString('--no-deps', $line, 'Ningún compose puede recrear servicios: ' . $line);
+            $this->assertStringNotContainsString(' up ', ' ' . $line . ' ', 'El script no arranca servicios: ' . $line);
+        }
     }
 
     public function testUnaSeccionDesconocidaFallaSinTocarLaPila(): void

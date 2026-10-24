@@ -57,6 +57,10 @@ import {
   orderPaidWithPoints,
   type LoyaltyCheckoutErrorReason,
 } from "@/lib/loyalty/checkout";
+import {
+  membershipCheckoutError,
+  membershipCheckoutMessage,
+} from "@/lib/memberships/checkout";
 import { identityPolicy } from "@/lib/customer/policy";
 import { resolveCheckoutIdentity } from "@/lib/checkout/identity";
 import type {
@@ -587,6 +591,36 @@ export async function POST(request: Request) {
         { error: "Ese medio de pago no está disponible." },
         { status: 422 },
       );
+    }
+    // Errores del módulo de membresías al crear el pedido: el nivel pudo
+    // caducar, congelarse o retirarse con el carrito ya lleno, o la línea de
+    // membresía no se puede comprar. Se devuelve un motivo estable y los datos
+    // que explican el rechazo, con 409 (el carrito entra en conflicto con el
+    // estado actual de la membresía).
+    if (error instanceof WooCommerceError) {
+      const membership = membershipCheckoutError(error.code, error.data);
+      if (membership) {
+        logger.error(
+          {
+            event: "checkout.membership_error",
+            reason: membership.reason,
+            code: error.code,
+            userId: session?.userId ?? null,
+          },
+          "La membresía no permite crear el pedido",
+        );
+        return NextResponse.json(
+          {
+            error: membershipCheckoutMessage(
+              membership.reason,
+              requestLocale(request.headers),
+            ),
+            reason: membership.reason,
+            ...membership.details,
+          },
+          { status: 409 },
+        );
+      }
     }
     // Errores del canje al crear el pedido: el pedido NO nace con un descuento
     // sin respaldo. Se devuelve un motivo estable para que el frontend lleve al
