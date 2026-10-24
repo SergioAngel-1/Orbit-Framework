@@ -7,6 +7,25 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **Coexistencia de `loyalty`, `memberships` y `shipping` (auditoría de las 8 combinaciones).**
+  Envío gratis de socio: cuando WooCommerce reutiliza el pedido de un intento de checkout que
+  falló, la reserva se devuelve si el envío gratis ya no aplica. Solo se gasta la unidad si el
+  pedido cobrado lleva de verdad el envío gratis de membresía, y un pedido fallido que nunca se
+  cobró puede volver a reservar (antes, un 409 permanente). La petición de envío gratis se olvida
+  tras el pedido y al vaciar el carrito. La comisión extra y el regalo de referidos leen el
+  referidor confirmado del contrato nuevo `hwe_loyalty_referrer_of()`, y ya no una copia en la
+  meta `_hwe_membership_referrer`: esa copia divergía al reasignar, anonimizar o desvincular. La
+  migración v3 de `memberships` borra esa meta y Privacidad exporta y borra lo que quede. Al
+  desactivar `memberships`, sus productos pasan a borrador; al reactivarlo se restauran (salvo los
+  cambiados a mano) y una tarea de WP-Cron concilia los pedidos cobrados durante el apagón. Las
+  reversiones de puntos de activación con `loyalty` apagado se encolan y se aplican cuando
+  vuelve. Al desactivar `shipping` se retira su zona de reserva, que sin su método dejaba el país
+  base sin tarifas. Alternar cualquier módulo revalida `site-config`, `products` y `memberships`,
+  que pasan a ser tags del núcleo, y guardar la config de `loyalty` invalida `memberships`. Por
+  último, el checkout rechaza con 422 (`zero_total_with_shipping_extras`) los extras de envío en
+  cualquier carrito de total 0, no solo en los pagados con puntos. El MANUAL de `memberships`
+  describe el apagado seguro: qué no se compensa si se apaga `loyalty` o `memberships` con pedidos
+  vivos.
 - **Cierres de la revisión final del módulo `memberships`.** `verify-modules.sh` ya no lanza
   `docker compose run` cuando hay un contenedor en marcha: ejecuta WP-CLI con `docker exec` y,
   si no hay ninguno, el respaldo usa el proyecto de la pila y `--no-deps`, así que no puede

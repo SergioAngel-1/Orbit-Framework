@@ -586,7 +586,10 @@ responde **404** como si la ruta no existiera:
   por puntos responde `paid_with_points: true`: no llames a `/api/payments/create` ni esperes link;
   la prueba es la meta `_hwe_loyalty_paid_with_points` del pedido, escrita contra el libro. Pedir
   pago completo con puntos y `shipping_method_ids` a la vez es **422**
-  (`loyalty_full_payment_with_shipping_extras`).
+  (`loyalty_full_payment_with_shipping_extras`). Cualquier otro carrito en total 0 (cupón del
+  100 %, descuento de socio…) con extras de envío también es **422**, con
+  `reason: "zero_total_with_shipping_extras"`: WooCommerce da por pagado un pedido en 0 y los
+  extras, que se suman después, nunca se cobrarían.
 - **Después de un canje confirmado** la cantidad pedida se vacía de la sesión de Woo: la siguiente
   compra no gasta puntos que nadie pidió para ella.
 - **Registro y `?ref=`:** `proxy.ts` deja la cookie httpOnly `hwe_ref` (30 días, `SameSite=Lax`,

@@ -2,9 +2,9 @@
 namespace HWE\ProductLanding;
 
 /**
- * Revalida el tag ISR `products` del frontend cuando cambia una landing de producto, y lo declara
- * en `hwe_revalidation_tags` (sin esto el núcleo de WordPress no envía la petición: `products` no
- * es un tag de núcleo en WordPress).
+ * Revalida el tag ISR `products` del frontend cuando cambia una landing de producto. También lo
+ * declara en `hwe_revalidation_tags`, aunque `products` ya es un tag del núcleo de WordPress
+ * (`HWE\ControlCenter\Revalidation::CORE_TAGS`): así el módulo no depende de esa lista.
  *
  * `Save` ya provoca el webhook nativo `product.updated` de WooCommerce cuando cambia el contenido
  * en el idioma por defecto, pero ese webhook es opcional (depende de que el sitio lo tenga dado de

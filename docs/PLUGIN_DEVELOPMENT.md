@@ -66,16 +66,17 @@ Un módulo que quiera ser contrato publica sus hooks en su `README.md` y aquí. 
 | `hwe_loyalty_entry_types` | filtro | `( array<string, "credit"\|"debit"> $types ): array` tipos de movimiento extra. |
 | `hwe_loyalty_participant_roles` | filtro | `( string[] $roles ): string[]` roles que participan. |
 
-**Funciones públicas de `loyalty`:** además de los hooks, el módulo publica tres funciones
+**Funciones públicas de `loyalty`:** además de los hooks, el módulo publica cuatro funciones
 globales (en `includes/Api.php`, cargadas con el plugin) para que otro módulo abone o revierta
-puntos sin conocer sus clases. Quien las usa comprueba `function_exists()` y, después, la
-función concreta con `hwe_loyalty_available()`:
+puntos —o lea el referidor confirmado— sin conocer sus clases. Quien las usa comprueba
+`function_exists()` y, después, la función concreta con `hwe_loyalty_available()`:
 
 | Función | Firma | Para qué |
 |---|---|---|
 | `hwe_loyalty_available` | `( string $feature ): bool` | `points` exige el módulo activo y «Puntos» encendido; `referrals`, además, «Referidos». Un valor desconocido devuelve `false`. |
 | `hwe_loyalty_credit` | `( int $userId, int $points, string $type, string $key, array $ref = [], array $data = [] ): ?int` | Abono por el libro con idempotencia por `$key`, referencia tipada y nota estructurada. `null` sin escribir si los puntos están apagados, el usuario no participa, el tipo no está declarado como abono o la clave ya existía. |
 | `hwe_loyalty_reverse_credit` | `( string $key, string $reversalKey ): ?int` | Revierte el abono `$key` con un `earn_reversal` limitado al saldo e idempotente por `$reversalKey`. `null` si la clave original no existe o no es un abono, si no queda saldo o si ya se revirtió. |
+| `hwe_loyalty_referrer_of` | `( int $userId ): ?int` | Referidor N1 **confirmado** del usuario; `null` si no hay atribución, sigue pendiente, el referidor ya no existe o el plugin no está cargado. Solo el id numérico. Los módulos que pagan por la red deben resolverlo en cada cálculo con esta función, nunca con una copia cacheada. |
 
 El módulo que abona declara su tipo de movimiento con `hwe_loyalty_entry_types` (`'credit'`);
 sin declararlo, el abono se rechaza. Revertir no exige que «Puntos» siga encendido: es una
@@ -108,11 +109,12 @@ Los eventos del ciclo (`hwe_membership_*`) se disparan **después del COMMIT** y
 | `hwe_memberships_collected_on_completion` | filtro | `( string[] $methods ): string[]`. Medios que esperan a `completed` (defecto `cod`). |
 
 Consume los contratos de `loyalty` (`hwe_loyalty_available`, `hwe_loyalty_credit`,
-`hwe_loyalty_reverse_credit`, `hwe_loyalty_entry_types`, `hwe_loyalty_order_earnings`,
-`hwe_loyalty_attribution_confirmed`) y de `shipping` (`hwe_shipping_free_reason`, constante
-`HWE_SHIPPING_FREE_REASON_FILTER`), más `hwe_email_verified`, `hwe_control_center_schema`,
-`hwe_translatable_fields` y `hwe_revalidation_tags`. **Membresías nunca llama a clases internas de
-otro módulo**: solo a lo que su README publica como estable.
+`hwe_loyalty_reverse_credit`, `hwe_loyalty_referrer_of`, `hwe_loyalty_entry_types`,
+`hwe_loyalty_order_earnings`, `hwe_loyalty_attribution_confirmed`) y de `shipping`
+(`hwe_shipping_free_reason`, constante `HWE_SHIPPING_FREE_REASON_FILTER`), más
+`hwe_email_verified`, `hwe_control_center_schema`, `hwe_translatable_fields` y
+`hwe_revalidation_tags`. **Membresías nunca llama a clases internas de otro módulo**: solo a lo
+que su README publica como estable.
 
 #### Tipos de beneficio de instancia
 

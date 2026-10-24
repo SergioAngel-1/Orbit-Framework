@@ -820,6 +820,43 @@ describe("extras de envío (módulo shipping)", () => {
     ).toBe(422);
     expect(orderPosts()).toHaveLength(0);
   });
+
+  it("un total 0 por cupón o descuento de socio tampoco admite extras (422, motivo genérico)", async () => {
+    vi.mocked(isValidIdempotencyKey).mockReturnValue(true);
+    vi.mocked(reserveIdempotencyKey).mockResolvedValue({
+      status: "reserved",
+    } as never);
+    shippingOn(true);
+    cartIs({ needs_shipping: false, shipping_rates: [], totals: { total_price: "0" } });
+
+    const res = await POST(checkout("hwe_offline", { shipping_method_ids: [3] }));
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).reason).toBe("zero_total_with_shipping_extras");
+    expect(orderPosts()).toHaveLength(0);
+    expect(getShippingMethods).not.toHaveBeenCalled();
+    expect(releaseIdempotencyKey).toHaveBeenCalled();
+    expect(
+      vi
+        .mocked(logger.warn)
+        .mock.calls.map(([o]) => o as { event: string; reason?: string }),
+    ).toContainEqual(
+      expect.objectContaining({
+        event: "checkout.zero_total_extras_blocked",
+        reason: "zero_total_with_shipping_extras",
+      }),
+    );
+  });
+
+  it("un total 0 sin extras se crea como siempre", async () => {
+    shippingOn(true);
+    cartIs({ needs_shipping: false, shipping_rates: [], totals: { total_price: "0" } });
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(201);
+    expect(orderPosts()).toHaveLength(1);
+  });
 });
 
 describe("pago completo con puntos (módulo loyalty)", () => {
@@ -932,6 +969,16 @@ describe("pago completo con puntos (módulo loyalty)", () => {
     expect(orderPosts()).toHaveLength(0);
     expect(getShippingMethods).not.toHaveBeenCalled();
     expect(releaseIdempotencyKey).toHaveBeenCalled();
+    expect(
+      vi
+        .mocked(logger.warn)
+        .mock.calls.map(([o]) => o as { event: string; reason?: string }),
+    ).toContainEqual(
+      expect.objectContaining({
+        event: "checkout.zero_total_extras_blocked",
+        reason: "loyalty_full_payment_with_shipping_extras",
+      }),
+    );
   });
 
   it("un carrito sin total no se da por pagado solo por la extensión", async () => {

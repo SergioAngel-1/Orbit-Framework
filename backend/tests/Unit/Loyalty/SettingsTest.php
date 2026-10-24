@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace HWE\Tests\Unit\Loyalty;
 
+use Brain\Monkey\Actions;
 use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use HWE\ControlCenter\Schema;
@@ -217,6 +218,36 @@ final class SettingsTest extends TestCase
             ->with([\HWE_Loyalty_Settings::class, 'schema']);
 
         \HWE_Loyalty_Settings::register();
+    }
+
+    public function testRegisterInvalidatesMembershipsWhenTheConfigIsSaved(): void
+    {
+        $this->load();
+
+        \HWE_Loyalty_Settings::register();
+
+        $this->assertSame(
+            10,
+            Actions\has('hwe_control_center_saved', [\HWE_Loyalty_Settings::class, 'onSaved']),
+            'Los interruptores de fidelización cambian qué beneficios anuncia cada nivel de membresía.'
+        );
+    }
+
+    public function testTheSavedHookInvalidatesTheMembershipsTag(): void
+    {
+        $tags = [];
+        \Patchwork\redefine(
+            \HWE\ControlCenter\Revalidation::class . '::trigger',
+            function (string $tag = 'site-config') use (&$tags): void {
+                $tags[] = $tag;
+            }
+        );
+
+        $this->load();
+
+        \HWE_Loyalty_Settings::onSaved([]);
+
+        $this->assertSame(['memberships'], $tags);
     }
 
     public function testBootStopsWhenWooCommerceIsMissing(): void

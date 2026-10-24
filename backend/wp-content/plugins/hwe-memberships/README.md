@@ -26,6 +26,7 @@ pública la construye el frontend de cada instancia con el contrato de
 | `includes/Events.php` | Historial (`hwe_memberships_events`) y hooks del ciclo, disparados **después** del COMMIT. |
 | `includes/Members.php` | Lectura del estado efectivo del socio (tabla `hwe_memberships_members`). |
 | `includes/Purchase.php` | Reglas de compra y activación al cobrar el pedido; reversión por cancelación o reembolso total. |
+| `includes/Lifecycle.php` | Ciclo de vida del plugin: retira de la venta los productos de membresía al desactivar, los restaura al activar y deja programada la conciliación de los pedidos cobrados durante el apagón. |
 | `includes/Products.php` | Vínculo producto ↔ nivel y duración; pestaña «Membresía» de la ficha y requisitos de acceso. |
 | `includes/Access.php` | Única fuente del requisito efectivo de un producto o categoría y del acceso anticipado. |
 | `includes/Teaser.php` | Ficha de escaparate en Store API, carrito y WC REST (`wc/v3`). |
@@ -234,15 +235,21 @@ constancia de su propio ciclo, que escuchan solo hooks `hwe_membership_*`).
 - **Puntos por activación.** Se abonan una sola vez por línea, con clave
   `membership:order:<pedido>:item:<línea>`. No abonan regalos, asignaciones de administrador ni
   lotes. Revocar la concesión revierte el abono con `hwe_loyalty_reverse_credit()`, limitado al
-  saldo e idempotente. Si «Puntos» está apagado en el cobro, no se abona, no se reintenta y queda
-  `points_skipped` en el historial más un `error_log`. Una compra aplazada se abona (u omite) al
-  cobrarse, aunque su concesión se active más tarde: la activación de la tarea diaria llega con
-  `HWE_Memberships_Events::CONTEXT_DAILY` y no vuelve a intentarlo.
+  saldo e idempotente. Si `loyalty` no está cargado cuando llega la revocación, la reversión se
+  deja en la cola `hwe_memberships_pending_point_reversals` con la misma clave y se aplica cuando
+  vuelve (al cargar y en la tarea diaria); el reintento es idempotente y una entrada sin abono que
+  revertir se descarta tras tres intentos con constancia en el log. Si «Puntos» está apagado en el
+  cobro, no se abona, no se reintenta y queda `points_skipped` en el historial más un `error_log`.
+  Una compra aplazada se abona (u omite) al cobrarse, aunque su concesión se active más tarde: la
+  activación de la tarea diaria llega con `HWE_Memberships_Events::CONTEXT_DAILY` y no vuelve a
+  intentarlo.
 - **Comisión extra de referidos.** Se añade al filtro `hwe_loyalty_order_earnings` como abono del
   tipo `membership_referral_bonus`, declarado con `hwe_loyalty_entry_types`. Cuenta el nivel del
-  referidor **al cobrarse el pedido**; sin referidor o sin beneficio, el array sale intacto. Lee
-  el referidor de `_hwe_membership_referrer`, que se guarda cuando `loyalty` confirma la
-  atribución (`hwe_loyalty_attribution_confirmed`); no se reconstruye hacia atrás.
+  referidor **al cobrarse el pedido**; sin referidor o sin beneficio, el array sale intacto. El
+  referidor se resuelve en ese mismo momento con `hwe_loyalty_referrer_of()`, el contrato de
+  `loyalty`: **solo cuenta una atribución confirmada**. Si `loyalty` reasigna el referidor, lo
+  anonimiza o desvincula la red, la comisión extra sigue la atribución vigente en el siguiente
+  pedido; membresías no guarda una copia en metas de usuario. No se reconstruye hacia atrás.
 - **Regalo al referido.** Lo recibe el referido, no el referidor. El cupo es de la concesión
   activa del referidor (`grants.referral_gifts`) y siempre hay tope. Al agotarse, el referido se
   registra con normalidad y queda `referral_gift_limit_reached` en el historial del referidor.
@@ -342,8 +349,9 @@ historial. Siempre ids numéricos, nunca datos personales:
 | `hwe_memberships_collected_on_completion` | `( string[] $methods ): string[]` | Medios que esperan a `completed` (defecto `cod`). |
 
 **Consume:** `hwe_email_verified`, `hwe_loyalty_attribution_confirmed`,
-`hwe_loyalty_entry_types`, `hwe_loyalty_order_earnings`, `hwe_shipping_free_reason`,
-`hwe_control_center_schema`, `hwe_translatable_fields` y `hwe_revalidation_tags`.
+`hwe_loyalty_entry_types`, `hwe_loyalty_order_earnings`, `hwe_loyalty_referrer_of`,
+`hwe_shipping_free_reason`, `hwe_control_center_schema`, `hwe_translatable_fields` y
+`hwe_revalidation_tags`.
 
 ## Límites y comportamientos que conviene conocer
 
@@ -363,11 +371,13 @@ historial. Siempre ids numéricos, nunca datos personales:
 ## Privacidad
 
 Exportador y eliminador de las herramientas de WordPress. El exportador entrega solo los datos
-del propio sujeto (estado, concesiones e historial), nunca datos de terceros. El eliminador
-conserva las concesiones de origen pedido y su historial como contabilidad, vacía notas y datos
-libres y desvincula actores; el resto se borra, junto con los tokens del carné y la fila del
-socio. El número de socio no se reutiliza. Borrar la cuenta termina la membresía. Todo va en
-transacciones con bloqueo y por lotes.
+del propio sujeto (estado, concesiones e historial), nunca datos de terceros; de la meta
+heredada `_hwe_membership_referrer` solo exporta el id numérico del referidor, sin su nombre,
+email ni login. El eliminador conserva las concesiones de origen pedido y su historial como
+contabilidad, vacía notas y datos libres y desvincula actores; el resto se borra, junto con los
+tokens del carné, la fila del socio y esa meta heredada (también al borrar la cuenta). El número
+de socio no se reutiliza. Borrar la cuenta termina la membresía. Todo va en transacciones con
+bloqueo y por lotes.
 
 ## Con el módulo apagado
 
@@ -376,6 +386,17 @@ recortes), los lectores devuelven vacío o nulo, las rutas del BFF responden 404
 la Store API no se registra y no se engancha ningún filtro sobre `loyalty` ni sobre `shipping`.
 Los datos guardados (niveles, concesiones, requisitos, carné) **se conservan** para cuando vuelva
 a activarse.
+
+Además, la desactivación del plugin **retira de la venta** los productos de membresía publicados
+(los pasa a borrador y recuerda su estado en `hwe_memberships_hidden_products`): sin la compuerta
+de compra del módulo, un producto ligado a un nivel se cobraría sin conceder nada. La activación
+restaura exactamente esos productos si siguen en el estado que puso el plugin —un cambio manual
+del administrador no se pisa— y **deja programada** la conciliación de los pedidos cobrados
+durante el apagón, con las claves de idempotencia por línea de `Purchase`. La conciliación corre en
+una petición posterior con el plugin ya arrancado (evento único de WP-Cron; la tarea diaria la
+retoma si queda pendiente), porque en el hook de activación WordPress todavía no ha escrito
+`active_plugins`. El barrido se acota por la fecha de cobro y por un tope por ejecución; si algo
+falla, se registra con `[hwe] memberships: …` sin bloquear la activación.
 
 ## Verificación
 

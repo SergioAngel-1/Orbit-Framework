@@ -532,6 +532,46 @@ final class ReferralsTest extends TestCase
         $this->assertStringNotContainsString('@', json_encode($network) ?: '');
     }
 
+    // ── Contrato público ─────────────────────────────────────────────────────
+
+    public function test_the_public_contract_reads_only_confirmed_referrers(): void
+    {
+        \HWE_Loyalty_Referrals::setReferrer(self::REFERRED, self::REFERRER);
+
+        $this->assertNull(
+            \hwe_loyalty_referrer_of(self::REFERRED),
+            'Una atribución pendiente todavía no es un referidor confirmado.'
+        );
+
+        $this->verifyEmail(self::REFERRED);
+        $this->assertTrue(\HWE_Loyalty_Referrals::confirmIfReady(self::REFERRED));
+
+        $this->assertSame(self::REFERRER, \hwe_loyalty_referrer_of(self::REFERRED));
+        $this->assertNull(\hwe_loyalty_referrer_of(0));
+        $this->assertNull(\hwe_loyalty_referrer_of(self::MISSING));
+    }
+
+    public function test_the_public_contract_follows_reassignment_and_forgets_removed_attributions(): void
+    {
+        $this->verifyEmail(self::REFERRED);
+        \HWE_Loyalty_Referrals::setReferrer(self::REFERRED, self::REFERRER);
+        $this->assertSame(self::REFERRER, \hwe_loyalty_referrer_of(self::REFERRED));
+
+        // La administración reasigna una atribución ya confirmada: la lectura sigue la vigente.
+        \HWE_Loyalty_Referrals::setReferrer(self::REFERRED, self::OTHER);
+        $this->assertSame(self::OTHER, \hwe_loyalty_referrer_of(self::REFERRED));
+
+        // Desvincular la red del referidor deja a sus referidos sin atribución.
+        $this->assertSame(1, \HWE_Loyalty_Referrals::unlinkNetwork(self::OTHER));
+        $this->assertNull(\hwe_loyalty_referrer_of(self::REFERRED));
+
+        // Reasignar y confirmar de nuevo vuelve a dar un referidor; anonimizar lo retira.
+        \HWE_Loyalty_Referrals::setReferrer(self::REFERRED, self::OTHER);
+        $this->assertSame(self::OTHER, \hwe_loyalty_referrer_of(self::REFERRED));
+        \HWE_Loyalty_Referrals::anonymize(self::REFERRED);
+        $this->assertNull(\hwe_loyalty_referrer_of(self::REFERRED));
+    }
+
     // ── Red ──────────────────────────────────────────────────────────────────
 
     public function test_network_lists_level_one_and_two_with_visible_names_and_generated_points(): void
@@ -920,6 +960,20 @@ final class TestReferralsWpdb
                     return 1;
                 }
                 return 0;
+            }
+            if (str_contains($sql, 'SET referrer_id = NULL, status = %s, confirmed_at = NULL WHERE referrer_id = %d')) {
+                // `Referrals::unlinkNetwork()`: toda la red del referidor queda sin referidor.
+                [$status, $referrerId] = $args;
+                $changed = 0;
+                foreach ($this->referrals as $index => $row) {
+                    if ((int) ($row['referrer_id'] ?? 0) === (int) $referrerId) {
+                        $this->referrals[$index]['referrer_id']  = null;
+                        $this->referrals[$index]['status']       = (string) $status;
+                        $this->referrals[$index]['confirmed_at'] = null;
+                        $changed++;
+                    }
+                }
+                return $changed;
             }
             if (str_contains($sql, 'SET referrer_id = NULL')) {
                 [$status, $attributedAt, $id] = $args;

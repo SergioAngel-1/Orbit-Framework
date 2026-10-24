@@ -3,14 +3,17 @@
  * Punto de entrada estable de `loyalty` para otros módulos (spec §8).
  *
  * El módulo de fidelización es dueño de su libro mayor y de sus clases internas. Cualquier otro
- * módulo (por ejemplo, membresías) que necesite abonar o revertir puntos habla SOLO con las tres
- * funciones globales de este archivo:
+ * módulo (por ejemplo, membresías) que necesite abonar o revertir puntos habla SOLO con las
+ * cuatro funciones globales de este archivo:
  *
  *  · `hwe_loyalty_available( $feature )`: ¿está encendida la función `points` o `referrals`?
  *  · `hwe_loyalty_credit( … )`: abona puntos con un tipo declarado, una referencia y una clave
  *    de idempotencia; pasa por el libro, con su transacción y su bloqueo de fila.
  *  · `hwe_loyalty_reverse_credit( … )`: revierte un abono por su clave, limitado al saldo e
  *    idempotente por la clave de reversión (mismo criterio que `earn_reversal`).
+ *  · `hwe_loyalty_referrer_of( $userId )`: referidor N1 **confirmado** de un usuario, o `null`.
+ *    Es la lectura que usan los módulos que pagan por la red (p. ej. la comisión extra de
+ *    membresías): una atribución pendiente o desvinculada no es un referidor.
  *
  * Reglas del contrato:
  *  · Las funciones se cargan con el plugin (`hwe-loyalty.php` las incluye al arrancar). Si
@@ -167,6 +170,25 @@ final class HWE_Loyalty_Api {
 	}
 
 	/**
+	 * Referidor N1 **confirmado** del usuario, o `null`.
+	 *
+	 * Una atribución `pending` todavía no es una atribución: no se paga nada por ella hasta que
+	 * la cuenta se confirma. Devuelve `null` también si no hay fila, si no tiene referidor o si
+	 * esa cuenta ya no existe. No exige que «Puntos» o «Referidos» sigan encendidos: es una
+	 * lectura de datos y el consumidor decide si su función está disponible con
+	 * `hwe_loyalty_available()`.
+	 *
+	 * No expone nombre, email ni login: solo el id numérico del referidor.
+	 */
+	public static function referrerOf( int $userId ): ?int {
+		if ( $userId <= 0 || ! class_exists( 'HWE_Loyalty_Referrals' ) ) {
+			return null;
+		}
+
+		return HWE_Loyalty_Referrals::referrerOf( $userId, true );
+	}
+
+	/**
 	 * Fila del libro con esa clave, sea abono o cargo. La escritura y sus importes son
 	 * inmutables, así que leerla fuera de la transacción es seguro; el cargo de reversión
 	 * vuelve a comprobar la clave y el saldo ya bloqueados dentro de su propia transacción.
@@ -231,4 +253,12 @@ function hwe_loyalty_credit(
  */
 function hwe_loyalty_reverse_credit( string $key, string $reversalKey ): ?int {
 	return HWE_Loyalty_Api::reverseCredit( $key, $reversalKey );
+}
+
+/**
+ * Referidor N1 **confirmado** del usuario, o `null` si no hay atribución, sigue pendiente o la
+ * cuenta del referidor ya no existe. Solo devuelve el id numérico: nunca nombre, email ni login.
+ */
+function hwe_loyalty_referrer_of( int $userId ): ?int {
+	return HWE_Loyalty_Api::referrerOf( $userId );
 }

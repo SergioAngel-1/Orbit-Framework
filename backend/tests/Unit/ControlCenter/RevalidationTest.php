@@ -18,8 +18,9 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
  * Sin fallos silenciosos: antes, sin `HWE_REVALIDATION_SECRET` la revalidación «se omitía
  * silenciosamente» y el sitio seguía sirviendo la config vieja sin que nada lo dijera.
  *
- * Los tags aceptados son `site-config` más los que cualquier instancia o módulo registre con el
- * filtro `hwe_revalidation_tags`. El frontend los vuelve a validar (`/api/revalidate`); aquí se
+ * Los tags aceptados son los del núcleo (`site-config`, `products`, `memberships`, `banners`,
+ * `posts`, `menus`) más los que cualquier instancia o módulo registre con el filtro
+ * `hwe_revalidation_tags`. El frontend los vuelve a validar (`/api/revalidate`); aquí se
  * evita enviar una petición que se sabe rechazada y se avisa de un tag mal escrito.
  *
  * Las constantes son globales al proceso: cada test corre en el suyo.
@@ -63,14 +64,18 @@ final class RevalidationTest extends TestCase
 
     public function testTheCoreAcceptsItsOwnTagsByDefault(): void
     {
-        $this->assertSame(['site-config', 'banners', 'posts', 'menus'], Revalidation::allowedTags());
+        $this->assertSame(
+            ['site-config', 'products', 'memberships', 'banners', 'posts', 'menus'],
+            Revalidation::allowedTags(),
+            '`products` y `memberships` son del núcleo: hay que poder invalidarlos con su módulo apagado.'
+        );
     }
 
     public function testTagsRegisteredWithTheFilterAreAccepted(): void
     {
         $this->registerTags('example', 'catalogo.v2');
 
-        $this->assertSame(['site-config', 'banners', 'posts', 'menus', 'example', 'catalogo.v2'], Revalidation::allowedTags());
+        $this->assertSame(['site-config', 'products', 'memberships', 'banners', 'posts', 'menus', 'example', 'catalogo.v2'], Revalidation::allowedTags());
     }
 
     /** @return iterable<string, array{mixed}> */
@@ -92,7 +97,7 @@ final class RevalidationTest extends TestCase
     {
         Filters\expectApplied('hwe_revalidation_tags')->andReturnUsing(static fn (array $core): array => [...$core, $bad, 'valido']);
 
-        $this->assertSame(['site-config', 'banners', 'posts', 'menus', 'valido'], Revalidation::allowedTags());
+        $this->assertSame(['site-config', 'products', 'memberships', 'banners', 'posts', 'menus', 'valido'], Revalidation::allowedTags());
         Revalidation::allowedTags();
         Revalidation::allowedTags();
         $this->assertCount(1, $this->logged, 'Un aviso por tag defectuoso y proceso, no uno por llamada.');
@@ -103,14 +108,14 @@ final class RevalidationTest extends TestCase
     {
         $this->registerTags('example', 'example', 'site-config');
 
-        $this->assertSame(['site-config', 'banners', 'posts', 'menus', 'example'], Revalidation::allowedTags());
+        $this->assertSame(['site-config', 'products', 'memberships', 'banners', 'posts', 'menus', 'example'], Revalidation::allowedTags());
     }
 
     public function testAFilterThatDoesNotReturnAnArrayFallsBackToTheCoreTags(): void
     {
         Filters\expectApplied('hwe_revalidation_tags')->andReturnUsing(static fn () => 'no soy una lista');
 
-        $this->assertSame(['site-config', 'banners', 'posts', 'menus'], Revalidation::allowedTags());
+        $this->assertSame(['site-config', 'products', 'memberships', 'banners', 'posts', 'menus'], Revalidation::allowedTags());
         $this->assertCount(1, $this->logged);
         $this->assertStringContainsString('hwe_revalidation_tags', $this->logged[0]);
     }

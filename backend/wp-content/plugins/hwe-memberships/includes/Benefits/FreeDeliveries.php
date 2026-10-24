@@ -19,6 +19,13 @@
  *    reembolsa del todo, se **devuelve**. Todo es idempotente por pedido: las notificaciones de
  *    estado repetidas no consumen dos veces.
  *
+ * **Reintentos.** WooCommerce reutiliza el mismo pedido cuando un intento del checkout falla, y
+ * al reutilizarlo rehace líneas y tarifas pero no las metas del pedido. Por eso la meta del
+ * envío gratis refleja siempre lo que el pedido lleva: si el beneficio ya no se aplica a este
+ * intento, la reserva viva se devuelve; si el pedido se cobra sin la marca del beneficio, su
+ * reserva también se devuelve; y un pedido devuelto que aún no se ha cobrado (fallido o
+ * cancelado) puede volver a reservar cuando el cliente reintenta.
+ *
  * **Integración con `shipping`.** Si el módulo `shipping` está activo, esta clase NO toca las
  * tarifas: pide el envío gratis por su filtro estable `hwe_shipping_free_reason` y deja que él
  * aplique su propia lógica (solo opciones elegibles, nunca la reserva) y escriba su meta
@@ -487,6 +494,10 @@ final class HWE_Memberships_Benefit_Free_Deliveries extends HWE_Memberships_Bene
 	 * el pedido lleva la marca del beneficio (la tarifa quedó a 0 por este motivo). Si ya no queda
 	 * cupo, corta el checkout con 409 y el pedido no se cobra.
 	 *
+	 * Si el pedido viene de un intento anterior (WooCommerce reutiliza el borrador) y el beneficio
+	 * ya no se aplica a este, la reserva viva se devuelve: la meta del pedido no puede seguir
+	 * diciendo que el envío gratis está reservado cuando el pedido lo cobra.
+	 *
 	 * Devuelve `true` solo si el pedido queda con una reserva (nueva o ya existente); `false` si
 	 * el beneficio no se aplicó a este pedido.
 	 *
@@ -499,14 +510,17 @@ final class HWE_Memberships_Benefit_Free_Deliveries extends HWE_Memberships_Bene
 			return false;
 		}
 		if ( ! $this->requested() ) {
+			$this->releaseStaleReservation( $order );
 			return false;
 		}
 		if ( ! $this->orderApplied( $order ) ) {
 			// No se aplicó: el destino no es elegible o el envío ya salía a 0 por otra regla.
+			$this->releaseStaleReservation( $order );
 			return false;
 		}
 		if ( self::shippingModuleActive() && self::orderHasFreeShippingCoupon( $order ) ) {
 			// Con shipping, el cupón de envío gratis ya pagaba el envío: no se gasta el cupo.
+			$this->releaseStaleReservation( $order );
 			return false;
 		}
 
@@ -549,6 +563,26 @@ final class HWE_Memberships_Benefit_Free_Deliveries extends HWE_Memberships_Bene
 			&& HWE_Memberships_Grants::releaseFreeDelivery( $orderId );
 	}
 
+	/**
+	 * Devuelve la reserva viva de un pedido cuando el beneficio ya no se aplica a este intento.
+	 * Solo toca el estado `reserved`: un pedido cobrado conserva la unidad que gastó.
+	 */
+	private function releaseStaleReservation( object $order ): void {
+		if ( ! class_exists( 'HWE_Memberships_Grants' ) || ! method_exists( $order, 'get_meta' ) ) {
+			return;
+		}
+		if ( HWE_Memberships_Grants::FREE_DELIVERY_RESERVED !== trim( (string) $order->get_meta( HWE_Memberships_Grants::META_FREE_DELIVERY_STATE ) ) ) {
+			return;
+		}
+
+		$orderId = method_exists( $order, 'get_id' ) ? (int) $order->get_id() : 0;
+		if ( $orderId <= 0 ) {
+			return;
+		}
+
+		HWE_Memberships_Grants::releaseFreeDelivery( $orderId, true );
+	}
+
 	/** Cobrado: consume la reserva (una sola vez por pedido). */
 	public function onOrderCollected( int $orderId ): void {
 		$order = self::order( $orderId );
@@ -557,6 +591,12 @@ final class HWE_Memberships_Benefit_Free_Deliveries extends HWE_Memberships_Bene
 			return;
 		}
 		if ( class_exists( 'HWE_Memberships_Purchase' ) && ! HWE_Memberships_Purchase::isCollected( $order ) ) {
+			return;
+		}
+		if ( ! $this->orderApplied( $order ) ) {
+			// El pedido se cobró sin el envío gratis del beneficio (la línea se rehízo con coste
+			// en un reintento del borrador): la reserva viva ya no corresponde y se devuelve.
+			$this->releaseStaleReservation( $order );
 			return;
 		}
 

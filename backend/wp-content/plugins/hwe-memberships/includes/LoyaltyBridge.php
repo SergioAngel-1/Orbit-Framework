@@ -14,11 +14,11 @@
  *    funciones encendida: con todo apagado no queda nada registrado en sus hooks.
  *  · `credit()` y `reverseCredit()` son la única vía de abono y reversión. Nunca dejan caer
  *    una activación: cualquier fallo de `loyalty` se registra y se devuelve `null`.
- *
- * También guarda la lectura del referidor que membresías necesita (§7.5): `loyalty` no publica
- * la atribución, así que `ReferralGift` la recuerda en la meta `_hwe_membership_referrer` al
- * recibir `hwe_loyalty_attribution_confirmed` y aquí se lee para la comisión extra y el regalo.
- * Es el único dato de `loyalty` que se guarda, y es un id numérico.
+ *  · `referrerOf()` lee el referidor **confirmado** del contrato de `loyalty` en el momento del
+ *    cálculo. Antes se cacheaba en la meta `_hwe_membership_referrer` al confirmarse la
+ *    atribución, pero esa copia divergía cuando `loyalty` reasignaba, anonimizaba o
+ *    desvinculaba la red. La meta solo se conserva para exportar y borrar restos de versiones
+ *    anteriores (`REFERRER_META`); este puente ya no la escribe ni la lee.
  *
  * Nada de aquí compone textos para el cliente ni registra datos personales: solo ids y claves
  * técnicas en `error_log('[hwe] memberships: …')`.
@@ -36,7 +36,11 @@ final class HWE_Memberships_LoyaltyBridge {
 	/** Tipo de movimiento de la comisión extra del referidor de un socio. */
 	public const ENTRY_REFERRAL_BONUS = 'membership_referral_bonus';
 
-	/** Meta del referido con el id del referidor N1 (la atribución no es pública en `loyalty`). */
+	/**
+	 * Meta heredada con el id del referidor. Las versiones anteriores la escribían al confirmar
+	 * la atribución; ya no se lee ni se escribe, solo la usan la migración y la privacidad para
+	 * borrar restos.
+	 */
 	public const REFERRER_META = '_hwe_membership_referrer';
 
 	/** Avisos ya emitidos en esta petición, para no repetirlos en cada lectura. */
@@ -178,21 +182,33 @@ final class HWE_Memberships_LoyaltyBridge {
 	}
 
 	/**
-	 * Referidor N1 recordado para un usuario; `0` si no hay atribución o el id ya no existe.
-	 * El dato lo escribe `ReferralGift` al confirmarse la atribución, porque `loyalty` no
-	 * publica su lectura.
+	 * Referidor N1 confirmado de un usuario; `0` si no hay atribución, sigue pendiente, el
+	 * referidor ya no existe o `loyalty` no está cargado. Lee el contrato
+	 * `hwe_loyalty_referrer_of()` en cada cálculo (nunca una copia cacheada), así que sigue la
+	 * atribución vigente cuando `loyalty` la reasigna, la anonimiza o la desvincula.
 	 */
 	public static function referrerOf( int $userId ): int {
-		if ( $userId <= 0 || ! function_exists( 'get_user_meta' ) ) {
+		if ( $userId <= 0 || ! function_exists( 'hwe_loyalty_referrer_of' ) ) {
 			return 0;
 		}
 
-		$raw = get_user_meta( $userId, self::REFERRER_META, true );
-		$id  = is_scalar( $raw ) ? (int) $raw : 0;
+		try {
+			$raw = hwe_loyalty_referrer_of( $userId );
+		} catch ( \Throwable $e ) {
+			self::logOnce(
+				'referrer:' . $userId,
+				'no se pudo leer el referidor confirmado del usuario ' . $userId . ': ' . $e->getMessage()
+			);
+			return 0;
+		}
+
+		$id = is_int( $raw ) ? $raw : ( is_numeric( $raw ) ? (int) $raw : 0 );
 		if ( $id <= 0 || $id === $userId ) {
 			return 0;
 		}
 
+		// El contrato ya valida que el referidor exista; se comprueba otra vez para no fiarse de
+		// una implementación futura que devuelva un id colgado (falla cerrada).
 		if ( function_exists( 'get_userdata' ) && ! is_object( get_userdata( $id ) ) ) {
 			return 0;
 		}
