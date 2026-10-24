@@ -13,17 +13,29 @@ páginas legales) ver `docs/CUSTOMIZATION.md`; para producción ver `docs/GO-LIV
 
 ## 1. Clonar el framework
 
+Parte siempre de una **release** (tag `vX.Y.Z`; la última es la primera entrada con fecha
+de `CHANGELOG.md`), nunca de `main`: lo que hay en `main` entre dos releases está en
+`[Sin publicar]` y ningún número de versión lo identifica.
+
 ```bash
-git clone <repo-del-framework> <cliente>/instancia
+git clone --branch vX.Y.Z --origin framework <repo-del-framework> <cliente>/instancia
 cd <cliente>/instancia
+git switch -c main
+git remote add origin <repo-de-la-instancia>   # su propio repositorio
+git push -u origin main
 ```
 
-Si la instancia va a vivir en su propio repositorio (recomendado, para no
-arrastrar el historial del framework base), reinicia el control de versiones:
+`--origin framework` deja el repo del framework como remote `framework`, del que se traen las
+releases futuras (`docs/UPGRADE.md`), y `origin` pasa a ser el repositorio de la instancia.
 
-```bash
-rm -rf .git && git init
-```
+**No reinicies el historial** (`rm -rf .git && git init`). Las actualizaciones son un
+`git merge` del tag nuevo, y git solo puede fusionarlo si la instancia comparte historia con el
+framework: sin ella, `git merge` responde `refusing to merge unrelated histories` y la
+instancia no puede recibir parches. Si ya creaste una instancia así, `docs/UPGRADE.md` §3.1
+explica cómo reconectarla.
+
+`FRAMEWORK_VERSION` (raíz) dice de qué release del framework parte la instancia. Es del
+núcleo: no lo edites; cada merge de una release lo actualiza.
 
 ## 2. Variables de entorno y secretos
 
@@ -243,11 +255,12 @@ wp hwe setup <archivo.json>
 
 ## Último paso: prepara las actualizaciones futuras
 
-Configura el repo del framework como remote para poder traer sus releases:
+El clon del §1 ya dejó el repo del framework como remote `framework`. Comprueba que trae sus
+tags y que la instancia parte de la release que dice `FRAMEWORK_VERSION`:
 
 ```bash
-git remote add framework <URL-del-repo-del-framework>
 git fetch framework --tags
+git merge-base --is-ancestor "v$(cat FRAMEWORK_VERSION)" HEAD && echo "historia compartida"
 ```
 
 El procedimiento de actualización completo está en [`docs/UPGRADE.md`](UPGRADE.md).

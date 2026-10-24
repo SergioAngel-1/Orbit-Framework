@@ -6,7 +6,37 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.1.0] — 2026-10-24
+
+Parches de seguridad de octubre de 2026 (PHP 8.4.27 vía `wordpress:7.1`, Node 24.22.1,
+WooCommerce 11.2.1, WPGraphQL 2.25.0, Next.js 16.4.1 y los límites de GraphQL que no se
+aplicaban), los módulos `loyalty` y `memberships`, el envío por distancia de `shipping` y la
+coexistencia de los tres. `HWE_CORE_CONTRACT_VERSION` pasa a `2.1.0` por los hooks estables
+nuevos. **Para actualizar una instancia** sigue `docs/UPGRADE.md` §3 (merge del tag) y, si se creó
+sin el historial del framework, §3.1 antes. Después, en el servidor, actualiza las imágenes, los
+plugins fijados y el core («Imágenes y plugins de una instancia ya desplegada»): el merge no cambia
+lo que ya corre. Una excepción a SemVer, aceptada a propósito: el rediseño de tarifas del módulo
+`shipping` es **BREAKING** (ver «Changed») y sale en un *minor*, porque solo afecta a instancias
+con `shipping` encendido y tarifas por ciudad ya configuradas, que deben reconfigurarlas.
+
 ### Fixed
+- **Crear una instancia ya no la deja sin actualizaciones.** `docs/CREATE_INSTANCE.md` mandaba
+  clonar `main` y reiniciar el historial (`rm -rf .git && git init`), y `docs/UPGRADE.md` actualiza
+  con `git merge` del tag nuevo: sin historia compartida git responde `refusing to merge unrelated
+  histories`, así que la instancia no podía recibir parches. Clonar `main` además mezclaba trabajo sin
+  publicar con una versión que decía `2.0.0`. Ahora la instancia se clona desde un tag
+  (`git clone --branch vX.Y.Z --origin framework`) conservando el historial, y el archivo nuevo
+  `FRAMEWORK_VERSION` (raíz, del núcleo) dice de qué release parte. Un test lo ata a la última
+  release del CHANGELOG.
+- **Reconectar una instancia que se creó sin el historial del framework.** `docs/UPGRADE.md` §3.1
+  explica cómo localizar el commit exacto del que se copió (comparando las rutas del núcleo con cada
+  commit del framework) y registrarlo como antecesor con `git merge --allow-unrelated-histories -s ours`,
+  sin tocar ningún archivo. Usar la release anterior como base no sirve si la copia salió de `main`
+  entre releases: en la prueba, partir de `v2.0.0` en vez del commit real dejó 32 conflictos, y el
+  commit exacto, ninguno.
+- **`docs/COMPATIBILITY.md` vuelve a coincidir con lo que se instala.** Decía zod `4.4.3` y vitest
+  `^4.1.11` cuando el paquete fija `4.6.7` y `^4.1.12`. `tests/unit/compatibility-matrix.test.ts`
+  compara ahora cada fila con `frontend/package.json` y cada plugin fijado con `setup.sh`.
 - **Coexistencia de `loyalty`, `memberships` y `shipping` (auditoría de las 8 combinaciones).**
   Envío gratis de socio: cuando WooCommerce reutiliza el pedido de un intento de checkout que
   falló, la reserva se devuelve si el envío gratis ya no aplica. Solo se gasta la unidad si el
@@ -582,5 +612,7 @@ están corregidos arriba.
 - Fase 6 — SEO + i18n (next-intl, sitemap, hreflang, JSON-LD).
 - Fase 7 — Pagos: capa de pasarelas agnóstica (provider-agnostic) + proveedor `noop`.
 
-[Sin publicar]: https://example.com/compare/v1.0.0...HEAD
+[Sin publicar]: https://example.com/compare/v2.1.0...HEAD
+[2.1.0]: https://example.com/compare/v2.0.0...v2.1.0
+[2.0.0]: https://example.com/compare/v1.0.0...v2.0.0
 [1.0.0]: https://example.com/releases/v1.0.0

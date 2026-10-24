@@ -1,6 +1,6 @@
 # Matriz de compatibilidad
 
-> Versiones con las que esta plantilla está construida y probada (**v2.0**). Mantener estas
+> Versiones con las que esta plantilla está construida y probada (**v2.1**). Mantener estas
 > versiones (o superiores dentro del mismo *major*, salvo que se indique) evita sorpresas.
 > Para subir un *major*, prueba en *staging* y revisa el `CHANGELOG`. Las versiones de los
 > paquetes npm salen de `frontend/package.json`; las de los plugins de WordPress, de
@@ -52,7 +52,7 @@ explícito (`docker compose pull`).
 | ioredis | `5.11.1` | Cliente Redis. |
 | otplib | `^13.4.1` | TOTP 2FA (API v13: `generateSecret`, `verify`). |
 | qrcode | `^1.5.4` | QR del alta de 2FA, generado en el servidor (ningún tercero ve el secreto). |
-| zod | `4.4.3` | Validación de entrada en el BFF (API top-level `z.email()`/`z.url()`). |
+| zod | `4.6.7` | Validación de entrada en el BFF (API top-level `z.email()`/`z.url()`). |
 | isomorphic-dompurify | `^3.23.0` | Saneado de HTML del CMS. |
 | pino | `^10.3.1` | Logging estructurado. |
 | @sentry/nextjs | `^10.76.2` | Captura de errores (opcional, vía `SENTRY_DSN`). |
@@ -61,7 +61,7 @@ explícito (`docker compose pull`).
 
 | Paquete | Versión |
 |---------|---------|
-| vitest / @vitest/coverage-v8 | `^4.1.11` |
+| vitest / @vitest/coverage-v8 | `^4.1.12` |
 | @playwright/test | `^1.64.0` |
 | @axe-core/playwright | `^4.13.0` |
 | @testing-library/react / jsdom | `^16.3.3` / `^30.1.2` |
@@ -94,7 +94,7 @@ Los **módulos del framework** (`hwe-banners`, `hwe-shipping`, `hwe-product-land
 `hwe-customer-identity`, `hwe-external-integration`, `hwe-loyalty`, `hwe-memberships`) son código propio versionado en este
 repositorio (`backend/wp-content/plugins/`): no se instalan, se activan (`modules` en
 `instance.config.json`). El contrato núcleo ↔ instancia es `HWE_CORE_CONTRACT_VERSION`
-(`2.0.0`, `mu-plugins/hwe-instance-loader.php`).
+(`2.1.0`, `mu-plugins/hwe-instance-loader.php`).
 
 > **Versiones fijadas para reproducibilidad.** `setup.sh` instala estas versiones
 > CONCRETAS (no «la última»), definidas como variables al inicio del script y

@@ -18,6 +18,7 @@
 - `.github/workflows/**`
 - `docs/**` (salvo notas propias de la instancia)
 - `frontend/tests/unit/**` (tests del núcleo)
+- `FRAMEWORK_VERSION` y `CHANGELOG.md` (la release del framework de la que parte la instancia)
 
 - `backend/wp-content/plugins/hwe-*` (los módulos del framework, salvo los `hwe-instance-*`)
 
@@ -60,6 +61,47 @@ git fetch framework --tags
    `verify-integration.sh` si usas `external-integration`), `node examples/minimal-consumer/index.mjs`
    y una prueba de humo manual (login, carrito, checkout). Despliega como cualquier otro
    cambio (`docs/DEPLOYMENT.md`).
+
+### 3.1 Instancia creada sin el historial del framework
+
+Hasta la v2.1.0, `docs/CREATE_INSTANCE.md` mandaba reiniciar el historial (`rm -rf .git && git
+init`). Una instancia así no comparte historia con el framework y el paso 3 falla con `refusing to
+merge unrelated histories`. Se reconecta **una sola vez**, declarando como ya fusionado el commit
+del framework del que se copió:
+
+1. Trae el framework: `git remote add framework <URL>` y `git fetch framework --tags`.
+2. Busca ese commit. Tiene que ser el **exacto**, no la release más cercana: si copiaste `main`
+   entre dos releases y usas el tag anterior como base, todo lo que se añadió después cuenta como
+   código tuyo y el merge siguiente sale con decenas de conflictos. El primer commit de la
+   instancia (la copia tal cual) se compara con cada commit del framework, por las rutas del
+   núcleo:
+
+   ```bash
+   ROOT=$(git rev-list --max-parents=0 HEAD)
+   for c in $(git rev-list --first-parent framework/main); do
+       n=$(git diff --numstat "$c" "$ROOT" -- backend frontend/src/lib frontend/src/app/api \
+           docker-compose.yml docker-compose.prod.yml | wc -l)
+       echo "$n $c"
+       [ "$n" -eq 0 ] && break
+   done | sort -n | head -1     # «0 <sha>»: la base exacta
+   ```
+
+   Si el mínimo no es 0, el primer commit ya traía cambios tuyos en el núcleo: usa el de menor
+   número y revisa a mano los archivos que difieren (`git diff --stat <sha> $ROOT`).
+3. En una rama, reconecta sin tocar ni un archivo (`-s ours` conserva tu árbol entero y solo
+   registra la base como antecesora):
+
+   ```bash
+   git checkout -b chore/reconectar-framework
+   git merge --allow-unrelated-histories -s ours -m "chore: reconectar con el framework (<sha>)" <sha>
+   git diff --quiet HEAD~1 HEAD && echo "árbol intacto"
+   ```
+
+4. Sigue el procedimiento normal desde el paso 3 (`git merge vX.Y.Z`). El merge trae
+   `FRAMEWORK_VERSION`, que a partir de ahí dice la release de la instancia.
+
+Al hacer push, el repositorio de la instancia recibe el historial del framework: es lo que
+permite los merges siguientes.
 
 ### Imágenes y plugins de una instancia ya desplegada
 

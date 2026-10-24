@@ -12,7 +12,7 @@
 El framework es **backend + arquitectura**; la UI y el dominio de cada tienda son de la
 instancia (`AGENTS.md §1.1`). El código de una instancia vive en rutas RESERVADAS que el
 framework nunca toca, y se engancha al núcleo por hooks estables, versionados por
-`HWE_CORE_CONTRACT_VERSION` (hoy `2.0.0`):
+`HWE_CORE_CONTRACT_VERSION` (hoy `2.1.0`):
 
 | Lado | Ruta de instancia | Qué va ahí |
 |---|---|---|
@@ -255,4 +255,4 @@ invierte la dependencia, como hace `BannerSlide` respecto a `HeroSlide`.
 - [ ] Cabecera `Version:` del plugin: es la versión **del componente**, no la del framework.
       Un componente nuevo arranca en `1.0.0` y sube cuando cambia su comportamiento; por eso
       conviven `1.0.0`, `2.0.0` y `2.1.0` en un mismo release. La del framework está en
-      `CHANGELOG.md` y `frontend/package.json`.
+      `FRAMEWORK_VERSION`, `CHANGELOG.md` y `frontend/package.json`.
