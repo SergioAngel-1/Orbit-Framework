@@ -72,6 +72,12 @@ se puede leer.
 
 No hace falta tocar WooCommerce → Ajustes → Envío: se sincroniza al guardar.
 
+Si **desactivas el módulo**, su zona de reserva se retira en ese mismo momento: sin el método
+`hwe_city_rate` seguiría cubriendo el país base y, si estuviera primero, dejaría sin tarifas a las
+zonas de después. Al reactivarlo se crea otra vez con el mismo nombre y coste, y tus demás zonas no
+se tocan. Si habías añadido métodos propios a la zona del módulo, se van con ella: para conservarlos,
+crea tu propia zona y ponles ahí el método «Tarifas por ciudad».
+
 ## Ciudades del modelo anterior
 
 Si la tienda tenía tarifas de una versión anterior, esas ciudades **no tienen envío** hasta que las

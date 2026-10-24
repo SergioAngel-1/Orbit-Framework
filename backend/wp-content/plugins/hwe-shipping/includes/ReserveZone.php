@@ -25,6 +25,10 @@ use HWE\Shipping\Rates\Pricing;
  * demás zonas de la tienda no se tocan. De esa zona quita los métodos `flat_rate` (el método que creaba
  * antes) y deja el de `hwe_city_rate`. El método lee nombre y coste en cada cálculo, así que no hace
  * falta escribir sus ajustes de WooCommerce.
+ *
+ * Al DESACTIVAR el plugin su zona se retira (`remove()`): sin el método del plugin seguiría cubriendo el
+ * país base y, si va primera, dejaría a las demás zonas sin tarifas. Al reactivar, `sync()` la vuelve a
+ * crear.
  */
 class ReserveZone {
 
@@ -92,6 +96,40 @@ class ReserveZone {
 			}
 		} catch ( \Throwable $e ) {
 			error_log( '[hwe] shipping: no se pudo sincronizar la zona de reserva: ' . $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Retira la zona de reserva al DESACTIVAR el plugin. Sin el método `hwe_city_rate` esa zona
+	 * seguiría cubriendo el país base y, si va primera, dejaría al resto de zonas sin tarifas:
+	 * WooCommerce elige la primera zona que coincide con el destino SIN mirar si tiene métodos.
+	 *
+	 * Solo borra la zona que el propio plugin guardó (`hwe_shipping_reserve_zone_id`); las demás no
+	 * se tocan. Un fallo se registra y no impide desactivar. Al reactivar, `sync()` la crea otra vez.
+	 */
+	public static function remove(): void {
+		if ( ! class_exists( 'WC_Shipping_Zone' ) ) {
+			return;
+		}
+
+		$id = (int) get_option( self::OPTION, 0 );
+		if ( $id <= 0 ) {
+			return;
+		}
+
+		try {
+			$zone = new \WC_Shipping_Zone( $id );
+			if ( (int) $zone->get_id() === $id ) {
+				$zone->delete( true );
+			}
+			delete_option( self::OPTION );
+
+			// Los carritos abiertos guardan las tarifas ya calculadas en la sesión.
+			if ( class_exists( '\WC_Cache_Helper' ) ) {
+				\WC_Cache_Helper::get_transient_version( 'shipping', true );
+			}
+		} catch ( \Throwable $e ) {
+			error_log( '[hwe] shipping: no se pudo retirar la zona de reserva al desactivar: ' . $e->getMessage() );
 		}
 	}
 
