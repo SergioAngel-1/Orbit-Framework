@@ -38,7 +38,10 @@
  * **Envío gratis.** El navegador solo declara «quiero usar un envío gratis» en el update
  * callback (`{free_delivery: bool}`); el valor se guarda en la sesión de WooCommerce y cualquier
  * otra clave o valor no booleano se ignora y se registra. Ningún importe ni decisión llega del
- * navegador. Con el módulo apagado no se registra la extensión ni se valida nada.
+ * navegador. La petición es del carrito, no de la cuenta: se olvida cuando el pedido ya se creó
+ * (y reservó lo suyo) y cuando el carrito se vacía, para que el siguiente carrito no herede un
+ * envío gratis que el cliente no ha pedido. Con el módulo apagado no se registra la extensión ni
+ * se valida nada.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -91,6 +94,12 @@ final class HWE_Memberships_StoreApi {
 		add_action( 'woocommerce_store_api_validate_add_to_cart', array( self::class, 'validateAddToCart' ), 10, 2 );
 		add_action( 'woocommerce_store_api_cart_errors', array( self::class, 'validateCart' ), 10, 2 );
 		add_action( 'woocommerce_store_api_checkout_update_order_from_request', array( self::class, 'validateOrderRequest' ), 10, 2 );
+
+		// La petición de envío gratis vive en la sesión del carrito: se olvida cuando el pedido
+		// ya se creó (y reservó lo suyo) y cuando el carrito se vacía, o el siguiente carrito
+		// heredaría un envío gratis que el cliente no ha pedido.
+		add_action( 'woocommerce_store_api_checkout_order_processed', array( self::class, 'forgetRequest' ), 20, 1 );
+		add_action( 'woocommerce_cart_emptied', array( self::class, 'forgetRequest' ), 20, 0 );
 	}
 
 	/** Declara `extensions.hwe-memberships` y el update callback del namespace. */
@@ -180,6 +189,20 @@ final class HWE_Memberships_StoreApi {
 		}
 
 		return (bool) $session->get( self::SESSION_FREE_DELIVERY, false );
+	}
+
+	/**
+	 * Olvida la petición de envío gratis de la sesión. La petición es del carrito y no de la
+	 * cuenta: el siguiente carrito no debe heredar un envío gratis que el cliente no pidió.
+	 * Se llama tras procesar el pedido (cuando ya reservó, si tocaba) y al vaciar el carrito.
+	 */
+	public static function forgetRequest(): void {
+		$session = self::session();
+		if ( null === $session ) {
+			return;
+		}
+
+		$session->set( self::SESSION_FREE_DELIVERY, false );
 	}
 
 	// ------------------------------------------------------------------------
