@@ -18,7 +18,7 @@ niveles** que paga sus comisiones en esos puntos. Es un módulo opcional del cat
 | `includes/Settings.php` | Clase `HWE_Loyalty_Settings`: puebla el grupo reservado `loyalty` del Control Center y expone la lectura saneada. |
 | `includes/Schema.php` | Tablas propias del módulo (`ledger`, `balances`, `consumptions`, `referrals`) con versión de esquema y migración perezosa. |
 | `includes/Ledger.php` | Libro mayor transaccional: abonos, cargos FIFO, devoluciones con su caducidad, caducidad por lotes y saldo. |
-| `includes/Api.php` | Punto de entrada estable para otros módulos: `hwe_loyalty_available()`, `hwe_loyalty_credit()` y `hwe_loyalty_reverse_credit()`. |
+| `includes/Api.php` | Punto de entrada estable para otros módulos: `hwe_loyalty_available()`, `hwe_loyalty_credit()`, `hwe_loyalty_reverse_credit()` y `hwe_loyalty_referrer_of()`. |
 | `includes/Scheduler.php` | Evento diario `hwe_loyalty_daily` (caducidad y cumpleaños), programado al activar y retirado al desactivar. |
 | `includes/Referrals.php` | Códigos, atribución pendiente → confirmada, red N1/N2 y primas de alta. |
 | `includes/Earnings.php`, `ProductBonus.php` | Cashback, comisiones, bono por producto, reversión y estado de las ganancias del pedido. |
@@ -330,7 +330,7 @@ Filtros:
 ### Funciones públicas (contrato para otros módulos)
 
 `includes/Api.php` publica el punto de entrada que usan otros módulos (por ejemplo, membresías)
-para abonar o revertir puntos sin conocer las clases internas. Las tres funciones existen **solo
+para abonar o revertir puntos sin conocer las clases internas. Las cuatro funciones existen **solo
 con el plugin cargado**: quien las consume comprueba `function_exists()` y, además, la función
 concreta con `hwe_loyalty_available()`.
 
@@ -339,6 +339,7 @@ concreta con `hwe_loyalty_available()`.
 | `hwe_loyalty_available` | `( string $feature ): bool` | `points` exige el módulo activo y «Puntos» encendido; `referrals`, además, «Referidos». Cualquier otro valor devuelve `false` (y se registra). |
 | `hwe_loyalty_credit` | `( int $userId, int $points, string $type, string $key, array $ref = [], array $data = [] ): ?int` | Abona por el libro, con la caducidad configurada y la idempotencia por `$key`. Devuelve el id del movimiento o `null` sin escribir si los puntos están apagados, el usuario no participa, el tipo no está declarado como abono o la clave ya existía. `$ref` es la referencia tipada habitual; `$data`, la nota estructurada (sin textos de cliente). |
 | `hwe_loyalty_reverse_credit` | `( string $key, string $reversalKey ): ?int` | Revierte el abono `$key` con un cargo `earn_reversal` limitado al saldo actual (nunca deja el saldo negativo) e idempotente por `$reversalKey` (el cargo se guarda como `reversal:<reversalKey>`). Devuelve el id del cargo o `null` si la clave original no existe o no es un abono, si no queda saldo o si esa reversión ya se aplicó. |
+| `hwe_loyalty_referrer_of` | `( int $userId ): ?int` | Referidor N1 **confirmado** del usuario. Devuelve `null` si no hay atribución, si sigue `pending`, si el referidor ya no existe o si el plugin no está cargado. Es la lectura que deben usar los módulos que pagan por la red: una atribución pendiente no genera comisión. Solo viaja el id numérico, nunca nombre, email ni login. No exige que «Puntos» o «Referidos» estén encendidos; el consumidor decide su propia disponibilidad con `hwe_loyalty_available()`. |
 
 El tipo de movimiento propio se declara antes con `hwe_loyalty_entry_types`; sin declararlo,
 `hwe_loyalty_credit()` falla cerrado y no escribe. Revertir no exige que «Puntos» siga

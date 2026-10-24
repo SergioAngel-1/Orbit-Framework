@@ -10,8 +10,10 @@
  *
  * El nivel que cuenta es el del referidor **en el momento de cobrarse el pedido**: el filtro se
  * ejecuta dentro del procesamiento de ganancias de `loyalty`, así que se lee su estado actual.
- * El referidor se recuerda al confirmarse la atribución (`_hwe_membership_referrer`), porque
- * `loyalty` no publica la lectura de la atribución.
+ * El referidor también se resuelve en ese momento con `HWE_Memberships_LoyaltyBridge::referrerOf()`
+ * (contrato `hwe_loyalty_referrer_of()`): solo cuenta una atribución **confirmada**, y si
+ * `loyalty` la reasigna, la anonimiza o la desvincula después, la comisión extra sigue la
+ * atribución vigente.
  *
  * Sin referidor, con el beneficio apagado, con el nivel sin configurar o con el referidor
  * congelado, el array de ganancias sale intacto. El redondeo es el de `loyalty`: hacia abajo.

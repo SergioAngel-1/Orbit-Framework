@@ -16,13 +16,15 @@
  *
  * Cuándo se concede (`referral_gift_requires_email_verification`, §10.1):
  *  · encendida (por defecto): al verificar el correo (`hwe_email_verified`), con atribución
- *    recordada. Una cuenta que nunca verificó —incluidas las creadas en wp-admin, que `loyalty`
+ *    confirmada. Una cuenta que nunca verificó —incluidas las creadas en wp-admin, que `loyalty`
  *    da por confirmadas— no lo recibe;
  *  · apagada: al confirmarse la atribución (`hwe_loyalty_attribution_confirmed`).
  *
- * La atribución se recuerda en `_hwe_membership_referrer` porque `loyalty` no publica su
- * lectura. Una sola concesión por referido (clave `gift:<referido>`), sin puntos por activación
- * y sin regalo retroactivo si el módulo estaba apagado. Si el referido ya tiene ese nivel o uno
+ * El referidor se lee del contrato de `loyalty` (`hwe_loyalty_referrer_of()`, solo atribuciones
+ * confirmadas) en el momento de conceder; ya no se cachea en la meta `_hwe_membership_referrer`.
+ * Que el regalo ya se haya dado lo garantiza la clave idempotente `gift:<referido>` de la
+ * concesión, no una meta. Una sola concesión por referido, sin puntos por activación y sin
+ * regalo retroactivo si el módulo estaba apagado. Si el referido ya tiene ese nivel o uno
  * superior, la concesión se encola sola con la línea de tiempo. Al alcanzar el tope, el referido
  * se registra con normalidad y queda constancia en el historial del referidor.
  */
@@ -109,8 +111,9 @@ final class HWE_Memberships_Benefit_Referral_Gift extends HWE_Memberships_Benefi
 	}
 
 	/**
-	 * Atribución confirmada por `loyalty`: recuerda el referidor y, con la verificación apagada,
-	 * concede el regalo en ese mismo momento.
+	 * Atribución confirmada por `loyalty`: con la verificación apagada, concede el regalo en ese
+	 * mismo momento. El referidor llega en la acción (ya confirmado); no se guarda en ninguna
+	 * meta.
 	 */
 	public function onAttributionConfirmed( int $userId, ?int $referrerId = null ): void {
 		if ( $userId <= 0 || ! class_exists( 'HWE_Memberships_LoyaltyBridge' ) ) {
@@ -119,16 +122,6 @@ final class HWE_Memberships_Benefit_Referral_Gift extends HWE_Memberships_Benefi
 
 		$referrerId = (int) ( $referrerId ?? 0 );
 		if ( $referrerId <= 0 || $referrerId === $userId ) {
-			if ( function_exists( 'delete_user_meta' ) ) {
-				delete_user_meta( $userId, HWE_Memberships_LoyaltyBridge::REFERRER_META );
-			}
-			return;
-		}
-
-		if ( function_exists( 'update_user_meta' ) ) {
-			update_user_meta( $userId, HWE_Memberships_LoyaltyBridge::REFERRER_META, $referrerId );
-		} else {
-			self::log( 'no se pudo recordar el referidor del usuario ' . $userId . ': falta update_user_meta().' );
 			return;
 		}
 

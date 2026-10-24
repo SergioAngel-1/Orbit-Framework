@@ -240,9 +240,11 @@ constancia de su propio ciclo, que escuchan solo hooks `hwe_membership_*`).
   `HWE_Memberships_Events::CONTEXT_DAILY` y no vuelve a intentarlo.
 - **Comisión extra de referidos.** Se añade al filtro `hwe_loyalty_order_earnings` como abono del
   tipo `membership_referral_bonus`, declarado con `hwe_loyalty_entry_types`. Cuenta el nivel del
-  referidor **al cobrarse el pedido**; sin referidor o sin beneficio, el array sale intacto. Lee
-  el referidor de `_hwe_membership_referrer`, que se guarda cuando `loyalty` confirma la
-  atribución (`hwe_loyalty_attribution_confirmed`); no se reconstruye hacia atrás.
+  referidor **al cobrarse el pedido**; sin referidor o sin beneficio, el array sale intacto. El
+  referidor se resuelve en ese mismo momento con `hwe_loyalty_referrer_of()`, el contrato de
+  `loyalty`: **solo cuenta una atribución confirmada**. Si `loyalty` reasigna el referidor, lo
+  anonimiza o desvincula la red, la comisión extra sigue la atribución vigente en el siguiente
+  pedido; membresías no guarda una copia en metas de usuario. No se reconstruye hacia atrás.
 - **Regalo al referido.** Lo recibe el referido, no el referidor. El cupo es de la concesión
   activa del referidor (`grants.referral_gifts`) y siempre hay tope. Al agotarse, el referido se
   registra con normalidad y queda `referral_gift_limit_reached` en el historial del referidor.
@@ -342,8 +344,9 @@ historial. Siempre ids numéricos, nunca datos personales:
 | `hwe_memberships_collected_on_completion` | `( string[] $methods ): string[]` | Medios que esperan a `completed` (defecto `cod`). |
 
 **Consume:** `hwe_email_verified`, `hwe_loyalty_attribution_confirmed`,
-`hwe_loyalty_entry_types`, `hwe_loyalty_order_earnings`, `hwe_shipping_free_reason`,
-`hwe_control_center_schema`, `hwe_translatable_fields` y `hwe_revalidation_tags`.
+`hwe_loyalty_entry_types`, `hwe_loyalty_order_earnings`, `hwe_loyalty_referrer_of`,
+`hwe_shipping_free_reason`, `hwe_control_center_schema`, `hwe_translatable_fields` y
+`hwe_revalidation_tags`.
 
 ## Límites y comportamientos que conviene conocer
 

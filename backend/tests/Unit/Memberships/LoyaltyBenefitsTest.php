@@ -43,6 +43,7 @@ require_once HWE_WP_CONTENT_DIR . '/plugins/hwe-loyalty/includes/Earnings.php';
 final class LoyaltyBenefitsTest extends TestCase
 {
     private const REFERRER = 20;
+    private const REFERRER2 = 26;
     private const REFEREE  = 21;
     private const REFEREE2 = 22;
     private const BUYER    = 23;
@@ -98,6 +99,7 @@ final class LoyaltyBenefitsTest extends TestCase
             'loaded'       => true,
             'points'       => true,
             'referrals'    => true,
+            'referrers'    => [],
             'credit_calls' => [],
             'credits'      => [],
             'reverse_calls' => [],
@@ -108,7 +110,7 @@ final class LoyaltyBenefitsTest extends TestCase
         $GLOBALS['wpdb'] = $this->wpdb;
 
         $this->users = [];
-        foreach ([self::REFERRER, self::REFEREE, self::REFEREE2, self::BUYER, self::VISITOR, self::ADMIN] as $id) {
+        foreach ([self::REFERRER, self::REFERRER2, self::REFEREE, self::REFEREE2, self::BUYER, self::VISITOR, self::ADMIN] as $id) {
             $this->users[$id] = (object) [
                 'ID'              => $id,
                 'roles'           => ['customer'],
@@ -455,7 +457,7 @@ final class LoyaltyBenefitsTest extends TestCase
         );
         $this->seedActiveGrant(self::REFERRER, self::LEVEL_BASIC, 'referrer:active');
         $this->bootBenefits();
-        $this->userMeta[self::BUYER][\HWE_Memberships_LoyaltyBridge::REFERRER_META] = self::REFERRER;
+        $GLOBALS['hwe_test_loyalty']['referrers'][self::BUYER] = self::REFERRER;
 
         $first = \apply_filters(
             'hwe_loyalty_order_earnings',
@@ -506,7 +508,7 @@ final class LoyaltyBenefitsTest extends TestCase
         );
         $this->seedActiveGrant(self::REFERRER, self::LEVEL_BASIC, 'referrer:active');
         $this->bootBenefits();
-        $this->userMeta[self::BUYER][\HWE_Memberships_LoyaltyBridge::REFERRER_META] = self::REFERRER;
+        $GLOBALS['hwe_test_loyalty']['referrers'][self::BUYER] = self::REFERRER;
 
         $types = \HWE_Loyalty_EntryTypes::all();
         $this->assertSame('credit', $types['membership_activation'] ?? null);
@@ -543,7 +545,7 @@ final class LoyaltyBenefitsTest extends TestCase
         );
         $this->seedActiveGrant(self::REFERRER, self::LEVEL_BASIC, 'referrer:active');
         $this->bootBenefits();
-        $this->userMeta[self::BUYER][\HWE_Memberships_LoyaltyBridge::REFERRER_META] = self::REFERRER;
+        $GLOBALS['hwe_test_loyalty']['referrers'][self::BUYER] = self::REFERRER;
 
         $original = [[
             'user_id' => self::BUYER,
@@ -570,6 +572,93 @@ final class LoyaltyBenefitsTest extends TestCase
         );
     }
 
+    public function testTheExtraCommissionFollowsTheReferrerReassignedAfterConfirmation(): void
+    {
+        $this->makeLevel(
+            self::LEVEL_BASIC,
+            5,
+            ['referral_bonus' => ['enabled' => true, 'percent' => 2]]
+        );
+        $this->makeLevel(
+            self::LEVEL_HIGH,
+            10,
+            ['referral_bonus' => ['enabled' => true, 'percent' => 5]]
+        );
+        $this->seedActiveGrant(self::REFERRER, self::LEVEL_BASIC, 'referrer:active');
+        $this->seedActiveGrant(self::REFERRER2, self::LEVEL_HIGH, 'referrer:other');
+        $this->bootBenefits();
+        \do_action('hwe_loyalty_attribution_confirmed', self::BUYER, self::REFERRER);
+
+        $first = \apply_filters(
+            'hwe_loyalty_order_earnings',
+            [],
+            $this->order(55, self::BUYER),
+            100.0,
+            []
+        );
+
+        $this->assertCount(1, $first);
+        $this->assertSame(self::REFERRER, $first[0]['user_id']);
+        $this->assertSame(2, $first[0]['points']);
+
+        // `loyalty` reasigna la atribución ya confirmada: el siguiente cálculo usa al nuevo y
+        // su nivel, sin que quede una copia vieja en la meta.
+        $GLOBALS['hwe_test_loyalty']['referrers'][self::BUYER] = self::REFERRER2;
+
+        $second = \apply_filters(
+            'hwe_loyalty_order_earnings',
+            [],
+            $this->order(56, self::BUYER),
+            100.0,
+            []
+        );
+
+        $this->assertCount(1, $second);
+        $this->assertSame(self::REFERRER2, $second[0]['user_id'], 'La comisión extra va al referidor vigente.');
+        $this->assertSame(5, $second[0]['points'], 'Cuenta el nivel del nuevo referidor.');
+        $this->assertSame(self::LEVEL_HIGH, $second[0]['data']['level_id']);
+        $this->assertArrayNotHasKey(
+            \HWE_Memberships_LoyaltyBridge::REFERRER_META,
+            $this->userMeta[self::BUYER] ?? []
+        );
+    }
+
+    public function testAnAnonymizedOrUnlinkedAttributionPaysNoExtraCommission(): void
+    {
+        $this->makeLevel(
+            self::LEVEL_BASIC,
+            5,
+            ['referral_bonus' => ['enabled' => true, 'percent' => 2]]
+        );
+        $this->seedActiveGrant(self::REFERRER, self::LEVEL_BASIC, 'referrer:active');
+        $this->bootBenefits();
+        $GLOBALS['hwe_test_loyalty']['referrers'][self::BUYER] = self::REFERRER;
+
+        $this->assertCount(
+            1,
+            \apply_filters('hwe_loyalty_order_earnings', [], $this->order(55, self::BUYER), 100.0, [])
+        );
+
+        // El eliminador de `loyalty` anonimiza o desvincula la atribución: deja de haber referidor.
+        unset($GLOBALS['hwe_test_loyalty']['referrers'][self::BUYER]);
+
+        $this->assertSame(
+            [],
+            \apply_filters('hwe_loyalty_order_earnings', [], $this->order(56, self::BUYER), 100.0, []),
+            'Sin atribución confirmada no se paga comisión extra.'
+        );
+    }
+
+    public function testWithoutLoyaltyLoadedTheReferrerIsEmptyAndNothingIsLogged(): void
+    {
+        $GLOBALS['hwe_test_loyalty']['loaded'] = false;
+        $GLOBALS['hwe_test_loyalty']['referrers'][self::BUYER] = self::REFERRER;
+
+        $this->assertSame(0, \HWE_Memberships_LoyaltyBridge::referrerOf(self::BUYER));
+        $this->assertSame(0, \HWE_Memberships_LoyaltyBridge::referrerOf(0));
+        $this->assertSame([], $this->logged, 'La ausencia de loyalty no genera errores.');
+    }
+
     // ------------------------------------------------------------------------
     //  Regalo al referido (§7.5)
     // ------------------------------------------------------------------------
@@ -579,11 +668,17 @@ final class LoyaltyBenefitsTest extends TestCase
         $this->configureGift();
         $this->bootBenefits();
 
-        // La atribución llega sin verificación: se recuerda el referidor, pero no hay regalo.
+        // La atribución llega sin verificación: el referidor confirmado ya se lee del contrato,
+        // pero no hay regalo.
         \do_action('hwe_loyalty_attribution_confirmed', self::REFEREE, self::REFERRER);
         $this->assertSame(
             self::REFERRER,
-            (int) $this->userMeta[self::REFEREE][\HWE_Memberships_LoyaltyBridge::REFERRER_META]
+            (int) $GLOBALS['hwe_test_loyalty']['referrers'][self::REFEREE]
+        );
+        $this->assertArrayNotHasKey(
+            \HWE_Memberships_LoyaltyBridge::REFERRER_META,
+            $this->userMeta[self::REFEREE] ?? [],
+            'El referidor ya no se cachea en una meta.'
         );
         $this->assertNull($this->wpdb->grantByKey('gift:' . self::REFEREE));
 
@@ -827,6 +922,18 @@ final class LoyaltyBenefitsTest extends TestCase
 
             return (bool) ($state[$feature] ?? false);
         });
+        // Lectura del referidor confirmado: el estado simula la fila de `loyalty` y cambia cuando
+        // el test reasigna, anonimiza o desvincula la atribución.
+        Functions\when('hwe_loyalty_referrer_of')->alias(function (int $userId): ?int {
+            $state = $GLOBALS['hwe_test_loyalty'];
+            if (empty($state['loaded'])) {
+                return null;
+            }
+
+            $referrer = (int) ($state['referrers'][$userId] ?? 0);
+
+            return $referrer > 0 ? $referrer : null;
+        });
         Functions\when('hwe_loyalty_credit')->alias(function (
             int $userId,
             int $points,
@@ -892,6 +999,20 @@ final class LoyaltyBenefitsTest extends TestCase
             return $value;
         });
         Functions\when('do_action')->alias(function (string $hook, mixed ...$args): void {
+            // `loyalty` escribe la fila de la atribución antes de disparar la acción; el doble
+            // refleja ese estado para que las lecturas posteriores del contrato lo vean.
+            if ('hwe_loyalty_attribution_confirmed' === $hook) {
+                $referee  = (int) ($args[0] ?? 0);
+                $referrer = (int) ($args[1] ?? 0);
+                if ($referee > 0) {
+                    if ($referrer > 0) {
+                        $GLOBALS['hwe_test_loyalty']['referrers'][$referee] = $referrer;
+                    } else {
+                        unset($GLOBALS['hwe_test_loyalty']['referrers'][$referee]);
+                    }
+                }
+            }
+
             foreach ($this->callbacks($hook, 'action') as $entry) {
                 ($entry['callback'])(...array_slice($args, 0, $entry['accepted']));
             }
