@@ -34,7 +34,8 @@
  * **Topes.** `history`: `per_page` por defecto 20 y máximo 100, `page` ≥ 1. `prices`: 50 ids
  * únicos como máximo (más ⇒ 400) y los valores no numéricos se descartan. `product`: la ficha de
  * un producto variable publica como mucho 50 variaciones. `prices` cotiza con `priceFor()`: un id
- * que no corresponde a un producto devuelve la cotización a cero (no es un error), porque la
+ * que no corresponde a un producto publicado (inexistente, borrador, privado o pendiente) devuelve
+ * la cotización a cero (no es un error), porque la
  * lista de ids llega del propio catálogo del BFF.
  *
  * Contrato interno (lo consume el BFF, Tarea 18):
@@ -868,7 +869,11 @@ final class HWE_Memberships_ReadRoutes {
 		$out = array();
 
 		foreach ( $ids as $productId ) {
-			$quote = HWE_Memberships_Pricing::priceFor( $userId, $productId );
+			// Solo lo publicado: la ruta es de cualquier cliente con sesión y no puede cotizar un
+			// borrador, un producto privado o pendiente (se cotiza a cero, como un id ajeno).
+			$quote = self::isPublishedProduct( $productId )
+				? HWE_Memberships_Pricing::priceFor( $userId, $productId )
+				: array();
 
 			$out[] = array(
 				'id'           => $productId,

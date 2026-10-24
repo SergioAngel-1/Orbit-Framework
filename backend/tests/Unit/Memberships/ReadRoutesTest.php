@@ -1153,6 +1153,28 @@ final class ReadRoutesTest extends TestCase
         );
     }
 
+    /**
+     * `prices` es de cualquier cliente con sesión: no puede cotizar lo que el catálogo público no
+     * muestra. Un borrador, un producto privado o pendiente se cotiza a cero, igual que un id que
+     * no es un producto (si no, bastaba recorrer ids para ver los precios de lo no publicado).
+     */
+    public function testPricesDoesNotRevealThePriceOfAnUnpublishedProduct(): void
+    {
+        $this->makeProduct(701, 'simple', 'draft', 'borrador', ['price' => '30', 'regular_price' => '30']);
+        $this->makeProduct(702, 'simple', 'private', 'privado', ['price' => '40', 'regular_price' => '40']);
+
+        $response = \HWE_Memberships_ReadRoutes::handlePrices(
+            new \WP_REST_Request(['user_id' => self::USER, 'ids' => '701,702,' . self::PRODUCT_PUBLIC])
+        );
+
+        $this->assertSame(200, $response->get_status());
+        $items = $response->get_data()['items'];
+        $zero  = ['regular' => '0.00', 'price' => '0.00', 'member_price' => '0.00', 'percent' => 0];
+        $this->assertSame(['id' => 701] + $zero, $items[0], 'Un borrador no se cotiza.');
+        $this->assertSame(['id' => 702] + $zero, $items[1], 'Un producto privado no se cotiza.');
+        $this->assertSame('12.00', $items[2]['price'], 'El publicado sigue cotizándose.');
+    }
+
     public function testPricesAcceptsARepeatedParameterAndRejectsMoreThanFiftyIds(): void
     {
         $repeated = \HWE_Memberships_ReadRoutes::handlePrices(
