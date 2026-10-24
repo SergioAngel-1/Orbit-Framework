@@ -205,7 +205,8 @@ y producto lleva `translations` (idioma → `{ name, slug }`) de `hwe-content-i1
 
 Los métodos NO son alternativas de entrega. Son extras que el cliente marca en el checkout y que el
 BFF suma al pedido como una línea de cargo (`fee_line`) tras crearlo (`POST /api/store/checkout`).
-El importe se lee fresco (`no-store`) en ese momento.
+El importe se lee fresco (`no-store`) en ese momento. Como se suman después, un carrito en total 0 (puntos, cupón del 100 %,
+descuento de socio) no admite extras: el checkout responde **422** antes de crear el pedido.
 
 ## Zona de reserva
 
