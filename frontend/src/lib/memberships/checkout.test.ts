@@ -31,8 +31,20 @@ describe("membershipCheckoutError", () => {
     const translated = membershipCheckoutError(`hwe_${reason}`);
 
     expect(translated?.reason).toBe(reason);
-    expect(membershipCheckoutMessage(reason).length).toBeGreaterThan(0);
+    expect(membershipCheckoutMessage(reason, "es").length).toBeGreaterThan(0);
     expect(MEMBERSHIP_CHECKOUT_REASONS).toContain(reason);
+  });
+
+  it.each(CODES)("compone el texto de %s con messages/ en cada idioma", (reason) => {
+    const es = membershipCheckoutMessage(reason, "es");
+    const en = membershipCheckoutMessage(reason, "en");
+
+    expect(es.length).toBeGreaterThan(0);
+    expect(en.length).toBeGreaterThan(0);
+    expect(en).not.toBe(es);
+    // Un idioma sin catálogo cae al español, como el resto de textos del BFF.
+    expect(membershipCheckoutMessage(reason, "fr")).toBe(es);
+    expect(membershipCheckoutMessage(reason, "en-US")).toBe(en);
   });
 
   it("un código ajeno o vacío no se traduce", () => {

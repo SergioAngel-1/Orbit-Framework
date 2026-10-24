@@ -5,9 +5,13 @@
 //  nivel cambia con el carrito ya lleno (caduca, se congela, se retira) o
 //  cuando la línea de membresía no se puede comprar. El BFF los traduce a un
 //  409 con un `reason` estable —el código sin el prefijo `hwe_`— y los datos
-//  que la UI necesita para explicar qué pasó. Los textos se componen aquí:
+//  que la UI necesita para explicar qué pasó. Los textos se componen aquí con
+//  `messages/` (`memberships.checkout`) en el idioma de la petición:
 //  WordPress no devuelve frases para el cliente.
 // ============================================================================
+
+import es from "@/i18n/messages/es.json";
+import en from "@/i18n/messages/en.json";
 
 /** Motivos estables que el checkout devuelve con 409. */
 export const MEMBERSHIP_CHECKOUT_REASONS = [
@@ -61,24 +65,6 @@ export interface MembershipCheckoutError {
   reason: MembershipCheckoutErrorReason;
   details: MembershipCheckoutErrorDetails;
 }
-
-const MESSAGES: Readonly<Record<MembershipCheckoutErrorReason, string>> = {
-  membership_required:
-    "Este producto requiere una membresía activa. Revisa tu membresía e inténtalo de nuevo.",
-  membership_early_access:
-    "Este producto todavía no está disponible para tu membresía. Revisa la fecha de apertura e inténtalo de nuevo.",
-  membership_free_delivery_unavailable:
-    "No queda ningún envío gratis disponible en tu membresía. Revisa el carrito e inténtalo de nuevo.",
-  membership_login_required: "Inicia sesión para comprar una membresía.",
-  membership_one_per_cart:
-    "Solo puedes llevar una membresía por compra, con cantidad 1.",
-  membership_not_purchasable: "Ese nivel de membresía no está disponible para comprar.",
-  membership_account_too_new:
-    "Tu cuenta todavía no cumple la antigüedad mínima para comprar este nivel.",
-  membership_account_pending: "Tu cuenta está pendiente de aprobación.",
-  membership_already_indefinite:
-    "Ya tienes ese nivel de membresía, o uno superior, sin caducidad.",
-};
 
 const NUMBER_FIELDS = [
   "days_left",
@@ -155,9 +141,17 @@ export function membershipCheckoutError(
   return { reason, details: pickDetails(data) };
 }
 
-/** Texto del 409 para el cliente, a partir del motivo estable. */
+const CATALOGS = { es, en } as const;
+
+/**
+ * Texto del 409 para el cliente, a partir del motivo estable y del idioma de la
+ * petición (cualquier idioma sin catálogo cae al español, como el resto de
+ * textos del BFF).
+ */
 export function membershipCheckoutMessage(
   reason: MembershipCheckoutErrorReason,
+  locale: string,
 ): string {
-  return MESSAGES[reason];
+  const catalog = locale.toLowerCase().startsWith("en") ? CATALOGS.en : CATALOGS.es;
+  return catalog.memberships.checkout[reason];
 }

@@ -1047,6 +1047,20 @@ describe("errores del módulo memberships al crear el pedido", () => {
     expect(errorEvents()).toContain("checkout.membership_error");
   });
 
+  it("compone el texto del 409 en el idioma de la petición", async () => {
+    checkoutFails("hwe_membership_required");
+
+    const en = await POST(checkout("hwe_offline", {}, { "X-HWE-Locale": "en" }));
+    const es = await POST(checkout("hwe_offline", {}, { "X-HWE-Locale": "es" }));
+
+    const enBody = await en.json();
+    const esBody = await es.json();
+    expect(enBody.reason).toBe("membership_required");
+    expect(enBody.error).toMatch(/membership/i);
+    expect(esBody.error).toMatch(/membresía/i);
+    expect(enBody.error).not.toBe(esBody.error);
+  });
+
   it("conserva las fechas y el nivel que explican el bloqueo", async () => {
     checkoutFails("hwe_membership_early_access", {
       level_slug: "nivel-a",

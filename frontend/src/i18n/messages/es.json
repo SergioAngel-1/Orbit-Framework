@@ -708,6 +708,17 @@
       "account_pending": "Tu cuenta todavía está pendiente de verificación.",
       "already_indefinite": "Ya tienes una membresía indefinida que cubre este nivel.",
       "unknown": "No puedes comprar este nivel ahora mismo."
+    },
+    "checkout": {
+      "membership_required": "Este producto requiere una membresía activa. Revisa tu membresía e inténtalo de nuevo.",
+      "membership_early_access": "Este producto todavía no está disponible para tu membresía. Revisa la fecha de apertura e inténtalo de nuevo.",
+      "membership_free_delivery_unavailable": "No queda ningún envío gratis disponible en tu membresía. Revisa el carrito e inténtalo de nuevo.",
+      "membership_login_required": "Inicia sesión para comprar una membresía.",
+      "membership_one_per_cart": "Solo puedes llevar una membresía por compra, con cantidad 1.",
+      "membership_not_purchasable": "Ese nivel de membresía no está disponible para comprar.",
+      "membership_account_too_new": "Tu cuenta todavía no cumple la antigüedad mínima para comprar este nivel.",
+      "membership_account_pending": "Tu cuenta está pendiente de aprobación.",
+      "membership_already_indefinite": "Ya tienes ese nivel de membresía, o uno superior, sin caducidad."
     }
   },
   "llms": {

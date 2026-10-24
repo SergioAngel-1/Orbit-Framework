@@ -611,7 +611,10 @@ export async function POST(request: Request) {
         );
         return NextResponse.json(
           {
-            error: membershipCheckoutMessage(membership.reason),
+            error: membershipCheckoutMessage(
+              membership.reason,
+              requestLocale(request.headers),
+            ),
             reason: membership.reason,
             ...membership.details,
           },

@@ -708,6 +708,17 @@
       "account_pending": "Your account is still pending verification.",
       "already_indefinite": "You already have an unlimited membership that covers this level.",
       "unknown": "You cannot buy this level right now."
+    },
+    "checkout": {
+      "membership_required": "This product requires an active membership. Check your membership and try again.",
+      "membership_early_access": "This product is not yet available for your membership. Check the opening date and try again.",
+      "membership_free_delivery_unavailable": "No free delivery is left on your membership. Review your cart and try again.",
+      "membership_login_required": "Sign in to buy a membership.",
+      "membership_one_per_cart": "You can only buy one membership per order, with a quantity of 1.",
+      "membership_not_purchasable": "That membership level is not available for purchase.",
+      "membership_account_too_new": "Your account does not yet meet the minimum age to buy this level.",
+      "membership_account_pending": "Your account is pending approval.",
+      "membership_already_indefinite": "You already have that membership level, or a higher one, with no expiry."
     }
   },
   "llms": {

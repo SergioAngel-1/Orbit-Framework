@@ -694,7 +694,9 @@ el módulo) el checkout responde **409** y **no crea el pedido**. Los `reason` e
 `membership_account_too_new`, `membership_account_pending` y `membership_already_indefinite`. Los
 detalles de la lista blanca son `days_left`, `min_account_age_days`, `account_age_days`,
 `level_id`, `current_level_id`, `min_rank`, `level_slug`, `level_name`, `opens_at`, `product_id`,
-`item_id`, `key` y `lines`. Los textos están en `messages.memberships.purchase`.
+`item_id`, `key` y `lines`. El campo `error` del 409 es un texto de respaldo compuesto con
+`messages.memberships.checkout` en el idioma de la petición (`X-HWE-Locale`); la UI debe decidir por
+`reason` y componer sus frases como prefiera (`messages.memberships.purchase` tiene las de la ficha).
 
 **Carné y verificación.** El token dura `card_token_ttl_hours` (24 por defecto) y el BFF devuelve
 la URL absoluta del QR; el frontend solo tiene que pintar el QR y enlazar la verificación. La
