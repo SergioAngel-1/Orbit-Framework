@@ -498,7 +498,8 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   `_hwe_loyalty_paid_with_points`, escrita contra el libro; nunca el navegador.
 - **`memberships`** (niveles y ventajas, catálogo exclusivo y carné): el plugin
   `hwe-memberships` recorta el producto bloqueado **en WordPress** (GraphQL por lista blanca,
-  Store API y `wc/v3` del BFF); el frontend solo pide `hweMembership` cuando
+  Store API —también por slug—, `wc/v3` del BFF y `wp/v2/product`; con requisitos en el catálogo la
+  búsqueda compara solo el nombre); el frontend solo pide `hweMembership` cuando
   `config.modules.memberships` está encendido (`membershipsCatalogEnabled()`), porque el campo no
   existe en el esquema apagado. El BFF expone `/api/memberships/{levels,me,history,prices,
   products/[slug],card,verify/[token]}` y `POST|DELETE /api/store/cart/free-delivery`; todos con
