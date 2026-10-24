@@ -623,8 +623,13 @@ final class HWE_Memberships_Teaser {
 
 	/** ¿La ruta es de la Store API de producto o carrito? */
 	private static function isStoreRoute( string $route ): bool {
+		// El listado, la ficha por id y la ficha por slug. Las rutas de términos, reseñas y
+		// agregados cuelgan del mismo prefijo, pero sus `id` no son de producto.
 		return self::isCartRoute( $route )
-			|| 1 === preg_match( '#^/wc/store/v1/products(?:/\d+)?/?$#', $route );
+			|| 1 === preg_match(
+				'#^/wc/store/v1/products(?:/(?!(?:attributes|categories|tags|brands|reviews|collection-data)(?:/|$))[^/]+)?/?$#',
+				$route
+			);
 	}
 
 	private static function isCartRoute( string $route ): bool {

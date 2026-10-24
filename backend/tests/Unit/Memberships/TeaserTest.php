@@ -373,6 +373,26 @@ final class TeaserTest extends TestCase
         );
     }
 
+    /**
+     * La Store API también sirve el producto por slug (`/products/<slug>`, ruta de WooCommerce):
+     * si el recorte solo reconociera ids, bastaría pedirlo por su slug para saltárselo. Las rutas
+     * de términos y de reseñas comparten el prefijo y NO son productos (sus `id` son de término).
+     */
+    public function testTheRestResponseFilterAlsoTrimsAProductRequestedBySlug(): void
+    {
+        $bySlug = new \WP_REST_Response($this->storeProduct(self::PRODUCT));
+        \HWE_Memberships_Teaser::filterRestResponse($bySlug, [], new \WP_REST_Request([], [], '/wc/store/v1/products/producto-501'));
+        $this->assertArrayNotHasKey('description', $bySlug->get_data());
+        $this->assertTrue($bySlug->get_data()['locked']);
+
+        foreach (['categories', 'attributes', 'tags', 'brands', 'reviews', 'collection-data'] as $segment) {
+            $terms = new \WP_REST_Response([['id' => self::PRODUCT, 'name' => 'Término', 'slug' => 't', 'description' => 'Pública']]);
+            \HWE_Memberships_Teaser::filterRestResponse($terms, [], new \WP_REST_Request([], [], '/wc/store/v1/products/' . $segment));
+            $this->assertSame('Pública', $terms->get_data()[0]['description'], $segment . ' no es un producto: no se recorta.');
+            $this->assertArrayNotHasKey('locked', $terms->get_data()[0]);
+        }
+    }
+
     public function testAnOpeningDateTravelsInTheRestPayload(): void
     {
         $future = gmdate('Y-m-d H:i:s', time() + 86400);
