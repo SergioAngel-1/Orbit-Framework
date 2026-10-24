@@ -235,10 +235,14 @@ constancia de su propio ciclo, que escuchan solo hooks `hwe_membership_*`).
 - **Puntos por activación.** Se abonan una sola vez por línea, con clave
   `membership:order:<pedido>:item:<línea>`. No abonan regalos, asignaciones de administrador ni
   lotes. Revocar la concesión revierte el abono con `hwe_loyalty_reverse_credit()`, limitado al
-  saldo e idempotente. Si «Puntos» está apagado en el cobro, no se abona, no se reintenta y queda
-  `points_skipped` en el historial más un `error_log`. Una compra aplazada se abona (u omite) al
-  cobrarse, aunque su concesión se active más tarde: la activación de la tarea diaria llega con
-  `HWE_Memberships_Events::CONTEXT_DAILY` y no vuelve a intentarlo.
+  saldo e idempotente. Si `loyalty` no está cargado cuando llega la revocación, la reversión se
+  deja en la cola `hwe_memberships_pending_point_reversals` con la misma clave y se aplica cuando
+  vuelve (al cargar y en la tarea diaria); el reintento es idempotente y una entrada sin abono que
+  revertir se descarta tras tres intentos con constancia en el log. Si «Puntos» está apagado en el
+  cobro, no se abona, no se reintenta y queda `points_skipped` en el historial más un `error_log`.
+  Una compra aplazada se abona (u omite) al cobrarse, aunque su concesión se active más tarde: la
+  activación de la tarea diaria llega con `HWE_Memberships_Events::CONTEXT_DAILY` y no vuelve a
+  intentarlo.
 - **Comisión extra de referidos.** Se añade al filtro `hwe_loyalty_order_earnings` como abono del
   tipo `membership_referral_bonus`, declarado con `hwe_loyalty_entry_types`. Cuenta el nivel del
   referidor **al cobrarse el pedido**; sin referidor o sin beneficio, el array sale intacto. Lee

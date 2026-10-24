@@ -8,7 +8,9 @@
  *  · `active → ended` cuando llega su fin;
  *  · el aviso `expiring` de las concesiones que terminan dentro de los días configurados;
  *  · la limpieza de los tokens del carné caducados hace más de una semana (cada petición de
- *    carné inserta una fila; sin ella la tabla crecería sin tope).
+ *    carné inserta una fila; sin ella la tabla crecería sin tope);
+ *  · las reversiones de puntos por activación que quedaron en cola mientras `loyalty` no estaba
+ *    cargado (M-3), con la misma clave idempotente por concesión.
  *
  * Si una pasada deja trabajo pendiente, programa una continuación puntual
  * (`hwe_memberships_daily_continue`) a cinco minutos; no se espera al día siguiente.
@@ -151,6 +153,16 @@ final class HWE_Memberships_Scheduler {
 		}
 
 		$batch = max( 1, $batch );
+
+		// M-3: reversiones de puntos que quedaron pendientes mientras `loyalty` no estaba
+		// cargado. Es idempotente y no impide la tarea aunque falle.
+		if ( class_exists( 'HWE_Memberships_Benefit_Activation_Points' ) ) {
+			try {
+				HWE_Memberships_Benefit_Activation_Points::flushPending();
+			} catch ( \Throwable $e ) {
+				error_log( '[hwe] memberships: no se pudo procesar la cola de reversiones de puntos pendientes: ' . $e->getMessage() );
+			}
+		}
 
 		// Mantenimiento previo: los tokens del carné caducados hace más de una semana.
 		if ( class_exists( 'HWE_Memberships_Card' ) ) {
