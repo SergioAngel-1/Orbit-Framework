@@ -24,8 +24,9 @@
  * devuelven vacío y las rutas del BFF responden 404. La puerta la calcula el núcleo con
  * `config.modules.memberships`, que refleja si este plugin está activo.
  *
- * Estado: base del módulo (arranque y ajustes). Todavía no hay tablas, rutas ni ciclo de
- * membresía; README.md y MANUAL.md se completan a medida que se implemente el resto.
+ * Estado: arranque, ajustes, esquema de datos y niveles editables. Las rutas internas, la
+ * extensión de la Store API y la UI del frontend llegan en entregas posteriores; README.md y
+ * MANUAL.md se completan con ellas.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -36,6 +37,8 @@ define( 'HWE_MEMBERSHIPS_VERSION', '1.0.0' );
 define( 'HWE_MEMBERSHIPS_DIR', __DIR__ );
 
 require_once __DIR__ . '/includes/Settings.php';
+require_once __DIR__ . '/includes/Schema.php';
+require_once __DIR__ . '/includes/Levels.php';
 
 final class HWE_Memberships {
 
@@ -51,6 +54,8 @@ final class HWE_Memberships {
 		}
 
 		HWE_Memberships_Settings::register();
+		HWE_Memberships_Schema::register();
+		HWE_Memberships_Levels::register();
 	}
 
 	/** Aviso en wp-admin si el plugin se activó sin WooCommerce (la cabecera ya lo impide). */
@@ -65,3 +70,9 @@ final class HWE_Memberships {
 }
 
 add_action( 'plugins_loaded', array( 'HWE_Memberships', 'boot' ), 20 );
+
+// La activación crea o repara las tablas. La instalación perezosa de `init` cubre el resto de
+// los casos (actualización del plugin, tabla borrada a mano) sin depender de la activación.
+if ( function_exists( 'register_activation_hook' ) ) {
+	register_activation_hook( __FILE__, array( 'HWE_Memberships_Schema', 'install' ) );
+}
