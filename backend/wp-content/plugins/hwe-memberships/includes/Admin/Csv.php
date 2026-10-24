@@ -10,6 +10,9 @@
  * cada celda pasa por `csvCell`, que neutraliza lo que Excel o LibreOffice ejecutarían como
  * fórmula (`=`, `+`, `-`, `@`, tabulador y retorno de carro). Un número negativo sigue siendo un
  * dato: escaparlo convertiría cada id en texto.
+ *
+ * Exige `hwe_memberships_manage` (no basta `hwe_memberships_view`): es una exportación masiva y
+ * la pantalla oculta la acción a quien solo puede consultar.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -30,6 +33,15 @@ final class HWE_Memberships_Admin_Csv {
 	/** Engancha la descarga. La llama `HWE_Memberships_Admin::register()`. */
 	public static function register(): void {
 		add_action( 'admin_post_' . self::ACTION, array( self::class, 'export' ) );
+	}
+
+	/**
+	 * Exportar es una descarga masiva (aunque no lleve email ni login): exige la capacidad de
+	 * gestión, no la de lectura. La pantalla usa esta misma decisión para ocultar la acción.
+	 */
+	public static function canExport(): bool {
+		return class_exists( 'HWE_Memberships_Admin_Capabilities' )
+			&& HWE_Memberships_Admin_Capabilities::canManage();
 	}
 
 	/**
@@ -101,7 +113,7 @@ final class HWE_Memberships_Admin_Csv {
 
 	/** POST/GET de `admin-post.php`: capacidad + nonce, cabeceras y streaming. */
 	public static function export(): void {
-		if ( ! HWE_Memberships_Admin_Capabilities::canView() ) {
+		if ( ! self::canExport() ) {
 			wp_die( esc_html__( 'No autorizado.', 'hwe' ) );
 			return;
 		}

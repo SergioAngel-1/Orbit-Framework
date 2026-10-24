@@ -284,8 +284,10 @@ final class HWE_Memberships_Admin_Members_Screen {
 
 		echo '<div class="wrap">';
 		echo '<h1 class="wp-heading-inline">' . esc_html__( 'Socios', 'hwe' ) . '</h1> ';
-		echo '<a class="page-title-action" href="' . esc_url( self::exportUrl( $filters ) ) . '">'
-			. esc_html__( 'Exportar CSV', 'hwe' ) . '</a>';
+		if ( HWE_Memberships_Admin_Csv::canExport() ) {
+			echo '<a class="page-title-action" href="' . esc_url( self::exportUrl( $filters ) ) . '">'
+				. esc_html__( 'Exportar CSV', 'hwe' ) . '</a>';
+		}
 		echo '<hr class="wp-header-end">';
 
 		HWE_Memberships_Admin::renderNotice( HWE_Memberships_Admin::pullFlash() );

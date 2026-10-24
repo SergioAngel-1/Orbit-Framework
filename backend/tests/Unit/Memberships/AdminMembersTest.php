@@ -593,6 +593,27 @@ final class AdminMembersTest extends TestCase
         $this->assertSame(array(\HWE_Memberships_Admin_Csv::BATCH, \HWE_Memberships_Admin_Csv::BATCH), $first[1]['args']);
     }
 
+    public function testOnlyManagersCanExportTheMembersCsv(): void
+    {
+        $this->caps = array('hwe_memberships_view');
+
+        $this->assertFalse(
+            \HWE_Memberships_Admin_Csv::canExport(),
+            'Ver el listado no basta para una exportación masiva.'
+        );
+        \HWE_Memberships_Admin_Csv::export();
+        $this->assertSame(array('No autorizado.'), $this->died);
+
+        $viewer = $this->render(array(\HWE_Memberships_Admin_Members_Screen::class, 'render'));
+        $this->assertStringNotContainsString('Exportar CSV', $viewer, 'La acción no se ofrece a quien solo puede ver.');
+
+        $this->caps[] = 'hwe_memberships_manage';
+        $this->assertTrue(\HWE_Memberships_Admin_Csv::canExport());
+
+        $manager = $this->render(array(\HWE_Memberships_Admin_Members_Screen::class, 'render'));
+        $this->assertStringContainsString('Exportar CSV', $manager);
+    }
+
     // ── Columna del listado de usuarios ─────────────────────────────────────
 
     public function testTheUserListColumnSortsAndFiltersInSql(): void
