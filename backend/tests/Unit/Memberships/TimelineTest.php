@@ -368,6 +368,128 @@ final class TimelineTest extends TestCase
         $this->assertSame(20 * self::DAY, $undated['queued_seconds']);
     }
 
+    public function testShiftSinceMovesEachGrantByItsOwnFrozenTime(): void
+    {
+        $grants = [
+            $this->grant('before', 10, 5, 30, '2026-01-01 00:00:00', '2026-01-31 00:00:00'),
+            $this->grant('during', 10, 5, 30, '2026-01-15 00:00:00', '2026-02-14 00:00:00'),
+            $this->grant('future', 20, 10, 30, '2026-03-01 00:00:00', '2026-03-31 00:00:00', 'scheduled'),
+            $this->grant('undated', 10, 5, 20, null, null, 'scheduled', ['queued_seconds' => 20 * self::DAY]),
+            $this->grant('ended', 10, 5, 30, '2025-12-01 00:00:00', '2026-01-01 00:00:00', 'ended'),
+        ];
+
+        $out = \HWE_Memberships_Timeline::shiftSince(
+            $grants,
+            [
+                'before'  => $this->at('2026-01-10 00:00:00'),
+                'during'  => $this->at('2026-01-15 00:00:00'),
+                'future'  => $this->at('2026-01-10 00:00:00'),
+                'undated' => $this->at('2026-01-10 00:00:00'),
+                'ended'   => $this->at('2026-01-10 00:00:00'),
+            ],
+            $this->at('2026-01-20 00:00:00')
+        );
+
+        $before = $this->byKey($out, 'before');
+        $this->assertNotNull($before);
+        $this->assertMoment('2026-01-01 00:00:00', $before['starts_at'], 'Una activa ya empezada no mueve su inicio.');
+        $this->assertMoment('2026-02-10 00:00:00', $before['ends_at'], 'Existió toda la congelación: 10 días.');
+
+        $during = $this->byKey($out, 'during');
+        $this->assertNotNull($during);
+        $this->assertMoment('2026-01-15 00:00:00', $during['starts_at']);
+        $this->assertMoment('2026-02-19 00:00:00', $during['ends_at'], 'Solo existió los últimos 5 días de la congelación.');
+
+        $future = $this->byKey($out, 'future');
+        $this->assertNotNull($future);
+        $this->assertMoment('2026-03-11 00:00:00', $future['starts_at']);
+        $this->assertMoment('2026-04-10 00:00:00', $future['ends_at'], 'Conserva su duración pagada.');
+
+        $undated = $this->byKey($out, 'undated');
+        $this->assertNotNull($undated);
+        $this->assertNull($undated['starts_at']);
+        $this->assertNull($undated['ends_at']);
+        $this->assertSame(20 * self::DAY, $undated['queued_seconds']);
+
+        $ended = $this->byKey($out, 'ended');
+        $this->assertNotNull($ended);
+        $this->assertMoment('2025-12-01 00:00:00', $ended['starts_at']);
+        $this->assertMoment('2026-01-01 00:00:00', $ended['ends_at'], 'Lo terminado no se toca.');
+    }
+
+    public function testShiftSinceReanchorsAScheduledChainWithoutGapsOrOverlaps(): void
+    {
+        $grants = [
+            $this->grant('current', 20, 10, 30, '2026-01-01 00:00:00', '2026-01-31 00:00:00'),
+            $this->grant('renewal', 20, 10, 30, '2026-01-31 00:00:00', '2026-03-02 00:00:00', 'scheduled'),
+            $this->grant('later', 10, 5, 30, '2026-03-02 00:00:00', '2026-04-01 00:00:00', 'scheduled'),
+        ];
+
+        $out = \HWE_Memberships_Timeline::shiftSince(
+            $grants,
+            [
+                'current' => $this->at('2026-01-10 00:00:00'),
+                'renewal' => $this->at('2026-01-15 00:00:00'),
+                'later'   => $this->at('2026-01-15 00:00:00'),
+            ],
+            $this->at('2026-01-20 00:00:00')
+        );
+
+        $current = $this->byKey($out, 'current');
+        $renewal = $this->byKey($out, 'renewal');
+        $later   = $this->byKey($out, 'later');
+        $this->assertNotNull($current);
+        $this->assertNotNull($renewal);
+        $this->assertNotNull($later);
+
+        $this->assertMoment('2026-01-01 00:00:00', $current['starts_at']);
+        $this->assertMoment('2026-02-10 00:00:00', $current['ends_at']);
+        $this->assertMoment(
+            '2026-02-10 00:00:00',
+            $renewal['starts_at'],
+            'La renovación creada durante la congelación sigue pegada al fin desplazado.'
+        );
+        $this->assertMoment('2026-03-12 00:00:00', $renewal['ends_at']);
+        $this->assertMoment(
+            '2026-03-12 00:00:00',
+            $later['starts_at'],
+            'La cadena completa se reancla sin huecos ni solapes.'
+        );
+        $this->assertMoment('2026-04-11 00:00:00', $later['ends_at']);
+    }
+
+    public function testShiftSinceAnchorsEachScheduledGrantToItsPrecedingCoverageNotALaterSibling(): void
+    {
+        $grants = [
+            $this->grant('upgrade', 30, 20, 30, '2026-01-15 00:00:00', '2026-02-14 00:00:00'),
+            $this->grant('first', 20, 10, 30, '2026-02-14 00:00:00', '2026-03-16 00:00:00', 'scheduled'),
+            $this->grant('second', 20, 10, 30, '2026-03-16 00:00:00', '2026-04-15 00:00:00', 'scheduled'),
+        ];
+
+        $out = \HWE_Memberships_Timeline::shiftSince(
+            $grants,
+            [
+                'upgrade' => $this->at('2026-01-15 00:00:00'),
+                'first'   => $this->at('2026-01-10 00:00:00'),
+                'second'  => $this->at('2026-01-10 00:00:00'),
+            ],
+            $this->at('2026-01-20 00:00:00')
+        );
+
+        $upgrade = $this->byKey($out, 'upgrade');
+        $first   = $this->byKey($out, 'first');
+        $second  = $this->byKey($out, 'second');
+        $this->assertNotNull($upgrade);
+        $this->assertNotNull($first);
+        $this->assertNotNull($second);
+
+        $this->assertMoment('2026-02-19 00:00:00', $upgrade['ends_at']);
+        $this->assertMoment('2026-02-19 00:00:00', $first['starts_at'], 'La primera programada sigue a la mejora, no a su hermana.');
+        $this->assertMoment('2026-03-21 00:00:00', $first['ends_at']);
+        $this->assertMoment('2026-03-21 00:00:00', $second['starts_at']);
+        $this->assertMoment('2026-04-20 00:00:00', $second['ends_at']);
+    }
+
     // --- nivel efectivo ------------------------------------------------------------------------
 
     public function testEffectiveUsesTheHighestRankAndIncludesTheStartExcludesTheEnd(): void

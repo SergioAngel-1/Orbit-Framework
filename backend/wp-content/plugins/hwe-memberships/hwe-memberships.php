@@ -24,9 +24,10 @@
  * devuelven vacío y las rutas del BFF responden 404. La puerta la calcula el núcleo con
  * `config.modules.memberships`, que refleja si este plugin está activo.
  *
- * Estado: arranque, ajustes, esquema de datos y niveles editables. Las rutas internas, la
- * extensión de la Store API y la UI del frontend llegan en entregas posteriores; README.md y
- * MANUAL.md se completan con ellas.
+ * Estado: arranque, ajustes, esquema de datos, niveles editables y el servicio transaccional de
+ * concesiones (alta, renovación, mejora, revocación, retirada, congelación y descongelación) con
+ * su historial y sus hooks. Las rutas internas, la extensión de la Store API y la UI del
+ * frontend llegan en entregas posteriores; README.md y MANUAL.md se completan con ellas.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -39,6 +40,10 @@ define( 'HWE_MEMBERSHIPS_DIR', __DIR__ );
 require_once __DIR__ . '/includes/Settings.php';
 require_once __DIR__ . '/includes/Schema.php';
 require_once __DIR__ . '/includes/Levels.php';
+require_once __DIR__ . '/includes/Timeline.php';
+require_once __DIR__ . '/includes/Events.php';
+require_once __DIR__ . '/includes/Members.php';
+require_once __DIR__ . '/includes/Grants.php';
 
 final class HWE_Memberships {
 

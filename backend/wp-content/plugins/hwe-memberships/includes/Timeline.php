@@ -36,8 +36,8 @@
  *  · Una lectura del nivel efectivo se calcula por fechas: el inicio cuenta y el fin no.
  *  · Revocar no recorre las concesiones fechadas; solo libera la cola sin fecha cuando deja de
  *    estar bloqueada.
- *  · Congelar se resuelve con `shift()`: mueve los fines de lo no terminado y los inicios de lo
- *    que aún no ha empezado.
+ *  · Congelar se resuelve con `shift()` (desplazamiento uniforme) o con `shiftSince()`, que
+ *    devuelve a cada concesión su propio tiempo congelado y reancla la cadena programada.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -317,6 +317,128 @@ final class HWE_Memberships_Timeline {
 			if ( $end instanceof DateTimeImmutable ) {
 				$grants[ $index ]['ends_at'] = self::addSeconds( $end, $seconds );
 			}
+		}
+
+		return array_values( $grants );
+	}
+
+	/**
+	 * Desplaza cada concesión por **su propio** tiempo congelado, en lugar de aplicar la misma
+	 * duración a todas. `$frozenSince` mapea la clave de cada concesión al instante desde el que
+	 * estuvo congelada: para una concesión que ya existía al congelar es `frozen_at`; para una
+	 * creada durante la congelación es su `created_at`.
+	 *
+	 * Reglas:
+	 *  · Una concesión que ya había empezado conserva su inicio y su fin se alarga sus segundos.
+	 *  · Una programada con fecha futura se **reancla** al fin desplazado de la cobertura que la
+	 *    bloqueaba (rango ≥), conservando su duración y el hueco que tuviera; si no tenía
+	 *    cobertura delante, se desplaza por sus propios segundos. Así la cadena de renovaciones
+	 *    sigue contigua y sin solapes aunque la concesión se creara a mitad de la congelación.
+	 *  · Las que esperan sin fecha siguen sin fecha (su reloj no corre) y las terminadas o
+	 *    revocadas no se tocan.
+	 *
+	 * @param list<array<string,mixed>>       $grants
+	 * @param array<string,DateTimeImmutable> $frozenSince clave de la concesión => inicio de su congelación
+	 * @return list<array<string,mixed>>
+	 */
+	public static function shiftSince( array $grants, array $frozenSince, DateTimeImmutable $until ): array {
+		$grants    = array_values( $grants );
+		$originals = $grants;
+		$seconds   = array();
+
+		foreach ( $grants as $index => $grant ) {
+			$status = (string) ( $grant['status'] ?? '' );
+			if ( ! in_array( $status, array( 'active', 'scheduled' ), true ) ) {
+				continue;
+			}
+
+			$key   = (string) ( $grant['key'] ?? '' );
+			$since = $frozenSince[ $key ] ?? null;
+			$seconds[ $index ] = $since instanceof DateTimeImmutable
+				? max( 0, $until->getTimestamp() - $since->getTimestamp() )
+				: 0;
+
+			$start = $grant['starts_at'] ?? null;
+			$end   = $grant['ends_at'] ?? null;
+			if ( $start instanceof DateTimeImmutable && $start <= $until && $end instanceof DateTimeImmutable ) {
+				$grants[ $index ]['ends_at'] = self::addSeconds( $end, $seconds[ $index ] );
+			}
+		}
+
+		$pending = array();
+		foreach ( $grants as $index => $grant ) {
+			$start = $grant['starts_at'] ?? null;
+			$end   = $grant['ends_at'] ?? null;
+			if ( ! in_array( (string) ( $grant['status'] ?? '' ), array( 'active', 'scheduled' ), true ) ) {
+				continue;
+			}
+			if ( ! $start instanceof DateTimeImmutable || ! $end instanceof DateTimeImmutable || $start <= $until ) {
+				continue;
+			}
+			$pending[] = $index;
+		}
+
+		// Primero las que terminan antes: su fin desplazado es el ancla de las siguientes.
+		usort(
+			$pending,
+			static function ( int $a, int $b ) use ( $originals ): int {
+				$end_a = $originals[ $a ]['ends_at']->getTimestamp();
+				$end_b = $originals[ $b ]['ends_at']->getTimestamp();
+				if ( $end_a !== $end_b ) {
+					return $end_a <=> $end_b;
+				}
+				return (int) ( $originals[ $b ]['rank'] ?? 0 ) <=> (int) ( $originals[ $a ]['rank'] ?? 0 ) ?: $a <=> $b;
+			}
+		);
+
+		foreach ( $pending as $index ) {
+			$original = $originals[ $index ];
+			$start    = $original['starts_at'];
+			$end      = $original['ends_at'];
+			$duration = max( 0, $end->getTimestamp() - $start->getTimestamp() );
+			$rank     = (int) ( $original['rank'] ?? 0 );
+
+			$blocker     = null;
+			$blocker_end = null;
+			foreach ( $originals as $other => $candidate ) {
+				if ( $other === $index ) {
+					continue;
+				}
+				if ( ! in_array( (string) ( $candidate['status'] ?? '' ), array( 'active', 'scheduled' ), true ) ) {
+					continue;
+				}
+				if ( (int) ( $candidate['rank'] ?? 0 ) < $rank ) {
+					continue;
+				}
+				$other_start = $candidate['starts_at'] ?? null;
+				$other_end   = $candidate['ends_at'] ?? null;
+				if ( ! $other_start instanceof DateTimeImmutable || ! $other_end instanceof DateTimeImmutable ) {
+					continue;
+				}
+				// Solo bloquea lo que termina en o antes de su inicio: un hermano posterior con
+				// el mismo rango no es su antecesor en la cadena.
+				if ( $other_end > $start ) {
+					continue;
+				}
+				if ( null === $blocker_end || $other_end > $blocker_end ) {
+					$blocker     = $other;
+					$blocker_end = $other_end;
+				}
+			}
+
+			if ( null === $blocker || null === $blocker_end ) {
+				$new_start = self::addSeconds( $start, $seconds[ $index ] ?? 0 );
+			} else {
+				$shifted_end = $grants[ $blocker ]['ends_at'] ?? null;
+				if ( ! $shifted_end instanceof DateTimeImmutable ) {
+					continue;
+				}
+				$delta     = $shifted_end->getTimestamp() - $blocker_end->getTimestamp();
+				$new_start = self::addSeconds( $start, $delta );
+			}
+
+			$grants[ $index ]['starts_at'] = $new_start;
+			$grants[ $index ]['ends_at']   = self::addSeconds( $new_start, $duration );
 		}
 
 		return array_values( $grants );
