@@ -1,8 +1,8 @@
 <?php
 /**
  * Menú propio de wp-admin, de título neutro («Membresías»), con las pantallas del módulo en el
- * orden del spec §11.1: resumen, niveles (con sus beneficios y la comparativa), socios e
- * historial. La pantalla en masa (§11.3) llegará con su tarea.
+ * orden del spec §11.1: resumen, niveles (con sus beneficios y la comparativa), socios,
+ * operaciones en masa e historial.
  *
  * La capacidad de lectura (`hwe_memberships_view`) abre el menú; las pantallas de escritura
  * exigen además `hwe_memberships_manage`. El CPT de niveles se cuelga de este menú
@@ -34,6 +34,9 @@ final class HWE_Memberships_Admin_Menu {
 
 	/** Listado de socios (§11.1). */
 	public const MEMBERS = 'members';
+
+	/** Operaciones en masa: asignar, quitar y congelar (§11.3). */
+	public const BULK = 'bulk';
 
 	/** Historial de membresías (§11.1). */
 	public const HISTORY = 'history';
@@ -99,6 +102,15 @@ final class HWE_Memberships_Admin_Menu {
 			$cap,
 			self::slug( self::MEMBERS ),
 			array( HWE_Memberships_Admin_Members_Screen::class, 'render' )
+		);
+
+		add_submenu_page(
+			self::MAIN,
+			__( 'En masa', 'hwe' ),
+			__( 'En masa', 'hwe' ),
+			$cap,
+			self::slug( self::BULK ),
+			array( HWE_Memberships_Admin_Bulk_Screen::class, 'render' )
 		);
 
 		add_submenu_page(

@@ -223,6 +223,10 @@ final class HWE_Memberships_Grants {
 			'status'    => (string) ( $grant['status'] ?? '' ),
 			'ref'       => array( 'type' => $refType, 'id' => $refId ),
 		);
+		if ( isset( $data['batch'] ) ) {
+			// Los lotes dejan aquí su id para que el historial permita reconstruir la operación.
+			$eventData['batch'] = (int) $data['batch'];
+		}
 
 		$eventId = self::recordEvent(
 			$userId,
@@ -651,8 +655,13 @@ final class HWE_Memberships_Grants {
 	 * Quita todas las concesiones vivas de un usuario: las activas terminan ahora y las
 	 * programadas se marcan revocadas. Conserva filas, historial, número de socio y «socio
 	 * desde». Devuelve `false` si no había nada vivo.
+	 *
+	 * `$data` añade datos estructurados al evento; los lotes lo usan para dejar el id del lote
+	 * junto al motivo, sin cambiar el texto que ve el cliente.
+	 *
+	 * @param array<string,mixed> $data
 	 */
-	public static function removeAll( int $userId, int $actorId, string $reason ): bool {
+	public static function removeAll( int $userId, int $actorId, string $reason, array $data = array() ): bool {
 		self::clearQueue();
 
 		if ( $userId <= 0 ) {
@@ -684,6 +693,7 @@ final class HWE_Memberships_Grants {
 		}
 
 		$before = self::stateOf( $grants, $now );
+		$extra  = $data;
 		$ids    = array();
 		foreach ( $grants as $grant ) {
 			$data = array( 'updated_at' => $nowSql );
@@ -723,7 +733,7 @@ final class HWE_Memberships_Grants {
 			array(
 				'reason' => $reason,
 				'grants' => $ids,
-			),
+			) + $extra,
 			$nowSql,
 			$oldLevel
 		);
@@ -751,8 +761,12 @@ final class HWE_Memberships_Grants {
 	 * Congela la membresía: el socio deja de tener nivel efectivo y el reloj se detiene (las
 	 * fechas se desplazan al descongelar). Revoca los tokens del carné. Exige una concesión
 	 * con cobertura vigente o futura; un usuario sin membresía o ya congelado se rechaza.
+	 *
+	 * `$data` añade datos estructurados al evento (los lotes dejan ahí su id).
+	 *
+	 * @param array<string,mixed> $data
 	 */
-	public static function freeze( int $userId, int $actorId ): bool {
+	public static function freeze( int $userId, int $actorId, array $data = array() ): bool {
 		self::clearQueue();
 
 		if ( $userId <= 0 ) {
@@ -818,7 +832,7 @@ final class HWE_Memberships_Grants {
 			0,
 			$actorId > 0 ? 'admin' : 'system',
 			$actorId,
-			array( 'frozen_at' => $nowSql ),
+			array( 'frozen_at' => $nowSql ) + $data,
 			$nowSql,
 			0
 		);
@@ -845,8 +859,12 @@ final class HWE_Memberships_Grants {
 	 * acumula los segundos y recalcula el nivel efectivo. Las concesiones vencidas **antes** de
 	 * congelar no se resucitan: se cierran, dejan un evento `expired` y encolan
 	 * `hwe_membership_expired` (tras el COMMIT, como hará la tarea diaria).
+	 *
+	 * `$data` añade datos estructurados al evento `unfrozen` (los lotes dejan ahí su id).
+	 *
+	 * @param array<string,mixed> $data
 	 */
-	public static function unfreeze( int $userId, int $actorId ): bool {
+	public static function unfreeze( int $userId, int $actorId, array $data = array() ): bool {
 		self::clearQueue();
 
 		if ( $userId <= 0 ) {
@@ -969,7 +987,7 @@ final class HWE_Memberships_Grants {
 			(int) $after['level_id'],
 			$actorId > 0 ? 'admin' : 'system',
 			$actorId,
-			array( 'frozen_seconds' => $seconds ),
+			array( 'frozen_seconds' => $seconds ) + $data,
 			$nowSql,
 			0
 		);

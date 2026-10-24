@@ -366,10 +366,11 @@ final class AdminMembersTest extends TestCase
                 'hwe-memberships-benefits',
                 'hwe-memberships-comparison',
                 'hwe-memberships-members',
+                'hwe-memberships-bulk',
                 'hwe-memberships-history',
             ),
             $slugs,
-            'Resumen, niveles, socios e historial, en el orden del spec.'
+            'Resumen, niveles, socios, operaciones en masa e historial, en el orden del spec.'
         );
     }
 

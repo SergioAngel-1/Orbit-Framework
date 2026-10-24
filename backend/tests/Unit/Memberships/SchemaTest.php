@@ -77,7 +77,7 @@ final class SchemaTest extends TestCase
         $this->assertCount(1, $this->dbDelta);
         $sql = $this->dbDelta[0];
 
-        foreach (['grants', 'members', 'events', 'card_tokens'] as $suffix) {
+        foreach (['grants', 'members', 'events', 'card_tokens', 'batches'] as $suffix) {
             $this->assertStringContainsString(
                 'CREATE TABLE wp_hwe_memberships_' . $suffix,
                 $sql,
@@ -111,7 +111,7 @@ final class SchemaTest extends TestCase
             $this->assertStringContainsString($column, $sql, 'Falta la columna ' . $column . '.');
         }
 
-        $this->assertSame(4, substr_count($sql, 'ENGINE=InnoDB'), 'Todas las tablas admiten transacciones.');
+        $this->assertSame(5, substr_count($sql, 'ENGINE=InnoDB'), 'Todas las tablas admiten transacciones.');
 
         $this->assertSame(\HWE_Memberships_Schema::DB_VERSION, $this->options['hwe_memberships_db_version']);
         $this->assertSame(
@@ -130,6 +130,33 @@ final class SchemaTest extends TestCase
 
         $this->assertSame([], $this->dbDelta);
         $this->assertSame([], $this->optionWrites);
+    }
+
+    /**
+     * Migración de la versión 1 (concesiones, socios, historial y tokens) a la 2, que añade la
+     * tabla de lotes. `dbDelta` es aditivo: no borra ni recrea las tablas existentes.
+     */
+    public function testAnInstallFromVersionOneMigratesToTheBatchTable(): void
+    {
+        $this->options['hwe_memberships_db_version'] = '1';
+        $this->installWithDbDelta();
+
+        \HWE_Memberships_Schema::maybeInstall();
+
+        $this->assertCount(1, $this->dbDelta);
+        $sql = $this->dbDelta[0];
+
+        $this->assertStringContainsString('CREATE TABLE wp_hwe_memberships_batches', $sql);
+        $this->assertStringContainsString('operation varchar(32) NOT NULL', $sql);
+        $this->assertStringContainsString('last_user_id bigint(20) unsigned NOT NULL DEFAULT 0', $sql);
+        $this->assertStringContainsString('processed bigint(20) unsigned NOT NULL DEFAULT 0', $sql);
+        $this->assertStringContainsString('total bigint(20) unsigned NOT NULL DEFAULT 0', $sql);
+        $this->assertStringContainsString('KEY status_created (status,created_at)', $sql);
+        $this->assertStringContainsString('KEY actor_created (actor_id,created_at)', $sql);
+        // La selección es un criterio, nunca una lista de ids de usuarios pendientes.
+        $this->assertStringNotContainsString('user_ids', $sql);
+
+        $this->assertSame('2', $this->options['hwe_memberships_db_version']);
     }
 
     public function testActivationForcesTheInstallEvenWhenTheVersionMatches(): void
@@ -171,6 +198,7 @@ final class SchemaTest extends TestCase
         $this->assertSame('wp_hwe_memberships_members', \HWE_Memberships_Schema::membersTable());
         $this->assertSame('wp_hwe_memberships_events', \HWE_Memberships_Schema::eventsTable());
         $this->assertSame('wp_hwe_memberships_card_tokens', \HWE_Memberships_Schema::cardTokensTable());
+        $this->assertSame('wp_hwe_memberships_batches', \HWE_Memberships_Schema::batchesTable());
     }
 }
 

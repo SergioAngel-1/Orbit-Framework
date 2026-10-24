@@ -2,7 +2,7 @@
 /**
  * Esquema de datos de `hwe-memberships` (spec §5).
  *
- * Cuatro tablas InnoDB, porque toda escritura del módulo va en una transacción con bloqueo de
+ * Cinco tablas InnoDB, porque toda escritura del módulo va en una transacción con bloqueo de
  * la fila del usuario:
  *  · `hwe_memberships_grants`: cada trozo de tiempo de un nivel que tiene un usuario. Guarda la
  *    clave de idempotencia (ÚNICA: un pedido repetido no puede conceder dos veces), el origen y
@@ -20,9 +20,11 @@
  *    datos estructurados. Solo crece: es el historial del socio.
  *  · `hwe_memberships_card_tokens`: tokens del carné guardados como hash, con su caducidad y su
  *    revocación. Nunca se guarda el token en claro.
- *
- * La tabla de lotes masivos (§11.3) llegará con la Tarea 22 y su propia subida de versión; no se
- * crea aquí para no fijar hoy su forma.
+ *  · `hwe_memberships_batches`: el estado de una operación en masa (§11.3): operación,
+ *    selección (el criterio; la lista pegada se resuelve a ids al arrancar, nunca las filas ya
+ *    procesadas), parámetros, totales, progreso y cursor (`último user_id` procesado). El lote
+ *    es reanudable: al reprocesar se retoma por el cursor y las claves de idempotencia evitan
+ *    duplicar. No se guarda aquí ninguna lista de usuarios pendientes ni en `wp_options`.
  *
  * Columnas de `grants` (todas las fechas son UTC):
  *  · `id`: clave primaria.
@@ -52,7 +54,10 @@
  * `member_since` y `updated_at`. `events` guarda `user_id`, `grant_id`, `type`, `level_from`,
  * `level_to`, `actor`, `actor_id`, `data` y `created_at`. `card_tokens` guarda `user_id`,
  * `token_hash` (SHA-256, UNIQUE; nunca el token en claro), `expires_at`, `revoked_at`,
- * `last_used_at` y `created_at`.
+ * `last_used_at` y `created_at`. `batches` guarda `operation`, `selection` y `params` (JSON),
+ * `total`, `processed`, `applied`, `last_user_id`, `status`, `actor_id`, `created_at`,
+ * `updated_at` y `finished_at`; `last_user_id` es el cursor (el último id de usuario procesado),
+ * no una lista de ids.
  *
  * La versión vive en la opción `hwe_memberships_db_version`, con autoload: se lee en cada
  * petición y, cuando no coincide, se vuelve a ejecutar `dbDelta` (migración perezosa al detectar
@@ -66,7 +71,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class HWE_Memberships_Schema {
 
 	/** Subir esta versión vuelve a ejecutar `dbDelta` en la siguiente petición. */
-	public const DB_VERSION = '1';
+	public const DB_VERSION = '2';
 
 	/** Opción donde se guarda la versión instalada. */
 	public const DB_VERSION_OPTION = 'hwe_memberships_db_version';
@@ -120,6 +125,7 @@ final class HWE_Memberships_Schema {
 		$members = self::membersTable();
 		$events  = self::eventsTable();
 		$tokens  = self::cardTokensTable();
+		$batches = self::batchesTable();
 
 		// dbDelta exige este formato: un campo por línea y dos espacios tras PRIMARY KEY.
 		dbDelta(
@@ -197,6 +203,24 @@ CREATE TABLE {$tokens} (
   UNIQUE KEY token_hash (token_hash),
   KEY user_expires (user_id,expires_at),
   KEY expires_at (expires_at)
+) ENGINE=InnoDB {$charset};
+CREATE TABLE {$batches} (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  operation varchar(32) NOT NULL,
+  selection longtext NULL,
+  params longtext NULL,
+  total bigint(20) unsigned NOT NULL DEFAULT 0,
+  processed bigint(20) unsigned NOT NULL DEFAULT 0,
+  applied bigint(20) unsigned NOT NULL DEFAULT 0,
+  last_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+  status varchar(20) NOT NULL DEFAULT 'pending',
+  actor_id bigint(20) unsigned DEFAULT NULL,
+  created_at datetime NOT NULL,
+  updated_at datetime NOT NULL,
+  finished_at datetime DEFAULT NULL,
+  PRIMARY KEY  (id),
+  KEY status_created (status,created_at),
+  KEY actor_created (actor_id,created_at)
 ) ENGINE=InnoDB {$charset};"
 		);
 
@@ -221,6 +245,11 @@ CREATE TABLE {$tokens} (
 	public static function cardTokensTable(): string {
 		global $wpdb;
 		return $wpdb->prefix . 'hwe_memberships_card_tokens';
+	}
+
+	public static function batchesTable(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'hwe_memberships_batches';
 	}
 
 	private static function log( string $message ): void {

@@ -30,9 +30,10 @@
  * congelación y descongelación) con su historial y sus hooks, los productos de membresía y su
  * compra con activación al cobrar, los requisitos de acceso al catálogo con acceso anticipado y
  * la ficha de escaparate en GraphQL, la Store API y WC REST, la extensión de la Store API con
- * el bloqueo de compra por requisito y el descuento de miembro en el carrito y el pedido, con
- * `priceFor()` como precio de referencia. Las rutas internas y la UI del frontend llegan en
- * entregas posteriores; README.md y MANUAL.md se completan con ellas.
+ * el bloqueo de compra por requisito, el descuento de miembro en el carrito y el pedido, con
+ * `priceFor()` como precio de referencia, y las operaciones en masa por lotes. Las rutas
+ * internas y la UI del frontend llegan en entregas posteriores; README.md y MANUAL.md se
+ * completan con ellas.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -50,6 +51,7 @@ require_once __DIR__ . '/includes/Events.php';
 require_once __DIR__ . '/includes/Members.php';
 require_once __DIR__ . '/includes/Grants.php';
 require_once __DIR__ . '/includes/Scheduler.php';
+require_once __DIR__ . '/includes/Bulk.php';
 require_once __DIR__ . '/includes/LoyaltyBridge.php';
 require_once __DIR__ . '/includes/Benefits/Benefit.php';
 require_once __DIR__ . '/includes/Benefits/InfoPerk.php';
@@ -89,6 +91,7 @@ final class HWE_Memberships {
 		HWE_Memberships_Schema::register();
 		HWE_Memberships_Levels::register();
 		HWE_Memberships_Scheduler::register();
+		HWE_Memberships_Bulk::register();
 		HWE_Memberships_LoyaltyBridge::register();
 		HWE_Memberships_Benefits::register();
 		HWE_Memberships_Access::register();

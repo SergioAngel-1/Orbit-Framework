@@ -25,6 +25,7 @@ require_once __DIR__ . '/Menu.php';
 require_once __DIR__ . '/LevelsScreen.php';
 require_once __DIR__ . '/BenefitsScreen.php';
 require_once __DIR__ . '/MembersScreen.php';
+require_once __DIR__ . '/Bulk.php';
 require_once __DIR__ . '/HistoryScreen.php';
 require_once __DIR__ . '/Stats.php';
 require_once __DIR__ . '/Csv.php';
@@ -54,6 +55,7 @@ final class HWE_Memberships_Admin {
 		HWE_Memberships_Admin_Menu::register();
 		HWE_Memberships_Admin_Benefits_Screen::register();
 		HWE_Memberships_Admin_Members_Screen::register();
+		HWE_Memberships_Admin_Bulk_Screen::register();
 		HWE_Memberships_Admin_Csv::register();
 		HWE_Memberships_Admin_User_Profile::register();
 		HWE_Memberships_Admin_User_Columns::register();
@@ -177,6 +179,22 @@ final class HWE_Memberships_Admin {
 			'no_membership'   => __( 'El socio no tiene una membresía vigente que extender.', 'hwe' ),
 			'not_granted'     => __( 'No se concedió: el formulario ya se había usado o la operación no es válida.', 'hwe' ),
 			'not_possible'    => __( 'La acción no se pudo aplicar en el estado actual del socio.', 'hwe' ),
+			'bulk_started'    => sprintf(
+				/* translators: %d: id del lote. */
+				__( 'Lote #%d en marcha. El progreso se actualiza en esta pantalla.', 'hwe' ),
+				(int) ( $flash['batch'] ?? 0 )
+			),
+			'bulk_resumed'    => sprintf(
+				/* translators: %d: id del lote. */
+				__( 'Lote #%d reanudado.', 'hwe' ),
+				(int) ( $flash['batch'] ?? 0 )
+			),
+			'bulk_no_scheduler' => __( 'No se pudo iniciar el lote: Action Scheduler no está disponible.', 'hwe' ),
+			'bulk_too_many'     => __( 'La lista supera el máximo de entradas permitido.', 'hwe' ),
+			'bulk_empty'        => __( 'La selección no contiene ningún socio al que aplicar la operación.', 'hwe' ),
+			'bulk_not_started'  => __( 'No se pudo iniciar el lote. Revisa los ajustes y vuelve a intentarlo.', 'hwe' ),
+			'bulk_not_found'    => __( 'El lote indicado no existe o no se puede reanudar.', 'hwe' ),
+			'bulk_invalid'      => __( 'La selección o la operación no son válidas.', 'hwe' ),
 			'forbidden'       => __( 'No tienes permiso para realizar esta acción.', 'hwe' ),
 			'invalid'        => __( 'El formulario caducó. Recarga la pantalla e inténtalo de nuevo.', 'hwe' ),
 			'missing_level'  => __( 'El nivel ya no existe.', 'hwe' ),
@@ -205,6 +223,12 @@ final class HWE_Memberships_Admin {
 				'no_membership',
 				'not_granted',
 				'not_possible',
+				'bulk_no_scheduler',
+				'bulk_too_many',
+				'bulk_empty',
+				'bulk_not_started',
+				'bulk_not_found',
+				'bulk_invalid',
 			),
 			true
 		)
