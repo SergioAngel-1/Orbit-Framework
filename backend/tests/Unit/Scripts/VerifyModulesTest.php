@@ -123,6 +123,7 @@ case "$*" in
       esac
     else
       case "$*" in
+        *"/graphql"*"search:"*) echo '{"data":{"products":{"nodes":[]}}}' ;;
         *"/graphql"*)
           if [ "${FAKE_GRAPHQL_LEAK:-}" = "1" ]; then
             echo '{"data":{"product":{"description":"contenido-privado","hweMembership":{"locked":true,"requiredLevel":{"rank":7,"name":"verify-memberships"}}}}}'
@@ -131,6 +132,9 @@ case "$*" in
           fi
           ;;
         *"/wc/store/v1/cart"*) echo '{"extensions":{"hwe-memberships":{}}}' ;;
+        *"/wp/v2/product?search"*) echo '[]' ;;
+        *"/wp/v2/product/902"*) echo '{"id":902,"locked":true}' ;;
+        *"/wc/store/v1/products/verify-memberships"*) echo '{"id":902,"name":"verify-memberships","locked":true}' ;;
         *"/wc/store/v1/products/902"*) echo '{"id":902,"name":"verify-memberships","locked":true,"hwe_membership":{"required_level":{"rank":7,"name":"verify-memberships"}}}' ;;
         *) echo '{}' ;;
       esac
@@ -172,6 +176,10 @@ SH);
         $this->assertStringContainsString('memberships activo: GraphQL marca el producto como bloqueado', $out);
         $this->assertStringContainsString('memberships activo: la Store API no publica la descripción del producto bloqueado', $out);
         $this->assertStringContainsString('memberships activo: la Store API marca el producto como bloqueado', $out);
+        $this->assertStringContainsString('memberships activo: la Store API por slug no publica la descripción del producto bloqueado', $out);
+        $this->assertStringContainsString('memberships activo: wp/v2/product no publica el contenido del producto bloqueado', $out);
+        $this->assertStringContainsString('memberships activo: la búsqueda de GraphQL no compara contra la descripción bloqueada', $out);
+        $this->assertStringContainsString('memberships activo: la búsqueda de wp/v2/product no compara contra la descripción bloqueada', $out);
         // Apagado: no queda ninguna ruta interna registrada.
         $this->assertStringContainsString('memberships apagado: las rutas internas no están registradas', $out);
         $this->assertStringContainsString('memberships apagado: /hwe/v1/memberships/levels → 404', $out);
