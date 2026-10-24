@@ -291,6 +291,22 @@ final class PrivacyTest extends TestCase
 
     // ── Eliminador ───────────────────────────────────────────────────────────
 
+    public function test_eraser_forgets_the_memoized_member_state(): void
+    {
+        $this->seedErasureCase();
+
+        $this->assertSame('active', \HWE_Memberships_Members::state(self::USER)['status']);
+
+        $result = \HWE_Memberships_Privacy::erasePersonalData(self::USER_EMAIL, 1);
+        $this->assertTrue($result['done']);
+
+        $this->assertSame(
+            'none',
+            \HWE_Memberships_Members::state(self::USER)['status'],
+            'El eliminador no puede dejar servido el estado que acaba de borrar.'
+        );
+    }
+
     public function test_eraser_anonymizes_order_accounting_and_deletes_the_rest(): void
     {
         $this->seedErasureCase();

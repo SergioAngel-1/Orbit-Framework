@@ -870,13 +870,21 @@ final class HWE_Memberships_Privacy {
 	private static function begin(): bool {
 		global $wpdb;
 
+		if ( class_exists( 'HWE_Memberships_Grants' ) ) {
+			HWE_Memberships_Grants::flushReadCache();
+		}
 		return isset( $wpdb ) && is_object( $wpdb ) && false !== $wpdb->query( 'START TRANSACTION' );
 	}
 
 	private static function commit(): bool {
 		global $wpdb;
 
-		return isset( $wpdb ) && is_object( $wpdb ) && false !== $wpdb->query( 'COMMIT' );
+		$committed = isset( $wpdb ) && is_object( $wpdb ) && false !== $wpdb->query( 'COMMIT' );
+		if ( class_exists( 'HWE_Memberships_Grants' ) ) {
+			HWE_Memberships_Grants::flushReadCache();
+		}
+
+		return $committed;
 	}
 
 	private static function rollback(): void {
@@ -884,6 +892,9 @@ final class HWE_Memberships_Privacy {
 
 		if ( isset( $wpdb ) && is_object( $wpdb ) ) {
 			$wpdb->query( 'ROLLBACK' );
+		}
+		if ( class_exists( 'HWE_Memberships_Grants' ) ) {
+			HWE_Memberships_Grants::flushReadCache();
 		}
 	}
 

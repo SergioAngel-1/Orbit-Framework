@@ -68,6 +68,14 @@ final class HWE_Memberships_Levels {
 	/** Capacidad de gestión del módulo (niveles, beneficios y acciones). */
 	public const CAP_MANAGE = 'hwe_memberships_manage';
 
+	/**
+	 * Caché por petición del contrato de cada nivel (metas y traducciones incluidas). La vacía
+	 * `forget()` en cada guardado, cambio de meta, cambio de estado o borrado.
+	 *
+	 * @var array<int,array<string,mixed>>
+	 */
+	private static array $cache = array();
+
 	/** Engancha el CPT, sus campos traducibles, la caja y las protecciones. */
 	public static function register(): void {
 		add_action( 'init', array( self::class, 'registerPostType' ), 5 );
@@ -78,6 +86,13 @@ final class HWE_Memberships_Levels {
 		add_filter( 'pre_trash_post', array( self::class, 'preventDelete' ), 10, 2 );
 		add_filter( 'pre_delete_post', array( self::class, 'preventDelete' ), 10, 2 );
 		add_filter( 'wp_insert_post_data', array( self::class, 'guardUnpublish' ), 10, 2 );
+		// La lectura memoizada se olvida con cualquier cambio del nivel o de sus metas (incluidas
+		// las traducciones que guarda `hwe-content-i18n`).
+		add_action( 'deleted_post', array( self::class, 'forgetPost' ), 10, 2 );
+		add_action( 'transition_post_status', array( self::class, 'forgetOnTransition' ), 10, 3 );
+		add_action( 'added_post_meta', array( self::class, 'forgetMeta' ), 10, 3 );
+		add_action( 'updated_post_meta', array( self::class, 'forgetMeta' ), 10, 3 );
+		add_action( 'deleted_post_meta', array( self::class, 'forgetMeta' ), 10, 3 );
 	}
 
 	// ------------------------------------------------------------------------
@@ -249,6 +264,9 @@ final class HWE_Memberships_Levels {
 	public static function get( int $levelId ): ?array {
 		if ( $levelId < 1 || ! function_exists( 'get_post' ) ) {
 			return null;
+		}
+		if ( array_key_exists( $levelId, self::$cache ) ) {
+			return self::$cache[ $levelId ];
 		}
 		$post = get_post( $levelId );
 		if ( ! is_object( $post ) ) {
@@ -462,6 +480,9 @@ final class HWE_Memberships_Levels {
 			$raw = wp_unslash( (string) $_POST['hwe_membership_min_age_days'] );
 			update_post_meta( $postId, self::MIN_AGE_META, max( 0, is_numeric( $raw ) ? (int) floor( (float) $raw ) : 0 ) );
 		}
+
+		// El título o el estado pueden haber cambiado en el mismo guardado que trae estos campos.
+		self::forget( $postId );
 	}
 
 	/** Aplica el rango con las reglas de unicidad y deja el aviso si no se pudo guardar. */
@@ -597,6 +618,10 @@ final class HWE_Memberships_Levels {
 			return null;
 		}
 
+		if ( array_key_exists( $id, self::$cache ) ) {
+			return self::$cache[ $id ];
+		}
+
 		$meta = static function ( string $key ) use ( $id ) {
 			return function_exists( 'get_post_meta' ) ? get_post_meta( $id, $key, true ) : '';
 		};
@@ -626,7 +651,59 @@ final class HWE_Memberships_Levels {
 			$level['slugs'][ $locale ] = '' !== $translated ? $translated : $slug;
 		}
 
+		self::$cache[ $id ] = $level;
+
 		return $level;
+	}
+
+	/**
+	 * Olvida la lectura memoizada de un nivel. También descarta las lecturas de concesiones y
+	 * del socio, porque el rango del nivel forma parte del estado efectivo y podría haber
+	 * quedado memoizado con el valor anterior.
+	 */
+	public static function forget( int $levelId ): void {
+		if ( $levelId > 0 ) {
+			unset( self::$cache[ $levelId ] );
+		}
+		if ( class_exists( 'HWE_Memberships_Grants' ) ) {
+			HWE_Memberships_Grants::flushReadCache();
+		}
+	}
+
+	/**
+	 * `deleted_post`: el nivel ya no existe.
+	 *
+	 * @param mixed $post
+	 */
+	public static function forgetPost( int $postId, $post = null ): void {
+		self::forget( $postId );
+	}
+
+	/**
+	 * `transition_post_status`: publicar, despublicar, enviar a la papelera o restaurar cambia
+	 * lo que devuelve la lectura.
+	 *
+	 * @param mixed $post
+	 */
+	public static function forgetOnTransition( string $newStatus, string $oldStatus, $post = null ): void {
+		if ( is_object( $post ) && ( $post->post_type ?? '' ) === self::POST_TYPE && isset( $post->ID ) ) {
+			self::forget( (int) $post->ID );
+		}
+	}
+
+	/**
+	 * `added|updated|deleted_post_meta`: cualquier meta del nivel (rango, beneficios o una
+	 * traducción de `hwe-content-i18n`) invalida su lectura memoizada. Para el resto de posts no
+	 * se hace nada.
+	 */
+	public static function forgetMeta( int $metaId, int $objectId, string $metaKey = '' ): void {
+		if ( $objectId <= 0 ) {
+			return;
+		}
+		if ( function_exists( 'get_post_type' ) && self::POST_TYPE !== get_post_type( $objectId ) ) {
+			return;
+		}
+		self::forget( $objectId );
 	}
 
 	/**

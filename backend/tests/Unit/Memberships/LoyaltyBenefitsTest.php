@@ -257,6 +257,86 @@ final class LoyaltyBenefitsTest extends TestCase
         );
     }
 
+    public function testTheDailyActivationOfADeferredPurchaseDoesNotRetryTheCredit(): void
+    {
+        $this->makeLevel(
+            self::LEVEL_BASIC,
+            5,
+            ['activation_points' => ['enabled' => true, 'points' => 50]]
+        );
+        $this->makeLevel(
+            self::LEVEL_HIGH,
+            10,
+            ['activation_points' => ['enabled' => true, 'points' => 90]]
+        );
+        $this->bootBenefits();
+
+        // Una cobertura superior activa deja la compra en cola; el cobro ya abonó sus puntos.
+        \HWE_Memberships_Grants::grant(self::BUYER, self::LEVEL_HIGH, 30, 'admin', 'admin:high', [], self::ADMIN);
+        \HWE_Memberships_Grants::grant(
+            self::BUYER,
+            self::LEVEL_BASIC,
+            15,
+            'order',
+            'order:56:item:1',
+            ['type' => 'order', 'id' => 56]
+        );
+        $this->assertCount(1, $GLOBALS['hwe_test_loyalty']['credit_calls'], 'El cobro abona una vez.');
+
+        // La tarea diaria activa la compra aplazada cuando termina la cobertura superior. Es una
+        // activación del ciclo, no un cobro: no se vuelve a intentar el abono ni se registra un
+        // rechazo falso de `loyalty`.
+        $later = new \DateTimeImmutable(gmdate('Y-m-d H:i:s', $this->now + 31 * DAY_IN_SECONDS), new \DateTimeZone('UTC'));
+        $this->assertGreaterThan(0, \HWE_Memberships_Grants::materialize(self::BUYER, $later));
+
+        $this->assertCount(1, $GLOBALS['hwe_test_loyalty']['credit_calls'], 'La tarea diaria no reintenta el abono.');
+        $this->assertCount(1, $GLOBALS['hwe_test_loyalty']['credits']);
+        $this->assertStringNotContainsString('loyalty rechazó el abono', implode(' ', $this->logged));
+    }
+
+    public function testADeferredPurchaseChargedWithoutPointsNeverCreditsThemLater(): void
+    {
+        $this->makeLevel(
+            self::LEVEL_BASIC,
+            5,
+            ['activation_points' => ['enabled' => true, 'points' => 50]]
+        );
+        $this->makeLevel(
+            self::LEVEL_HIGH,
+            10,
+            ['activation_points' => ['enabled' => true, 'points' => 90]]
+        );
+        $this->bootBenefits();
+        $GLOBALS['hwe_test_loyalty']['points'] = false;
+
+        \HWE_Memberships_Grants::grant(self::BUYER, self::LEVEL_HIGH, 30, 'admin', 'admin:high', [], self::ADMIN);
+        \HWE_Memberships_Grants::grant(
+            self::BUYER,
+            self::LEVEL_BASIC,
+            15,
+            'order',
+            'order:57:item:1',
+            ['type' => 'order', 'id' => 57]
+        );
+
+        $skipped = fn (): array => array_values(array_filter(
+            $this->wpdb->event_rows,
+            static fn (array $row): bool => \HWE_Memberships_Events::POINTS_SKIPPED === (string) ($row['type'] ?? '')
+        ));
+        $this->assertCount(1, $skipped(), 'El cobro sin puntos deja constancia una vez.');
+        $this->assertSame([], $GLOBALS['hwe_test_loyalty']['credit_calls']);
+
+        // «Puntos» se enciende después, pero la compra ya se cobró sin ellos: no se abona tarde.
+        $GLOBALS['hwe_test_loyalty']['points'] = true;
+        $later = new \DateTimeImmutable(gmdate('Y-m-d H:i:s', $this->now + 31 * DAY_IN_SECONDS), new \DateTimeZone('UTC'));
+        $this->assertGreaterThan(0, \HWE_Memberships_Grants::materialize(self::BUYER, $later));
+
+        $this->assertSame([], $GLOBALS['hwe_test_loyalty']['credit_calls'], 'No se abona al activar lo ya cobrado.');
+        $this->assertSame([], $GLOBALS['hwe_test_loyalty']['credits']);
+        $this->assertCount(1, $skipped(), 'La tarea diaria no duplica `points_skipped`.');
+        $this->assertStringNotContainsString('loyalty rechazó el abono', implode(' ', $this->logged));
+    }
+
     public function testGiftAndAdminGrantsDoNotCreditActivationPoints(): void    {
         $this->makeLevel(
             self::LEVEL_BASIC,

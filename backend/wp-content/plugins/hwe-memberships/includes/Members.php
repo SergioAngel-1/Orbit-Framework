@@ -38,6 +38,15 @@ final class HWE_Memberships_Members {
 	public const STATUS_FROZEN = 'frozen';
 
 	/**
+	 * Caché por petición de la fila de `members`. La vacía toda escritura (`Grants` al abrir,
+	 * confirmar o deshacer su transacción, y el eliminador de `Privacy`): una lectura posterior
+	 * nunca puede servir el estado que se acaba de cambiar.
+	 *
+	 * @var array<int,object|null>
+	 */
+	private static array $rows = array();
+
+	/**
 	 * Estado del socio en `$at` (por defecto, ahora). Solo lee.
 	 *
 	 * @return array{level_id:int,rank:int,status:string,ends_at:?DateTimeImmutable,queue:list<array<string,mixed>>,member_since:?DateTimeImmutable,member_number:string,grant_key:string}
@@ -139,6 +148,10 @@ final class HWE_Memberships_Members {
 			return null;
 		}
 
+		if ( array_key_exists( $userId, self::$rows ) ) {
+			return self::$rows[ $userId ];
+		}
+
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				'SELECT * FROM ' . HWE_Memberships_Schema::membersTable() . ' WHERE user_id = %d LIMIT 1',
@@ -146,7 +159,20 @@ final class HWE_Memberships_Members {
 			)
 		);
 
-		return is_object( $row ) ? $row : null;
+		self::$rows[ $userId ] = is_object( $row ) ? $row : null;
+
+		// Un fallo de lectura no se memoiza: la siguiente llamada lo reintenta.
+		if ( isset( $wpdb->last_error ) && '' !== (string) $wpdb->last_error ) {
+			unset( self::$rows[ $userId ] );
+			return null;
+		}
+
+		return self::$rows[ $userId ];
+	}
+
+	/** Olvida la fila memoizada de esta petición. Toda escritura la llama. */
+	public static function flushReadCache(): void {
+		self::$rows = array();
 	}
 
 	/** @return array{level_id:int,rank:int,status:string,ends_at:?DateTimeImmutable,queue:list<array<string,mixed>>,member_since:?DateTimeImmutable,member_number:string,grant_key:string} */

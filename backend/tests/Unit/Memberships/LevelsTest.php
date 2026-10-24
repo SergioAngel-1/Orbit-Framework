@@ -436,6 +436,55 @@ final class LevelsTest extends TestCase
         $this->assertSame(12, $this->meta[10][\HWE_Memberships_Levels::MIN_AGE_META]);
     }
 
+    // --- lectura con caché por petición --------------------------------------------------------
+
+    public function testTheLevelReadIsMemoizedPerRequestAndForgottenOnSave(): void
+    {
+        $this->level(10, 5);
+
+        $calls = 0;
+        Functions\when('get_post')->alias(function (int $id) use (&$calls) {
+            $calls++;
+            return $this->posts[ $id ] ?? null;
+        });
+
+        $first  = \HWE_Memberships_Levels::get(10);
+        $second = \HWE_Memberships_Levels::get(10);
+
+        $this->assertSame(1, $calls, 'La segunda lectura no vuelve a pedir el post.');
+        $this->assertSame($first, $second);
+
+        $this->posts[10]->post_title = 'Nivel renombrado';
+        $this->fillPost(['hwe_membership_rank' => '5']);
+        \HWE_Memberships_Levels::save(10, $this->posts[10]);
+
+        $after = \HWE_Memberships_Levels::get(10);
+        $this->assertSame('Nivel renombrado', $after['name'], 'Guardar olvida la lectura memoizada.');
+        $this->assertSame(2, $calls, 'Solo la lectura posterior al guardado vuelve a pedir el post.');
+    }
+
+    public function testAMetaChangeForgetsTheMemoizedLevel(): void
+    {
+        $this->level(10, 5);
+        $this->assertSame(5, \HWE_Memberships_Levels::get(10)['rank']);
+
+        $this->meta[10][\HWE_Memberships_Levels::RANK_META] = '8';
+        \HWE_Memberships_Levels::forgetMeta(1, 10, \HWE_Memberships_Levels::RANK_META);
+
+        $this->assertSame(8, \HWE_Memberships_Levels::get(10)['rank'], 'La meta nueva se ve en la misma petición.');
+    }
+
+    public function testDeletingALevelForgetsTheMemoizedRead(): void
+    {
+        $this->level(10, 5);
+        $this->assertNotNull(\HWE_Memberships_Levels::get(10));
+
+        unset($this->posts[10]);
+        \HWE_Memberships_Levels::forgetPost(10, null);
+
+        $this->assertNull(\HWE_Memberships_Levels::get(10), 'Un nivel borrado no puede seguir saliendo de la caché.');
+    }
+
     // --- protección de niveles con socios -------------------------------------------------------
 
     public function testALevelWithActiveMembersCannotBeDeletedOrUnpublished(): void

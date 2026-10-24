@@ -326,6 +326,7 @@ final class PurchaseTest extends TestCase
             'starts_at' => gmdate('Y-m-d H:i:s', $this->now + 30 * DAY_IN_SECONDS),
             'ends_at'  => null,
         ]);
+        \HWE_Memberships_Grants::flushReadCache();
 
         $this->assertFalse(\HWE_Memberships_Purchase::canPurchase(self::BUYER, self::LEVEL_LOWER)['ok']);
     }

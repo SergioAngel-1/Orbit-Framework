@@ -69,6 +69,15 @@ final class HWE_Memberships_Events {
 	private static array $pending = array();
 
 	/**
+	 * Contexto de las acciones que se están disparando. `daily` identifica la materialización
+	 * de la tarea diaria: una activación programada que llega tarde no es un cobro nuevo.
+	 */
+	public const CONTEXT_DAILY = 'daily';
+
+	/** Contexto actual; vacío en una petición normal. */
+	private static string $context = '';
+
+	/**
 	 * Escribe una fila del historial y prepara sus hooks. Devuelve el id del evento o `null`
 	 * si no se pudo escribir.
 	 *
@@ -131,8 +140,12 @@ final class HWE_Memberships_Events {
 	/**
 	 * Dispara las acciones acumuladas y vacía la cola. Se llama solo después de un COMMIT
 	 * correcto. Devuelve cuántas acciones disparó.
+	 *
+	 * `$context` viaja a los consumidores durante el despacho (`context()`): la tarea diaria
+	 * marca `CONTEXT_DAILY` para que un alta programada que se activa ahora no se confunda con
+	 * el cobro que ya ocurrió.
 	 */
-	public static function flush(): int {
+	public static function flush( string $context = '' ): int {
 		$pending       = self::$pending;
 		self::$pending = array();
 
@@ -140,8 +153,14 @@ final class HWE_Memberships_Events {
 			return 0;
 		}
 
-		foreach ( $pending as $action ) {
-			do_action( $action[0], ...$action[1] );
+		$previous      = self::$context;
+		self::$context = $context;
+		try {
+			foreach ( $pending as $action ) {
+				do_action( $action[0], ...$action[1] );
+			}
+		} finally {
+			self::$context = $previous;
 		}
 
 		return count( $pending );
@@ -150,6 +169,14 @@ final class HWE_Memberships_Events {
 	/** Descarta las acciones pendientes (ROLLBACK o fallo antes del COMMIT). */
 	public static function clear(): void {
 		self::$pending = array();
+	}
+
+	/**
+	 * Contexto del despacho en curso (ver `flush()`). Devuelve `''` fuera de un `flush` y
+	 * `CONTEXT_DAILY` mientras se disparan las acciones de la tarea diaria.
+	 */
+	public static function context(): string {
+		return self::$context;
 	}
 
 	/**

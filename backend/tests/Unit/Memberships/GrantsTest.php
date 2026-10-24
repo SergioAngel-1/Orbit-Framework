@@ -1052,6 +1052,84 @@ final class GrantsTest extends TestCase
         $this->assertStringContainsString('[hwe] memberships:', $this->logged[0]);
     }
 
+    public function testWritesForgetTheMemoizedReads(): void
+    {
+        $this->wpdb()->seedMember(self::USER);
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'idempotency_key' => 'memo:grant',
+            'level_id'        => self::LEVEL,
+            'status'          => 'active',
+            'starts_at'       => $this->day(-1),
+            'ends_at'         => $this->day(30),
+        ]);
+
+        $this->assertSame('memo:grant', \HWE_Memberships_Members::state(self::USER)['grant_key']);
+
+        // Congelar escribe la fila del socio: el estado no puede seguir saliendo de la caché.
+        $this->assertTrue(\HWE_Memberships_Grants::freeze(self::USER, 1));
+        $this->assertSame('frozen', \HWE_Memberships_Members::state(self::USER)['status']);
+
+        $this->assertTrue(\HWE_Memberships_Grants::unfreeze(self::USER, 1));
+        $this->assertSame('active', \HWE_Memberships_Members::state(self::USER)['status']);
+
+        // Revocar escribe las concesiones: la lista memoizada no puede devolver la viva.
+        $this->assertSame('memo:grant', \HWE_Memberships_Members::state(self::USER)['grant_key']);
+        $this->assertTrue(\HWE_Memberships_Grants::revokeByKey('memo:grant', 0, 'prueba'));
+        $this->assertSame('none', \HWE_Memberships_Members::state(self::USER)['status']);
+    }
+
+    public function testChangingALevelRankForgetsTheMemoizedMemberState(): void
+    {
+        $this->wpdb()->seedMember(self::USER);
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'idempotency_key' => 'memo:rank',
+            'level_id'        => self::LEVEL,
+            'status'          => 'active',
+            'starts_at'       => $this->day(-1),
+            'ends_at'         => $this->day(30),
+        ]);
+
+        $this->assertSame(5, \HWE_Memberships_Members::state(self::USER)['rank']);
+
+        $this->levelMeta[ self::LEVEL ][ \HWE_Memberships_Levels::RANK_META ] = '9';
+        \HWE_Memberships_Levels::forget(self::LEVEL);
+
+        $this->assertSame(9, \HWE_Memberships_Members::state(self::USER)['rank']);
+    }
+
+    public function testAFailedWriteAlsoForgetsTheMemoizedReads(): void
+    {
+        $this->wpdb()->seedMember(self::USER);
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'idempotency_key' => 'memo:rollback',
+            'level_id'        => self::LEVEL,
+            'status'          => 'active',
+            'starts_at'       => $this->day(-1),
+            'ends_at'         => $this->day(30),
+        ]);
+
+        $this->assertSame('memo:rollback', \HWE_Memberships_Members::state(self::USER)['grant_key']);
+
+        $this->wpdb()->failInsertSuffix = 'hwe_memberships_grants';
+        $this->assertNull(\HWE_Memberships_Grants::grant(
+            self::USER,
+            self::LEVEL2,
+            30,
+            'admin',
+            'memo:failed',
+            array(),
+            1
+        ));
+
+        // El ROLLBACK deja la base como estaba; una lectura posterior no puede servir lo que
+        // se leyó dentro de la transacción fallida.
+        $this->assertSame('memo:rollback', \HWE_Memberships_Members::state(self::USER)['grant_key']);
+        $this->assertSame('active', \HWE_Memberships_Members::state(self::USER)['status']);
+    }
+
     // ── Regalo de referido (Tarea 15) ───────────────────────────────────────
 
     public function testGrantReferralGiftGrantsTheRefereeStoresTheReferrerAndCountsTheGift(): void

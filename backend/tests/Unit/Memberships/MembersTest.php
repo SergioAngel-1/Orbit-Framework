@@ -108,6 +108,56 @@ final class MembersTest extends TestCase
         $this->assertSame([], $this->wpdb()->writeQueries(), 'state() no puede escribir ni abrir transacción.');
     }
 
+    // --- caché por petición --------------------------------------------------------------------
+
+    public function testStateReadsTheMemberAndItsGrantsOncePerRequest(): void
+    {
+        $this->wpdb()->seedGrant([
+            'user_id' => self::USER,
+            'level_id' => self::LEVEL,
+            'idempotency_key' => 'memo',
+            'starts_at' => $this->day(0),
+            'ends_at' => $this->day(30),
+        ]);
+        $this->wpdb()->queries = [];
+
+        $first  = \HWE_Memberships_Members::state(self::USER);
+        $second = \HWE_Memberships_Members::state(self::USER);
+        $third  = \HWE_Memberships_Members::state(self::USER);
+
+        $reads = array_values(array_filter(
+            $this->wpdb()->queries,
+            static fn (string $sql): bool => str_contains($sql, 'hwe_memberships_members')
+                || str_contains($sql, 'hwe_memberships_grants')
+        ));
+
+        $this->assertCount(2, $reads, 'Una lectura de la fila del socio y otra de sus concesiones.');
+        $this->assertSame($first['grant_key'], $second['grant_key']);
+        $this->assertSame($first['grant_key'], $third['grant_key']);
+        $this->assertNoWrites();
+    }
+
+    public function testAStateWithAnExplicitInstantIsCalculatedForEachInstant(): void
+    {
+        $this->wpdb()->seedGrant([
+            'user_id' => self::USER,
+            'level_id' => self::LEVEL,
+            'idempotency_key' => 'memo:instant',
+            'starts_at' => $this->day(0),
+            'ends_at' => $this->day(30),
+        ]);
+
+        $this->assertSame(
+            self::LEVEL,
+            \HWE_Memberships_Members::state(self::USER, $this->at($this->day(10)))['level_id']
+        );
+        $this->assertSame(
+            'none',
+            \HWE_Memberships_Members::state(self::USER, $this->at($this->day(40)))['status'],
+            'Cada instante histórico se calcula por su cuenta.'
+        );
+    }
+
     public function testStateWithoutGrantsIsNoneAndDoesNotWrite(): void
     {
         $this->wpdb()->queries = [];

@@ -189,6 +189,7 @@ final class FreeDeliveriesTest extends TestCase
         $this->wpdb->grants[$old]['status']  = 'ended';
         $this->wpdb->grants[$old]['ends_at'] = gmdate('Y-m-d H:i:s', $this->now - 60);
         $renewal = $this->seedActiveGrant(self::USER, self::LEVEL, 'grant:renewal');
+        \HWE_Memberships_Grants::flushReadCache();
 
         $quota = $benefit->quotaFor(self::USER);
         $this->assertSame($renewal, $quota['grant_id']);
@@ -499,6 +500,7 @@ final class FreeDeliveriesTest extends TestCase
         $available = $mark($packages);
 
         $this->wpdb->grants[$grant]['shipping_quota_used'] = 1;
+        \HWE_Memberships_Grants::flushReadCache();
 
         $this->assertNotSame($available, $mark($packages), 'Sin cupo, las tarifas ya no pueden salir gratis: otro hash.');
     }
@@ -647,6 +649,7 @@ final class FreeDeliveriesTest extends TestCase
         $this->wpdb->grants[$grant]['status']  = 'ended';
         $this->wpdb->grants[$grant]['ends_at'] = gmdate('Y-m-d H:i:s', $this->now - 60);
         \HWE_Memberships_Benefit_Free_Deliveries::flushRateState();
+        \HWE_Memberships_Grants::flushReadCache();
 
         $recalculated = new \WC_Shipping_Rate('flat_rate', 8.0);
         $benefit->applyToRates(['flat' => $recalculated], []);
@@ -689,6 +692,7 @@ final class FreeDeliveriesTest extends TestCase
         // El nivel se pierde con el carrito lleno: el coste vuelve y el cupo deja de estar disponible.
         $this->wpdb->grants[$grant]['status']  = 'ended';
         $this->wpdb->grants[$grant]['ends_at'] = gmdate('Y-m-d H:i:s', $this->now - 60);
+        \HWE_Memberships_Grants::flushReadCache();
         $data = $benefit->cartData($this->cartPayload(true), ['user_id' => self::USER]);
         $this->assertFalse($data['free_delivery']['available']);
         $this->assertSame(0, $data['free_delivery']['remaining']);

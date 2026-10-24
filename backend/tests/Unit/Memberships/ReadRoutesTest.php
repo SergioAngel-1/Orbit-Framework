@@ -888,6 +888,27 @@ final class ReadRoutesTest extends TestCase
         $this->assertArrayNotHasKey('grant_key', $data);
     }
 
+    public function testThePurchasableListReadsTheGrantsOnceForAllLevels(): void
+    {
+        $this->wpdb()->queries = [];
+
+        $method = new \ReflectionMethod(\HWE_Memberships_ReadRoutes::class, 'purchasable');
+        $out    = $method->invoke(null, self::USER);
+
+        $this->assertCount(2, $out, 'Los dos niveles comprables y publicados.');
+
+        $reads = array_values(array_filter(
+            $this->wpdb()->queries,
+            static fn (string $sql): bool => str_contains($sql, 'hwe_memberships_grants')
+        ));
+
+        $this->assertLessThanOrEqual(
+            1,
+            count($reads),
+            'Las concesiones se leen una vez y se reutilizan para todos los niveles.'
+        );
+    }
+
     public function testMeOfAFrozenMemberHasNoEffectiveLevel(): void
     {
         $data = \HWE_Memberships_ReadRoutes::handleMe(

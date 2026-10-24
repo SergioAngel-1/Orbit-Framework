@@ -77,6 +77,15 @@ final class HWE_Memberships_Grants {
 	/** Longitud máxima de la clave de idempotencia (la columna es varchar(191)). */
 	private const KEY_MAX = 191;
 
+	/**
+	 * Caché por petición de `forUser()` sin bloqueo. Las lecturas con `FOR UPDATE` nunca la usan
+	 * ni la rellenan. Se vacía al abrir, confirmar o deshacer una escritura, así que dentro de
+	 * una transacción y después de ella se lee el estado real.
+	 *
+	 * @var array<int,list<array<string,mixed>>>
+	 */
+	private static array $forUserCache = array();
+
 	// ------------------------------------------------------------------------
 	//  Concesión
 	// ------------------------------------------------------------------------
@@ -1422,6 +1431,10 @@ final class HWE_Memberships_Grants {
 			return array();
 		}
 
+		if ( ! $lock && array_key_exists( $userId, self::$forUserCache ) ) {
+			return self::$forUserCache[ $userId ];
+		}
+
 		$sql = 'SELECT * FROM ' . HWE_Memberships_Schema::grantsTable()
 			. " WHERE user_id = %d AND status IN ('active','scheduled') ORDER BY starts_at ASC, id ASC";
 		if ( $lock ) {
@@ -1468,7 +1481,25 @@ final class HWE_Memberships_Grants {
 			);
 		}
 
+		if ( ! $lock ) {
+			// Un fallo de lectura no se memoiza: la siguiente llamada lo reintenta.
+			if ( ! isset( $wpdb->last_error ) || '' === (string) $wpdb->last_error ) {
+				self::$forUserCache[ $userId ] = $out;
+			}
+		}
+
 		return $out;
+	}
+
+	/**
+	 * Olvida las lecturas memoizadas de esta petición (concesiones y fila del socio). La llaman
+	 * toda escritura de `Grants` y el eliminador de `Privacy`.
+	 */
+	public static function flushReadCache(): void {
+		self::$forUserCache = array();
+		if ( class_exists( 'HWE_Memberships_Members' ) ) {
+			HWE_Memberships_Members::flushReadCache();
+		}
 	}
 
 	/**
@@ -1845,7 +1876,7 @@ final class HWE_Memberships_Grants {
 			return -1;
 		}
 
-		self::flush();
+		self::flushDaily();
 		return count( $transitions );
 	}
 
@@ -2286,17 +2317,23 @@ final class HWE_Memberships_Grants {
 
 	private static function begin(): bool {
 		global $wpdb;
+
+		self::flushReadCache();
 		return false !== $wpdb->query( 'START TRANSACTION' );
 	}
 
 	private static function commit(): bool {
 		global $wpdb;
+
+		self::flushReadCache();
 		return false !== $wpdb->query( 'COMMIT' );
 	}
 
 	private static function rollback(): void {
 		global $wpdb;
+
 		$wpdb->query( 'ROLLBACK' );
+		self::flushReadCache();
 	}
 
 	/** Aborta: descarta hooks, deshace la transacción y registra el motivo. */
@@ -2315,6 +2352,13 @@ final class HWE_Memberships_Grants {
 	private static function flush(): void {
 		if ( class_exists( 'HWE_Memberships_Events' ) ) {
 			HWE_Memberships_Events::flush();
+		}
+	}
+
+	/** Despacho de la tarea diaria: sus activaciones no son un cobro nuevo. */
+	private static function flushDaily(): void {
+		if ( class_exists( 'HWE_Memberships_Events' ) ) {
+			HWE_Memberships_Events::flush( HWE_Memberships_Events::CONTEXT_DAILY );
 		}
 	}
 

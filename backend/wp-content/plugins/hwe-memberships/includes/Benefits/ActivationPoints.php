@@ -20,6 +20,10 @@
  * constancia en el historial del socio (`points_skipped`) y en el log. Para poder dejar esa
  * constancia, el tipo escucha sus propios eventos con el plugin de `loyalty` cargado aunque la
  * función esté apagada; nunca engancha nada en los hooks de `loyalty`.
+ *
+ * Una compra aplazada se cobra en el acto (y abona u omite entonces) aunque su concesión se
+ * active más tarde. La activación que dispara la tarea diaria llega con
+ * `HWE_Memberships_Events::CONTEXT_DAILY` y se ignora: no es un segundo cobro.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -119,6 +123,16 @@ final class HWE_Memberships_Benefit_Activation_Points extends HWE_Memberships_Be
 	 */
 	public function onGranted( int $userId, int $grantId, int $levelId = 0 ): void {
 		if ( $userId <= 0 || $grantId <= 0 || ! class_exists( 'HWE_Memberships_Grants' ) ) {
+			return;
+		}
+
+		// La tarea diaria activa una compra que ya se cobró (y por tanto ya se abonó o se
+		// omitió) cuando termina la cobertura superior que la aplazaba. No es un cobro nuevo:
+		// reintentar aquí abonaría tarde o dejaría un rechazo falso en el log.
+		if (
+			class_exists( 'HWE_Memberships_Events' )
+			&& HWE_Memberships_Events::CONTEXT_DAILY === HWE_Memberships_Events::context()
+		) {
 			return;
 		}
 

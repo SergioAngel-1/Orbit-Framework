@@ -456,6 +456,38 @@ final class StoreApiTest extends TestCase
         });
     }
 
+    public function testTheCartStateReadsTheMemberOnceForAllLines(): void
+    {
+        $this->seedGrant();
+
+        $lines = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $lines['line-' . $i] = [
+                'product_id'   => self::PRODUCT_RESTRICTED,
+                'variation_id' => 0,
+                'quantity'     => 1,
+            ];
+        }
+        $this->makeCart($lines);
+        \HWE_Memberships_Access::flush();
+
+        $this->wpdb->queries = [];
+        $state = \HWE_Memberships_StoreApi::cartState();
+
+        $reads = array_values(array_filter(
+            $this->wpdb->queries,
+            static fn (string $sql): bool => str_contains($sql, 'hwe_memberships_members')
+                || str_contains($sql, 'hwe_memberships_grants')
+        ));
+
+        $this->assertCount(5, $state['blocked_items']);
+        $this->assertLessThanOrEqual(
+            2,
+            count($reads),
+            'El estado del socio se lee una vez por petición, no una por línea: ' . count($reads) . ' consultas.'
+        );
+    }
+
     public function testALineBlockedByAnExpiredLevelAppearsInBlockedItemsAndStopsTheOrder(): void
     {
         $this->seedGrant([
