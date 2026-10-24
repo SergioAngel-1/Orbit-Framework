@@ -63,6 +63,28 @@ Ajusta también: `WP_TITLE`, `WORDPRESS_PORT`/`FRONTEND_PORT` (si corres varias
 instancias en la misma máquina, usa puertos distintos para no chocar),
 `NEXT_PUBLIC_SITE_URL` (el nombre de la marca va en `instance.config.json`, no en el entorno).
 
+### Varias pilas en la misma máquina
+
+Dos clones de Orbite (o una instancia junto a la pila de desarrollo del framework) comparten
+el daemon de Docker del equipo, y ahí los nombres de contenedor y los puertos publicados son
+únicos. Cada pila necesita **su** juego de valores en su `.env` (nada de esto es código: son
+variables de entorno, `.env.example` las documenta):
+
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `HWE_CONTAINER_PREFIX` | `hwe` | Prefijo de los contenedores (`hwe_db`, `hwe_wordpress`, `hwe_wp_cron`, `hwe_redis`, `hwe_frontend`; en producción también `hwe_caddy` y `hwe_cache_prune`). Cambiarlo en una de las dos pilas evita el choque de nombres. |
+| `COMPOSE_PROJECT_NAME` | el nombre de la carpeta | Proyecto de Compose: prefija la red y los volúmenes y separa las pilas ante Docker. Dos clones en carpetas distintas ya lo tienen distinto; fíjalo si renombras la carpeta o corres dos pilas desde la misma ruta. |
+| `DB_PORT` | `3307` | Puerto de MariaDB en el host (`127.0.0.1`). El modo híbrido apunta ahí. |
+| `REDIS_PORT` | `6379` | Puerto de Redis en el host (`127.0.0.1`). |
+| `WORDPRESS_PORT` / `FRONTEND_PORT` | `8080` / `3000` | Puertos de WordPress y del frontend en el host. |
+
+Los scripts de verificación (`backend/scripts/verify-modules.sh`, `verify-integration.sh`)
+resuelven sus contenedores **por servicio de Compose del proyecto actual**, no por un nombre
+fijo, y aceptan `HWE_WP_CONTAINER` / `HWE_CLI_CONTAINER` como anulación explícita. Si el
+contenedor resuelto pertenece a otra pila (etiqueta `com.docker.compose.project`), **abortan**
+con un mensaje en vez de activar o desactivar módulos en la pila de otra instancia. Si no hay
+pila en este proyecto, responden con el recordatorio de `docker compose up -d`.
+
 ## 3. Configuración de marca/diseño — `wp hwe setup`
 
 En vez de rellenar a mano el panel **HWE Config** (`wp-admin`) la primera vez,

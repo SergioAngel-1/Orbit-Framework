@@ -128,6 +128,11 @@ docker exec hwe_wp_cron wp --allow-root wc update
 Las versiones fijadas son las de `backend/scripts/setup.sh`. Comprueba el resultado con
 `docker exec hwe_wordpress php -r 'echo PHP_VERSION;'` y la tabla de `docs/COMPATIBILITY.md`.
 
+Los comandos de arriba usan los nombres de contenedor por defecto. Si la instancia define
+`HWE_CONTAINER_PREFIX` (varias pilas en la misma máquina, `docs/CREATE_INSTANCE.md` §2), los
+contenedores son `<prefijo>_wp_cron`, `<prefijo>_wordpress`… y los puertos de base de datos y
+Redis son `DB_PORT` y `REDIS_PORT`.
+
 **El core de WordPress no se actualiza con `pull`.** Vive en el volumen `wordpress_core` y el
 entrypoint de la imagen solo copia el core si falta `/var/www/html/index.php`: subir la etiqueta
 de la imagen no cambia lo que sirve el sitio. Tras el `pull`, actualízalo a la versión de la

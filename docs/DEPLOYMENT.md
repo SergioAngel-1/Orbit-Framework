@@ -211,7 +211,7 @@ a las **03:00 UTC** via cron. Respaldo:
 Ver logs del backup (cada copia, programada o manual, deja ahí su resultado **y sus fallos**;
 el cron escribe al stdout del contenedor, no a un archivo interno):
 ```bash
-docker logs hwe_backup
+docker logs hwe_backup   # con HWE_CONTAINER_PREFIX, el nombre lleva ese prefijo
 ls -lt backups/ | head   # una copia nueva por día: si no aparece, el cron no corrió
 ```
 

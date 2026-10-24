@@ -30,6 +30,19 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   comentado); los de secretos y copias se comprueban siempre.
 
 ### Changed
+- **Varias pilas Docker en la misma máquina.** Los nombres de contenedor dejan de estar
+  escritos a mano: `docker-compose.yml` y `docker-compose.prod.yml` los construyen con
+  `HWE_CONTAINER_PREFIX` (por defecto `hwe`, así que sin configurar nada son los de siempre:
+  `hwe_db`, `hwe_wordpress`, `hwe_wp_cron`, `hwe_redis`, `hwe_frontend`, `hwe_caddy`,
+  `hwe_cache_prune`). En desarrollo, la base de datos y Redis publican `DB_PORT` (defecto
+  `3307`) y `REDIS_PORT` (defecto `6379`) en lugar de los literales. `verify-modules.sh` y
+  `verify-integration.sh` resuelven sus contenedores por **servicio de Compose del proyecto
+  actual** (`docker compose ps -q`, desde la raíz del repo), admiten la anulación explícita
+  `HWE_WP_CONTAINER` / `HWE_CLI_CONTAINER` y **abortan** (código 2) si el contenedor resuelto
+  pertenece a otro proyecto de Compose, también cuando viene de la variable: ejecutados desde
+  el clon de otra instancia ya no pueden activar o desactivar módulos en la pila del framework.
+  La resolución vive en `backend/scripts/lib/compose-containers.sh`. `.env.example` documenta
+  las variables y que `COMPOSE_PROJECT_NAME` debe ser distinto en cada pila.
 - **La puerta anti-instancia conoce el token de una instancia nueva.** El patrón de
   `.github/scripts/check-anti-instance.sh` incorpora el token de la instancia que empieza a
   usar este framework (la única aparición del nombre en el repositorio: el script se excluye a

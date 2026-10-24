@@ -20,9 +20,11 @@ plantillas; nunca subas claves reales.**
 > exactamente el `Origin` del navegador. Genera los secretos con `sh backend/scripts/generate-secrets.sh`.
 
 > **Modo híbrido (WordPress nativo):** WordPress toma sus variables de base de datos de
-> `WORDPRESS_DB_*` del entorno. MariaDB se expone en `localhost:3307` (no 3306) para no chocar con
-> un MySQL local. Con WordPress nativo hay que definir `HWE_REVALIDATION_SECRET` en su
-> `wp-config.php` (ver `README.md`); en Docker lo hace `docker-compose*.yml`.
+> `WORDPRESS_DB_*` del entorno. MariaDB se expone en `localhost:${DB_PORT:-3307}` (no 3306) para no
+> chocar con un MySQL local, y Redis en `localhost:${REDIS_PORT:-6379}`; con varias pilas en la
+> misma máquina cada una publica los suyos (`docs/CREATE_INSTANCE.md` §2). Con WordPress nativo hay
+> que definir `HWE_REVALIDATION_SECRET` en su `wp-config.php` (ver `README.md`); en Docker lo hace
+> `docker-compose*.yml`.
 
 ---
 

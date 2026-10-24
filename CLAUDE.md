@@ -84,7 +84,9 @@ Desde `backend/`: `composer test` (PHPUnit 12 + Brain Monkey). Contra la pila le
 
 **Pila completa:** Docker puro (`docker compose up -d` + `docker compose run --rm wpcli` en el
 primer arranque) o híbrido recomendado (`docker compose up -d db redis` + WP nativo con
-`php -S 0.0.0.0:8080 -t <ruta-wp>` contra la DB en `127.0.0.1:3307` + `npm run dev`).
+`php -S 0.0.0.0:8080 -t <ruta-wp>` contra la DB en `127.0.0.1:${DB_PORT:-3307}` + `npm run dev`).
+Con varias pilas en la misma máquina (`HWE_CONTAINER_PREFIX`, `COMPOSE_PROJECT_NAME`, `DB_PORT`,
+`REDIS_PORT`): `docs/CREATE_INSTANCE.md` §2.
 Pasos exactos en `README.md` y `docs/INSTALL.md`.
 
 ## Backend: qué es código propio

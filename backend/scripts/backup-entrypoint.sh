@@ -79,7 +79,7 @@ CRON_FILE="/etc/crontabs/root"
 mkdir -p "$(dirname "$CRON_FILE")"
 
 # La salida de cada corrida va al stdout del PROCESO 1 (crond), que es lo que lee
-# `docker logs hwe_backup`. Un archivo dentro del contenedor sería efímero e invisible
+# `docker logs ${HWE_CONTAINER_PREFIX:-hwe}_backup`. Un archivo dentro del contenedor sería efímero e invisible
 # para quien monitoriza; el resultado también queda en hwe-backup-status.json (panel).
 CRON_LOG='>> /proc/1/fd/1 2>&1'
 
@@ -93,7 +93,7 @@ fi
 printf '* * * * * %s/backup-trigger-watch.sh %s\n' "$SCRIPTS_DIR" "$CRON_LOG" >> "$CRON_FILE"
 
 echo "[backup] Servicio listo."
-echo "[backup] Backup inmediato: botón 'Backup ahora' en wp-admin, o 'docker exec hwe_backup ${SCRIPTS_DIR}/backup-cron.sh manual'."
+echo "[backup] Backup inmediato: botón 'Backup ahora' en wp-admin, o 'docker exec ${HWE_CONTAINER_PREFIX:-hwe}_backup ${SCRIPTS_DIR}/backup-cron.sh manual'."
 
 # ── Lanzar crond en primer plano ──────────────────────────────────────────────
 exec crond -f -l 6

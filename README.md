@@ -57,7 +57,9 @@ hwe-orbit/
 - **Docker** y **Docker Compose v2** (`docker compose`, no `docker-compose`).
 - **Node.js ≥ 20.18** (recomendado **24 LTS**, para frontend nativo).
 - **PHP ≥ 8.4** (paridad con producción) con extensiones `mysqli`, `curl`, `mbstring`, `gd` (para WordPress nativo — solo desarrollo híbrido).
-- Puertos **8080** (WordPress), **3000** (Next.js), **3307** (MariaDB), **6379** (Redis) libres.
+- Puertos **8080** (WordPress), **3000** (Next.js), **3307** (MariaDB) y **6379** (Redis) libres
+  (`WORDPRESS_PORT`, `FRONTEND_PORT`, `DB_PORT` y `REDIS_PORT` en `.env`; con varias pilas en la
+  misma máquina, cada una los suyos: `docs/CREATE_INSTANCE.md` §2).
 
 ---
 
@@ -135,8 +137,8 @@ npm run dev
 
 | Servicio   | Dónde corre     | Puerto | URL                   |
 |------------|-----------------|--------|-----------------------|
-| **MariaDB**| Docker          | `3307` | (interno)             |
-| **Redis**  | Docker          | `6379` | (interno)             |
+| **MariaDB**| Docker          | `DB_PORT` (`3307`) | (interno)  |
+| **Redis**  | Docker          | `REDIS_PORT` (`6379`) | (interno) |
 | **WordPress**| Nativo (PHP)  | `8080` | http://localhost:8080 |
 | **Frontend**| Nativo (Node) | `3000` | http://localhost:3000 |
 

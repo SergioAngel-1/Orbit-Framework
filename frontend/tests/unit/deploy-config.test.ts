@@ -524,3 +524,59 @@ describe("CD", () => {
     expect(cd).toContain("image_tag:");
   });
 });
+
+// Varias pilas de Orbite pueden convivir en el mismo daemon de Docker (una instancia junto a
+// la pila de desarrollo del framework). Sin variables, TODO cambia de golpe: los nombres de
+// contenedor son únicos en el daemon y los puertos 3307/6379 chocan. Los valores por defecto
+// son los de siempre, así que una instalación sin configurar nada sigue igual.
+describe("varias pilas en la misma máquina", () => {
+  const composeDev = root("docker-compose.yml");
+  const composeProd = root("docker-compose.prod.yml");
+  const env = root(".env.example");
+
+  it("los nombres de contenedor salen de HWE_CONTAINER_PREFIX, con `hwe` por defecto", () => {
+    for (const name of [
+      "db",
+      "wordpress",
+      "wpcli",
+      "wp_cron",
+      "backup",
+      "redis",
+      "frontend",
+    ]) {
+      expect(composeDev, name).toContain(
+        `container_name: \${HWE_CONTAINER_PREFIX:-hwe}_${name}`,
+      );
+    }
+    for (const name of [
+      "caddy",
+      "db",
+      "wordpress",
+      "wpcli",
+      "redis",
+      "frontend",
+      "wp_cron",
+      "backup",
+      "cache_prune",
+    ]) {
+      expect(composeProd, name).toContain(
+        `container_name: \${HWE_CONTAINER_PREFIX:-hwe}_${name}`,
+      );
+    }
+    // Ningún nombre fijo: lo que impediría levantar dos pilas.
+    expect(composeDev).not.toMatch(/container_name: hwe_/);
+    expect(composeProd).not.toMatch(/container_name: hwe_/);
+  });
+
+  it("los puertos de base de datos y Redis son variables con el valor de siempre", () => {
+    expect(dev).toContain('"127.0.0.1:${DB_PORT:-3307}:3306"');
+    expect(dev).toContain('"127.0.0.1:${REDIS_PORT:-6379}:6379"');
+  });
+
+  it(".env.example documenta las variables y el proyecto de Compose por pila", () => {
+    expect(env).toMatch(/^DB_PORT=3307$/m);
+    expect(env).toMatch(/^REDIS_PORT=6379$/m);
+    expect(env).toMatch(/^HWE_CONTAINER_PREFIX=hwe$/m);
+    expect(env).toMatch(/COMPOSE_PROJECT_NAME/);
+  });
+});

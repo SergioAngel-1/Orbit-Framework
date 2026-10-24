@@ -601,7 +601,10 @@ Desde `backend/`: `composer test` (PHPUnit 12 + Brain Monkey; los dobles de Word
 | **Híbrido** (recom.) | `docker compose up -d db redis` + `start-local.bat` + `npm run dev` | WordPress y frontend nativos; DB/Redis en Docker |
 
 Para desarrollo pesado, el **modo híbrido** evita la latencia de bind mounts Docker
-(WordPress nativo con `php -S 0.0.0.0:8080`, DB en puerto `3307`, frontend con `npm run dev`).
+(WordPress nativo con `php -S 0.0.0.0:8080`, DB en `DB_PORT` —`3307` por defecto—, frontend con
+`npm run dev`). Varias pilas en la misma máquina: `HWE_CONTAINER_PREFIX`, `COMPOSE_PROJECT_NAME`,
+`DB_PORT` y `REDIS_PORT` (`docs/CREATE_INSTANCE.md` §2); los `verify-*.sh` resuelven el contenedor
+por servicio de Compose y abortan si es de otra pila.
 Ver `docs/INSTALL.md` y `README.md` para instrucciones detalladas.
 
 E2E (Playwright): `npx playwright test` (smoke + accesibilidad axe + módulos) contra una app ya

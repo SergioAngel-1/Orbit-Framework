@@ -17,6 +17,7 @@ final class VerifyModulesTest extends ShellScriptTestCase
         $root = $this->dir . '/repo';
         $this->write('repo/backend/scripts/verify-modules.sh', (string) file_get_contents($this->script('verify-modules.sh')));
         $this->write('repo/backend/scripts/lib/load-env.sh', (string) file_get_contents($this->script('lib/load-env.sh')));
+        $this->write('repo/backend/scripts/lib/compose-containers.sh', (string) file_get_contents($this->script('lib/compose-containers.sh')));
         $this->write('repo/backend/wp-content/mu-plugins/hwe-control-center/Modules.php', <<<PHP
         <?php
             public const CORE_IDS = [
@@ -52,6 +53,7 @@ final class VerifyModulesTest extends ShellScriptTestCase
         $root = $this->dir . '/repo-memberships';
         $this->write('repo-memberships/backend/scripts/verify-modules.sh', (string) file_get_contents($this->script('verify-modules.sh')));
         $this->write('repo-memberships/backend/scripts/lib/load-env.sh', (string) file_get_contents($this->script('lib/load-env.sh')));
+        $this->write('repo-memberships/backend/scripts/lib/compose-containers.sh', (string) file_get_contents($this->script('lib/compose-containers.sh')));
         $this->write('repo-memberships/backend/wp-content/mu-plugins/hwe-control-center/Modules.php', <<<PHP
         <?php
             public const CORE_IDS = [
@@ -90,11 +92,13 @@ echo "docker $*" >> "$CALLS_LOG"
 echo "env:${FAKE_ENV_FROM_DOT_ENV:-}" >> "$CALLS_LOG"
 active() { [ -f "$FAKE_STATE/active" ]; }
 case "$*" in
+  *"compose ps -q"*) exit 0 ;;
+  *"inspect -f"*) printf '%s\n' "${FAKE_PROJECT:-pila-de-prueba}" ;;
+  *"inspect "*) exit 0 ;;
   *"exec hwe_wp_cron sh -c"* | *"exec hwe_wpcli sh -c"* | *"exec hwe_wordpress sh -c"*)
     [ "${FAKE_NO_WP_CONTAINER:-}" = "1" ] && exit 1
     exit 0
     ;;
-  *"inspect -f"*) printf '%s\n' "${FAKE_PROJECT:-pila-en-marcha}" ;;
   *"exec hwe_wordpress true"*) exit 0 ;;
   *"printenv WORDPRESS_CONFIG_EXTRA"*) printf "define( 'HWE_REVALIDATION_SECRET', 'secreto' );\n" ;;
   *"test -f"*) exit 0 ;;
@@ -148,6 +152,7 @@ case "$*" in
       esac
     fi
     ;;
+  *) echo "docker inesperado: $*" >> "$CALLS_LOG"; exit 42 ;;
 esac
 exit 0
 SH);
@@ -158,6 +163,10 @@ SH);
     /** @return array{code:int,stdout:string,stderr:string} */
     private function runIn(string $root, array $args, array $env = []): array
     {
+        // El script exige que la pila sea del proyecto de Compose de SU repo: las pruebas
+        // declaran uno fijo (`basename($root)` por defecto es lo que haría Compose).
+        $env += ['COMPOSE_PROJECT_NAME' => 'pila-de-prueba'];
+
         return $this->sh($root . '/backend/scripts/verify-modules.sh', $args, $env, null, $root);
     }
 
@@ -236,10 +245,12 @@ SH);
             'Con un contenedor en marcha, WP-CLI corre dentro de él.'
         );
         $this->assertStringNotContainsString(
-            'compose',
+            'compose run',
             $calls,
-            'No debe llamar a compose: podría recrear wordpress con otro entorno.'
+            'No debe lanzar `compose run`: podría recrear wordpress con otro entorno.'
         );
+        // Resolver el contenedor sí consulta `compose ps -q` (proyecto actual), pero no arranca nada.
+        $this->assertStringContainsString('compose ps -q wp-cron', $calls);
     }
 
     public function testSinContenedorElRespaldoNoPuedeRecrearServiciosYUsaElEnvDelRepo(): void
@@ -251,14 +262,14 @@ SH);
         $result = $this->runIn($root, ['toggle'], [
             'FAKE_STATE' => $state,
             'FAKE_NO_WP_CONTAINER' => '1',
-            'FAKE_PROJECT' => 'pila-en-marcha',
+            'FAKE_PROJECT' => 'pila-de-prueba',
         ]);
 
         $this->assertSame(0, $result['code'], $result['stdout'] . $result['stderr']);
 
         $calls = $this->calls();
         $this->assertStringContainsString(
-            'compose --project-name pila-en-marcha --profile cli run --rm --no-deps',
+            'compose --project-name pila-de-prueba --profile cli run --rm --no-deps',
             $calls,
             'El respaldo usa el proyecto de la pila y no arranca dependencias.'
         );
@@ -267,6 +278,9 @@ SH);
         foreach (preg_split('/\R/', $calls) ?: [] as $line) {
             if (!str_contains($line, 'docker compose ')) {
                 continue;
+            }
+            if (str_contains($line, ' compose ps -q ')) {
+                continue; // solo resuelve el contenedor: no arranca ni recrea nada
             }
             $this->assertStringContainsString('--no-deps', $line, 'Ningún compose puede recrear servicios: ' . $line);
             $this->assertStringNotContainsString(' up ', ' ' . $line . ' ', 'El script no arranca servicios: ' . $line);
@@ -360,10 +374,15 @@ SH);
         $this->fakeBinary('docker', <<<'SH'
 echo "docker $*" >> "$CALLS_LOG"
 case "$*" in
+  *"compose ps -q"*) exit 0 ;;
+  *"inspect -f"*) printf '%s\n' "pila-de-prueba" ;;
+  *"inspect "*) exit 0 ;;
+  *"exec hwe_wp_cron sh -c"*) exit 0 ;;
+  *"exec hwe_wordpress true"*) exit 0 ;;
   *"test -f"*) exit 1 ;;
   *printenv*) echo "define( 'HWE_REVALIDATION_SECRET', 'secreto' );" ;;
+  *) echo "docker inesperado: $*" >> "$CALLS_LOG"; exit 42 ;;
 esac
-exit 0
 SH);
         $root = $this->repo();
 
@@ -378,5 +397,137 @@ SH);
         // Sin plugin montado no se activa ni se desactiva nada.
         $this->assertStringNotContainsString('plugin activate', $this->calls());
         $this->assertStringNotContainsString('plugin deactivate', $this->calls());
+    }
+
+    // ── varias pilas en la misma máquina ─────────────────────────────────────
+
+    /** `docker` de una pila resuelta por servicio, con ids distintos de los nombres fijos. */
+    private function fakeComposeStack(string $project = 'pila-de-prueba'): void
+    {
+        $this->fakeBinary('docker', <<<SH
+echo "docker \$*" >> "\$CALLS_LOG"
+case "\$*" in
+  *"compose ps -q wordpress"*) echo "ctr-wordpress" ;;
+  *"compose ps -q wp-cron"*) echo "ctr-wp-cron" ;;
+  *"compose ps -q wpcli"*) echo "ctr-wpcli" ;;
+  *"inspect -f"*) printf '%s\n' "$project" ;;
+  *"exec ctr-wp-cron sh -c"*) exit 0 ;;
+  *"exec ctr-wp-cron wp "*) echo "co,generic" ;;
+  *"exec ctr-wordpress true"*) exit 0 ;;
+  *"exec ctr-wordpress printenv"*) echo "define( 'HWE_REVALIDATION_SECRET', 'secreto' );" ;;
+  *"exec ctr-wordpress curl"*"/config"*) echo '{"country":"CO"}' ;;
+  *"exec ctr-wordpress curl"*"/geo"*) echo '{"country":"CO","fallback":false}' ;;
+  *) echo "docker inesperado: \$*" >> "\$CALLS_LOG"; exit 42 ;;
+esac
+SH);
+    }
+
+    /** `docker` de una pila que se resuelve por los nombres con prefijo (sin `compose ps`). */
+    private function fakePrefixStack(string $prefix = 'hwe'): void
+    {
+        $this->fakeBinary('docker', <<<SH
+echo "docker \$*" >> "\$CALLS_LOG"
+case "\$*" in
+  *"compose ps -q"*) exit 0 ;;
+  *"inspect -f"*) printf '%s\n' "pila-de-prueba" ;;
+  *"inspect "*) exit 0 ;;
+  *"exec {$prefix}_wp_cron sh -c"*) exit 0 ;;
+  *"exec {$prefix}_wp_cron wp "*) echo "co,generic" ;;
+  *"exec {$prefix}_wordpress true"*) exit 0 ;;
+  *"exec {$prefix}_wordpress printenv"*) echo "define( 'HWE_REVALIDATION_SECRET', 'secreto' );" ;;
+  *"exec {$prefix}_wordpress curl"*"/config"*) echo '{"country":"CO"}' ;;
+  *"exec {$prefix}_wordpress curl"*"/geo"*) echo '{"country":"CO","fallback":false}' ;;
+  *) echo "docker inesperado: \$*" >> "\$CALLS_LOG"; exit 42 ;;
+esac
+SH);
+    }
+
+    public function testElContenedorDeWpCliSeResuelvePorElServicioDeCompose(): void
+    {
+        $this->fakeComposeStack();
+        $root = $this->repo();
+
+        $result = $this->runIn($root, ['country']);
+
+        $this->assertSame(0, $result['code'], $result['stdout']);
+        $calls = $this->calls();
+        $this->assertStringContainsString('docker compose ps -q wp-cron', $calls);
+        $this->assertStringContainsString('docker exec ctr-wp-cron wp', $calls);
+        $this->assertStringContainsString('docker compose ps -q wordpress', $calls);
+        $this->assertStringContainsString('docker exec ctr-wordpress curl', $calls);
+    }
+
+    public function testHweCliContainerAnulaLaResolucionPorServicio(): void
+    {
+        $this->fakeBinary('docker', <<<'SH'
+echo "docker $*" >> "$CALLS_LOG"
+case "$*" in
+  *"compose ps -q wordpress"*) echo "ctr-wordpress" ;;
+  *"inspect -f"*) printf '%s\n' "pila-de-prueba" ;;
+  *"inspect wp-a-mano"*) exit 0 ;;
+  *"exec wp-a-mano wp "*) echo "co,generic" ;;
+  *"exec ctr-wordpress true"*) exit 0 ;;
+  *"exec ctr-wordpress printenv"*) echo "define( 'HWE_REVALIDATION_SECRET', 'secreto' );" ;;
+  *"exec ctr-wordpress curl"*"/config"*) echo '{"country":"CO"}' ;;
+  *"exec ctr-wordpress curl"*"/geo"*) echo '{"country":"CO","fallback":false}' ;;
+  *) echo "docker inesperado: $*" >> "$CALLS_LOG"; exit 42 ;;
+esac
+SH);
+        $root = $this->repo();
+
+        $result = $this->runIn($root, ['country'], ['HWE_CLI_CONTAINER' => 'wp-a-mano']);
+
+        $this->assertSame(0, $result['code'], $result['stdout']);
+        $calls = $this->calls();
+        $this->assertStringContainsString('docker exec wp-a-mano wp', $calls);
+        $this->assertStringNotContainsString('compose ps -q wp-cron', $calls);
+    }
+
+    public function testSinResolucionPorComposeCaeAlNombreConPrefijo(): void
+    {
+        $this->fakePrefixStack();
+        $root = $this->repo();
+
+        $result = $this->runIn($root, ['country']);
+
+        $this->assertSame(0, $result['code'], $result['stdout']);
+        $calls = $this->calls();
+        $this->assertStringContainsString('docker exec hwe_wp_cron wp', $calls);
+        $this->assertStringContainsString('docker exec hwe_wordpress curl', $calls);
+    }
+
+    public function testElPrefijoDeContenedoresSePuedeCambiar(): void
+    {
+        $this->fakePrefixStack('acme');
+        $root = $this->repo();
+
+        $result = $this->runIn($root, ['country'], ['HWE_CONTAINER_PREFIX' => 'acme']);
+
+        $this->assertSame(0, $result['code'], $result['stdout']);
+        $this->assertStringContainsString('docker exec acme_wp_cron wp', $this->calls());
+    }
+
+    public function testAbortaSiElContenedorEsDeOtraPila(): void
+    {
+        // El nombre por defecto existe, pero su etiqueta dice otro proyecto de Compose: el
+        // script no puede activar/desactivar módulos en la pila de otra instancia.
+        $this->fakeBinary('docker', <<<'SH'
+echo "docker $*" >> "$CALLS_LOG"
+case "$*" in
+  *"compose ps -q"*) exit 0 ;;
+  *"inspect -f"*) printf '%s\n' "otra-pila" ;;
+  *"inspect "*) exit 0 ;;
+  *) echo "docker inesperado: $*" >> "$CALLS_LOG"; exit 42 ;;
+esac
+SH);
+        $root = $this->repo();
+
+        $result = $this->runIn($root, ['toggle']);
+
+        $out = $result['stdout'] . $result['stderr'];
+        $this->assertSame(2, $result['code'], $out);
+        $this->assertStringContainsString('otra-pila', $out);
+        $this->assertStringContainsString('pila-de-prueba', $out);
+        $this->assertStringNotContainsString('docker exec', $this->calls(), 'No debe ejecutar nada en otra pila.');
     }
 }
