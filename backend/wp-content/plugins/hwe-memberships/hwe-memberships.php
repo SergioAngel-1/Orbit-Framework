@@ -66,6 +66,7 @@ require_once __DIR__ . '/includes/Purchase.php';
 require_once __DIR__ . '/includes/Privacy.php';
 require_once __DIR__ . '/includes/Card.php';
 require_once __DIR__ . '/includes/Rest/CardRoutes.php';
+require_once __DIR__ . '/includes/Admin/Admin.php';
 
 final class HWE_Memberships {
 
@@ -95,6 +96,7 @@ final class HWE_Memberships {
 		HWE_Memberships_Privacy::register();
 		HWE_Memberships_Card::register();
 		HWE_Memberships_CardRoutes::register();
+		HWE_Memberships_Admin::register();
 	}
 
 	/** Aviso en wp-admin si el plugin se activó sin WooCommerce (la cabecera ya lo impide). */
@@ -120,4 +122,11 @@ if ( function_exists( 'register_activation_hook' ) ) {
 }
 if ( function_exists( 'register_deactivation_hook' ) ) {
 	register_deactivation_hook( __FILE__, array( 'HWE_Memberships_Scheduler', 'unschedule' ) );
+}
+
+// La concesión de capacidades va en `activated_plugin`, que se dispara en la misma petición de
+// activación (el hook llega también al activar otros plugins; `onActivated` filtra por archivo).
+// El menú y la autorreparación los registra `HWE_Memberships_Admin` en `boot()`.
+if ( class_exists( 'HWE_Memberships_Admin_Capabilities' ) ) {
+	add_action( 'activated_plugin', array( 'HWE_Memberships_Admin_Capabilities', 'onActivated' ) );
 }

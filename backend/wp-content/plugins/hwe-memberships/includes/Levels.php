@@ -89,7 +89,7 @@ final class HWE_Memberships_Levels {
 		$labels = array(
 			'name'               => __( 'Niveles', 'hwe' ),
 			'singular_name'      => __( 'Nivel', 'hwe' ),
-			'menu_name'          => __( 'Niveles', 'hwe' ),
+			'menu_name'          => __( 'Todos los niveles', 'hwe' ),
 			'add_new'            => __( 'Añadir nuevo', 'hwe' ),
 			'add_new_item'       => __( 'Añadir nuevo nivel', 'hwe' ),
 			'new_item'           => __( 'Nuevo nivel', 'hwe' ),
@@ -128,7 +128,11 @@ final class HWE_Memberships_Levels {
 				'publicly_queryable'  => false,
 				'exclude_from_search' => true,
 				'show_ui'             => true,
-				'show_in_menu'        => true,
+				// El CPT cuelga del menú propio del módulo («Membresías»); sin la clase del menú
+				// cargada (tests aislados del CPT) se deja el comportamiento nativo.
+				'show_in_menu'        => class_exists( 'HWE_Memberships_Admin_Menu' )
+					? HWE_Memberships_Admin_Menu::MAIN
+					: true,
 				'show_in_rest'        => false,
 				'query_var'           => false,
 				'rewrite'             => false,
