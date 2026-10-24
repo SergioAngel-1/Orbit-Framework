@@ -6,7 +6,9 @@
  * transiciones que el resto del módulo calcula al leer:
  *  · `scheduled → active` cuando llega el inicio de una concesión programada;
  *  · `active → ended` cuando llega su fin;
- *  · el aviso `expiring` de las concesiones que terminan dentro de los días configurados.
+ *  · el aviso `expiring` de las concesiones que terminan dentro de los días configurados;
+ *  · la limpieza de los tokens del carné caducados hace más de una semana (cada petición de
+ *    carné inserta una fila; sin ella la tabla crecería sin tope).
  *
  * Si una pasada deja trabajo pendiente, programa una continuación puntual
  * (`hwe_memberships_daily_continue`) a cinco minutos; no se espera al día siguiente.
@@ -149,6 +151,11 @@ final class HWE_Memberships_Scheduler {
 		}
 
 		$batch = max( 1, $batch );
+
+		// Mantenimiento previo: los tokens del carné caducados hace más de una semana.
+		if ( class_exists( 'HWE_Memberships_Card' ) ) {
+			HWE_Memberships_Card::purgeExpired();
+		}
 
 		$settings   = HWE_Memberships_Settings::get();
 		$noticeDays = max( 0, (int) ( $settings['expiring_notice_days'] ?? 0 ) );

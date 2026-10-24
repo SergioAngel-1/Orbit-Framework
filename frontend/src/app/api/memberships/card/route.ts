@@ -10,8 +10,13 @@ import {
 } from "@/lib/memberships/http";
 import { getMembershipCard } from "@/lib/memberships/server";
 import { logger } from "@/lib/observability/logger";
+import { rateLimit } from "@/lib/security/rate-limit";
 
 export const dynamic = "force-dynamic";
+
+/** Cada petición inserta un token en WordPress: se acota por socio. */
+const RATE_LIMIT = 10;
+const RATE_WINDOW_SECONDS = 60;
 
 // ============================================================================
 //  GET /api/memberships/card
@@ -33,6 +38,25 @@ export async function GET(request: Request) {
 
   const session = await getSession();
   if (!session) return membershipUnauthorized();
+
+  const limit = await rateLimit(
+    `memberships-card:${session.userId}`,
+    RATE_LIMIT,
+    RATE_WINDOW_SECONDS,
+  );
+  if (!limit.success) {
+    logger.warn(
+      { event: "memberships.card_rate_limited", userId: Number(session.userId) },
+      "Rate-limit al emitir el carné de membresía",
+    );
+    return NextResponse.json(
+      { error: "Demasiadas peticiones. Inténtalo más tarde." },
+      {
+        status: 429,
+        headers: { ...NO_STORE, "Retry-After": String(limit.retryAfter) },
+      },
+    );
+  }
 
   try {
     const issued = await getMembershipCard(Number(session.userId));

@@ -241,6 +241,53 @@ final class HWE_Memberships_Card {
 		}
 	}
 
+	/** Días que se conserva un token caducado antes de borrarlo (diagnóstico y soporte). */
+	public const PURGE_AFTER_DAYS = 7;
+
+	/** Filas que borra como máximo cada sentencia de la limpieza. */
+	private const PURGE_CHUNK = 1000;
+
+	/** Sentencias como máximo por pasada, para que la tarea diaria no se eternice. */
+	private const PURGE_MAX_CHUNKS = 20;
+
+	/**
+	 * Borra los tokens caducados hace más de `PURGE_AFTER_DAYS`. Cada petición de carné inserta una
+	 * fila y revoca la anterior (no la borra), así que sin esta limpieza la tabla crecería sin
+	 * tope. Lo llama la tarea diaria; borra en trozos acotados con el índice `expires_at`.
+	 *
+	 * @return int filas borradas
+	 */
+	public static function purgeExpired(): int {
+		global $wpdb;
+		if ( ! isset( $wpdb ) || ! is_object( $wpdb ) || ! class_exists( 'HWE_Memberships_Schema' ) ) {
+			return 0;
+		}
+
+		$before  = gmdate( 'Y-m-d H:i:s', time() - self::PURGE_AFTER_DAYS * 86400 );
+		$deleted = 0;
+
+		for ( $chunk = 0; $chunk < self::PURGE_MAX_CHUNKS; $chunk++ ) {
+			$count = $wpdb->query(
+				$wpdb->prepare(
+					'DELETE FROM ' . HWE_Memberships_Schema::cardTokensTable() . ' WHERE expires_at < %s LIMIT %d',
+					$before,
+					self::PURGE_CHUNK
+				)
+			);
+			if ( false === $count ) {
+				self::log( 'no se pudieron borrar los tokens del carné caducados.' );
+				break;
+			}
+
+			$deleted += (int) $count;
+			if ( (int) $count < self::PURGE_CHUNK ) {
+				break;
+			}
+		}
+
+		return $deleted;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Verificación
 	// ------------------------------------------------------------------------

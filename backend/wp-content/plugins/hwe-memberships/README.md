@@ -259,7 +259,9 @@ y, si `customer-identity` está activo, el documento enmascarado) o `{ valid: fa
 inexistente, caducado y revocado dan **exactamente la misma respuesta**, sin distinguir el motivo
 ni revelar la causa. El rate-limit por IP vive en el BFF. Emitir un carné revoca el anterior; el
 token se revoca al caducar, congelarse, revocarse o retirarse la membresía, y se borra con los
-datos personales.
+datos personales. Cada emisión inserta una fila (la anterior se revoca, no se borra): la tarea
+diaria retira los tokens caducados hace más de 7 días (`HWE_Memberships_Card::purgeExpired()`,
+por trozos de 1.000) y el BFF limita la emisión a 10 por minuto y socio.
 
 ## Rutas internas
 

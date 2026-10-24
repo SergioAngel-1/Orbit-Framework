@@ -224,6 +224,23 @@ final class TestMembershipsServiceWpdb
             return 1;
         }
 
+        if (str_starts_with($sql, 'DELETE FROM ' . $this->prefix . 'hwe_memberships_card_tokens WHERE expires_at <')) {
+            $before = (string) ($args[0] ?? '');
+            $limit  = (int) ($args[1] ?? PHP_INT_MAX);
+            $count  = 0;
+            foreach ($this->tokens as $index => $token) {
+                if ($count >= $limit) {
+                    break;
+                }
+                if ((string) ($token['expires_at'] ?? '') < $before) {
+                    unset($this->tokens[$index]);
+                    $count++;
+                }
+            }
+            $this->tokens = array_values($this->tokens);
+            return $count;
+        }
+
         if (str_starts_with($sql, 'UPDATE ' . $this->prefix . 'hwe_memberships_card_tokens')) {
             $now    = (string) ($args[0] ?? '');
             $userId = (int) ($args[1] ?? 0);

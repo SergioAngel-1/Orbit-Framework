@@ -620,6 +620,25 @@ final class SchedulerTest extends TestCase
         $this->assertSame([], $this->wpdb()->event_rows);
     }
 
+    /**
+     * Cada vez que el socio pide su carné se inserta una fila de token (el anterior se revoca, no
+     * se borra). Sin limpieza la tabla crece sin tope: la tarea diaria retira los caducados hace
+     * más de una semana, y deja los vivos y los recién caducados.
+     */
+    public function testTheDailyRunPurgesLongExpiredCardTokensOnly(): void
+    {
+        $this->wpdb()->seedToken(self::USER, 'vivo', $this->at(1));
+        $this->wpdb()->seedToken(self::USER, 'caducado-ayer', $this->at(-1), $this->at(-2));
+        $this->wpdb()->seedToken(self::USER, 'caducado-hace-diez-dias', $this->at(-10), $this->at(-11));
+        $this->wpdb()->seedToken(self::OTHER, 'caducado-hace-un-mes', $this->at(-30));
+
+        \HWE_Memberships_Scheduler::run();
+
+        $left = array_column($this->wpdb()->tokens, 'token_hash');
+        sort($left);
+        $this->assertSame(['caducado-ayer', 'vivo'], $left);
+    }
+
     public function testTheModuleOffDoesNothing(): void
     {
         $this->activePlugins = [];

@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { getMembershipCard } from "@/lib/memberships/server";
 import { MembershipsReadError } from "@/lib/memberships/types";
 import { logger } from "@/lib/observability/logger";
+import { rateLimit } from "@/lib/security/rate-limit";
 import { GET } from "./route";
 
 // ============================================================================
@@ -17,6 +18,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/memberships/server", () => ({
   getMembershipCard: vi.fn(),
 }));
+vi.mock("@/lib/security/rate-limit", () => ({ rateLimit: vi.fn() }));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
@@ -55,6 +57,12 @@ beforeEach(() => {
   state.fallback = false;
   vi.mocked(getSession).mockResolvedValue({ userId: "7", token: "JWT" });
   vi.mocked(getMembershipCard).mockResolvedValue(ISSUED);
+  vi.mocked(rateLimit).mockResolvedValue({
+    success: true,
+    remaining: 9,
+    retryAfter: 0,
+    limit: 10,
+  });
 });
 
 describe("GET /api/memberships/card", () => {
@@ -82,6 +90,23 @@ describe("GET /api/memberships/card", () => {
     expect(json.verify_url).toBe(
       `https://tienda.example/socio/verificar/${ISSUED.token}`,
     );
+  });
+
+  it("limita por socio cuántos carnés se emiten: cada petición inserta un token", async () => {
+    vi.mocked(rateLimit).mockResolvedValue({
+      success: false,
+      remaining: 0,
+      retryAfter: 42,
+      limit: 10,
+    });
+
+    const res = await GET(request());
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("42");
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(getMembershipCard).not.toHaveBeenCalled();
+    expect(vi.mocked(rateLimit).mock.calls[0]?.[0]).toBe("memberships-card:7");
   });
 
   it("sin sesión responde 401 y no emite el carné", async () => {
