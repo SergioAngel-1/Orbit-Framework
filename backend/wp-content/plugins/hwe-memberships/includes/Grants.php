@@ -52,6 +52,18 @@ final class HWE_Memberships_Grants {
 	/** Contador del número de socio (fila no autoload de `wp_options`). */
 	public const MEMBER_SEQUENCE_OPTION = 'hwe_memberships_member_sequence';
 
+	/** Prefijo de la clave idempotente de un regalo de referido (`gift:<referido>`). */
+	public const REFERRAL_GIFT_PREFIX = 'gift:';
+
+	/** Resultados de `grantReferralGift()`; el llamador decide qué historial dejar. */
+	public const RESULT_GRANTED       = 'granted';
+	public const RESULT_DUPLICATE     = 'duplicate';
+	public const RESULT_LIMIT         = 'limit';
+	public const RESULT_FROZEN        = 'frozen';
+	public const RESULT_NO_MEMBERSHIP = 'no_membership';
+	public const RESULT_INVALID       = 'invalid';
+	public const RESULT_FAILED        = 'failed';
+
 	/** Longitud máxima de la clave de idempotencia (la columna es varchar(191)). */
 	private const KEY_MAX = 191;
 
@@ -238,6 +250,277 @@ final class HWE_Memberships_Grants {
 
 		self::flush();
 		return $grantId;
+	}
+
+	/**
+	 * Concede la membresía de regalo de un referido (spec §7.5).
+	 *
+	 * Es una variante de `grant()` para el origen `referral_gift` con dos obligaciones extra:
+	 *  · **Una sola vez por referido**: la clave es `gift:<id del referido>` y la da el índice
+	 *    único de la tabla.
+	 *  · **Tope por periodo del referidor**: el contador vive en la concesión que hoy es efectiva
+	 *    para el referidor (`referral_gifts`). Se comprueba y se incrementa dentro de la misma
+	 *    transacción que crea el regalo, con las filas de los dos socios bloqueadas en orden
+	 *    estable (el id menor primero) para no interbloquear. Dos referidos verificando a la vez
+	 *    con el tope a punto de agotarse no pueden pasarse del cupo (Foco de revisión 2).
+	 *
+	 * El regalo se coloca con `Timeline`: si el referido ya tiene ese nivel o uno superior, queda
+	 * programado detrás de su cobertura y no se pierde. No abona puntos por activación (su origen
+	 * no es `order`).
+	 *
+	 * Devuelve un array con `reason` (`granted`, `duplicate`, `limit`, `frozen`,
+	 * `no_membership`, `invalid` o `failed`), `grant_id`, `used`, `max`, `referrer_grant_id`,
+	 * `referrer_level_id` y `referrer_grant_key`. El llamador usa `limit` para dejar constancia
+	 * en el historial del referidor; aquí no se escribe ese evento porque la comprobación del
+	 * tope no debe crear una concesión.
+	 *
+	 * @param array<mixed> $data Datos estructurados extra para la fila y el historial (ids).
+	 * @return array{reason:string,grant_id:?int,used:int,max:int,referrer_grant_id:int,referrer_level_id:int,referrer_grant_key:string}
+	 */
+	public static function grantReferralGift(
+		int $referrerId,
+		int $refereeId,
+		int $levelId,
+		int $days,
+		int $maxPerPeriod,
+		array $data = array()
+	): array {
+		self::clearQueue();
+
+		$maxPerPeriod = max( 1, $maxPerPeriod );
+		$result       = array(
+			'reason'              => self::RESULT_INVALID,
+			'grant_id'            => null,
+			'used'                => 0,
+			'max'                 => $maxPerPeriod,
+			'referrer_grant_id'   => 0,
+			'referrer_level_id'   => 0,
+			'referrer_grant_key'  => '',
+		);
+
+		if ( $referrerId <= 0 || $refereeId <= 0 || $referrerId === $refereeId ) {
+			self::log( 'regalo rechazado: referidor o referido inválido (' . $referrerId . '/' . $refereeId . ').' );
+			return $result;
+		}
+		if ( ! self::validUser( $referrerId ) || ! self::validUser( $refereeId ) ) {
+			self::log( 'regalo rechazado: el referidor ' . $referrerId . ' o el referido ' . $refereeId . ' no existen.' );
+			return $result;
+		}
+		if ( $levelId <= 0 || $days < 1 ) {
+			self::log( 'regalo rechazado para el referido ' . $refereeId . ': nivel o días inválidos.' );
+			return $result;
+		}
+
+		$level = self::level( $levelId );
+		if ( null === $level || (int) ( $level['rank'] ?? 0 ) < 1 ) {
+			self::log( 'regalo rechazado para el referido ' . $refereeId . ': el nivel ' . $levelId . ' no existe o no tiene rango.' );
+			return $result;
+		}
+
+		$key = self::referralGiftKey( $refereeId );
+
+		$now    = self::now();
+		$nowSql = self::sqlDate( $now );
+
+		if ( ! self::begin() ) {
+			self::log( 'no se pudo abrir la transacción del regalo al referido ' . $refereeId . '.' );
+			return $result;
+		}
+		if ( ! self::ensureMemberRow( $referrerId, $nowSql ) || ! self::ensureMemberRow( $refereeId, $nowSql ) ) {
+			self::fail( 'no se pudieron preparar las filas de socio del regalo al referido ' . $refereeId . '.' );
+			return $result;
+		}
+
+		// Orden estable de bloqueo: el id menor primero. Dos regalos cruzados entre los mismos
+		// dos usuarios no pueden quedar esperándose el uno al otro.
+		$firstId  = min( $referrerId, $refereeId );
+		$secondId = max( $referrerId, $refereeId );
+		$first    = self::lockMember( $firstId );
+		$second   = self::lockMember( $secondId );
+		if ( null === $first || null === $second ) {
+			self::fail( 'no se pudieron bloquear las filas del regalo al referido ' . $refereeId . '.' );
+			return $result;
+		}
+		$referrerRow = $referrerId === $firstId ? $first : $second;
+		$refereeRow  = $refereeId === $firstId ? $first : $second;
+
+		if ( null !== self::grantIdByKey( $key ) ) {
+			self::rollback();
+			$result['reason'] = self::RESULT_DUPLICATE;
+			return $result;
+		}
+
+		if ( null !== self::date( $referrerRow->frozen_at ?? null ) ) {
+			self::rollback();
+			$result['reason'] = self::RESULT_FROZEN;
+			return $result;
+		}
+
+		$referrerGrants = self::forUser( $referrerId, true );
+		$referrerState  = self::stateOf( $referrerGrants, $now );
+		$referrerKey    = (string) ( $referrerState['grant_key'] ?? '' );
+		$result['referrer_level_id']  = (int) ( $referrerState['level_id'] ?? 0 );
+		$result['referrer_grant_key'] = $referrerKey;
+
+		if (
+			class_exists( 'HWE_Memberships_Members' )
+			&& HWE_Memberships_Members::STATUS_ACTIVE !== (string) ( $referrerState['status'] ?? '' )
+		) {
+			self::rollback();
+			$result['reason'] = self::RESULT_NO_MEMBERSHIP;
+			return $result;
+		}
+
+		$effective = '' === $referrerKey ? null : self::byKey( $referrerGrants, $referrerKey );
+		if ( null === $effective || (int) ( $effective['level_id'] ?? 0 ) <= 0 ) {
+			self::rollback();
+			$result['reason'] = self::RESULT_NO_MEMBERSHIP;
+			return $result;
+		}
+
+		$used = max( 0, (int) ( $effective['referral_gifts'] ?? 0 ) );
+		$result['used']              = $used;
+		$result['referrer_grant_id'] = (int) ( $effective['id'] ?? 0 );
+
+		if ( $used >= $maxPerPeriod ) {
+			self::rollback();
+			$result['reason'] = self::RESULT_LIMIT;
+			return $result;
+		}
+
+		$grants = self::forUser( $refereeId, true );
+		$before = self::stateOf( $grants, $now );
+
+		$payload = array_merge(
+			$data,
+			array(
+				'referrer'       => $referrerId,
+				'referee'        => $refereeId,
+				'gift_level_id'  => $levelId,
+				'max_per_period' => $maxPerPeriod,
+			)
+		);
+
+		$new = array(
+			'key'      => $key,
+			'level_id' => $levelId,
+			'rank'     => (int) $level['rank'],
+			'days'     => $days,
+			'origin'   => self::ORIGIN_REFERRAL_GIFT,
+			'ref_type' => 'user',
+			'ref_id'   => (string) $referrerId,
+			'actor'    => 'system',
+			'actor_id' => null,
+			'note'     => null,
+			'data'     => self::json( $payload ),
+		);
+
+		$placed = HWE_Memberships_Timeline::place( $grants, $new, $now );
+		$grant  = self::byKey( $placed, $key );
+		if ( null === $grant ) {
+			self::fail( 'la línea de tiempo no devolvió el regalo al referido ' . $refereeId . '.' );
+			return $result;
+		}
+
+		$grantId = self::insertGrant( $refereeId, $grant, $nowSql );
+		if ( $grantId <= 0 ) {
+			self::rollback();
+			self::clearQueue();
+			if ( null !== self::grantIdByKey( $key ) ) {
+				$result['reason'] = self::RESULT_DUPLICATE;
+				return $result;
+			}
+			self::log( 'no se pudo insertar el regalo al referido ' . $refereeId . '.' );
+			$result['reason'] = self::RESULT_FAILED;
+			return $result;
+		}
+
+		if ( ! self::persistChanged( $grants, $placed, $nowSql, $key ) ) {
+			self::fail( 'no se pudieron actualizar las concesiones del referido ' . $refereeId . ' al regalarle la membresía.' );
+			return $result;
+		}
+
+		if ( false === self::updateGrant( (int) $effective['id'], array(
+			'referral_gifts' => $used + 1,
+			'updated_at'     => $nowSql,
+		) ) ) {
+			self::fail( 'no se pudo consumir el tope de regalos del referidor ' . $referrerId . '.' );
+			return $result;
+		}
+
+		$after  = self::stateOf( $placed, $now );
+		$frozen = null !== self::date( $refereeRow->frozen_at ?? null );
+
+		$memberExtra = array();
+		if ( '' === trim( (string) ( $refereeRow->member_number ?? '' ) ) ) {
+			$number = self::nextMemberNumber();
+			if ( '' === $number ) {
+				self::fail( 'no se pudo asignar el número de socio al referido ' . $refereeId . '.' );
+				return $result;
+			}
+			$memberExtra['member_number'] = $number;
+		}
+		if ( null === self::date( $refereeRow->member_since ?? null ) ) {
+			$memberExtra['member_since'] = $nowSql;
+		}
+
+		if ( ! self::cacheMember( $refereeId, $frozen ? null : $after, $nowSql, $memberExtra ) ) {
+			self::fail( 'no se pudo actualizar la caché del socio ' . $refereeId . ' al regalarle la membresía.' );
+			return $result;
+		}
+
+		$oldLevel = $frozen ? 0 : (int) $before['level_id'];
+		$newLevel = $frozen ? 0 : (int) $after['level_id'];
+
+		$eventData = array(
+			'origin'         => self::ORIGIN_REFERRAL_GIFT,
+			'key'            => $key,
+			'days'           => $days,
+			'starts_at'      => self::sqlDate( $grant['starts_at'] ?? null ),
+			'ends_at'        => self::sqlDate( $grant['ends_at'] ?? null ),
+			'status'         => (string) ( $grant['status'] ?? '' ),
+			'referrer'       => $referrerId,
+			'max_per_period' => $maxPerPeriod,
+			'ref'            => array( 'type' => 'user', 'id' => $referrerId ),
+		);
+
+		$eventId = self::recordEvent(
+			$refereeId,
+			$grantId,
+			HWE_Memberships_Events::REFERRAL_GIFT_GRANTED,
+			$oldLevel,
+			$newLevel,
+			'system',
+			null,
+			$eventData,
+			$nowSql,
+			$levelId
+		);
+		if ( null === $eventId ) {
+			self::fail( 'no se pudo registrar el regalo al referido ' . $refereeId . ' en el historial.' );
+			return $result;
+		}
+
+		if ( ! self::commit() ) {
+			self::clearQueue();
+			self::rollback();
+			self::log( 'no se pudo confirmar el regalo al referido ' . $refereeId . '.' );
+			$result['reason'] = self::RESULT_FAILED;
+			return $result;
+		}
+
+		self::flush();
+
+		$result['reason']   = self::RESULT_GRANTED;
+		$result['grant_id'] = $grantId;
+		$result['used']     = $used + 1;
+
+		return $result;
+	}
+
+	/** Clave idempotente del regalo de un referido (`gift:<id>`). */
+	public static function referralGiftKey( int $refereeId ): string {
+		return self::REFERRAL_GIFT_PREFIX . $refereeId;
 	}
 
 	/**
@@ -760,6 +1043,7 @@ final class HWE_Memberships_Grants {
 				'note'            => null === ( $row->note ?? null ) ? null : (string) $row->note,
 				'data'               => $row->data ?? null,
 				'frozen_seconds'     => (int) ( $row->frozen_seconds ?? 0 ),
+				'referral_gifts'     => max( 0, (int) ( $row->referral_gifts ?? 0 ) ),
 				'expiry_notified_at' => self::date( $row->expiry_notified_at ?? null ),
 				'created_at'         => self::date( $row->created_at ?? null ),
 				'revoked_at'         => $row->revoked_at ?? null,
@@ -767,6 +1051,64 @@ final class HWE_Memberships_Grants {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Fila de una concesión por id, viva o terminada. Es una lectura para los consumidores del
+	 * ciclo (los puntos por activación necesitan el origen y la clave de la concesión que acaba
+	 * de activarse o revocarse, y esas filas ya no están en `forUser()` si terminaron). No
+	 * escribe ni abre transacción.
+	 *
+	 * @return array<string,mixed>|null
+	 */
+	public static function rowById( int $grantId ): ?array {
+		global $wpdb;
+
+		if ( $grantId <= 0 || ! isset( $wpdb ) || ! is_object( $wpdb ) ) {
+			return null;
+		}
+
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT * FROM ' . HWE_Memberships_Schema::grantsTable() . ' WHERE id = %d LIMIT 1',
+				$grantId
+			)
+		);
+		if ( ! is_object( $row ) ) {
+			return null;
+		}
+
+		$levelId = (int) ( $row->level_id ?? 0 );
+
+		return array(
+			'id'                 => (int) ( $row->id ?? 0 ),
+			'user_id'            => (int) ( $row->user_id ?? 0 ),
+			'key'                => (string) ( $row->idempotency_key ?? '' ),
+			'level_id'           => $levelId,
+			'rank'               => self::levelRank( $levelId ),
+			'days'               => max( 0, (int) ( $row->duration_days ?? 0 ) ),
+			'origin'             => (string) ( $row->origin ?? '' ),
+			'ref_type'           => null === ( $row->ref_type ?? null ) ? null : (string) $row->ref_type,
+			'ref_id'             => null === ( $row->ref_id ?? null ) ? null : (string) $row->ref_id,
+			'status'             => (string) ( $row->status ?? '' ),
+			'actor'              => (string) ( $row->actor ?? 'system' ),
+			'actor_id'           => null === ( $row->actor_id ?? null ) ? null : (int) $row->actor_id,
+			'note'               => null === ( $row->note ?? null ) ? null : (string) $row->note,
+			'data'               => $row->data ?? null,
+			'referral_gifts'     => max( 0, (int) ( $row->referral_gifts ?? 0 ) ),
+			'frozen_seconds'     => (int) ( $row->frozen_seconds ?? 0 ),
+			'starts_at'          => self::date( $row->starts_at ?? null ),
+			'ends_at'            => self::date( $row->ends_at ?? null ),
+			'created_at'         => self::date( $row->created_at ?? null ),
+			'revoked_at'         => $row->revoked_at ?? null,
+		);
+	}
+
+	/** Rango de un nivel; 0 si ya no existe o no tiene rango válido. */
+	private static function levelRank( int $levelId ): int {
+		$level = self::level( $levelId );
+
+		return null === $level ? 0 : (int) ( $level['rank'] ?? 0 );
 	}
 
 	/**

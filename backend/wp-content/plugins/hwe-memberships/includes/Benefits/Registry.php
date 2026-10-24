@@ -30,17 +30,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class HWE_Memberships_Benefits {
 
 	/**
-	 * Claves del núcleo que todavía no tienen clase (Tareas 9, 12, 13 y 15). Se reservan desde
-	 * ya para que un tipo de instancia no pueda ocuparlas antes de que existan.
+	 * Claves del núcleo que todavía no tienen clase (Tareas 9, 12 y 13). Se reservan desde ya
+	 * para que un tipo de instancia no pueda ocuparlas antes de que existan.
 	 *
 	 * @var list<string>
 	 */
 	private const RESERVED_KEYS = array(
 		'member_discount',
 		'free_deliveries',
-		'activation_points',
-		'referral_bonus',
-		'referral_gift',
 		'early_access',
 	);
 
@@ -60,6 +57,9 @@ final class HWE_Memberships_Benefits {
 		return array(
 			HWE_Memberships_Benefit_Info_Perk::class,
 			HWE_Memberships_Benefit_Early_Access::class,
+			HWE_Memberships_Benefit_Activation_Points::class,
+			HWE_Memberships_Benefit_Referral_Bonus::class,
+			HWE_Memberships_Benefit_Referral_Gift::class,
 		);
 	}
 

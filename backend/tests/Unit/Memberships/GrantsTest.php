@@ -1052,6 +1052,128 @@ final class GrantsTest extends TestCase
         $this->assertStringContainsString('[hwe] memberships:', $this->logged[0]);
     }
 
+    // ── Regalo de referido (Tarea 15) ───────────────────────────────────────
+
+    public function testGrantReferralGiftGrantsTheRefereeStoresTheReferrerAndCountsTheGift(): void
+    {
+        $referrerGrant = $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'level_id'        => self::LEVEL,
+            'idempotency_key' => 'referrer:active',
+            'starts_at'       => $this->day(-1),
+            'ends_at'         => $this->day(30),
+            'status'          => 'active',
+        ]);
+
+        Actions\expectDone('hwe_membership_referral_gift_granted')
+            ->once()
+            ->with(self::OTHER, 2, self::LEVEL);
+        Actions\expectDone('hwe_membership_level_changed')
+            ->once()
+            ->with(self::OTHER, 0, self::LEVEL);
+
+        $result = \HWE_Memberships_Grants::grantReferralGift(self::USER, self::OTHER, self::LEVEL, 30, 2);
+
+        $this->assertSame('granted', $result['reason']);
+        $this->assertSame(2, (int) $result['grant_id']);
+        $this->assertSame(1, (int) $result['used']);
+        $this->assertSame(2, (int) $result['max']);
+
+        $gift = $this->wpdb()->grantByKey('gift:' . self::OTHER);
+        $this->assertNotNull($gift);
+        $this->assertSame(self::OTHER, (int) $gift['user_id']);
+        $this->assertSame('referral_gift', $gift['origin']);
+        $this->assertSame('user', $gift['ref_type']);
+        $this->assertSame((string) self::USER, (string) $gift['ref_id']);
+        $this->assertSame('active', $gift['status']);
+
+        $this->assertSame(1, (int) $this->wpdb()->grants[$referrerGrant]['referral_gifts']);
+        $this->assertSame(self::LEVEL, (int) $this->wpdb()->members[self::OTHER]['level_id']);
+        $this->assertMatchesRegularExpression('/^\d{6}$/', (string) $this->wpdb()->members[self::OTHER]['member_number']);
+
+        $this->assertContains('START TRANSACTION', $this->wpdb()->queries);
+        $this->assertContains('COMMIT', $this->wpdb()->queries);
+
+        $memberLocks = array_values(array_filter(
+            $this->wpdb()->queries,
+            static fn (string $query): bool => str_contains($query, 'FOR UPDATE')
+                && str_contains($query, 'hwe_memberships_members'),
+        ));
+        $this->assertCount(2, $memberLocks, 'Se bloquean el referidor y el referido.');
+    }
+
+    public function testGrantReferralGiftIsIdempotentPerRefereeAndStopsAtTheCap(): void
+    {
+        Functions\when('get_userdata')->alias(
+            fn (int $id) => in_array($id, [self::USER, self::OTHER, 9], true) ? (object) ['ID' => $id] : false
+        );
+
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'level_id'        => self::LEVEL,
+            'idempotency_key' => 'referrer:active',
+            'starts_at'       => $this->day(-1),
+            'ends_at'         => $this->day(30),
+            'status'          => 'active',
+        ]);
+
+        $first = \HWE_Memberships_Grants::grantReferralGift(self::USER, self::OTHER, self::LEVEL, 30, 1);
+        $this->assertSame('granted', $first['reason']);
+
+        $duplicate = \HWE_Memberships_Grants::grantReferralGift(self::USER, self::OTHER, self::LEVEL, 30, 1);
+        $this->assertSame('duplicate', $duplicate['reason'], 'Una sola vez por referido.');
+
+        $capped = \HWE_Memberships_Grants::grantReferralGift(self::USER, 9, self::LEVEL, 30, 1);
+        $this->assertSame('limit', $capped['reason']);
+        $this->assertSame(1, $capped['used']);
+        $this->assertNull($this->wpdb()->grantByKey('gift:9'));
+        $this->assertSame(1, count(array_filter(
+            $this->wpdb()->grants,
+            static fn (array $row): bool => 'referral_gift' === (string) ($row['origin'] ?? '')
+        )));
+    }
+
+    public function testGrantReferralGiftRefusesAFrozenReferrerAndRollsBack(): void
+    {
+        $this->wpdb()->seedMember(self::USER, ['frozen_at' => $this->day(0)]);
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'level_id'        => self::LEVEL,
+            'idempotency_key' => 'referrer:active',
+            'starts_at'       => $this->day(-1),
+            'ends_at'         => $this->day(30),
+            'status'          => 'active',
+        ]);
+
+        $result = \HWE_Memberships_Grants::grantReferralGift(self::USER, self::OTHER, self::LEVEL, 30, 2);
+
+        $this->assertSame('frozen', $result['reason']);
+        $this->assertNull($this->wpdb()->grantByKey('gift:' . self::OTHER));
+        $this->assertContains('ROLLBACK', $this->wpdb()->queries);
+        $this->assertNotContains('COMMIT', $this->wpdb()->queries);
+    }
+
+    public function testRowByIdReturnsTheGrantEvenWhenItIsNoLongerLive(): void
+    {
+        $id = $this->grant(self::USER, self::LEVEL, 30, 'order', 'row:by:id');
+        $this->assertIsInt($id);
+
+        $live = \HWE_Memberships_Grants::rowById($id);
+        $this->assertNotNull($live);
+        $this->assertSame('row:by:id', $live['key']);
+        $this->assertSame('order', $live['origin']);
+        $this->assertSame('active', $live['status']);
+        $this->assertSame(self::USER, $live['user_id']);
+
+        $this->assertTrue(\HWE_Memberships_Grants::revokeByKey('row:by:id'));
+        $revoked = \HWE_Memberships_Grants::rowById($id);
+        $this->assertNotNull($revoked, 'La fila se conserva para revertir sus puntos.');
+        $this->assertSame('revoked', $revoked['status']);
+
+        $this->assertNull(\HWE_Memberships_Grants::rowById(0));
+        $this->assertNull(\HWE_Memberships_Grants::rowById(999));
+    }
+
     // ── Número de socio y datos ─────────────────────────────────────────────
 
     public function testMemberNumberIsUniqueStableAndNotTheUserId(): void

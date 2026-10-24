@@ -4,9 +4,10 @@
 por QR, renovaciones y regalos por referido. Es un módulo opcional del catálogo, como `loyalty` o
 `shipping`, y no trae vistas: entrega el contrato de configuración y la lógica del backend.
 
-> **Estado: base del módulo.** Hoy existen el arranque, la comprobación de WooCommerce y el grupo
-> de ajustes del Control Center. Todavía no hay tablas, rutas internas, extensión de la Store API
-> ni UI; este README y `MANUAL.md` se completan a medida que se implementa el resto.
+> **Estado: backend del módulo en desarrollo.** Ya existen los ajustes, los niveles, las
+> concesiones, las compras, el carné, la privacidad y los beneficios conectados con `loyalty`.
+> Las rutas internas, la extensión de la Store API y la UI del frontend llegan en entregas
+> posteriores; este README y `MANUAL.md` se completan con ellas.
 
 ## Qué aporta hoy
 
@@ -14,6 +15,81 @@ por QR, renovaciones y regalos por referido. Es un módulo opcional del catálog
 |---|---|
 | `hwe-memberships.php` | Clase `HWE_Memberships`: comprueba que WooCommerce esté activo y engancha los ajustes a `plugins_loaded`. Sin WooCommerce no arranca y lo registra. |
 | `includes/Settings.php` | Clase `HWE_Memberships_Settings`: puebla el grupo reservado `memberships` del Control Center y expone la lectura saneada. |
+| `includes/Benefits/` | Registro de tipos de beneficio y los que dependen de `loyalty`: puntos por activación, comisión extra de referidos y regalo de membresía al referido. |
+| `includes/LoyaltyBridge.php` | Único punto de conversación con el contrato de `loyalty` (disponibilidad, tipos de movimiento, abono y reversión). |
+
+## Beneficios conectados con `loyalty`
+
+Los tres beneficios son opcionales y **dependen de `loyalty`**: si el módulo está apagado o la
+función concreta no lo está, no existen para el cliente, su configuración se conserva y no se
+engancha nada en los hooks de `loyalty`.
+
+| Clave | Campos por nivel | Depende de | Qué hace |
+|---|---|---|---|
+| `activation_points` | `points` (≥ 0) | `loyalty:points` | Abona puntos cuando se **cobra** una concesión de origen `order` (compra). |
+| `referral_bonus` | `percent` (0–100) | `loyalty:referrals` | Añade al referidor N1 una comisión extra sobre la base de `loyalty`. |
+| `referral_gift` | `level`, `days` (≥ 1), `max_per_period` (≥ 1) | `loyalty:referrals` | Regala una membresía al **referido**, con tope por periodo del referidor. |
+
+### Puntos por activación
+
+- Se abonan una sola vez por línea de pedido. La clave deriva de la concesión
+  (`order:<pedido>:item:<línea>` → `membership:order:<pedido>:item:<línea>`), así que
+  `processing` → `completed`, un webhook repetido o una ida y vuelta de estado no duplican.
+- No abonan los regalos (`origin = referral_gift`), las asignaciones de administrador
+  (`admin`) ni los lotes (`bulk`).
+- Revocar la concesión (reembolso total o cancelación, que `Purchase` resuelve con
+  `Grants::revokeByKey()`) revierte el abono con `hwe_loyalty_reverse_credit()`, limitado al
+  saldo e idempotente. Una revocación administrativa de una compra también lo revierte: la
+  concesión deja de existir y el abono se corrige.
+- Si «Puntos» está apagado en el cobro, no se abona, **no se reintenta después** y queda un
+  evento `points_skipped` en el historial del socio más un `error_log`. Para poder dejar esa
+  constancia, el tipo escucha sus propios eventos (`hwe_membership_*`) con `loyalty` cargado
+  aunque «Puntos» esté apagado; nunca engancha nada en los hooks de `loyalty`.
+
+### Comisión extra de referidos
+
+- Se añade al filtro `hwe_loyalty_order_earnings` como un abono del tipo
+  `membership_referral_bonus` (declarado como `credit` con `hwe_loyalty_entry_types`), con
+  `ref = ['type' => 'user', 'id' => <comprador>]` y `data` con el pedido, el nivel y el
+  porcentaje. `loyalty` la abona y la revierte con el pedido como cualquier otra ganancia.
+- El nivel que cuenta es el del referidor **en el momento de cobrarse el pedido**; congelado, sin
+  el beneficio o sin referidor, el array de ganancias sale intacto. El redondeo es hacia abajo,
+  igual que en `loyalty`.
+- `loyalty` no publica la lectura de la atribución: al confirmarse
+  (`hwe_loyalty_attribution_confirmed`) se guarda el id del referidor N1 en la meta
+  `_hwe_membership_referrer`. Por eso la comisión requiere que la atribución se confirmara con
+  este módulo activo; no se reconstruye hacia atrás.
+
+### Regalo al referido
+
+- Lo recibe **el referido**, no el referidor. Campos del nivel del referidor: nivel a regalar,
+  días y máximo por periodo (siempre hay tope).
+- **Periodo**: cada concesión activa del referidor en ese nivel tiene su propio contador
+  (`grants.referral_gifts`); al renovar (concesión nueva) vuelve a empezar. Al agotarse, el
+  referido se registra con normalidad, no hay regalo y queda un evento
+  `referral_gift_limit_reached` en el historial del **referidor**.
+- **Cuándo**: con `referral_gift_requires_email_verification` encendido (por defecto), solo al
+  verificar el correo (`hwe_email_verified`) y con atribución existente; una cuenta que nunca
+  verificó —incluidas las creadas en wp-admin— no lo recibe. Apagado, se concede al confirmarse
+  la atribución. Si el correo ya estaba verificado al confirmarse la atribución, también se
+  concede.
+- **Una sola vez por referido** (clave `gift:<referido>`), sin puntos por activación. El consumo
+  del tope y la concesión se escriben en la **misma transacción** con las filas del referidor y
+  del referido bloqueadas en orden estable, así que dos verificaciones simultáneas no pasan del
+  tope. Si el referido ya tiene ese nivel o uno superior, el regalo se encola con la línea de
+  tiempo (no se pierde).
+- Con el módulo apagado en ese momento no hay regalo retroactivo; si el referidor está congelado
+  o sin el beneficio, tampoco.
+
+### Hooks propios publicados
+
+| Hook | Firma | Cuándo |
+|---|---|---|
+| `hwe_membership_points_skipped` | `( int $userId, int $grantId, int $levelId )` | Un cobro de origen `order` no abonó puntos porque «Puntos» estaba apagado. El `data` del evento lleva `points`, `reason` y la clave. |
+| `hwe_membership_referral_gift_limit_reached` | `( int $referrerId, int $grantId, int $levelId )` | El referidor agotó el tope de regalos de su concesión activa. El `data` lleva el referido, el nivel regalado, el tope y los usados. |
+
+Los dos dejan fila en `hwe_memberships_events` y se disparan fuera de la transacción, igual que
+el resto del ciclo (`hwe_membership_activated`, `_revoked`…).
 
 El grupo raíz `memberships` lo declara vacío el núcleo (`hwe-control-center/SchemaGroups/Memberships.php`)
 y este plugin lo rellena con el filtro `hwe_control_center_schema`. Así el panel, la API pública

@@ -16,6 +16,10 @@
  *  · `hwe_membership_expired`: `( int $userId, int $grantId, int $levelId )`.
  *  · `hwe_membership_expiring`: `( int $userId, int $grantId, int $levelId, int $days )`.
  *  · `hwe_membership_frozen` / `_unfrozen`: `( int $userId, int $actorId )`.
+ *  · `hwe_membership_referral_gift_limit_reached`: `( int $referrerId, int $grantId, int $levelId )`
+ *    cuando el tope del periodo impide regalar la membresía al referido.
+ *  · `hwe_membership_points_skipped`: `( int $userId, int $grantId, int $levelId )` cuando un
+ *    cobro de origen `order` no abona puntos porque «Puntos» está apagado.
  *  · `hwe_membership_level_changed`: `( int $userId, int $oldLevelId, int $newLevelId )`,
  *    siempre que el nivel efectivo cambie (0 = sin nivel).
  *
@@ -42,6 +46,8 @@ final class HWE_Memberships_Events {
 	public const REMOVED_BY_ADMIN      = 'removed_by_admin';
 	public const REVOKED               = 'revoked';
 	public const REFERRAL_GIFT_GRANTED = 'referral_gift_granted';
+	public const REFERRAL_GIFT_LIMIT   = 'referral_gift_limit_reached';
+	public const POINTS_SKIPPED        = 'points_skipped';
 
 	public const HOOK_ACTIVATED             = 'hwe_membership_activated';
 	public const HOOK_RENEWED               = 'hwe_membership_renewed';
@@ -55,6 +61,8 @@ final class HWE_Memberships_Events {
 	public const HOOK_REMOVED_BY_ADMIN      = 'hwe_membership_removed_by_admin';
 	public const HOOK_REVOKED               = 'hwe_membership_revoked';
 	public const HOOK_REFERRAL_GIFT_GRANTED = 'hwe_membership_referral_gift_granted';
+	public const HOOK_REFERRAL_GIFT_LIMIT   = 'hwe_membership_referral_gift_limit_reached';
+	public const HOOK_POINTS_SKIPPED        = 'hwe_membership_points_skipped';
 	public const HOOK_LEVEL_CHANGED         = 'hwe_membership_level_changed';
 
 	/** Acciones preparadas durante la transacción, a la espera del COMMIT. */
@@ -181,6 +189,8 @@ final class HWE_Memberships_Events {
 			self::REMOVED_BY_ADMIN      => self::HOOK_REMOVED_BY_ADMIN,
 			self::REVOKED               => self::HOOK_REVOKED,
 			self::REFERRAL_GIFT_GRANTED => self::HOOK_REFERRAL_GIFT_GRANTED,
+			self::REFERRAL_GIFT_LIMIT   => self::HOOK_REFERRAL_GIFT_LIMIT,
+			self::POINTS_SKIPPED        => self::HOOK_POINTS_SKIPPED,
 		);
 
 		if ( isset( $hooks[ $type ] ) ) {

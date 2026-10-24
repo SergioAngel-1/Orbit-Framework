@@ -22,6 +22,24 @@ framework (Plugins de WordPress).
   caduque y puede renovarse.
 - **Regalos por referido**: quien invita a un nuevo cliente puede regalarle una membresía, con la
   opción de exigir que el referido confirme su correo antes de concederla.
+- **Beneficios por nivel**: además de las ventajas informativas, un nivel puede abonar puntos al
+  comprar, pagar una comisión extra a quien refirió al socio y regalar una membresía al referido.
+
+## Beneficios que usan la fidelización
+
+Estos beneficios solo funcionan si el módulo **HWE Loyalty** está activo y la función
+correspondiente encendida (**Puntos** o **Referidos**). Si se apaga, dejan de ofrecerse al
+cliente y su configuración se conserva para cuando vuelva a encenderse.
+
+- **Puntos por activación**: se abonan una sola vez por la compra de la membresía. Si Puntos está
+  apagado en el momento del cobro, no se abonan ni se recuperan después; queda constancia en el
+  historial del socio.
+- **Comisión extra para el referidor**: un porcentaje adicional sobre la comisión normal de
+  fidelización. Cuenta el nivel que el referidor tenga cuando se cobra el pedido.
+- **Membresía de regalo para el referido**: siempre hay un tope de regalos por periodo (mínimo 1)
+  y se concede una sola vez por cuenta referida. Si el referido ya tiene ese nivel o uno
+  superior, la membresía regalada empieza cuando termina la que ya tiene. Alcanzado el tope, el
+  referido se registra con normalidad y el referidor ve la constancia en su historial.
 
 ## Qué puedes configurar hoy
 
