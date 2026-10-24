@@ -12,7 +12,7 @@
 El framework es **backend + arquitectura**; la UI y el dominio de cada tienda son de la
 instancia (`AGENTS.md §1.1`). El código de una instancia vive en rutas RESERVADAS que el
 framework nunca toca, y se engancha al núcleo por hooks estables, versionados por
-`HWE_CORE_CONTRACT_VERSION` (hoy `2.1.0`):
+`HWE_CORE_CONTRACT_VERSION` (hoy `2.2.0`):
 
 | Lado | Ruta de instancia | Qué va ahí |
 |---|---|---|

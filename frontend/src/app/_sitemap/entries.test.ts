@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CONFIG_DEFAULTS } from "@/lib/config/defaults";
 import type { SiteConfig } from "@/lib/config/types";
 
+// Las URL que construye el núcleo no dependen del registro de la instancia: estos tests
+// fijan el caso sin mapa público (los mapas se prueban en los `*.public-paths.test.ts`).
+vi.mock("@/instance/registry", () => ({ instanceRegistry: {} }));
+
 let currentConfig: SiteConfig;
 let degraded = false;
 /** Landings de producto publicadas y los idiomas de cada una (módulo `product-landing`). */

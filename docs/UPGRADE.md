@@ -151,6 +151,32 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod restart wordpress
 Haz copia de seguridad antes (`docs/RUNBOOK.md` §1). El script aborta si no encuentra el core y
 avisa si los checksums no cuadran.
 
+## 3.2 v2.1 → v2.2 (nota de actualización)
+
+La v2.2 no tiene cambios incompatibles: una instancia actualizada sin tocar nada conserva el
+comportamiento y las URL de la v2.1. Lo nuevo es opcional y se configura con **datos**:
+
+- **Contrato de instancia 2.2.0.** Añade el filtro `hwe_loyalty_max_redeemable`
+  (`( int $max, array $context ): int`, solo puede endurecer) y el ajuste público
+  `loyalty.max_redeem_percent` (0–100; `0` sin tope). Si tu instancia enganchaba el canje por
+  otra vía, ahora puede declararlo en `wp hwe setup` o desde el Control Center.
+- **Rutas públicas (`InstanceRegistry.publicPaths`).** Opcional: declara ruta interna → tramo
+  público (`"/products": "/productos"`) y el núcleo traduce enlaces, canónicas, sitemap,
+  JSON-LD, `llms.txt`, correos y robots, reescribe la URL pública a la vista interna y responde
+  308 de la interna a la pública. Sin el campo, nada cambia. Ver `docs/CREATE_INSTANCE.md` §7.
+- **Zona horaria (`InstanceRegistry.timeZone`).** Opcional (cadena IANA o mapa por idioma) para
+  formatear fechas en la zona de la tienda; sin él siguen `Europe/Madrid`/`America/New_York`.
+- **Instancia de un solo idioma.** Se puede editar **solo** `locales` en
+  `frontend/src/i18n/routing.ts` y borrar `messages/en.json`: el núcleo ya no lo importa.
+- **Varias pilas Docker.** `HWE_CONTAINER_PREFIX` (defecto `hwe`), `DB_PORT` (3307) y
+  `REDIS_PORT` (6379); `COMPOSE_PROJECT_NAME` distinto por pila. `verify-*.sh` resuelve el
+  contenedor por servicio y aborta si es de otro proyecto de Compose.
+- **CI en una instancia.** Declara la variable de repositorio `HWE_INSTANCE=true` para que los
+  jobs `anti-instance` y `contract` (que persiguen tus tokens o pisan tu `registry.ts`) se
+  salten sin editar `.github/**`.
+
+`HWE_CORE_CONTRACT_VERSION` pasa a `2.2.0`; compárala si tu código depende de un hook nuevo.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

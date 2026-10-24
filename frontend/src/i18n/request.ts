@@ -18,7 +18,12 @@ const DEFAULT_TIME_ZONES: Record<string, string> = {
   en: "America/New_York",
 };
 
-function resolveTimeZone(locale: Locale): string {
+/**
+ * Zona horaria de `locale`: la que declare la instancia (`instanceRegistry.timeZone`, una
+ * cadena IANA o un mapa por idioma) o el valor de siempre si no hay ninguno. Exportada para
+ * poder probarla sin montar next-intl.
+ */
+export function resolveTimeZone(locale: Locale): string {
   const configured = instanceRegistry.timeZone;
   if (typeof configured === "string" && configured.trim() !== "") {
     return configured;

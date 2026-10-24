@@ -41,7 +41,7 @@ if (!defined('ABSPATH')) {
  * comprobarla para avisar si el núcleo es más antiguo de lo que espera.
  */
 if (!defined('HWE_CORE_CONTRACT_VERSION')) {
-    define('HWE_CORE_CONTRACT_VERSION', '2.1.0');
+    define('HWE_CORE_CONTRACT_VERSION', '2.2.0');
 }
 
 /**

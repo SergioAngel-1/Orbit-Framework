@@ -12,6 +12,12 @@ export const instanceRegistry: InstanceRegistry = {
   // Sin manifiesto de tarjetas sociales (lo escribe `scripts/generate-og-images.mjs` en el
   // registro del framework): se usa la tarjeta dinámica. El contrato espera el mapa vacío.
   ogCards: {},
+  // Los campos NUEVOS del registro (contrato 2.2): una ruta de bajo impacto y la zona horaria.
+  // El ejemplo superpuesto demuestra que el núcleo sabe leerlos sin que su suite dependa de ellos.
+  publicPaths: {
+    "/about": "/nosotros",
+  },
+  timeZone: "America/Bogota",
   // Campos de producto declarativos: las mismas claves y tipos que `hwe_product_fields` del
   // backend (`mu-plugins/instance/50-example-product-field.php`).
   productFields: {

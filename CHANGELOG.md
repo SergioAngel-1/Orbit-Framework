@@ -57,6 +57,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   comentado); los de secretos y copias se comprueban siempre.
 
 ### Changed
+- **Contrato de instancia `2.2.0`.** `HWE_CORE_CONTRACT_VERSION` sube de `2.1.0` a `2.2.0`
+  por el ajuste y el filtro nuevos de `loyalty` y por los campos `publicPaths` y `timeZone` del
+  registro. No hay cambios incompatibles: una instancia sin configurar conserva el
+  comportamiento y las URL de la `2.1.0`; la nota de actualización está en `docs/UPGRADE.md`
+  §3.2. El ejemplo vivo (`examples/instance-minimal/`) declara los dos campos nuevos y su test
+  los cubre.
 - **Varias pilas Docker en la misma máquina.** Los nombres de contenedor dejan de estar
   escritos a mano: `docker-compose.yml` y `docker-compose.prod.yml` los construyen con
   `HWE_CONTAINER_PREFIX` (por defecto `hwe`, así que sin configurar nada son los de siempre:

@@ -4,6 +4,10 @@ import type { SiteConfig } from "@/lib/config/types";
 import es from "@/i18n/messages/es.json";
 import { catalogFor, hasOwnCatalog } from "@/i18n/messages/catalogs";
 
+// Las URL que construye el núcleo no dependen del registro de la instancia: estos tests
+// fijan el caso sin mapa público (los mapas se prueban en los `*.public-paths.test.ts`).
+vi.mock("@/instance/registry", () => ({ instanceRegistry: {} }));
+
 let currentConfig: SiteConfig;
 let degraded = false;
 
