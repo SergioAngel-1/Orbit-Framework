@@ -15,6 +15,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   (`git clone --branch vX.Y.Z --origin framework`) conservando el historial, y el archivo nuevo
   `FRAMEWORK_VERSION` (raíz, del núcleo) dice de qué release parte. Un test lo ata a la última
   release del CHANGELOG.
+- **Reconectar una instancia que se creó sin el historial del framework.** `docs/UPGRADE.md` §3.1
+  explica cómo localizar el commit exacto del que se copió (comparando las rutas del núcleo con cada
+  commit del framework) y registrarlo como antecesor con `git merge --allow-unrelated-histories -s ours`,
+  sin tocar ningún archivo. Usar la release anterior como base no sirve si la copia salió de `main`
+  entre releases: en la prueba, partir de `v2.0.0` en vez del commit real dejó 32 conflictos, y el
+  commit exacto, ninguno.
 - **Coexistencia de `loyalty`, `memberships` y `shipping` (auditoría de las 8 combinaciones).**
   Envío gratis de socio: cuando WooCommerce reutiliza el pedido de un intento de checkout que
   falló, la reserva se devuelve si el envío gratis ya no aplica. Solo se gasta la unidad si el
