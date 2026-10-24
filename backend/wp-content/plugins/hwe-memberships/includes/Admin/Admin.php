@@ -3,11 +3,13 @@
  * Arranque de la administración del módulo y avisos de una sola vez.
  *
  * `HWE_Memberships::boot()` llama a `register()`, que comprueba el módulo: con el plugin apagado
- * no se registra el menú, ni la autorreparación de capacidades, ni los manejadores de guardado.
+ * no se registra el menú, ni la autorreparación de capacidades, ni los manejadores de guardado,
+ * ni las pantallas de socios, su exportación, el perfil, la columna de usuarios o la caja del
+ * pedido.
  *
  * El patrón de aviso es POST → redirect → GET con un transient de 60 s por usuario: el panel
  * nunca refleja un mensaje construido con texto libre de la petición. El mensaje solo intercala
- * claves de tipo declaradas por el registro de beneficios.
+ * claves de tipo declaradas por el registro de beneficios o números ya saneados.
  *
  * Guardar un nivel (por la caja del CPT) o sus beneficios (por la pantalla del módulo) invalida
  * el tag ISR `memberships`, que registra `HWE_Memberships_Access::tags()` en
@@ -22,6 +24,13 @@ require_once __DIR__ . '/Capabilities.php';
 require_once __DIR__ . '/Menu.php';
 require_once __DIR__ . '/LevelsScreen.php';
 require_once __DIR__ . '/BenefitsScreen.php';
+require_once __DIR__ . '/MembersScreen.php';
+require_once __DIR__ . '/HistoryScreen.php';
+require_once __DIR__ . '/Stats.php';
+require_once __DIR__ . '/Csv.php';
+require_once __DIR__ . '/UserProfile.php';
+require_once __DIR__ . '/UserColumns.php';
+require_once __DIR__ . '/OrderBox.php';
 
 final class HWE_Memberships_Admin {
 
@@ -44,6 +53,11 @@ final class HWE_Memberships_Admin {
 		HWE_Memberships_Admin_Capabilities::register();
 		HWE_Memberships_Admin_Menu::register();
 		HWE_Memberships_Admin_Benefits_Screen::register();
+		HWE_Memberships_Admin_Members_Screen::register();
+		HWE_Memberships_Admin_Csv::register();
+		HWE_Memberships_Admin_User_Profile::register();
+		HWE_Memberships_Admin_User_Columns::register();
+		HWE_Memberships_Admin_Order_Box::register();
 
 		// Prioridad 20: detrás de `HWE_Memberships_Levels::save()` (10), que es quien escribe.
 		add_action(
@@ -150,7 +164,20 @@ final class HWE_Memberships_Admin {
 				__( 'Beneficios guardados. Se ajustaron valores fuera de rango o no válidos en: %s.', 'hwe' ),
 				implode( ', ', array_map( 'strval', (array) ( $flash['adjusted'] ?? array() ) ) )
 			),
-			'forbidden'      => __( 'No tienes permiso para guardar los beneficios de este nivel.', 'hwe' ),
+			'granted'         => __( 'Nivel concedido.', 'hwe' ),
+			'extended'        => __( 'Cobertura extendida.', 'hwe' ),
+			'removed'         => __( 'Membresías retiradas al socio.', 'hwe' ),
+			'member_frozen'   => __( 'Socio congelado.', 'hwe' ),
+			'member_unfrozen' => __( 'Socio descongelado.', 'hwe' ),
+			'invalid_user'    => __( 'No existe el usuario indicado.', 'hwe' ),
+			'invalid_action'  => __( 'Acción no reconocida.', 'hwe' ),
+			'invalid_level'   => __( 'El nivel indicado no existe.', 'hwe' ),
+			'invalid_days'    => __( 'Indica una duración válida en días.', 'hwe' ),
+			'invalid_key'     => __( 'El formulario caducó. Recarga la pantalla e inténtalo de nuevo.', 'hwe' ),
+			'no_membership'   => __( 'El socio no tiene una membresía vigente que extender.', 'hwe' ),
+			'not_granted'     => __( 'No se concedió: el formulario ya se había usado o la operación no es válida.', 'hwe' ),
+			'not_possible'    => __( 'La acción no se pudo aplicar en el estado actual del socio.', 'hwe' ),
+			'forbidden'       => __( 'No tienes permiso para realizar esta acción.', 'hwe' ),
 			'invalid'        => __( 'El formulario caducó. Recarga la pantalla e inténtalo de nuevo.', 'hwe' ),
 			'missing_level'  => __( 'El nivel ya no existe.', 'hwe' ),
 			default          => __( 'Operación completada.', 'hwe' ),
@@ -164,7 +191,23 @@ final class HWE_Memberships_Admin {
 		}
 
 		$code = (string) ( $flash['code'] ?? '' );
-		$class = in_array( $code, array( 'forbidden', 'invalid', 'missing_level' ), true )
+		$class = in_array(
+			$code,
+			array(
+				'forbidden',
+				'invalid',
+				'missing_level',
+				'invalid_user',
+				'invalid_action',
+				'invalid_level',
+				'invalid_days',
+				'invalid_key',
+				'no_membership',
+				'not_granted',
+				'not_possible',
+			),
+			true
+		)
 			? 'notice notice-error'
 			: ( 'saved_adjusted' === $code ? 'notice notice-warning' : 'notice notice-success' );
 

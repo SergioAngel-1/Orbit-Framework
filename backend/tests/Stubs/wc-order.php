@@ -48,6 +48,33 @@ if (!class_exists('WC_Order')) {
             return $this->meta[$key] ?? '';
         }
 
+        /**
+         * Meta del pedido con la forma de WooCommerce (`get_data(): ['key'=>…,'value'=>…]`).
+         *
+         * @return list<object>
+         */
+        public function get_meta_data(): array
+        {
+            $out = array();
+            foreach ($this->meta as $key => $value) {
+                $out[] = new class ($key, $value) {
+                    private string $key;
+                    private mixed $value;
+                    public function __construct(string $key, mixed $value)
+                    {
+                        $this->key   = $key;
+                        $this->value = $value;
+                    }
+                    /** @return array{key:string,value:mixed} */
+                    public function get_data(): array
+                    {
+                        return array('key' => $this->key, 'value' => $this->value);
+                    }
+                };
+            }
+            return $out;
+        }
+
         public function save_meta_data(): void
         {
             $this->saved++;
