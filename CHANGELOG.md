@@ -7,6 +7,14 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **Crear una instancia ya no la deja sin actualizaciones.** `docs/CREATE_INSTANCE.md` mandaba
+  clonar `main` y reiniciar el historial (`rm -rf .git && git init`), y `docs/UPGRADE.md` actualiza
+  con `git merge` del tag nuevo: sin historia compartida git responde `refusing to merge unrelated
+  histories`, así que la instancia no podía recibir parches. Clonar `main` además mezclaba trabajo sin
+  publicar con una versión que decía `2.0.0`. Ahora la instancia se clona desde un tag
+  (`git clone --branch vX.Y.Z --origin framework`) conservando el historial, y el archivo nuevo
+  `FRAMEWORK_VERSION` (raíz, del núcleo) dice de qué release parte. Un test lo ata a la última
+  release del CHANGELOG.
 - **Coexistencia de `loyalty`, `memberships` y `shipping` (auditoría de las 8 combinaciones).**
   Envío gratis de socio: cuando WooCommerce reutiliza el pedido de un intento de checkout que
   falló, la reserva se devuelve si el envío gratis ya no aplica. Solo se gasta la unidad si el

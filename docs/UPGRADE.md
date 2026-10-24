@@ -18,6 +18,7 @@
 - `.github/workflows/**`
 - `docs/**` (salvo notas propias de la instancia)
 - `frontend/tests/unit/**` (tests del núcleo)
+- `FRAMEWORK_VERSION` y `CHANGELOG.md` (la release del framework de la que parte la instancia)
 
 - `backend/wp-content/plugins/hwe-*` (los módulos del framework, salvo los `hwe-instance-*`)
 

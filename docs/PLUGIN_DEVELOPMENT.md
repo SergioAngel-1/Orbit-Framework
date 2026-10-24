@@ -255,4 +255,4 @@ invierte la dependencia, como hace `BannerSlide` respecto a `HeroSlide`.
 - [ ] Cabecera `Version:` del plugin: es la versión **del componente**, no la del framework.
       Un componente nuevo arranca en `1.0.0` y sube cuando cambia su comportamiento; por eso
       conviven `1.0.0`, `2.0.0` y `2.1.0` en un mismo release. La del framework está en
-      `CHANGELOG.md` y `frontend/package.json`.
+      `FRAMEWORK_VERSION`, `CHANGELOG.md` y `frontend/package.json`.
