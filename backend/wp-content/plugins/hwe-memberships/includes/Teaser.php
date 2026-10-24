@@ -9,7 +9,12 @@
  *  · WC REST `wc/v3/products` **solo** cuando la petición es del BFF (secreto interno): la
  *    petición del BFF es la que alimenta un endpoint público, así que se trata como visitante.
  *    El panel y las integraciones con ck/cs siguen viendo la ficha completa;
- *  · GraphQL (lo aplica `HWE_Memberships_Graphql`).
+ *  · REST de WordPress `wp/v2/product` (WooCommerce registra el producto con `show_in_rest`:
+ *    sin este recorte devolvería `content` y `excerpt` a cualquiera);
+ *  · GraphQL (lo aplica `HWE_Memberships_Graphql`);
+ *  · la búsqueda (GraphQL, `wp/v2`): comparar contra la descripción o el extracto de un producto
+ *    bloqueado sería un oráculo para sondear su contenido, así que con requisitos en el catálogo
+ *    solo se compara el nombre.
  *
  * La lista es BLANCA: solo salen id, nombre, slug, tipo, imagen principal, precio público (rango
  * en variables), categorías, el requisito y la marca `locked`. Cualquier campo que añada otro
@@ -37,6 +42,9 @@ final class HWE_Memberships_Teaser {
 		add_filter( 'rest_request_after_callbacks', array( self::class, 'filterRestResponse' ), 999, 3 );
 		add_filter( 'woocommerce_rest_prepare_product_object', array( self::class, 'prepareWcProduct' ), 999, 3 );
 		add_filter( 'woocommerce_rest_prepare_product_variation_object', array( self::class, 'prepareWcVariation' ), 999, 3 );
+		add_filter( 'rest_prepare_product', array( self::class, 'prepareWpProduct' ), 999, 3 );
+		add_filter( 'post_search_columns', array( self::class, 'searchColumns' ), 999, 3 );
+		add_filter( 'graphql_product_connection_query_args', array( self::class, 'graphqlSearchArgs' ), 999, 1 );
 	}
 
 	/** ¿Hay que recortar este producto para este usuario? `0` = visitante sin sesión. */
@@ -427,6 +435,141 @@ final class HWE_Memberships_Teaser {
 		$out['hwe_membership'] = self::requirementPayload( $id );
 
 		return $out;
+	}
+
+	// ------------------------------------------------------------------------
+	//  REST de WordPress (wp/v2/product)
+	// ------------------------------------------------------------------------
+
+	/**
+	 * `rest_prepare_product`: recorta la respuesta de `wp/v2/product` para el usuario de la
+	 * petición. La edición con permisos (`context=edit` de quien puede editar el producto) no se
+	 * toca: es administración, no tienda.
+	 *
+	 * @param mixed $response
+	 * @param mixed $post
+	 * @param mixed $request
+	 * @return mixed
+	 */
+	public static function prepareWpProduct( $response, $post, $request ) {
+		if ( ! self::moduleActive() ) {
+			return $response;
+		}
+		if ( ! is_object( $response ) || ! method_exists( $response, 'get_data' ) || ! method_exists( $response, 'set_data' ) ) {
+			return $response;
+		}
+
+		$id = is_object( $post ) ? (int) ( $post->ID ?? 0 ) : 0;
+		if ( $id <= 0 ) {
+			$data = $response->get_data();
+			$id   = is_array( $data ) ? (int) ( $data['id'] ?? 0 ) : 0;
+		}
+		if ( $id <= 0 ) {
+			return $response;
+		}
+
+		$context = is_object( $request ) && method_exists( $request, 'get_param' ) ? $request->get_param( 'context' ) : null;
+		if ( 'edit' === $context && function_exists( 'current_user_can' ) && current_user_can( 'edit_post', $id ) ) {
+			return $response;
+		}
+
+		$data = $response->get_data();
+		if ( ! is_array( $data ) ) {
+			return $response;
+		}
+
+		$response->set_data( self::trimWpProduct( $data, self::requestUserId() ) );
+
+		return $response;
+	}
+
+	/**
+	 * Recorta un producto de `wp/v2/product`: lista blanca (identificadores, estado, enlace,
+	 * título, imagen destacada, fechas, categorías y etiquetas) más el requisito. `content`,
+	 * `excerpt`, `meta` y todo lo que añada otro plugin se descartan.
+	 *
+	 * @param array<string,mixed> $product
+	 * @return array<string,mixed>
+	 */
+	public static function trimWpProduct( array $product, int $userId ): array {
+		$id = (int) ( $product['id'] ?? 0 );
+		if ( $id <= 0 || ! self::isTeaser( $id, $userId ) ) {
+			return $product;
+		}
+
+		$out = array();
+		foreach ( array( 'id', 'date', 'date_gmt', 'modified', 'modified_gmt', 'slug', 'status', 'type', 'link', 'title', 'featured_media', 'product_cat', 'product_tag', '_links' ) as $key ) {
+			if ( array_key_exists( $key, $product ) ) {
+				$out[ $key ] = $product[ $key ];
+			}
+		}
+
+		$out['locked']         = true;
+		$out['hwe_membership'] = self::requirementPayload( $id );
+
+		return $out;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Búsqueda
+	// ------------------------------------------------------------------------
+
+	/**
+	 * `post_search_columns`: con requisitos en el catálogo, una búsqueda que alcanza productos
+	 * compara solo el nombre. Comparar `post_content` o `post_excerpt` dejaría adivinar la
+	 * descripción de un producto bloqueado probando subcadenas.
+	 *
+	 * @param mixed $columns
+	 * @param mixed $search
+	 * @param mixed $query
+	 * @return mixed
+	 */
+	public static function searchColumns( $columns, $search = '', $query = null ) {
+		if ( ! is_array( $columns ) || ! self::moduleActive() ) {
+			return $columns;
+		}
+		// El listado de productos de wp-admin busca por su cuenta; no es una vía pública.
+		if ( function_exists( 'is_admin' ) && is_admin() && ! ( defined( 'DOING_AJAX' ) && DOING_AJAX ) ) {
+			return $columns;
+		}
+		if ( ! self::queryReachesProducts( $query ) || ! HWE_Memberships_Access::anyRequirementExists() ) {
+			return $columns;
+		}
+
+		return array( 'post_title' );
+	}
+
+	/**
+	 * `graphql_product_connection_query_args`: WooGraphQL no usa `s` para `where: { search }`,
+	 * sino su propia cláusula que compara descripción, extracto, SKU y slug. Con requisitos en el
+	 * catálogo se reencamina por la búsqueda de WordPress, que `searchColumns()` limita al nombre.
+	 *
+	 * @param mixed $args
+	 * @return mixed
+	 */
+	public static function graphqlSearchArgs( $args ) {
+		if ( ! is_array( $args ) || empty( $args['search'] ) || ! self::moduleActive() ) {
+			return $args;
+		}
+		if ( ! HWE_Memberships_Access::anyRequirementExists() ) {
+			return $args;
+		}
+
+		$args['s'] = $args['search'];
+		unset( $args['search'] );
+
+		return $args;
+	}
+
+	/** ¿La consulta puede devolver productos? (`post_type` vacío es `post`; `any` los incluye.) */
+	private static function queryReachesProducts( mixed $query ): bool {
+		$vars = is_object( $query ) && isset( $query->query_vars ) && is_array( $query->query_vars )
+			? $query->query_vars
+			: array();
+		$type = $vars['post_type'] ?? '';
+		$list = is_array( $type ) ? $type : array( $type );
+
+		return in_array( 'product', $list, true ) || in_array( 'any', $list, true );
 	}
 
 	/** La petición trae el secreto interno válido del BFF. Si no se puede saber, se recorta. */

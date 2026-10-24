@@ -40,6 +40,8 @@ final class TeaserTest extends TestCase
     private array $productTerms = [];
     private int $currentUser = 0;
     private bool $bffRequest = false;
+    /** ¿Existe algún producto o categoría con requisito? (lo responde el doble de `$wpdb`). */
+    private bool $postMetaRankExists = false;
     /** @var list<string> */
     private array $logged = [];
 
@@ -54,7 +56,29 @@ final class TeaserTest extends TestCase
         $this->productTerms  = [self::PRODUCT => [30], 502 => []];
         $this->currentUser   = 0;
         $this->bffRequest    = false;
+        $this->postMetaRankExists = false;
         $this->logged        = [];
+
+        $test = $this;
+        $GLOBALS['wpdb'] = new class($test) {
+            public string $postmeta = 'wp_postmeta';
+            public string $termmeta = 'wp_termmeta';
+            public string $last_error = '';
+
+            public function __construct(private object $test)
+            {
+            }
+
+            public function prepare(string $query, mixed ...$args): string
+            {
+                return $query . ' /* ' . implode(',', array_map('strval', $args)) . ' */';
+            }
+
+            public function get_var(string $query): ?string
+            {
+                return (fn (): bool => $this->postMetaRankExists)->call($this->test) ? '1' : null;
+            }
+        };
 
         $this->loadOwnFile('plugins/hwe-memberships/includes/Settings.php');
         $this->loadOwnFile('plugins/hwe-memberships/includes/Benefits/Benefit.php');
@@ -505,6 +529,105 @@ final class TeaserTest extends TestCase
         $this->assertSame(['id' => 902, 'type' => 'variation', 'locked' => true], $orphan);
     }
 
+    // ── REST de WordPress (wp/v2/product) ───────────────────────────────────
+
+    public function testWpRestProductDoesNotLeakContentOfALockedProduct(): void
+    {
+        $data = $this->wpProduct(self::PRODUCT);
+
+        $trimmed = \HWE_Memberships_Teaser::trimWpProduct($data, 0);
+
+        foreach (['content', 'excerpt', 'meta', 'acf', 'yoast_head', 'class_list'] as $hidden) {
+            $this->assertArrayNotHasKey($hidden, $trimmed, $hidden . ' no puede salir por wp/v2/product.');
+        }
+        $this->assertSame('Producto 501', $trimmed['title']['rendered']);
+        $this->assertSame('producto-501', $trimmed['slug']);
+        $this->assertTrue($trimmed['locked']);
+        $this->assertSame('nivel-5', $trimmed['hwe_membership']['required_level']['slug']);
+
+        // Con el nivel, o en un producto público, la respuesta no se toca.
+        $this->assertSame($data, \HWE_Memberships_Teaser::trimWpProduct($data, self::USER));
+        $public = $this->wpProduct(502);
+        $this->assertSame($public, \HWE_Memberships_Teaser::trimWpProduct($public, 0));
+    }
+
+    public function testPrepareWpProductAppliesTheTrimForTheRequestUserOnly(): void
+    {
+        $response = new \WP_REST_Response($this->wpProduct(self::PRODUCT));
+        $post     = (object) ['ID' => self::PRODUCT];
+        $request  = new \WP_REST_Request(['context' => 'view'], [], '/wp/v2/product/501');
+
+        \HWE_Memberships_Teaser::prepareWpProduct($response, $post, $request);
+        $this->assertArrayNotHasKey('content', $response->get_data());
+
+        $this->currentUser = self::USER;
+        $withLevel = new \WP_REST_Response($this->wpProduct(self::PRODUCT));
+        \HWE_Memberships_Teaser::prepareWpProduct($withLevel, $post, $request);
+        $this->assertArrayHasKey('content', $withLevel->get_data());
+
+        // Módulo apagado: nunca se recorta.
+        $this->currentUser   = 0;
+        $this->activePlugins = [];
+        \HWE_Memberships_Access::flush();
+        $off = new \WP_REST_Response($this->wpProduct(self::PRODUCT));
+        \HWE_Memberships_Teaser::prepareWpProduct($off, $post, $request);
+        $this->assertArrayHasKey('content', $off->get_data());
+    }
+
+    // ── Búsqueda: sin oráculo sobre el contenido bloqueado ──────────────────
+
+    public function testSearchColumnsAreReducedToTheTitleWhenThereAreLockedProducts(): void
+    {
+        $this->postMetaRankExists = true;
+        $columns = ['post_title', 'post_excerpt', 'post_content'];
+        $query   = (object) ['query_vars' => ['post_type' => 'product']];
+
+        $this->assertSame(['post_title'], \HWE_Memberships_Teaser::searchColumns($columns, 'secreto', $query));
+
+        // Una consulta de varios tipos que incluye producto también se reduce.
+        $any = (object) ['query_vars' => ['post_type' => ['post', 'product']]];
+        $this->assertSame(['post_title'], \HWE_Memberships_Teaser::searchColumns($columns, 'secreto', $any));
+        $all = (object) ['query_vars' => ['post_type' => 'any']];
+        $this->assertSame(['post_title'], \HWE_Memberships_Teaser::searchColumns($columns, 'secreto', $all));
+
+        // Las consultas que no son de producto conservan sus columnas.
+        $post = (object) ['query_vars' => ['post_type' => 'post']];
+        $this->assertSame($columns, \HWE_Memberships_Teaser::searchColumns($columns, 'secreto', $post));
+    }
+
+    public function testSearchColumnsAreUntouchedWithoutLockedProductsOrWithTheModuleOff(): void
+    {
+        $columns = ['post_title', 'post_excerpt', 'post_content'];
+        $query   = (object) ['query_vars' => ['post_type' => 'product']];
+
+        $this->postMetaRankExists = false;
+        \HWE_Memberships_Access::flush();
+        $this->assertSame($columns, \HWE_Memberships_Teaser::searchColumns($columns, 'x', $query), 'Sin requisitos, la búsqueda sigue igual.');
+
+        $this->postMetaRankExists = true;
+        $this->activePlugins      = [];
+        \HWE_Memberships_Access::flush();
+        $this->assertSame($columns, \HWE_Memberships_Teaser::searchColumns($columns, 'x', $query), 'Con el módulo apagado, igual.');
+    }
+
+    public function testTheGraphqlProductSearchGoesThroughTheRestrictedWpSearch(): void
+    {
+        $this->postMetaRankExists = true;
+
+        $args = \HWE_Memberships_Teaser::graphqlSearchArgs(['post_type' => 'product', 'search' => 'secreto', 'orderby' => 'relevance']);
+
+        $this->assertArrayNotHasKey('search', $args, 'WooGraphQL compararía contra la descripción.');
+        $this->assertSame('secreto', $args['s']);
+
+        $noSearch = ['post_type' => 'product'];
+        $this->assertSame($noSearch, \HWE_Memberships_Teaser::graphqlSearchArgs($noSearch));
+
+        $this->postMetaRankExists = false;
+        \HWE_Memberships_Access::flush();
+        $plain = ['post_type' => 'product', 'search' => 'secreto'];
+        $this->assertSame($plain, \HWE_Memberships_Teaser::graphqlSearchArgs($plain));
+    }
+
     // ── Hooks ───────────────────────────────────────────────────────────────
 
     public function testRegisterHooksTheRestFiltersOnlyWhenTheModuleIsActive(): void
@@ -529,6 +652,29 @@ final class TeaserTest extends TestCase
     }
 
     // ── Datos de prueba ─────────────────────────────────────────────────────
+
+    /** @return array<string,mixed> Respuesta de `wp/v2/product`. */
+    private function wpProduct(int $id): array
+    {
+        return [
+            'id'             => $id,
+            'date'           => '2026-01-01T00:00:00',
+            'slug'           => 'producto-' . $id,
+            'status'         => 'publish',
+            'type'           => 'product',
+            'link'           => 'https://tienda.test/producto-' . $id,
+            'title'          => ['rendered' => 'Producto ' . $id],
+            'content'        => ['rendered' => '<p>Secreto largo</p>', 'protected' => false],
+            'excerpt'        => ['rendered' => '<p>Secreto corto</p>', 'protected' => false],
+            'featured_media' => 11,
+            'meta'           => ['_secreto' => 'x'],
+            'acf'            => ['campo' => 'secreto'],
+            'yoast_head'     => '<meta name="description" content="Secreto">',
+            'class_list'     => ['post-' . $id],
+            'product_cat'    => [30],
+            '_links'         => ['self' => [['href' => 'https://tienda.test/wp-json/wp/v2/product/' . $id]]],
+        ];
+    }
 
     /** @param array<string,mixed> $overrides */
     private function storeProduct(int $id, array $overrides = []): array

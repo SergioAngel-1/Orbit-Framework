@@ -230,6 +230,64 @@ final class HWE_Memberships_Access {
 		);
 	}
 
+	/**
+	 * ¿Existe algún requisito guardado en el catálogo (rango mínimo en un producto o categoría, o
+	 * una fecha de apertura futura)? Sirve para no tocar la búsqueda de una tienda que no reserva
+	 * nada. Se calcula una vez por petición y falla cerrado: si no se puede comprobar, responde sí.
+	 */
+	public static function anyRequirementExists(): bool {
+		if ( ! self::moduleActive() ) {
+			return false;
+		}
+		if ( array_key_exists( 'any-requirement', self::$cache ) ) {
+			return self::$cache['any-requirement'];
+		}
+
+		$exists = true;
+		try {
+			$exists = self::queryAnyRequirement();
+		} catch ( \Throwable $e ) {
+			self::logOnce( 'any-requirement', 'no se pudo comprobar si hay requisitos de acceso; la búsqueda del catálogo se restringe por precaución.' );
+		}
+		self::$cache['any-requirement'] = $exists;
+
+		return $exists;
+	}
+
+	private static function queryAnyRequirement(): bool {
+		global $wpdb;
+		if ( ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_var' ) ) {
+			throw new \RuntimeException( 'no hay acceso a la base de datos' );
+		}
+
+		$queries = array(
+			$wpdb->prepare(
+				"SELECT 1 FROM {$wpdb->postmeta} WHERE meta_key = %s AND CAST(meta_value AS UNSIGNED) > 0 LIMIT 1",
+				self::MIN_RANK_META
+			),
+			$wpdb->prepare(
+				"SELECT 1 FROM {$wpdb->termmeta} WHERE meta_key = %s AND CAST(meta_value AS UNSIGNED) > 0 LIMIT 1",
+				self::MIN_RANK_META
+			),
+			$wpdb->prepare(
+				"SELECT 1 FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value > %s LIMIT 1",
+				self::OPENS_AT_META,
+				gmdate( 'Y-m-d H:i:s' )
+			),
+		);
+		foreach ( $queries as $sql ) {
+			$found = $wpdb->get_var( $sql );
+			if ( ! empty( $wpdb->last_error ) ) {
+				throw new \RuntimeException( 'la consulta de requisitos falló' );
+			}
+			if ( null !== $found && '' !== $found && '0' !== (string) $found ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	/** Rango mínimo propio de un producto (sin categorías); 0 si no tiene. */
 	public static function productMinRank( int $productId ): int {
 		if ( $productId <= 0 ) {
