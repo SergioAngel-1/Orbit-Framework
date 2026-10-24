@@ -20,6 +20,7 @@ por QR, renovaciones y regalos por referido. Es un módulo opcional del catálog
 | `includes/LoyaltyBridge.php` | Único punto de conversación con el contrato de `loyalty` (disponibilidad, tipos de movimiento, abono y reversión). |
 | `includes/StoreApi.php` | Extensión `hwe-memberships` del carrito y bloqueo de compra por requisito de acceso, en el alta y al crear el pedido. |
 | `includes/Benefits/MemberDiscount.php` | Beneficio `member_discount`: porcentaje y alcance (todo el catálogo o categorías con herencia). |
+| `includes/Benefits/FreeDeliveries.php` | Beneficio `free_deliveries`: cupo de envíos gratis por periodo, reserva/consumo/devolución por pedido e integración con `shipping` por su filtro estable. |
 | `includes/Pricing.php` | Descuento de miembro en el precio de línea, metas del pedido, fila de la caja y `priceFor()` para el BFF. |
 
 ## Beneficios conectados con `loyalty`
@@ -226,6 +227,32 @@ porcentaje (`_hwe_membership_discount_level`, `_hwe_membership_discount_percent`
 pedido muestra una sola fila con el nivel y el porcentaje mediante el filtro
 `hwe_memberships_order_box_rows`. La extensión `hwe-memberships` del carrito publica el total y el
 detalle por línea en `member_discount`, en unidades menores.
+
+## Envíos gratis por periodo
+
+El nivel configura cuántos **envíos gratis** aporta cada concesión (`free_deliveries`, campo
+`count`). El cupo es de la concesión: una renovación empieza con el suyo y el no usado muere con
+la concesión anterior. Los contadores viven en `grants.shipping_quota_used` /
+`shipping_quota_reserved` y solo los mueve `HWE_Memberships_Grants`, siempre con la fila del socio
+bloqueada y en la misma transacción que comprueba el disponible.
+
+Ciclo, idempotente por pedido:
+
+| Momento | Qué pasa |
+|---|---|
+| Carrito | El cliente declara en la extensión `hwe-memberships` que quiere usarlo (`free_delivery: true`). Si el beneficio está activo y queda cupo, la tarifa elegible queda a 0 y la extensión publica `free_delivery` = `{available, remaining, requested, applied, reason}`. |
+| Crear el pedido | Se **reserva** una unidad. Sin cupo, el checkout se corta con `hwe_membership_free_delivery_unavailable` (409). El pedido guarda `_hwe_membership_free_delivery_grant`, `_hwe_membership_free_delivery_state` y `_hwe_membership_free_delivery_user`. |
+| Cobrar | Se **consume** la reserva. Las notificaciones de estado repetidas no consumen dos veces. |
+| Cancelar, fallar o reembolsar del todo | Se **devuelve** la reserva o el consumo. |
+
+Con el módulo `shipping` activo, esta clase **no toca las tarifas**: pide el envío gratis por el
+filtro estable `hwe_shipping_free_reason` y `shipping` aplica su lógica (solo opciones elegibles,
+nunca la reserva) y escribe su meta `_hwe_free_shipping_reason`. Sin `shipping`, pone a 0 las
+tarifas que no son de recogida por el **id del método** (`local_pickup`, `pickup_location`), nunca
+por la etiqueta. Si el envío ya salía a 0 por otra regla, no se reserva cupo: el estado público lo
+dice con `reason = already_free`. Motivos estables de `reason`: `membership_free_delivery`
+(aplicado), `already_free`, `quota_exhausted`, `not_eligible` y `not_available`; los textos los
+compone el BFF.
 
 ## Con el módulo apagado
 

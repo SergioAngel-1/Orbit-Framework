@@ -55,6 +55,16 @@ final class HWE_Memberships_Grants {
 	/** Prefijo de la clave idempotente de un regalo de referido (`gift:<referido>`). */
 	public const REFERRAL_GIFT_PREFIX = 'gift:';
 
+	/** Metas del pedido que atan el envío gratis a su concesión (§7.3). */
+	public const META_FREE_DELIVERY_GRANT = '_hwe_membership_free_delivery_grant';
+	public const META_FREE_DELIVERY_STATE = '_hwe_membership_free_delivery_state';
+	public const META_FREE_DELIVERY_USER  = '_hwe_membership_free_delivery_user';
+
+	/** Estados del envío gratis de un pedido. */
+	public const FREE_DELIVERY_RESERVED = 'reserved';
+	public const FREE_DELIVERY_CONSUMED = 'consumed';
+	public const FREE_DELIVERY_RELEASED = 'released';
+
 	/** Resultados de `grantReferralGift()`; el llamador decide qué historial dejar. */
 	public const RESULT_GRANTED       = 'granted';
 	public const RESULT_DUPLICATE     = 'duplicate';
@@ -526,6 +536,375 @@ final class HWE_Memberships_Grants {
 	public static function referralGiftKey( int $refereeId ): string {
 		return self::REFERRAL_GIFT_PREFIX . $refereeId;
 	}
+
+	// ------------------------------------------------------------------------
+	//  Envíos gratis por concesión (§7.3)
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Reserva una unidad del cupo de envíos gratis del socio para un pedido. La comprobación del
+	 * disponible (cupo del nivel de la concesión activa − consumidos − reservados) y el incremento
+	 * de la reserva van en la MISMA transacción, con la fila del socio bloqueada: dos pedidos
+	 * simultáneos no pueden gastar la misma unidad (Foco de revisión 2).
+	 *
+	 * Idempotente por pedido: si el pedido ya tiene una reserva (o un consumo) de este beneficio,
+	 * devuelve `true` sin tocar los contadores. El cupo es de la concesión: el no usado muere con
+	 * ella y una renovación (concesión nueva) empieza con el suyo.
+	 *
+	 * Devuelve `false` sin escribir si no hay concesión activa, el beneficio está apagado para el
+	 * nivel, no queda cupo o falla la persistencia.
+	 */
+	public static function reserveFreeDelivery( int $userId, int $orderId ): bool {
+		if ( $userId <= 0 || $orderId <= 0 ) {
+			self::log( 'reserva de envío gratis rechazada: usuario o pedido inválido (' . $userId . '/' . $orderId . ').' );
+			return false;
+		}
+
+		$order = self::order( $orderId );
+		if ( null === $order ) {
+			self::log( 'no se pudo cargar el pedido ' . $orderId . ' para reservar su envío gratis.' );
+			return false;
+		}
+
+		$now    = self::now();
+		$nowSql = self::sqlDate( $now );
+
+		if ( ! self::begin() ) {
+			self::log( 'no se pudo abrir la transacción de la reserva de envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+		if ( ! self::ensureMemberRow( $userId, $nowSql ) ) {
+			self::fail( 'no se pudo preparar la fila del socio ' . $userId . ' para reservar su envío gratis.' );
+			return false;
+		}
+		$member = self::lockMember( $userId );
+		if ( null === $member ) {
+			self::fail( 'no se pudo bloquear la fila del socio ' . $userId . ' para reservar su envío gratis.' );
+			return false;
+		}
+
+		// La fila del socio está bloqueada: a partir de aquí la lectura del estado del pedido y la
+		// de los contadores no pueden cruzarse con otra operación del mismo usuario.
+		$state = self::readOrderMeta( $order, self::META_FREE_DELIVERY_STATE );
+		if ( self::FREE_DELIVERY_RELEASED === $state ) {
+			self::rollback();
+			self::log( 'el pedido ' . $orderId . ' ya devolvió su envío gratis; no se vuelve a reservar.' );
+			return false;
+		}
+		if ( in_array( $state, array( self::FREE_DELIVERY_RESERVED, self::FREE_DELIVERY_CONSUMED ), true ) ) {
+			self::rollback();
+			return true;
+		}
+
+		if ( null !== self::date( $member?->frozen_at ?? null ) ) {
+			self::rollback();
+			self::log( 'el socio ' . $userId . ' está congelado; no se reserva envío gratis.' );
+			return false;
+		}
+
+		$grant = null;
+		if ( class_exists( 'HWE_Memberships_Timeline' ) ) {
+			$grant = HWE_Memberships_Timeline::effective( self::forUser( $userId, true ), $now );
+		}
+		if ( null === $grant ) {
+			self::rollback();
+			self::log( 'el socio ' . $userId . ' no tiene una concesión activa para el envío gratis.' );
+			return false;
+		}
+
+		$quota    = self::freeDeliveryQuota( (int) ( $grant['level_id'] ?? 0 ) );
+		$used     = max( 0, (int) ( $grant['shipping_quota_used'] ?? 0 ) );
+		$reserved = max( 0, (int) ( $grant['shipping_quota_reserved'] ?? 0 ) );
+		if ( $quota <= 0 || $used + $reserved >= $quota ) {
+			self::rollback();
+			self::log(
+				'sin cupo de envío gratis para el socio ' . $userId . ': ' . $used . ' usados + '
+				. $reserved . ' reservados de ' . $quota . '.'
+			);
+			return false;
+		}
+
+		if ( ! self::updateGrant( (int) $grant['id'], array(
+			'shipping_quota_reserved' => $reserved + 1,
+			'updated_at'              => $nowSql,
+		) ) ) {
+			self::fail( 'no se pudo reservar el envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		if ( ! self::writeOrderFreeDelivery( $order, (int) $grant['id'], $userId, self::FREE_DELIVERY_RESERVED ) ) {
+			self::fail( 'no se pudo anotar el envío gratis en el pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		if ( ! self::commit() ) {
+			self::clearQueue();
+			self::rollback();
+			self::log( 'no se pudo confirmar la reserva de envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Consume la reserva de un pedido cobrado: mueve la unidad de «reservada» a «usada» una sola
+	 * vez. Repetir el aviso no suma dos consumos (Foco de revisión 1). Un pedido sin envío gratis
+	 * o ya devuelto no hace nada.
+	 */
+	public static function consumeFreeDelivery( int $orderId ): bool {
+		$order = self::order( $orderId );
+		if ( null === $order ) {
+			self::log( 'no se pudo cargar el pedido ' . $orderId . ' para consumir su envío gratis.' );
+			return false;
+		}
+
+		$grantId = (int) self::readOrderMeta( $order, self::META_FREE_DELIVERY_GRANT );
+		$state   = self::readOrderMeta( $order, self::META_FREE_DELIVERY_STATE );
+
+		if ( '' === $state ) {
+			return true; // Pedido sin envío gratis de miembro: no hay nada que consumir.
+		}
+		if ( self::FREE_DELIVERY_CONSUMED === $state ) {
+			return true;
+		}
+		if ( self::FREE_DELIVERY_RESERVED !== $state ) {
+			self::log( 'el pedido ' . $orderId . ' no tiene una reserva viva que consumir («' . $state . '»).' );
+			return false;
+		}
+
+		$row = self::rowById( $grantId );
+		if ( null === $row ) {
+			self::log( 'no se encontró la concesión ' . $grantId . ' del envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		$userId = (int) ( $row['user_id'] ?? 0 );
+		if ( $userId <= 0 ) {
+			self::log( 'la concesión ' . $grantId . ' no tiene un usuario válido.' );
+			return false;
+		}
+
+		$now    = self::now();
+		$nowSql = self::sqlDate( $now );
+
+		if ( ! self::begin() ) {
+			self::log( 'no se pudo abrir la transacción del consumo de envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+		if ( ! self::ensureMemberRow( $userId, $nowSql ) ) {
+			self::fail( 'no se pudo preparar la fila del socio ' . $userId . ' para consumir su envío gratis.' );
+			return false;
+		}
+		if ( null === self::lockMember( $userId ) ) {
+			self::fail( 'no se pudo bloquear la fila del socio ' . $userId . ' para consumir su envío gratis.' );
+			return false;
+		}
+
+		// Relectura dentro de la transacción: otro aviso pudo consumirlo mientras esperábamos.
+		$state = self::readOrderMeta( $order, self::META_FREE_DELIVERY_STATE );
+		if ( self::FREE_DELIVERY_CONSUMED === $state ) {
+			self::rollback();
+			return true;
+		}
+		if ( self::FREE_DELIVERY_RESERVED !== $state ) {
+			self::rollback();
+			return false;
+		}
+
+		$row = self::rowById( $grantId );
+		if ( null === $row ) {
+			self::fail( 'no se encontró la concesión ' . $grantId . ' al consumir el pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		$used     = max( 0, (int) ( $row['shipping_quota_used'] ?? 0 ) );
+		$reserved = max( 0, (int) ( $row['shipping_quota_reserved'] ?? 0 ) );
+
+		if ( ! self::updateGrant( $grantId, array(
+			'shipping_quota_used'     => $used + 1,
+			'shipping_quota_reserved' => max( 0, $reserved - 1 ),
+			'updated_at'              => $nowSql,
+		) ) ) {
+			self::fail( 'no se pudo consumir el envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		if ( ! self::writeOrderFreeDelivery( $order, $grantId, $userId, self::FREE_DELIVERY_CONSUMED ) ) {
+			self::fail( 'no se pudo anotar el consumo del envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		if ( ! self::commit() ) {
+			self::clearQueue();
+			self::rollback();
+			self::log( 'no se pudo confirmar el consumo de envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Devuelve la unidad de un pedido cancelado o fallido antes de cobrarse (`reserved`) o la de un
+	 * reembolso total (`consumed`). Idempotente por pedido: un pedido ya devuelto no mueve nada.
+	 */
+	public static function releaseFreeDelivery( int $orderId ): bool {
+		$order = self::order( $orderId );
+		if ( null === $order ) {
+			self::log( 'no se pudo cargar el pedido ' . $orderId . ' para devolver su envío gratis.' );
+			return false;
+		}
+
+		$grantId = (int) self::readOrderMeta( $order, self::META_FREE_DELIVERY_GRANT );
+		$state   = self::readOrderMeta( $order, self::META_FREE_DELIVERY_STATE );
+
+		if ( '' === $state || self::FREE_DELIVERY_RELEASED === $state ) {
+			return true;
+		}
+		if ( ! in_array( $state, array( self::FREE_DELIVERY_RESERVED, self::FREE_DELIVERY_CONSUMED ), true ) ) {
+			self::log( 'el pedido ' . $orderId . ' tiene un estado de envío gratis desconocido («' . $state . '»).' );
+			return false;
+		}
+
+		$row = self::rowById( $grantId );
+		if ( null === $row ) {
+			self::log( 'no se encontró la concesión ' . $grantId . ' del envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+		$userId = (int) ( $row['user_id'] ?? 0 );
+		if ( $userId <= 0 ) {
+			self::log( 'la concesión ' . $grantId . ' no tiene un usuario válido.' );
+			return false;
+		}
+
+		$now    = self::now();
+		$nowSql = self::sqlDate( $now );
+
+		if ( ! self::begin() ) {
+			self::log( 'no se pudo abrir la transacción de la devolución de envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+		if ( ! self::ensureMemberRow( $userId, $nowSql ) ) {
+			self::fail( 'no se pudo preparar la fila del socio ' . $userId . ' para devolver su envío gratis.' );
+			return false;
+		}
+		if ( null === self::lockMember( $userId ) ) {
+			self::fail( 'no se pudo bloquear la fila del socio ' . $userId . ' para devolver su envío gratis.' );
+			return false;
+		}
+
+		$state = self::readOrderMeta( $order, self::META_FREE_DELIVERY_STATE );
+		if ( self::FREE_DELIVERY_RELEASED === $state ) {
+			self::rollback();
+			return true;
+		}
+		if ( ! in_array( $state, array( self::FREE_DELIVERY_RESERVED, self::FREE_DELIVERY_CONSUMED ), true ) ) {
+			self::rollback();
+			return false;
+		}
+
+		$row = self::rowById( $grantId );
+		if ( null === $row ) {
+			self::fail( 'no se encontró la concesión ' . $grantId . ' al devolver el pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		$used     = max( 0, (int) ( $row['shipping_quota_used'] ?? 0 ) );
+		$reserved = max( 0, (int) ( $row['shipping_quota_reserved'] ?? 0 ) );
+
+		$data = self::FREE_DELIVERY_CONSUMED === $state
+			? array(
+				'shipping_quota_used' => max( 0, $used - 1 ),
+				'updated_at'          => $nowSql,
+			)
+			: array(
+				'shipping_quota_reserved' => max( 0, $reserved - 1 ),
+				'updated_at'              => $nowSql,
+			);
+
+		if ( ! self::updateGrant( $grantId, $data ) ) {
+			self::fail( 'no se pudo devolver el envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		if ( ! self::writeOrderFreeDelivery( $order, $grantId, $userId, self::FREE_DELIVERY_RELEASED ) ) {
+			self::fail( 'no se pudo anotar la devolución del envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		if ( ! self::commit() ) {
+			self::clearQueue();
+			self::rollback();
+			self::log( 'no se pudo confirmar la devolución de envío gratis del pedido ' . $orderId . '.' );
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Cupo de envíos gratis del nivel. La configuración la sanea el registro de beneficios al
+	 * guardar el nivel; aquí solo se recorta por seguridad.
+	 */
+	private static function freeDeliveryQuota( int $levelId ): int {
+		if ( $levelId <= 0 || ! class_exists( 'HWE_Memberships_Levels' ) ) {
+			return 0;
+		}
+
+		$key    = class_exists( 'HWE_Memberships_Benefit_Free_Deliveries' )
+			? HWE_Memberships_Benefit_Free_Deliveries::KEY
+			: 'free_deliveries';
+		$config = HWE_Memberships_Levels::benefitsConfig( $levelId )[ $key ] ?? null;
+		if ( ! is_array( $config ) || empty( $config['enabled'] ) ) {
+			return 0;
+		}
+
+		return max( 0, (int) ( $config['count'] ?? 0 ) );
+	}
+
+	/** Pedido de WooCommerce, o `null` fuera de WooCommerce. */
+	private static function order( int $orderId ): ?object {
+		if ( $orderId <= 0 || ! function_exists( 'wc_get_order' ) ) {
+			return null;
+		}
+
+		$order = wc_get_order( $orderId );
+
+		return is_object( $order ) ? $order : null;
+	}
+
+	/** Meta escalar del pedido como texto (vacía si no existe). */
+	private static function readOrderMeta( object $order, string $key ): string {
+		if ( ! method_exists( $order, 'get_meta' ) ) {
+			return '';
+		}
+
+		$value = $order->get_meta( $key );
+
+		return is_scalar( $value ) ? trim( (string) $value ) : '';
+	}
+
+	/** Anota la concesión y el estado del envío gratis en el pedido (HPOS incluido). */
+	private static function writeOrderFreeDelivery( object $order, int $grantId, int $userId, string $state ): bool {
+		if ( ! method_exists( $order, 'update_meta_data' ) ) {
+			return false;
+		}
+
+		$order->update_meta_data( self::META_FREE_DELIVERY_GRANT, $grantId );
+		$order->update_meta_data( self::META_FREE_DELIVERY_STATE, $state );
+		$order->update_meta_data( self::META_FREE_DELIVERY_USER, $userId );
+
+		if ( method_exists( $order, 'save_meta_data' ) ) {
+			$order->save_meta_data();
+		}
+
+		return true;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Revocación
+	// ------------------------------------------------------------------------
 
 	/**
 	 * Revoca una concesión por su clave. Una programada se marca `revoked` (sin borrar la fila);
@@ -1062,6 +1441,8 @@ final class HWE_Memberships_Grants {
 				'data'               => $row->data ?? null,
 				'frozen_seconds'     => (int) ( $row->frozen_seconds ?? 0 ),
 				'referral_gifts'     => max( 0, (int) ( $row->referral_gifts ?? 0 ) ),
+				'shipping_quota_used'     => max( 0, (int) ( $row->shipping_quota_used ?? 0 ) ),
+				'shipping_quota_reserved' => max( 0, (int) ( $row->shipping_quota_reserved ?? 0 ) ),
 				'expiry_notified_at' => self::date( $row->expiry_notified_at ?? null ),
 				'created_at'         => self::date( $row->created_at ?? null ),
 				'revoked_at'         => $row->revoked_at ?? null,
@@ -1115,6 +1496,8 @@ final class HWE_Memberships_Grants {
 			'data'               => $row->data ?? null,
 			'referral_gifts'     => max( 0, (int) ( $row->referral_gifts ?? 0 ) ),
 			'frozen_seconds'     => (int) ( $row->frozen_seconds ?? 0 ),
+			'shipping_quota_used'     => max( 0, (int) ( $row->shipping_quota_used ?? 0 ) ),
+			'shipping_quota_reserved' => max( 0, (int) ( $row->shipping_quota_reserved ?? 0 ) ),
 			'starts_at'          => self::date( $row->starts_at ?? null ),
 			'ends_at'            => self::date( $row->ends_at ?? null ),
 			'created_at'         => self::date( $row->created_at ?? null ),

@@ -23,8 +23,8 @@ framework (Plugins de WordPress).
 - **Regalos por referido**: quien invita a un nuevo cliente puede regalarle una membresía, con la
   opción de exigir que el referido confirme su correo antes de concederla.
 - **Beneficios por nivel**: además de las ventajas informativas, un nivel puede abonar puntos al
-  comprar, pagar una comisión extra a quien refirió al socio, regalar una membresía al referido y
-  aplicar un descuento de miembro en el carrito.
+  comprar, pagar una comisión extra a quien refirió al socio, regalar una membresía al referido,
+  aplicar un descuento de miembro en el carrito y regalar envíos gratis por periodo.
 
 ## Descuento de miembro
 
@@ -38,6 +38,18 @@ Si el socio pierde el nivel, la membresía se congela o el beneficio se apaga, e
 recálculo del carrito devuelve el precio normal: el descuento no se queda «pegado». En el pedido
 queda registrado el precio original, el descuento y el nivel/porcentaje aplicados, para que el
 equipo pueda revisarlo.
+
+## Envíos gratis por periodo
+
+Cada nivel puede regalar un número de envíos gratis. El cupo es de la **concesión**: si el socio
+renueva, el cupo vuelve a empezar con la nueva; lo que no usó antes no se acumula. El cliente lo
+elige en el carrito y, si le quedan envíos, el coste de envío baja a 0 (respetando las opciones de
+entrega que tu configuración de envío marque como elegibles; la tarifa de reserva nunca es gratis).
+Si el envío ya salía gratis por otra regla, no se gasta el cupo.
+
+El envío se descuenta del cupo al crear el pedido; si el pedido se cobra, queda usado; si se
+cancela, falla antes de cobrarse o se reembolsa del todo, vuelve al cupo. Dos compras simultáneas
+nunca pueden usar el mismo envío.
 
 ## Beneficios que usan la fidelización
 

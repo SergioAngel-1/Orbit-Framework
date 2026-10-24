@@ -24,6 +24,22 @@ if (!class_exists('WC_Shipping_Rate')) {
             return $this->id;
         }
 
+        public function get_method_id(): string
+        {
+            return $this->method_id;
+        }
+
+        public function get_cost(): float
+        {
+            return $this->cost;
+        }
+
+        /** @return array<string,mixed> */
+        public function get_meta_data(): array
+        {
+            return $this->meta;
+        }
+
         public function set_cost($cost): void
         {
             $this->cost = (float) $cost;

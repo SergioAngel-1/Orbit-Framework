@@ -25,10 +25,14 @@ if (!class_exists('WC_Order')) {
         public array $line_items = [];
         /** @var list<object> */
         public array $fee_items = [];
+        /** @var list<object> */
+        public array $shipping_items = [];
         public float $total = 0.0;
         public float $total_refunded = 0.0;
         public float $shipping_total = 0.0;
         public float $shipping_tax = 0.0;
+        /** @var list<string> */
+        public array $coupon_codes = [];
         /** @var list<array{note:string,is_customer_note:bool}> */
         public array $notes = [];
         private int $nextFeeId = 1;
@@ -134,6 +138,12 @@ if (!class_exists('WC_Order')) {
             return $this->shipping_total;
         }
 
+        /** @return list<string> */
+        public function get_coupon_codes(): array
+        {
+            return $this->coupon_codes;
+        }
+
         public function get_shipping_tax(): float
         {
             return $this->shipping_tax;
@@ -198,6 +208,9 @@ if (!class_exists('WC_Order')) {
             }
             if (in_array('fee', $types, true)) {
                 $items = array_merge($items, $this->fee_items);
+            }
+            if (in_array('shipping', $types, true)) {
+                $items = array_merge($items, $this->shipping_items);
             }
             return $items;
         }

@@ -407,6 +407,82 @@ final class ShippingTest extends TestCase
         $this->assertSame([], $reserve->meta);
     }
 
+    public function testUnMotivoExternoDejaGratisSoloLasOpcionesElegiblesYSinLaRegla(): void
+    {
+        $this->rates = [['id' => 11, 'title' => 'Madrid', 'amount' => '8', 'free' => '1', 'extra' => ['free' => '0', 'amount' => '15']]];
+        $this->useRule(['enabled' => false]);
+        Filters\expectApplied('hwe_shipping_free_reason')
+            ->once()
+            ->with(null, \Mockery::type('array'), \Mockery::on(
+                static fn (array $context): bool => ['hwe_city_rate:opt11'] === $context['rate_ids']
+                    && 'fixed' === $context['mode']
+                    && false === $context['qualifies']
+            ))
+            ->andReturn('Envío gratis de miembro');
+        $standard = $this->rate('opt11', 8);
+        $express  = $this->rate('exp11', 15);
+
+        FreeShipping::applyToRates(['a' => $standard, 'b' => $express], $this->pkg('Madrid', 10));
+
+        $this->assertSame(0.0, $standard->cost);
+        $this->assertSame([], $standard->taxes);
+        $this->assertSame('Envío gratis de miembro', $standard->meta['_hwe_free_shipping_reason']);
+        $this->assertSame(15.0, $express->cost, 'La opción no marcada se sigue cobrando.');
+        $this->assertSame([], $express->meta);
+    }
+
+    public function testSinMotivoExternoLasTarifasNoCambian(): void
+    {
+        $this->useRule(['enabled' => true, 'min_amount' => 50]);
+        Filters\expectApplied('hwe_shipping_free_reason')->once()->andReturn(null);
+        $rate = $this->rate('opt11', 8);
+
+        FreeShipping::applyToRates(['a' => $rate], $this->pkg('Madrid', 10));
+
+        $this->assertSame(8.0, $rate->cost);
+        $this->assertSame([], $rate->meta);
+    }
+
+    public function testLaReglaDeLaTiendaTienePrioridadYNoConsultaElMotivoExterno(): void
+    {
+        $this->rates = [['id' => 11, 'title' => 'Madrid', 'amount' => '8', 'free' => '1']];
+        $this->useRule(['enabled' => true, 'min_amount' => 50]);
+        Filters\expectApplied('hwe_shipping_free_reason')->never();
+        $rate = $this->rate('opt11', 8);
+
+        FreeShipping::applyToRates(['a' => $rate], $this->pkg('Madrid', 60));
+
+        $this->assertSame(0.0, $rate->cost);
+        $this->assertSame('Compra mínima de 50.00 € alcanzada', $rate->meta['_hwe_free_shipping_reason']);
+    }
+
+    public function testUnMotivoExternoNoHaceGratisLaReserva(): void
+    {
+        $this->useRule(['enabled' => false]);
+        Filters\expectApplied('hwe_shipping_free_reason')->once()->andReturn('Envío gratis de miembro');
+        $reserve = new \WC_Shipping_Rate('hwe_city_rate', 7);
+        $reserve->id = 'hwe_city_rate:reserve';
+
+        FreeShipping::applyToRates(['a' => $reserve], $this->pkg('Madrid', 10));
+
+        $this->assertSame(7.0, $reserve->cost);
+        $this->assertSame([], $reserve->meta);
+    }
+
+    public function testUnMotivoExternoQueNoEsTextoSeDescartaYSeRegistra(): void
+    {
+        $this->useRule(['enabled' => false]);
+        Filters\expectApplied('hwe_shipping_free_reason')->once()->andReturn(['no', 'es', 'texto']);
+        $rate = $this->rate('opt11', 8);
+
+        FreeShipping::applyToRates(['a' => $rate], $this->pkg('Madrid', 10));
+
+        $this->assertSame(8.0, $rate->cost);
+        $this->assertSame([], $rate->meta);
+        $this->assertStringContainsString('[hwe] shipping:', implode(' ', $this->logged));
+        $this->assertStringContainsString('hwe_shipping_free_reason', implode(' ', $this->logged));
+    }
+
     public function testUnCuponConEnvioGratisDejaTodoAZeroAunqueLaReglaNoSeCumpla(): void
     {
         $this->useRule(['enabled' => true, 'min_amount' => 50]);

@@ -31,9 +31,9 @@
  * compra con activación al cobrar, los requisitos de acceso al catálogo con acceso anticipado y
  * la ficha de escaparate en GraphQL, la Store API y WC REST, la extensión de la Store API con
  * el bloqueo de compra por requisito, el descuento de miembro en el carrito y el pedido, con
- * `priceFor()` como precio de referencia, y las operaciones en masa por lotes. Las rutas
- * internas y la UI del frontend llegan en entregas posteriores; README.md y MANUAL.md se
- * completan con ellas.
+ * `priceFor()` como precio de referencia, los envíos gratis por periodo con reserva, consumo y
+ * devolución por pedido, y las operaciones en masa por lotes. Las rutas internas y la UI del
+ * frontend llegan en entregas posteriores; README.md y MANUAL.md se completan con ellas.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -60,6 +60,7 @@ require_once __DIR__ . '/includes/Benefits/ActivationPoints.php';
 require_once __DIR__ . '/includes/Benefits/ReferralBonus.php';
 require_once __DIR__ . '/includes/Benefits/ReferralGift.php';
 require_once __DIR__ . '/includes/Benefits/MemberDiscount.php';
+require_once __DIR__ . '/includes/Benefits/FreeDeliveries.php';
 require_once __DIR__ . '/includes/Benefits/Registry.php';
 require_once __DIR__ . '/includes/Access.php';
 require_once __DIR__ . '/includes/Teaser.php';

@@ -277,6 +277,16 @@ La clave del proveedor nunca sale de WordPress: el BFF no llama a los proveedore
 Publicados aquí y en `docs/PLUGIN_DEVELOPMENT.md`:
 
 - `hwe_shipping_free_rule` (filtro): la regla de envío gratis (ver arriba).
+- `hwe_shipping_free_reason` (filtro): `( ?string $reason, array $package, array $context ): ?string`.
+  Otro módulo pide el envío gratis con un motivo propio y este plugin lo aplica con su lógica: deja
+  a 0 solo las tarifas de las opciones marcadas como elegibles de la ciudad (nunca la reserva) y
+  escribe el motivo en `_hwe_free_shipping_reason`. `$context` = `qualifies` (`bool`; la regla de
+  la tienda se cumple), `mode` (`fixed`|`distance`|`reserve`|`none`) y `rate_ids` (`string[]`; ids
+  de las tarifas elegibles del destino, vacío si no hay ninguna). Si devuelve un texto no vacío se
+  aplica; cualquier otro valor se descarta y se registra. **La regla de la tienda tiene
+  prioridad**: si ya califica, el filtro no se consulta. La constante
+  `HWE_SHIPPING_FREE_REASON_FILTER` anuncia que esta versión lo admite; un módulo comprueba
+  `defined()` antes de engancharse.
 - `hwe_shipping_distance_providers` (filtro): `( array<string,Provider> $providers ): array`. Añade o
   sustituye proveedores por id. Un valor que no implemente `Provider` se descarta y se registra.
 - `hwe_shipping_rate_cost` (filtro): `( float $cost, array $context ): float`. `$context` = `city`,

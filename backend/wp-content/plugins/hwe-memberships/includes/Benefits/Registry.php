@@ -38,7 +38,6 @@ final class HWE_Memberships_Benefits {
 	 */
 	private const RESERVED_KEYS = array(
 		'member_discount',
-		'free_deliveries',
 		'early_access',
 	);
 
@@ -62,6 +61,7 @@ final class HWE_Memberships_Benefits {
 			HWE_Memberships_Benefit_Referral_Bonus::class,
 			HWE_Memberships_Benefit_Referral_Gift::class,
 			HWE_Memberships_Benefit_Member_Discount::class,
+			HWE_Memberships_Benefit_Free_Deliveries::class,
 		);
 	}
 

@@ -59,6 +59,8 @@ namespace {
             public float $shipping_tax = 0.0;
             /** @var array<string,object> */
             public array $fees = [];
+            /** @var list<string> */
+            public array $applied_coupons = [];
 
             /** @param array<string,array<string,mixed>> $items */
             public function __construct(private array $items = [])
@@ -69,6 +71,18 @@ namespace {
             public function get_cart(): array
             {
                 return $this->items;
+            }
+
+            /** Un carrito normal necesita envío; un test puede sobrescribirlo si no. */
+            public function needs_shipping(): bool
+            {
+                return true;
+            }
+
+            /** @return list<string> */
+            public function get_applied_coupons(): array
+            {
+                return $this->applied_coupons;
             }
 
             public function add_fee(string $name, float $amount, bool $taxable = false, string $tax_class = ''): void
