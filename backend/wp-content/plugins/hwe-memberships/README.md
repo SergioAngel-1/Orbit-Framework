@@ -366,11 +366,13 @@ historial. Siempre ids numéricos, nunca datos personales:
 ## Privacidad
 
 Exportador y eliminador de las herramientas de WordPress. El exportador entrega solo los datos
-del propio sujeto (estado, concesiones e historial), nunca datos de terceros. El eliminador
-conserva las concesiones de origen pedido y su historial como contabilidad, vacía notas y datos
-libres y desvincula actores; el resto se borra, junto con los tokens del carné y la fila del
-socio. El número de socio no se reutiliza. Borrar la cuenta termina la membresía. Todo va en
-transacciones con bloqueo y por lotes.
+del propio sujeto (estado, concesiones e historial), nunca datos de terceros; de la meta
+heredada `_hwe_membership_referrer` solo exporta el id numérico del referidor, sin su nombre,
+email ni login. El eliminador conserva las concesiones de origen pedido y su historial como
+contabilidad, vacía notas y datos libres y desvincula actores; el resto se borra, junto con los
+tokens del carné, la fila del socio y esa meta heredada (también al borrar la cuenta). El número
+de socio no se reutiliza. Borrar la cuenta termina la membresía. Todo va en transacciones con
+bloqueo y por lotes.
 
 ## Con el módulo apagado
 

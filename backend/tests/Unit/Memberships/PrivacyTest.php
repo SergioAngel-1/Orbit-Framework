@@ -54,6 +54,8 @@ final class PrivacyTest extends TestCase
     private array $levelPosts = [];
     /** @var array<int,array<string,string>> Metas de los niveles. */
     private array $levelMeta = [];
+    /** @var array<int,array<string,mixed>> Meta de usuario, incluida la heredada del referidor. */
+    private array $userMeta = [];
     /** @var list<string> */
     private array $logged = [];
     private int $now = 1_800_000_000;
@@ -66,6 +68,7 @@ final class PrivacyTest extends TestCase
         $this->users      = $this->makeUsers();
         $this->levelPosts = [];
         $this->levelMeta  = [];
+        $this->userMeta   = [];
         $this->logged     = [];
         $this->now        = 1_800_000_000;
 
@@ -78,6 +81,7 @@ final class PrivacyTest extends TestCase
         $this->loadOwnFile('plugins/hwe-memberships/includes/Events.php');
         $this->loadOwnFile('plugins/hwe-memberships/includes/Members.php');
         $this->loadOwnFile('plugins/hwe-memberships/includes/Grants.php');
+        $this->loadOwnFile('plugins/hwe-memberships/includes/LoyaltyBridge.php');
         $this->loadOwnFile('plugins/hwe-memberships/includes/Privacy.php');
         \HWE_Memberships_Events::clear();
 
@@ -99,6 +103,21 @@ final class PrivacyTest extends TestCase
                 }
             }
             return false;
+        });
+        Functions\when('get_user_meta')->alias(
+            fn (int $id, string $key = '', bool $single = false) => $single
+                ? ($this->userMeta[$id][$key] ?? '')
+                : [$this->userMeta[$id][$key] ?? '']
+        );
+        Functions\when('metadata_exists')->alias(
+            fn (string $type, int $id, string $key): bool => 'user' === $type && array_key_exists($key, $this->userMeta[$id] ?? [])
+        );
+        Functions\when('delete_user_meta')->alias(function (int $id, string $key): bool {
+            if (!array_key_exists($key, $this->userMeta[$id] ?? [])) {
+                return false;
+            }
+            unset($this->userMeta[$id][$key]);
+            return true;
         });
         Functions\when('time')->alias(fn (): int => $this->now);
         Functions\when('wp_json_encode')->alias(static fn (mixed $value): string|false => json_encode($value));
@@ -258,6 +277,21 @@ final class PrivacyTest extends TestCase
             }
         }
     }
+
+    public function test_exporter_includes_the_legacy_referrer_id_without_third_party_identity(): void
+    {
+        $this->userMeta[self::USER][\HWE_Memberships_LoyaltyBridge::REFERRER_META] = self::OTHER;
+
+        $export  = \HWE_Memberships_Privacy::exportPersonalData(self::USER_EMAIL, 1);
+        $summary = $this->valuesOf($this->itemNamed($export['data'], 'hwe-memberships-summary-' . self::USER));
+
+        $this->assertSame((string) self::OTHER, $summary['Referidor (ID)']);
+        $json = (string) json_encode($export);
+        $this->assertStringNotContainsString(self::OTHER_EMAIL, $json);
+        $this->assertStringNotContainsString('tercero_login', $json);
+        $this->assertStringNotContainsString('Dani Visible', $json);
+    }
+
 
     public function test_exporter_paginates_grants_and_events_without_duplicates(): void
     {
@@ -435,6 +469,27 @@ final class PrivacyTest extends TestCase
         $this->assertArrayNotHasKey(self::USER, $this->wpdb->members, 'La fila del socio desaparece.');
     }
 
+    public function test_eraser_removes_the_legacy_referrer_meta_idempotently(): void
+    {
+        $this->userMeta[self::USER][\HWE_Memberships_LoyaltyBridge::REFERRER_META] = self::OTHER;
+
+        $first = \HWE_Memberships_Privacy::erasePersonalData(self::USER_EMAIL, 1);
+
+        $this->assertTrue($first['done']);
+        $this->assertTrue($first['items_removed'], 'La meta heredada también es un dato que se borra.');
+        $this->assertArrayNotHasKey(
+            \HWE_Memberships_LoyaltyBridge::REFERRER_META,
+            $this->userMeta[self::USER] ?? [],
+            'El id del referidor no sobrevive al borrado de datos.'
+        );
+
+        $second = \HWE_Memberships_Privacy::erasePersonalData(self::USER_EMAIL, 1);
+
+        $this->assertTrue($second['done']);
+        $this->assertFalse($second['items_removed'], 'Sin restos, la segunda pasada no borra nada.');
+    }
+
+
     public function test_eraser_is_idempotent_and_keeps_reporting_the_accounting_retention(): void
     {
         $this->seedErasureCase();
@@ -606,6 +661,25 @@ final class PrivacyTest extends TestCase
             $this->assertStringNotContainsString(self::USER_EMAIL, $line);
             $this->assertStringNotContainsString('Ana Visible', $line);
         }
+    }
+
+    public function test_delete_user_removes_the_legacy_referrer_meta(): void
+    {
+        $this->userMeta[self::DELETED][\HWE_Memberships_LoyaltyBridge::REFERRER_META] = self::OTHER;
+        $this->userMeta[self::OTHER][\HWE_Memberships_LoyaltyBridge::REFERRER_META] = self::MANY;
+
+        \HWE_Memberships_Privacy::onDeleteUser(self::DELETED, self::REASSIGN, $this->users[self::DELETED]);
+
+        $this->assertArrayNotHasKey(
+            \HWE_Memberships_LoyaltyBridge::REFERRER_META,
+            $this->userMeta[self::DELETED] ?? [],
+            'El borrado de la cuenta retira también la relación con el referidor.'
+        );
+        $this->assertSame(
+            self::MANY,
+            $this->userMeta[self::OTHER][\HWE_Memberships_LoyaltyBridge::REFERRER_META] ?? null,
+            'La meta de otras cuentas no se toca.'
+        );
     }
 
     // ── Utilidades del caso ──────────────────────────────────────────────────
