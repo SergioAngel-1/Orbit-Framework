@@ -24,10 +24,11 @@
  * devuelven vacío y las rutas del BFF responden 404. La puerta la calcula el núcleo con
  * `config.modules.memberships`, que refleja si este plugin está activo.
  *
- * Estado: arranque, ajustes, esquema de datos, niveles editables y el servicio transaccional de
+ * Estado: arranque, ajustes, esquema de datos, niveles editables, el servicio transaccional de
  * concesiones (alta, renovación, mejora, revocación, retirada, congelación y descongelación) con
- * su historial y sus hooks. Las rutas internas, la extensión de la Store API y la UI del
- * frontend llegan en entregas posteriores; README.md y MANUAL.md se completan con ellas.
+ * su historial y sus hooks, los productos de membresía y su compra con activación al cobrar. Las
+ * rutas internas, la extensión de la Store API y la UI del frontend llegan en entregas
+ * posteriores; README.md y MANUAL.md se completan con ellas.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -44,6 +45,8 @@ require_once __DIR__ . '/includes/Timeline.php';
 require_once __DIR__ . '/includes/Events.php';
 require_once __DIR__ . '/includes/Members.php';
 require_once __DIR__ . '/includes/Grants.php';
+require_once __DIR__ . '/includes/Products.php';
+require_once __DIR__ . '/includes/Purchase.php';
 
 final class HWE_Memberships {
 
@@ -61,6 +64,8 @@ final class HWE_Memberships {
 		HWE_Memberships_Settings::register();
 		HWE_Memberships_Schema::register();
 		HWE_Memberships_Levels::register();
+		HWE_Memberships_Products::register();
+		HWE_Memberships_Purchase::register();
 	}
 
 	/** Aviso en wp-admin si el plugin se activó sin WooCommerce (la cabecera ya lo impide). */
