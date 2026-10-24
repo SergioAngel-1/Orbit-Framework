@@ -16,6 +16,7 @@ final class VerifyModulesTest extends ShellScriptTestCase
     {
         $root = $this->dir . '/repo';
         $this->write('repo/backend/scripts/verify-modules.sh', (string) file_get_contents($this->script('verify-modules.sh')));
+        $this->write('repo/backend/scripts/lib/load-env.sh', (string) file_get_contents($this->script('lib/load-env.sh')));
         $this->write('repo/backend/wp-content/mu-plugins/hwe-control-center/Modules.php', <<<PHP
         <?php
             public const CORE_IDS = [
@@ -50,6 +51,7 @@ final class VerifyModulesTest extends ShellScriptTestCase
     {
         $root = $this->dir . '/repo-memberships';
         $this->write('repo-memberships/backend/scripts/verify-modules.sh', (string) file_get_contents($this->script('verify-modules.sh')));
+        $this->write('repo-memberships/backend/scripts/lib/load-env.sh', (string) file_get_contents($this->script('lib/load-env.sh')));
         $this->write('repo-memberships/backend/wp-content/mu-plugins/hwe-control-center/Modules.php', <<<PHP
         <?php
             public const CORE_IDS = [
@@ -85,8 +87,14 @@ final class VerifyModulesTest extends ShellScriptTestCase
 
         $this->fakeBinary('docker', <<<'SH'
 echo "docker $*" >> "$CALLS_LOG"
+echo "env:${FAKE_ENV_FROM_DOT_ENV:-}" >> "$CALLS_LOG"
 active() { [ -f "$FAKE_STATE/active" ]; }
 case "$*" in
+  *"exec hwe_wp_cron sh -c"* | *"exec hwe_wpcli sh -c"* | *"exec hwe_wordpress sh -c"*)
+    [ "${FAKE_NO_WP_CONTAINER:-}" = "1" ] && exit 1
+    exit 0
+    ;;
+  *"inspect -f"*) printf '%s\n' "${FAKE_PROJECT:-pila-en-marcha}" ;;
   *"exec hwe_wordpress true"*) exit 0 ;;
   *"printenv WORDPRESS_CONFIG_EXTRA"*) printf "define( 'HWE_REVALIDATION_SECRET', 'secreto' );\n" ;;
   *"test -f"*) exit 0 ;;
@@ -211,6 +219,58 @@ SH);
         $result = $this->sh('-n', [$this->script('verify-modules.sh')]);
 
         $this->assertSame(0, $result['code'], $result['stderr']);
+    }
+
+    public function testWpCliSeEjecutaDentroDeUnContenedorEnMarchaYNuncaConCompose(): void
+    {
+        $state = $this->membershipsStack();
+        $root = $this->membershipsRepo();
+
+        $result = $this->runIn($root, ['toggle'], ['FAKE_STATE' => $state]);
+
+        $this->assertSame(0, $result['code'], $result['stdout'] . $result['stderr']);
+        $calls = $this->calls();
+        $this->assertStringContainsString(
+            'exec hwe_wp_cron wp --allow-root --path=/var/www/html plugin activate hwe-memberships',
+            $calls,
+            'Con un contenedor en marcha, WP-CLI corre dentro de él.'
+        );
+        $this->assertStringNotContainsString(
+            'compose',
+            $calls,
+            'No debe llamar a compose: podría recrear wordpress con otro entorno.'
+        );
+    }
+
+    public function testSinContenedorElRespaldoNoPuedeRecrearServiciosYUsaElEnvDelRepo(): void
+    {
+        $state = $this->membershipsStack();
+        $root = $this->membershipsRepo();
+        file_put_contents($root . '/.env', "FAKE_ENV_FROM_DOT_ENV=puesto\n");
+
+        $result = $this->runIn($root, ['toggle'], [
+            'FAKE_STATE' => $state,
+            'FAKE_NO_WP_CONTAINER' => '1',
+            'FAKE_PROJECT' => 'pila-en-marcha',
+        ]);
+
+        $this->assertSame(0, $result['code'], $result['stdout'] . $result['stderr']);
+
+        $calls = $this->calls();
+        $this->assertStringContainsString(
+            'compose --project-name pila-en-marcha --profile cli run --rm --no-deps',
+            $calls,
+            'El respaldo usa el proyecto de la pila y no arranca dependencias.'
+        );
+        $this->assertStringContainsString('env:puesto', $calls, 'El .env del repo se carga como datos para el respaldo.');
+
+        foreach (preg_split('/\R/', $calls) ?: [] as $line) {
+            if (!str_contains($line, 'docker compose ')) {
+                continue;
+            }
+            $this->assertStringContainsString('--no-deps', $line, 'Ningún compose puede recrear servicios: ' . $line);
+            $this->assertStringNotContainsString(' up ', ' ' . $line . ' ', 'El script no arranca servicios: ' . $line);
+        }
     }
 
     public function testUnaSeccionDesconocidaFallaSinTocarLaPila(): void

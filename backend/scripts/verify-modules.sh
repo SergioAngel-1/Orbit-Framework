@@ -22,12 +22,20 @@
 #    country      con la pila: el paquete del país de la tienda está en `/hwe/v1/geo`.
 #    integration  con la pila: activa `external-integration`, ejecuta `verify-integration.sh all`
 #                 y deja el módulo como estaba. Necesita `HWE_INTEGRATION_ALLOWED_IPS` con la IP
-#                 de pruebas EN LA PILA y en el entorno de este script (cada `docker compose run`
-#                 recrea `wordpress` si su entorno difiere del de la pila en marcha):
+#                 de pruebas EN LA PILA y en el entorno de este script:
 #                   export HWE_INTEGRATION_ALLOWED_IPS=198.51.100.7
 #                   docker compose up -d --no-deps wordpress wp-cron
 #                   sh backend/scripts/verify-modules.sh integration
 #    all          (por defecto) todo lo anterior.
+#
+#  WP-CLI nunca recrea servicios. Primero ejecuta dentro de un contenedor que ya está en marcha
+#  y tiene `wp` (`hwe_wp_cron`, `hwe_wpcli` o `hwe_wordpress`): `docker exec <contenedor> wp
+#  --allow-root`. Si no hay ninguno, el respaldo es un `docker compose run` del servicio `wpcli`
+#  con `--project-name` del proyecto de la pila en marcha (leído de su etiqueta de contenedor) y
+#  con el `.env` del repo cargado como datos (`lib/load-env.sh`): así no se arranca ni se recrea
+#  `wordpress` con otro entorno. Además el respaldo lleva `--no-deps`, que impide a compose
+#  recrear `db` o `wordpress` incluso si el `.env` no existe (el fallo que aparecía al ejecutar
+#  desde un worktree sin `.env`). Con los contenedores en marcha, `cli()` no llama a compose.
 #
 #  Uso (raíz del repo, con `docker compose up -d` y `hwe_wordpress` healthy):
 #    sh backend/scripts/verify-modules.sh [static|toggle|i18n|country|integration|all] [--strict]
@@ -41,7 +49,16 @@
 #  desconocida o la pila no responde.
 # ============================================================================
 set -u
-cd "$(dirname "$0")/../.." || exit 1
+HERE="$(cd "$(dirname "$0")" && pwd)" || exit 1
+cd "$HERE/../.." || exit 1
+
+# `.env` del repo como DATOS (nunca se ejecuta). Solo afecta al `compose run` de respaldo: con
+# un contenedor en marcha no se usa. Si no hay archivo, `hwe_load_env` no hace nada.
+if [ -f "$HERE/lib/load-env.sh" ]; then
+  # shellcheck source=lib/load-env.sh
+  . "$HERE/lib/load-env.sh"
+  hwe_load_env "${HWE_ENV_FILE:-.env}"
+fi
 
 SECTION="all"
 STRICT=0
@@ -74,11 +91,74 @@ MODULES_TS="frontend/src/lib/config/modules.ts"
 COMPOSE="docker-compose.yml"
 PLUGINS="backend/wp-content/plugins"
 
+# Contenedor ya en marcha que ejecutará WP-CLI. Se resuelve una sola vez por ejecución.
+CLI_CONTAINER=""
+CLI_CONTAINER_RESOLVED=0
+# Proyecto de compose de la pila en marcha; solo lo usa el respaldo.
+COMPOSE_PROJECT=""
+COMPOSE_PROJECT_RESOLVED=0
+
+# ¿Hay un contenedor en marcha con `wp`? `hwe_wp_cron` es el normal (imagen de WP-CLI);
+# `hwe_wpcli` puede existir si otra verificación está en curso; `hwe_wordpress` se acepta solo
+# si su imagen trae WP-CLI. No se arranca nada: `docker exec` falla y se prueba el siguiente.
+cli_container() {
+  if [ "$CLI_CONTAINER_RESOLVED" = 1 ]; then
+    [ -n "$CLI_CONTAINER" ]
+    return
+  fi
+  CLI_CONTAINER_RESOLVED=1
+  for _hwe_container in hwe_wp_cron hwe_wpcli hwe_wordpress; do
+    if docker exec "$_hwe_container" sh -c 'command -v wp >/dev/null 2>&1' >/dev/null 2>&1; then
+      CLI_CONTAINER="$_hwe_container"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Proyecto de compose de la pila en marcha (etiqueta del contenedor de WordPress). Sin él,
+# `compose run` crearía un proyecto nuevo con volúmenes y red propios. Si no se puede leer, se
+# deja vacío: el respaldo sigue llevando `--no-deps`, así que no recrea servicios.
+compose_project() {
+  if [ "$COMPOSE_PROJECT_RESOLVED" = 1 ]; then
+    [ -n "$COMPOSE_PROJECT" ]
+    return
+  fi
+  COMPOSE_PROJECT_RESOLVED=1
+  COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-}"
+  _hwe_project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' hwe_wordpress 2>/dev/null | head -n1)"
+  case "$_hwe_project" in
+    '' | '<no value>' | *[!A-Za-z0-9_.-]*) ;;
+    *) COMPOSE_PROJECT="$_hwe_project" ;;
+  esac
+  case "$COMPOSE_PROJECT" in
+    *[!A-Za-z0-9_.-]*) COMPOSE_PROJECT="" ;;
+  esac
+  unset _hwe_project
+  [ -n "$COMPOSE_PROJECT" ]
+}
+
+# WP-CLI SEGURO: dentro de un contenedor en marcha y, solo si no hay ninguno, `compose run` con
+# `--no-deps` (nunca crea ni recrea `db`/`wordpress`) y el proyecto de la pila.
 cli() {
+  if cli_container; then
+    docker exec "$CLI_CONTAINER" wp --allow-root --path=/var/www/html "$@"
+    return
+  fi
+
+  compose_project >/dev/null 2>&1 || true
   if [ "${DEBUG:-}" = "1" ]; then
-    docker compose --profile cli run --rm -T --entrypoint wp wpcli --path=/var/www/html "$@"
+    if [ -n "$COMPOSE_PROJECT" ]; then
+      docker compose --project-name "$COMPOSE_PROJECT" --profile cli run --rm --no-deps -T --entrypoint wp wpcli --path=/var/www/html "$@"
+    else
+      docker compose --profile cli run --rm --no-deps -T --entrypoint wp wpcli --path=/var/www/html "$@"
+    fi
   else
-    docker compose --profile cli run --rm -T --entrypoint wp wpcli --path=/var/www/html "$@" 2>/dev/null
+    if [ -n "$COMPOSE_PROJECT" ]; then
+      docker compose --project-name "$COMPOSE_PROJECT" --profile cli run --rm --no-deps -T --entrypoint wp wpcli --path=/var/www/html "$@" 2>/dev/null
+    else
+      docker compose --profile cli run --rm --no-deps -T --entrypoint wp wpcli --path=/var/www/html "$@" 2>/dev/null
+    fi
   fi
 }
 
