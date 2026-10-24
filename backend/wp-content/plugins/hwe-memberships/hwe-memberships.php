@@ -34,6 +34,14 @@
  * y devolución por pedido, operaciones en masa por lotes, carné digital con verificación pública,
  * rutas internas de lectura, administración y privacidad. El módulo no trae vistas: la UI pública
  * la construye el frontend de cada instancia con el contrato de `docs/FRONTEND_CONNECT.md`.
+ *
+ * **Ciclo de vida.** Al desactivar, `includes/Lifecycle.php` retira de la venta los productos de
+ * membresía publicados (a borrador, recordando su estado en una opción) y anota el instante; al
+ * activar los restaura si nadie los cambió a mano y deja **programada** la conciliación de los
+ * pedidos cobrados durante el apagón. La conciliación no corre en el hook de activación (WordPress
+ * lo dispara antes de escribir `active_plugins`), sino en una petición posterior con el plugin ya
+ * arrancado: evento único de WP-Cron y, como red, la tarea diaria. La revalidación del catálogo se
+ * pide si el Control Center está disponible.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -68,6 +76,7 @@ require_once __DIR__ . '/includes/Graphql.php';
 require_once __DIR__ . '/includes/Admin/TermFields.php';
 require_once __DIR__ . '/includes/Products.php';
 require_once __DIR__ . '/includes/Purchase.php';
+require_once __DIR__ . '/includes/Lifecycle.php';
 require_once __DIR__ . '/includes/StoreApi.php';
 require_once __DIR__ . '/includes/Pricing.php';
 require_once __DIR__ . '/includes/Privacy.php';
@@ -78,16 +87,25 @@ require_once __DIR__ . '/includes/Admin/Admin.php';
 
 final class HWE_Memberships {
 
+	/** Si `boot()` ya se ejecutó en esta petición: evita registrar dos veces los hooks. */
+	private static bool $booted = false;
+
 	/**
 	 * Arranque del módulo. Se engancha a `plugins_loaded` con prioridad tardía: para entonces
 	 * WooCommerce ya se ha cargado (o no está, y el módulo no debe hacer nada).
 	 */
 	public static function boot(): void {
+		if ( self::$booted ) {
+			return;
+		}
+
 		if ( ! class_exists( 'WooCommerce' ) ) {
 			error_log( '[hwe] memberships: WooCommerce no está activo; el módulo no se arranca.' );
 			add_action( 'admin_notices', array( self::class, 'woocommerceMissingNotice' ) );
 			return;
 		}
+
+		self::$booted = true;
 
 		HWE_Memberships_Settings::register();
 		HWE_Memberships_Schema::register();
@@ -102,6 +120,7 @@ final class HWE_Memberships {
 		HWE_Memberships_Admin_TermFields::register();
 		HWE_Memberships_Products::register();
 		HWE_Memberships_Purchase::register();
+		HWE_Memberships_Lifecycle::register();
 		HWE_Memberships_StoreApi::register();
 		HWE_Memberships_Pricing::register();
 		HWE_Memberships_Privacy::register();
@@ -109,6 +128,11 @@ final class HWE_Memberships {
 		HWE_Memberships_CardRoutes::register();
 		HWE_Memberships_ReadRoutes::register();
 		HWE_Memberships_Admin::register();
+	}
+
+	/** ¿Se ejecutó `boot()` en esta petición? Lo consulta el ciclo de vida antes de conciliar. */
+	public static function booted(): bool {
+		return self::$booted;
 	}
 
 	/** Aviso en wp-admin si el plugin se activó sin WooCommerce (la cabecera ya lo impide). */
@@ -131,8 +155,10 @@ add_action( 'plugins_loaded', array( 'HWE_Memberships', 'boot' ), 20 );
 if ( function_exists( 'register_activation_hook' ) ) {
 	register_activation_hook( __FILE__, array( 'HWE_Memberships_Schema', 'install' ) );
 	register_activation_hook( __FILE__, array( 'HWE_Memberships_Scheduler', 'schedule' ) );
+	register_activation_hook( __FILE__, array( 'HWE_Memberships_Lifecycle', 'onActivate' ) );
 }
 if ( function_exists( 'register_deactivation_hook' ) ) {
+	register_deactivation_hook( __FILE__, array( 'HWE_Memberships_Lifecycle', 'onDeactivate' ) );
 	register_deactivation_hook( __FILE__, array( 'HWE_Memberships_Scheduler', 'unschedule' ) );
 }
 

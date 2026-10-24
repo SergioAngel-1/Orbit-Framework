@@ -8,7 +8,11 @@
  *  · `active → ended` cuando llega su fin;
  *  · el aviso `expiring` de las concesiones que terminan dentro de los días configurados;
  *  · la limpieza de los tokens del carné caducados hace más de una semana (cada petición de
- *    carné inserta una fila; sin ella la tabla crecería sin tope).
+ *    carné inserta una fila; sin ella la tabla crecería sin tope);
+ *  · las reversiones de puntos por activación que quedaron en cola mientras `loyalty` no estaba
+ *    cargado (M-3), con la misma clave idempotente por concesión;
+ *  · como red, la conciliación de pedidos cobrados durante un apagón del módulo (A-3) cuando el
+ *    evento único programado al activar no llegó o dejó trabajo pendiente.
  *
  * Si una pasada deja trabajo pendiente, programa una continuación puntual
  * (`hwe_memberships_daily_continue`) a cinco minutos; no se espera al día siguiente.
@@ -151,6 +155,27 @@ final class HWE_Memberships_Scheduler {
 		}
 
 		$batch = max( 1, $batch );
+
+		// M-3: reversiones de puntos que quedaron pendientes mientras `loyalty` no estaba
+		// cargado. Es idempotente y no impide la tarea aunque falle.
+		if ( class_exists( 'HWE_Memberships_Benefit_Activation_Points' ) ) {
+			try {
+				HWE_Memberships_Benefit_Activation_Points::flushPending();
+			} catch ( \Throwable $e ) {
+				error_log( '[hwe] memberships: no se pudo procesar la cola de reversiones de puntos pendientes: ' . $e->getMessage() );
+			}
+		}
+
+		// A-3: red de seguridad de la conciliación de pedidos. Normalmente la ejecuta el evento
+		// único que programa la activación; si WP-Cron no llegó (o quedó trabajo por el tope o
+		// por un error), la tarea diaria retoma la ventana pendiente.
+		if ( class_exists( 'HWE_Memberships_Lifecycle' ) ) {
+			try {
+				HWE_Memberships_Lifecycle::runPendingReconciliation();
+			} catch ( \Throwable $e ) {
+				error_log( '[hwe] memberships: no se pudo reanudar la conciliación de pedidos: ' . $e->getMessage() );
+			}
+		}
 
 		// Mantenimiento previo: los tokens del carné caducados hace más de una semana.
 		if ( class_exists( 'HWE_Memberships_Card' ) ) {

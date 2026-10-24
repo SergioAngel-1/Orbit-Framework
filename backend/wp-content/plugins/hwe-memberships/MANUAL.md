@@ -202,6 +202,33 @@ productos y categorías, carnés y configuración siguen ahí para cuando vuelva
 apagas solo la fidelización o el envío, las ventajas que dependen de ellos desaparecen para el
 cliente y su configuración se conserva.
 
+Al desactivar el plugin, sus **productos de membresía publicados pasan a borrador** para que no
+se puedan comprar mientras no haya módulo que entregue la membresía. Al volver a activarlo se
+restauran solos si nadie los cambió a mano, y los pedidos que se cobraron durante el apagón se
+concilian en la siguiente petición con el plugin ya arrancado (un evento único; la tarea diaria lo
+retoma si queda pendiente). La membresía se concede una sola vez, con la clave de la línea del
+pedido. Si tenías productos de membresía en borrador por otro motivo, no se tocan.
+
+### Procedimiento de apagado seguro
+
+Antes de apagar el plugin, o de apagar `loyalty` mientras membresías sigue activo, ten en cuenta
+lo que **no** se puede compensar solo:
+
+- **Apagar `loyalty`:** los puntos de activación de una membresía revocada quedan en una cola
+  interna y se revierten solos cuando `loyalty` vuelve (también en la tarea diaria). Lo que no se
+  compensa es lo que gestiona `loyalty`: los puntos canjeados en un pedido que después se cancela
+  o reembolsa no se devuelven mientras esté apagado, y las ganancias no se revierten. Revisa esos
+  pedidos a mano o espera a tener `loyalty` activo para cancelarlos.
+- **Apagar membresías:** las cancelaciones y reembolsos ocurridos en el apagón no revocan la
+  concesión ni liberan el cupo de envíos gratis. Al reactivar, la conciliación concede las
+  compras cobradas que falten, pero **no** revierte las canceladas; si hubo reembolsos, revócalos
+  desde **Membresías → Socios** después de encenderlo.
+- **Cambiar de nivel o de beneficio:** las concesiones ya emitidas conservan su nivel y sus
+  fechas. Los cambios de configuración se aplican a partir de la siguiente concesión o lectura.
+
+Para un apagado sin pendientes: deja que terminen los pedidos en curso, cancela o reembolsa antes
+de apagar, y al volver a encender revisa el historial del socio y la caja del pedido.
+
 ## Comprobaciones antes de abrir al público
 
 1. Crea al menos un nivel publicado y comprable, con su rango.
