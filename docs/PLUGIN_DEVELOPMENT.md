@@ -38,13 +38,13 @@ framework nunca toca, y se engancha al núcleo por hooks estables, versionados p
 | `hwe_control_center_public_config` | filtro | `( array $public ): array`. Añade campos **públicos** (nunca secretos) a `GET /wp-json/hwe/v1/config`, p. ej. `shipping.distance_enabled` del módulo `shipping`. Lo aplica `RestApi` del Control Center justo antes de responder. |
 
 **Grupos reservados a un módulo:** el núcleo declara vacíos los grupos raíz `shipping`,
-`landings` y `loyalty`; el plugin del módulo los puebla con `hwe_control_center_schema` (no van en
-`instance`: una clave raíz ajena al núcleo se descarta).
+`landings`, `loyalty` y `memberships`; el plugin del módulo los puebla con
+`hwe_control_center_schema` (no van en `instance`: una clave raíz ajena al núcleo se descarta).
 
 **Módulos opcionales:** la instancia los elige en `instance.config.json` (`modules:
 [<id>…]`); `wp hwe setup` activa los listados y desactiva los demás del catálogo
 (`banners`, `shipping`, `product-landing`, `landings`, `consent-log`, `site-reviews`,
-`coupon-rules`, `customer-identity`, `external-integration`, `loyalty`). La config pública expone
+`coupon-rules`, `customer-identity`, `external-integration`, `loyalty`, `memberships`). La config pública expone
 `modules: { <id>: boolean }` según si cada plugin está activo: es la fuente de verdad que
 el frontend usa con `isModuleEnabled(config, id)` y `requireModule(id)` (las rutas BFF de
 un módulo apagado responden 404).
@@ -80,9 +80,57 @@ función concreta con `hwe_loyalty_available()`:
 El módulo que abona declara su tipo de movimiento con `hwe_loyalty_entry_types` (`'credit'`);
 sin declararlo, el abono se rechaza. Revertir no exige que «Puntos» siga encendido: es una
 corrección contable. Contrato completo en el `README.md` de `hwe-loyalty` («Hooks estables →
-Funciones públicas»).
+Funciones públicas»). El primer consumidor es `memberships` (puntos al activar, comisión extra de
+referidos y reversión al revocar una compra); no llama a ninguna clase interna de `loyalty`.
 
-El módulo consume además tres hooks del núcleo o de otros módulos, que también son contrato:
+### Hooks estables del módulo `memberships`
+
+Publicados también en `backend/wp-content/plugins/hwe-memberships/README.md` («Hooks estables»).
+Los eventos del ciclo (`hwe_membership_*`) se disparan **después del COMMIT** y dejan fila en
+`hwe_memberships_events`; sus argumentos son siempre ids numéricos, nunca datos personales:
+
+| Hook | Tipo | Firma / para qué |
+|---|---|---|
+| `hwe_membership_activated`, `_renewed`, `_upgraded`, `_deferred`, `_granted_by_admin`, `_referral_gift_granted`, `_revoked` | acción | `( int $userId, int $grantId, int $levelId )`. |
+| `hwe_membership_removed_by_admin` | acción | `( int $userId, 0, int $oldLevelId )`. |
+| `hwe_membership_expired` | acción | `( int $userId, int $grantId, int $levelId )`. |
+| `hwe_membership_expiring` | acción | `( int $userId, int $grantId, int $levelId, int $days )`. |
+| `hwe_membership_frozen` / `_unfrozen` | acción | `( int $userId, int $actorId )`. |
+| `hwe_membership_level_changed` | acción | `( int $userId, int $oldLevelId, int $newLevelId )` (0 = sin nivel). |
+| `hwe_membership_referral_gift_limit_reached` | acción | `( int $referrerId, int $grantId, int $levelId )`; el `data` lleva el referido, el nivel regalado, el tope y los usados. |
+| `hwe_membership_points_skipped` | acción | `( int $userId, int $grantId, int $levelId )`; el `data` lleva `points`, `reason` y la clave. |
+| `hwe_memberships_benefit_types` | filtro | `( array<string,HWE_Memberships_Benefit> $types ): array`. Añade tipos de beneficio de instancia (ver abajo). |
+| `hwe_memberships_product_requirement` | filtro | `( array $requirement, int $productId ): array`. Recibe `min_rank`, `level_*`, `opens_at` y `blocked`; **solo puede endurecer** (un rango menor, una fecha anterior o quitar la fecha se ignora y se registra). |
+| `hwe_memberships_grant_origins` | filtro | `( string[] $origins ): string[]`. Añade orígenes a `order`, `admin`, `bulk` y `referral_gift`. |
+| `hwe_memberships_participant_roles` | filtro | `( string[] $roles ): string[]`. Roles que participan (defecto `customer`, `subscriber`). |
+| `hwe_memberships_store_api_cart_data` | filtro | `( array $data, array $context ): array`, con `$context` = `cart`, `user_id` y `state`. Aporta ramas a `extensions.hwe-memberships`; `level`, `blocked_items` y `purchase_notice` se recalculan después. |
+| `hwe_memberships_order_box_rows` | filtro | `( array $rows, WC_Order $order ): array`. Añade filas a la caja del pedido. |
+| `hwe_memberships_collected_on_completion` | filtro | `( string[] $methods ): string[]`. Medios que esperan a `completed` (defecto `cod`). |
+
+Consume los contratos de `loyalty` (`hwe_loyalty_available`, `hwe_loyalty_credit`,
+`hwe_loyalty_reverse_credit`, `hwe_loyalty_entry_types`, `hwe_loyalty_order_earnings`,
+`hwe_loyalty_attribution_confirmed`) y de `shipping` (`hwe_shipping_free_reason`, constante
+`HWE_SHIPPING_FREE_REASON_FILTER`), más `hwe_email_verified`, `hwe_control_center_schema`,
+`hwe_translatable_fields` y `hwe_revalidation_tags`. **Membresías nunca llama a clases internas de
+otro módulo**: solo a lo que su README publica como estable.
+
+#### Tipos de beneficio de instancia
+
+Una instancia amplía los beneficios sin tocar el núcleo: declara una clase que extienda
+`HWE_Memberships_Benefit` (clave estable, campos por nivel, dependencia opcional, datos públicos y
+hooks) y la registra con `hwe_memberships_benefit_types`. El panel, `wp hwe setup`, la API y el
+historial la tratan como las de serie; lo único que **no** puedes hacer es pisar una clave del
+núcleo o una reservada (`member_discount`, `early_access`) ni devolver un mapa que no sea
+`clave → objeto`. Un tipo que no se puede instanciar, que no extiende la base o cuya clave no
+coincide con la del mapa se descarta y se registra.
+
+Ejemplo vivo y completo (campos `orders` y `note`, hook en el cobro del pedido, nota privada
+idempotente): `examples/instance-minimal/backend/wp-content/mu-plugins/instance/70-example-membership-benefit.php`.
+Recuerda que se carga como mu-plugin **antes** de los plugins: declara la clase dentro del callback
+del filtro, cuando `HWE_Memberships_Benefit` ya existe.
+
+El módulo `loyalty` consume además tres hooks del núcleo o de otros módulos, que también son
+contrato:
 
 - `hwe_email_verified( int $userId )` — lo dispara `hwe-auth` una vez al verificar el email. Una
   cuenta creada en wp-admin se considera confirmada sin pasar por él.

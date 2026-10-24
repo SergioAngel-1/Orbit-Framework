@@ -112,6 +112,38 @@ test.describe("rutas del BFF de un módulo apagado", () => {
       });
     }
   });
+
+  test.describe("memberships: niveles, carné y ventajas no existen", () => {
+    for (const path of [
+      "/api/memberships/levels",
+      "/api/memberships/me",
+      "/api/memberships/history?page=1&per_page=20",
+      "/api/memberships/prices?ids=1",
+      "/api/memberships/card",
+      "/api/memberships/products/camiseta",
+      `/api/memberships/verify/${"a".repeat(64)}`,
+    ]) {
+      test(`GET ${path} responde 404`, async ({ request }) => {
+        const res = await request.get(path);
+
+        expect(res.status()).toBe(404);
+      });
+    }
+
+    for (const method of ["POST", "DELETE"] as const) {
+      test(`${method} /api/store/cart/free-delivery responde 404`, async ({
+        request,
+        baseURL,
+      }) => {
+        const res = await request.fetch("/api/store/cart/free-delivery", {
+          method,
+          headers: await writeHeaders(request, baseURL!),
+        });
+
+        expect(res.status()).toBe(404);
+      });
+    }
+  });
 });
 
 test.describe("páginas de un módulo apagado", () => {

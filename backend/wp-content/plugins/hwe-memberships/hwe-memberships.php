@@ -24,16 +24,16 @@
  * devuelven vacío y las rutas del BFF responden 404. La puerta la calcula el núcleo con
  * `config.modules.memberships`, que refleja si este plugin está activo.
  *
- * Estado: arranque, ajustes, esquema de datos, niveles editables, el registro de tipos de
- * beneficio (con la ventaja informativa), la tarea diaria que materializa las transiciones, el
- * servicio transaccional de concesiones (alta, renovación, mejora, revocación, retirada,
- * congelación y descongelación) con su historial y sus hooks, los productos de membresía y su
- * compra con activación al cobrar, los requisitos de acceso al catálogo con acceso anticipado y
- * la ficha de escaparate en GraphQL, la Store API y WC REST, la extensión de la Store API con
- * el bloqueo de compra por requisito, el descuento de miembro en el carrito y el pedido, con
- * `priceFor()` como precio de referencia, los envíos gratis por periodo con reserva, consumo y
- * devolución por pedido, y las operaciones en masa por lotes. Las rutas internas y la UI del
- * frontend llegan en entregas posteriores; README.md y MANUAL.md se completan con ellas.
+ * Estado: completo. Arranque, ajustes, esquema de datos, niveles editables, registro de tipos de
+ * beneficio, tarea diaria que materializa las transiciones, servicio transaccional de concesiones
+ * (alta, renovación, mejora, revocación, retirada, congelación y descongelación) con su historial y
+ * sus hooks, productos de membresía y compra con activación al cobrar, requisitos de acceso al
+ * catálogo con acceso anticipado y ficha de escaparate en GraphQL, Store API y WC REST, extensión
+ * de la Store API con bloqueo de compra por requisito, descuento de miembro en el carrito y el
+ * pedido con `priceFor()` como precio de referencia, envíos gratis por periodo con reserva, consumo
+ * y devolución por pedido, operaciones en masa por lotes, carné digital con verificación pública,
+ * rutas internas de lectura, administración y privacidad. El módulo no trae vistas: la UI pública
+ * la construye el frontend de cada instancia con el contrato de `docs/FRONTEND_CONNECT.md`.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

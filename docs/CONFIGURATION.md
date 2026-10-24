@@ -245,6 +245,7 @@ nulo, sus rutas del BFF responden 404 y su UI no se pinta.
 | `coupon-rules` | Reglas de cupón (ventana de validez, primera compra, requiere sesión, alcance, visibilidad) y anuncio de los públicos | Marketing → Cupones |
 | `customer-identity` | Documento de identidad y aceptación de términos | Tipos y patrones del paquete de país |
 | `loyalty` | Monedero de puntos (ganar, caducar, canjear y transferir) y referidos de dos niveles | Control Center → Fidelización (`loyalty.*`); menú «Fidelización» de wp-admin |
+| `memberships` | Niveles y beneficios editables, compra y renovación de membresías, catálogo exclusivo con acceso anticipado, descuento de socio, envíos gratis, carné con QR y regalos por referido | Control Center → Membresías (`memberships.*`); menú «Membresías» de wp-admin; pestaña «Membresía» de cada producto y rango mínimo en productos y categorías |
 | `external-integration` | Acceso de un integrador externo a pedidos | `HWE_INTEGRATION_ALLOWED_IPS` |
 
 Comprobar que cada módulo está completo y que encender/apagar hace lo prometido:
@@ -270,6 +271,26 @@ comportamiento:
 | `referral_signup_points_l1` / `_l2`, `commission_*`, `level2_enabled`, `commission_duration_days` | `0` / `false` | Primas de alta, comisiones por compra y ventana de comisión. |
 | `transfers_enabled`, `transfer_min`, `transfer_fee_percent`, `transfer_daily_cap` | `false`, `100`, `0`, `0` | Transferencias entre clientes por código, con mínimo, comisión y tope diario. |
 | `allowed_roles` | `customer, subscriber` | Roles que participan. **No público**; se amplía con el filtro `hwe_loyalty_participant_roles`. |
+
+### Membresías (`memberships`)
+
+La pestaña **HWE Config → Membresías** la puebla el plugin `hwe-memberships` en el grupo reservado
+`memberships`; el detalle del modelo (niveles, concesiones, catálogo exclusivo y carné) está en su
+`README.md`, y el día a día del editor en su `MANUAL.md`.
+
+| Campo | Default | Público | Qué hace |
+|---|---|---|---|
+| `card_enabled` | `false` | sí | Enciende el carné digital y sus rutas del BFF. |
+| `card_verify_path` | `/verify` | sí | Ruta del frontend a la que apunta el QR. Una ruta vacía cae a `/verify`; una sin `/` inicial se normaliza. |
+| `member_number_prefix` | vacío | sí | Prefijo del número de socio. Vacío = sin prefijo. |
+| `card_token_ttl_hours` | `24` | no | Horas de vigencia del token del carné, recortadas a 1–720. |
+| `expiring_notice_days` | `7` | no | Días de antelación del aviso de caducidad; un valor negativo se recorta a 0. |
+| `referral_gift_requires_email_verification` | `true` | no | El regalo al referido solo se concede cuando confirma su correo. |
+
+Los tres campos públicos son los únicos que salen por `/wp-json/hwe/v1/config` y los únicos que
+necesita `SiteConfig.memberships` en el frontend. Los niveles, las concesiones y los requisitos de
+catálogo **no** viven en la config: son contenido y se leen por su propia ruta. Con el módulo
+apagado, la API sirve los defaults y el BFF responde 404.
 
 ---
 

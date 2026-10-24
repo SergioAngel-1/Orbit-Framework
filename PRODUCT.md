@@ -43,9 +43,9 @@ de un centro estable; eso es lo que un tema o starter de WooCommerce no puede af
 
 ## Capabilities and Constraints
 
-- 10 módulos opcionales por instancia (`banners`, `shipping`, `product-landing`, `landings`,
+- 11 módulos opcionales por instancia (`banners`, `shipping`, `product-landing`, `landings`,
   `consent-log`, `site-reviews`, `coupon-rules`, `customer-identity`, `external-integration`,
-  `loyalty`).
+  `loyalty`, `memberships`).
 - Contenido a N idiomas, paquetes por país, pagos agnósticos (Wompi y Aval Pay de punta a punta).
 - Seguridad que falla cerrada: WordPress solo atiende al BFF, CSRF, rate-limit, secretos solo en
   servidor, el pago se prueba con webhook verificado.

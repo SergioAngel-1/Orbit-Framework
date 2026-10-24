@@ -53,13 +53,49 @@ import { pathToFileURL } from "node:url";
 const CONFIG_PATH = "/wp-json/hwe/v1/config";
 
 /**
- * Config pública que sirve el stub: los colores del fixture y, opcionalmente,
- * las secciones de `extra` (`STUB_SITE_CONFIG_EXTRA`, JSON). Sirve para que un
- * e2e ejercite algo desactivado por defecto —varios medios de pago, un
- * módulo— sin tocar el fixture. `extra` nunca sustituye la paleta.
+ * Solo un objeto plano; cualquier otra cosa se ignora al mezclar secciones.
+ *
+ * @param {unknown} value
+ * @returns {Record<string, unknown>}
+ */
+function plainObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value
+    : {};
+}
+
+/**
+ * Config pública que sirve el stub: los colores del fixture, sus defaults
+ * públicos de `memberships`, el estado de `modules` y, opcionalmente, las
+ * secciones de `extra` (`STUB_SITE_CONFIG_EXTRA`, JSON). Sirve para que un e2e
+ * ejercite algo desactivado por defecto —varios medios de pago, un módulo— sin
+ * tocar el fixture. `extra` nunca sustituye la paleta y sus secciones se
+ * mezclan con las del fixture en vez de reemplazarlas.
+ *
+ * Decisión del módulo `memberships`: el CI lo deja APAGADO (el fixture lo
+ * declara así y `STUB_SITE_CONFIG_EXTRA` no lo enciende). No hay una pasada e2e
+ * propia del módulo; su contrato con el módulo apagado se cubre en
+ * `modules-off.spec.ts`. Si algún día se añade una pasada encendida, el stub
+ * ya tiene el campo de catálogo (`hweMembership: null`) y puede añadirse el
+ * fixture REST de niveles correspondiente.
+ *
+ * @param {any} fixture
+ * @param {any} extra
+ * @returns {Record<string, any>}
  */
 export function buildSiteConfig(fixture, extra = {}) {
-  return { ...extra, design: { colors: fixture.design.colors } };
+  const config = { ...extra, design: { colors: fixture.design.colors } };
+
+  const memberships = {
+    ...plainObject(fixture.memberships),
+    ...plainObject(extra.memberships),
+  };
+  if (Object.keys(memberships).length > 0) config.memberships = memberships;
+
+  const modules = { ...plainObject(fixture.modules), ...plainObject(extra.modules) };
+  if (Object.keys(modules).length > 0) config.modules = modules;
+
+  return config;
 }
 
 const line = (id, name, productId, quantity = 1) => ({
@@ -248,6 +284,10 @@ const STUB_LANDING_PRODUCT = {
   description: "<p>Descripción de prueba</p>",
   reviews: { averageRating: 0, edges: [] },
   related: { nodes: [] },
+  // Campo del módulo `memberships`: público (sin requisito) en el fixture. Con
+  // el módulo encendido la consulta del catálogo lo pide y así el stub sigue
+  // siendo válido aunque el CI lo deje apagado por defecto.
+  hweMembership: null,
   tr_en: {
     name: "Product with guide",
     shortDescription: "A test product",

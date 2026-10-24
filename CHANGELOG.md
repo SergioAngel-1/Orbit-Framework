@@ -156,7 +156,7 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   máquina cargada), con los mismos 1.233 tests y 5.660 aserciones. El comando no cambia y las cachés
   se invalidan solas cuando cambia el fuente o `patchwork.json`; se pueden borrar en cualquier momento.
 - **La cobertura incluye `hwe-loyalty`.** Faltaba en `<source>` de `phpunit.xml.dist` (solo estaban
-  9 de los 10 módulos), así que cualquier informe con `--coverage-*` omitía en silencio el módulo
+  9 de los módulos), así que cualquier informe con `--coverage-*` omitía en silencio el módulo
   con más código (265 tests en 16 clases).
 - **`brand.url` tiene predeterminado.** Vacío en el Control Center, el frontend usa su URL pública
   (`NEXT_PUBLIC_SITE_URL`) y lo registra (`site_config.brand_url_default`): las canónicas, el
@@ -208,6 +208,24 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   calle o la ciudad.
 - **Filtros estables del módulo:** `hwe_shipping_distance_providers` y `hwe_shipping_rate_cost`, además
   del filtro núcleo `hwe_control_center_public_config`, con el que el módulo publica `shipping.distance_enabled`.
+- **Módulo `memberships` (membresías).** Niveles y beneficios editables (ventaja informativa,
+  acceso anticipado, descuento de socio, envíos gratis por periodo, puntos al activar, comisión
+  extra y regalo por referido), concesiones transaccionales con línea de tiempo, renovaciones,
+  mejoras, congelación, caducidad, revocación y operaciones en masa reanudables. Catálogo exclusivo
+  con ficha de escaparate en GraphQL, Store API y WC REST; compra ligada al cobro del pedido;
+  descuento de miembro en el carrito y el pedido; carné digital con QR y verificación pública. El
+  BFF expone `/api/memberships/{levels,me,history,prices,products/[slug],card,verify/[token]}` y
+  `/api/store/cart/free-delivery`, la extensión `extensions.hwe-memberships` y el checkout
+  traduce sus conflictos a **409** con `reason`. Ajustes públicos en `config.memberships`, grupo
+  reservado en el Control Center, hooks estables `hwe_membership_*`/`hwe_memberships_*`, tipos de
+  beneficio ampliables por instancia, tablas `hwe_memberships_*`, capacidades
+  `hwe_memberships_{view,manage}` y cobertura en CI (stub con el campo de catálogo y pasada e2e
+  sin módulos) y `verify-modules.sh`.
+- **Contratos nuevos de `loyalty` y `shipping`.** `loyalty` publica `hwe_loyalty_available`,
+  `hwe_loyalty_credit` y `hwe_loyalty_reverse_credit` para que otro módulo abone y revierta puntos
+  sin conocer sus clases; `shipping` publica el filtro `hwe_shipping_free_reason` y la constante
+  `HWE_SHIPPING_FREE_REASON_FILTER` para que un módulo pida el envío gratis con su propia regla.
+  Membresías es el primer consumidor de ambos y no toca clases internas.
 - **Módulo `loyalty` (fidelización).** Monedero de puntos y referidos de dos niveles, sin UI: el
   plugin `hwe-loyalty` es la fuente de verdad (libro mayor transaccional con consumo FIFO y
   caducidad, ganancias por pedido y por eventos, canje en la Store API con fee negativo y

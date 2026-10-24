@@ -286,7 +286,9 @@ Publicados aquí y en `docs/PLUGIN_DEVELOPMENT.md`:
   aplica; cualquier otro valor se descarta y se registra. **La regla de la tienda tiene
   prioridad**: si ya califica, el filtro no se consulta. La constante
   `HWE_SHIPPING_FREE_REASON_FILTER` anuncia que esta versión lo admite; un módulo comprueba
-  `defined()` antes de engancharse.
+  `defined()` antes de engancharse. El primer consumidor es `memberships`: pide el envío gratis
+  del cupo de la membresía con el motivo `membership_free_delivery`; `shipping` decide qué
+  tarifas elegibles bajan a 0 y nunca toca la reserva.
 - `hwe_shipping_distance_providers` (filtro): `( array<string,Provider> $providers ): array`. Añade o
   sustituye proveedores por id. Un valor que no implemente `Provider` se descarta y se registra.
 - `hwe_shipping_rate_cost` (filtro): `( float $cost, array $context ): float`. `$context` = `city`,

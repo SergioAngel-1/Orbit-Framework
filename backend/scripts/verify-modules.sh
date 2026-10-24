@@ -13,7 +13,10 @@
 #                 Deja cada módulo como estaba (también si se interrumpe). `loyalty` añade:
 #                 tablas propias, rutas internas con el secreto interno y la extensión
 #                 `hwe-loyalty` de la Store API, con «Puntos»/«Referidos» encendidos de forma
-#                 temporal y restaurados al salir.
+#                 temporal y restaurados al salir. `memberships` añade: sus cinco tablas, las
+#                 rutas internas con y sin el secreto, la extensión `hwe-memberships` de la
+#                 Store API y un producto de prueba bloqueado por nivel que se recorta en
+#                 GraphQL y en la Store API y se borra al salir (también su nivel).
 #    i18n         con la pila: una traducción a un segundo idioma guardada en la meta de un
 #                 producto llega por `Product.translation(locale)`, y un idioma no declarado no.
 #    country      con la pila: el paquete del país de la tienda está en `/hwe/v1/geo`.
@@ -59,6 +62,10 @@ SECRET=""
 # Estado inicial de cada plugin tocado, «id=active|inactive», para restaurarlo al salir.
 TOUCHED=""
 FIXTURE_PRODUCT=""
+# Fixtures de `memberships`: un nivel publicado y un producto bloqueado por ese nivel.
+MEMBERSHIP_FIXTURE_LEVEL=""
+MEMBERSHIP_FIXTURE_PRODUCT=""
+MEMBERSHIP_FIXTURE_RANK=""
 # Marca de que se guardó la config del módulo `loyalty` para restaurarla al salir.
 LOYALTY_CONFIG_SAVED=0
 
@@ -127,6 +134,11 @@ setup_secret() {
 wp_get() {
   docker exec hwe_wordpress curl -s -o /dev/null -w '%{http_code}' \
     -H "X-HWE-Internal-Secret: $SECRET" "http://localhost$1"
+}
+
+# wp_get_body <ruta> — cuerpo de un GET con el secreto interno (como el BFF).
+wp_get_body() {
+  docker exec hwe_wordpress curl -s -H "X-HWE-Internal-Secret: $SECRET" "http://localhost$1"
 }
 
 bff() { # <json> — POST a /graphql como el BFF
@@ -207,6 +219,109 @@ loyalty_checks() {
   check "loyalty activo: la Store API publica extensions.hwe-loyalty" "$cart" '"hwe-loyalty"'
 }
 
+# ── memberships: comprobaciones propias ─────────────────────────────────────
+# El módulo no necesita encender ningún interruptor para publicar la extensión de la Store API
+# ni para registrar sus rutas internas. El carné (`card_enabled`) se deja como esté: sus rutas
+# solo se sondean cuando está encendido y eso no forma parte de esta verificación.
+memberships_tables_check() {
+  tables="$(cli eval 'global $wpdb; $names = array("hwe_memberships_grants","hwe_memberships_members","hwe_memberships_events","hwe_memberships_card_tokens","hwe_memberships_batches"); $missing = array(); foreach ($names as $name) { $table = $wpdb->prefix . $name; if ($wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table)) !== $table) { $missing[] = $name; } } echo $missing ? "faltan:" . implode(",", $missing) : "todas";' 2>/dev/null | grep -aE '^(todas|faltan:)' | tail -n1)"
+  check "memberships activo: las 5 tablas existen" "$tables" '^todas$'
+}
+
+# Rutas internas del contrato: siempre con el secreto interno, nunca desde el navegador.
+memberships_routes_check() {
+  for route in "levels" "me?user_id=1" "history?user_id=1" "prices?user_id=1&ids=1"; do
+    code="$(wp_get "/wp-json/hwe/v1/memberships/$route")"
+    [ "$code" = 200 ] && ok "memberships activo: /hwe/v1/memberships/$route con el secreto → 200" \
+      || fail "memberships activo: /hwe/v1/memberships/$route debía responder 200" "responde $code"
+
+    code="$(docker exec hwe_wordpress curl -s -o /dev/null -w '%{http_code}' \
+      "http://localhost/wp-json/hwe/v1/memberships/$route")"
+    [ "$code" = 404 ] && ok "memberships: /hwe/v1/memberships/$route sin el secreto → 404" \
+      || fail "memberships: /hwe/v1/memberships/$route respondió $code sin el secreto" "debía ser 404"
+  done
+}
+
+# Fixture: un nivel publicado y un producto que lo exige. El rango se calcula por encima de los
+# niveles existentes para no chocar con la configuración de la instancia; el producto es nuevo y
+# se borra al salir. Cualquier fallo deja el fixture a medias, y `restore` limpia lo que exista.
+memberships_fixture_create() {
+  MEMBERSHIP_FIXTURE_RANK="$(cli eval 'if (!class_exists("HWE_Memberships_Levels")) { echo 1; return; } $max = 0; foreach (HWE_Memberships_Levels::all() as $level) { $max = max($max, (int) ($level["rank"] ?? 0)); } echo $max + 1;' 2>/dev/null | grep -a '^[0-9][0-9]*$' | tail -n1)"
+  if [ -z "$MEMBERSHIP_FIXTURE_RANK" ]; then
+    fail "memberships activo: no se pudo calcular el rango del nivel de prueba"
+    return 1
+  fi
+
+  MEMBERSHIP_FIXTURE_LEVEL="$(cli eval "
+    \$level = wp_insert_post(array(
+      'post_type'   => 'hwe_membership_level',
+      'post_status' => 'publish',
+      'post_title'  => 'verify-memberships',
+      'post_name'   => 'verify-memberships',
+    ), true);
+    if (is_wp_error(\$level) || !\$level) { echo 0; } else { update_post_meta(\$level, '_hwe_membership_rank', $MEMBERSHIP_FIXTURE_RANK); echo \$level; }
+  " 2>/dev/null | grep -a '^[0-9][0-9]*$' | tail -n1)"
+  if [ -z "$MEMBERSHIP_FIXTURE_LEVEL" ] || [ "$MEMBERSHIP_FIXTURE_LEVEL" = 0 ]; then
+    fail "memberships activo: no se pudo crear el nivel de prueba"
+    return 1
+  fi
+
+  MEMBERSHIP_FIXTURE_PRODUCT="$(cli eval "
+    \$product = new WC_Product_Simple();
+    \$product->set_name('verify-memberships');
+    \$product->set_status('publish');
+    \$product->set_regular_price('1');
+    \$product->set_description('contenido-privado-de-verificacion');
+    \$product->set_short_description('resumen-privado-de-verificacion');
+    \$product->save();
+    update_post_meta(\$product->get_id(), '_hwe_membership_min_rank', $MEMBERSHIP_FIXTURE_RANK);
+    echo \$product->get_id();
+  " 2>/dev/null | grep -a '^[0-9][0-9]*$' | tail -n1)"
+  if [ -z "$MEMBERSHIP_FIXTURE_PRODUCT" ]; then
+    fail "memberships activo: no se pudo crear el producto de prueba (¿WooCommerce activo?)"
+    return 1
+  fi
+
+  echo "  (nivel de prueba #$MEMBERSHIP_FIXTURE_LEVEL rango $MEMBERSHIP_FIXTURE_RANK, producto #$MEMBERSHIP_FIXTURE_PRODUCT)"
+}
+
+memberships_fixture_check() {
+  memberships_fixture_create || return 0
+
+  q="{\"query\":\"{ product(id: \\\"$MEMBERSHIP_FIXTURE_PRODUCT\\\", idType: DATABASE_ID) { name ... on SimpleProduct { description shortDescription } hweMembership { locked requiredLevel { rank name slug } } } }\"}"
+  out="$(bff "$q")"
+  check "memberships activo: GraphQL oculta la descripción del producto bloqueado" "$out" '"description":null'
+  check "memberships activo: GraphQL marca el producto como bloqueado" "$out" '"locked":true'
+  check "memberships activo: GraphQL publica el nivel mínimo del requisito" "$out" "\"rank\":$MEMBERSHIP_FIXTURE_RANK"
+
+  body="$(wp_get_body "/wp-json/wc/store/v1/products/$MEMBERSHIP_FIXTURE_PRODUCT")"
+  if printf '%s' "$body" | grep -qE '"(short_)?description"'; then
+    fail "memberships activo: la Store API no publica la descripción del producto bloqueado" "salida: $(printf '%s' "$body" | head -c 300)"
+  else
+    ok "memberships activo: la Store API no publica la descripción del producto bloqueado"
+  fi
+  check "memberships activo: la Store API marca el producto como bloqueado" "$body" '"locked":true'
+  check "memberships activo: la Store API publica el nivel mínimo del requisito" "$body" "\"rank\":$MEMBERSHIP_FIXTURE_RANK"
+}
+
+memberships_checks() {
+  memberships_tables_check
+  memberships_routes_check
+  cart="$(wp_get_body "/wp-json/wc/store/v1/cart")"
+  check "memberships activo: la Store API publica extensions.hwe-memberships" "$cart" '"hwe-memberships"'
+  memberships_fixture_check
+}
+
+# Con el módulo apagado no queda ninguna ruta interna registrada. El genérico de `toggle` ya
+# comprueba que las rutas que había con el módulo encendido responden 404.
+memberships_off_checks() {
+  if routes | cut -f1 | grep -q '^/hwe/v1/memberships/'; then
+    fail "memberships apagado: las rutas internas no están registradas" "siguen registradas"
+  else
+    ok "memberships apagado: las rutas internas no están registradas"
+  fi
+}
+
 restore() {
   loyalty_config_restore
   for entry in $TOUCHED; do
@@ -215,6 +330,14 @@ restore() {
     if [ "$state" = active ]; then set_module "$id" on; else set_module "$id" off; fi
   done
   TOUCHED=""
+  if [ -n "$MEMBERSHIP_FIXTURE_PRODUCT" ]; then
+    cli eval "wp_delete_post($MEMBERSHIP_FIXTURE_PRODUCT, true);" >/dev/null 2>&1
+    MEMBERSHIP_FIXTURE_PRODUCT=""
+  fi
+  if [ -n "$MEMBERSHIP_FIXTURE_LEVEL" ]; then
+    cli eval "wp_delete_post($MEMBERSHIP_FIXTURE_LEVEL, true);" >/dev/null 2>&1
+    MEMBERSHIP_FIXTURE_LEVEL=""
+  fi
   if [ -n "$FIXTURE_PRODUCT" ]; then
     cli eval "wp_delete_post($FIXTURE_PRODUCT, true);" >/dev/null 2>&1
     FIXTURE_PRODUCT=""
@@ -311,6 +434,10 @@ section_toggle() {
       loyalty_checks
     fi
 
+    if [ "$id" = memberships ]; then
+      memberships_checks
+    fi
+
     # Rutas que solo existen con el módulo encendido.
     f_off="$(mktemp)"
     f_on="$(mktemp)"
@@ -320,6 +447,11 @@ section_toggle() {
     rm -f "$f_off" "$f_on"
     # Solo las rutas literales (las de expresión regular no se pueden sondear tal cual).
     own="$(printf '%s\n' "$own" | grep -v '(' | grep -v '^$')"
+    if [ "$id" = memberships ]; then
+      # Las rutas del carné solo responden con `card_enabled`, que este script no enciende. La
+      # comprobación de memberships no las incluye; el resto de rutas sí se sondean.
+      own="$(printf '%s\n' "$own" | grep -v '/hwe/v1/memberships/card' | grep -v '/hwe/v1/memberships/verify')"
+    fi
     if [ -z "$own" ]; then
       ok "$id: no declara rutas REST propias (solo GraphQL o la config)"
       continue
@@ -356,6 +488,10 @@ section_toggle() {
     done > "$OUT_OFF"
     cat "$OUT_OFF"
     FAILS=$((FAILS + $(grep -c '^  FALLA' "$OUT_OFF")))
+
+    if [ "$id" = memberships ]; then
+      memberships_off_checks
+    fi
   done
   rm -f "$OUT_ON" "$OUT_OFF"
   restore
