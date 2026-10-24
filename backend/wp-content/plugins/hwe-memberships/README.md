@@ -53,6 +53,42 @@ además `card_enabled`. `participantRoles()` devuelve `customer` y `subscriber` 
 filtrable con `hwe_memberships_participant_roles`; un filtro que no devuelve una lista se registra
 y se ignoran sus valores.
 
+## Catálogo exclusivo (ficha de escaparate)
+
+El módulo puede exigir un nivel de membresía por producto o categoría y una fecha de apertura.
+Quien no cumple el requisito **sí ve el producto** en listados, búsqueda y sitemap, pero solo con
+la ficha de escaparate: id, nombre, slug, tipo, imagen principal, precio público (rango en
+variables), categorías, el requisito y la marca `locked`. No salen descripción, descripción
+corta, galería, atributos, variaciones ni el stock de las variaciones, campos de producto del
+núcleo (`hweFields`), la landing, el SEO ni enlaces de descarga.
+
+El recorte se hace **en WordPress**, nunca en el frontend:
+
+| Vía | Implementación |
+|---|---|
+| GraphQL (`Product`, `SimpleProduct`, `VariableProduct`…, listados, búsqueda, relacionados, venta cruzada, `ProductCategory`) | `includes/Graphql.php`: campo `hweMembership { requiredLevel { slug rank name } opensAt locked }` y lista blanca en `graphql_resolve_field`. Las variaciones directas (`productVariation`, `node(id:)`) se anulan si el padre es teaser. |
+| Store API `wc/store/v1/products` (listado y ficha), variaciones y carrito | `includes/Teaser.php`: `rest_request_after_callbacks` acotado a esas rutas. Del carrito se conservan clave, cantidad, precios, totales y extensiones; se quitan atributos, resumen, descripciones y SKU. |
+| WC REST `wc/v3/products` y `wc/v3/products/<id>/variations` | `woocommerce_rest_prepare_product_object` / `…_variation_object`: si la petición trae el secreto interno del BFF se aplica la ficha como visitante (esa respuesta alimenta el endpoint público de la lista de deseos). El panel y las integraciones con `ck/cs` siguen viendo la ficha completa. |
+
+En la respuesta de `wc/v3` para el BFF se conservan, además, los campos operativos `status`,
+`purchasable`, `stock_status`, `manage_stock`, `stock_quantity` y `backorders_allowed` del
+producto: no son contenido (§6.2 prohíbe las variaciones y su stock, no la disponibilidad del
+propio producto) y son los que necesita «volver a pedir» para decidir la cantidad. La Store API
+mantiene la lista estricta: allí la autorización real del carrito la hace la Store API con el JWT
+del socio (Tarea 11). Las variaciones siguen reducidas a su identificador.
+
+En las respuestas REST el requisito viaja en `hwe_membership.required_level` (slug, rank y name)
+y `hwe_membership.opens_at` (ISO 8601 UTC o null), y la marca en `locked`. En GraphQL el mismo
+dato se llama `hweMembership`.
+
+Otras rutas REST propias que devuelven producto se revisaron y **no se tocan** porque no exponen
+contenido: `hwe/v1/best-sellers` (id, slug y unidades), cupones públicos de `hwe-coupon-rules`
+(slugs de producto/categoría), `hwe-shipping/v1/free-shipping/scope` (nombre y slug de categoría
+o producto), `hwe-loyalty` (contadores y ajustes) y `hwe-site-reviews` (crea reseñas de pedido, no
+devuelve productos). Si una instancia añade una ruta nueva que devuelva descripción, galería,
+atributos, variaciones o campos de producto, debe aplicar `HWE_Memberships_Teaser` en su
+respuesta.
+
 ## Con el módulo apagado
 
 `config.modules.memberships` es `false`, no hay ajustes activos y las rutas del BFF responderán

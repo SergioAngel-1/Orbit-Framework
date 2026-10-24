@@ -40,6 +40,21 @@ Hay ajustes que solo ve el equipo técnico en la misma pestaña:
 - **El regalo al referido exige correo verificado**: encendido por defecto; si se apaga, la
   membresía de regalo se concede al registrarse, sin esperar a la confirmación del correo.
 
+## Catálogo exclusivo para socios
+
+Un producto o una categoría pueden exigir un nivel mínimo y, opcionalmente, una fecha de
+apertura. Quien no cumple el requisito no deja de ver el producto: aparece en el catálogo, la
+búsqueda y el mapa del sitio con su nombre, su imagen principal, su precio público, sus
+categorías y una marca de «bloqueado» que indica qué nivel hace falta (y desde qué fecha se abre
+al público). Lo que no se muestra es el contenido de la ficha: descripción, galería, atributos,
+variaciones ni el stock de las variaciones, descargas y campos internos.
+
+Las categorías bloqueadas sí muestran su nombre, imagen y descripción: esa descripción es la que
+invita a hacerse socio. Los productos que contiene siguen la regla anterior.
+
+El personal de la tienda puede editar y previsualizar todo en wp-admin, pero en la tienda pública
+es un cliente más: no se salta los requisitos.
+
 ## Cómo se activa
 
 1. Activa el plugin **HWE Memberships** en Plugins de WordPress (o incluye `memberships` en la
