@@ -21,6 +21,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   sin tocar ningún archivo. Usar la release anterior como base no sirve si la copia salió de `main`
   entre releases: en la prueba, partir de `v2.0.0` en vez del commit real dejó 32 conflictos, y el
   commit exacto, ninguno.
+- **`docs/COMPATIBILITY.md` vuelve a coincidir con lo que se instala.** Decía zod `4.4.3` y vitest
+  `^4.1.11` cuando el paquete fija `4.6.7` y `^4.1.12`. `tests/unit/compatibility-matrix.test.ts`
+  compara ahora cada fila con `frontend/package.json` y cada plugin fijado con `setup.sh`.
 - **Coexistencia de `loyalty`, `memberships` y `shipping` (auditoría de las 8 combinaciones).**
   Envío gratis de socio: cuando WooCommerce reutiliza el pedido de un intento de checkout que
   falló, la reserva se devuelve si el envío gratis ya no aplica. Solo se gasta la unidad si el

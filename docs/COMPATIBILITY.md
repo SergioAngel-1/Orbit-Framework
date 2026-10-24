@@ -52,7 +52,7 @@ explícito (`docker compose pull`).
 | ioredis | `5.11.1` | Cliente Redis. |
 | otplib | `^13.4.1` | TOTP 2FA (API v13: `generateSecret`, `verify`). |
 | qrcode | `^1.5.4` | QR del alta de 2FA, generado en el servidor (ningún tercero ve el secreto). |
-| zod | `4.4.3` | Validación de entrada en el BFF (API top-level `z.email()`/`z.url()`). |
+| zod | `4.6.7` | Validación de entrada en el BFF (API top-level `z.email()`/`z.url()`). |
 | isomorphic-dompurify | `^3.23.0` | Saneado de HTML del CMS. |
 | pino | `^10.3.1` | Logging estructurado. |
 | @sentry/nextjs | `^10.76.2` | Captura de errores (opcional, vía `SENTRY_DSN`). |
@@ -61,7 +61,7 @@ explícito (`docker compose pull`).
 
 | Paquete | Versión |
 |---------|---------|
-| vitest / @vitest/coverage-v8 | `^4.1.11` |
+| vitest / @vitest/coverage-v8 | `^4.1.12` |
 | @playwright/test | `^1.64.0` |
 | @axe-core/playwright | `^4.13.0` |
 | @testing-library/react / jsdom | `^16.3.3` / `^30.1.2` |
