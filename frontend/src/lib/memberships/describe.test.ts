@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hasOwnCatalog } from "@/i18n/messages/catalogs";
 import {
   describeBenefit,
   describeHistoryEntry,
@@ -13,7 +14,13 @@ import {
 //  el texto en el idioma de la petición, con caída al español para lo que no
 //  esté traducido y a un texto neutro para las claves que este frontend no
 //  conoce (los tipos de beneficio y los eventos pueden crecer).
+//
+//  Una instancia monolingüe borra `messages/en.json`: sin catálogo inglés no hay
+//  traducción que comparar, así que las aserciones en inglés se omiten (el texto cae a
+//  español) y las españolas se comprueban siempre.
 // ============================================================================
+
+const hasEnglish = hasOwnCatalog("en");
 
 describe("describeBenefit", () => {
   it("describe el descuento de socio en todo el catálogo", () => {
@@ -23,12 +30,14 @@ describe("describeBenefit", () => {
         "es",
       ),
     ).toBe("10% de descuento en todo el catálogo");
-    expect(
-      describeBenefit(
-        { key: "member_discount", data: { percent: 10, scope: "all" } },
-        "en",
-      ),
-    ).toBe("10% off everything in the store");
+    if (hasEnglish) {
+      expect(
+        describeBenefit(
+          { key: "member_discount", data: { percent: 10, scope: "all" } },
+          "en",
+        ),
+      ).toBe("10% off everything in the store");
+    }
   });
 
   it("describe el descuento acotado a categorías sin inventar sus nombres", () => {
@@ -47,9 +56,11 @@ describe("describeBenefit", () => {
   });
 
   it("describe el acceso anticipado y los puntos de activación", () => {
-    expect(describeBenefit({ key: "early_access", data: {} }, "en")).toBe(
-      "Early access to new releases",
-    );
+    if (hasEnglish) {
+      expect(describeBenefit({ key: "early_access", data: {} }, "en")).toBe(
+        "Early access to new releases",
+      );
+    }
     expect(
       describeBenefit({ key: "activation_points", data: { points: 250 } }, "es"),
     ).toBe("Puntos extra al activar tu membresía: 250");
@@ -77,9 +88,11 @@ describe("describeBenefit", () => {
     expect(describeBenefit({ key: "free_deliveries", data: { count: 2 } }, "es")).toBe(
       "Envíos gratis incluidos: 2",
     );
-    expect(describeBenefit({ key: "free_deliveries", data: {} }, "en")).toBe(
-      "Free deliveries included",
-    );
+    if (hasEnglish) {
+      expect(describeBenefit({ key: "free_deliveries", data: {} }, "en")).toBe(
+        "Free deliveries included",
+      );
+    }
   });
 
   it("el `info_perk` escoge el texto del idioma y cae al principal", () => {
@@ -88,7 +101,11 @@ describe("describeBenefit", () => {
       text: { es: "Respuesta en 24 h", en: "Answer within 24 h" },
     };
 
-    expect(describeBenefit({ key: "info_perk", data }, "en")).toBe("Priority support");
+    if (hasEnglish) {
+      expect(describeBenefit({ key: "info_perk", data }, "en")).toBe(
+        "Priority support",
+      );
+    }
     expect(describeBenefit({ key: "info_perk", data }, "pt-BR")).toBe(
       "Atención prioritaria",
     );
@@ -107,9 +124,11 @@ describe("describeBenefit", () => {
     expect(describeBenefit({ key: "custom_perk", data: { x: 1 } }, "es")).toBe(
       "Ventaja de membresía",
     );
-    expect(describeBenefit({ key: "custom_perk", data: {} }, "en")).toBe(
-      "Membership perk",
-    );
+    if (hasEnglish) {
+      expect(describeBenefit({ key: "custom_perk", data: {} }, "en")).toBe(
+        "Membership perk",
+      );
+    }
   });
 });
 
@@ -131,21 +150,27 @@ describe("describeHistoryEntry", () => {
     expect(describeHistoryEntry({ type: "activated", data: {} }, "es")).toBe(
       "Membresía activada",
     );
-    expect(describeHistoryEntry({ type: "renewed", data: { days: 365 } }, "en")).toBe(
-      "Membership renewed for 365 days",
-    );
+    if (hasEnglish) {
+      expect(describeHistoryEntry({ type: "renewed", data: { days: 365 } }, "en")).toBe(
+        "Membership renewed for 365 days",
+      );
+    }
   });
 
   it("describe los avisos y los finales del ciclo", () => {
-    expect(describeHistoryEntry({ type: "expiring", data: { days: 7 } }, "en")).toBe(
-      "Your membership expires in 7 days",
-    );
+    if (hasEnglish) {
+      expect(describeHistoryEntry({ type: "expiring", data: { days: 7 } }, "en")).toBe(
+        "Your membership expires in 7 days",
+      );
+    }
     expect(describeHistoryEntry({ type: "expiring", data: {} }, "es")).toBe(
       "Tu membresía está a punto de caducar",
     );
-    expect(describeHistoryEntry({ type: "expired", data: {} }, "en")).toBe(
-      "Membership expired",
-    );
+    if (hasEnglish) {
+      expect(describeHistoryEntry({ type: "expired", data: {} }, "en")).toBe(
+        "Membership expired",
+      );
+    }
     expect(describeHistoryEntry({ type: "frozen", data: {} }, "es")).toBe(
       "Membresía congelada",
     );
@@ -170,18 +195,22 @@ describe("describeHistoryEntry", () => {
     expect(describeHistoryEntry({ type: "points_skipped", data: {} }, "es")).toBe(
       "Sin puntos por esta compra",
     );
-    expect(
-      describeHistoryEntry({ type: "referral_gift_limit_reached", data: {} }, "en"),
-    ).toBe("No membership gifts left this period");
+    if (hasEnglish) {
+      expect(
+        describeHistoryEntry({ type: "referral_gift_limit_reached", data: {} }, "en"),
+      ).toBe("No membership gifts left this period");
+    }
   });
 
   it("un tipo desconocido da un texto neutro, nunca lanza", () => {
     expect(describeHistoryEntry({ type: "future_event", data: { x: 1 } }, "es")).toBe(
       "Movimiento de membresía",
     );
-    expect(describeHistoryEntry({ type: "future_event", data: {} }, "en")).toBe(
-      "Membership update",
-    );
+    if (hasEnglish) {
+      expect(describeHistoryEntry({ type: "future_event", data: {} }, "en")).toBe(
+        "Membership update",
+      );
+    }
   });
 });
 
@@ -193,9 +222,11 @@ describe("describePurchaseReason", () => {
     expect(
       describePurchaseReason("membership_account_too_new", { days_left: 5 }, "es"),
     ).toBe("Tu cuenta necesita 5 días más para acceder a este nivel.");
-    expect(describePurchaseReason("membership_account_too_new", {}, "en")).toBe(
-      "Your account is still too new for this level.",
-    );
+    if (hasEnglish) {
+      expect(describePurchaseReason("membership_account_too_new", {}, "en")).toBe(
+        "Your account is still too new for this level.",
+      );
+    }
   });
 
   it("un motivo vacío (se puede comprar) no compone nada", () => {

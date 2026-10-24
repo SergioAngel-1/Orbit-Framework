@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTranslator } from "next-intl";
 import es from "@/i18n/messages/es.json";
-import en from "@/i18n/messages/en.json";
+import { catalogFor, hasOwnCatalog } from "@/i18n/messages/catalogs";
 import {
   consentMessageArgs,
   consentProviders,
@@ -89,8 +89,13 @@ describe("consent.message", () => {
     );
   });
 
-  it("en inglés también", () => {
-    const t = createTranslator({ locale: "en", messages: en, namespace: "consent" });
+  // Sin catálogo propio para `en` (instancia monolingüe) no hay traducción que comprobar.
+  it.skipIf(!hasOwnCatalog("en"))("en inglés también", () => {
+    const t = createTranslator({
+      locale: "en",
+      messages: catalogFor("en"),
+      namespace: "consent",
+    });
     expect(
       t.markup("message", { ...consentMessageArgs(services), link: (c) => c }),
     ).toBe(

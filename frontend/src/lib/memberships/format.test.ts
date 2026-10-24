@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hasOwnCatalog } from "@/i18n/messages/catalogs";
 import {
   buildVerifyUrl,
   formatMemberNumber,
@@ -9,25 +10,34 @@ import {
 // ============================================================================
 //  Helpers puros de formato del módulo: duraciones, número de socio, importes
 //  de la Store API (unidades menores) y la URL absoluta del QR del carné.
+//
+//  Las aserciones en inglés solo aplican si el proyecto trae el catálogo inglés: una
+//  instancia monolingüe borra `messages/en.json` y todo cae a español.
 // ============================================================================
+
+const hasEnglish = hasOwnCatalog("en");
 
 describe("formatMembershipDuration", () => {
   it("compone la duración en días en es y en", () => {
     expect(formatMembershipDuration(30, "es")).toBe("30 días");
-    expect(formatMembershipDuration(30, "en")).toBe("30 days");
     expect(formatMembershipDuration(1, "es")).toBe("1 día");
-    expect(formatMembershipDuration(1, "en")).toBe("1 day");
+    if (hasEnglish) {
+      expect(formatMembershipDuration(30, "en")).toBe("30 days");
+      expect(formatMembershipDuration(1, "en")).toBe("1 day");
+    }
   });
 
   it("`null` es una membresía indefinida", () => {
     expect(formatMembershipDuration(null, "es")).toBe("Indefinida");
-    expect(formatMembershipDuration(null, "en")).toBe("Unlimited");
+    if (hasEnglish) expect(formatMembershipDuration(null, "en")).toBe("Unlimited");
   });
 
   it("los estados de la cola mandan sobre los días", () => {
     expect(formatMembershipDuration(30, "es", { infinite: true })).toBe("Indefinida");
     expect(formatMembershipDuration(30, "es", { undated: true })).toBe("Sin fecha");
-    expect(formatMembershipDuration(30, "en", { undated: true })).toBe("No date");
+    if (hasEnglish) {
+      expect(formatMembershipDuration(30, "en", { undated: true })).toBe("No date");
+    }
   });
 
   it("un idioma desconocido cae a español", () => {

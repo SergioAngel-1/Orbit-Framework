@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hasOwnCatalog } from "@/i18n/messages/catalogs";
 import type { LoyaltyEntryType } from "./types";
 import { describeEntry } from "./describe";
 
@@ -116,9 +117,11 @@ describe("describeEntry", () => {
         "es",
       ),
     ).toBe("Movimiento de fidelización");
-    expect(describeEntry({ ...base, type: "tipo_del_futuro", data: null }, "en")).toBe(
-      "Loyalty movement",
-    );
+    if (hasOwnCatalog("en")) {
+      expect(
+        describeEntry({ ...base, type: "tipo_del_futuro", data: null }, "en"),
+      ).toBe("Loyalty movement");
+    }
   });
 
   it("tolera datos malformados sin lanzar", () => {
@@ -136,7 +139,9 @@ describe("describeEntry", () => {
   it("compone el texto en el idioma pedido", () => {
     const entry = { ...base, type: "registration", data: {} };
 
-    expect(describeEntry(entry, "es")).not.toBe(describeEntry(entry, "en"));
+    if (hasOwnCatalog("en")) {
+      expect(describeEntry(entry, "es")).not.toBe(describeEntry(entry, "en"));
+    }
     expect(describeEntry(entry, "fr")).toBe(describeEntry(entry, "es"));
   });
 });

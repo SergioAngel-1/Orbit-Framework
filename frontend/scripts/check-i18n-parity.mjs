@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// Verifica que es.json y en.json sigan siendo la MISMA página en dos idiomas,
-// y que los mensajes con etiquetas tengan quien las pinte. Uso: `npm run i18n:check`.
+// Verifica que el catálogo de cada idioma secundario de `i18n/routing.ts` siga siendo la
+// MISMA página que `es.json`, y que los mensajes con etiquetas tengan quien las pinte.
+// Uso: `npm run i18n:check`. Con un solo idioma no hay paridad que comprobar y pasa.
 //
-// Cinco comprobaciones, todas deterministas salvo la última:
+// Cinco comprobaciones por idioma secundario, todas deterministas salvo la última:
 //
 //  1. CLAVES — las mismas hojas en los dos archivos.
 //  2. FORMA — el mismo TIPO en cada hoja (texto / lista / objeto) y, en las
@@ -171,9 +172,16 @@ function richHandlers(sources) {
  * @param {{ path: string, code: string }[]} input.sources Código del frontend
  *   que pinta mensajes (para la comprobación 5). Los `*.test.*` se ignoran.
  * @param {string[]} [input.esOnlyPrefixes] Prefijos exentos de traducción.
+ * @param {string} [input.locale] Código del idioma comparado (solo para los mensajes).
  * @returns {{ errors: string[], warnings: string[], leafCount: number }}
  */
-export function checkParity({ es, en, sources, esOnlyPrefixes = ES_ONLY_PREFIXES }) {
+export function checkParity({
+  es,
+  en,
+  sources,
+  esOnlyPrefixes = ES_ONLY_PREFIXES,
+  locale = "en",
+}) {
   const isEsOnly = (k) => esOnlyPrefixes.some((p) => k.startsWith(p));
   const esLeaves = leaves(es);
   const enLeaves = leaves(en);
@@ -188,7 +196,7 @@ export function checkParity({ es, en, sources, esOnlyPrefixes = ES_ONLY_PREFIXES
 
   // ── 1. Claves ─────────────────────────────────────────────────────────────
   push(
-    "Faltan en en.json",
+    `Faltan en ${locale}.json`,
     [...esLeaves.keys()].filter((k) => !enLeaves.has(k) && !isEsOnly(k)),
   );
   push(
@@ -202,9 +210,12 @@ export function checkParity({ es, en, sources, esOnlyPrefixes = ES_ONLY_PREFIXES
     if (isEsOnly(k)) continue;
     const b = enShapes.get(k);
     if (!b) continue; // ya lo reporta la comprobación de claves
-    if (a.kind !== b.kind) shapeIssues.push(`${k}: es es ${a.kind} y en es ${b.kind}`);
+    if (a.kind !== b.kind)
+      shapeIssues.push(`${k}: es es ${a.kind} y ${locale} es ${b.kind}`);
     else if (a.kind === "lista" && a.size !== b.size)
-      shapeIssues.push(`${k}: la lista tiene ${a.size} en es y ${b.size} en en`);
+      shapeIssues.push(
+        `${k}: la lista tiene ${a.size} en es y ${b.size} en ${locale}`,
+      );
   }
   push("Forma distinta entre idiomas", shapeIssues);
 
@@ -217,10 +228,14 @@ export function checkParity({ es, en, sources, esOnlyPrefixes = ES_ONLY_PREFIXES
     if (typeof valueEn !== "string") continue;
     const [ae, an] = [argsOf(valueEs), argsOf(valueEn)];
     if (sorted(ae) !== sorted(an))
-      argIssues.push(`${k}: es usa {${sorted(ae)}} y en usa {${sorted(an)}}`);
+      argIssues.push(
+        `${k}: es usa {${sorted(ae)}} y ${locale} usa {${sorted(an)}}`,
+      );
     const [te, tn] = [tagsOf(valueEs), tagsOf(valueEn)];
     if (sorted(te) !== sorted(tn))
-      tagIssues.push(`${k}: es usa <${sorted(te)}> y en usa <${sorted(tn)}>`);
+      tagIssues.push(
+        `${k}: es usa <${sorted(te)}> y ${locale} usa <${sorted(tn)}>`,
+      );
   }
   push("Argumentos distintos entre idiomas", argIssues);
   push("Etiquetas distintas entre idiomas", tagIssues);
@@ -267,21 +282,76 @@ function sourceFiles(dir, out = []) {
   return out;
 }
 
+/**
+ * Idiomas declarados en `src/i18n/routing.ts` (y su idioma principal). El script es Node
+ * puro y no puede importar TS, así que lee la configuración con una expresión regular
+ * sobre el objeto `defineRouting({ … })`; si no la encuentra, falla en vez de comparar
+ * idiomas inventados.
+ *
+ * @returns {{ locales: string[], defaultLocale: string }}
+ */
+export function readRoutingConfig(filePath) {
+  const source = readFileSync(filePath, "utf8");
+  const localesMatch = source.match(/locales\s*:\s*\[([^\]]*)\]/);
+  if (!localesMatch) {
+    throw new Error(
+      `No se encontró "locales: [ … ]" en ${filePath}: revisa i18n/routing.ts.`,
+    );
+  }
+  const locales = [...localesMatch[1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]);
+  if (locales.length === 0) {
+    throw new Error(`"locales" está vacío en ${filePath}.`);
+  }
+  const defaultMatch = source.match(/defaultLocale\s*:\s*["']([^"']+)["']/);
+  const defaultLocale = defaultMatch?.[1] ?? locales[0];
+  if (!locales.includes(defaultLocale)) {
+    throw new Error(
+      `defaultLocale "${defaultLocale}" no está en locales (${locales.join(", ")}).`,
+    );
+  }
+  return { locales, defaultLocale };
+}
+
 function main() {
   const here = dirname(fileURLToPath(import.meta.url));
   const messagesDir = resolve(here, "../src/i18n/messages");
   const srcDir = resolve(here, "../src");
   const load = (name) => JSON.parse(readFileSync(resolve(messagesDir, name), "utf8"));
 
+  const { locales, defaultLocale } = readRoutingConfig(
+    resolve(here, "../src/i18n/routing.ts"),
+  );
+  const secondary = locales.filter((locale) => locale !== defaultLocale);
+
   const sources = sourceFiles(srcDir).map((file) => ({
     path: file.replace(`${srcDir}/`, "src/"),
     code: readFileSync(file, "utf8"),
   }));
-  const { errors, warnings, leafCount } = checkParity({
-    es: load("es.json"),
-    en: load("en.json"),
-    sources,
-  });
+
+  if (secondary.length === 0) {
+    console.log(
+      `i18n OK — un solo idioma (${defaultLocale}): no hay paridad entre idiomas que comprobar.`,
+    );
+    return;
+  }
+
+  const es = load(`${defaultLocale}.json`);
+  const errors = [];
+  const warnings = [];
+  let leafCount = 0;
+
+  for (const locale of secondary) {
+    const { errors: localeErrors, warnings: localeWarnings, leafCount: leaves } =
+      checkParity({
+        es,
+        en: load(`${locale}.json`),
+        sources,
+        locale,
+      });
+    errors.push(...localeErrors);
+    warnings.push(...localeWarnings);
+    leafCount = Math.max(leafCount, leaves);
+  }
 
   if (warnings.length) {
     console.warn(

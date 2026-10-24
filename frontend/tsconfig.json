@@ -23,6 +23,10 @@
       }
     ],
     "paths": {
+      "@/i18n/messages/en.json": [
+        "./src/i18n/messages/en.json",
+        "./src/i18n/messages/es.json"
+      ],
       "@/*": [
         "./src/*"
       ]

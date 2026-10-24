@@ -10,8 +10,7 @@
 //  WordPress no devuelve frases para el cliente.
 // ============================================================================
 
-import es from "@/i18n/messages/es.json";
-import en from "@/i18n/messages/en.json";
+import { catalogFor } from "@/i18n/messages/catalogs";
 
 /** Motivos estables que el checkout devuelve con 409. */
 export const MEMBERSHIP_CHECKOUT_REASONS = [
@@ -141,8 +140,6 @@ export function membershipCheckoutError(
   return { reason, details: pickDetails(data) };
 }
 
-const CATALOGS = { es, en } as const;
-
 /**
  * Texto del 409 para el cliente, a partir del motivo estable y del idioma de la
  * petición (cualquier idioma sin catálogo cae al español, como el resto de
@@ -152,6 +149,6 @@ export function membershipCheckoutMessage(
   reason: MembershipCheckoutErrorReason,
   locale: string,
 ): string {
-  const catalog = locale.toLowerCase().startsWith("en") ? CATALOGS.en : CATALOGS.es;
+  const catalog = catalogFor(locale);
   return catalog.memberships.checkout[reason];
 }

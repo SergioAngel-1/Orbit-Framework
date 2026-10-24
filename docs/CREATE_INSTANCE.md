@@ -260,6 +260,34 @@ Es **fail-closed**: cualquier otro valor (o su ausencia) mantiene el comportamie
 framework. Si el CI de tu instancia sigue ejecutando la puerta anti-instancia, la variable no
 está puesta o no vale exactamente `true`.
 
+### Instancia de un solo idioma
+
+El framework trae `es` (principal) y `en`. Una tienda que solo publica en un idioma **no
+necesita mantener el catálogo inglés** ni que el núcleo lo dé por hecho:
+
+1. En `frontend/src/i18n/routing.ts` deja solo tu idioma: `locales: ["es"]`
+   (`defaultLocale: "es"`). Es el único archivo de núcleo que se edita para esto (zona gris).
+2. Borra `frontend/src/i18n/messages/en.json`. No hay que tocar el núcleo: los catálogos viven en
+   `src/i18n/messages/catalogs.ts`, un idioma sin catálogo cae al principal, y las importaciones,
+   los tipos (`tsconfig.json`), los tests (`vitest.config.ts`) y el build (`next.config.mjs`)
+   resuelven el catálogo ausente al español. `npm run i18n:check` no compara nada y pasa.
+3. Si la tienda no está en la zona horaria de la plantilla, declara la tuya en
+   `frontend/src/instance/registry.ts` (solo dato, el núcleo no se toca):
+
+   ```ts
+   export const instanceRegistry = {
+     // …
+     timeZone: "America/Bogota", // o un mapa: { es: "America/Bogota" }
+   } satisfies InstanceRegistry;
+   ```
+
+   Sin `timeZone` se mantienen los valores de siempre (`es` → `Europe/Madrid`, `en` →
+   `America/New_York`), que es lo que espera el framework sin configurar nada.
+
+Los tests del núcleo se ejecutan con los idiomas del framework (un `vitest` compartido fija
+`es`/`en`), así que el CI de tu instancia sigue corriendo la misma batería; el job «Frontend (un
+solo idioma)» del repositorio del framework comprueba exactamente esta configuración.
+
 Lo único que es un contrato estable (y a lo que cualquier vista, heredada o nueva, debe
 ajustarse) es el backend/BFF: WPGraphQL/WooGraphQL, los endpoints REST bajo `app/api/*`, el
 endpoint de config `/wp-json/hwe/v1/config` y los flags `ecommerce.*_enabled` y `modules.*` —
@@ -273,10 +301,13 @@ Lo que `wp hwe setup` no cubre porque vive en el código del frontend, no en la
 config dinámica — ver `docs/CUSTOMIZATION.md` para el detalle:
 
 - [ ] Logo en `frontend/public/` + referencia en `layout.tsx`.
-- [ ] `frontend/src/i18n/messages/{es,en}.json` (`site.name`, `site.footer`,
-      labels de navegación) — deben mantenerse paralelos entre idiomas.
-- [ ] Un `frontend/src/i18n/messages/<idioma>.json` por cada idioma de `i18n.locales` y su
-      alta en `routing.ts` (`npm run i18n:check` comprueba la paridad).
+- [ ] `frontend/src/i18n/messages/es.json` (`site.name`, `site.footer`, labels de navegación) y,
+      si la tienda es multi-idioma, un `<idioma>.json` por cada idioma secundario de
+      `i18n/routing.ts` — deben mantenerse paralelos entre idiomas (`npm run i18n:check`).
+      **Una tienda de un solo idioma deja `locales: ["es"]` y borra `en.json`** (ver §7,
+      «Instancia de un solo idioma»).
+- [ ] Zona horaria de la tienda en `frontend/src/instance/registry.ts` (`timeZone`), si no es la
+      de la plantilla.
 - [ ] Páginas legales (`legal.*` en los mensajes i18n).
 - [ ] `frontend/package.json` (`name`).
 - [ ] `NEXT_PUBLIC_SITE_URL` y dominios/CORS reales antes de producción.

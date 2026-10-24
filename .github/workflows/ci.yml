@@ -212,6 +212,75 @@ jobs:
           WORDPRESS_INTERNAL_API_URL: http://127.0.0.1:8080/graphql
 
   # --------------------------------------------------------------------------
+  # Instancia de un solo idioma: el núcleo no puede dar por hecho que existe `en`.
+  # Se copia el repo con `locales: ["es"]` y sin `messages/en.json` y se repite la
+  # batería del frontend. Sin esto, un cambio que vuelva a importar `en.json` desde
+  # el núcleo (o un test que lo dé por hecho) solo se descubre en el clon de la
+  # instancia, cuando el merge del release ya está hecho.
+  # --------------------------------------------------------------------------
+  mono-language:
+    name: Frontend (un solo idioma)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # En una instancia este ya es su estado normal (y su `routing.ts` es suyo): el
+    # job solo aplica al framework, con el mismo interruptor fail-closed.
+    if: ${{ vars.HWE_INSTANCE != 'true' }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Quedarse con un solo idioma (borrar `en`)
+        run: |
+          node - <<'EOF'
+          const fs = require("node:fs");
+          const file = "src/i18n/routing.ts";
+          const source = fs.readFileSync(file, "utf8");
+          const next = source.replace(/locales:\s*\[[^\]]*\]/, 'locales: ["es"]');
+          if (next === source) throw new Error("No se pudo fijar `locales` en i18n/routing.ts");
+          fs.writeFileSync(file, next);
+          EOF
+          rm src/i18n/messages/en.json
+          git status --short
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Formato (Prettier)
+        run: npm run format:check
+
+      # Con un solo idioma no hay paridad entre idiomas que comprobar, pero el
+      # script debe seguir pasando (no puede exigir `en.json`).
+      - name: Paridad i18n
+        run: npm run i18n:check
+
+      - name: Tests y cobertura
+        run: npm run test:coverage
+
+      - name: Levantar endpoint GraphQL de pega
+        run: |
+          node ../.github/scripts/stub-graphql.mjs &
+          npx wait-on http://127.0.0.1:8080 --timeout 30000
+
+      - name: Build de producción (un solo idioma)
+        run: npm run build
+        env:
+          WORDPRESS_INTERNAL_API_URL: http://127.0.0.1:8080/graphql
+
+  # --------------------------------------------------------------------------
   # Secret scanning: ningún secreto debe entrar al repositorio.
   # --------------------------------------------------------------------------
   secret-scan:

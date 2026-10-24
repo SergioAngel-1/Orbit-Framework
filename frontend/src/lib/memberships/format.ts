@@ -1,5 +1,4 @@
-import es from "@/i18n/messages/es.json";
-import en from "@/i18n/messages/en.json";
+import { catalogFor } from "@/i18n/messages/catalogs";
 
 // ============================================================================
 //  Helpers puros de formato del módulo `memberships`.
@@ -8,13 +7,10 @@ import en from "@/i18n/messages/en.json";
 //  pintar lo que el BFF ya devolvió. No leen configuración ni hacen fetch.
 // ============================================================================
 
-type Catalog = typeof es;
+type Catalog = ReturnType<typeof catalogFor>;
 
-const CATALOGS: Record<"es" | "en", Catalog> = { es, en };
-
-function catalogFor(locale: string): Catalog["memberships"]["durations"] {
-  return (locale.toLowerCase().startsWith("en") ? CATALOGS.en : CATALOGS.es).memberships
-    .durations;
+function durationsFor(locale: string): Catalog["memberships"]["durations"] {
+  return catalogFor(locale).memberships.durations;
 }
 
 function interpolate(
@@ -38,7 +34,7 @@ export function formatMembershipDuration(
   locale: string,
   options: { infinite?: boolean; undated?: boolean } = {},
 ): string {
-  const durations = catalogFor(locale);
+  const durations = durationsFor(locale);
 
   if (options.infinite) return durations.infinite;
   if (options.undated) return durations.undated;

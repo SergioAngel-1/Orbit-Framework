@@ -117,6 +117,13 @@ export interface InstanceRegistry {
   /** Tags ISR extra que `/api/revalidate` acepta además de los del núcleo. */
   revalidationTags: string[];
   /**
+   * Zona horaria de la tienda (IANA, p. ej. `"America/Bogota"`), igual para todos los idiomas
+   * o por idioma (`{ es: "America/Bogota", en: "America/New_York" }`). La usa
+   * `i18n/request.ts` para formatear fechas y horas. Sin ella, se mantienen los valores de
+   * siempre (`es` → `Europe/Madrid`, `en` → `America/New_York`).
+   */
+  timeZone?: string | Record<string, string>;
+  /**
    * Manifiesto de las tarjetas sociales estáticas de la instancia
    * (`"<vista>.<idioma>" → hash`), que escribe `npm run og:generate`. Vacío =
    * todas las vistas usan la tarjeta dinámica de marca.

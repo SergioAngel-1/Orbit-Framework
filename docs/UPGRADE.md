@@ -35,8 +35,10 @@ de lo local):
 
 **Zona gris (revisar a mano):** `frontend/package.json` (el framework puede subir versiones de
 dependencias del núcleo; la instancia puede haber añadido las suyas) y
-`frontend/src/i18n/routing.ts` (si la instancia añadió locales) y `.gitignore` (la instancia
-quita las líneas que ignoran sus carpetas de instancia para versionarlas).
+`frontend/src/i18n/routing.ts` (**solo** la lista `locales` y su `defaultLocale`: una instancia
+de un solo idioma deja `locales: ["es"]`; ver `docs/CREATE_INSTANCE.md`, «Instancia de un solo
+idioma») y `.gitignore` (la instancia quita las líneas que ignoran sus carpetas de instancia para
+versionarlas).
 
 `.github/workflows/**` **no** es zona gris aunque tu instancia tenga su propio CI: sigue siendo
 núcleo y no se edita. Para que el CI del núcleo no falle ni pruebe otra cosa en tu repositorio,

@@ -425,8 +425,9 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   `/en`. Config en `i18n/routing.ts`; locale resuelto en `i18n/request.ts`.
 - **Navegación locale-aware**: usa SIEMPRE `Link`/`redirect`/`useRouter` de
   `i18n/navigation.ts` (no los de `next/*`), o se pierde el idioma al navegar.
-- **Textos**: `i18n/messages/es.json` y `en.json` (mantenlos paralelos). Selector:
-  `components/i18n/locale-switcher.tsx`.
+- **Textos**: `i18n/messages/es.json` y un catálogo por cada idioma secundario de
+  `routing.locales` (`en.json` en el framework; una instancia monolingüe solo tiene `es`).
+  Selector: `components/i18n/locale-switcher.tsx`.
 - **SEO/GEO**: `lib/seo/` es la única fuente (`jsonld`, `opengraph`, `title`, `meta-description`,
   `page-metadata`, `urls`, `breadcrumbs`, `listing`, `safe-json-ld`, `og-static`). Rutas de máquina:
   sitemap segmentado (`app/_sitemap/entries.ts`), `robots.txt` (`app/_robots/build.ts`) y
@@ -552,7 +553,9 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   `next/navigation` (excepto `notFound`, que se queda en `next/navigation`).
 - **Páginas estáticas bajo `[locale]`** deben llamar `setRequestLocale(locale)`; las páginas
   que dependen del usuario (carrito, checkout, cuenta, auth) van `force-dynamic`.
-- **Mensajes i18n paralelos**: si añades una clave en `es.json`, añádela en `en.json`.
+- **Mensajes i18n paralelos**: si añades una clave en `es.json`, añádela en el catálogo de cada
+  idioma secundario de `routing.locales` (`en.json` en el framework; una instancia monolingüe no
+  tiene ninguno y `npm run i18n:check` no compara nada).
 - **Importes de la Store API** vienen en **unidades menores** (céntimos): formatéalos con
   `formatStoreAmount` de `lib/format.ts`. Los precios de WooGraphQL vienen ya formateados:
   usa `formatPrice`.

@@ -7,7 +7,7 @@ conflictos en nada de lo que pongas aquí.
 
 | Ruta | Para qué |
 |---|---|
-| `registry.ts` | El registro de la instancia. Es el **único** módulo de esta carpeta que el núcleo importa (ver `InstanceRegistry` en `src/lib/instance/types.ts`). Rellena sus campos según necesites. |
+| `registry.ts` | El registro de la instancia. Es el **único** módulo de esta carpeta que el núcleo importa (ver `InstanceRegistry` en `src/lib/instance/types.ts`). Rellena sus campos según necesites (`timeZone` para la zona horaria de la tienda, por ejemplo). |
 | `config.d.ts` | Ejemplo (comentado) de cómo ampliar `InstanceConfig` con tus ajustes, para que `SiteConfig.instance` quede tipado. |
 | `lib/` | El dominio de tu instancia (fetchers, formato, validación…). Solo lo usa tu propio código: el núcleo nunca lo importa. |
 

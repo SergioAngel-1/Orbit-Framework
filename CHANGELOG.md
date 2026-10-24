@@ -7,6 +7,20 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **Instancia de un solo idioma.** El núcleo deja de suponer que existe un catálogo `en`:
+  `i18n/request.ts` deriva los idiomas y los mensajes de `routing.locales` (el tipo `Locale`
+  sale de ahí), los catálogos viven en un único módulo (`src/i18n/messages/catalogs.ts`) al que
+  cualquier idioma sin catálogo cae a `es`, y `scripts/check-i18n-parity.mjs` compara `es` con
+  cada idioma **secundario** de `routing.ts` (con uno solo no compara nada y pasa). Una instancia
+  monolingüe edita **solo** `locales` en `frontend/src/i18n/routing.ts` y borra
+  `messages/en.json`; `tsconfig.json` (tipos), `next.config.mjs` (build) y `vitest.config.ts`
+  (tests) resuelven el catálogo ausente al español. Los tests del núcleo ven siempre los idiomas
+  del framework (`tests/stubs/i18n-routing.ts`, aliasado en Vitest) y las pocas aserciones que
+  comparan textos en inglés se omiten cuando ese catálogo no existe. Nuevo campo opcional
+  `timeZone` del `InstanceRegistry` (cadena IANA o mapa por idioma) para que `i18n/request.ts`
+  formatee fechas en la zona de la tienda; sin él, los valores de siempre. El CI gana el job
+  «Frontend (un solo idioma)»: copia el repo con `locales: ["es"]` y sin `en.json` y repite
+  lint, tipos, formato, paridad, tests con cobertura y build.
 - **Tope de canje de puntos en porcentaje (`loyalty`) y filtro `hwe_loyalty_max_redeemable`.**
   El nuevo ajuste público `loyalty.max_redeem_percent` (entero 0–100, `0` = sin tope, acotado al
   sanear) limita el descuento a ese porcentaje de la base **sin envío** (`items_total` +

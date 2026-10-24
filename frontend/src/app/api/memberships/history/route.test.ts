@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getSession } from "@/lib/auth/session";
+import { hasOwnCatalog } from "@/i18n/messages/catalogs";
 import { getMembershipHistory } from "@/lib/memberships/server";
 import { MembershipsReadError } from "@/lib/memberships/types";
 import { GET } from "./route";
@@ -66,7 +67,7 @@ describe("GET /api/memberships/history", () => {
     expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
 
-  it("en inglés compone el texto en inglés", async () => {
+  it.skipIf(!hasOwnCatalog("en"))("en inglés compone el texto en inglés", async () => {
     const res = await GET(request("", "en"));
     const json = await res.json();
 
