@@ -12,6 +12,11 @@ vi.mock("@/lib/graphql-client", () => ({
 vi.mock("@/lib/observability/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
+// El catálogo real consulta la config para elegir la variante con o sin el campo
+// del módulo `memberships`; aquí se fija apagado (la variante por defecto).
+vi.mock("@/lib/memberships/catalog-flag", () => ({
+  membershipsCatalogEnabled: vi.fn(async () => false),
+}));
 
 import {
   getCategories,

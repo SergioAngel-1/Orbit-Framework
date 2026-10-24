@@ -657,6 +657,59 @@
       "unknown": "Movimiento de fidelización"
     }
   },
+  "memberships": {
+    "benefits": {
+      "member_discount_all": "{percent}% de descuento en todo el catálogo",
+      "member_discount_categories": "{percent}% de descuento en las categorías participantes",
+      "member_discount": "Descuento de socio",
+      "early_access": "Acceso anticipado a los lanzamientos",
+      "activation_points": "Puntos extra al activar tu membresía: {points}",
+      "activation_points_plain": "Puntos extra al activar tu membresía",
+      "referral_bonus": "Comisión extra por referidos: {percent}%",
+      "referral_bonus_plain": "Comisión extra por referidos",
+      "referral_gift": "Regala hasta {max} membresías de {days} días",
+      "referral_gift_short": "Regala membresías a tus referidos",
+      "free_deliveries": "Envíos gratis incluidos: {count}",
+      "free_deliveries_short": "Envíos gratis incluidos",
+      "info_perk": "Ventaja de socio",
+      "unknown": "Ventaja de membresía"
+    },
+    "history": {
+      "activated": "Membresía activada",
+      "renewed": "Membresía renovada",
+      "upgraded": "Nivel de membresía mejorado",
+      "deferred": "Membresía programada",
+      "granted_by_admin": "Membresía concedida por la tienda",
+      "referral_gift_granted": "Membresía de regalo recibida",
+      "revoked": "Membresía revocada",
+      "removed_by_admin": "Membresía retirada por la tienda",
+      "expiring": "Tu membresía caduca en {duration}",
+      "expiring_soon": "Tu membresía está a punto de caducar",
+      "expired": "Membresía caducada",
+      "frozen": "Membresía congelada",
+      "unfrozen": "Membresía reactivada",
+      "points_skipped": "Sin puntos por esta compra",
+      "referral_gift_limit_reached": "No quedan regalos de membresía en este periodo",
+      "with_duration": "{text} durante {duration}",
+      "unknown": "Movimiento de membresía"
+    },
+    "durations": {
+      "days": "{days} días",
+      "one_day": "1 día",
+      "infinite": "Indefinida",
+      "undated": "Sin fecha"
+    },
+    "purchase": {
+      "login_required": "Inicia sesión para comprar este nivel.",
+      "one_per_cart": "Solo puedes comprar una membresía por pedido.",
+      "not_purchasable": "Este nivel no está disponible para la compra.",
+      "account_too_new": "Tu cuenta necesita {duration} más para acceder a este nivel.",
+      "account_too_new_plain": "Tu cuenta todavía es demasiado nueva para este nivel.",
+      "account_pending": "Tu cuenta todavía está pendiente de verificación.",
+      "already_indefinite": "Ya tienes una membresía indefinida que cubre este nivel.",
+      "unknown": "No puedes comprar este nivel ahora mismo."
+    }
+  },
   "llms": {
     "sections": {
       "pages": "Páginas principales",

@@ -4,9 +4,42 @@
 //  `Product` es una interfaz; los campos de precio/stock viven en los tipos
 //  concretos (SimpleProduct / VariableProduct), por eso usamos fragmentos
 //  inline. Otros tipos (grouped/external) devolverán esos campos como null.
+//
+//  El requisito de membresía (`hweMembership`) solo existe en el esquema con el
+//  módulo activo. Pedirlo con el módulo apagado haría fallar TODA la consulta,
+//  así que cada documento tiene dos variantes y el lector elige con
+//  `membershipsCatalogEnabled()`. Las constantes sin sufijo son la variante SIN
+//  el campo (la del framework por defecto).
 // ============================================================================
 
-const PRODUCT_CARD_FRAGMENT = /* GraphQL */ `
+/** Campos del requisito de membresía de un producto. */
+const PRODUCT_MEMBERSHIP_FIELDS = /* GraphQL */ `
+  hweMembership {
+    requiredLevel {
+      slug
+      rank
+      name
+    }
+    opensAt
+    locked
+  }
+`;
+
+/** Campos del requisito de membresía de una categoría. */
+const CATEGORY_MEMBERSHIP_FIELDS = /* GraphQL */ `
+  hweMembership {
+    requiredLevel {
+      slug
+      rank
+      name
+    }
+    opensAt
+    locked
+  }
+`;
+
+function productCardFragment(withMemberships: boolean): string {
+  return /* GraphQL */ `
   fragment ProductCard on Product {
     id
     databaseId
@@ -18,6 +51,7 @@ const PRODUCT_CARD_FRAGMENT = /* GraphQL */ `
       sourceUrl
       altText
     }
+    ${withMemberships ? PRODUCT_MEMBERSHIP_FIELDS : ""}
     ... on SimpleProduct {
       onSale
       price
@@ -36,6 +70,7 @@ const PRODUCT_CARD_FRAGMENT = /* GraphQL */ `
     }
   }
 `;
+}
 
 const REVIEWS_FRAGMENT = /* GraphQL */ `
   reviews(first: 10) {
@@ -61,69 +96,85 @@ const REVIEWS_FRAGMENT = /* GraphQL */ `
 // Tipos de WooGraphQL ≥ 1.0 (el 1.0 renombró `ProductStockStatusEnum` →
 // `StockStatusEnum` y `ProductsOrderbyEnum` → `ProductsOrderByEnum`, y los
 // precios del filtro son `Float`). Lo fija `tests/unit/woographql-contract.test.ts`.
-export const PRODUCTS_QUERY = /* GraphQL */ `
-  ${PRODUCT_CARD_FRAGMENT}
-  query Products(
-    $first: Int = 12
-    $after: String
-    $search: String
-    $category: String
-    $minPrice: Float
-    $maxPrice: Float
-    $stockStatus: [StockStatusEnum]
-    $orderbyField: ProductsOrderByEnum = DATE
-    $orderbyOrder: OrderEnum = DESC
-  ) {
-    products(
-      first: $first
-      after: $after
-      where: {
-        search: $search
-        category: $category
-        minPrice: $minPrice
-        maxPrice: $maxPrice
-        stockStatus: $stockStatus
-        status: "publish"
-        orderby: [{ field: $orderbyField, order: $orderbyOrder }]
-      }
+function productsQuery(withMemberships: boolean): string {
+  return /* GraphQL */ `
+    ${productCardFragment(withMemberships)}
+    query Products(
+      $first: Int = 12
+      $after: String
+      $search: String
+      $category: String
+      $minPrice: Float
+      $maxPrice: Float
+      $stockStatus: [StockStatusEnum]
+      $orderbyField: ProductsOrderByEnum = DATE
+      $orderbyOrder: OrderEnum = DESC
     ) {
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-      nodes {
-        ...ProductCard
+      products(
+        first: $first
+        after: $after
+        where: {
+          search: $search
+          category: $category
+          minPrice: $minPrice
+          maxPrice: $maxPrice
+          stockStatus: $stockStatus
+          status: "publish"
+          orderby: [{ field: $orderbyField, order: $orderbyOrder }]
+        }
+      ) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          ...ProductCard
+        }
       }
     }
-  }
-`;
+  `;
+}
+
+export const PRODUCTS_QUERY = productsQuery(false);
+export const PRODUCTS_QUERY_WITH_MEMBERSHIPS = productsQuery(true);
 
 /** Productos publicados por id (p. ej. los del ranking de más vendidos). */
-export const PRODUCTS_BY_IDS_QUERY = /* GraphQL */ `
-  ${PRODUCT_CARD_FRAGMENT}
-  query ProductsByIds($ids: [Int], $first: Int = 12) {
-    products(first: $first, where: { include: $ids, status: "publish" }) {
-      nodes {
-        ...ProductCard
+function productsByIdsQuery(withMemberships: boolean): string {
+  return /* GraphQL */ `
+    ${productCardFragment(withMemberships)}
+    query ProductsByIds($ids: [Int], $first: Int = 12) {
+      products(first: $first, where: { include: $ids, status: "publish" }) {
+        nodes {
+          ...ProductCard
+        }
       }
     }
-  }
-`;
+  `;
+}
+
+export const PRODUCTS_BY_IDS_QUERY = productsByIdsQuery(false);
+export const PRODUCTS_BY_IDS_QUERY_WITH_MEMBERSHIPS = productsByIdsQuery(true);
 
 /** Productos publicados por slug (los enlazados desde el cuerpo de una entrada). */
-export const PRODUCTS_BY_SLUGS_QUERY = /* GraphQL */ `
-  ${PRODUCT_CARD_FRAGMENT}
-  query ProductsBySlugs($slugs: [String], $first: Int = 12) {
-    products(first: $first, where: { slugIn: $slugs, status: "publish" }) {
-      nodes {
-        ...ProductCard
+function productsBySlugsQuery(withMemberships: boolean): string {
+  return /* GraphQL */ `
+    ${productCardFragment(withMemberships)}
+    query ProductsBySlugs($slugs: [String], $first: Int = 12) {
+      products(first: $first, where: { slugIn: $slugs, status: "publish" }) {
+        nodes {
+          ...ProductCard
+        }
       }
     }
-  }
-`;
+  `;
+}
 
-export const PRODUCT_BY_SLUG_QUERY = /* GraphQL */ `
-  ${PRODUCT_CARD_FRAGMENT}
+export const PRODUCTS_BY_SLUGS_QUERY = productsBySlugsQuery(false);
+export const PRODUCTS_BY_SLUGS_QUERY_WITH_MEMBERSHIPS = productsBySlugsQuery(true);
+
+function productBySlugQuery(withMemberships: boolean): string {
+  return /* GraphQL */ `
+  ${productCardFragment(withMemberships)}
   query ProductBySlug($slug: ID!, $locale: String) {
     product(id: $slug, idType: SLUG) {
       id databaseId name slug type
@@ -132,6 +183,7 @@ export const PRODUCT_BY_SLUG_QUERY = /* GraphQL */ `
       hweFields(locale: $locale) { key value }
       # @translation Product
       image { sourceUrl altText isReferenceImage }
+      ${withMemberships ? PRODUCT_MEMBERSHIP_FIELDS : ""}
       ... on SimpleProduct {
         onSale price regularPrice salePrice stockStatus
         shortDescription description
@@ -156,6 +208,10 @@ export const PRODUCT_BY_SLUG_QUERY = /* GraphQL */ `
     }
   }
 `;
+}
+
+export const PRODUCT_BY_SLUG_QUERY = productBySlugQuery(false);
+export const PRODUCT_BY_SLUG_QUERY_WITH_MEMBERSHIPS = productBySlugQuery(true);
 
 export const PRODUCT_SLUGS_QUERY = /* GraphQL */ `
   query ProductSlugs($first: Int = 100) {
@@ -169,8 +225,9 @@ export const PRODUCT_SLUGS_QUERY = /* GraphQL */ `
   }
 `;
 
-export const CATEGORY_BY_SLUG_QUERY = /* GraphQL */ `
-  ${PRODUCT_CARD_FRAGMENT}
+function categoryBySlugQuery(withMemberships: boolean): string {
+  return /* GraphQL */ `
+  ${productCardFragment(withMemberships)}
   query CategoryBySlug($slug: ID!, $first: Int = 12) {
     productCategory(id: $slug, idType: SLUG) {
       id
@@ -180,6 +237,7 @@ export const CATEGORY_BY_SLUG_QUERY = /* GraphQL */ `
       description
       seoTitle
       seoDescription
+      ${withMemberships ? CATEGORY_MEMBERSHIP_FIELDS : ""}
       # @translation ProductCategory
       products(first: $first) {
         nodes {
@@ -189,8 +247,13 @@ export const CATEGORY_BY_SLUG_QUERY = /* GraphQL */ `
     }
   }
 `;
+}
 
-export const CATEGORIES_QUERY = /* GraphQL */ `
+export const CATEGORY_BY_SLUG_QUERY = categoryBySlugQuery(false);
+export const CATEGORY_BY_SLUG_QUERY_WITH_MEMBERSHIPS = categoryBySlugQuery(true);
+
+function categoriesQuery(withMemberships: boolean): string {
+  return /* GraphQL */ `
   query Categories($first: Int = 50) {
     productCategories(first: $first, where: { hideEmpty: true }) {
       nodes {
@@ -199,8 +262,13 @@ export const CATEGORIES_QUERY = /* GraphQL */ `
         name
         slug
         count
+        ${withMemberships ? CATEGORY_MEMBERSHIP_FIELDS : ""}
         # @translation ProductCategory: name description slug
       }
     }
   }
 `;
+}
+
+export const CATEGORIES_QUERY = categoriesQuery(false);
+export const CATEGORIES_QUERY_WITH_MEMBERSHIPS = categoriesQuery(true);

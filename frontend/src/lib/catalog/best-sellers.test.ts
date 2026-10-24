@@ -4,6 +4,9 @@ const fetchGraphQL = vi.fn();
 vi.mock("@/lib/graphql-client", () => ({
   fetchGraphQL: (...a: unknown[]) => fetchGraphQL(...a),
 }));
+vi.mock("@/lib/memberships/catalog-flag", () => ({
+  membershipsCatalogEnabled: vi.fn(async () => false),
+}));
 
 import { getBestSellingProducts, parseBestSellerRanking } from "./best-sellers";
 

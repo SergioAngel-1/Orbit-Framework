@@ -1,4 +1,5 @@
 import type { ProductFieldValues } from "@/lib/instance/types";
+import type { MembershipRequirement } from "@/lib/memberships/types";
 // ============================================================================
 //  Tipos del catálogo (forma de WooGraphQL ya normalizada para la UI).
 // ============================================================================
@@ -32,6 +33,11 @@ export interface CatalogProduct {
    * el nativo (ver `lib/i18n/url-slug.ts`). Los enlaces lo usan vía `productHref`.
    */
   urlSlug?: string;
+  /**
+   * Requisito de acceso del módulo `memberships`. `null` con el módulo apagado,
+   * sin requisito o con una respuesta antigua que no trae el campo.
+   */
+  membership?: MembershipRequirement | null;
 }
 
 export interface ProductAttributeOption {
@@ -94,6 +100,8 @@ export interface ProductCategory {
   urlSlugs?: Record<string, string>;
   /** Idiomas del sitio en los que la categoría existe de verdad. */
   locales?: string[];
+  /** Requisito de acceso del módulo `memberships` (nunca bloquea la categoría). */
+  membership?: MembershipRequirement | null;
 }
 
 export interface PageInfo {

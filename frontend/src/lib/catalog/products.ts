@@ -10,14 +10,22 @@ import {
 import { localizedUrlSlug, urlSlugsByLocale } from "@/lib/i18n/url-slug";
 import { logger } from "@/lib/observability/logger";
 import { readProductFields, type RawProductField } from "@/lib/catalog/product-fields";
+import { membershipsCatalogEnabled } from "@/lib/memberships/catalog-flag";
+import { normalizeMembershipRequirement } from "@/lib/memberships/requirements";
 import {
   PRODUCTS_BY_IDS_QUERY,
+  PRODUCTS_BY_IDS_QUERY_WITH_MEMBERSHIPS,
   PRODUCTS_BY_SLUGS_QUERY,
+  PRODUCTS_BY_SLUGS_QUERY_WITH_MEMBERSHIPS,
   PRODUCTS_QUERY,
+  PRODUCTS_QUERY_WITH_MEMBERSHIPS,
   PRODUCT_BY_SLUG_QUERY,
+  PRODUCT_BY_SLUG_QUERY_WITH_MEMBERSHIPS,
   PRODUCT_SLUGS_QUERY,
   CATEGORY_BY_SLUG_QUERY,
+  CATEGORY_BY_SLUG_QUERY_WITH_MEMBERSHIPS,
   CATEGORIES_QUERY,
+  CATEGORIES_QUERY_WITH_MEMBERSHIPS,
 } from "@/lib/woocommerce/queries";
 import type {
   CatalogProduct,
@@ -83,6 +91,8 @@ interface RawProductNode {
   seoTitle?: string | null;
   seoDescription?: string | null;
   hweFields?: RawProductField[] | null;
+  /** Requisito del módulo `memberships`; el campo NO existe con el módulo apagado. */
+  hweMembership?: unknown;
 }
 
 /**
@@ -120,6 +130,7 @@ function normalize(rawNode: RawProductNode, locale: string): CatalogProduct {
           ...(node.image.isReferenceImage ? { isReference: true } : {}),
         }
       : null,
+    membership: normalizeMembershipRequirement(node.hweMembership),
   };
 }
 
@@ -169,12 +180,15 @@ export async function getProducts(
 ): Promise<ProductsPage> {
   const { orderbyField, orderbyOrder } = parseSortVariables(options.sort);
   const locale = options.locale ?? routing.defaultLocale;
+  const document = (await membershipsCatalogEnabled())
+    ? PRODUCTS_QUERY_WITH_MEMBERSHIPS
+    : PRODUCTS_QUERY;
   const data = await fetchLocalizedGraphQL<{
     products: {
       pageInfo: ProductsPage["pageInfo"];
       nodes: Localizable<RawProductNode>[];
     };
-  }>(PRODUCTS_QUERY, locale, {
+  }>(document, locale, {
     variables: {
       first: options.first ?? 12,
       after: options.after,
@@ -205,9 +219,12 @@ export async function getProductsByIds(
   locale: string = routing.defaultLocale,
 ): Promise<CatalogProduct[]> {
   if (ids.length === 0) return [];
+  const document = (await membershipsCatalogEnabled())
+    ? PRODUCTS_BY_IDS_QUERY_WITH_MEMBERSHIPS
+    : PRODUCTS_BY_IDS_QUERY;
   const data = await fetchLocalizedGraphQL<{
     products: { nodes: Localizable<RawProductNode>[] };
-  }>(PRODUCTS_BY_IDS_QUERY, locale, {
+  }>(document, locale, {
     variables: { ids: [...ids], first: ids.length },
     revalidate: CATALOG_REVALIDATE,
     tags: ["products"],
@@ -233,9 +250,12 @@ export async function getProductsBySlugs(
   locale: string = routing.defaultLocale,
 ): Promise<CatalogProduct[]> {
   if (slugs.length === 0) return [];
+  const document = (await membershipsCatalogEnabled())
+    ? PRODUCTS_BY_SLUGS_QUERY_WITH_MEMBERSHIPS
+    : PRODUCTS_BY_SLUGS_QUERY;
   const data = await fetchLocalizedGraphQL<{
     products?: { nodes: Localizable<RawProductNode>[] };
-  }>(PRODUCTS_BY_SLUGS_QUERY, locale, {
+  }>(document, locale, {
     variables: { slugs: [...slugs], first: slugs.length },
     revalidate: CATALOG_REVALIDATE,
     tags: ["products"],
@@ -264,9 +284,12 @@ export async function getProductBySlug(
 ): Promise<ProductDetail | null> {
   let data: { product: Localizable<RawProductNode> | null };
   try {
+    const document = (await membershipsCatalogEnabled())
+      ? PRODUCT_BY_SLUG_QUERY_WITH_MEMBERSHIPS
+      : PRODUCT_BY_SLUG_QUERY;
     data = await fetchLocalizedGraphQL<{
       product: Localizable<RawProductNode> | null;
-    }>(PRODUCT_BY_SLUG_QUERY, secondaryLocales(), {
+    }>(document, secondaryLocales(), {
       variables: { slug, locale },
       revalidate: CATALOG_REVALIDATE,
       tags: ["products"],
@@ -367,13 +390,17 @@ export async function getCategory(
   slug: string,
   locale: string = routing.defaultLocale,
 ): Promise<{ category: ProductCategory; products: CatalogProduct[] } | null> {
+  const document = (await membershipsCatalogEnabled())
+    ? CATEGORY_BY_SLUG_QUERY_WITH_MEMBERSHIPS
+    : CATEGORY_BY_SLUG_QUERY;
   const data = await fetchLocalizedGraphQL<{
     productCategory:
       | (Localizable<ProductCategory> & {
+          hweMembership?: unknown;
           products: { nodes: Localizable<RawProductNode>[] };
         })
       | null;
-  }>(CATEGORY_BY_SLUG_QUERY, secondaryLocales(), {
+  }>(document, secondaryLocales(), {
     variables: { slug, first: 24 },
     revalidate: CATALOG_REVALIDATE,
     tags: ["products"],
@@ -394,6 +421,7 @@ export async function getCategory(
       urlSlug: localizedUrlSlug(cat, locale),
       urlSlugs: urlSlugsByLocale(cat),
       locales: translatedLocales(cat, "name"),
+      membership: normalizeMembershipRequirement(cat.hweMembership),
     },
     products: cat.products.nodes.map((node) => normalize(node, locale)),
   };
@@ -409,11 +437,16 @@ export async function getCategories(
   options: { allLocales?: boolean } = {},
 ): Promise<ProductCategory[]> {
   try {
+    const document = (await membershipsCatalogEnabled())
+      ? CATEGORIES_QUERY_WITH_MEMBERSHIPS
+      : CATEGORIES_QUERY;
     const data = await fetchLocalizedGraphQL<{
       productCategories: {
-        nodes: Localizable<ProductCategory & { count: number }>[];
+        nodes: Localizable<
+          ProductCategory & { count: number; hweMembership?: unknown }
+        >[];
       };
-    }>(CATEGORIES_QUERY, options.allLocales ? secondaryLocales() : locale, {
+    }>(document, options.allLocales ? secondaryLocales() : locale, {
       variables: { first: 50 },
       revalidate: CATALOG_REVALIDATE,
       tags: ["products"],
@@ -425,6 +458,7 @@ export async function getCategories(
       slug: c.slug,
       description: pickTranslated(c, "description", locale),
       urlSlug: localizedUrlSlug(c, locale),
+      membership: normalizeMembershipRequirement(c.hweMembership),
       ...(options.allLocales
         ? { urlSlugs: urlSlugsByLocale(c), locales: translatedLocales(c, "name") }
         : {}),

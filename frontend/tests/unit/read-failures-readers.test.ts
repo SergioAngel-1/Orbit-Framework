@@ -14,6 +14,9 @@ const wpFetch = vi.fn();
 vi.mock("@/lib/wordpress/internal-fetch", () => ({
   wpFetch: (...a: unknown[]) => wpFetch(...a),
 }));
+vi.mock("@/lib/memberships/catalog-flag", () => ({
+  membershipsCatalogEnabled: vi.fn(async () => false),
+}));
 const logger = vi.hoisted(() => ({ warn: vi.fn(), error: vi.fn(), info: vi.fn() }));
 vi.mock("@/lib/observability/logger", () => ({ logger }));
 
