@@ -59,6 +59,7 @@ final class HWE_Memberships_Benefits {
 	private static function coreClasses(): array {
 		return array(
 			HWE_Memberships_Benefit_Info_Perk::class,
+			HWE_Memberships_Benefit_Early_Access::class,
 		);
 	}
 

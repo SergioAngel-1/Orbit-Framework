@@ -148,7 +148,40 @@ final class HWE_Memberships_Products {
 		echo '<input type="number" min="0" step="1" id="hwe_membership_days" name="hwe_membership_days" value="' . esc_attr( (string) $days ) . '" class="short">';
 		echo '<span class="description">' . esc_html__( '0 = indefinida. El producto se guarda siempre como simple y virtual.', 'hwe' ) . '</span></p>';
 
-		echo '</div></div>';
+		echo '</div>';
+
+		self::renderRequirementFields( $productId );
+
+		echo '</div>';
+	}
+
+	/**
+	 * Campos del requisito de acceso, para CUALQUIER producto (no solo los de membresía). No hay
+	 * niveles predefinidos: el rango se escribe a mano y 0 significa público.
+	 */
+	private static function renderRequirementFields( int $productId ): void {
+		$opensKey = class_exists( 'HWE_Memberships_Access' )
+			? HWE_Memberships_Access::OPENS_AT_META
+			: '_hwe_membership_opens_at';
+		$minRank  = class_exists( 'HWE_Memberships_Access' )
+			? HWE_Memberships_Access::productMinRank( $productId )
+			: 0;
+		$opensAt  = function_exists( 'get_post_meta' )
+			? (string) get_post_meta( $productId, $opensKey, true )
+			: '';
+		$local    = class_exists( 'HWE_Memberships_Access' )
+			? HWE_Memberships_Access::localInput( $opensAt )
+			: '';
+
+		echo '<div class="options_group">';
+		echo '<p class="form-field"><label for="hwe_membership_min_rank"><strong>' . esc_html__( 'Rango mínimo de membresía', 'hwe' ) . '</strong></label>';
+		echo '<input type="number" min="0" step="1" id="hwe_membership_min_rank" name="hwe_membership_min_rank" value="' . esc_attr( (string) $minRank ) . '" class="short">';
+		echo '<span class="description"> ' . esc_html__( '0 = producto público. El requisito efectivo es el mayor entre este y el de sus categorías.', 'hwe' ) . '</span></p>';
+
+		echo '<p class="form-field"><label for="hwe_membership_opens_at"><strong>' . esc_html__( 'Apertura al público', 'hwe' ) . '</strong></label>';
+		echo '<input type="datetime-local" id="hwe_membership_opens_at" name="hwe_membership_opens_at" value="' . esc_attr( $local ) . '">';
+		echo '<span class="description"> ' . esc_html__( 'Opcional. Antes de esta fecha solo lo ven y lo compran los niveles con acceso anticipado; vacío = sin fecha.', 'hwe' ) . '</span></p>';
+		echo '</div>';
 	}
 
 	// ------------------------------------------------------------------------
@@ -169,6 +202,10 @@ final class HWE_Memberships_Products {
 		if ( $productId <= 0 ) {
 			return;
 		}
+
+		// El requisito de acceso es independiente del vínculo con un nivel: cualquier producto
+		// puede tenerlo y se guarda aunque la pestaña no traiga un nivel de membresía.
+		self::saveRequirement( $product );
 
 		// Edición rápida, importaciones y guardados parciales no tocan el vínculo.
 		if ( ! isset( $_POST['hwe_membership_level'] ) ) {
@@ -211,6 +248,53 @@ final class HWE_Memberships_Products {
 				$product->set_status( 'draft' );
 			}
 			self::notice( 'El nivel «' . (string) ( $level['name'] ?? '' ) . '» no está a la venta: el producto queda en borrador hasta que se pueda comprar.' );
+		}
+	}
+
+	/**
+	 * Guarda el rango mínimo y la fecha de apertura del producto. Solo actúa si el formulario
+	 * trae alguno de los dos campos: las ediciones rápidas y las importaciones no los tocan.
+	 *
+	 * @param mixed $product
+	 */
+	private static function saveRequirement( $product ): void {
+		if ( ! class_exists( 'HWE_Memberships_Access' ) ) {
+			return;
+		}
+		if ( ! array_key_exists( 'hwe_membership_min_rank', $_POST ) && ! array_key_exists( 'hwe_membership_opens_at', $_POST ) ) {
+			return;
+		}
+
+		if ( array_key_exists( 'hwe_membership_min_rank', $_POST ) ) {
+			$raw  = is_scalar( $_POST['hwe_membership_min_rank'] )
+				? sanitize_text_field( wp_unslash( (string) $_POST['hwe_membership_min_rank'] ) )
+				: '';
+			$rank = is_numeric( $raw ) ? max( 0, (int) floor( (float) $raw ) ) : 0;
+			if ( '' !== $raw && ! is_numeric( $raw ) ) {
+				self::notice( 'El rango mínimo no es numérico: se guardó como público.' );
+			}
+
+			if ( $rank > 0 ) {
+				$product->update_meta_data( HWE_Memberships_Access::MIN_RANK_META, $rank );
+			} else {
+				$product->delete_meta_data( HWE_Memberships_Access::MIN_RANK_META );
+			}
+		}
+
+		if ( array_key_exists( 'hwe_membership_opens_at', $_POST ) ) {
+			$raw = is_scalar( $_POST['hwe_membership_opens_at'] )
+				? sanitize_text_field( wp_unslash( (string) $_POST['hwe_membership_opens_at'] ) )
+				: '';
+			$utc = HWE_Memberships_Access::sanitizeOpensAt( $raw );
+
+			if ( '' !== $utc ) {
+				$product->update_meta_data( HWE_Memberships_Access::OPENS_AT_META, $utc );
+			} else {
+				$product->delete_meta_data( HWE_Memberships_Access::OPENS_AT_META );
+				if ( '' !== $raw ) {
+					self::notice( 'La fecha de apertura no es válida: se retiró la fecha anterior del producto.' );
+				}
+			}
 		}
 	}
 
