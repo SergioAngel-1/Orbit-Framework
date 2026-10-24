@@ -24,11 +24,11 @@
  * devuelven vacío y las rutas del BFF responden 404. La puerta la calcula el núcleo con
  * `config.modules.memberships`, que refleja si este plugin está activo.
  *
- * Estado: arranque, ajustes, esquema de datos, niveles editables, el servicio transaccional de
- * concesiones (alta, renovación, mejora, revocación, retirada, congelación y descongelación) con
- * su historial y sus hooks, los productos de membresía y su compra con activación al cobrar. Las
- * rutas internas, la extensión de la Store API y la UI del frontend llegan en entregas
- * posteriores; README.md y MANUAL.md se completan con ellas.
+ * Estado: arranque, ajustes, esquema de datos, niveles editables, la tarea diaria que materializa las transiciones, el
+ * servicio transaccional de concesiones (alta, renovación, mejora, revocación, retirada,
+ * congelación y descongelación) con su historial y sus hooks, los productos de membresía y su
+ * compra con activación al cobrar. Las rutas internas, la extensión de la Store API y la UI del
+ * frontend llegan en entregas posteriores; README.md y MANUAL.md se completan con ellas.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -45,6 +45,7 @@ require_once __DIR__ . '/includes/Timeline.php';
 require_once __DIR__ . '/includes/Events.php';
 require_once __DIR__ . '/includes/Members.php';
 require_once __DIR__ . '/includes/Grants.php';
+require_once __DIR__ . '/includes/Scheduler.php';
 require_once __DIR__ . '/includes/Products.php';
 require_once __DIR__ . '/includes/Purchase.php';
 require_once __DIR__ . '/includes/Privacy.php';
@@ -65,6 +66,7 @@ final class HWE_Memberships {
 		HWE_Memberships_Settings::register();
 		HWE_Memberships_Schema::register();
 		HWE_Memberships_Levels::register();
+		HWE_Memberships_Scheduler::register();
 		HWE_Memberships_Products::register();
 		HWE_Memberships_Purchase::register();
 		HWE_Memberships_Privacy::register();
@@ -83,8 +85,14 @@ final class HWE_Memberships {
 
 add_action( 'plugins_loaded', array( 'HWE_Memberships', 'boot' ), 20 );
 
-// La activación crea o repara las tablas. La instalación perezosa de `init` cubre el resto de
-// los casos (actualización del plugin, tabla borrada a mano) sin depender de la activación.
+// La activación crea o repara las tablas y programa la tarea diaria. La instalación perezosa de
+// `init` cubre el resto de los casos (actualización del plugin, tabla borrada a mano) sin
+// depender de la activación; el planificador también se autorrepara en `init`. Al desactivar se
+// retiran el evento diario y su posible continuación.
 if ( function_exists( 'register_activation_hook' ) ) {
 	register_activation_hook( __FILE__, array( 'HWE_Memberships_Schema', 'install' ) );
+	register_activation_hook( __FILE__, array( 'HWE_Memberships_Scheduler', 'schedule' ) );
+}
+if ( function_exists( 'register_deactivation_hook' ) ) {
+	register_deactivation_hook( __FILE__, array( 'HWE_Memberships_Scheduler', 'unschedule' ) );
 }

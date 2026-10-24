@@ -884,6 +884,174 @@ final class GrantsTest extends TestCase
         $this->assertGreaterThan($commit, $action, 'El hook de caducidad se dispara tras el COMMIT.');
     }
 
+    // ── Tarea diaria ────────────────────────────────────────────────────────
+
+    public function testDueUserIdsFindsCandidatesByDateWithoutRepeatingUsers(): void
+    {
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'idempotency_key' => 'due:1',
+            'status'          => 'scheduled',
+            'starts_at'       => $this->day(-1),
+            'ends_at'         => $this->day(29),
+        ]);
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'idempotency_key' => 'due:2',
+            'status'          => 'active',
+            'starts_at'       => $this->day(-10),
+            'ends_at'         => $this->day(-1),
+        ]);
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::OTHER,
+            'idempotency_key' => 'due:3',
+            'status'          => 'active',
+            'starts_at'       => $this->day(-10),
+            'ends_at'         => $this->day(-1),
+        ]);
+
+        $now = $this->at($this->day(0));
+
+        $this->assertSame([self::USER, self::OTHER], \HWE_Memberships_Grants::dueUserIds(10, $now));
+        $this->assertSame([self::USER], \HWE_Memberships_Grants::dueUserIds(1, $now), 'El límite corta la lista.');
+    }
+
+    public function testDueUserIdsUsesAUnionOfIndexedSubqueriesOrderedByOldestDueDate(): void
+    {
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'idempotency_key' => 'union:oldest',
+            'status'          => 'active',
+            'starts_at'       => $this->day(-20),
+            'ends_at'         => $this->day(-5),
+        ]);
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::OTHER,
+            'idempotency_key' => 'union:newer',
+            'status'          => 'scheduled',
+            'starts_at'       => $this->day(-3),
+            'ends_at'         => $this->day(27),
+        ]);
+
+        $now = $this->at($this->day(0));
+
+        $this->assertSame(
+            [self::USER, self::OTHER],
+            \HWE_Memberships_Grants::dueUserIds(10, $now, 7),
+            'El vencimiento más antiguo va primero, no el user_id.'
+        );
+
+        $queries = array_values(array_filter(
+            $this->wpdb()->queries,
+            static fn (string $query): bool => str_contains($query, 'UNION')
+        ));
+        $this->assertNotEmpty($queries);
+        $sql = (string) end($queries);
+
+        $this->assertStringContainsString('UNION', $sql);
+        $this->assertStringContainsString('MIN(g.starts_at)', $sql);
+        $this->assertStringContainsString('MIN(g.ends_at)', $sql);
+        $this->assertStringContainsString('GROUP BY g.user_id', $sql);
+        $this->assertStringContainsString('GROUP BY d.user_id', $sql);
+        $this->assertStringContainsString('ORDER BY MIN(d.due_at)', $sql);
+        $this->assertGreaterThanOrEqual(4, substr_count($sql, 'LIMIT'), 'Cada subconsulta y el resultado tienen su LIMIT.');
+        $this->assertStringNotContainsString(') OR (', $sql, 'Las condiciones por fecha no se mezclan en un OR.');
+    }
+
+    public function testDueUserIdsDoesNotLetOneUserWithManyGrantsCrowdOutOthers(): void
+    {
+        foreach ([5, 4, 3] as $offset) {
+            $this->wpdb()->seedGrant([
+                'user_id'         => self::USER,
+                'idempotency_key' => 'many:' . $offset,
+                'status'          => 'active',
+                'starts_at'       => $this->day(-40),
+                'ends_at'         => $this->day(-$offset),
+            ]);
+        }
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::OTHER,
+            'idempotency_key' => 'many:other',
+            'status'          => 'active',
+            'starts_at'       => $this->day(-40),
+            'ends_at'         => $this->day(-1),
+        ]);
+
+        $this->assertSame(
+            [self::USER, self::OTHER],
+            \HWE_Memberships_Grants::dueUserIds(2, $this->at($this->day(0))),
+            'Un socio con muchas concesiones ocupa un solo puesto del lote.'
+        );
+    }
+
+    public function testDueUserIdsSkipsFrozenMembersAndHonorsTheNoticeWindow(): void
+    {
+        $this->wpdb()->seedMember(self::OTHER, ['frozen_at' => $this->day(-1)]);
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::OTHER,
+            'idempotency_key' => 'frozen:due',
+            'status'          => 'active',
+            'starts_at'       => $this->day(-40),
+            'ends_at'         => $this->day(-1),
+        ]);
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'idempotency_key' => 'notice:due',
+            'status'          => 'active',
+            'starts_at'       => $this->day(-1),
+            'ends_at'         => $this->day(3),
+        ]);
+
+        $now = $this->at($this->day(0));
+
+        $this->assertSame([], \HWE_Memberships_Grants::dueUserIds(10, $now, 0), 'Sin días de aviso no hay candidato.');
+        $this->assertSame(
+            [self::USER],
+            \HWE_Memberships_Grants::dueUserIds(10, $now, 7),
+            'El aviso solo mira activas dentro de la ventana y nunca a un congelado.'
+        );
+    }
+
+    public function testMaterializeActivatesAScheduledGrantOnlyOnce(): void
+    {
+        $this->wpdb()->seedMember(self::USER);
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'idempotency_key' => 'materialize:once',
+            'level_id'        => self::LEVEL,
+            'status'          => 'scheduled',
+            'starts_at'       => $this->day(-1),
+            'ends_at'         => $this->day(29),
+        ]);
+
+        $now = $this->at($this->day(0));
+
+        $this->assertSame(1, \HWE_Memberships_Grants::materialize(self::USER, $now));
+        $this->assertSame('active', $this->wpdb()->grantByKey('materialize:once')['status']);
+        $this->assertSame(self::LEVEL, (int) $this->wpdb()->members[self::USER]['level_id']);
+        $this->assertSame(0, \HWE_Memberships_Grants::materialize(self::USER, $now), 'La segunda pasada no repite.');
+        $this->assertSame(['activated'], $this->wpdb()->eventTypes());
+    }
+
+    public function testMaterializeReturnsMinusOneWhenAWriteFails(): void
+    {
+        $this->wpdb()->seedMember(self::USER);
+        $this->wpdb()->seedGrant([
+            'user_id'         => self::USER,
+            'idempotency_key' => 'materialize:fail',
+            'level_id'        => self::LEVEL,
+            'status'          => 'scheduled',
+            'starts_at'       => $this->day(-1),
+            'ends_at'         => $this->day(29),
+        ]);
+        $this->wpdb()->failGrantUpdatesForUsers = [self::USER];
+
+        $this->assertSame(-1, \HWE_Memberships_Grants::materialize(self::USER, $this->at($this->day(0))));
+        $this->assertSame('scheduled', $this->wpdb()->grantByKey('materialize:fail')['status']);
+        $this->assertNotEmpty($this->logged);
+        $this->assertStringContainsString('[hwe] memberships:', $this->logged[0]);
+    }
+
     // ── Número de socio y datos ─────────────────────────────────────────────
 
     public function testMemberNumberIsUniqueStableAndNotTheUserId(): void

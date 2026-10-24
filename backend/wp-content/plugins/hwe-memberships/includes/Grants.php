@@ -758,14 +758,333 @@ final class HWE_Memberships_Grants {
 				'actor'           => (string) ( $row->actor ?? 'system' ),
 				'actor_id'        => null === ( $row->actor_id ?? null ) ? null : (int) $row->actor_id,
 				'note'            => null === ( $row->note ?? null ) ? null : (string) $row->note,
-				'data'            => $row->data ?? null,
-				'frozen_seconds'  => (int) ( $row->frozen_seconds ?? 0 ),
-				'created_at'      => self::date( $row->created_at ?? null ),
-				'revoked_at'      => $row->revoked_at ?? null,
+				'data'               => $row->data ?? null,
+				'frozen_seconds'     => (int) ( $row->frozen_seconds ?? 0 ),
+				'expiry_notified_at' => self::date( $row->expiry_notified_at ?? null ),
+				'created_at'         => self::date( $row->created_at ?? null ),
+				'revoked_at'         => $row->revoked_at ?? null,
 			);
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Usuarios con trabajo pendiente para la tarea diaria: programadas cuyo inicio llegó,
+	 * activas cuyo fin llegó y, si hay días de aviso, activas que terminan dentro de esa
+	 * ventana y todavía no lo han notificado. Se excluyen los congelados (su reloj no corre).
+	 *
+	 * La consulta es un UNION de subconsultas, cada una con su propio LIMIT y su rango sobre
+	 * `status_starts` / `status_ends`; cada subconsulta agrupa por usuario (un socio con muchas
+	 * concesiones ocupa un solo puesto) y el GROUP BY exterior deduplica y ordena por el
+	 * vencimiento más antiguo. Así no se mezclan en un OR condiciones de columnas distintas y
+	 * un socio con la fecha más vieja no queda detrás de los `user_id` bajos.
+	 *
+	 * @return list<int>
+	 */
+	public static function dueUserIds( int $limit, DateTimeImmutable $now, int $noticeDays = 0 ): array {
+		global $wpdb;
+
+		if ( ! isset( $wpdb ) || ! is_object( $wpdb ) ) {
+			return array();
+		}
+
+		$nowSql = self::sqlDate( $now );
+		if ( null === $nowSql ) {
+			return array();
+		}
+
+		$limit      = max( 1, $limit );
+		$noticeDays = max( 0, $noticeDays );
+
+		$grantsTable  = HWE_Memberships_Schema::grantsTable();
+		$membersTable = HWE_Memberships_Schema::membersTable();
+		$from         = ' FROM ' . $grantsTable . ' g'
+			. ' LEFT JOIN ' . $membersTable . ' m ON m.user_id = g.user_id';
+		$notFrozen    = ' AND m.frozen_at IS NULL';
+
+		$subqueries = array();
+		$args       = array();
+
+		$subqueries[] = '(SELECT g.user_id AS user_id, MIN(g.starts_at) AS due_at'
+			. $from
+			. " WHERE g.status = 'scheduled' AND g.starts_at IS NOT NULL AND g.starts_at <= %s"
+			. $notFrozen
+			. ' GROUP BY g.user_id'
+			. ' ORDER BY MIN(g.starts_at) ASC, g.user_id ASC LIMIT %d)';
+		$args[]       = $nowSql;
+		$args[]       = $limit;
+
+		$subqueries[] = '(SELECT g.user_id AS user_id, MIN(g.ends_at) AS due_at'
+			. $from
+			. " WHERE g.status = 'active' AND g.ends_at IS NOT NULL AND g.ends_at <= %s"
+			. $notFrozen
+			. ' GROUP BY g.user_id'
+			. ' ORDER BY MIN(g.ends_at) ASC, g.user_id ASC LIMIT %d)';
+		$args[]       = $nowSql;
+		$args[]       = $limit;
+
+		if ( $noticeDays > 0 ) {
+			$deadline = self::sqlDate( $now->modify( '+' . $noticeDays . ' days' ) );
+			if ( null !== $deadline ) {
+				$subqueries[] = '(SELECT g.user_id AS user_id, MIN(g.ends_at) AS due_at'
+					. $from
+					. " WHERE g.status = 'active' AND g.expiry_notified_at IS NULL"
+					. ' AND g.ends_at IS NOT NULL AND g.ends_at > %s AND g.ends_at <= %s'
+					. $notFrozen
+					. ' GROUP BY g.user_id'
+					. ' ORDER BY MIN(g.ends_at) ASC, g.user_id ASC LIMIT %d)';
+				$args[]       = $nowSql;
+				$args[]       = $deadline;
+				$args[]       = $limit;
+			}
+		}
+
+		$args[] = $limit;
+
+		$sql = 'SELECT d.user_id FROM (' . implode( ' UNION ', $subqueries ) . ') d'
+			. ' GROUP BY d.user_id'
+			. ' ORDER BY MIN(d.due_at) ASC, d.user_id ASC'
+			. ' LIMIT %d';
+
+		$ids = $wpdb->get_col( $wpdb->prepare( $sql, $args ) );
+		if (
+			! is_array( $ids )
+			|| ( isset( $wpdb->last_error ) && '' !== (string) $wpdb->last_error )
+		) {
+			self::log( 'no se pudieron leer los candidatos de la tarea diaria.' );
+			return array();
+		}
+
+		return array_values(
+			array_filter(
+				array_map( 'intval', $ids ),
+				static function ( int $id ): bool {
+					return $id > 0;
+				}
+			)
+		);
+	}
+
+	/**
+	 * Materializa las transiciones pendientes de un usuario en una transacción con su fila
+	 * bloqueada: activa las programadas cuyo inicio llegó, termina las vencidas, actualiza la
+	 * caché de `members`, revoca los tokens del carné si se queda sin nivel, escribe el
+	 * historial y encola los hooks (se disparan tras el COMMIT). También marca el aviso de
+	 * caducidad de las concesiones que terminan dentro de `$noticeDays` (0 = sin aviso).
+	 *
+	 * Es idempotente: una segunda pasada no encuentra las transiciones ya materializadas. Si el
+	 * socio está congelado no toca nada (el reloj está detenido).
+	 *
+	 * @return int transiciones materializadas (activaciones + caducidades); los avisos no
+	 *             cuentan. Devuelve `-1` si la operación falla (el fallo ya queda registrado);
+	 *             `0` si no había nada que materializar o el socio estaba congelado.
+	 */
+	public static function materialize( int $userId, DateTimeImmutable $now, int $noticeDays = 0 ): int {
+		global $wpdb;
+
+		self::clearQueue();
+
+		if ( $userId <= 0 ) {
+			return 0;
+		}
+
+		$now    = $now->setTimezone( new DateTimeZone( 'UTC' ) );
+		$nowSql = self::sqlDate( $now );
+		if ( null === $nowSql ) {
+			return 0;
+		}
+
+		$noticeDays = max( 0, $noticeDays );
+
+		if ( ! self::begin() ) {
+			self::log( 'no se pudo abrir la transacción de la tarea diaria del usuario ' . $userId . '.' );
+			return -1;
+		}
+		if ( ! self::ensureMemberRow( $userId, $nowSql ) ) {
+			self::fail( 'no se pudo preparar la fila del socio ' . $userId . ' para la tarea diaria.' );
+			return -1;
+		}
+		$member = self::lockMember( $userId );
+		if ( null === $member ) {
+			self::fail( 'no se pudo bloquear la fila del socio ' . $userId . ' para la tarea diaria.' );
+			return -1;
+		}
+
+		if ( null !== self::date( $member?->frozen_at ?? null ) ) {
+			// Congelado: nada caduca y el reloj de sus concesiones está detenido.
+			self::rollback();
+			return 0;
+		}
+
+		$before = self::forUser( $userId, true );
+		if ( isset( $wpdb ) && is_object( $wpdb ) && '' !== (string) ( $wpdb->last_error ?? '' ) ) {
+			self::fail( 'no se pudieron leer las concesiones del usuario ' . $userId . ' en la tarea diaria.' );
+			return -1;
+		}
+		if ( array() === $before ) {
+			self::rollback();
+			return 0;
+		}
+
+		$grants      = $before;
+		$transitions = array();
+
+		foreach ( $grants as $index => $grant ) {
+			$status = (string) ( $grant['status'] ?? '' );
+			$start  = $grant['starts_at'] ?? null;
+			$end    = $grant['ends_at'] ?? null;
+
+			if ( 'scheduled' === $status && $start instanceof DateTimeImmutable && $start <= $now ) {
+				if ( $end instanceof DateTimeImmutable && $end <= $now ) {
+					// La tarea estuvo parada más que la propia concesión: se cierra sin anunciar
+					// una activación que el cliente ya no puede usar.
+					$grants[ $index ]['status'] = 'ended';
+					$transitions[]              = array(
+						'type'  => HWE_Memberships_Events::EXPIRED,
+						'index' => $index,
+						'at'    => $end,
+					);
+				} else {
+					$grants[ $index ]['status'] = 'active';
+					$transitions[]              = array(
+						'type'  => HWE_Memberships_Events::ACTIVATED,
+						'index' => $index,
+						'at'    => $start,
+					);
+				}
+				continue;
+			}
+
+			if ( 'active' === $status && $end instanceof DateTimeImmutable && $end <= $now ) {
+				$grants[ $index ]['status'] = 'ended';
+				$transitions[]              = array(
+					'type'  => HWE_Memberships_Events::EXPIRED,
+					'index' => $index,
+					'at'    => $end,
+				);
+			}
+		}
+
+		$notices = array();
+		if ( $noticeDays > 0 ) {
+			$deadline = $now->modify( '+' . $noticeDays . ' days' );
+			foreach ( $grants as $index => $grant ) {
+				if ( 'active' !== (string) ( $grant['status'] ?? '' ) ) {
+					continue;
+				}
+				$end = $grant['ends_at'] ?? null;
+				if ( ! $end instanceof DateTimeImmutable || $end <= $now || $end > $deadline ) {
+					continue;
+				}
+				if ( null !== ( $grant['expiry_notified_at'] ?? null ) ) {
+					continue;
+				}
+				$grants[ $index ]['expiry_notified_at'] = $now;
+				$notices[]                              = $index;
+			}
+		}
+
+		if ( array() === $transitions && array() === $notices ) {
+			self::rollback();
+			return 0;
+		}
+
+		// Las caducidades van antes que las activaciones del mismo instante: primero termina
+		// lo que cubría y después empieza lo que estaba esperando.
+		usort(
+			$transitions,
+			static function ( array $a, array $b ): int {
+				$byTime = $a['at']->getTimestamp() <=> $b['at']->getTimestamp();
+				if ( 0 !== $byTime ) {
+					return $byTime;
+				}
+				$order = array(
+					HWE_Memberships_Events::EXPIRED   => 0,
+					HWE_Memberships_Events::ACTIVATED => 1,
+				);
+				$byType = ( $order[ $a['type'] ] ?? 9 ) <=> ( $order[ $b['type'] ] ?? 9 );
+				return 0 !== $byType ? $byType : $a['index'] <=> $b['index'];
+			}
+		);
+
+		if ( ! self::persistChanged( $before, $grants, $nowSql ) ) {
+			self::fail( 'no se pudieron materializar las transiciones del usuario ' . $userId . '.' );
+			return -1;
+		}
+
+		$after       = self::stateOf( $grants, $now );
+		$oldLevel    = (int) ( $member?->level_id ?? 0 );
+		$newLevel    = (int) ( $after['level_id'] ?? 0 );
+		$beforeState = self::stateOf( $before, $now );
+		$hadLevel    = $oldLevel > 0 || (int) ( $beforeState['level_id'] ?? 0 ) > 0;
+
+		if ( array() !== $transitions ) {
+			if ( ! self::cacheMember( $userId, $after, $nowSql ) ) {
+				self::fail( 'no se pudo actualizar la caché del socio ' . $userId . ' en la tarea diaria.' );
+				return -1;
+			}
+			if ( $hadLevel && $newLevel <= 0 ) {
+				if ( ! self::revokeTokens( $userId, $nowSql ) ) {
+					self::fail( 'no se pudieron revocar los tokens del carné del usuario ' . $userId . ' al caducar su membresía.' );
+					return -1;
+				}
+			}
+		}
+
+		// El nivel «anterior» es la caché materializada y el «nuevo» el estado final. Solo la
+		// primera transición lleva el par completo: una cadena de caducidad + activación del
+		// mismo instante dispara `level_changed` una sola vez.
+		$first = true;
+		foreach ( $transitions as $transition ) {
+			$grant = $grants[ $transition['index'] ];
+			$from  = $first ? $oldLevel : (int) $grant['level_id'];
+			$to    = $first ? $newLevel : (int) $grant['level_id'];
+			$first = false;
+
+			$eventId = self::recordEvent(
+				$userId,
+				(int) $grant['id'],
+				(string) $transition['type'],
+				$from,
+				$to,
+				'system',
+				null,
+				array(
+					'key'       => (string) $grant['key'],
+					'level_id'  => (int) $grant['level_id'],
+					'starts_at' => self::sqlDate( $grant['starts_at'] ?? null ),
+					'ends_at'   => self::sqlDate( $grant['ends_at'] ?? null ),
+					'reason'    => 'daily',
+				),
+				$nowSql,
+				(int) $grant['level_id']
+			);
+			if ( null === $eventId ) {
+				self::fail( 'no se pudo registrar la transición del usuario ' . $userId . ' en el historial.' );
+				return -1;
+			}
+		}
+
+		foreach ( $notices as $index ) {
+			$grant = $grants[ $index ];
+			if ( class_exists( 'HWE_Memberships_Events' ) ) {
+				HWE_Memberships_Events::queue(
+					HWE_Memberships_Events::HOOK_EXPIRING,
+					array( $userId, (int) $grant['id'], (int) $grant['level_id'], $noticeDays )
+				);
+			}
+		}
+
+		if ( ! self::commit() ) {
+			self::clearQueue();
+			self::rollback();
+			self::log( 'no se pudo confirmar la tarea diaria del usuario ' . $userId . '.' );
+			return -1;
+		}
+
+		self::flush();
+		return count( $transitions );
 	}
 
 	// ------------------------------------------------------------------------
@@ -851,6 +1170,9 @@ final class HWE_Memberships_Grants {
 			}
 			if ( (int) ( $old['frozen_seconds'] ?? 0 ) !== (int) ( $new['frozen_seconds'] ?? 0 ) ) {
 				$data['frozen_seconds'] = (int) ( $new['frozen_seconds'] ?? 0 );
+			}
+			if ( self::dateKey( $old['expiry_notified_at'] ?? null ) !== self::dateKey( $new['expiry_notified_at'] ?? null ) ) {
+				$data['expiry_notified_at'] = self::sqlDate( $new['expiry_notified_at'] ?? null );
 			}
 
 			if ( array() === $data ) {

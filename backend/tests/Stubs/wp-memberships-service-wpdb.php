@@ -40,6 +40,8 @@ final class TestMembershipsServiceWpdb
     public string $failQueryNeedle = '';
     public string $failInsertSuffix = '';
     public string $failUpdateSuffix = '';
+    /** @var list<int> Usuarios cuyas concesiones no se pueden actualizar (fallo simulado). */
+    public array $failGrantUpdatesForUsers = [];
     public bool $failCommit = false;
 
     /** @var array<string,mixed>|null */
@@ -114,6 +116,9 @@ final class TestMembershipsServiceWpdb
             $id = (int) ($where['id'] ?? 0);
             if (!isset($this->grants[$id])) {
                 return 0;
+            }
+            if (in_array((int) ($this->grants[$id]['user_id'] ?? 0), $this->failGrantUpdatesForUsers, true)) {
+                return false;
             }
             $new = array_merge($this->grants[$id], $data);
             if ($new === $this->grants[$id]) {
@@ -318,6 +323,107 @@ final class TestMembershipsServiceWpdb
         }
 
         return null;
+    }
+
+    /**
+     * Usuarios con trabajo pendiente para la tarea diaria (`HWE_Memberships_Grants::dueUserIds`).
+     * Entiende la consulta de candidatos por fecha, sin recorrer todos los usuarios.
+     *
+     * @return list<string>
+     */
+    public function get_col(string $sql): array
+    {
+        $this->queries[] = $sql;
+
+        if (!str_contains($sql, 'UNION')
+            || !str_contains($sql, 'hwe_memberships_grants')) {
+            return [];
+        }
+
+        // La consulta real es un UNION de tres subconsultas con su propio LIMIT y un
+        // GROUP BY final que deduplica por usuario y ordena por el vencimiento más antiguo.
+        $args       = $this->args($sql);
+        $notice     = count($args) >= 8;
+        $now        = (string) ($args[0] ?? '');
+        $limit      = (int) ($args[1] ?? 0);
+        $nowActive  = (string) ($args[2] ?? '');
+        $limitActive = (int) ($args[3] ?? 0);
+        $until      = $notice ? (string) ($args[5] ?? '') : '';
+        $limitNotice = $notice ? (int) ($args[6] ?? 0) : 0;
+        $outerLimit = (int) ($args[ $notice ? 7 : 4 ] ?? 0);
+
+        $sets = ['scheduled' => [], 'active' => [], 'notice' => []];
+        foreach ($this->grants as $row) {
+            $userId = (int) ($row['user_id'] ?? 0);
+            if ($userId <= 0) {
+                continue;
+            }
+            if (!empty($this->members[$userId]['frozen_at'] ?? null)) {
+                continue;
+            }
+
+            $status = (string) ($row['status'] ?? '');
+            $start  = $row['starts_at'] ?? null;
+            $end    = $row['ends_at'] ?? null;
+
+            if ('scheduled' === $status && is_string($start) && '' !== $start && $start <= $now) {
+                $sets['scheduled'][] = ['user_id' => $userId, 'due_at' => $start];
+            }
+            if ('active' === $status && is_string($end) && '' !== $end && $end <= $nowActive) {
+                $sets['active'][] = ['user_id' => $userId, 'due_at' => $end];
+            }
+            if ($notice && 'active' === $status
+                && null === ($row['expiry_notified_at'] ?? null)
+                && is_string($end) && '' !== $end && $end > $now && $end <= $until) {
+                $sets['notice'][] = ['user_id' => $userId, 'due_at' => $end];
+            }
+        }
+
+        $limits = ['scheduled' => $limit, 'active' => $limitActive, 'notice' => $limitNotice];
+        foreach ($sets as $set => $rows) {
+            $byUserSet = [];
+            foreach ($rows as $row) {
+                $userId = $row['user_id'];
+                if (!isset($byUserSet[$userId]) || strcmp($row['due_at'], $byUserSet[$userId]) < 0) {
+                    $byUserSet[$userId] = $row['due_at'];
+                }
+            }
+
+            $rows = [];
+            foreach ($byUserSet as $userId => $dueAt) {
+                $rows[] = ['user_id' => (int) $userId, 'due_at' => $dueAt];
+            }
+
+            usort(
+                $rows,
+                static fn (array $a, array $b): int => strcmp($a['due_at'], $b['due_at'])
+                    ?: $a['user_id'] <=> $b['user_id']
+            );
+            if ($limits[$set] > 0) {
+                $rows = array_slice($rows, 0, $limits[$set]);
+            }
+            $sets[$set] = $rows;
+        }
+
+        $byUser = [];
+        foreach (array_merge($sets['scheduled'], $sets['active'], $sets['notice']) as $row) {
+            $userId = $row['user_id'];
+            if (!isset($byUser[$userId]) || strcmp($row['due_at'], $byUser[$userId]) < 0) {
+                $byUser[$userId] = $row['due_at'];
+            }
+        }
+
+        $ids = array_keys($byUser);
+        usort(
+            $ids,
+            static fn (int $a, int $b): int => strcmp($byUser[$a], $byUser[$b]) ?: $a <=> $b
+        );
+
+        if ($outerLimit > 0) {
+            $ids = array_slice($ids, 0, $outerLimit);
+        }
+
+        return array_map(static fn (int $id): string => (string) $id, $ids);
     }
 
     public function suppress_errors(bool $suppress = true): bool
