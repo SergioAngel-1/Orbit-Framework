@@ -53,6 +53,8 @@ require_once __DIR__ . '/includes/Benefits/Registry.php';
 require_once __DIR__ . '/includes/Products.php';
 require_once __DIR__ . '/includes/Purchase.php';
 require_once __DIR__ . '/includes/Privacy.php';
+require_once __DIR__ . '/includes/Card.php';
+require_once __DIR__ . '/includes/Rest/CardRoutes.php';
 
 final class HWE_Memberships {
 
@@ -75,6 +77,8 @@ final class HWE_Memberships {
 		HWE_Memberships_Products::register();
 		HWE_Memberships_Purchase::register();
 		HWE_Memberships_Privacy::register();
+		HWE_Memberships_Card::register();
+		HWE_Memberships_CardRoutes::register();
 	}
 
 	/** Aviso en wp-admin si el plugin se activó sin WooCommerce (la cabecera ya lo impide). */
