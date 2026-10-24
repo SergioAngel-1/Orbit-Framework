@@ -68,7 +68,7 @@ En **Membresías → Beneficios** eliges un nivel y marcas las ventajas que incl
 | **Acceso anticipado** | Nada | Permite comprar antes de la fecha de apertura de un producto. |
 | **Descuento de socio** | Porcentaje (0–100) y alcance | Todo el catálogo o solo unas categorías. Las subcategorías cuentan. Nunca se aplica a la línea de membresía. |
 | **Envíos gratis** | Número por periodo | Cada concesión (compra o renovación) trae su cupo; lo no usado no se acumula. |
-| **Puntos extra al activar** | Puntos | Se abonan al cobrar la compra. Solo si **Puntos** está encendido en Fidelización. |
+| **Puntos extra al activar** | Puntos | Se abonan al cobrar la compra, aunque la membresía quede en cola y se active más tarde. Solo si **Puntos** está encendido en Fidelización. |
 | **Comisión extra por referidos** | Porcentaje | Se suma a la comisión normal del referidor cuando se cobra el pedido. Solo con **Referidos** encendido. |
 | **Membresía de regalo al referido** | Nivel, días y máximo por periodo | El referido recibe una membresía; el tope es del periodo del referidor. Solo con **Referidos** encendido. |
 
@@ -153,7 +153,19 @@ socios a la vez. El flujo es de dos pasos:
 **Membresías → Historial** muestra los eventos del socio (alta, renovación, mejora, cola,
 caducidad, congelación, retirada, revocación, puntos omitidos, tope de regalos…). El **Resumen**
 da las cifras del programa. Desde el listado de socios puedes exportar un CSV con la información
-operativa.
+operativa; la descarga exige la capacidad de gestión (`hwe_memberships_manage`), no basta con
+poder consultar el listado.
+
+## Límites y comportamientos que conviene conocer
+
+- **Un pedido cancelado y reabierto no reactiva la membresía.** Si un pedido ya activado se
+  cancela y después vuelve a estar cobrado, la concesión no se reabre sola: hay que conceder el
+  nivel a mano desde el perfil del socio.
+- **La comisión extra de referidos no aplica la ventana de comisión de Fidelización** (ni
+  comprueba la participación del referidor): se paga cuando llega el pedido. Si quieres limitarla
+  en el tiempo, hazlo en el filtro `hwe_loyalty_order_earnings` o desactiva el beneficio.
+- **Las reseñas de un producto bloqueado son visibles.** La ficha de escaparate oculta la
+  descripción, la galería, las variaciones y los atributos, pero no el texto de las reseñas.
 
 ## Carné digital
 

@@ -7,6 +7,20 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **Cierres de la revisión final del módulo `memberships`.** `verify-modules.sh` ya no lanza
+  `docker compose run` cuando hay un contenedor en marcha: ejecuta WP-CLI con `docker exec` y,
+  si no hay ninguno, el respaldo usa el proyecto de la pila y `--no-deps`, así que no puede
+  recrear `wordpress` con otro entorno al ejecutarse desde un worktree sin `.env`. Las lecturas
+  del estado del socio (`Members::state`, `Grants::forUser`) y de los niveles (`Levels::get`) se
+  memoizan por petición y se invalidan en toda escritura (concesiones, privacidad y guardado,
+  meta, estado o borrado de niveles), lo que elimina lecturas repetidas del carrito y de
+  `purchasable`. La Store API ya no permite sondear el SKU de un producto bloqueado con
+  `?search=`/`?sku=` (se reencaminan al nombre, como GraphQL y `wp/v2`), la exportación CSV de
+  socios exige `hwe_memberships_manage` y la activación que hace la tarea diaria de una compra
+  aplazada ya no reintenta sus puntos (ni duplica `points_skipped` ni deja un rechazo falso).
+  README y MANUAL documentan además que un pedido cancelado y reabierto no reactiva la
+  concesión, que la comisión extra de referidos no aplica la ventana de `loyalty` y que las
+  reseñas de productos bloqueados siguen visibles.
 - **Presupuesto de memoria de WordPress (OOM bajo carga).** `memory_limit` valía 512M —el
   límite entero del contenedor— y OPcache reservaba 336 MB (256 de caché + 16 de interned + 64
   de JIT), mientras el dimensionado de Apache (`apache-mpm.conf`) daba por sentados ~90 MB de

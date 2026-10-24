@@ -119,7 +119,7 @@ El recorte se hace **en WordPress**, nunca en el frontend:
 | Store API `wc/store/v1/products` (listado y ficha), variaciones y carrito | `includes/Teaser.php` con `rest_request_after_callbacks`. Del carrito se conservan clave, cantidad, precios, totales y extensiones. |
 | WC REST `wc/v3/products` y `…/variations` | `woocommerce_rest_prepare_product_object` / `…_variation_object`. Con el secreto interno del BFF se aplica la ficha como visitante; el panel y las integraciones con `ck/cs` ven la ficha completa. |
 | REST de WordPress `wp/v2/product` (WooCommerce lo registra con `show_in_rest`) | `rest_prepare_product`: lista blanca (id, fechas, slug, estado, enlace, título, imagen destacada, categorías y etiquetas) más el requisito; `content`, `excerpt`, `meta` y lo que añada otro plugin se descartan. El `context=edit` de quien puede editar el producto no se toca. |
-| Búsqueda (GraphQL `where: { search }`, `wp/v2/product?search=`) | Comparar contra la descripción o el extracto de un producto bloqueado sería un oráculo para sondear su contenido. Con algún requisito en el catálogo (`HWE_Memberships_Access::anyRequirementExists()`), `post_search_columns` limita la búsqueda de productos al **nombre** y `graphql_product_connection_query_args` reencamina la búsqueda de WooGraphQL (que compara descripción, extracto, SKU y slug) por la búsqueda de WordPress. Sin requisitos en el catálogo, la búsqueda no cambia. |
+| Búsqueda (GraphQL `where: { search }`, `wp/v2/product?search=`, Store API `?search=` y `?sku=`) | Comparar contra la descripción, el extracto o el SKU de un producto bloqueado sería un oráculo para sondear su contenido. Con algún requisito en el catálogo (`HWE_Memberships_Access::anyRequirementExists()`), `post_search_columns` limita la búsqueda de productos al **nombre** y `graphql_product_connection_query_args` reencamina la búsqueda de WooGraphQL (que compara descripción, extracto, SKU y slug) por la búsqueda de WordPress. En la Store API, `pre_get_posts` hace lo mismo con sus parámetros propios `search` y `sku` (WooCommerce los compara contra el SKU además del título). Sin requisitos en el catálogo, la búsqueda no cambia. |
 
 En REST el requisito viaja en `hwe_membership.required_level` (slug, rank y name) y
 `hwe_membership.opens_at`; en GraphQL se llama `hweMembership`. En `wc/v3` para el BFF se
@@ -235,7 +235,9 @@ constancia de su propio ciclo, que escuchan solo hooks `hwe_membership_*`).
   `membership:order:<pedido>:item:<línea>`. No abonan regalos, asignaciones de administrador ni
   lotes. Revocar la concesión revierte el abono con `hwe_loyalty_reverse_credit()`, limitado al
   saldo e idempotente. Si «Puntos» está apagado en el cobro, no se abona, no se reintenta y queda
-  `points_skipped` en el historial más un `error_log`.
+  `points_skipped` en el historial más un `error_log`. Una compra aplazada se abona (u omite) al
+  cobrarse, aunque su concesión se active más tarde: la activación de la tarea diaria llega con
+  `HWE_Memberships_Events::CONTEXT_DAILY` y no vuelve a intentarlo.
 - **Comisión extra de referidos.** Se añade al filtro `hwe_loyalty_order_earnings` como abono del
   tipo `membership_referral_bonus`, declarado con `hwe_loyalty_entry_types`. Cuenta el nivel del
   referidor **al cobrarse el pedido**; sin referidor o sin beneficio, el array sale intacto. Lee
@@ -306,7 +308,8 @@ falta:
   extender, quitar, congelar y descongelar, con clave de idempotencia por render.
 - **En masa**: asignar, reemplazar, quitar, congelar o descongelar por lista pegada o criterio;
   vista previa sin escribir, confirmación con nonce y lote reanudable por Action Scheduler.
-- **Historial** del socio y exportación CSV.
+- **Historial** del socio y exportación CSV (la descarga exige `hwe_memberships_manage`; con
+  solo lectura no se ofrece).
 - **Caja del pedido**: nivel comprado, concesión, descuento de miembro y envío gratis, ampliable
   con `hwe_memberships_order_box_rows`.
 
@@ -342,6 +345,21 @@ historial. Siempre ids numéricos, nunca datos personales:
 `hwe_loyalty_entry_types`, `hwe_loyalty_order_earnings`, `hwe_shipping_free_reason`,
 `hwe_control_center_schema`, `hwe_translatable_fields` y `hwe_revalidation_tags`.
 
+## Límites y comportamientos que conviene conocer
+
+- **Un pedido cancelado y reabierto no reactiva la membresía.** La concesión revocada queda como
+  tal y `Purchase` descarta los pedidos en estado `reversed` para no resucitarla con una clave
+  idempotente que ya existió. Si el pedido vuelve a estar cobrado, la membresía se concede a mano
+  desde el perfil del socio (conceder el nivel, con sus días).
+- **La comisión extra de referidos no aplica la ventana de comisión de `loyalty`** (ni su
+  comprobación de participación del referidor): se paga cuando llega el pedido, igual que el resto
+  de la ganancia del referidor. Si la instancia quiere limitarla por tiempo, debe hacerlo en el
+  filtro `hwe_loyalty_order_earnings` o desactivar el beneficio.
+- **Las reseñas de un producto bloqueado son visibles** (`wc/store/v1/products/reviews`): el
+  recorte de la ficha de escaparate cubre la descripción, la galería, las variaciones, los
+  atributos y los campos del producto, no el texto de sus reseñas. Si una instancia necesita
+  ocultarlas, debe filtrar esa ruta por su cuenta.
+
 ## Privacidad
 
 Exportador y eliminador de las herramientas de WordPress. El exportador entrega solo los datos
@@ -376,4 +394,6 @@ sh backend/scripts/verify-modules.sh toggle
 
 El script crea un nivel y un producto de prueba, comprueba las cinco tablas, las rutas internas
 con y sin el secreto, la extensión de la Store API y el recorte en GraphQL y la Store API, y
-borra el fixture al salir. El contrato de frontend está en `docs/FRONTEND_CONNECT.md` (Parte A).
+borra el fixture al salir. WP-CLI se ejecuta dentro de un contenedor que ya está en marcha; si
+no hay ninguno, el respaldo usa el proyecto de la pila y `--no-deps`, así que no recrea
+servicios con otro entorno. El contrato de frontend está en `docs/FRONTEND_CONNECT.md` (Parte A).
