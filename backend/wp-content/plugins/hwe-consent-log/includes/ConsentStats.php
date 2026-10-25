@@ -95,20 +95,14 @@ final class HWE_Consent_Stats {
     }
 
     /**
-     * URL del frontend para llamadas servidor a servidor. En desarrollo con
-     * Docker, `HEADLESS_FRONTEND_URL` es `http://localhost:3001` —válida
-     * desde el navegador, pero dentro del contenedor de WordPress `localhost`
-     * es el propio contenedor—, así que el compose de desarrollo define
-     * `HEADLESS_FRONTEND_INTERNAL_URL` con el nombre del servicio. En
-     * producción no hace falta: la pública (el dominio) llega igual.
+     * URL del frontend para llamadas servidor a servidor: `FrontendUrl::internal()`
+     * (la misma que usa la revalidación). En desarrollo con Docker, el compose define
+     * `HEADLESS_FRONTEND_INTERNAL_URL=http://frontend:3000` porque dentro del contenedor de
+     * WordPress `localhost` es el propio contenedor; sin la interna se usa la pública
+     * (`HEADLESS_FRONTEND_URL`), que en producción es el dominio y llega por Caddy.
      */
     private static function frontendUrl(): string {
-        foreach (['HEADLESS_FRONTEND_INTERNAL_URL', 'HEADLESS_FRONTEND_URL'] as $constant) {
-            if (defined($constant) && (string) constant($constant) !== '') {
-                return rtrim((string) constant($constant), '/');
-            }
-        }
-        return 'http://localhost:3000';
+        return \HWE\ControlCenter\FrontendUrl::internal();
     }
 
     /**

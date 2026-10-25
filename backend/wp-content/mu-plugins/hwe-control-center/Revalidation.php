@@ -5,8 +5,9 @@ namespace HWE\ControlCenter;
 /**
  * Dispara la revalidación ISR de un tag en el frontend Next.js.
  *
- * Usa la misma URL del frontend definida en HEADLESS_FRONTEND_URL y firma la
- * petición con HWE_REVALIDATION_SECRET (compartido con el BFF) para que el
+ * Usa la URL del frontend para llamadas servidor a servidor
+ * (`FrontendUrl::internal()`: `HEADLESS_FRONTEND_INTERNAL_URL` y, si no, la pública) y
+ * firma la petición con HWE_REVALIDATION_SECRET (compartido con el BFF) para que el
  * endpoint `/api/revalidate` confíe en la petición.
  *
  * TAGS. El núcleo acepta los suyos (`site-config`, `products`, `memberships`, `banners`, `posts` y
@@ -91,9 +92,7 @@ class Revalidation {
             return;
         }
 
-        $frontendUrl = defined('HEADLESS_FRONTEND_URL')
-            ? rtrim(HEADLESS_FRONTEND_URL, '/')
-            : 'http://localhost:3000';
+        $frontendUrl = FrontendUrl::internal();
 
         $endpoint = $frontendUrl . '/api/revalidate';
         $body     = json_encode(['tag' => $tag, 'source' => 'hwe-control-center'], JSON_THROW_ON_ERROR);

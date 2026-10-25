@@ -82,6 +82,39 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   sí mismo del escaneo). Un caso de `CheckAntiInstanceTest` lo fija con el token partido en dos
   cadenas, como los demás, para que el test no se cace a sí mismo.
 
+### Fixed
+- **Borrar un post con metas ya no revienta con el módulo `memberships` activo.**
+  `HWE_Memberships_Levels::forgetMeta()` estaba enganchado a `deleted_post_meta`, que entrega
+  una **lista** de ids de meta como primer argumento, pero lo declaraba `int`: cualquier
+  `wp_delete_post()` de un post con metas (un elemento de menú, por ejemplo) lanzaba
+  `TypeError: … Argument #1 ($metaId) must be of type int, array given`. Ahora acepta un id o
+  una lista (como `Access::onProductMetaChanged`), sin cambiar qué olvida: el nivel memoizado
+  del post afectado. Un test cubre la forma con lista.
+- **La revalidación desde WordPress alcanza al frontend en Docker.** `Revalidation` hacía POST a
+  `HEADLESS_FRONTEND_URL/api/revalidate`, que en desarrollo es `http://localhost:3000`: dentro de
+  `wordpress`, `wpcli` y `wp-cron` eso es el propio contenedor, así que el cambio no llegaba al
+  frontend y, con `blocking => false`, nadie se enteraba. Ahora un solo punto de verdad del núcleo,
+  `HWE\ControlCenter\FrontendUrl::internal()` (`mu-plugins/hwe-control-center/FrontendUrl.php`),
+  devuelve la URL para llamadas **servidor a servidor**: `HEADLESS_FRONTEND_INTERNAL_URL` si está
+  definida y no vacía, si no la pública y, como último recurso, `http://localhost:3000`. La usan
+  `Revalidation` y `ConsentStats` (antes duplicaba la lógica) y `setup.sh` para los webhooks de
+  WooCommerce. Los enlaces de los correos, CORS y los orígenes permitidos siguen usando la pública.
+  El compose (desarrollo y producción) define la interna por defecto como `http://frontend:3000`.
+- **`wpcli` y `wp-cron` corren con las mismas constantes que `wordpress`.** `wp-config-docker.php`
+  evalúa `WORDPRESS_CONFIG_EXTRA` del entorno del proceso en cada carga, no la hornea en
+  `wp-config.php`; los contenedores de WP-CLI leen ese wp-config.php del volumen pero no recibían
+  la variable. Por eso cada `wp hwe setup` avisaba de que no había `HWE_REVALIDATION_SECRET` (el
+  Control Center no revalidaba y los cambios podían tardar hasta 5 minutos) y WP-CLI corría sin
+  `WP_REDIS_*`. El bloque vive ahora una vez en el campo `x-wordpress-config-extra` (ancla YAML)
+  y lo usan `wordpress`, `wpcli` y `wp-cron` en desarrollo y producción.
+- **Los plugins `hwe-instance-*` llegan a los contenedores en desarrollo.** El compose monta uno
+  a uno los módulos del núcleo, así que un plugin de instancia se quedaba fuera y no se podía
+  activar con la pila Docker. Se documenta la vía que no toca el núcleo (un
+  `docker-compose.override.yml` propio) y se versiona `docker-compose.override.example.yml` con
+  el montaje del plugin en `wordpress`, `wpcli` y `wp-cron`, con la misma ruta de destino que los
+  módulos y sin montar la carpeta `plugins/` entera (taparía WooCommerce y los plugins de
+  terceros del volumen). En producción el compose ya monta `./backend/wp-content` entero.
+
 ## [2.1.0] — 2026-10-24
 
 Parches de seguridad de octubre de 2026 (PHP 8.4.27 vía `wordpress:7.1`, Node 24.22.1,
