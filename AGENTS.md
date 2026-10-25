@@ -31,10 +31,10 @@ repo y es clave no confundirlas:
 | Capa | Qué incluye | ¿Quién la mantiene? |
 |---|---|---|
 | **Núcleo del framework** | WordPress headless + WooCommerce (`backend/`, salvo las rutas de instancia), el **BFF**: `frontend/src/app/api/*` y `frontend/src/lib/*` (auth, seguridad, proxy a WooCommerce, pagos, config del HWE Control Center), `frontend/src/proxy.ts`, `frontend/src/components/ui/*` (primitivas sin negocio: Button, Input, Modal…) y los **11 módulos** (`backend/wp-content/plugins/hwe-*`) | El framework. Se actualiza, se documenta, se versiona como una unidad reutilizable entre instancias (`docs/UPGRADE.md`). |
-| **Responsabilidad de cada proyecto/instancia** | **Rutas reservadas** que el framework nunca toca: `backend/wp-content/mu-plugins/instance/`, los plugins `hwe-instance-*` y `frontend/src/instance/*`. Más `frontend/src/components/**` (excepto `ui/`) y **todas las vistas** bajo `frontend/src/app/[locale]/*` (layout visual, home, listados, fichas, marketing, footer…), que se heredan **una vez** al clonar como starter neutro | **La instancia.** Cámbialo, bórralo, reescríbelo — es 100% tuyo desde el clone. |
+| **Responsabilidad de cada proyecto/instancia** | **Rutas reservadas** que el framework nunca toca: `backend/wp-content/mu-plugins/instance/`, los plugins `hwe-instance-*`, `frontend/src/instance/*` y `frontend/tests/e2e/instance/` (E2E de la instancia). Más `frontend/src/components/**` (excepto `ui/`) y **todas las vistas** bajo `frontend/src/app/[locale]/*` (layout visual, home, listados, fichas, marketing, footer…), que se heredan **una vez** al clonar como starter neutro | **La instancia.** Cámbialo, bórralo, reescríbelo — es 100% tuyo desde el clone. |
 
 **El contrato de instancia** (cómo enchufa su código sin tocar el núcleo; detalle en
-`docs/PLUGIN_DEVELOPMENT.md §0` y los `README.md` de las dos carpetas `instance/`):
+`docs/PLUGIN_DEVELOPMENT.md §0` y los `README.md` de las tres carpetas `instance/`):
 - **Backend:** `hwe-instance-loader.php` carga los `.php` de primer nivel de `mu-plugins/instance/`
   (orden alfabético; un archivo roto se registra y no tumba el sitio). La instancia se engancha
   con hooks de nombre estable: `hwe_control_center_schema` (campos solo bajo el grupo `instance`),
@@ -46,6 +46,11 @@ repo y es clave no confundirlas:
   el **único** módulo de instancia que el núcleo importa. Una regla de ESLint impide que
   `lib/`, `app/api/`, `proxy.ts` y `components/ui/` importen `@/components/**` (salvo `ui/`) o
   `@/instance/**` (salvo `@/instance/registry`). `config.d.ts` tipa `SiteConfig.instance`.
+- **E2E:** `frontend/tests/e2e/instance/` es de la instancia (el framework solo versiona su
+  `README.md`). `playwright.config.ts` ignora esa carpeta en el framework, así que sus specs no
+  entran ni en `npm run e2e` ni en el CI del framework aunque se haga merge de él. Con la variable
+  de repositorio `HWE_INSTANCE=true`, el job `e2e` del CI ejecuta **solo** esa carpeta en sus dos
+  pasadas (normal y módulos apagados); sin specs ahí, el job pasa.
 - **Puerta anti-instancia** (`.github/scripts/check-anti-instance.sh`, job de CI): el repo no puede
   contener nombres, slugs ni supuestos de ninguna instancia concreta (se escanea todo salvo
   `examples/` y `docs/superpowers/`). El patrón también caza palabras comunes del español que
@@ -498,7 +503,8 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   (`requireModule(config, id)` en `lib/api/modules.ts`, igual que `requireFlag` para los flags de
   la tienda) y su UI no se pinta (`isModuleEnabled`). Cada módulo registra su tag ISR en
   `hwe_revalidation_tags`. Comprobación en vivo: `sh backend/scripts/verify-modules.sh`; en CI hay
-  una segunda pasada e2e sin módulos (`tests/e2e/modules-off.spec.ts`).
+  una segunda pasada e2e sin módulos (`tests/e2e/modules-off.spec.ts`; en una instancia, los
+  specs de su carpeta `tests/e2e/instance/` contra la instalación sin módulos).
 - **`loyalty`** suma sus propios interruptores en `config.loyalty` (`points_enabled`,
   `referrals_enabled`, `transfers_enabled`): `requireLoyalty` (`lib/loyalty/guard.ts`) corta con
   404 la ruta de la función apagada, aunque el plugin esté activo. El canje viaja por la Store API

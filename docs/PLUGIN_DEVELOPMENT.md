@@ -19,6 +19,7 @@ framework nunca toca, y se engancha al núcleo por hooks estables, versionados p
 | Backend | `backend/wp-content/mu-plugins/instance/*.php` | Campos del Control Center, tipos de campo, tags ISR. Los carga `hwe-instance-loader.php` en orden alfabético (ver su `README.md`). |
 | Backend (grande) | `backend/wp-content/plugins/hwe-instance-<slug>/` | Plugins enteros (CPT, tablas propias). Patrón preparado en el `.gitignore`. |
 | Frontend | `frontend/src/instance/` | `registry.ts` (datos del `InstanceRegistry`), `config.d.ts` (ampliación de `InstanceConfig`), `lib/` (tu dominio). |
+| Frontend (E2E) | `frontend/tests/e2e/instance/` | Tus specs de Playwright. El framework ignora la carpeta (`testIgnore`); con `HWE_INSTANCE=true` el CI ejecuta solo estos. |
 | Frontend | `frontend/src/components/**` (salvo `ui/`) y `frontend/src/app/[locale]/**` | Tu UI y tus vistas. |
 
 **Plugins `hwe-instance-*` en Docker.** En desarrollo, `docker-compose.yml` monta uno a uno los

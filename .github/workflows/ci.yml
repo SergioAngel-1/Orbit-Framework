@@ -322,6 +322,15 @@ jobs:
       # escritura responde 403. `next start` fija NODE_ENV=production, así que
       # el servidor pasa por las reglas de producción de secret-guard.ts.
       ALLOWED_ORIGIN: http://localhost:3000
+      # Interruptor de repositorio (mismo que `anti-instance`/`contract`). Los specs
+      # de `tests/e2e/**` salvo `instance/` están escritos contra las vistas del
+      # starter, que una instancia reescribe por contrato (AGENTS.md §1.1): en su
+      # repo fallarían siempre y no puede editar `.github/**`. Con `true` las dos
+      # pasadas apuntan solo a `tests/e2e/instance/` (su carpeta reservada, de la
+      # que el framework no ejecuta nada: `playwright.config.ts` la ignora). Sin la
+      # variable el framework se comporta igual que siempre. Fail-closed: solo el
+      # literal `true` cambia algo.
+      HWE_INSTANCE: ${{ vars.HWE_INSTANCE }}
       # Activa en el stub los tres medios de pago (por defecto solo el pago en
       # línea), la compra de invitado y los módulos que ejercitan los e2e (entre
       # ellos `loyalty`, con «Puntos» y «Referidos» encendidos), para que los
@@ -361,7 +370,14 @@ jobs:
       - name: Esperar servidor listo
         run: npx wait-on http://localhost:3000/api/health/live --timeout 60000
       - name: Tests e2e
-        run: npx playwright test
+        run: |
+          if [ "${HWE_INSTANCE:-}" = "true" ]; then
+            # Repositorio de instancia: solo su carpeta reservada. Sin specs ahí el
+            # job pasa (`--pass-with-no-tests`); la instancia pone los suyos.
+            npx playwright test tests/e2e/instance/ --pass-with-no-tests
+          else
+            npx playwright test
+          fi
       # Segunda pasada: instalación SIN módulos (la config por defecto). Cada módulo apagado
       # debe comportarse como si no existiera (rutas del BFF en 404, páginas inexistentes, fuera
       # del sitemap). Las páginas se prerenderizan en el build, así que lleva el suyo.
@@ -385,7 +401,13 @@ jobs:
           npm run build
           npx next start --port 3000 &
           npx wait-on http://localhost:3000/api/health/live --timeout 60000
-          npx playwright test tests/e2e/modules-off.spec.ts tests/e2e/smoke.spec.ts
+          if [ "${HWE_INSTANCE:-}" = "true" ]; then
+            # Igual que la primera pasada: la instancia aporta su propio spec de
+            # «módulos apagados» si lo quiere; sin ninguno, el job pasa.
+            npx playwright test tests/e2e/instance/ --pass-with-no-tests
+          else
+            npx playwright test tests/e2e/modules-off.spec.ts tests/e2e/smoke.spec.ts
+          fi
       - name: Subir report HTML
         if: always()
         uses: actions/upload-artifact@v4

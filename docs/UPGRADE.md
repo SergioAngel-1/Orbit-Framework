@@ -28,6 +28,8 @@ de lo local):
 - `backend/wp-content/mu-plugins/instance/**` y `backend/wp-content/plugins/hwe-instance-*/`
   (el framework solo versiona el `README.md` de la primera)
 - `frontend/src/instance/**` (`registry.ts`, `config.d.ts`, `lib/`)
+- `frontend/tests/e2e/instance/**` (E2E de la instancia; el framework solo versiona su
+  `README.md` y no ejecuta sus specs: `playwright.config.ts` ignora esa carpeta)
 - `frontend/src/components/**` (salvo `ui/`)
 - `frontend/src/app/[locale]/**`
 - `frontend/src/i18n/messages/**`
@@ -173,7 +175,9 @@ comportamiento y las URL de la v2.1. Lo nuevo es opcional y se configura con **d
   contenedor por servicio y aborta si es de otro proyecto de Compose.
 - **CI en una instancia.** Declara la variable de repositorio `HWE_INSTANCE=true` para que los
   jobs `anti-instance` y `contract` (que persiguen tus tokens o pisan tu `registry.ts`) se
-  salten sin editar `.github/**`.
+  salten sin editar `.github/**`, y para que el job `e2e` ejecute solo tus specs de
+  `frontend/tests/e2e/instance/` en vez de los del *starter* (ver
+  `docs/CREATE_INSTANCE.md`, «CI de la instancia»).
 
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.2.0`; compárala si tu código depende de un hook nuevo.
 
