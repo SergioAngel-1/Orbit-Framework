@@ -21,6 +21,17 @@ framework nunca toca, y se engancha al núcleo por hooks estables, versionados p
 | Frontend | `frontend/src/instance/` | `registry.ts` (datos del `InstanceRegistry`), `config.d.ts` (ampliación de `InstanceConfig`), `lib/` (tu dominio). |
 | Frontend | `frontend/src/components/**` (salvo `ui/`) y `frontend/src/app/[locale]/**` | Tu UI y tus vistas. |
 
+**Plugins `hwe-instance-*` en Docker.** En desarrollo, `docker-compose.yml` monta uno a uno los
+módulos del framework, así que un plugin de instancia no llega a los contenedores por sí solo.
+No edites el compose (es núcleo): copia `docker-compose.override.example.yml` a
+`docker-compose.override.yml`, pon el slug del plugin y reinicia (paso a paso en
+`docs/CREATE_INSTANCE.md` §7, «Plugins de instancia en Docker»). El montaje debe ir en
+`wordpress`, `wpcli` **y** `wp-cron`, con el destino
+`/var/www/html/wp-content/plugins/hwe-instance-<slug>` (el mismo directorio que usan los
+módulos). **No montes `backend/wp-content/plugins/` entera**: taparía WooCommerce y los plugins
+de terceros del volumen `wordpress_content`. En producción el compose monta
+`./backend/wp-content` entero, así que el plugin ya está presente; actívalo una vez con WP-CLI.
+
 **Hooks estables del backend:**
 
 | Hook | Tipo | Para qué |

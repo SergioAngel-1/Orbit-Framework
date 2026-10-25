@@ -186,6 +186,9 @@ impuestos/envío básico y, si existe `instance.config.json`, aplica `wp hwe
 setup` automáticamente (§3). Ver `docs/INSTALL.md` para el detalle completo y
 troubleshooting.
 
+Si tu instancia trae un plugin propio (`hwe-instance-<slug>/`), en desarrollo hay que
+montarlo con un `docker-compose.override.yml`: ver §7, «Plugins de instancia en Docker».
+
 ## 6. Claves de WooCommerce para el BFF
 
 ```bash
@@ -227,6 +230,45 @@ Para ver el contrato en pequeño, copia de `examples/instance-minimal/`: un camp
 campos de producto, un detalle de línea de pedido y una vista. Los
 hooks y sus reglas: `backend/wp-content/mu-plugins/instance/README.md`,
 `frontend/src/instance/README.md` y `docs/PLUGIN_DEVELOPMENT.md`.
+
+### Plugins de instancia en Docker (`hwe-instance-*`)
+
+Los módulos del framework se montan uno a uno en `docker-compose.yml`; un plugin de tu
+instancia (`backend/wp-content/plugins/hwe-instance-<slug>/`) **no se monta por defecto en
+desarrollo**, así que WordPress no lo ve. No edites `docker-compose.yml` (es núcleo): copia el
+ejemplo versionado a `docker-compose.override.yml` en la raíz —Docker Compose lo carga solo— y
+cambia el slug:
+
+```bash
+cp docker-compose.override.example.yml docker-compose.override.yml
+# edita `hwe-instance-example` → `hwe-instance-<slug>` en x-instance-plugins
+docker compose up -d wordpress wp-cron
+docker compose run --rm --entrypoint wp wpcli --path=/var/www/html \
+    plugin activate hwe-instance-<slug>
+```
+
+Se monta **solo el plugin**, nunca `backend/wp-content/plugins/` entera: esa carpeta dentro del
+contenedor es el volumen `wordpress_content`, donde `setup.sh` instala WooCommerce y los plugins
+de terceros, y un bind mount de la carpeta los taparía. Con varios plugins propios, añade una
+línea por plugin a `x-instance-plugins`; los tres servicios (`wordpress`, `wpcli` y `wp-cron`)
+la heredan por el ancla YAML, igual que el núcleo monta cada `hwe-*` en los tres.
+
+En **producción no hace falta** el override: `docker-compose.prod.yml` monta
+`./backend/wp-content` **entero** en `wordpress`, `wpcli` y `wp-cron`, así que el plugin ya está
+en los contenedores. Actívalo una vez con WP-CLI (la activación queda en la base de datos) y,
+tras desplegar cambios del plugin, reinicia `wordpress` (OPcache usa
+`validate_timestamps=0`):
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod \
+    run --rm --entrypoint wp wpcli --path=/var/www/html plugin activate hwe-instance-<slug>
+docker compose -f docker-compose.prod.yml --env-file .env.prod restart wordpress
+```
+
+El código del plugin viaja en el `backend/wp-content` del servidor (bind mount del compose de
+producción), no dentro de ninguna imagen: tras actualizarlo en el host, reinicia `wordpress`.
+Para una instancia ya desplegada, ver `docs/UPGRADE.md` («Imágenes y plugins de una instancia ya
+desplegada»).
 
 ### CI de la instancia
 

@@ -695,8 +695,13 @@ final class HWE_Memberships_Levels {
 	 * `added|updated|deleted_post_meta`: cualquier meta del nivel (rango, beneficios o una
 	 * traducción de `hwe-content-i18n`) invalida su lectura memoizada. Para el resto de posts no
 	 * se hace nada.
+	 *
+	 * `deleted_post_meta` pasa una lista de ids de meta en `$metaId`; el resto de acciones, un
+	 * entero. Ninguna de las dos formas se usa aquí, solo el post afectado.
+	 *
+	 * @param int|list<int> $metaId
 	 */
-	public static function forgetMeta( int $metaId, int $objectId, string $metaKey = '' ): void {
+	public static function forgetMeta( mixed $metaId, int $objectId, string $metaKey = '' ): void {
 		if ( $objectId <= 0 ) {
 			return;
 		}

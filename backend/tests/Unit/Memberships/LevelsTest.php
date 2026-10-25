@@ -474,6 +474,21 @@ final class LevelsTest extends TestCase
         $this->assertSame(8, \HWE_Memberships_Levels::get(10)['rank'], 'La meta nueva se ve en la misma petición.');
     }
 
+    /**
+     * `deleted_post_meta` entrega una lista de ids de meta como primer argumento (no un entero):
+     * el manejador tiene que aceptarla sin romper y olvidar igualmente la lectura memoizada.
+     */
+    public function testDeletingSeveralMetasAtOnceForgetsTheMemoizedLevel(): void
+    {
+        $this->level(10, 5);
+        $this->assertSame(5, \HWE_Memberships_Levels::get(10)['rank']);
+
+        $this->meta[10][\HWE_Memberships_Levels::RANK_META] = '9';
+        \HWE_Memberships_Levels::forgetMeta([11, 12], 10, \HWE_Memberships_Levels::RANK_META);
+
+        $this->assertSame(9, \HWE_Memberships_Levels::get(10)['rank'], 'La meta nueva se ve en la misma petición.');
+    }
+
     public function testDeletingALevelForgetsTheMemoizedRead(): void
     {
         $this->level(10, 5);

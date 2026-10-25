@@ -171,6 +171,20 @@ final class RevalidationTest extends TestCase
         $this->assertStringContainsString('HWE_REVALIDATION_SECRET', $this->logged[0]);
     }
 
+    public function testItPostsToTheInternalFrontendUrlWhenItIsDefined(): void
+    {
+        $this->withSecretAndFrontend();
+        define('HEADLESS_FRONTEND_INTERNAL_URL', 'http://frontend:3000/');
+
+        Revalidation::trigger();
+
+        $this->assertSame(
+            'http://frontend:3000/api/revalidate',
+            $this->posts[0][0],
+            'Desde el contenedor de WordPress, la URL pública (`localhost`) es el propio contenedor: la revalidación no llegaría.'
+        );
+    }
+
     public function testTheFrontendUrlDefaultsToLocalhostInDevelopment(): void
     {
         define('HWE_REVALIDATION_SECRET', self::SECRET);

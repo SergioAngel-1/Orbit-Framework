@@ -34,6 +34,20 @@ function service(compose: string, name: string): string {
   return next === -1 ? rest : rest.slice(0, next + 1);
 }
 
+/**
+ * Constantes PHP que ve `wordpress`: el bloque `x-wordpress-config-extra` (ancla YAML
+ * compartida con `wpcli` y `wp-cron`) o, si volviera a estar inline, el propio servicio.
+ */
+function wordpressConfig(compose: string): string {
+  const anchor = compose.indexOf("x-wordpress-config-extra: &wordpress-config-extra |");
+  if (anchor === -1) {
+    return service(compose, "wordpress");
+  }
+  const rest = compose.slice(anchor);
+  const end = rest.indexOf("\nservices:");
+  return end === -1 ? rest : rest.slice(0, end);
+}
+
 describe("frontend/Dockerfile", () => {
   it("congela WORDPRESS_PUBLIC_URL ANTES de copiar el código y falla pronto sin ella", () => {
     const arg = dockerfile.indexOf("ARG WORDPRESS_PUBLIC_URL");
@@ -94,18 +108,18 @@ describe("docker-compose.prod.yml", () => {
   });
 
   it("DISABLE_WP_CRON va emparejado con el servicio wp-cron que ejecuta los eventos", () => {
-    expect(service(prod, "wordpress")).toContain("define( 'DISABLE_WP_CRON', true );");
+    expect(wordpressConfig(prod)).toContain("define( 'DISABLE_WP_CRON', true );");
     expect(service(prod, "wp-cron")).toContain("wp cron event run --due-now");
   });
 
   it("Redis compartido: WordPress usa prefijo y flush selectivo (un flush no borra el frontend)", () => {
-    const wordpress = service(prod, "wordpress");
+    const wordpress = wordpressConfig(prod);
     expect(wordpress).toContain("define( 'WP_REDIS_PREFIX', 'hwe-wp:' );");
     expect(wordpress).toContain("define( 'WP_REDIS_SELECTIVE_FLUSH', true );");
   });
 
   it("los medios se emiten siempre por el dominio público", () => {
-    expect(service(prod, "wordpress")).toContain(
+    expect(wordpressConfig(prod)).toContain(
       "define( 'WP_CONTENT_URL', 'https://${PUBLIC_DOMAIN}/wp-content' );",
     );
   });
@@ -313,13 +327,13 @@ describe("docker-compose.prod.yml: la base de datos no se pierde por descuido", 
 
 describe("docker-compose.yml (desarrollo)", () => {
   it("Redis compartido: WordPress usa prefijo y flush selectivo", () => {
-    const wordpress = service(dev, "wordpress");
+    const wordpress = wordpressConfig(dev);
     expect(wordpress).toContain("define( 'WP_REDIS_PREFIX', 'hwe-wp:' );");
     expect(wordpress).toContain("define( 'WP_REDIS_SELECTIVE_FLUSH', true );");
   });
 
   it("tiene wp-cron y desactiva el pseudo-cron por petición", () => {
-    expect(service(dev, "wordpress")).toContain("define( 'DISABLE_WP_CRON', true );");
+    expect(wordpressConfig(dev)).toContain("define( 'DISABLE_WP_CRON', true );");
     expect(service(dev, "wp-cron")).toContain("wp cron event run --due-now");
   });
 

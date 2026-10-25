@@ -65,7 +65,8 @@ plantillas; nunca subas claves reales.**
 | `WORDPRESS_DEBUG` | `1` en desarrollo, `0` en producción. |
 | `WP_ENVIRONMENT_TYPE` | `local` / `development` / `staging` / `production`. **La introspección de GraphQL se apaga si vale `production`** (o si no está definida: falla cerrado). |
 | `WORDPRESS_PUBLIC_URL` | URL pública de WordPress. En el frontend, solo para autorizar sus imágenes (CSP y `next/image`); **va en el build** de la imagen. Opcional en desarrollo. |
-| `HEADLESS_FRONTEND_URL` | URL del frontend (redirección headless y respaldo de CORS). |
+| `HEADLESS_FRONTEND_URL` | URL del frontend (redirección headless y respaldo de CORS). Es la **pública**: úsala también para enlaces del navegador y orígenes permitidos. |
+| `HEADLESS_FRONTEND_INTERNAL_URL` | (opc.) URL del frontend para llamadas **servidor a servidor** de WordPress: revalidación ISR (`/api/revalidate`), medición de consentimiento y los webhooks que crea `setup.sh`. En Docker vale por defecto `http://frontend:3000`, porque dentro de un contenedor `localhost` es el propio contenedor y la pública no alcanza al servicio. Vacía o sin definir = se usa `HEADLESS_FRONTEND_URL`. |
 | `HEADLESS_ALLOWED_ORIGINS` | Allowlist CORS de WPGraphQL (coma-separada). También acota los `frontend_url` que aceptan `forgot-password` y `send-verification`. |
 | `WP_TITLE`, `WP_ADMIN_USER`, `WP_ADMIN_PASSWORD`, `WP_ADMIN_EMAIL` | Datos del administrador que crea `setup.sh`. **`WP_ADMIN_PASSWORD` es obligatoria** (el instalador aborta sin ella; el compose de producción se niega a arrancar). |
 | `HWE_LOGIN_SLUG` | Mueve el login a `/<slug>`; `/wp-login.php` pasa a responder 404. 6–63 caracteres `[a-z0-9-]`. Vacío = sin mover. No lo publiques. |

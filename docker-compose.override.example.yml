@@ -1,0 +1,39 @@
+# ============================================================================
+#  Plugins de instancia en Docker (desarrollo) — EJEMPLO
+#
+#  Copia este archivo a `docker-compose.override.yml` en la raíz del repo y cambia
+#  `example` por el slug de tu instancia. Docker Compose carga solo, junto a
+#  `docker-compose.yml`, el `docker-compose.override.yml` de la raíz; no edites el
+#  compose del framework (es núcleo).
+#
+#  Por qué hace falta: los módulos del framework (`hwe-*`) se montan uno a uno en
+#  `docker-compose.yml`; los plugins de una instancia (`hwe-instance-<slug>/`) viven
+#  en el host y no se montan por defecto en desarrollo, así que WordPress no los ve.
+#  En producción NO hace falta: `docker-compose.prod.yml` monta
+#  `./backend/wp-content` entero (ver docs/CREATE_INSTANCE.md §7 y
+#  docs/PLUGIN_DEVELOPMENT.md §0).
+#
+#  Se monta SOLO el plugin, nunca `backend/wp-content/plugins/` entera: el volumen
+#  `wordpress_content` guarda WooCommerce y los plugins de terceros que instala
+#  setup.sh, y un bind mount de la carpeta los taparía.
+#
+#  Tras levantarlo, actívalo una vez (la activación vive en la base de datos):
+#    docker compose run --rm --entrypoint wp wpcli --path=/var/www/html \
+#        plugin activate hwe-instance-example
+#
+#  ¿Más de un plugin? Añade una línea por plugin a `x-instance-plugins`; las tres
+#  listas de `volumes` las heredan.
+# ============================================================================
+
+x-instance-plugins: &instance-plugins
+  - ./backend/wp-content/plugins/hwe-instance-example:/var/www/html/wp-content/plugins/hwe-instance-example
+
+services:
+  wordpress:
+    volumes: *instance-plugins
+
+  wpcli:
+    volumes: *instance-plugins
+
+  wp-cron:
+    volumes: *instance-plugins
