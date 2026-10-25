@@ -55,6 +55,18 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `check-anti-instance.sh` sale con 0 y un mensaje, y `gitignore.test.ts` omite solo los bloques
   que describen la política del framework (carpeta de instancia ignorada y patrón de plugins
   comentado); los de secretos y copias se comprueban siempre.
+- **`frontend/tests/e2e/instance/`, la carpeta de E2E de la instancia.** Los specs del núcleo
+  (`tests/e2e/*.spec.ts`) están escritos contra las vistas del *starter*, que una instancia
+  reescribe por contrato, así que en su repositorio fallarían siempre. La nueva carpeta es suya
+  (el framework solo versiona su `README.md`) y `playwright.config.ts` la ignora con `testIgnore`
+  en el framework: no se ejecuta en `npm run e2e` ni en su CI aunque se haga merge de él. Con la
+  variable de repositorio `HWE_INSTANCE=true`, las dos pasadas del job `e2e` (normal y módulos
+  apagados) ejecutan **solo** `tests/e2e/instance/`, con `--pass-with-no-tests` para que el job
+  pase mientras la instancia no tenga specs; sin la variable, el job ejecuta la suite completa y
+  la pasada de módulos apagados de siempre (fail-closed: solo el literal `true` cambia algo).
+  `docs/CREATE_INSTANCE.md` («CI de la instancia») explica además qué puede probar ahí una
+  instancia —el stub de GraphQL, no su WordPress— y que los recorridos contra su pila real se
+  corren en local con `E2E_BASE_URL`.
 
 ### Changed
 - **Contrato de instancia `2.2.0`.** `HWE_CORE_CONTRACT_VERSION` sube de `2.1.0` a `2.2.0`

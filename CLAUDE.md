@@ -29,7 +29,9 @@ dos capas que **no debes confundir** (ver `AGENTS.md §1.1`):
   `frontend/src/proxy.ts`, `frontend/src/components/ui/*` (primitivas sin negocio) y los 11 módulos
   (`backend/wp-content/plugins/hwe-*`).
 - **Responsabilidad de la instancia** — rutas **reservadas**, el framework nunca las toca:
-  `backend/wp-content/mu-plugins/instance/`, plugins `hwe-instance-*` y `frontend/src/instance/*`.
+  `backend/wp-content/mu-plugins/instance/`, plugins `hwe-instance-*`,
+  `frontend/src/instance/*` y `frontend/tests/e2e/instance/` (sus E2E: `playwright.config.ts`
+  ignora esa carpeta en el framework y, con `HWE_INSTANCE=true`, el CI ejecuta solo esos specs).
   Además, `frontend/src/components/**` (salvo `ui/`) y **todas las vistas** de
   `frontend/src/app/[locale]/*`, que se heredan una vez al clonar como starter neutro.
 - **El contrato de instancia:** el backend se engancha con **hooks** de nombre estable

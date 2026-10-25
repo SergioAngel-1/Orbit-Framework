@@ -272,8 +272,8 @@ desplegada»).
 
 ### CI de la instancia
 
-`.github/**` es núcleo (`docs/UPGRADE.md` §1): **no lo edites**, cada merge choca. Pero dos
-jobs del CI solo tienen sentido en el repositorio del framework y, sin tocarlos, en una
+`.github/**` es núcleo (`docs/UPGRADE.md` §1): **no lo edites**, cada merge choca. Pero hay
+jobs del CI que solo tienen sentido en el repositorio del framework y, sin tocarlos, en una
 instancia fallarían o probarían otra cosa:
 
 - `anti-instance` persigue justo los tokens que el código de tu instancia lleva (el de esta
@@ -282,6 +282,10 @@ instancia fallarían o probarían otra cosa:
   `mu-plugins/instance/`: estaría probando el ejemplo, no tu código.
 - `gitignore.test.ts` describe la política del framework (tu carpeta de instancia ignorada y el
   patrón de plugins comentado), que en tu repo es exactamente al revés.
+- `e2e` está escrito contra las vistas del *starter* (`frontend/src/app/[locale]/**`,
+  `components/**`), que tú reescribes por contrato (`AGENTS.md` §1.1): en tu repo fallarían
+  siempre. Tus E2E viven en `frontend/tests/e2e/instance/`, una carpeta reservada de la que el
+  framework solo versiona su `README.md`.
 
 El interruptor es **una variable de repositorio de GitHub** (no un secreto; se lee como
 `vars.HWE_INSTANCE`): en el repositorio de la instancia, *Settings → Secrets and variables →
@@ -291,8 +295,16 @@ la recibe y `gitignore.test.ts` solo omite los bloques de la política del frame
 la batería (lint, tipos, formato, i18n, tests, cobertura, build, PHPUnit, gitleaks) sigue
 corriendo igual y es la que dice si un merge del framework rompió tu instancia.
 
+Con la variable puesta, el job `e2e` cambia de objetivo: sus **dos pasadas** (la normal y la de
+módulos apagados) ejecutan **solo** `tests/e2e/instance/`. La segunda pasada está pensada para
+que pongas ahí tu propio spec de «módulos apagados» si te interesa; si no, se ejecutan los mismos
+specs contra la instalación sin módulos. Sin specs en la carpeta el job **pasa**
+(`--pass-with-no-tests`), así que puedes añadirlos cuando quieras. El framework, además, ignora
+esa carpeta en su propio `npm run e2e` y en su CI (`testIgnore` de `playwright.config.ts`): si
+haces merge de un release con specs nuevos del núcleo, no se ejecutan contra tu instalación.
+
 En local, expórtala antes de `npm run test` (o de `bash .github/scripts/check-anti-instance.sh`)
-para que veas lo que verá el CI:
+para que veas lo que verá el CI; con ella, Playwright también deja de ignorar tu carpeta de e2e:
 
 ```bash
 export HWE_INSTANCE=true
@@ -301,6 +313,36 @@ export HWE_INSTANCE=true
 Es **fail-closed**: cualquier otro valor (o su ausencia) mantiene el comportamiento del
 framework. Si el CI de tu instancia sigue ejecutando la puerta anti-instancia, la variable no
 está puesta o no vale exactamente `true`.
+
+#### Qué puede probar tu e2e en CI (y qué no)
+
+En CI los E2E corren contra un **stub** de GraphQL/WooCommerce (`.github/scripts/stub-graphql.mjs`),
+no contra tu WordPress: ni base de datos, ni pedidos de verdad, ni webhooks, ni tu Control Center.
+La config pública (`/wp-json/hwe/v1/config`) sale del stub con la paleta por defecto del
+framework más los `STUB_SITE_CONFIG_EXTRA` que fija el workflow (que es núcleo y no editas).
+Con eso:
+
+- **Sí** puedes probar lo que depende de tu frontend: que tus vistas rendericen, tu navegación y
+  tus textos, la validación en cliente de tus formularios, los códigos de estado del BFF que no
+  necesitan datos reales y la accesibilidad (axe) de tus páginas.
+- **No** puedes probar el recorrido real (login, carrito, checkout, pago por webhook, pedidos en
+  la cuenta, contenido del CMS) ni nada que dependa de tu catálogo, tus ciudades de envío o tus
+  ajustes: el stub devuelve el CMS vacío y una config fija. No escribas specs que dependan de
+  datos que no controlas.
+
+Los recorridos contra tu pila real se ejecutan **en local**, con la app levantada y
+`E2E_BASE_URL` apuntando a ella:
+
+```bash
+cd frontend
+HWE_INSTANCE=true E2E_BASE_URL=http://localhost:3000 E2E_FULL=1 npx playwright test tests/e2e/instance/
+```
+
+`HWE_INSTANCE=true` hace falta también en local: sin él `playwright.config.ts` ignora la carpeta
+(es lo que protege al framework) y Playwright no encuentra ningún test. Marca los specs que
+necesitan tu pila real con `test.skip(!process.env.E2E_FULL, "…")`, como hace
+`tests/e2e/purchase.spec.ts` del núcleo: así el CI (contra el stub) los salta y en local los
+ejecutas con `E2E_FULL=1`.
 
 ### Rutas públicas en otro idioma
 

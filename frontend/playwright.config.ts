@@ -12,8 +12,17 @@ import { defineConfig, devices } from "@playwright/test";
 
 const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 
+// `tests/e2e/instance/` es de la instancia (AGENTS.md §1.1): el framework solo
+// versiona su README y no ejecuta nada de ahí. `testDir` desciende a subcarpetas,
+// así que sin este `testIgnore` los specs de una instancia que hiciera merge del
+// framework se colarían en `npm run e2e` y en el CI del framework. El interruptor
+// es el mismo de repositorio que el resto del CI, fail-closed: solo `true` los
+// habilita (el CI de la instancia le pasa la carpeta de forma explícita).
+const IS_INSTANCE_REPO = process.env.HWE_INSTANCE === "true";
+
 export default defineConfig({
   testDir: "./tests/e2e",
+  testIgnore: IS_INSTANCE_REPO ? [] : ["**/instance/**"],
   timeout: 30_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
