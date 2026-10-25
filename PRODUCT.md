@@ -39,7 +39,7 @@ de un centro estable; eso es lo que un tema o starter de WooCommerce no puede af
 - Gestión diaria en `/wp-admin` con el mu-plugin **HWE Control Center** como fuente de la
   configuración de negocio.
 - Despliegue con Docker Compose (Caddy TLS) o modo híbrido en desarrollo.
-- Versionado SemVer; v2.1.0 publicada el 2026-10-24 (v2.0.0, el 2026-10-14).
+- Versionado SemVer; v2.2.0 publicada el 2026-10-25 (v2.1.0, el 2026-10-24; v2.0.0, el 2026-10-14).
 
 ## Capabilities and Constraints
 
@@ -65,7 +65,7 @@ de un centro estable; eso es lo que un tema o starter de WooCommerce no puede af
 
 ## Evidence on Hand
 
-- Código y docs reales del framework; CHANGELOG con v2.1.0.
+- Código y docs reales del framework; CHANGELOG con v2.2.0.
 - No hay clientes, testimonios, métricas, precios publicados ni casos de estudio en el repo:
   no se deben inventar.
 

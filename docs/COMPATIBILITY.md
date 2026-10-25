@@ -1,6 +1,6 @@
 # Matriz de compatibilidad
 
-> Versiones con las que esta plantilla está construida y probada (**v2.1**). Mantener estas
+> Versiones con las que esta plantilla está construida y probada (**v2.2**). Mantener estas
 > versiones (o superiores dentro del mismo *major*, salvo que se indique) evita sorpresas.
 > Para subir un *major*, prueba en *staging* y revisa el `CHANGELOG`. Las versiones de los
 > paquetes npm salen de `frontend/package.json`; las de los plugins de WordPress, de
@@ -94,7 +94,7 @@ Los **módulos del framework** (`hwe-banners`, `hwe-shipping`, `hwe-product-land
 `hwe-customer-identity`, `hwe-external-integration`, `hwe-loyalty`, `hwe-memberships`) son código propio versionado en este
 repositorio (`backend/wp-content/plugins/`): no se instalan, se activan (`modules` en
 `instance.config.json`). El contrato núcleo ↔ instancia es `HWE_CORE_CONTRACT_VERSION`
-(`2.1.0`, `mu-plugins/hwe-instance-loader.php`).
+(`2.2.0`, `mu-plugins/hwe-instance-loader.php`).
 
 > **Versiones fijadas para reproducibilidad.** `setup.sh` instala estas versiones
 > CONCRETAS (no «la última»), definidas como variables al inicio del script y

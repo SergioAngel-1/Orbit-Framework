@@ -6,6 +6,18 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.2.0] — 2026-10-25
+
+Puntos de extensión para instancias y los huecos que aparecieron al instanciar el framework en
+Docker. Una instancia puede servir rutas públicas propias (`InstanceRegistry.publicPaths`) y su
+zona horaria (`timeZone`), funcionar con un solo idioma, topar el canje de puntos en porcentaje,
+correr su pila Docker junto a otra en la misma máquina y pasar el CI del núcleo en su propio
+repositorio (`HWE_INSTANCE=true`, también para los e2e de `tests/e2e/instance/`). Además, WP-CLI
+corre con las constantes de WordPress, la revalidación llega al frontend dentro de Docker y borrar
+un post con `memberships` activo ya no revienta. `HWE_CORE_CONTRACT_VERSION` pasa a `2.2.0`, sin
+cambios incompatibles. **Para actualizar una instancia** sigue `docs/UPGRADE.md` §3 (merge del
+tag) y la nota §3.2 «v2.1 → v2.2».
+
 ### Added
 - **Rutas públicas configurables por la instancia (`InstanceRegistry.publicPaths`).** Una
   instancia puede servir las carpetas de `app/[locale]/` con otros tramos públicos (p. ej. en
@@ -733,7 +745,8 @@ están corregidos arriba.
 - Fase 6 — SEO + i18n (next-intl, sitemap, hreflang, JSON-LD).
 - Fase 7 — Pagos: capa de pasarelas agnóstica (provider-agnostic) + proveedor `noop`.
 
-[Sin publicar]: https://example.com/compare/v2.1.0...HEAD
+[Sin publicar]: https://example.com/compare/v2.2.0...HEAD
+[2.2.0]: https://example.com/compare/v2.1.0...v2.2.0
 [2.1.0]: https://example.com/compare/v2.0.0...v2.1.0
 [2.0.0]: https://example.com/compare/v1.0.0...v2.0.0
 [1.0.0]: https://example.com/releases/v1.0.0
