@@ -35,8 +35,16 @@ de lo local):
 
 **Zona gris (revisar a mano):** `frontend/package.json` (el framework puede subir versiones de
 dependencias del núcleo; la instancia puede haber añadido las suyas) y
-`frontend/src/i18n/routing.ts` (si la instancia añadió locales) y `.gitignore` (la instancia
-quita las líneas que ignoran sus carpetas de instancia para versionarlas).
+`frontend/src/i18n/routing.ts` (**solo** la lista `locales` y su `defaultLocale`: una instancia
+de un solo idioma deja `locales: ["es"]`; ver `docs/CREATE_INSTANCE.md`, «Instancia de un solo
+idioma») y `.gitignore` (la instancia quita las líneas que ignoran sus carpetas de instancia para
+versionarlas).
+
+`.github/workflows/**` **no** es zona gris aunque tu instancia tenga su propio CI: sigue siendo
+núcleo y no se edita. Para que el CI del núcleo no falle ni pruebe otra cosa en tu repositorio,
+declara la variable de repositorio `HWE_INSTANCE=true` (`docs/CREATE_INSTANCE.md`, «CI de la
+instancia»): salta la puerta anti-instancia —persigue tus propios tokens— y el job «contrato»,
+que pisaría tu `registry.ts`. Es fail-closed: sin ella, el CI se comporta como el del framework.
 
 ## 2. Preparación (una vez por instancia)
 
@@ -122,6 +130,11 @@ docker exec hwe_wp_cron wp --allow-root wc update
 Las versiones fijadas son las de `backend/scripts/setup.sh`. Comprueba el resultado con
 `docker exec hwe_wordpress php -r 'echo PHP_VERSION;'` y la tabla de `docs/COMPATIBILITY.md`.
 
+Los comandos de arriba usan los nombres de contenedor por defecto. Si la instancia define
+`HWE_CONTAINER_PREFIX` (varias pilas en la misma máquina, `docs/CREATE_INSTANCE.md` §2), los
+contenedores son `<prefijo>_wp_cron`, `<prefijo>_wordpress`… y los puertos de base de datos y
+Redis son `DB_PORT` y `REDIS_PORT`.
+
 **El core de WordPress no se actualiza con `pull`.** Vive en el volumen `wordpress_core` y el
 entrypoint de la imagen solo copia el core si falta `/var/www/html/index.php`: subir la etiqueta
 de la imagen no cambia lo que sirve el sitio. Tras el `pull`, actualízalo a la versión de la
@@ -137,6 +150,32 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod restart wordpress
 
 Haz copia de seguridad antes (`docs/RUNBOOK.md` §1). El script aborta si no encuentra el core y
 avisa si los checksums no cuadran.
+
+## 3.2 v2.1 → v2.2 (nota de actualización)
+
+La v2.2 no tiene cambios incompatibles: una instancia actualizada sin tocar nada conserva el
+comportamiento y las URL de la v2.1. Lo nuevo es opcional y se configura con **datos**:
+
+- **Contrato de instancia 2.2.0.** Añade el filtro `hwe_loyalty_max_redeemable`
+  (`( int $max, array $context ): int`, solo puede endurecer) y el ajuste público
+  `loyalty.max_redeem_percent` (0–100; `0` sin tope). Si tu instancia enganchaba el canje por
+  otra vía, ahora puede declararlo en `wp hwe setup` o desde el Control Center.
+- **Rutas públicas (`InstanceRegistry.publicPaths`).** Opcional: declara ruta interna → tramo
+  público (`"/products": "/productos"`) y el núcleo traduce enlaces, canónicas, sitemap,
+  JSON-LD, `llms.txt`, correos y robots, reescribe la URL pública a la vista interna y responde
+  308 de la interna a la pública. Sin el campo, nada cambia. Ver `docs/CREATE_INSTANCE.md` §7.
+- **Zona horaria (`InstanceRegistry.timeZone`).** Opcional (cadena IANA o mapa por idioma) para
+  formatear fechas en la zona de la tienda; sin él siguen `Europe/Madrid`/`America/New_York`.
+- **Instancia de un solo idioma.** Se puede editar **solo** `locales` en
+  `frontend/src/i18n/routing.ts` y borrar `messages/en.json`: el núcleo ya no lo importa.
+- **Varias pilas Docker.** `HWE_CONTAINER_PREFIX` (defecto `hwe`), `DB_PORT` (3307) y
+  `REDIS_PORT` (6379); `COMPOSE_PROJECT_NAME` distinto por pila. `verify-*.sh` resuelve el
+  contenedor por servicio y aborta si es de otro proyecto de Compose.
+- **CI en una instancia.** Declara la variable de repositorio `HWE_INSTANCE=true` para que los
+  jobs `anti-instance` y `contract` (que persiguen tus tokens o pisan tu `registry.ts`) se
+  salten sin editar `.github/**`.
+
+`HWE_CORE_CONTRACT_VERSION` pasa a `2.2.0`; compárala si tu código depende de un hook nuevo.
 
 ## 4. Reglas para el framework (para que esto siga funcionando)
 

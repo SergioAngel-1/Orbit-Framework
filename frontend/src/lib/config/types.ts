@@ -318,6 +318,11 @@ export interface LoyaltyConfig {
   min_redeem: string;
   /** Tope de unidades por pedido (0 = sin tope). */
   max_redeem_per_order: string;
+  /**
+   * Tope del descuento por canje como porcentaje de la base sin envío (productos + fees
+   * ajenos), entero 0-100. `0` = sin tope. El descuento se convierte a unidades hacia abajo.
+   */
+  max_redeem_percent: string;
   /** Permite que el canje cubra el pedido completo (envío incluido). */
   full_payment_enabled: boolean;
   /** Importe que debe quedar por pagar en dinero con el pago completo apagado. */

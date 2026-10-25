@@ -1067,6 +1067,227 @@ final class RedemptionTest extends TestCase
         $this->assertSame(100, (int) $order->get_meta(\HWE_Loyalty_Redemption::META_REDEEMED_POINTS));
     }
 
+    // ── Tope de canje en porcentaje y filtro que solo endurece ───────────────
+
+    /**
+     * `quote()` es la única implementación de los topes: estas pruebas la llaman directa para
+     * medir la decisión sin pasar por carrito ni pedido.
+     *
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    private function quoteState(array $input = [], int $requested = 0): array
+    {
+        return \HWE_Loyalty_Redemption::quote(
+            array_merge(
+                [
+                    'items_total'    => 100.0,
+                    'shipping_total' => 0.0,
+                    'fees_total'     => 0.0,
+                    'balance'        => 100000,
+                    'requested'      => $requested,
+                    'logged_in'      => true,
+                    'participant'    => true,
+                    'active'         => true,
+                ],
+                $input
+            ),
+            \HWE_Loyalty_Settings::get()
+        );
+    }
+
+    /** Sustituye `apply_filters` solo para el filtro del tope (devuelve `$out` en él). */
+    private function stubMaxFilter(mixed $out): void
+    {
+        Functions\when('apply_filters')->alias(
+            static fn (string $hook, mixed $value, mixed ...$args): mixed => 'hwe_loyalty_max_redeemable' === $hook ? $out : $value
+        );
+    }
+
+    public function test_max_redeem_percent_caps_over_the_non_shipping_base(): void
+    {
+        $this->setLoyalty(['max_redeem_percent' => '10']);
+
+        $state = $this->quoteState([
+            'items_total'    => 100.0,
+            'shipping_total' => 999.0,
+            'fees_total'     => 50.0,
+        ]);
+
+        // 10 % de (100 + 50) = 15 → 1500 unidades de 0.01. El envío no entra en la base.
+        $this->assertSame(1500, $state['max_redeemable']);
+        $this->assertTrue($state['available']);
+    }
+
+    public function test_max_redeem_percent_rounds_the_points_down(): void
+    {
+        $this->setLoyalty(['point_value' => '0.03', 'max_redeem_percent' => '10']);
+
+        $state = $this->quoteState(['items_total' => 100.0]);
+
+        // 10 % de 100 = 10 → 333,33 unidades → 333 (nunca se regala la fracción).
+        $this->assertSame(333, $state['max_redeemable']);
+    }
+
+    public function test_max_redeem_percent_combines_with_the_absolute_cap_taking_the_lower(): void
+    {
+        $this->setLoyalty(['max_redeem_percent' => '10', 'max_redeem_per_order' => '200']);
+
+        $state = $this->quoteState(['items_total' => 100.0]);
+
+        $this->assertSame(200, $state['max_redeemable'], 'Manda el tope absoluto.');
+    }
+
+    public function test_max_redeem_percent_zero_means_no_cap(): void
+    {
+        $this->setLoyalty(['max_redeem_percent' => '0']);
+
+        $state = $this->quoteState(['items_total' => 100.0, 'balance' => 500]);
+
+        $this->assertSame(500, $state['max_redeemable'], 'Solo manda el saldo.');
+    }
+
+    public function test_max_redeem_percent_one_hundred_allows_the_whole_base(): void
+    {
+        $this->setLoyalty(['max_redeem_percent' => '100', 'full_payment_enabled' => '1']);
+
+        $state = $this->quoteState(['items_total' => 100.0]);
+
+        $this->assertSame(10000, $state['max_redeemable']);
+    }
+
+    public function test_a_percentage_cap_below_min_redeem_reports_below_minimum(): void
+    {
+        $this->setLoyalty(['max_redeem_percent' => '10']);
+
+        $state = $this->quoteState(['items_total' => 5.0]);
+
+        // 10 % de 5 = 0.50 → 50 unidades, por debajo de min_redeem (100).
+        $this->assertSame(50, $state['max_redeemable']);
+        $this->assertFalse($state['available']);
+        $this->assertSame('below_minimum', $state['reason']);
+    }
+
+    public function test_the_cart_extension_uses_the_percentage_cap_too(): void
+    {
+        $this->credit(5000);
+        $this->setLoyalty(['max_redeem_percent' => '10']);
+        $this->requestPoints(5000);
+        $cart = $this->makeCart(50.0, 5.0);
+
+        \HWE_Loyalty_Redemption::applyFee($cart);
+        $state = \HWE_Loyalty_Redemption::cartState();
+
+        // 10 % de 50 = 5.00 → 500 unidades; el envío queda fuera de la base.
+        $this->assertSame(500, $state['max_redeemable']);
+        $this->assertSame(500, $state['points_applied']);
+        $this->assertSame('500', $state['discount']);
+        $this->assertSame(5.0, $this->feeDiscount($cart));
+    }
+
+    public function test_the_order_confirmation_uses_the_percentage_cap_too(): void
+    {
+        $this->credit(5000);
+        $this->setLoyalty(['max_redeem_percent' => '10']);
+        $this->requestPoints(5000);
+        $order = $this->makeOrder(55, [
+            'items' => [$this->lineItem(100.0)],
+            'fees'  => [$this->feeItem(5000, 50.0)],
+            'total' => 50.0,
+        ]);
+
+        \HWE_Loyalty_Redemption::confirmOrder($order);
+
+        // El cliente pidió 5000 (50.00); el 10 % de 100 deja 1000 unidades (10.00).
+        $this->assertSame(1000, (int) $order->get_meta(\HWE_Loyalty_Redemption::META_REDEEMED_POINTS));
+        $entry = $this->entryWithKey('redeem:order:55');
+        $this->assertNotNull($entry);
+        $this->assertSame(-1000, (int) $entry['points']);
+    }
+
+    public function test_the_max_redeemable_filter_receives_the_context(): void
+    {
+        $this->setLoyalty(['max_redeem_percent' => '10']);
+        $seen = null;
+        Functions\when('apply_filters')->alias(
+            static function (string $hook, mixed $value, mixed ...$args) use (&$seen): mixed {
+                if ('hwe_loyalty_max_redeemable' === $hook) {
+                    $seen = ['max' => $value, 'context' => $args[0] ?? null];
+                }
+                return $value;
+            }
+        );
+
+        $this->quoteState([
+            'items_total'    => 100.0,
+            'shipping_total' => 20.0,
+            'fees_total'     => 5.0,
+            'balance'        => 50000,
+        ]);
+
+        $this->assertIsArray($seen);
+        $this->assertSame(1050, $seen['max']);
+        $this->assertSame(
+            ['items_total', 'shipping_total', 'fees_total', 'balance', 'settings'],
+            array_keys((array) $seen['context'])
+        );
+        $this->assertSame(100.0, $seen['context']['items_total']);
+        $this->assertSame(20.0, $seen['context']['shipping_total']);
+        $this->assertSame(5.0, $seen['context']['fees_total']);
+        $this->assertSame(50000, $seen['context']['balance']);
+        $this->assertIsArray($seen['context']['settings']);
+    }
+
+    public function test_the_max_redeemable_filter_can_harden(): void
+    {
+        $this->setLoyalty(['max_redeem_percent' => '10']);
+        $this->stubMaxFilter(250);
+
+        $state = $this->quoteState(['items_total' => 100.0]);
+
+        $this->assertSame(250, $state['max_redeemable'], 'El filtro puede bajar el máximo calculado.');
+        $this->assertSame([], $this->logged);
+    }
+
+    public function test_the_max_redeemable_filter_cannot_soften_and_is_logged(): void
+    {
+        $this->setLoyalty(['max_redeem_percent' => '10']);
+        $this->stubMaxFilter(2000);
+
+        $state = $this->quoteState(['items_total' => 100.0]);
+
+        $this->assertSame(1000, $state['max_redeemable'], 'El máximo calculado manda.');
+        $this->assertNotSame([], $this->logged);
+        $this->assertStringContainsString('intentó ampliar', implode("\n", $this->logged));
+    }
+
+    public function test_a_non_integer_or_negative_filter_value_is_ignored_and_logged(): void
+    {
+        $this->setLoyalty(['max_redeem_percent' => '10']);
+
+        $this->stubMaxFilter(12.5);
+        $this->assertSame(1000, $this->quoteState(['items_total' => 100.0])['max_redeemable']);
+        $this->assertStringContainsString('no entero', implode("\n", $this->logged));
+
+        $this->logged = [];
+        $this->stubMaxFilter(-1);
+        $this->assertSame(1000, $this->quoteState(['items_total' => 100.0])['max_redeemable']);
+        $this->assertStringContainsString('negativo', implode("\n", $this->logged));
+    }
+
+    public function test_the_filter_can_close_the_redemption_with_zero(): void
+    {
+        $this->setLoyalty(['max_redeem_percent' => '10']);
+        $this->stubMaxFilter(0);
+
+        $state = $this->quoteState(['items_total' => 100.0], 500);
+
+        $this->assertSame(0, $state['max_redeemable']);
+        $this->assertFalse($state['available']);
+        $this->assertSame('below_minimum', $state['reason']);
+        $this->assertSame(0, $state['points_applied']);
+    }
+
     /**
      * Deja un pedido 55 con un canje de 100 puntos confirmado y devuelve el saldo inicial.
      */

@@ -63,6 +63,28 @@ Ajusta también: `WP_TITLE`, `WORDPRESS_PORT`/`FRONTEND_PORT` (si corres varias
 instancias en la misma máquina, usa puertos distintos para no chocar),
 `NEXT_PUBLIC_SITE_URL` (el nombre de la marca va en `instance.config.json`, no en el entorno).
 
+### Varias pilas en la misma máquina
+
+Dos clones de Orbite (o una instancia junto a la pila de desarrollo del framework) comparten
+el daemon de Docker del equipo, y ahí los nombres de contenedor y los puertos publicados son
+únicos. Cada pila necesita **su** juego de valores en su `.env` (nada de esto es código: son
+variables de entorno, `.env.example` las documenta):
+
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `HWE_CONTAINER_PREFIX` | `hwe` | Prefijo de los contenedores (`hwe_db`, `hwe_wordpress`, `hwe_wp_cron`, `hwe_redis`, `hwe_frontend`; en producción también `hwe_caddy` y `hwe_cache_prune`). Cambiarlo en una de las dos pilas evita el choque de nombres. |
+| `COMPOSE_PROJECT_NAME` | el nombre de la carpeta | Proyecto de Compose: prefija la red y los volúmenes y separa las pilas ante Docker. Dos clones en carpetas distintas ya lo tienen distinto; fíjalo si renombras la carpeta o corres dos pilas desde la misma ruta. |
+| `DB_PORT` | `3307` | Puerto de MariaDB en el host (`127.0.0.1`). El modo híbrido apunta ahí. |
+| `REDIS_PORT` | `6379` | Puerto de Redis en el host (`127.0.0.1`). |
+| `WORDPRESS_PORT` / `FRONTEND_PORT` | `8080` / `3000` | Puertos de WordPress y del frontend en el host. |
+
+Los scripts de verificación (`backend/scripts/verify-modules.sh`, `verify-integration.sh`)
+resuelven sus contenedores **por servicio de Compose del proyecto actual**, no por un nombre
+fijo, y aceptan `HWE_WP_CONTAINER` / `HWE_CLI_CONTAINER` como anulación explícita. Si el
+contenedor resuelto pertenece a otra pila (etiqueta `com.docker.compose.project`), **abortan**
+con un mensaje en vez de activar o desactivar módulos en la pila de otra instancia. Si no hay
+pila en este proyecto, responden con el recordatorio de `docker compose up -d`.
+
 ## 3. Configuración de marca/diseño — `wp hwe setup`
 
 En vez de rellenar a mano el panel **HWE Config** (`wp-admin`) la primera vez,
@@ -206,6 +228,98 @@ campos de producto, un detalle de línea de pedido y una vista. Los
 hooks y sus reglas: `backend/wp-content/mu-plugins/instance/README.md`,
 `frontend/src/instance/README.md` y `docs/PLUGIN_DEVELOPMENT.md`.
 
+### CI de la instancia
+
+`.github/**` es núcleo (`docs/UPGRADE.md` §1): **no lo edites**, cada merge choca. Pero dos
+jobs del CI solo tienen sentido en el repositorio del framework y, sin tocarlos, en una
+instancia fallarían o probarían otra cosa:
+
+- `anti-instance` persigue justo los tokens que el código de tu instancia lleva (el de esta
+  instancia está en el patrón desde el primer día).
+- `contract` superpone `examples/instance-minimal/` al repo y **pisa** tu `registry.ts` y tus
+  `mu-plugins/instance/`: estaría probando el ejemplo, no tu código.
+- `gitignore.test.ts` describe la política del framework (tu carpeta de instancia ignorada y el
+  patrón de plugins comentado), que en tu repo es exactamente al revés.
+
+El interruptor es **una variable de repositorio de GitHub** (no un secreto; se lee como
+`vars.HWE_INSTANCE`): en el repositorio de la instancia, *Settings → Secrets and variables →
+Actions → Variables → New repository variable*, nombre `HWE_INSTANCE`, valor **`true`** exacto.
+Con ella, los dos jobs se saltan (`if: ${{ vars.HWE_INSTANCE != 'true' }}`), el job del frontend
+la recibe y `gitignore.test.ts` solo omite los bloques de la política del framework. El resto de
+la batería (lint, tipos, formato, i18n, tests, cobertura, build, PHPUnit, gitleaks) sigue
+corriendo igual y es la que dice si un merge del framework rompió tu instancia.
+
+En local, expórtala antes de `npm run test` (o de `bash .github/scripts/check-anti-instance.sh`)
+para que veas lo que verá el CI:
+
+```bash
+export HWE_INSTANCE=true
+```
+
+Es **fail-closed**: cualquier otro valor (o su ausencia) mantiene el comportamiento del
+framework. Si el CI de tu instancia sigue ejecutando la puerta anti-instancia, la variable no
+está puesta o no vale exactamente `true`.
+
+### Rutas públicas en otro idioma
+
+Las carpetas de `app/[locale]/` y las rutas internas del núcleo están en inglés (`/products`,
+`/account`, `/checkout/return`). Si tu tienda publica en español (o cualquier otro idioma), **no
+renombres esas carpetas ni edites núcleo**: declara el mapa en `frontend/src/instance/registry.ts`
+(solo datos) y el framework traduce enlaces, canónicas, sitemap, JSON-LD, `llms.txt`, correos y
+robots, y sirve la URL pública sobre la misma vista:
+
+```ts
+export const instanceRegistry: InstanceRegistry = {
+  revalidationTags: [],
+  publicPaths: {
+    "/products": "/productos",      // /products/vela → /productos/vela
+    "/categories": "/categorias",
+    "/cart": "/carrito",
+    "/checkout": "/pago",           // /checkout/return → /pago/return
+    "/account": "/cuenta",          // /account/orders → /cuenta/orders
+    "/login": "/entrar",
+    "/register": "/registro",
+    "/forgot-password": "/recuperar",
+    "/reset-password": "/restablecer",
+    "/verify-email": "/verificar",
+  },
+};
+```
+
+Los hijos heredan el prefijo del padre (una entrada propia manda), el mapa se valida al arrancar
+(choques, `api`, un idioma, rutas mal formadas → error claro) y la ruta interna antigua responde
+**308** a la pública: no quedan URL duplicadas. Si un idioma conserva el tramo interno, declara el
+valor por idioma (`{ es: "/novedades", en: "/blog" }`). Contrato completo:
+`docs/FRONTEND_CONNECT.md` §A.4.
+
+### Instancia de un solo idioma
+
+El framework trae `es` (principal) y `en`. Una tienda que solo publica en un idioma **no
+necesita mantener el catálogo inglés** ni que el núcleo lo dé por hecho:
+
+1. En `frontend/src/i18n/routing.ts` deja solo tu idioma: `locales: ["es"]`
+   (`defaultLocale: "es"`). Es el único archivo de núcleo que se edita para esto (zona gris).
+2. Borra `frontend/src/i18n/messages/en.json`. No hay que tocar el núcleo: los catálogos viven en
+   `src/i18n/messages/catalogs.ts`, un idioma sin catálogo cae al principal, y las importaciones,
+   los tipos (`tsconfig.json`), los tests (`vitest.config.ts`) y el build (`next.config.mjs`)
+   resuelven el catálogo ausente al español. `npm run i18n:check` no compara nada y pasa.
+3. Si la tienda no está en la zona horaria de la plantilla, declara la tuya en
+   `frontend/src/instance/registry.ts` (solo dato, el núcleo no se toca):
+
+   ```ts
+   export const instanceRegistry = {
+     // …
+     timeZone: "America/Bogota", // o un mapa: { es: "America/Bogota" }
+   } satisfies InstanceRegistry;
+   ```
+
+   Sin `timeZone` se mantienen los valores de siempre (`es` → `Europe/Madrid`, `en` →
+   `America/New_York`), que es lo que espera el framework sin configurar nada.
+
+Los tests del núcleo se ejecutan con los idiomas del framework (un `vitest` compartido fija
+`es`/`en`), así que el CI de tu instancia sigue corriendo la misma batería; el job «Frontend (un
+solo idioma)» del repositorio del framework comprueba exactamente esta configuración.
+
 Lo único que es un contrato estable (y a lo que cualquier vista, heredada o nueva, debe
 ajustarse) es el backend/BFF: WPGraphQL/WooGraphQL, los endpoints REST bajo `app/api/*`, el
 endpoint de config `/wp-json/hwe/v1/config` y los flags `ecommerce.*_enabled` y `modules.*` —
@@ -219,10 +333,13 @@ Lo que `wp hwe setup` no cubre porque vive en el código del frontend, no en la
 config dinámica — ver `docs/CUSTOMIZATION.md` para el detalle:
 
 - [ ] Logo en `frontend/public/` + referencia en `layout.tsx`.
-- [ ] `frontend/src/i18n/messages/{es,en}.json` (`site.name`, `site.footer`,
-      labels de navegación) — deben mantenerse paralelos entre idiomas.
-- [ ] Un `frontend/src/i18n/messages/<idioma>.json` por cada idioma de `i18n.locales` y su
-      alta en `routing.ts` (`npm run i18n:check` comprueba la paridad).
+- [ ] `frontend/src/i18n/messages/es.json` (`site.name`, `site.footer`, labels de navegación) y,
+      si la tienda es multi-idioma, un `<idioma>.json` por cada idioma secundario de
+      `i18n/routing.ts` — deben mantenerse paralelos entre idiomas (`npm run i18n:check`).
+      **Una tienda de un solo idioma deja `locales: ["es"]` y borra `en.json`** (ver §7,
+      «Instancia de un solo idioma»).
+- [ ] Zona horaria de la tienda en `frontend/src/instance/registry.ts` (`timeZone`), si no es la
+      de la plantilla.
 - [ ] Páginas legales (`legal.*` en los mensajes i18n).
 - [ ] `frontend/package.json` (`name`).
 - [ ] `NEXT_PUBLIC_SITE_URL` y dominios/CORS reales antes de producción.

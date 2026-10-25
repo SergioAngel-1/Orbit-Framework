@@ -1,5 +1,4 @@
-import es from "@/i18n/messages/es.json";
-import en from "@/i18n/messages/en.json";
+import { catalogFor } from "@/i18n/messages/catalogs";
 import type { LoyaltyEntryData } from "./types";
 
 // ============================================================================
@@ -14,18 +13,15 @@ import type { LoyaltyEntryData } from "./types";
 //  `hwe_loyalty_entry_types`) devuelve un texto neutro, nunca lanza.
 // ============================================================================
 
-type Catalog = typeof es;
-
-const CATALOGS: Record<"es" | "en", Catalog> = { es, en };
+type Catalog = ReturnType<typeof catalogFor>;
 
 export interface LoyaltyEntryLike {
   type: string;
   data?: LoyaltyEntryData | null;
 }
 
-function catalogFor(locale: string): Catalog["loyalty"]["entries"] {
-  return (locale.toLowerCase().startsWith("en") ? CATALOGS.en : CATALOGS.es).loyalty
-    .entries;
+function entriesFor(locale: string): Catalog["loyalty"]["entries"] {
+  return catalogFor(locale).loyalty.entries;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -70,7 +66,7 @@ function withOrder(text: string, order: number | null, template: string): string
  * @param locale Idioma de la petición (`es`, `en`…); lo demás cae a español.
  */
 export function describeEntry(entry: LoyaltyEntryLike, locale: string): string {
-  const entries = catalogFor(locale);
+  const entries = entriesFor(locale);
   const data = isRecord(entry.data) ? entry.data : {};
   const order = integerOf(data.order);
 

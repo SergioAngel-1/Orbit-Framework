@@ -2,6 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getCategories, getProductsBySlugs } from "@/lib/catalog/products";
 import { logReadFailure } from "@/lib/observability/read-failure";
 import type { BannerPlacement, BannerSlide } from "./types";
+
+// Una instancia que sirve el catálogo en español: los enlaces del CMS pueden venir en la
+// forma interna o en la pública.
+vi.mock("@/instance/registry", () => ({
+  instanceRegistry: {
+    revalidationTags: [],
+    publicPaths: { "/products": "/productos", "/categories": "/categorias" },
+  },
+}));
 import {
   catalogSlugs,
   localizePlacement,
@@ -42,6 +51,11 @@ describe("parseCatalogHref", () => {
     [
       "/products/vela%20roja#reseñas",
       { kind: "products", slug: "vela roja", rest: "#reseñas" },
+    ],
+    ["/productos/vela-roja", { kind: "products", slug: "vela-roja", rest: "" }],
+    [
+      "/categorias/velas?sort=price",
+      { kind: "categories", slug: "velas", rest: "?sort=price" },
     ],
   ])("%s", (href, expected) => {
     expect(parseCatalogHref(href)).toEqual(expected);

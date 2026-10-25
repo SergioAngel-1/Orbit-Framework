@@ -1,6 +1,12 @@
+import { toInternalPath } from "@/lib/instance/public-paths";
+
 /**
  * Ruta interna segura para `?return=` tras iniciar sesión (anti open-redirect).
  * Solo rutas relativas de la app; nunca `/api` ni URLs absolutas.
+ *
+ * Acepta la ruta en su forma PÚBLICA (`/cuenta`) o interna (`/account`): el valor
+ * devuelto es siempre el interno, que es lo que consumen los `Link` (el proxy y la
+ * navegación lo vuelven a traducir). El fallback (`/account`) también es interno.
  *
  * Los navegadores QUITAN tabuladores y saltos de línea al interpretar una URL:
  * `/<TAB>/evil.example` llega a ser `//evil.example`, un protocolo relativo. Por
@@ -22,7 +28,7 @@ export function safeInternalPath(
   }
   // Evita esquemas embebidos (javascript:, data:…)
   if (/^\/[a-z]+:/i.test(path)) return fallback;
-  return path;
+  return toInternalPath(path);
 }
 
 /**

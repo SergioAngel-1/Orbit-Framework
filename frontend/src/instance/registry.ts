@@ -15,6 +15,9 @@ import ogCards from "./og-cards.json";
  *   El plugin de WordPress debe registrar el mismo tag con `hwe_revalidation_tags`.
  * - `ogCards`: manifiesto de las tarjetas sociales por vista (lo escribe
  *   `npm run og:generate` en `og-cards.json`; vacío = tarjeta dinámica de marca).
+ * - `timeZone` (opcional): zona horaria IANA de la tienda o un mapa por idioma, que
+ *   `i18n/request.ts` usa para fechas y horas. Sin ella se mantienen los valores de la
+ *   plantilla (`es` → `Europe/Madrid`, `en` → `America/New_York`).
  */
 export const instanceRegistry: InstanceRegistry = {
   revalidationTags: [],

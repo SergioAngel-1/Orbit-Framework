@@ -110,6 +110,38 @@ describe("maxRedeemable", () => {
   it("un saldo de 0 no permite canjear", () => {
     expect(maxRedeemable(input({ balance: 0 }), config())).toBe(0);
   });
+
+  it("recorta al porcentaje de la base sin envío (0 = sin tope)", () => {
+    // 10 % de 5.000 = 500, con los fees ajenos dentro de la base.
+    expect(
+      maxRedeemable(
+        input({ itemsTotal: 4000, shippingTotal: 2000, feesTotal: 1000 }),
+        config({ max_redeem_percent: "10" }),
+      ),
+    ).toBe(500);
+    expect(maxRedeemable(input(), config({ max_redeem_percent: "0" }))).toBe(5000);
+  });
+
+  it("el porcentaje se combina con el resto de topes tomando el menor", () => {
+    expect(
+      maxRedeemable(
+        input(),
+        config({ max_redeem_percent: "10", max_redeem_per_order: "200" }),
+      ),
+    ).toBe(200);
+    expect(
+      maxRedeemable(input({ balance: 300 }), config({ max_redeem_percent: "10" })),
+    ).toBe(300);
+  });
+
+  it("el porcentaje redondea los puntos hacia abajo", () => {
+    expect(
+      maxRedeemable(
+        input({ itemsTotal: 100, shippingTotal: 0 }),
+        config({ point_value: "0.03", max_redeem_percent: "10" }),
+      ),
+    ).toBe(333);
+  });
 });
 
 describe("parseLoyaltyCartExtension", () => {

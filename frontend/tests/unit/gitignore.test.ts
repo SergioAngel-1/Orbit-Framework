@@ -55,7 +55,13 @@ describe(".gitignore", () => {
 
 // El contrato de instancia: `mu-plugins/instance/` es del usuario de la instancia. El framework
 // solo versiona su README; el resto de lo que haya ahí no entra en un commit del framework.
-describe(".gitignore: carpeta de la instancia", () => {
+//
+// En el repositorio de una instancia (`HWE_INSTANCE=true`) esta política es al revés —su código
+// SÍ se versiona y el patrón de plugins deja de estar comentado—, así que el bloque se salta.
+// Lo de arriba (secretos, backups) se comprueba siempre.
+const IS_INSTANCE_REPO = process.env.HWE_INSTANCE === "true";
+
+describe.skipIf(IS_INSTANCE_REPO)(".gitignore: carpeta de la instancia", () => {
   it.each([
     ["backend/wp-content/mu-plugins/instance/10-campos.php", "código de la instancia"],
     [

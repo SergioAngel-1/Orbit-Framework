@@ -84,7 +84,9 @@ Desde `backend/`: `composer test` (PHPUnit 12 + Brain Monkey). Contra la pila le
 
 **Pila completa:** Docker puro (`docker compose up -d` + `docker compose run --rm wpcli` en el
 primer arranque) o híbrido recomendado (`docker compose up -d db redis` + WP nativo con
-`php -S 0.0.0.0:8080 -t <ruta-wp>` contra la DB en `127.0.0.1:3307` + `npm run dev`).
+`php -S 0.0.0.0:8080 -t <ruta-wp>` contra la DB en `127.0.0.1:${DB_PORT:-3307}` + `npm run dev`).
+Con varias pilas en la misma máquina (`HWE_CONTAINER_PREFIX`, `COMPOSE_PROJECT_NAME`, `DB_PORT`,
+`REDIS_PORT`): `docs/CREATE_INSTANCE.md` §2.
 Pasos exactos en `README.md` y `docs/INSTALL.md`.
 
 ## Backend: qué es código propio
@@ -133,7 +135,9 @@ Reglas de oro (no las rompas — `AGENTS.md §2, §7`):
 - **Navegación interna** desde `@/i18n/navigation` (Link/redirect/useRouter), **no** desde
   `next/*` (excepto `notFound`), o se pierde el idioma. Locales: `es` sin prefijo (canónico),
   `en` en `/en`.
-- **Mensajes i18n paralelos**: una clave nueva en `es.json` va también en `en.json`.
+- **Mensajes i18n paralelos**: una clave nueva en `es.json` va también en el catálogo de cada
+  idioma secundario de `routing.locales` (`en.json` en el framework; una instancia monolingüe no
+  tiene ninguno).
 - **Páginas estáticas bajo `[locale]`** llaman `setRequestLocale(locale)`; las dependientes del
   usuario (carrito/checkout/cuenta/auth) van `force-dynamic`.
 - **La marca/URL del sitio SIEMPRE sale de `getSiteConfig()`** (`lib/config/index.ts`, fetch

@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CONFIG_DEFAULTS } from "@/lib/config/defaults";
 import type { SiteConfig } from "@/lib/config/types";
 import es from "@/i18n/messages/es.json";
-import en from "@/i18n/messages/en.json";
+import { catalogFor, hasOwnCatalog } from "@/i18n/messages/catalogs";
+
+// Las URL que construye el núcleo no dependen del registro de la instancia: estos tests
+// fijan el caso sin mapa público (los mapas se prueban en los `*.public-paths.test.ts`).
+vi.mock("@/instance/registry", () => ({ instanceRegistry: {} }));
 
 let currentConfig: SiteConfig;
 let degraded = false;
@@ -26,7 +30,10 @@ vi.mock("next-intl/server", () => ({
     locale: string;
     namespace: string;
   }) => {
-    const root = (locale === "en" ? en : es) as unknown as Record<string, unknown>;
+    const root = (locale === "en" ? catalogFor("en") : es) as unknown as Record<
+      string,
+      unknown
+    >;
     const ns = root[namespace] as Record<string, unknown>;
     return (key: string, values: Record<string, string> = {}) => {
       const value = key
@@ -65,21 +72,28 @@ describe("buildLlmsTxt", () => {
     expect(body).toContain("https://mitienda.example/sitemap.xml");
   });
 
-  it("en inglés usa el copy y las URLs del idioma", async () => {
-    const body = (await buildLlmsTxt("en"))!;
-    expect(body).toContain("## Main pages");
-    expect(body).toContain(
-      "- [Home](https://mitienda.example/en): Mi Tienda home page.",
-    );
-    expect(body).toContain("(https://mitienda.example/en/legal/privacy)");
-  });
+  // Sin catálogo propio para `en` (instancia monolingüe) no hay copy inglés que comprobar.
+  it.skipIf(!hasOwnCatalog("en"))(
+    "en inglés usa el copy y las URLs del idioma",
+    async () => {
+      const body = (await buildLlmsTxt("en"))!;
+      expect(body).toContain("## Main pages");
+      expect(body).toContain(
+        "- [Home](https://mitienda.example/en): Mi Tienda home page.",
+      );
+      expect(body).toContain("(https://mitienda.example/en/legal/privacy)");
+    },
+  );
 
-  it("la descripción de marca sale en el idioma", async () => {
-    currentConfig.brand.description = "Descripción";
-    (currentConfig.brand as Record<string, unknown>).description_en = "Description";
-    expect(await buildLlmsTxt("es")).toContain("\nDescripción\n");
-    expect(await buildLlmsTxt("en")).toContain("\nDescription\n");
-  });
+  it.skipIf(!hasOwnCatalog("en"))(
+    "la descripción de marca sale en el idioma",
+    async () => {
+      currentConfig.brand.description = "Descripción";
+      (currentConfig.brand as Record<string, unknown>).description_en = "Description";
+      expect(await buildLlmsTxt("es")).toContain("\nDescripción\n");
+      expect(await buildLlmsTxt("en")).toContain("\nDescription\n");
+    },
+  );
 
   it("datos clave solo con lo que el panel trae; el cargo del responsable no va", async () => {
     currentConfig.legal.company = "Mi Tienda SL";

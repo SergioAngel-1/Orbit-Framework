@@ -1,5 +1,4 @@
-import es from "@/i18n/messages/es.json";
-import en from "@/i18n/messages/en.json";
+import { catalogFor } from "@/i18n/messages/catalogs";
 import { formatMembershipDuration } from "./format";
 import type { MembershipBenefitData } from "./types";
 
@@ -15,14 +14,10 @@ import type { MembershipBenefitData } from "./types";
 //  devuelve un texto neutro, nunca lanza.
 // ============================================================================
 
-type Catalog = typeof es;
-type MembershipsMessages = Catalog["memberships"];
-
-const CATALOGS: Record<"es" | "en", Catalog> = { es, en };
+type MembershipsMessages = ReturnType<typeof catalogFor>["memberships"];
 
 function messagesFor(locale: string): MembershipsMessages {
-  return (locale.toLowerCase().startsWith("en") ? CATALOGS.en : CATALOGS.es)
-    .memberships;
+  return catalogFor(locale).memberships;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

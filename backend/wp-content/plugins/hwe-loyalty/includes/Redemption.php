@@ -10,7 +10,8 @@
  * ganancias (`HWE_Loyalty_Earnings`, que resta `_hwe_loyalty_discount`) sigue siendo correcta.
  *
  * **Recorte.** Los puntos pedidos se recortan, en este orden, a: saldo vivo del libro, máximo
- * por pedido (`max_redeem_per_order`, 0 = sin tope) y tope del carrito. Con el pago completo
+ * por pedido (`max_redeem_per_order`, 0 = sin tope), porcentaje de la base sin envío
+ * (`max_redeem_percent`, 0 = sin tope) y tope del carrito. Con el pago completo
  * apagado el descuento no cubre el envío y deja siempre al menos `min_cash_due` por pagar en
  * dinero (también con envío 0); un carrito por debajo de ese mínimo no admite canje. Con el
  * pago completo encendido el tope es el total con envío y puede llegar a 0. Por debajo de
@@ -68,6 +69,12 @@ final class HWE_Loyalty_Redemption {
 
 	/** Namespace de la extensión de la Store API. */
 	public const NAMESPACE_ID = 'hwe-loyalty';
+
+	/**
+	 * Filtro estable con el que una instancia endurece el máximo canjeable ya calculado
+	 * (saldo, `max_redeem_per_order`, `min_cash_due`/tope de caja y `max_redeem_percent`).
+	 */
+	public const FILTER_MAX_REDEEMABLE = 'hwe_loyalty_max_redeemable';
 
 	/** Clave de la sesión de WooCommerce con los puntos pedidos. */
 	public const SESSION_KEY = 'hwe_loyalty_points';
@@ -619,6 +626,7 @@ final class HWE_Loyalty_Redemption {
 		$value       = (float) ( $settings['point_value'] ?? 0.0 );
 		$minRedeem   = max( 0, (int) ( $settings['min_redeem'] ?? 0 ) );
 		$maxPerOrder = max( 0, (int) ( $settings['max_redeem_per_order'] ?? 0 ) );
+		$maxPercent  = min( 100, max( 0, (int) ( $settings['max_redeem_percent'] ?? 0 ) ) );
 		$full        = ! empty( $settings['full_payment_enabled'] );
 		$minCash     = max( 0.0, (float) ( $settings['min_cash_due'] ?? 0.0 ) );
 
@@ -670,7 +678,26 @@ final class HWE_Loyalty_Redemption {
 		if ( $maxPerOrder > 0 ) {
 			$maxRedeemable = min( $maxRedeemable, $maxPerOrder );
 		}
-		$state['max_redeemable'] = max( 0, $maxRedeemable );
+		if ( $maxPercent > 0 ) {
+			// La base del porcentaje es SIEMPRE productos + cargos ajenos: los tres
+			// llamadores reparten el importe entre `items_total` y `fees_total` de forma
+			// distinta (el carrito los separa; el estado y el pedido los juntan en items),
+			// y el envío nunca entra en la base.
+			$percentBase  = max( 0.0, $items + $fees );
+			$maxByPercent = (int) floor( $percentBase * $maxPercent / 100.0 / $value + 1e-9 );
+			$maxRedeemable = min( $maxRedeemable, $maxByPercent );
+		}
+		$maxRedeemable = self::filterMaxRedeemable(
+			max( 0, $maxRedeemable ),
+			array(
+				'items_total'    => $items,
+				'shipping_total' => $shipping,
+				'fees_total'     => $fees,
+				'balance'        => $balance,
+				'settings'       => $settings,
+			)
+		);
+		$state['max_redeemable'] = $maxRedeemable;
 
 		if ( $maxRedeemable < $minRedeem || $maxRedeemable <= 0 ) {
 			$state['reason'] = 'below_minimum';
@@ -740,6 +767,56 @@ final class HWE_Loyalty_Redemption {
 			return 0;
 		}
 		return (int) floor( $total / $value + 1e-9 );
+	}
+
+	/**
+	 * Aplica `hwe_loyalty_max_redeemable` sobre el máximo ya calculado. **Solo puede
+	 * endurecer:** un valor mayor que el calculado, negativo o que no sea un entero se
+	 * ignora y se registra. `0` sí se acepta y cierra el canje.
+	 *
+	 * @param array<string,mixed> $context `items_total`, `shipping_total`, `fees_total`,
+	 *                                     `balance` y `settings`.
+	 */
+	private static function filterMaxRedeemable( int $max, array $context ): int {
+		if ( ! function_exists( 'apply_filters' ) ) {
+			return $max;
+		}
+
+		try {
+			$filtered = apply_filters( self::FILTER_MAX_REDEEMABLE, $max, $context );
+		} catch ( \Throwable $e ) {
+			self::log(
+				'el filtro ' . self::FILTER_MAX_REDEEMABLE
+				. ' lanzó una excepción; se usa el máximo calculado.'
+			);
+			return $max;
+		}
+
+		if ( ! is_scalar( $filtered ) || ! preg_match( '/^-?\d+$/', trim( (string) $filtered ) ) ) {
+			self::log(
+				'el filtro ' . self::FILTER_MAX_REDEEMABLE
+				. ' devolvió un valor no entero; se ignora.'
+			);
+			return $max;
+		}
+
+		$value = (int) $filtered;
+		if ( $value < 0 ) {
+			self::log(
+				'el filtro ' . self::FILTER_MAX_REDEEMABLE
+				. ' devolvió un valor negativo; se ignora.'
+			);
+			return $max;
+		}
+		if ( $value > $max ) {
+			self::log(
+				'el filtro ' . self::FILTER_MAX_REDEEMABLE . ' intentó ampliar el máximo de '
+				. $max . ' a ' . $value . '; se ignora.'
+			);
+			return $max;
+		}
+
+		return $value;
 	}
 
 	// ------------------------------------------------------------------------

@@ -29,6 +29,12 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    env:
+      # En el repositorio de una instancia hay que exportar el mismo interruptor que
+      # usan los jobs `anti-instance`/`contract` para saltarse: `gitignore.test.ts`
+      # describe la política del framework (su carpeta de instancia ignorada, el
+      # patrón de plugins comentado) y en una instancia es justo al revés.
+      HWE_INSTANCE: ${{ vars.HWE_INSTANCE }}
     steps:
       - uses: actions/checkout@v4
 
@@ -131,6 +137,9 @@ jobs:
     name: Puerta anti-instancia
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # En el repositorio de una instancia su propio código lleva los tokens del patrón:
+    # la puerta solo aplica al framework. Interruptor fail-closed (solo `true`).
+    if: ${{ vars.HWE_INSTANCE != 'true' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -146,6 +155,10 @@ jobs:
     name: Contrato de instancia (ejemplo vivo)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # El job superpone `examples/instance-minimal/` al repo: en una instancia PISA su
+    # `registry.ts` y sus `mu-plugins/instance/`, así que probaría otra cosa. Solo corre
+    # en el repositorio del framework (interruptor fail-closed, valor exacto `true`).
+    if: ${{ vars.HWE_INSTANCE != 'true' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -199,6 +212,75 @@ jobs:
           WORDPRESS_INTERNAL_API_URL: http://127.0.0.1:8080/graphql
 
   # --------------------------------------------------------------------------
+  # Instancia de un solo idioma: el núcleo no puede dar por hecho que existe `en`.
+  # Se copia el repo con `locales: ["es"]` y sin `messages/en.json` y se repite la
+  # batería del frontend. Sin esto, un cambio que vuelva a importar `en.json` desde
+  # el núcleo (o un test que lo dé por hecho) solo se descubre en el clon de la
+  # instancia, cuando el merge del release ya está hecho.
+  # --------------------------------------------------------------------------
+  mono-language:
+    name: Frontend (un solo idioma)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # En una instancia este ya es su estado normal (y su `routing.ts` es suyo): el
+    # job solo aplica al framework, con el mismo interruptor fail-closed.
+    if: ${{ vars.HWE_INSTANCE != 'true' }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Quedarse con un solo idioma (borrar `en`)
+        run: |
+          node - <<'EOF'
+          const fs = require("node:fs");
+          const file = "src/i18n/routing.ts";
+          const source = fs.readFileSync(file, "utf8");
+          const next = source.replace(/locales:\s*\[[^\]]*\]/, 'locales: ["es"]');
+          if (next === source) throw new Error("No se pudo fijar `locales` en i18n/routing.ts");
+          fs.writeFileSync(file, next);
+          EOF
+          rm src/i18n/messages/en.json
+          git status --short
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Formato (Prettier)
+        run: npm run format:check
+
+      # Con un solo idioma no hay paridad entre idiomas que comprobar, pero el
+      # script debe seguir pasando (no puede exigir `en.json`).
+      - name: Paridad i18n
+        run: npm run i18n:check
+
+      - name: Tests y cobertura
+        run: npm run test:coverage
+
+      - name: Levantar endpoint GraphQL de pega
+        run: |
+          node ../.github/scripts/stub-graphql.mjs &
+          npx wait-on http://127.0.0.1:8080 --timeout 30000
+
+      - name: Build de producción (un solo idioma)
+        run: npm run build
+        env:
+          WORDPRESS_INTERNAL_API_URL: http://127.0.0.1:8080/graphql
+
+  # --------------------------------------------------------------------------
   # Secret scanning: ningún secreto debe entrar al repositorio.
   # --------------------------------------------------------------------------
   secret-scan:
@@ -245,7 +327,7 @@ jobs:
       # ellos `loyalty`, con «Puntos» y «Referidos» encendidos), para que los
       # tests del checkout y de la cuenta encuentren el selector, el formulario
       # sin sesión y la calificación del pedido.
-      STUB_SITE_CONFIG_EXTRA: '{"payments":{"gateway_enabled":true,"whatsapp_enabled":true,"cash_enabled":true},"ecommerce":{"checkout_login_required":false,"coupons_enabled":true},"modules":{"site-reviews":true,"coupon-rules":true,"consent-log":true,"customer-identity":true,"shipping":true,"banners":true,"product-landing":true,"landings":true,"loyalty":true},"loyalty":{"points_enabled":true,"referrals_enabled":true,"transfers_enabled":true,"currency_name":"punto","currency_name_plural":"puntos","point_value":"0.01","min_redeem":"100","max_redeem_per_order":"0","full_payment_enabled":false,"min_cash_due":"0.01","expiry_days":"0","cashback_enabled":false,"events":{"registration":"0","review":"0","birthday":"0"}},"banners":{"enabled":true},"integrations":{"analytics_provider":"ga4","analytics_id":"G-E2ETEST01"},"landings":{"registry":"guia-demo | Guía de demostración | article\nperfil-demo | Perfil de demostración | person","editorial":{"guia-demo":{"published":true,"url":{"base":"area","path":"guia-demo","path_en":"demo-guide"},"seo":{"title":"Guía de demostración","title_en":"Demo guide","description":"Una guía de prueba","description_en":"A test guide"},"lead_enabled":true,"lead_body":"<p>Entradilla de prueba</p>","lead_body_en":"<p>Test lead</p>","sections":{"s1":{"enabled":true,"order":"1","layout":"image-right","title":"Primera sección","title_en":"First section","body":"<p>Cuerpo uno</p>","body_en":"<p>Body one</p>"},"s2":{"enabled":true,"order":"2","layout":"prose-blocks","title":"Bloques con subtítulos","body":"<p>Introducción</p><h3>Primer bloque</h3><p>Texto uno</p><h3>Segundo bloque</h3><p>Texto dos</p>"}},"faq":{"enabled":true,"title":"Dudas","q1":{"question":"¿Funciona?","answer":"<p>Sí, funciona</p>"}},"closing":{"enabled":true,"title":"Para cerrar","text":"<p>Gracias por leer</p>","cta_label":"Ir a la tienda","cta_href":"/products","cta2_label":"Ataque","cta2_href":"javascript:alert(1)"}},"perfil-demo":{"published":true,"url":{"base":"root","path":"perfil-demo"},"lead_enabled":true,"lead_body":"<p>Perfil de prueba</p>"}}}}'
+      STUB_SITE_CONFIG_EXTRA: '{"payments":{"gateway_enabled":true,"whatsapp_enabled":true,"cash_enabled":true},"ecommerce":{"checkout_login_required":false,"coupons_enabled":true},"modules":{"site-reviews":true,"coupon-rules":true,"consent-log":true,"customer-identity":true,"shipping":true,"banners":true,"product-landing":true,"landings":true,"loyalty":true},"loyalty":{"points_enabled":true,"referrals_enabled":true,"transfers_enabled":true,"currency_name":"punto","currency_name_plural":"puntos","point_value":"0.01","min_redeem":"100","max_redeem_per_order":"0","max_redeem_percent":"0","full_payment_enabled":false,"min_cash_due":"0.01","expiry_days":"0","cashback_enabled":false,"events":{"registration":"0","review":"0","birthday":"0"}},"banners":{"enabled":true},"integrations":{"analytics_provider":"ga4","analytics_id":"G-E2ETEST01"},"landings":{"registry":"guia-demo | Guía de demostración | article\nperfil-demo | Perfil de demostración | person","editorial":{"guia-demo":{"published":true,"url":{"base":"area","path":"guia-demo","path_en":"demo-guide"},"seo":{"title":"Guía de demostración","title_en":"Demo guide","description":"Una guía de prueba","description_en":"A test guide"},"lead_enabled":true,"lead_body":"<p>Entradilla de prueba</p>","lead_body_en":"<p>Test lead</p>","sections":{"s1":{"enabled":true,"order":"1","layout":"image-right","title":"Primera sección","title_en":"First section","body":"<p>Cuerpo uno</p>","body_en":"<p>Body one</p>"},"s2":{"enabled":true,"order":"2","layout":"prose-blocks","title":"Bloques con subtítulos","body":"<p>Introducción</p><h3>Primer bloque</h3><p>Texto uno</p><h3>Segundo bloque</h3><p>Texto dos</p>"}},"faq":{"enabled":true,"title":"Dudas","q1":{"question":"¿Funciona?","answer":"<p>Sí, funciona</p>"}},"closing":{"enabled":true,"title":"Para cerrar","text":"<p>Gracias por leer</p>","cta_label":"Ir a la tienda","cta_href":"/products","cta2_label":"Ataque","cta2_href":"javascript:alert(1)"}},"perfil-demo":{"published":true,"url":{"base":"root","path":"perfil-demo"},"lead_enabled":true,"lead_body":"<p>Perfil de prueba</p>"}}}}'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

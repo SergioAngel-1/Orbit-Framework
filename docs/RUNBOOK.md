@@ -62,7 +62,7 @@ restauración de prueba (§2): una copia que nunca se restauró no es una copia.
 ### Desde la consola
 
 ```bash
-# Backup inmediato en producción
+# Backup inmediato en producción (con HWE_CONTAINER_PREFIX, sustituye `hwe_` por el tuyo)
 docker exec hwe_backup /bin/sh /opt/hwe/scripts/backup-cron.sh manual
 
 # Comprobar que las copias automáticas funcionan (resultado y fallos salen por logs)
@@ -162,7 +162,8 @@ docker compose -f docker-compose.prod.yml up -d --force-recreate frontend wordpr
 
 **WP-Cron.** `DISABLE_WP_CRON` está activo: los eventos programados de WordPress y de
 los plugins (aviso de backup, revalidaciones diferidas…) los ejecuta el contenedor
-`wp-cron` por WP-CLI. Si «no pasa nada programado», mira `docker logs hwe_wp_cron`.
+`wp-cron` por WP-CLI. Si «no pasa nada programado», mira `docker logs hwe_wp_cron` (o
+`${HWE_CONTAINER_PREFIX:-hwe}_wp_cron` si la pila usa otro prefijo, `docs/CREATE_INSTANCE.md` §2).
 Tras actualizar mu-plugins o plugins, reinicia ese contenedor.
 
 **Salud.**

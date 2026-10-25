@@ -1,4 +1,5 @@
 import { routing } from "@/i18n/routing";
+import { localizedPath } from "@/lib/seo/urls";
 import { getSiteConfig, isFallbackSiteConfig } from "@/lib/config";
 
 // Contenido de /robots.txt. Es un route handler de texto (en vez de la
@@ -46,8 +47,11 @@ function localizedDisallow(): string[] {
   const paths = new Set<string>(["/api/"]);
   for (const path of PRIVATE_PATHS) {
     for (const locale of routing.locales) {
+      // La ruta interna sigue accesible (el proxy la redirige 308 a la pública): se veta
+      // también, junto con la pública que declare la instancia.
       const prefix = locale === routing.defaultLocale ? "" : `/${locale}`;
       paths.add(`${prefix}${path}`);
+      paths.add(localizedPath(path, locale));
     }
   }
   return [...paths];

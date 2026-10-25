@@ -14,7 +14,7 @@ quieres organizar tu código en subcarpetas, cárgalas tú desde uno de los arch
 - Un archivo que lanza una excepción o tiene un error de sintaxis **no tumba el sitio**: se registra
   en el log de PHP (`[hwe] instance-loader: …`) y se sigue con el siguiente. Un `exit` o un error
   fatal sí lo tumba (PHP no permite capturarlos).
-- `HWE_CORE_CONTRACT_VERSION` (`2.1.0`) es la versión del contrato núcleo ↔ instancia. Compárala si tu
+- `HWE_CORE_CONTRACT_VERSION` (`2.2.0`) es la versión del contrato núcleo ↔ instancia. Compárala si tu
   código depende de un hook que apareció en una versión concreta.
 
 ## El contrato: qué puedes hacer desde aquí

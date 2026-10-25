@@ -577,7 +577,8 @@ responde **404** como si la ruta no existiera:
   max_redeemable, min_redeem, full_payment_available }`. `discount` va en **unidades menores**
   (string): formatéalo con `formatStoreAmount`. `reason` es `null` si el canje puede aplicarse o
   `guest` \| `not_participant` \| `disabled` \| `below_minimum` \| `cart_below_cash_minimum`.
-  WordPress recorta la cantidad a saldo, `max_redeem_per_order` y el tope del carrito; con el pago
+  WordPress recorta la cantidad a saldo, `max_redeem_per_order`, `max_redeem_percent` (porcentaje
+  de la base sin envío) y el tope del carrito; con el pago
   completo apagado, el descuento no cubre el envío ni deja el total por debajo de `min_cash_due`.
 - **Checkout:** si el saldo bajó entre el carrito y la creación del pedido, el checkout responde
   **409** con `reason: "loyalty_insufficient_points"` y **no crea el pedido**; el reintento cobra
@@ -860,7 +861,8 @@ modules: { banners, shipping, product-landing, landings, consent-log, site-revie
 instance: { … }                           // lo que añada la instancia (vacío en el framework)
 banners: { enabled }
 loyalty: { points_enabled, referrals_enabled, currency_name, currency_name_plural, currency_icon,
-           point_value, min_redeem, max_redeem_per_order, full_payment_enabled, min_cash_due,
+           point_value, min_redeem, max_redeem_per_order, max_redeem_percent,
+           full_payment_enabled, min_cash_due,
            expiry_days, cashback_enabled, cashback_percent,
            events: { registration, review, birthday },
            referral_signup_points_l1, referral_signup_points_l2, commission_first_percent,
@@ -905,8 +907,9 @@ y `/api/store/products?search=` (búsqueda; el listado sin búsqueda sigue sirvi
 - `banners.enabled` — activa/desactiva el renderizado de banners. La autoría de los banners
   vive en el plugin **HWE Banners** (CPT `hwe_banner`, REST `hwe-banners/v1/banners`). Lector
   core: `lib/banners/getBanner(type, location, locale)` con ISR tag `banners`.
-- `loyalty.*` — configuración pública del módulo `loyalty` (nombres de la unidad, valor, topes,
-  eventos, comisiones y transferencias). `allowed_roles` es operativo y **no** se publica. Con el
+- `loyalty.*` — configuración pública del módulo `loyalty` (nombres de la unidad, valor, topes
+  —`max_redeem_per_order` y `max_redeem_percent`—, eventos, comisiones y transferencias).
+  `allowed_roles` es operativo y **no** se publica. Con el
   módulo apagado llegan los defaults y las rutas del BFF responden 404; con `points_enabled`
   apagado, las de puntos; con `referrals_enabled` o `transfers_enabled` apagados, las suyas.
 - `memberships.*` — solo los tres campos públicos del carné (`card_enabled`, `card_verify_path`,
@@ -950,7 +953,51 @@ Lector core en `frontend/src/lib/banners/`:
 - El carrusel del starter (`HeroCarousel`) pinta fotos: la home descarta los slides sin imagen. Una
   plantilla con texto solo o con visual decorativo la añade la instancia.
 
-## A.4 Design tokens (paleta/tipografía dinámica)
+## A.4 Rutas públicas de la instancia (`InstanceRegistry.publicPaths`)
+
+El framework escribe sus rutas en inglés porque son las carpetas de `app/[locale]/`
+(`/products`, `/account`, `/checkout/return`…). Una instancia que sirve la tienda en otro idioma
+no tiene que renombrar esas carpetas ni editar núcleo: declara el mapa en
+`frontend/src/instance/registry.ts` con **solo datos**.
+
+```ts
+export const instanceRegistry: InstanceRegistry = {
+  revalidationTags: [],
+  publicPaths: {
+    "/products": "/productos",
+    "/categories": "/categorias",
+    "/account": "/cuenta",            // /account/orders pasa a /cuenta/orders (hereda)
+    "/checkout": "/pago",             // /checkout/return pasa a /pago/return
+    "/cart": "/carrito",
+    "/login": "/entrar",
+    "/register": "/registro",
+    // Por idioma, si un idioma conserva el tramo interno:
+    // "/blog": { es: "/novedades", en: "/blog" },
+  },
+};
+```
+
+Reglas:
+
+- La clave es la ruta **interna** (formato de `pathnames` de next-intl: `/products/[slug]` o un
+  prefijo suyo). Un hijo sin entrada propia **hereda** el prefijo del padre; la entrada más
+  larga manda.
+- El valor es el tramo público, igual para todos los idiomas o por idioma. Un idioma sin entrada
+  conserva el tramo interno.
+- Se validan al arrancar (al cargar `i18n/routing.ts`): dos rutas a la misma URL, una ruta
+  pública que sea la interna de otra vista, `api` o un código de idioma como primer tramo, o una
+  entrada mal formada **abortan con un mensaje claro** en vez de servir URLs rotas.
+- Sin `publicPaths` todo es identidad: las URL son las de siempre.
+
+Qué hace el núcleo con el mapa: `localizedPath` (canónicas, `hreflang`, sitemap, JSON-LD,
+`llms.txt`, enlaces de los correos) y la navegación (`Link`, `redirect`, `useRouter`,
+`getPathname`) traducen el href interno al público; `proxy.ts` **reescribe** la URL pública a la
+carpeta interna y responde **308** de la interna antigua a la pública (sin URL duplicada). Los
+lectores que reconocen enlaces del CMS (banners, cuerpo del blog) aceptan las dos formas. No se
+declaran `pathnames` de next-intl: solo localizan un href que sea una clave exacta del mapa, así
+que una ficha concreta (`/products/vela-roja`) saldría sin traducir.
+
+## A.5 Design tokens (paleta/tipografía dinámica)
 
 `design.colors.*`/`design.typography.*` (§A.3) están pensados para mapearse 1:1 a variables
 CSS (`--color-brand`, `--color-brand-dark`, `--color-brand-light`, `--color-secondary`,
@@ -960,7 +1007,7 @@ código. El mapeo campo → variable vive en `frontend/src/lib/config/tokens.ts`
 inyección en runtime (`components/ui/theme-tokens.tsx`) es parte de la UI heredada (Parte B),
 pero el **contrato de qué 9 colores + 2 tipografías existen** es estable.
 
-## A.5 Webhooks salientes (WordPress/WooCommerce → tu frontend)
+## A.6 Webhooks salientes (WordPress/WooCommerce → tu frontend)
 
 - **Pedido creado/actualizado**: `POST {frontend}/api/webhooks/woocommerce/order-{created,updated}`,
   firmado con `WC_WEBHOOK_SECRET` (HMAC). Payload = el de WooCommerce; el estado real se
@@ -972,7 +1019,7 @@ pero el **contrato de qué 9 colores + 2 tipografías existen** es estable.
   la activa). La firma, el importe y la moneda los verifica el provider (`lib/payments/`); la
   pasarela se configura en el Control Center (ver «Pagos» en A.2).
 
-## A.6 Menús de navegación (WordPress → cualquier frontend)
+## A.7 Menús de navegación (WordPress → cualquier frontend)
 
 Los menús se gestionan en **wp-admin → Apariencia → Menús** y se exponen por WPGraphQL.
 El tema `hwe-headless-base` registra cuatro *locations*; asignar un menú a una location
@@ -1143,7 +1190,7 @@ una funcionalidad de cuenta/carrito distinta al estándar.
    muestres incondicionalmente si tiene un flag correspondiente.
 4. **i18n**: añade las keys que uses en `i18n/messages/es.json` **y** `en.json` en paralelo
    (mismo namespace/estructura). Usa `Link`/`redirect` de `@/i18n/navigation`, no de `next/*`.
-5. **Diseño**: usa las clases utilitarias de marca (§A.4: `brand`, `brand-dark`, `brand-light`,
+5. **Diseño**: usa las clases utilitarias de marca (§A.5: `brand`, `brand-dark`, `brand-light`,
    `secondary`, `secondary-dark`, `accent`, `surface`, `font-sans`, `font-heading`) en vez de
    colores/fuentes hardcodeados.
 6. **SEO** (si la página es pública e indexable): `generateMetadata` con `pageMetadata(...)`
@@ -1165,7 +1212,7 @@ Todo lo de la Parte A sigue aplicando igual — es el contrato, no importa el st
 que necesitas construir tú mismo:
 - Un cliente GraphQL contra WPGraphQL/WooGraphQL (§A.1).
 - Llamadas `fetch` al BFF con `credentials: "include"` + el flujo CSRF (§A.2).
-- Lectura de `/wp-json/hwe/v1/config` y aplicación de los design tokens (§A.4) al sistema de
+- Lectura de `/wp-json/hwe/v1/config` y aplicación de los design tokens (§A.5) al sistema de
   diseño que elijas.
 - Manejo de los flags de funcionalidad opcional (§A.3) en tu propia UI.
 

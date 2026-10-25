@@ -25,13 +25,14 @@ services:
   # --------------------------------------------------------------------------
   db:
     image: mariadb:11.8
-    container_name: hwe_db
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_db
     logging: *default-logging
     restart: unless-stopped
     ports:
-      # Solo loopback: el modo híbrido (WordPress nativo contra `127.0.0.1:3307`)
-      # sigue funcionando, pero la BD deja de ser alcanzable desde la red local.
-      - "127.0.0.1:3307:3306"
+      # Solo loopback: el modo híbrido (WordPress nativo contra `127.0.0.1:${DB_PORT:-3307}`)
+      # sigue funcionando, pero la BD deja de ser alcanzable desde la red local. Con varias
+      # pilas en la misma máquina, cada una publica su `DB_PORT`.
+      - "127.0.0.1:${DB_PORT:-3307}:3306"
     environment:
       MARIADB_DATABASE: "${MYSQL_DATABASE:-wordpress}"
       MARIADB_USER: "${MYSQL_USER:-wordpress}"
@@ -52,7 +53,7 @@ services:
   # --------------------------------------------------------------------------
   wordpress:
     image: wordpress:7.1-php8.4-apache
-    container_name: hwe_wordpress
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wordpress
     logging: *default-logging
     restart: unless-stopped
     depends_on:
@@ -145,7 +146,7 @@ services:
   # --------------------------------------------------------------------------
   wpcli:
     image: wordpress:cli-php8.4
-    container_name: hwe_wpcli
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wpcli
     logging: *default-logging
     profiles: ["cli"]
     depends_on:
@@ -207,7 +208,7 @@ services:
   # --------------------------------------------------------------------------
   wp-cron:
     image: wordpress:cli-php8.4
-    container_name: hwe_wp_cron
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wp_cron
     logging: *default-logging
     restart: unless-stopped
     depends_on:
@@ -260,7 +261,7 @@ services:
   # --------------------------------------------------------------------------
   backup:
     image: alpine:3.23
-    container_name: hwe_backup
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_backup
     logging: *default-logging
     restart: unless-stopped
     depends_on:
@@ -297,13 +298,14 @@ services:
     # El tag fija el minor: `redis:8-alpine` es un major flotante (hoy resuelve
     # a 8.10.x) y dos despliegues del mismo commit podían usar versiones distintas.
     image: redis:8.10-alpine
-    container_name: hwe_redis
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_redis
     logging: *default-logging
     restart: unless-stopped
     ports:
       # Solo loopback: sin esto, cualquiera en la red local puede FLUSHALL el Redis
       # que guarda la blocklist de revocación, el rate-limit y la idempotencia.
-      - "127.0.0.1:6379:6379"
+      # Con varias pilas en la misma máquina, cada una publica su `REDIS_PORT`.
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
     volumes:
       - redis_data:/data
@@ -323,7 +325,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: dev # imagen de desarrollo con hot-reload (prod: --target prod)
-    container_name: hwe_frontend
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_frontend
     logging: *default-logging
     restart: unless-stopped
     depends_on:

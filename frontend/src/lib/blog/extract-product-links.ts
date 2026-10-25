@@ -1,3 +1,5 @@
+import { publicAliases } from "@/lib/instance/public-paths";
+
 const HREF_RE = /<a\s[^>]*?\bhref\s*=\s*(["'])(.*?)\1/gi;
 
 // ============================================================================
@@ -28,16 +30,21 @@ const DEFAULT_LOCALES = ["es", "en"] as const;
 /**
  * De un pathname (`/products/camiseta`, `/en/products/camiseta`,
  * `/product/camiseta`) extrae el slug de producto, o null si no es una ficha.
+ * Reconoce la forma interna (`/products`) y la pública de la instancia
+ * (`/productos`, si `InstanceRegistry.publicPaths` la declara).
  */
 export function productSlugFromPathname(
   pathname: string,
   locales: readonly string[] = DEFAULT_LOCALES,
 ): string | null {
   const parts = segmentsOf(pathname, locales);
+  const productSegments = new Set(["products", ...publicAliases("products")]);
   // Exactamente `<ruta>/<slug>`: una ruta que cuelga de la ficha no es la ficha.
   if (
     parts.length === 2 &&
-    (parts[0] === "products" || parts[0] === "product" || parts[0] === "producto")
+    (productSegments.has(parts[0]!) ||
+      parts[0] === "product" ||
+      parts[0] === "producto")
   ) {
     try {
       return decodeURIComponent(parts[1]!);

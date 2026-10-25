@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hasOwnCatalog } from "@/i18n/messages/catalogs";
 import {
   MEMBERSHIP_CHECKOUT_REASONS,
   membershipCheckoutError,
@@ -26,6 +27,10 @@ const CODES = [
   "membership_already_indefinite",
 ] as const;
 
+// Una instancia monolingüe borra `messages/en.json`: sin catálogo inglés no hay texto
+// alternativo que comparar (todo cae a español).
+const hasEnglish = hasOwnCatalog("en");
+
 describe("membershipCheckoutError", () => {
   it.each(CODES)("traduce hwe_%s a un motivo estable con texto", (reason) => {
     const translated = membershipCheckoutError(`hwe_${reason}`);
@@ -37,14 +42,16 @@ describe("membershipCheckoutError", () => {
 
   it.each(CODES)("compone el texto de %s con messages/ en cada idioma", (reason) => {
     const es = membershipCheckoutMessage(reason, "es");
-    const en = membershipCheckoutMessage(reason, "en");
 
     expect(es.length).toBeGreaterThan(0);
-    expect(en.length).toBeGreaterThan(0);
-    expect(en).not.toBe(es);
     // Un idioma sin catálogo cae al español, como el resto de textos del BFF.
     expect(membershipCheckoutMessage(reason, "fr")).toBe(es);
-    expect(membershipCheckoutMessage(reason, "en-US")).toBe(en);
+    if (hasEnglish) {
+      const en = membershipCheckoutMessage(reason, "en");
+      expect(en.length).toBeGreaterThan(0);
+      expect(en).not.toBe(es);
+      expect(membershipCheckoutMessage(reason, "en-US")).toBe(en);
+    }
   });
 
   it("un código ajeno o vacío no se traduce", () => {

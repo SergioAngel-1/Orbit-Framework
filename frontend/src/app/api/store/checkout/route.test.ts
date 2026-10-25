@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { hasOwnCatalog } from "@/i18n/messages/catalogs";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { WooCommerceError, wcFetch } from "@/lib/woocommerce/client";
 import { getSiteConfig } from "@/lib/config";
@@ -1097,15 +1098,19 @@ describe("errores del módulo memberships al crear el pedido", () => {
   it("compone el texto del 409 en el idioma de la petición", async () => {
     checkoutFails("hwe_membership_required");
 
-    const en = await POST(checkout("hwe_offline", {}, { "X-HWE-Locale": "en" }));
     const es = await POST(checkout("hwe_offline", {}, { "X-HWE-Locale": "es" }));
-
-    const enBody = await en.json();
     const esBody = await es.json();
-    expect(enBody.reason).toBe("membership_required");
-    expect(enBody.error).toMatch(/membership/i);
+    expect(esBody.reason).toBe("membership_required");
     expect(esBody.error).toMatch(/membresía/i);
-    expect(enBody.error).not.toBe(esBody.error);
+
+    // Sin catálogo inglés (instancia monolingüe) no hay texto alternativo que comparar.
+    if (hasOwnCatalog("en")) {
+      const en = await POST(checkout("hwe_offline", {}, { "X-HWE-Locale": "en" }));
+      const enBody = await en.json();
+      expect(enBody.reason).toBe("membership_required");
+      expect(enBody.error).toMatch(/membership/i);
+      expect(enBody.error).not.toBe(esBody.error);
+    }
   });
 
   it("conserva las fechas y el nivel que explican el bloqueo", async () => {

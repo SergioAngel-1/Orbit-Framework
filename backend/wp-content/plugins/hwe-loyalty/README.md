@@ -44,6 +44,7 @@ Todos los campos son públicos excepto `allowed_roles`, que es un ajuste operati
 | `point_value` | texto decimal | `0.01` | Valor de 1 unidad en la moneda de la tienda. Con 0 o menos, el canje queda desactivado. |
 | `min_redeem` | entero | `100` | Mínimo de unidades para canjear. |
 | `max_redeem_per_order` | entero | `0` | Tope por pedido. 0 = sin tope. |
+| `max_redeem_percent` | entero | `0` | Tope del descuento como porcentaje (0–100) de la base **sin envío** (productos + cargos ajenos), convertido a unidades hacia abajo. Se combina con los demás topes tomando el menor. 0 = sin tope. |
 | `full_payment_enabled` | booleano | `false` | Permite cubrir el pedido completo (envío incluido). |
 | `min_cash_due` | texto decimal | `0.01` | Con el pago completo apagado, importe que debe quedar por pagar en dinero. |
 | `expiry_days` | entero | `0` | Caducidad de los abonos. 0 = no caducan. |
@@ -119,7 +120,8 @@ Store API. `reason` es `null` cuando el canje se puede aplicar y, si no,
 `guest` \| `not_participant` \| `disabled` \| `below_minimum` \| `cart_below_cash_minimum`.
 
 El navegador solo declara la **cantidad**; el descuento (fee negativo no imponible) lo calcula
-WordPress en cada recálculo y lo recorta a saldo, `max_redeem_per_order` y el tope del carrito
+WordPress en cada recálculo y lo recorta a saldo, `max_redeem_per_order`, `max_redeem_percent`
+(porcentaje de la base sin envío) y el tope del carrito
 (con pago completo apagado no cubre el envío ni deja el pedido por debajo de `min_cash_due`).
 Al crear el pedido se vuelve a comprobar contra el libro y se descuenta con la clave
 `redeem:order:<id>`; las metas `_hwe_loyalty_redeemed_points`, `_hwe_loyalty_discount` y
@@ -326,6 +328,7 @@ Filtros:
 | `hwe_loyalty_collected_on_completion` | `( string[] $methods ): string[]` | Medios que esperan a `completed` para contar como cobrados. Por defecto `['cod']`. |
 | `hwe_loyalty_entry_types` | `( array<string, "credit"\|"debit"> $types ): array` | Tipos de movimiento extra. Se descarta y se registra una entrada mal formada. |
 | `hwe_loyalty_participant_roles` | `( string[] $roles ): string[]` | Roles que participan. Los defaults son `customer` y `subscriber`. |
+| `hwe_loyalty_max_redeemable` | `( int $max, array $context ): int` | Tope de canje ya calculado (saldo, `max_redeem_per_order`, `min_cash_due`/tope de caja y `max_redeem_percent`). `$context` = `items_total`, `shipping_total`, `fees_total`, `balance` y `settings`. **Solo puede endurecer**: un valor mayor, negativo o no entero se ignora y se registra con `error_log('[hwe] loyalty: …')`. `0` se acepta y cierra el canje. Se aplica dentro de `quote()`, así que rige en el carrito y en la confirmación del pedido. |
 
 ### Funciones públicas (contrato para otros módulos)
 

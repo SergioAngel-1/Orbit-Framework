@@ -1,5 +1,4 @@
-import es from "@/i18n/messages/es.json";
-import en from "@/i18n/messages/en.json";
+import { catalogFor } from "@/i18n/messages/catalogs";
 
 // ============================================================================
 //  Textos de error del envío para el cliente, compuestos en el BFF.
@@ -10,14 +9,11 @@ import en from "@/i18n/messages/en.json";
 //  mensaje del proveedor ni un código sin mapear.
 // ============================================================================
 
-export type ShippingErrorKey = keyof typeof es.shippingErrors;
-
-const CATALOGS = { es, en } as const;
+export type ShippingErrorKey = keyof ReturnType<typeof catalogFor>["shippingErrors"];
 
 /** Texto de un error de envío en el idioma pedido (cualquier idioma sin catálogo cae a `es`). */
 export function shippingErrorText(locale: string, key: ShippingErrorKey): string {
-  const catalog = locale.toLowerCase().startsWith("en") ? CATALOGS.en : CATALOGS.es;
-  return catalog.shippingErrors[key];
+  return catalogFor(locale).shippingErrors[key];
 }
 
 /** Clave de texto para un código de geocodificación de WordPress (los desconocidos, genéricos). */

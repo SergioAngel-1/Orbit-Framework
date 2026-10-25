@@ -7,7 +7,9 @@ Guía paso a paso para levantar la plantilla desde cero. Tiempo estimado: **< 30
 - **Docker** y **Docker Compose** (v2+).
 - **Node.js ≥ 20.18** (recomendado **24 LTS**, para frontend nativo).
 - **PHP ≥ 8.4** (paridad con producción) con extensiones `mysqli`, `curl`, `mbstring`, `gd` (solo para el modo híbrido).
-- Puertos libres: `3000` (frontend), `8080` (WordPress), `3307` (MariaDB), `6379` (Redis).
+- Puertos libres: `3000` (frontend), `8080` (WordPress), `3307` (MariaDB) y `6379` (Redis) —
+  `FRONTEND_PORT`, `WORDPRESS_PORT`, `DB_PORT` y `REDIS_PORT` en `.env`. Si esta pila
+  convive con otra en la misma máquina, cada una necesita los suyos (`docs/CREATE_INSTANCE.md` §2).
 
 ## 2. Clonar y configurar variables
 
@@ -100,9 +102,9 @@ docker compose up -d --build
 
 | Servicio   | URL                   | Descripción                 |
 |------------|-----------------------|-----------------------------|
-| `db`       | `127.0.0.1:3307` (solo loopback) | MariaDB 11        |
+| `db`       | `127.0.0.1:${DB_PORT:-3307}` (solo loopback) | MariaDB 11 |
 | `wordpress`| http://localhost:8080 | WordPress (Headless CMS)    |
-| `redis`    | `127.0.0.1:6379` (solo loopback) | Cache + rate-limit |
+| `redis`    | `127.0.0.1:${REDIS_PORT:-6379}` (solo loopback) | Cache + rate-limit |
 | `frontend` | http://localhost:3000 | Next.js (dev, hot-reload)   |
 
 > **Los puertos se publican solo en `127.0.0.1`.** Así el modo híbrido sigue
@@ -138,8 +140,8 @@ npm run dev
 
 | Servicio   | Dónde corre     | Puerto | URL                   |
 |------------|-----------------|--------|-----------------------|
-| **MariaDB**| Docker          | `3307` | `127.0.0.1:3307` (loopback) |
-| **Redis**  | Docker          | `6379` | `127.0.0.1:6379` (loopback) |
+| **MariaDB**| Docker          | `DB_PORT` (`3307` por defecto) | `127.0.0.1:3307` (loopback) |
+| **Redis**  | Docker          | `REDIS_PORT` (`6379` por defecto) | `127.0.0.1:6379` (loopback) |
 | **WordPress**| Nativo (PHP)  | `8080` | http://localhost:8080 |
 | **Frontend**| Nativo (Node) | `3000` | http://localhost:3000 |
 

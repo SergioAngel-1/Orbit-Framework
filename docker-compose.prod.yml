@@ -60,7 +60,7 @@ services:
     # No se baja una imagen nueva a mitad de un despliegue: actualizar bases es un
     # paso explícito (`docker compose pull`) revisable, no una sorpresa del `up -d`.
     pull_policy: if_not_present
-    container_name: hwe_caddy
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_caddy
     logging: *default-logging
     restart: unless-stopped
     security_opt:
@@ -133,7 +133,7 @@ services:
   db:
     image: mariadb:11.8
     pull_policy: if_not_present
-    container_name: hwe_db
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_db
     logging: *default-logging
     restart: unless-stopped
     security_opt:
@@ -196,7 +196,7 @@ services:
   wordpress:
     image: wordpress:7.1-php8.4-apache
     pull_policy: if_not_present
-    container_name: hwe_wordpress
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wordpress
     logging: *default-logging
     restart: unless-stopped
     security_opt:
@@ -313,7 +313,7 @@ services:
   wpcli:
     image: wordpress:cli-php8.4
     pull_policy: if_not_present
-    container_name: hwe_wpcli
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wpcli
     profiles: ["cli"]
     depends_on:
       db:
@@ -357,7 +357,7 @@ services:
     # a 8.10.x) y dos despliegues del mismo commit podían usar versiones distintas.
     image: redis:8.10-alpine
     pull_policy: if_not_present
-    container_name: hwe_redis
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_redis
     logging: *default-logging
     restart: unless-stopped
     security_opt:
@@ -446,7 +446,7 @@ services:
         NEXT_STATIC_GENERATION_MAX_CONCURRENCY: "${BUILD_STATIC_MAX_CONCURRENCY:-}"
         NEXT_STATIC_GENERATION_MIN_PAGES_PER_WORKER: "${BUILD_STATIC_MIN_PAGES_PER_WORKER:-}"
         PRERENDER_LONG_TAIL:         "${PRERENDER_LONG_TAIL:-}"
-    container_name: hwe_frontend
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_frontend
     logging: *default-logging
     restart: unless-stopped
     security_opt:
@@ -537,7 +537,7 @@ services:
   wp-cron:
     image: wordpress:cli-php8.4
     pull_policy: if_not_present
-    container_name: hwe_wp_cron
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wp_cron
     logging: *default-logging
     restart: unless-stopped
     security_opt:
@@ -597,7 +597,7 @@ services:
   backup:
     image: alpine:3.23
     pull_policy: if_not_present
-    container_name: hwe_backup
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_backup
     logging: *default-logging
     restart: unless-stopped
     security_opt:
@@ -654,7 +654,7 @@ services:
   cache-prune:
     image: alpine:3.23
     pull_policy: if_not_present
-    container_name: hwe_cache_prune
+    container_name: ${HWE_CONTAINER_PREFIX:-hwe}_cache_prune
     logging: *default-logging
     restart: unless-stopped
     security_opt:

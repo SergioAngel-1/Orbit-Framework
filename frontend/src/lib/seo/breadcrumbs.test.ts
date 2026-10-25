@@ -1,6 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { buildPageBreadcrumbJsonLd } from "./breadcrumbs";
 import { CONFIG_DEFAULTS } from "@/lib/config/defaults";
+
+// Las URL que construye el núcleo no dependen del registro de la instancia: estos tests
+// fijan el caso sin mapa público (los mapas se prueban en los `*.public-paths.test.ts`).
+vi.mock("@/instance/registry", () => ({ instanceRegistry: {} }));
 
 const config = structuredClone(CONFIG_DEFAULTS);
 config.brand.url = "https://mitienda.example";

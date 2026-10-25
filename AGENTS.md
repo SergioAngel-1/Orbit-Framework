@@ -66,6 +66,13 @@ bajo `app/api/*`, el endpoint público `/wp-json/hwe/v1/config` (marca/diseño/f
 contrato de auth (cookies httpOnly + CSRF). Ese contrato está documentado en
 **`docs/FRONTEND_CONNECT.md`** — es la referencia que sobrevive aunque reescribas toda la UI.
 
+**El CI también es núcleo.** `.github/**` no se edita en una instancia (ni siquiera para
+adaptarlo a su repositorio): se declara la **variable de repositorio `HWE_INSTANCE=true`** y el
+propio CI se salta la puerta anti-instancia —perseguiría los tokens de la instancia— y el job
+«contrato» —que superpone `examples/instance-minimal/` y pisaría su `registry.ts`—. Sin la
+variable, el CI se comporta como el del framework (fail-closed). Ver
+`docs/CREATE_INSTANCE.md`, «CI de la instancia».
+
 ---
 
 ## 2. El principio que lo explica casi todo: **el BFF**
@@ -418,8 +425,9 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   `/en`. Config en `i18n/routing.ts`; locale resuelto en `i18n/request.ts`.
 - **Navegación locale-aware**: usa SIEMPRE `Link`/`redirect`/`useRouter` de
   `i18n/navigation.ts` (no los de `next/*`), o se pierde el idioma al navegar.
-- **Textos**: `i18n/messages/es.json` y `en.json` (mantenlos paralelos). Selector:
-  `components/i18n/locale-switcher.tsx`.
+- **Textos**: `i18n/messages/es.json` y un catálogo por cada idioma secundario de
+  `routing.locales` (`en.json` en el framework; una instancia monolingüe solo tiene `es`).
+  Selector: `components/i18n/locale-switcher.tsx`.
 - **SEO/GEO**: `lib/seo/` es la única fuente (`jsonld`, `opengraph`, `title`, `meta-description`,
   `page-metadata`, `urls`, `breadcrumbs`, `listing`, `safe-json-ld`, `og-static`). Rutas de máquina:
   sitemap segmentado (`app/_sitemap/entries.ts`), `robots.txt` (`app/_robots/build.ts`) y
@@ -545,7 +553,9 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   `next/navigation` (excepto `notFound`, que se queda en `next/navigation`).
 - **Páginas estáticas bajo `[locale]`** deben llamar `setRequestLocale(locale)`; las páginas
   que dependen del usuario (carrito, checkout, cuenta, auth) van `force-dynamic`.
-- **Mensajes i18n paralelos**: si añades una clave en `es.json`, añádela en `en.json`.
+- **Mensajes i18n paralelos**: si añades una clave en `es.json`, añádela en el catálogo de cada
+  idioma secundario de `routing.locales` (`en.json` en el framework; una instancia monolingüe no
+  tiene ninguno y `npm run i18n:check` no compara nada).
 - **Importes de la Store API** vienen en **unidades menores** (céntimos): formatéalos con
   `formatStoreAmount` de `lib/format.ts`. Los precios de WooGraphQL vienen ya formateados:
   usa `formatPrice`.
@@ -594,7 +604,10 @@ Desde `backend/`: `composer test` (PHPUnit 12 + Brain Monkey; los dobles de Word
 | **Híbrido** (recom.) | `docker compose up -d db redis` + `start-local.bat` + `npm run dev` | WordPress y frontend nativos; DB/Redis en Docker |
 
 Para desarrollo pesado, el **modo híbrido** evita la latencia de bind mounts Docker
-(WordPress nativo con `php -S 0.0.0.0:8080`, DB en puerto `3307`, frontend con `npm run dev`).
+(WordPress nativo con `php -S 0.0.0.0:8080`, DB en `DB_PORT` —`3307` por defecto—, frontend con
+`npm run dev`). Varias pilas en la misma máquina: `HWE_CONTAINER_PREFIX`, `COMPOSE_PROJECT_NAME`,
+`DB_PORT` y `REDIS_PORT` (`docs/CREATE_INSTANCE.md` §2); los `verify-*.sh` resuelven el contenedor
+por servicio de Compose y abortan si es de otra pila.
 Ver `docs/INSTALL.md` y `README.md` para instrucciones detalladas.
 
 E2E (Playwright): `npx playwright test` (smoke + accesibilidad axe + módulos) contra una app ya

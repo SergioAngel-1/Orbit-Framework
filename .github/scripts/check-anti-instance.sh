@@ -21,7 +21,16 @@
 # («esenciales», «presencia» contienen «esencia»). Usa «imprescindible», «sedes», etc.
 set -euo pipefail
 
-PATTERN='siu|sheilak|mascota|essence|esencia|dormilab|atlas|tutuava'
+# Repositorio de una instancia: la puerta persigue justo los tokens que su propio código
+# lleva, así que no aplica. El interruptor es fail-closed: SOLO el valor exacto `true` la
+# desactiva. En CI lo pone la variable de repositorio `HWE_INSTANCE`; en local, el entorno
+# (docs/CREATE_INSTANCE.md, «CI de la instancia»).
+if [ "${HWE_INSTANCE:-}" = "true" ]; then
+  echo "Puerta anti-instancia: repositorio de instancia: la puerta no aplica."
+  exit 0
+fi
+
+PATTERN='siu|sheilak|mascota|essence|esencia|dormilab|atlas|tutuava|doohi'
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 

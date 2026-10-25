@@ -29,15 +29,22 @@
 #    all          (por defecto) todo lo anterior.
 #
 #  WP-CLI nunca recrea servicios. Primero ejecuta dentro de un contenedor que ya está en marcha
-#  y tiene `wp` (`hwe_wp_cron`, `hwe_wpcli` o `hwe_wordpress`): `docker exec <contenedor> wp
-#  --allow-root`. Si no hay ninguno, el respaldo es un `docker compose run` del servicio `wpcli`
-#  con `--project-name` del proyecto de la pila en marcha (leído de su etiqueta de contenedor) y
-#  con el `.env` del repo cargado como datos (`lib/load-env.sh`): así no se arranca ni se recrea
-#  `wordpress` con otro entorno. Además el respaldo lleva `--no-deps`, que impide a compose
-#  recrear `db` o `wordpress` incluso si el `.env` no existe (el fallo que aparecía al ejecutar
-#  desde un worktree sin `.env`). Con los contenedores en marcha, `cli()` no llama a compose.
+#  y tiene `wp` (los servicios `wp-cron`, `wpcli` o `wordpress` de ESTE proyecto de Compose, o
+#  los nombres con prefijo): `docker exec <contenedor> wp --allow-root`. Si no hay ninguno, el
+#  respaldo es un `docker compose run` del servicio `wpcli` con `--project-name` del proyecto de
+#  este repo y con el `.env` del repo cargado como datos (`lib/load-env.sh`): así no se arranca
+#  ni se recrea `wordpress` con otro entorno. Además el respaldo lleva `--no-deps`, que impide a
+#  compose recrear `db` o `wordpress` incluso si el `.env` no existe (el fallo que aparecía al
+#  ejecutar desde un worktree sin `.env`). Con los contenedores en marcha, `cli()` no llama a
+#  compose más que para resolver el contenedor (`compose ps -q`, que no arranca nada).
 #
-#  Uso (raíz del repo, con `docker compose up -d` y `hwe_wordpress` healthy):
+#  **Varias pilas en la misma máquina:** el contenedor se resuelve con
+#  `lib/compose-containers.sh` (anulación por `HWE_WP_CONTAINER`/`HWE_CLI_CONTAINER`, servicio
+#  de Compose y, si no, `${HWE_CONTAINER_PREFIX:-hwe}_<servicio>`). Si el contenedor resuelto
+#  pertenece a otro proyecto de Compose, el script ABORTA (código 2) en vez de activar o
+#  desactivar módulos en la pila de otra instancia.
+#
+#  Uso (raíz del repo, con `docker compose up -d` y el servicio `wordpress` healthy):
 #    sh backend/scripts/verify-modules.sh [static|toggle|i18n|country|integration|all] [--strict]
 #    DEBUG=1 sh backend/scripts/verify-modules.sh toggle   # ver los errores de wp-cli
 #
@@ -51,6 +58,11 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)" || exit 1
 cd "$HERE/../.." || exit 1
+
+# Resolución de contenedores de la pila de ESTE repo (`lib/compose-containers.sh`): por
+# servicio de Compose, con anulación por variable y abortando si el contenedor es de otra pila.
+# shellcheck source=lib/compose-containers.sh
+. "$HERE/lib/compose-containers.sh"
 
 # `.env` del repo como DATOS (nunca se ejecuta). Solo afecta al `compose run` de respaldo: con
 # un contenedor en marcha no se usa. Si no hay archivo, `hwe_load_env` no hace nada.
@@ -94,47 +106,90 @@ PLUGINS="backend/wp-content/plugins"
 # Contenedor ya en marcha que ejecutará WP-CLI. Se resuelve una sola vez por ejecución.
 CLI_CONTAINER=""
 CLI_CONTAINER_RESOLVED=0
+# Contenedor de WordPress (servicio `wordpress`) resuelto para esta ejecución.
+WP_CONTAINER=""
 # Proyecto de compose de la pila en marcha; solo lo usa el respaldo.
 COMPOSE_PROJECT=""
 COMPOSE_PROJECT_RESOLVED=0
 
-# ¿Hay un contenedor en marcha con `wp`? `hwe_wp_cron` es el normal (imagen de WP-CLI);
-# `hwe_wpcli` puede existir si otra verificación está en curso; `hwe_wordpress` se acepta solo
-# si su imagen trae WP-CLI. No se arranca nada: `docker exec` falla y se prueba el siguiente.
+# Contenedor de WordPress de ESTE repo (servicio `wordpress`), resuelto por `require_stack`.
+# La resolución se hace en la shell principal: dentro de una sustitución de comandos un `exit`
+# solo saldría de la subshell.
+wp_container() {
+  printf '%s' "$WP_CONTAINER"
+}
+
+# La pila de WordPress responde y es la de ESTE proyecto de Compose.
+require_stack() {
+  if [ -z "$WP_CONTAINER" ]; then
+    WP_CONTAINER="$(hwe_resolve_container wordpress "${HWE_WP_CONTAINER:-}" HWE_WP_CONTAINER)"
+    case "$?" in
+      0) ;;
+      2) exit 2 ;;
+      *)
+        echo "La pila no responde: arranca con \`docker compose up -d\` (servicio wordpress de este repo)."
+        exit 2
+        ;;
+    esac
+  fi
+  if ! docker exec "$WP_CONTAINER" true >/dev/null 2>&1; then
+    echo "La pila no responde: arranca con \`docker compose up -d\` (contenedor $WP_CONTAINER del servicio wordpress)."
+    exit 2
+  fi
+  # Resuelve también el contenedor de WP-CLI aquí, en la shell principal: `cli()` se invoca a
+  # menudo dentro de una sustitución de comandos, donde un `exit` solo saldría de la subshell y
+  # el aborto por «otra pila» se perdería.
+  cli_container || true
+}
+
+# ¿Hay un contenedor en marcha con `wp`? `wp_cron` es el normal (imagen de WP-CLI); `wpcli`
+# puede existir si otra verificación está en curso; `wordpress` se acepta solo si su imagen
+# trae WP-CLI. No se arranca nada: se prueban los servicios del proyecto actual y, después,
+# los nombres con prefijo. Un contenedor de OTRA pila aborta la ejecución.
 cli_container() {
   if [ "$CLI_CONTAINER_RESOLVED" = 1 ]; then
     [ -n "$CLI_CONTAINER" ]
     return
   fi
   CLI_CONTAINER_RESOLVED=1
-  for _hwe_container in hwe_wp_cron hwe_wpcli hwe_wordpress; do
-    if docker exec "$_hwe_container" sh -c 'command -v wp >/dev/null 2>&1' >/dev/null 2>&1; then
-      CLI_CONTAINER="$_hwe_container"
+
+  if [ -n "${HWE_CLI_CONTAINER:-}" ]; then
+    CLI_CONTAINER="$(hwe_resolve_container wp-cron "$HWE_CLI_CONTAINER" HWE_CLI_CONTAINER)"
+    case "$?" in
+      0) return 0 ;;
+      2) exit 2 ;;
+      *)
+        echo "hwe: HWE_CLI_CONTAINER apunta a un contenedor que no existe." >&2
+        exit 2
+        ;;
+    esac
+  fi
+
+  for _hwe_service in wp-cron wpcli wordpress; do
+    _hwe_candidate="$(hwe_resolve_container "$_hwe_service")"
+    _hwe_status=$?
+    [ "$_hwe_status" = 2 ] && exit 2
+    [ "$_hwe_status" = 0 ] || continue
+    if docker exec "$_hwe_candidate" sh -c 'command -v wp >/dev/null 2>&1' >/dev/null 2>&1; then
+      CLI_CONTAINER="$_hwe_candidate"
       return 0
     fi
   done
   return 1
 }
 
-# Proyecto de compose de la pila en marcha (etiqueta del contenedor de WordPress). Sin él,
-# `compose run` crearía un proyecto nuevo con volúmenes y red propios. Si no se puede leer, se
-# deja vacío: el respaldo sigue llevando `--no-deps`, así que no recrea servicios.
+# Proyecto de compose de este repo: `COMPOSE_PROJECT_NAME` o el nombre de la carpeta. Lo usa el
+# respaldo de `compose run`, para no crear un proyecto nuevo con volúmenes y red propios.
 compose_project() {
   if [ "$COMPOSE_PROJECT_RESOLVED" = 1 ]; then
     [ -n "$COMPOSE_PROJECT" ]
     return
   fi
   COMPOSE_PROJECT_RESOLVED=1
-  COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-}"
-  _hwe_project="$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' hwe_wordpress 2>/dev/null | head -n1)"
-  case "$_hwe_project" in
-    '' | '<no value>' | *[!A-Za-z0-9_.-]*) ;;
-    *) COMPOSE_PROJECT="$_hwe_project" ;;
-  esac
+  COMPOSE_PROJECT="$(hwe_compose_project)"
   case "$COMPOSE_PROJECT" in
-    *[!A-Za-z0-9_.-]*) COMPOSE_PROJECT="" ;;
+    '' | *[!A-Za-z0-9_.-]*) COMPOSE_PROJECT="" ;;
   esac
-  unset _hwe_project
   [ -n "$COMPOSE_PROJECT" ]
 }
 
@@ -191,19 +246,11 @@ ts_ids() {
   sed -n '/MODULE_IDS/,/\];/p' "$MODULES_TS" | sed -n 's/^ *"\([a-z0-9-]*\)",\{0,1\} *$/\1/p'
 }
 
-# La pila de WordPress responde.
-require_stack() {
-  if ! docker exec hwe_wordpress true >/dev/null 2>&1; then
-    echo "La pila no responde: arranca con \`docker compose up -d\` (contenedor hwe_wordpress)."
-    exit 2
-  fi
-}
-
 setup_secret() {
   [ -n "$SECRET" ] && return 0
   # `WORDPRESS_CONFIG_EXTRA` del contenedor `wordpress` define el secreto; el contenedor de
   # WP-CLI no lo tiene. Si la pila lo define en wp-config.php, se lee con WP-CLI.
-  SECRET="$(docker exec hwe_wordpress printenv WORDPRESS_CONFIG_EXTRA 2>/dev/null \
+  SECRET="$(docker exec "$(wp_container)" printenv WORDPRESS_CONFIG_EXTRA 2>/dev/null \
     | sed -n "s/.*'HWE_REVALIDATION_SECRET', '\([^']*\)'.*/\1/p" | head -n1)"
   [ -n "$SECRET" ] || SECRET="$(cli eval 'echo defined("HWE_REVALIDATION_SECRET") ? HWE_REVALIDATION_SECRET : "";')"
 }
@@ -212,21 +259,21 @@ setup_secret() {
 # interno (como el BFF). Una ruta no registrada responde 404 SIEMPRE, también si solo admite POST;
 # por eso el «encendido» solo se sondea en las rutas que admiten GET (no tienen efectos).
 wp_get() {
-  docker exec hwe_wordpress curl -s -o /dev/null -w '%{http_code}' \
+  docker exec "$(wp_container)" curl -s -o /dev/null -w '%{http_code}' \
     -H "X-HWE-Internal-Secret: $SECRET" "http://localhost$1"
 }
 
 # wp_get_body <ruta> — cuerpo de un GET con el secreto interno (como el BFF).
 wp_get_body() {
-  docker exec hwe_wordpress curl -s -H "X-HWE-Internal-Secret: $SECRET" "http://localhost$1"
+  docker exec "$(wp_container)" curl -s -H "X-HWE-Internal-Secret: $SECRET" "http://localhost$1"
 }
 
 bff() { # <json> — POST a /graphql como el BFF
-  docker exec hwe_wordpress curl -s -X POST http://localhost/graphql \
+  docker exec "$(wp_container)" curl -s -X POST http://localhost/graphql \
     -H 'Content-Type: application/json' -H "X-HWE-Internal-Secret: $SECRET" -d "$1"
 }
 
-plugin_present() { docker exec hwe_wordpress test -f "/var/www/html/wp-content/plugins/hwe-$1/hwe-$1.php"; }
+plugin_present() { docker exec "$(wp_container)" test -f "/var/www/html/wp-content/plugins/hwe-$1/hwe-$1.php"; }
 
 plugin_state() { # <id> → active | inactive
   if cli plugin is-active "hwe-$1" >/dev/null 2>&1; then echo active; else echo inactive; fi
@@ -289,12 +336,12 @@ loyalty_checks() {
     || fail "loyalty activo: /hwe/v1/loyalty/validate-code debía responder 200" "responde $code"
 
   # Sin el secreto, `hwe-bff-only` responde 404: no confirma que la ruta exista.
-  code="$(docker exec hwe_wordpress curl -s -o /dev/null -w '%{http_code}' \
+  code="$(docker exec "$(wp_container)" curl -s -o /dev/null -w '%{http_code}' \
     "http://localhost/wp-json/hwe/v1/loyalty/summary?user_id=1")"
   [ "$code" = 404 ] && ok "loyalty: las rutas internas se cierran sin el secreto (404)" \
     || fail "loyalty: una ruta interna respondió $code sin el secreto" "debía ser 404"
 
-  cart="$(docker exec hwe_wordpress curl -s -H "X-HWE-Internal-Secret: $SECRET" \
+  cart="$(docker exec "$(wp_container)" curl -s -H "X-HWE-Internal-Secret: $SECRET" \
     http://localhost/wp-json/wc/store/v1/cart)"
   check "loyalty activo: la Store API publica extensions.hwe-loyalty" "$cart" '"hwe-loyalty"'
 }
@@ -315,7 +362,7 @@ memberships_routes_check() {
     [ "$code" = 200 ] && ok "memberships activo: /hwe/v1/memberships/$route con el secreto → 200" \
       || fail "memberships activo: /hwe/v1/memberships/$route debía responder 200" "responde $code"
 
-    code="$(docker exec hwe_wordpress curl -s -o /dev/null -w '%{http_code}' \
+    code="$(docker exec "$(wp_container)" curl -s -o /dev/null -w '%{http_code}' \
       "http://localhost/wp-json/hwe/v1/memberships/$route")"
     [ "$code" = 404 ] && ok "memberships: /hwe/v1/memberships/$route sin el secreto → 404" \
       || fail "memberships: /hwe/v1/memberships/$route respondió $code sin el secreto" "debía ser 404"
@@ -461,7 +508,7 @@ routes() {
 }
 
 module_flag() { # <id> → true | false | ?
-  out="$(docker exec hwe_wordpress curl -s http://localhost/wp-json/hwe/v1/config \
+  out="$(docker exec "$(wp_container)" curl -s http://localhost/wp-json/hwe/v1/config \
     | grep -ao "\"$1\":\(true\|false\)" | head -n1 | sed 's/.*://')"
   echo "${out:-?}"
 }
@@ -608,7 +655,7 @@ section_i18n() {
   echo "· traducción a un segundo idioma"
   require_stack
   setup_secret
-  LOCALE="$(docker exec hwe_wordpress curl -s http://localhost/wp-json/hwe/v1/config \
+  LOCALE="$(docker exec "$(wp_container)" curl -s http://localhost/wp-json/hwe/v1/config \
     | grep -ao '"locales":"[^"]*"' | head -n1 | sed 's/.*:"//; s/"$//' | cut -d, -f1 | tr -d ' ')"
   if [ -z "$LOCALE" ]; then
     skip "el sitio no declara idiomas secundarios (config.i18n.locales vacío)"
@@ -641,7 +688,7 @@ section_i18n() {
 section_country() {
   echo "· paquete de país"
   require_stack
-  COUNTRY="$(docker exec hwe_wordpress curl -s http://localhost/wp-json/hwe/v1/config \
+  COUNTRY="$(docker exec "$(wp_container)" curl -s http://localhost/wp-json/hwe/v1/config \
     | grep -ao '"country":"[A-Z][A-Z]"' | head -n1 | sed 's/.*:"//; s/"$//')"
   if [ -z "$COUNTRY" ]; then
     skip "la config no expone el país por defecto de la tienda"
@@ -653,7 +700,7 @@ section_country() {
   check "el núcleo trae el paquete genérico" "$packs" '(^|,)generic(,|$)'
   check "el núcleo trae el paquete de Colombia (co)" "$packs" '(^|,)co(,|$)'
 
-  out="$(docker exec hwe_wordpress curl -s -H "X-HWE-Internal-Secret: $SECRET" http://localhost/wp-json/hwe/v1/geo)"
+  out="$(docker exec "$(wp_container)" curl -s -H "X-HWE-Internal-Secret: $SECRET" http://localhost/wp-json/hwe/v1/geo)"
   lower="$(printf '%s' "$COUNTRY" | tr 'A-Z' 'a-z')"
   if printf ',%s,' "$packs" | grep -q ",$lower,"; then
     check "/hwe/v1/geo sirve el paquete de $COUNTRY, sin fallback" "$out" "\"country\":\"$COUNTRY\".*\"fallback\":false"
@@ -675,7 +722,7 @@ section_integration() {
   fi
   # Sin una IP en la lista, la puerta no deja pasar a nadie y cada comprobación fallaría por la
   # misma causa: se dice una vez y se omite.
-  if ! docker exec hwe_wordpress printenv WORDPRESS_CONFIG_EXTRA 2>/dev/null \
+  if ! docker exec "$(wp_container)" printenv WORDPRESS_CONFIG_EXTRA 2>/dev/null \
     | grep -q "'HWE_INTEGRATION_ALLOWED_IPS', '[^']"; then
     skip "HWE_INTEGRATION_ALLOWED_IPS está vacío en la pila (ver la cabecera del script: exportarlo y recrear wordpress)"
     return 0

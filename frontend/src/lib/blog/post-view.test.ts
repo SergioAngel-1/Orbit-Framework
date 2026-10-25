@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Las URL que construye el núcleo no dependen del registro de la instancia: estos tests
+// fijan el caso sin mapa público (los mapas se prueban en los `*.public-paths.test.ts`).
+vi.mock("@/instance/registry", () => ({ instanceRegistry: {} }));
+
 const getProductsBySlugs = vi.fn();
 const getProducts = vi.fn();
 vi.mock("@/lib/catalog/products", () => ({

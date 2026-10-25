@@ -1,4 +1,5 @@
 import { routing } from "@/i18n/routing";
+import { toPublicPath } from "@/lib/instance/public-paths";
 
 /**
  * Helpers de URL conscientes del locale para SEO (canónicas, hreflang, JSON-LD).
@@ -6,13 +7,22 @@ import { routing } from "@/i18n/routing";
  * Convención del proyecto (`localePrefix: "as-needed"`): el locale por defecto
  * (es) NO lleva prefijo; el resto sí (/en/...). Mantener esto centralizado evita
  * divergencias entre sitemap, metadatos y datos estructurados.
+ *
+ * `path` es la ruta INTERNA (la carpeta de `app/[locale]/`); `localizedPath` la
+ * traduce al tramo público que declare la instancia (`publicPaths`) antes de anteponer el
+ * prefijo de idioma. Así canónicas, hreflang, sitemap, JSON-LD, `llms.txt` y los enlaces
+ * de los correos salen con la misma URL que la vista.
  */
+
+// El mapa de rutas públicas se valida al cargar `routing.ts`, no aquí (esto lo importa el
+// cliente).
 
 /** Ruta relativa con prefijo de locale (vacía → "/"). */
 export function localizedPath(path: string, locale: string): string {
+  const publicPath = toPublicPath(path, locale);
   const prefix = locale === routing.defaultLocale ? "" : `/${locale}`;
   // La home de un idioma con prefijo es `/en`, no `/en/` (así la sirve next-intl).
-  const p = `${prefix}${path === "/" ? "" : path}`;
+  const p = `${prefix}${publicPath === "/" ? "" : publicPath}`;
   return p === "" ? "/" : p;
 }
 

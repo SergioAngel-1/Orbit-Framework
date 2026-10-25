@@ -95,6 +95,7 @@ describe("CONFIG_DEFAULTS", () => {
       point_value: "0.01",
       min_redeem: "100",
       max_redeem_per_order: "0",
+      max_redeem_percent: "0",
       full_payment_enabled: false,
       min_cash_due: "0.01",
       expiry_days: "0",

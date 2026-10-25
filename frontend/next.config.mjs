@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { analyticsCspHosts } from "./csp-analytics.mjs";
 import createNextIntlPlugin from "next-intl/plugin";
 import {
@@ -131,7 +133,44 @@ const securityHeaders = [
     : []),
 ];
 
+/**
+ * Catálogos OPCIONALES: los que el framework trae pero la instancia puede borrar (una
+ * tienda monolingüe borra `messages/en.json` y se queda con `es`). `catalogs.ts` los
+ * importa de forma estática, así que, si el archivo no existe, el build fallaría: se
+ * resuelve el especificador al catálogo español, que es la caída documentada para
+ * cualquier idioma sin catálogo. Lo mismo hacen `tsconfig.json` (tipos) y
+ * `vitest.config.ts` (tests).
+ */
+const OPTIONAL_CATALOGS = [
+  { specifier: "@/i18n/messages/en.json", file: "src/i18n/messages/en.json" },
+].filter(({ file }) => !existsSync(path.resolve(file)));
+
+const catalogAliases = Object.fromEntries(
+  OPTIONAL_CATALOGS.map(({ specifier }) => [
+    specifier,
+    path.resolve("src/i18n/messages/es.json"),
+  ]),
+);
+
 const nextConfig = withNextIntl({
+  // Un catálogo opcional ausente se resuelve al español (ver `OPTIONAL_CATALOGS`).
+  ...(OPTIONAL_CATALOGS.length > 0
+    ? {
+        turbopack: {
+          resolveAlias: Object.fromEntries(
+            OPTIONAL_CATALOGS.map(({ specifier }) => [
+              specifier,
+              "./src/i18n/messages/es.json",
+            ]),
+          ),
+        },
+        webpack: (config) => {
+          config.resolve.alias = { ...config.resolve.alias, ...catalogAliases };
+          return config;
+        },
+      }
+    : {}),
+
   reactStrictMode: true,
   poweredByHeader: false, // No revelar "X-Powered-By: Next.js".
 

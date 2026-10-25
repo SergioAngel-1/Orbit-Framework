@@ -26,7 +26,7 @@ Next.js los aplica en runtime como variables CSS (`--color-brand`, `--color-seco
 `--color-accent`, `--color-surface`, `--font-sans`, `--font-heading`…) — no hay que tocar
 `globals.css` ni un `tailwind.config` para cambiar la paleta. Detalle del mapeo campo →
 variable: `frontend/src/lib/config/tokens.ts`; contrato completo en
-`docs/FRONTEND_CONNECT.md §A.4`.
+`docs/FRONTEND_CONNECT.md §A.5`.
 
 Si necesitas una utilidad Tailwind nueva que no exista (p. ej. una escala de grises propia),
 ahí sí edita el bloque `@theme` de `frontend/src/app/globals.css` — pero eso es código de tu
@@ -40,7 +40,7 @@ instancia, no algo que reconfigures desde `wp-admin`.
   imagen Open Graph y `seo.organization_logo` alimenta el JSON-LD `Organization`.
 - **Menús**: se gestionan en `wp-admin → Apariencia → Menús` asignando un menú a las
   locations `primary`/`footer` (+ variantes `_en`). Contrato y reglas de contenido en
-  `docs/FRONTEND_CONNECT.md §A.6`. Sin menú asignado, el frontend heredado usa su
+  `docs/FRONTEND_CONNECT.md §A.7`. Sin menú asignado, el frontend heredado usa su
   navegación local por defecto (`NAV_ITEMS` + i18n).
 
 ## 4. Idiomas

@@ -1,5 +1,23 @@
 import { defineConfig } from "vitest/config";
+import { existsSync } from "node:fs";
 import path from "node:path";
+
+/**
+ * Catálogos que la instancia puede borrar (una tienda monolingüe se queda con `es`).
+ * `messages/catalogs.ts` los importa de forma estática: si el archivo no está, el test
+ * fallaría al cargar el módulo. Se resuelven al catálogo español, igual que en
+ * `next.config.mjs` y `tsconfig.json`.
+ */
+const OPTIONAL_CATALOGS = [
+  { specifier: "@/i18n/messages/en.json", file: "src/i18n/messages/en.json" },
+].filter(({ file }) => !existsSync(path.resolve(__dirname, file)));
+
+const catalogAliases = Object.fromEntries(
+  OPTIONAL_CATALOGS.map(({ specifier }) => [
+    specifier,
+    path.resolve(__dirname, "src/i18n/messages/es.json"),
+  ]),
+);
 
 // ============================================================================
 //  Configuración de Vitest.
@@ -72,6 +90,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "server-only": path.resolve(__dirname, "tests/stubs/server-only.ts"),
+      // Los tests del núcleo no dependen de los idiomas de la instancia: ven siempre la
+      // configuración del framework (`tests/stubs/i18n-routing.ts`). Un test que necesite
+      // la configuración real importa `i18n/routing` por ruta relativa.
+      "@/i18n/routing": path.resolve(__dirname, "tests/stubs/i18n-routing.ts"),
+      ...catalogAliases,
       "@": path.resolve(__dirname, "src"),
     },
   },

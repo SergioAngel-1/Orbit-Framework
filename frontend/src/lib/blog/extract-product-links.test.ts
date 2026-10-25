@@ -1,4 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/instance/registry", () => ({
+  instanceRegistry: {
+    revalidationTags: [],
+    publicPaths: { "/products": "/productos" },
+  },
+}));
+
 import {
   extractProductSlugsFromHtml,
   productSlugFromHref,
@@ -11,6 +19,12 @@ describe("productSlugFromPathname", () => {
     expect(productSlugFromPathname("/products/camiseta")).toBe("camiseta");
     expect(productSlugFromPathname("/products/camiseta/")).toBe("camiseta");
     expect(productSlugFromPathname("/en/products/camiseta")).toBe("camiseta");
+  });
+
+  it("reconoce la ruta pública de la instancia", () => {
+    expect(productSlugFromPathname("/productos/camiseta")).toBe("camiseta");
+    expect(productSlugFromPathname("/en/productos/camiseta")).toBe("camiseta");
+    expect(productSlugFromPathname("/productos")).toBeNull();
   });
 
   it("reconoce /product y /producto de WooCommerce", () => {

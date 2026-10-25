@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { IntlMessageFormat } from "intl-messageformat";
 import es from "@/i18n/messages/es.json";
-import en from "@/i18n/messages/en.json";
+import { catalogFor, hasOwnCatalog } from "@/i18n/messages/catalogs";
 
 // El rótulo de un cupón depende de CÓMO se aplica su importe: «$20.000 de
 // descuento en este producto» es falso para un `fixed_cart`.
@@ -59,7 +59,9 @@ describe("rótulos de cupón según el tipo de descuento", () => {
     );
   });
 
-  it("inglés", () => {
+  // Sin catálogo propio para `en` (instancia monolingüe) no hay traducción que comparar.
+  it.skipIf(!hasOwnCatalog("en"))("inglés", () => {
+    const en = catalogFor("en");
     expect(
       fmt(en.coupons.title.product, "en", {
         ...base,

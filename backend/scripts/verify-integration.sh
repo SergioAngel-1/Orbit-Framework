@@ -7,7 +7,7 @@
 #  Crea un usuario y un pedido de prueba desechables, los comprueba y los borra al terminar
 #  (también si se interrumpe). No toca nada más.
 #
-#  Uso (raíz del repo, con `docker compose up -d` y `hwe_wordpress` healthy):
+#  Uso (raíz del repo, con `docker compose up -d` y el servicio `wordpress` healthy):
 #    sh backend/scripts/verify-integration.sh [tracking|gate|access|guard|all]
 #    DEBUG=1 sh backend/scripts/verify-integration.sh guard   # ver los errores de wp-cli
 #
@@ -16,8 +16,9 @@
 #    · `HWE_INTEGRATION_ALLOWED_IPS` (en `.env`) con la IP de pruebas, por defecto
 #      198.51.100.7 (RFC 5737: no enruta). Cambia otra con INTEGRATION_IP=….
 #
-#  Cómo simula al integrador: las llamadas «de la integración» salen DENTRO del contenedor
-#  `hwe_wordpress` hacia localhost con `X-Forwarded-For: <IP de pruebas>`. Como localhost es un
+#  Cómo simula al integrador: las llamadas «de la integración» salen DENTRO del contenedor de
+#  WordPress (el del servicio `wordpress` de ESTE proyecto de Compose) hacia localhost con
+#  `X-Forwarded-For: <IP de pruebas>`. Como localhost es un
 #  proxy de confianza para mod_remoteip, PHP ve esa IP en `REMOTE_ADDR`, igual que con Caddy en
 #  producción. La llamada «de una IP ajena» usa otra IP en la misma cabecera. El BFF se simula
 #  con la cabecera `X-HWE-Internal-Secret`.
@@ -28,7 +29,13 @@
 #  Salida: 0 todo bien · N = número de comprobaciones fallidas · 2 sección desconocida.
 # ============================================================================
 set -u
-cd "$(dirname "$0")/../.." || exit 1
+HERE="$(cd "$(dirname "$0")" && pwd)" || exit 1
+cd "$HERE/../.." || exit 1
+
+# Resolución de contenedores de la pila de ESTE repo (por servicio de Compose, con anulación por
+# `HWE_WP_CONTAINER` y abortando si el contenedor es de otra pila).
+# shellcheck source=lib/compose-containers.sh
+. "$HERE/lib/compose-containers.sh"
 
 SECTION="${1:-all}"
 FAILS=0
@@ -40,6 +47,30 @@ FIXTURES=0
 APP_PW=""
 TEST_PASS=""
 SECRET=""
+WP_CONTAINER=""
+
+# La pila de WordPress responde y es la de ESTE proyecto de Compose.
+wp_container() {
+  printf '%s' "$WP_CONTAINER"
+}
+
+require_stack() {
+  if [ -z "$WP_CONTAINER" ]; then
+    WP_CONTAINER="$(hwe_resolve_container wordpress "${HWE_WP_CONTAINER:-}" HWE_WP_CONTAINER)"
+    case "$?" in
+      0) ;;
+      2) exit 2 ;;
+      *)
+        echo "La pila no responde: arranca con \`docker compose up -d\` (servicio wordpress de este repo)."
+        exit 2
+        ;;
+    esac
+  fi
+  if ! docker exec "$WP_CONTAINER" true >/dev/null 2>&1; then
+    echo "La pila no responde: arranca con \`docker compose up -d\` (contenedor $WP_CONTAINER del servicio wordpress)."
+    exit 2
+  fi
+}
 
 cli() {
   if [ "${DEBUG:-}" = "1" ]; then
@@ -52,17 +83,17 @@ cli() {
 # gql <json> [usuario:contraseña] — POST a /graphql como si llegara de la IP de la integración.
 gql() {
   if [ -n "${2:-}" ]; then
-    docker exec hwe_wordpress curl -s -X POST http://localhost/graphql \
+    docker exec "$(wp_container)" curl -s -X POST http://localhost/graphql \
       -H 'Content-Type: application/json' -H "X-Forwarded-For: $INTEGRATION_IP" -u "$2" -d "$1"
   else
-    docker exec hwe_wordpress curl -s -X POST http://localhost/graphql \
+    docker exec "$(wp_container)" curl -s -X POST http://localhost/graphql \
       -H 'Content-Type: application/json' -H "X-Forwarded-For: $INTEGRATION_IP" -d "$1"
   fi
 }
 
 # bff <json> — POST a /graphql como el BFF (secreto interno, sin X-Forwarded-For).
 bff() {
-  docker exec hwe_wordpress curl -s -X POST http://localhost/graphql \
+  docker exec "$(wp_container)" curl -s -X POST http://localhost/graphql \
     -H 'Content-Type: application/json' -H "X-HWE-Internal-Secret: $SECRET" -d "$1"
 }
 
@@ -91,7 +122,7 @@ setup_secret() {
   # El secreto lo define `WORDPRESS_CONFIG_EXTRA` del contenedor `wordpress`; el contenedor de
   # WP-CLI no lo tiene, así que `defined()` allí da falso: se lee del entorno del contenedor
   # y, si no está, de WP-CLI (pilas que lo definen en wp-config.php).
-  SECRET="$(docker exec hwe_wordpress printenv WORDPRESS_CONFIG_EXTRA 2>/dev/null \
+  SECRET="$(docker exec "$(wp_container)" printenv WORDPRESS_CONFIG_EXTRA 2>/dev/null \
     | sed -n "s/.*'HWE_REVALIDATION_SECRET', '\([^']*\)'.*/\1/p" | head -n1)"
   [ -n "$SECRET" ] || SECRET="$(cli eval 'echo defined("HWE_REVALIDATION_SECRET") ? HWE_REVALIDATION_SECRET : "";')"
 }
@@ -144,7 +175,7 @@ section_tracking() {
 
 section_gate() {
   echo "· puerta de GraphQL"
-  WP_HOST_PORT="$(docker port hwe_wordpress 80/tcp 2>/dev/null | head -n1 | sed 's/.*://')"
+  WP_HOST_PORT="$(docker port "$(wp_container)" 80/tcp 2>/dev/null | head -n1 | sed 's/.*://')"
   setup_secret
   q='{"query":"{ __typename }"}'
 
@@ -158,10 +189,10 @@ section_gate() {
   out="$(gql "$q")"
   check "IP autorizada: GraphQL responde" "$out" 'RootQuery'
 
-  out="$(docker exec hwe_wordpress curl -s -o /dev/null -w '%{http_code}' -H "X-Forwarded-For: $INTEGRATION_IP" http://localhost/wp-json/wc/store/v1/cart)"
+  out="$(docker exec "$(wp_container)" curl -s -o /dev/null -w '%{http_code}' -H "X-Forwarded-For: $INTEGRATION_IP" http://localhost/wp-json/wc/store/v1/cart)"
   check "la Store API sigue cerrada para la IP autorizada" "$out" '^404$'
 
-  out="$(docker exec hwe_wordpress curl -s -o /dev/null -w '%{http_code}' -H "X-Forwarded-For: $INTEGRATION_IP" http://localhost/wp-json/hwe/v1/auth/me)"
+  out="$(docker exec "$(wp_container)" curl -s -o /dev/null -w '%{http_code}' -H "X-Forwarded-For: $INTEGRATION_IP" http://localhost/wp-json/hwe/v1/auth/me)"
   check "hwe/v1/auth sigue cerrada para la IP autorizada" "$out" '^404$'
 }
 
@@ -179,7 +210,7 @@ section_access() {
   out="$(gql "{\"query\":\"{ orders(first: 5) { nodes { databaseId } } }\"}" "$USER_LOGIN:contrasena-mala")"
   check_not "con una contraseña mala no ve el pedido" "$out" "\"databaseId\":$ORDER_ID"
 
-  out="$(docker exec hwe_wordpress curl -s -o /dev/null -w '%{http_code}' -u "$USER_LOGIN:$APP_PW" \
+  out="$(docker exec "$(wp_container)" curl -s -o /dev/null -w '%{http_code}' -u "$USER_LOGIN:$APP_PW" \
     -H "X-Forwarded-For: $INTEGRATION_IP" http://localhost/wp-json/wc/v3/orders)"
   check "la contraseña de aplicación no sirve en REST (401)" "$out" '^401$'
 
@@ -291,12 +322,16 @@ section_guard() {
 }
 
 case "$SECTION" in
+  tracking | gate | access | guard | all) require_stack ;;
+  *)        echo "sección desconocida: $SECTION (tracking|gate|access|guard|all)"; exit 2 ;;
+esac
+
+case "$SECTION" in
   tracking) section_tracking ;;
   gate)     section_gate ;;
   access)   section_access ;;
   guard)    section_guard ;;
   all)      section_tracking; section_gate; section_access; section_guard ;;
-  *)        echo "sección desconocida: $SECTION (tracking|gate|access|guard|all)"; exit 2 ;;
 esac
 
 echo

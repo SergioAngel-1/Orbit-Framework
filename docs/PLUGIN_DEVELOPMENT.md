@@ -12,7 +12,7 @@
 El framework es **backend + arquitectura**; la UI y el dominio de cada tienda son de la
 instancia (`AGENTS.md §1.1`). El código de una instancia vive en rutas RESERVADAS que el
 framework nunca toca, y se engancha al núcleo por hooks estables, versionados por
-`HWE_CORE_CONTRACT_VERSION` (hoy `2.1.0`):
+`HWE_CORE_CONTRACT_VERSION` (hoy `2.2.0`):
 
 | Lado | Ruta de instancia | Qué va ahí |
 |---|---|---|
@@ -65,6 +65,7 @@ Un módulo que quiera ser contrato publica sus hooks en su `README.md` y aquí. 
 | `hwe_loyalty_collected_on_completion` | filtro | `( string[] $methods ): string[]` medios que esperan a `completed` (defecto `cod`). |
 | `hwe_loyalty_entry_types` | filtro | `( array<string, "credit"\|"debit"> $types ): array` tipos de movimiento extra. |
 | `hwe_loyalty_participant_roles` | filtro | `( string[] $roles ): string[]` roles que participan. |
+| `hwe_loyalty_max_redeemable` | filtro | `( int $max, array $context ): int` tope de canje ya calculado; `$context` = `items_total`, `shipping_total`, `fees_total`, `balance`, `settings`. **Solo puede endurecer** (un valor mayor, negativo o no entero se ignora y se registra; `0` cierra el canje). Ajuste asociado: `loyalty.max_redeem_percent`. |
 
 **Funciones públicas de `loyalty`:** además de los hooks, el módulo publica cuatro funciones
 globales (en `includes/Api.php`, cargadas con el plugin) para que otro módulo abone o revierta
@@ -164,10 +165,13 @@ incluido). `InstanceRegistry` son solo datos, nunca componentes.
 **Vocabulario prohibido en el núcleo:** el gate `bash .github/scripts/check-anti-instance.sh`
 falla si en cualquier archivo versionado (núcleo, starter, tests, scripts y documentación;
 no `examples/` ni `docs/superpowers/`) aparece el vocabulario de una instancia conocida; la
-lista está en el propio script. Ojo al español corriente: algunos adjetivos y sustantivos
-comunes contienen uno de esos tokens; el script dice cuál y en qué línea, y basta con usar un
-sinónimo. En tu código de instancia puedes usar las palabras que quieras; en el framework,
-ninguna de esas.
+lista está en el propio script. Cuando una instancia nueva empieza a trabajar sobre el
+framework, su token se añade a ese patrón **antes** de escribir código (es la única aparición
+permitida de su nombre, porque el script se excluye a sí mismo del escaneo) y
+`CheckAntiInstanceTest` gana un caso con el token partido en dos cadenas para que el test no se
+cace a sí mismo. Ojo al español corriente: algunos adjetivos y sustantivos comunes contienen
+uno de esos tokens; el script dice cuál y en qué línea, y basta con usar un sinónimo. En tu
+código de instancia puedes usar las palabras que quieras; en el framework, ninguna de esas.
 
 **Ejemplo vivo:** `examples/instance-minimal/` replica las rutas de instancia con un campo,
 un tag y una vista. El job «contrato» de CI lo superpone al repo y ejecuta `composer

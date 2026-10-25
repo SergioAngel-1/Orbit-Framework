@@ -20,9 +20,11 @@ plantillas; nunca subas claves reales.**
 > exactamente el `Origin` del navegador. Genera los secretos con `sh backend/scripts/generate-secrets.sh`.
 
 > **Modo híbrido (WordPress nativo):** WordPress toma sus variables de base de datos de
-> `WORDPRESS_DB_*` del entorno. MariaDB se expone en `localhost:3307` (no 3306) para no chocar con
-> un MySQL local. Con WordPress nativo hay que definir `HWE_REVALIDATION_SECRET` en su
-> `wp-config.php` (ver `README.md`); en Docker lo hace `docker-compose*.yml`.
+> `WORDPRESS_DB_*` del entorno. MariaDB se expone en `localhost:${DB_PORT:-3307}` (no 3306) para no
+> chocar con un MySQL local, y Redis en `localhost:${REDIS_PORT:-6379}`; con varias pilas en la
+> misma máquina cada una publica los suyos (`docs/CREATE_INSTANCE.md` §2). Con WordPress nativo hay
+> que definir `HWE_REVALIDATION_SECRET` en su `wp-config.php` (ver `README.md`); en Docker lo hace
+> `docker-compose*.yml`.
 
 ---
 
@@ -264,6 +266,7 @@ comportamiento:
 | `currency_name` / `currency_name_plural` / `currency_icon` | `punto` / `puntos` / vacío | Nombre e icono de la unidad en todos los textos del módulo. |
 | `point_value` | `0.01` | Valor de una unidad en la moneda de la tienda. Con `0` o menos, el canje queda apagado. |
 | `min_redeem`, `max_redeem_per_order` | `100`, `0` | Mínimo para canjear y tope por pedido (`0` = sin tope). |
+| `max_redeem_percent` | `0` | Tope del descuento como porcentaje (0–100) de la base sin envío (productos y cargos ajenos), en unidades redondeadas a la baja. Se combina con los demás tomando el menor; `0` = sin tope. El filtro `hwe_loyalty_max_redeemable` puede endurecerlo. |
 | `full_payment_enabled`, `min_cash_due` | `false`, `0.01` | Si el canje puede cubrir el pedido completo; con el pago completo apagado, importe que siempre queda por pagar en dinero. |
 | `expiry_days` | `0` | Caducidad de los abonos (`0` = no caducan). |
 | `cashback_enabled`, `cashback_percent` | `false`, `0` | Devolución al comprador sobre la base de la compra. |

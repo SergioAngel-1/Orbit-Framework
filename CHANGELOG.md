@@ -6,6 +6,82 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **Rutas públicas configurables por la instancia (`InstanceRegistry.publicPaths`).** Una
+  instancia puede servir las carpetas de `app/[locale]/` con otros tramos públicos (p. ej. en
+  español) declarando solo datos en `frontend/src/instance/registry.ts` (`"/products":
+  "/productos"`; los hijos heredan el prefijo y una entrada propia manda; el valor puede ser un
+  mapa por idioma). Un módulo puro (`lib/instance/public-paths.ts`) traduce en los dos sentidos
+  rutas concretas (casa plantillas `[slug]`, conserva `?…`/`#…`) y lo usan `localizedPath`
+  (canónicas, `hreflang`, sitemap, JSON-LD, `llms.txt` y enlaces de los correos), la navegación
+  (`Link`, `redirect`, `permanentRedirect`, `getPathname`, `useRouter`), `robots.txt` (veta la
+  forma pública y la interna), los segmentos reservados de landings, `?return=` (`safeInternalPath`
+  acepta las dos formas), los banners y la extracción de enlaces del blog. `proxy.ts` reescribe la
+  URL pública a la carpeta interna y responde **308** de la ruta interna antigua a la pública; el
+  mapa se valida al arrancar (choques, `api`, idiomas, rutas mal formadas) con un error claro. Sin
+  mapa, todas las URL son idénticas a las de `v2.1.0`.
+- **Instancia de un solo idioma.** El núcleo deja de suponer que existe un catálogo `en`:
+  `i18n/request.ts` deriva los idiomas y los mensajes de `routing.locales` (el tipo `Locale`
+  sale de ahí), los catálogos viven en un único módulo (`src/i18n/messages/catalogs.ts`) al que
+  cualquier idioma sin catálogo cae a `es`, y `scripts/check-i18n-parity.mjs` compara `es` con
+  cada idioma **secundario** de `routing.ts` (con uno solo no compara nada y pasa). Una instancia
+  monolingüe edita **solo** `locales` en `frontend/src/i18n/routing.ts` y borra
+  `messages/en.json`; `tsconfig.json` (tipos), `next.config.mjs` (build) y `vitest.config.ts`
+  (tests) resuelven el catálogo ausente al español. Los tests del núcleo ven siempre los idiomas
+  del framework (`tests/stubs/i18n-routing.ts`, aliasado en Vitest) y las pocas aserciones que
+  comparan textos en inglés se omiten cuando ese catálogo no existe. Nuevo campo opcional
+  `timeZone` del `InstanceRegistry` (cadena IANA o mapa por idioma) para que `i18n/request.ts`
+  formatee fechas en la zona de la tienda; sin él, los valores de siempre. El CI gana el job
+  «Frontend (un solo idioma)»: copia el repo con `locales: ["es"]` y sin `en.json` y repite
+  lint, tipos, formato, paridad, tests con cobertura y build.
+- **Tope de canje de puntos en porcentaje (`loyalty`) y filtro `hwe_loyalty_max_redeemable`.**
+  El nuevo ajuste público `loyalty.max_redeem_percent` (entero 0–100, `0` = sin tope, acotado al
+  sanear) limita el descuento a ese porcentaje de la base **sin envío** (`items_total` +
+  `fees_total`, la suma que reparten distinto los tres llamadores de `quote()`), convertido a
+  puntos hacia abajo, y se combina con el saldo, `max_redeem_per_order` y `min_cash_due` tomando
+  el menor. El filtro estable `hwe_loyalty_max_redeemable` `( int $max, array $context ): int`
+  se aplica dentro de `quote()` sobre el máximo ya calculado, con `items_total`,
+  `shipping_total`, `fees_total`, `balance` y `settings`: **solo puede endurecer** (un valor
+  mayor, negativo o no entero se ignora y se registra; `0` cierra el canje). Como todo pasa por
+  `quote()`, rige igual en el carrito, en la extensión `hwe-loyalty` y en la confirmación del
+  pedido. `maxRedeemable` del frontend replica el cálculo para la UI.
+- **El CI del núcleo funciona dentro del repo de una instancia.** `.github/**` es núcleo y no
+  se edita, pero dos jobs solo tenían sentido en el repositorio del framework: `anti-instance`
+  persigue justo los tokens del código de la instancia y `contract` superpone
+  `examples/instance-minimal/` al repo, pisando su `registry.ts` y sus `mu-plugins/instance/`.
+  El interruptor es la variable de repositorio `HWE_INSTANCE`, con el valor exacto `true`
+  (cualquier otro valor o su ausencia mantiene el comportamiento del framework): los dos jobs
+  llevan `if: ${{ vars.HWE_INSTANCE != 'true' }}`, el job del frontend la recibe como `env`,
+  `check-anti-instance.sh` sale con 0 y un mensaje, y `gitignore.test.ts` omite solo los bloques
+  que describen la política del framework (carpeta de instancia ignorada y patrón de plugins
+  comentado); los de secretos y copias se comprueban siempre.
+
+### Changed
+- **Contrato de instancia `2.2.0`.** `HWE_CORE_CONTRACT_VERSION` sube de `2.1.0` a `2.2.0`
+  por el ajuste y el filtro nuevos de `loyalty` y por los campos `publicPaths` y `timeZone` del
+  registro. No hay cambios incompatibles: una instancia sin configurar conserva el
+  comportamiento y las URL de la `2.1.0`; la nota de actualización está en `docs/UPGRADE.md`
+  §3.2. El ejemplo vivo (`examples/instance-minimal/`) declara los dos campos nuevos y su test
+  los cubre.
+- **Varias pilas Docker en la misma máquina.** Los nombres de contenedor dejan de estar
+  escritos a mano: `docker-compose.yml` y `docker-compose.prod.yml` los construyen con
+  `HWE_CONTAINER_PREFIX` (por defecto `hwe`, así que sin configurar nada son los de siempre:
+  `hwe_db`, `hwe_wordpress`, `hwe_wp_cron`, `hwe_redis`, `hwe_frontend`, `hwe_caddy`,
+  `hwe_cache_prune`). En desarrollo, la base de datos y Redis publican `DB_PORT` (defecto
+  `3307`) y `REDIS_PORT` (defecto `6379`) en lugar de los literales. `verify-modules.sh` y
+  `verify-integration.sh` resuelven sus contenedores por **servicio de Compose del proyecto
+  actual** (`docker compose ps -q`, desde la raíz del repo), admiten la anulación explícita
+  `HWE_WP_CONTAINER` / `HWE_CLI_CONTAINER` y **abortan** (código 2) si el contenedor resuelto
+  pertenece a otro proyecto de Compose, también cuando viene de la variable: ejecutados desde
+  el clon de otra instancia ya no pueden activar o desactivar módulos en la pila del framework.
+  La resolución vive en `backend/scripts/lib/compose-containers.sh`. `.env.example` documenta
+  las variables y que `COMPOSE_PROJECT_NAME` debe ser distinto en cada pila.
+- **La puerta anti-instancia conoce el token de una instancia nueva.** El patrón de
+  `.github/scripts/check-anti-instance.sh` incorpora el token de la instancia que empieza a
+  usar este framework (la única aparición del nombre en el repositorio: el script se excluye a
+  sí mismo del escaneo). Un caso de `CheckAntiInstanceTest` lo fija con el token partido en dos
+  cadenas, como los demás, para que el test no se cace a sí mismo.
+
 ## [2.1.0] — 2026-10-24
 
 Parches de seguridad de octubre de 2026 (PHP 8.4.27 vía `wordpress:7.1`, Node 24.22.1,
