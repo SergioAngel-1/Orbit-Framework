@@ -232,7 +232,7 @@ if [ -n "${WC_WEBHOOK_SECRET:-}" ]; then
 	echo "==> Creando webhooks de WooCommerce..."
 	# Servidor a servidor: WooCommerce entrega los webhooks desde este contenedor, donde
 	# `localhost` es el propio wpcli. La interna apunta al servicio `frontend`; la pública
-	# solo sirve como respaldo (la misma precedencia que hwe_frontend_internal_url()).
+	# solo sirve como respaldo (la misma precedencia que HWE\ControlCenter\FrontendUrl::internal()).
 	FRONTEND_URL="${HEADLESS_FRONTEND_INTERNAL_URL:-${HEADLESS_FRONTEND_URL:-http://frontend:3000}}"
 
 	# Webhook: pedido creado

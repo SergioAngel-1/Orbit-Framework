@@ -31,7 +31,7 @@ x-wordpress-config-extra: &wordpress-config-extra |
   // URL del frontend para llamadas SERVIDOR A SERVIDOR (revalidación ISR, medición de
   // consentimiento, webhooks que crea setup.sh). Dentro de un contenedor, `localhost` es el
   // propio contenedor: la pública de desarrollo no alcanza al servicio `frontend`. Sin esta
-  // variable se usa HEADLESS_FRONTEND_URL (hwe_frontend_internal_url() en headless-config.php).
+  // variable se usa HEADLESS_FRONTEND_URL (HWE\ControlCenter\FrontendUrl::internal(), mu-plugins/hwe-control-center/FrontendUrl.php).
   define( 'HEADLESS_FRONTEND_INTERNAL_URL', '${HEADLESS_FRONTEND_INTERNAL_URL:-http://frontend:3000}' );
   define( 'HEADLESS_ALLOWED_ORIGINS', '${HEADLESS_ALLOWED_ORIGINS:-http://localhost:3000}' );
   define( 'HWE_REVALIDATION_SECRET', '${HWE_REVALIDATION_SECRET:-changeme-hwe-revalidation-secret}' );
