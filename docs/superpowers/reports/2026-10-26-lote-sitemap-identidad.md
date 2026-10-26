@@ -123,7 +123,7 @@ Campo opcional `InstanceRegistry.sitemap` con dos listas:
 Tests colocados: `lib/instance/sitemap.test.ts` (validación y comparación), `_sitemap/entries.test.ts`
 (página propia en todos los idiomas con `publicPaths`, exclusiones exacta y de prefijo sin tocar
 `/products-extra`, sin duplicar, y salida idéntica sin el campo), `_llms/build.test.ts` (legal,
-prefijo y guías) y `example-registry.test.ts`. El ejemplo vivo declara `/example-page` y excluye
+prefijo y guías) y `example-registry.test.ts`. El ejemplo vivo declara `/example` y excluye
 `/legal/cookies`.
 
 Docs: `CHANGELOG` (Added, movido a `[Sin publicar]`), `docs/FRONTEND_CONNECT.md` §A.4 (subsección
@@ -200,3 +200,39 @@ Todo lo demás se verificó aquí con las órdenes de la tabla.
 - El recorrido por cursor del sitemap tiene el mismo tope que el índice del blog (20 tandas de
   100 = 2000 fichas). Un catálogo mayor seguiría truncándose; subirlo es una decisión aparte
   (presupuesto de build/ISR).
+
+## Ronda 1 de la revisión 2 (cambios menores)
+
+La revisión 2 aprobó la fusión con cambios menores. Se aplicaron todos encima de la rama, sin
+rehacer ni reescribir ningún commit anterior, cada uno con su test cuando cambia comportamiento
+(en rojo primero):
+
+| Commit | Cambio |
+|---|---|
+| `784c29e` | **Sitemap fail-soft de verdad.** `resolveInstanceSitemap` iteraba `map.pages`/`map.exclude` sin comprobar que fueran listas: un valor no iterable lanzaba fuera de cualquier `try` y tumbaba el sitemap y `llms.txt`. Ahora cada campo se protege con `Array.isArray`; si no es lista se ignora entero con `instance.sitemap.invalid_entry`. Tests nuevos (rojo antes: `TypeError: number 5 is not iterable`). |
+| `9296b97` | **`UPGRADE.md` §3.3** deja de decir «sin cambios incompatibles … conserva el comportamiento y las URL» (no era exacto) y pasa a «sin cambios incompatibles de contrato; revisa estos puntos de comportamiento», con las fichas ocultas y el catálogo completo (T1), la sincronización del país base de WooCommerce (T13) y la frase de `HWE_CORE_CONTRACT_VERSION` 2.3.0 que ya traían §3.1 y §3.2. |
+| `5adf7ec` | **`FRONTEND_CONNECT.md` A.4:** se documenta que las `pages` declaradas no se filtran por `exclude` (gana la declaración explícita), la regla que ya aplica `entries.ts`. |
+| `4e60b23` | **Comentario del matcher del proxy:** deja de decir «EXACTA» y explica que `icon/` y `apple-icon/` cubren `/icon/<id>` y `/apple-icon/<id>` de `generateImageMetadata`. El test de patrón fija las dos variantes y que `/en/icon/…` sí entra. Sin cambio de comportamiento. |
+| `1977737` | **Ejemplo vivo:** el registro declara como página propia `/example` (la vista que existe), no `/example-page`; su test lo comprueba y se revierte el reformateo ajeno de `toMatchObject({ "/about": "/nosotros" })`. |
+| `4b3d41d` | **Tope del sitemap visible:** `getProductUrls({ all: true })` emite `logger.warn` con `catalog.product_urls_truncated` si tras las 20 tandas (2000 fichas) aún hay `hasNextPage`. Test nuevo (rojo antes) y un catálogo que termina antes no avisa. |
+
+Housekeeping pendiente del revisor: `INFORME-lote.md` sigue **sin commitear** y se elimina antes de
+fusionar (el informe versionado es este archivo).
+
+### Verificación de la ronda 1 (salida real)
+
+| Comprobación | Comando | Resultado |
+|---|---|---|
+| Lint | `npm run lint` | exit 0 |
+| Tipos | `npm run type-check` | exit 0 |
+| Formato | `npm run format:check` | exit 0, «All matched files use Prettier code style!» |
+| i18n | `npm run i18n:check` | exit 0, «605 hojas …» |
+| Tests | `npm run test` | 345 ficheros, **3356** tests en verde (antes 3353) |
+| Cobertura | `npm run test:coverage` | exit 0; 89,00 % sentencias, 82,29 % ramas, 91,38 % funciones, 90,46 % líneas |
+| Build | stub `STUB_GRAPHQL_PORT=18163` + `npx next build` | exit 0; 64 páginas generadas |
+| PHP | `php vendor/bin/phpunit` | 2177 tests, 15 509 aserciones, OK (7:06) |
+| Puerta anti-instancia | `bash .github/scripts/check-anti-instance.sh` | «0 coincidencias», exit 0 |
+| Job «contrato» | worktree temporal sobre `HEAD`, ejemplo superpuesto, `node_modules`/`vendor` copiados | PHP 2189 tests / 15 633 aserciones OK; frontend 348 ficheros / **3365** tests OK; `tsc` exit 0; `next build` (Turbopack, como el CI) exit 0 |
+
+Sigue sin verificarse en vivo (sin Docker): T7 contra la Store API real, T13 contra WordPress y
+T8 con `docker compose config`; los comandos para el dueño son los de la sección anterior.
