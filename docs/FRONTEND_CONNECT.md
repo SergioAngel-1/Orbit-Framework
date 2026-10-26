@@ -1030,6 +1030,8 @@ Reglas:
 
 - `pages` solo entra en `paginas`; una ruta que ya está en el núcleo no se duplica (gana la del
   núcleo) **salvo que la instancia la excluya y la redeclare**, en cuyo caso gana su declaración.
+- Las `pages` declaradas **no se filtran por `exclude`**: la declaración explícita gana y la
+  página se anuncia aunque también case con una exclusión (exacta o de prefijo).
 - `exclude` se aplica a las entradas de los tres segmentos antes de expandir por idioma,
   comparando contra la ruta **interna**. `/products/*` excluye `/products`, sus fichas y sus
   landings, pero no `/products-extra`.
