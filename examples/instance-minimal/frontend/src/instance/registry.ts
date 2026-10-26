@@ -24,7 +24,7 @@ export const instanceRegistry: InstanceRegistry = {
   // superpone este registro y el sitemap/llms.txt del núcleo tienen que seguir generándose.
   sitemap: {
     pages: [
-      { path: "/example-page", changeFrequency: "yearly", priority: 0.3 },
+      { path: "/example", changeFrequency: "yearly", priority: 0.3 },
     ],
     exclude: ["/legal/cookies"],
   },

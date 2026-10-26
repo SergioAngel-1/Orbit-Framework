@@ -15,9 +15,7 @@ import {
 
 describe("registro del ejemplo (contrato 2.2)", () => {
   it("sirve `/about` en `/nosotros` y deshace el camino", () => {
-    expect(instanceRegistry.publicPaths).toMatchObject({
-      "/about": "/nosotros",
-    });
+    expect(instanceRegistry.publicPaths).toMatchObject({ "/about": "/nosotros" });
     expect(toPublicPath("/about", "es")).toBe("/nosotros");
     expect(toInternalPath("/nosotros", "es")).toBe("/about");
   });
@@ -33,7 +31,7 @@ describe("registro del ejemplo (contrato 2.2)", () => {
   it("declara una página propia y una exclusión del sitemap (contrato 2.3)", () => {
     const rules = resolveInstanceSitemap(instanceRegistry.sitemap);
     expect(rules.pages).toEqual([
-      { path: "/example-page", changeFrequency: "yearly", priority: 0.3 },
+      { path: "/example", changeFrequency: "yearly", priority: 0.3 },
     ]);
     expect(isSitemapPathExcluded("/legal/cookies", rules)).toBe(true);
     expect(isSitemapPathExcluded("/legal/privacy", rules)).toBe(false);
