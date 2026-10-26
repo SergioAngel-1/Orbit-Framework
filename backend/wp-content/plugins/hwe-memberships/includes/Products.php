@@ -88,6 +88,28 @@ final class HWE_Memberships_Products {
 		return null !== self::membershipOf( $productId );
 	}
 
+	/**
+	 * ¿La línea es de un plan de membresía, incluida una variación? Una variación hereda el
+	 * vínculo de su padre. Lo comparten el descuento de socio (`Pricing`) y el puente con
+	 * `loyalty` (las líneas de un plan no generan puntos salvo que la instancia lo pida).
+	 */
+	public static function isMembershipLine( int $productId ): bool {
+		if ( $productId <= 0 ) {
+			return false;
+		}
+		if ( self::isMembershipProduct( $productId ) ) {
+			return true;
+		}
+		if ( function_exists( 'wp_get_post_parent_id' ) ) {
+			$parentId = (int) wp_get_post_parent_id( $productId );
+			if ( $parentId > 0 ) {
+				return self::isMembershipProduct( $parentId );
+			}
+		}
+
+		return false;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Pestaña de la ficha del producto
 	// ------------------------------------------------------------------------

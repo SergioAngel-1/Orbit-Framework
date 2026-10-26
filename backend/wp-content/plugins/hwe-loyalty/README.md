@@ -195,6 +195,11 @@ por pedido: un pedido ya procesado, revertido o saltado no vuelve a abonar.
   del canje (`_hwe_loyalty_discount`). **Sin envío** (los extras del módulo `shipping` llegan como
   `fee_lines` y cuentan como envío) y sin la parte cubierta con unidades. Redondeo a la precisión
   de la moneda de Woo; los puntos, hacia abajo.
+- **Qué líneas cuentan** (`hwe_loyalty_line_earns`): cada línea decide con el filtro, que recibe
+  `( bool $earns, WC_Order_Item_Product $item, WC_Order $order )` y por defecto vale `true`. Un
+  módulo excluye así productos que no deben puntuar (el caso vivo: el plan de `memberships`) sin
+  que `loyalty` conozca ese módulo. El mismo filtro rige el bono por producto: una línea que no
+  cuenta para la base tampoco paga bono. Un valor no booleano se registra y se trata como `true`.
 - **Cashback** (si activo): `% cashback × base` al comprador.
 - **Comisión N1**: `% primera compra` si es el primer pedido cobrado del comprador (por cuenta,
   ignorando el actual) y `% siguientes` después, dentro de `commission_duration_days` desde la
@@ -325,6 +330,7 @@ Filtros:
 | Filtro | Firma | Para qué |
 |---|---|---|
 | `hwe_loyalty_order_earnings` | `( array $earnings, WC_Order $order, float $base, array $settings ): array` | Reglas propias de puntos por compra antes de abonar. Cada entrada es `user_id`, `type`, `points`, `ref` y `data`; las incompletas o de un tipo que no es abono se descartan y se registran. |
+| `hwe_loyalty_line_earns` | `( bool $earns, WC_Order_Item_Product $item, WC_Order $order ): bool` | ¿La línea cuenta para la base y el bono por producto? Por defecto `true`. Un módulo devuelve `false` para excluir un producto (p. ej. el plan de una membresía). Un valor no booleano se registra y se trata como `true`. |
 | `hwe_loyalty_collected_on_completion` | `( string[] $methods ): string[]` | Medios que esperan a `completed` para contar como cobrados. Por defecto `['cod']`. |
 | `hwe_loyalty_entry_types` | `( array<string, "credit"\|"debit"> $types ): array` | Tipos de movimiento extra. Se descarta y se registra una entrada mal formada. |
 | `hwe_loyalty_participant_roles` | `( string[] $roles ): string[]` | Roles que participan. Los defaults son `customer` y `subscriber`. |

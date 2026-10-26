@@ -290,6 +290,7 @@ La pestaña **HWE Config → Membresías** la puebla el plugin `hwe-memberships`
 | `card_token_ttl_hours` | `24` | no | Horas de vigencia del token del carné, recortadas a 1–720. |
 | `expiring_notice_days` | `7` | no | Días de antelación del aviso de caducidad; un valor negativo se recorta a 0. |
 | `referral_gift_requires_email_verification` | `true` | no | El regalo al referido solo se concede cuando confirma su correo. |
+| `plans_earn_points` | `false` | no | Los planes generan puntos de fidelización (base, cashback, comisiones y bono). Apagado, la línea del plan no puntúa; sus puntos de activación se abonan igual. |
 
 Los tres campos públicos son los únicos que salen por `/wp-json/hwe/v1/config` y los únicos que
 necesita `SiteConfig.memberships` en el frontend. Los niveles, las concesiones y los requisitos de

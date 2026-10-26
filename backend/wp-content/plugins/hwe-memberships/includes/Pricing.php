@@ -135,7 +135,7 @@ final class HWE_Memberships_Pricing {
 			$config = $benefit->activeConfig( $userId );
 			if (
 				null !== $config
-				&& ! self::isMembershipProduct( $productId )
+				&& ! HWE_Memberships_Products::isMembershipLine( $productId )
 				&& $benefit->appliesTo( $config, $productId )
 			) {
 				$percent = (int) $config['percent'];
@@ -211,7 +211,7 @@ final class HWE_Memberships_Pricing {
 			if (
 				null !== $config
 				&& null !== $benefit
-				&& ! self::isMembershipProduct( $productId )
+				&& ! HWE_Memberships_Products::isMembershipLine( $productId )
 				&& $benefit->appliesTo( $config, $productId )
 			) {
 				$percent = (int) $config['percent'];
@@ -430,7 +430,7 @@ final class HWE_Memberships_Pricing {
 			}
 
 			$productId = (int) ( $item['product_id'] ?? 0 );
-			if ( $productId <= 0 || self::isMembershipProduct( $productId ) ) {
+			if ( $productId <= 0 || HWE_Memberships_Products::isMembershipLine( $productId ) ) {
 				continue;
 			}
 			if ( ! $benefit->appliesTo( $config, $productId ) ) {
@@ -488,24 +488,6 @@ final class HWE_Memberships_Pricing {
 		}
 
 		return $benefit instanceof HWE_Memberships_Benefit_Member_Discount ? $benefit : null;
-	}
-
-	/** ¿El producto es una línea de membresía? Una variación hereda el vínculo de su padre. */
-	private static function isMembershipProduct( int $productId ): bool {
-		if ( $productId <= 0 || ! class_exists( 'HWE_Memberships_Products' ) ) {
-			return false;
-		}
-		if ( HWE_Memberships_Products::isMembershipProduct( $productId ) ) {
-			return true;
-		}
-		if ( function_exists( 'wp_get_post_parent_id' ) ) {
-			$parentId = (int) wp_get_post_parent_id( $productId );
-			if ( $parentId > 0 ) {
-				return HWE_Memberships_Products::isMembershipProduct( $parentId );
-			}
-		}
-
-		return false;
 	}
 
 	/** Precio rebajado con el redondeo de WooCommerce. */

@@ -6,6 +6,17 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed
+- **Los planes de membresía ya no generan puntos de fidelización.** `hwe-loyalty` calculaba la
+  base de ganancias con todas las líneas del pedido, así que comprar un plan generaba cashback,
+  comisiones y bono como cualquier producto. Ahora cada línea decide con el filtro nuevo
+  `hwe_loyalty_line_earns` (por defecto `true`; un valor no booleano se registra y cuenta como
+  `true`) y `hwe-memberships` devuelve `false` para sus productos y variaciones sin que
+  `loyalty` conozca el módulo. El Control Center añade «Los planes generan puntos de
+  fidelización» (`memberships.plans_earn_points`, apagado por defecto) para que una instancia
+  recupere el comportamiento anterior. El canje no cambia: los puntos siguen pudiendo pagar un
+  plan, porque es un medio de pago y no una ganancia. Fix compatible (parche).
+
 ## [2.2.0] — 2026-10-25
 
 Puntos de extensión para instancias y los huecos que aparecieron al instanciar el framework en

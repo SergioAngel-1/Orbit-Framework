@@ -52,6 +52,8 @@ final class EarningsTest extends TestCase
     private array $deferredMethods = ['cod'];
     /** @var callable|null Ajuste de las ganancias calculadas. */
     private $earningsFilter = null;
+    /** @var callable|null Ajuste por línea (`hwe_loyalty_line_earns`). */
+    private $lineEarnsFilter = null;
     private int $now = 1_800_000_000;
     private TestEarningsWpdb $wpdb;
 
@@ -111,6 +113,7 @@ final class EarningsTest extends TestCase
         $this->logged      = [];
         $this->deferredMethods = ['cod'];
         $this->earningsFilter  = null;
+        $this->lineEarnsFilter = null;
         $this->now             = 1_800_000_000;
 
         $this->wpdb = new TestEarningsWpdb();
@@ -151,6 +154,9 @@ final class EarningsTest extends TestCase
             }
             if ('hwe_loyalty_order_earnings' === $hook && null !== $this->earningsFilter) {
                 return ($this->earningsFilter)($value, ...$args);
+            }
+            if ('hwe_loyalty_line_earns' === $hook && null !== $this->lineEarnsFilter) {
+                return ($this->lineEarnsFilter)($value, ...$args);
             }
             return $value;
         });
@@ -292,6 +298,75 @@ final class EarningsTest extends TestCase
         ]);
 
         $this->assertSame(0.0, \HWE_Loyalty_Earnings::orderBase($order));
+    }
+
+    public function test_without_a_module_hooking_the_line_filter_every_line_counts(): void
+    {
+        // Sin `hwe-memberships` (ni ningún otro módulo) cargado, el filtro no se engancha: la
+        // base se comporta exactamente como antes de existir el punto de extensión.
+        $order = $this->makeOrder(55, self::BUYER, [
+            'items' => [
+                $this->item(101, 1, 60.0),
+                $this->item(102, 1, 40.0),
+            ],
+        ]);
+
+        $this->assertSame(100.0, \HWE_Loyalty_Earnings::orderBase($order));
+    }
+
+    public function test_the_line_filter_can_exclude_a_line_from_the_base(): void
+    {
+        $this->lineEarnsFilter = static fn (bool $earns, object $item): bool => 101 !== $item->get_product_id();
+        $order = $this->makeOrder(55, self::BUYER, [
+            'items' => [
+                $this->item(101, 1, 60.0),
+                $this->item(102, 1, 40.0),
+            ],
+        ]);
+
+        $this->assertSame(
+            40.0,
+            \HWE_Loyalty_Earnings::orderBase($order),
+            'La línea excluida no suma a la base; la demás sí.'
+        );
+    }
+
+    public function test_a_non_boolean_line_filter_value_is_logged_and_counts_as_true(): void
+    {
+        $this->lineEarnsFilter = static fn (): string => 'no-es-un-booleano';
+        $order = $this->makeOrder(55, self::BUYER, ['items' => [$this->item(101, 1, 60.0)]]);
+
+        $this->assertSame(
+            60.0,
+            \HWE_Loyalty_Earnings::orderBase($order),
+            'Un filtro mal escrito no puede dejar al comprador sin ganancias.'
+        );
+        $this->assertNotEmpty(array_filter(
+            $this->logged,
+            static fn (string $line): bool => str_contains($line, 'hwe_loyalty_line_earns')
+                && str_contains($line, 'string')
+        ), 'El valor no booleano se registra con su tipo.');
+    }
+
+    public function test_the_line_filter_also_excludes_the_product_bonus(): void
+    {
+        $this->postMeta[101][\HWE_Loyalty_ProductBonus::META] = 2;
+        $this->postMeta[102][\HWE_Loyalty_ProductBonus::META] = 3;
+        $this->lineEarnsFilter = static fn (bool $earns, object $item): bool => 102 !== $item->get_product_id();
+
+        $this->makeOrder(55, self::BUYER, [
+            'items' => [
+                $this->item(101, 1, 60.0),
+                $this->item(102, 1, 40.0),
+            ],
+        ]);
+        \HWE_Loyalty_Earnings::processOrder(55);
+
+        $this->assertSame(
+            2,
+            $this->pointsOf(self::REFERRER, 'referral_product_bonus'),
+            'El producto excluido de la base tampoco paga bono (solo el bono de 2 del producto normal).'
+        );
     }
 
     // ── Cashback ─────────────────────────────────────────────────────────────
@@ -767,13 +842,19 @@ final class TestEarningsItem
         private int $productId,
         private int $quantity,
         private float $total,
-        private float $tax = 0.0
+        private float $tax = 0.0,
+        private int $variationId = 0
     ) {
     }
 
     public function get_product_id(): int
     {
         return $this->productId;
+    }
+
+    public function get_variation_id(): int
+    {
+        return $this->variationId;
     }
 
     public function get_quantity(): int

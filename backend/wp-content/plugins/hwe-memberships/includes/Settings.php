@@ -59,6 +59,7 @@ final class HWE_Memberships_Settings {
 		'card_token_ttl_hours'                      => '24',
 		'expiring_notice_days'                      => '7',
 		'referral_gift_requires_email_verification' => true,
+		'plans_earn_points'                         => false,
 	);
 
 	/** Engancha el esquema del panel. Lo llama `HWE_Memberships::boot()` con WooCommerce presente. */
@@ -145,6 +146,13 @@ final class HWE_Memberships_Settings {
 				// No se publica: es un ajuste operativo del backend.
 				'description' => 'Encendido, la membresía de regalo al referido solo se concede cuando confirma su correo. Apagado, se concede al registrarse.',
 			),
+			'plans_earn_points'                         => array(
+				'type'        => 'boolean',
+				'label'       => 'Los planes generan puntos de fidelización',
+				'default'     => $d['plans_earn_points'],
+				// No se publica: el cálculo de puntos vive en el backend.
+				'description' => 'Encendido, comprar un plan de membresía también genera puntos de fidelización (base, cashback y comisiones). Apagado (por defecto), las líneas de un plan no puntúan; sus puntos de activación, si el nivel los declara, se abonan igual.',
+			),
 		);
 	}
 
@@ -172,6 +180,7 @@ final class HWE_Memberships_Settings {
 			),
 			'expiring_notice_days'                      => self::clampedInt( self::read( 'expiring_notice_days', $d['expiring_notice_days'] ), (int) $d['expiring_notice_days'], 0, null ),
 			'referral_gift_requires_email_verification' => self::toBool( self::read( 'referral_gift_requires_email_verification', $d['referral_gift_requires_email_verification'] ) ),
+			'plans_earn_points'                         => self::toBool( self::read( 'plans_earn_points', $d['plans_earn_points'] ) ),
 		);
 	}
 

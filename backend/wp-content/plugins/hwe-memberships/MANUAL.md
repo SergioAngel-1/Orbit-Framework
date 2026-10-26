@@ -186,6 +186,9 @@ Ajustes que solo ve el equipo técnico en la misma pestaña:
 - **Vigencia del token del carné** (horas): cuánto vale el enlace firmado. Por defecto, 24.
 - **Días de aviso antes de caducar**: con cuánta antelación se avisa al socio. Por defecto, 7.
 - **El regalo al referido exige correo verificado**: encendido por defecto.
+- **Los planes generan puntos de fidelización**: apagado por defecto. Comprado un plan, su precio
+  no cuenta para el cashback, las comisiones ni el bono por producto; los puntos de activación
+  del nivel se abonan igual. Enciéndelo solo si quieres premiar también la compra del plan.
 
 El carné muestra el número de socio y un QR. Quien lo escanea llega a la ruta de verificación y ve
 solo lo necesario para comprobar que la membresía está vigente. Un QR caducado, revocado o
