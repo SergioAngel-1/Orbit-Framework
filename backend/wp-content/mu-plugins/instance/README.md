@@ -28,6 +28,7 @@ framework y se anuncia en `docs/UPGRADE.md`).
 | `hwe_control_center_saved` | acción | Reaccionar a «Guardar configuración» (datos saneados y POST crudo). |
 | `hwe_revalidation_tags` | filtro | Declarar tags ISR propios para poder revalidarlos desde WordPress. |
 | `hwe_geo_packs` | filtro | Añadir o sustituir paquetes por país del mu-plugin `hwe-geo`. |
+| `hwe_modules_catalog` | filtro | Registrar un plugin propio para que `wp hwe setup` pueda activarlo (receta más abajo). |
 
 (F3 añade `hwe_control_center_field_types`; los módulos y F5 añaden más. Todos se documentan en
 `docs/PLUGIN_DEVELOPMENT.md`.)
@@ -93,6 +94,25 @@ caracteres). Declara el mismo tag en el frontend, en `src/instance/registry.ts`
 Si tu instancia necesita un plugin entero (CPT, tablas, UI propia), créalo como plugin regular
 `hwe-instance-<slug>` en `wp-content/plugins/`. El `.gitignore` del framework trae el patrón
 preparado (comentado) para versionarlos; descoméntalo al clonar.
+
+Para que `wp hwe setup` lo active, regístralo en el catálogo de módulos y añade su id a
+`modules` en `instance.config.json`:
+
+```php
+// backend/wp-content/mu-plugins/instance/20-modulos.php
+add_filter('hwe_modules_catalog', static function (array $catalog): array {
+    $catalog['example'] = 'hwe-instance-example'; // id del módulo → carpeta del plugin
+    return $catalog;
+});
+```
+
+```json
+{ "modules": ["example", "banners"] }
+```
+
+**Con `modules` presente, el setup activa los listados y desactiva el resto del catálogo**, así
+que enumera también los módulos del framework que quieras conservar. Receta completa y reglas
+del filtro: `docs/PLUGIN_DEVELOPMENT.md` §0.
 
 ## Ejemplo completo
 

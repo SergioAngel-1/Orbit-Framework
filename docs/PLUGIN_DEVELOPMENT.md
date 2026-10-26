@@ -42,7 +42,7 @@ de terceros del volumen `wordpress_content`. En producción el compose monta
 | `hwe_control_center_saved` | acción | Reaccionar al guardado: `($publicData, $rawPost)`. Sustituye a las acciones con nombre de instancia; `AdminPage` ya no lee claves del POST fuera del schema. |
 | `hwe_revalidation_tags` | filtro | Declarar tags ISR propios (el frontend debe declararlos también en `registry.ts`). |
 | `hwe_geo_packs` | filtro | Añadir o sustituir paquetes por país (divisiones, ciudades, documentos, prefijo); ver `docs/FRONTEND_CONNECT.md` «Paquetes por país». |
-| `hwe_modules_catalog` | filtro | Añadir módulos propios (id → slug de plugin). |
+| `hwe_modules_catalog` | filtro | Añadir módulos propios (id → slug de plugin) para que `wp hwe setup` pueda activarlos; receta más abajo. |
 | `hwe_landings_static_entries` | filtro | Declarar las landings con **diseño propio** de la instancia (`id => ['label', 'jsonld', 'base']`): su contenido se edita en el panel del módulo `landings`. Deben coincidir con `instanceRegistry.landings.staticEntries`. |
 | `hwe_product_fields` | filtro | Declarar campos de producto (`clave => ['label', 'type', 'translatable', 'box', 'description', 'options', 'max']`): el núcleo pinta la caja en la ficha, sanea y expone `Product.hweFields(locale)`. El frontend los declara en `instanceRegistry.productFields`. |
 | `hwe_order_item_details` | filtro | Declarar detalles de línea de pedido (`clave => ['label', 'validate', 'applies_to', 'required', 'meta_key']`): el núcleo los toma de `extensions` en `cart/add-item`, los valida en el servidor, impide pagar una línea sin ellos y los guarda como meta **visible** de la línea (correos, wp-admin, API). El validador devuelve el valor, `['value', 'data']` o un `WP_Error`. |
@@ -60,6 +60,30 @@ de terceros del volumen `wordpress_content`. En producción el compose monta
 `modules: { <id>: boolean }` según si cada plugin está activo: es la fuente de verdad que
 el frontend usa con `isModuleEnabled(config, id)` y `requireModule(id)` (las rutas BFF de
 un módulo apagado responden 404).
+
+**Activar un plugin de instancia con `wp hwe setup`.** El catálogo es la lista cerrada de ids
+que el setup puede activar. Un plugin `hwe-instance-<slug>` no está en él: regístralo desde el
+código de la instancia y añade su id a `modules`.
+
+```php
+<?php
+// backend/wp-content/mu-plugins/instance/20-modulos.php
+add_filter( 'hwe_modules_catalog', static function ( array $catalog ): array {
+    $catalog['example'] = 'hwe-instance-example'; // id del módulo → carpeta del plugin
+    return $catalog;
+} );
+```
+
+```json
+{ "modules": ["example", "banners"] }
+```
+
+El filtro solo puede **añadir** ids (o cambiar el slug de uno del núcleo, que no se puede
+quitar); una entrada mal formada se descarta y queda en el log. **Si el JSON trae `modules`,
+`wp hwe setup` activa los listados y desactiva el resto del catálogo**, incluidos los módulos
+del framework que no repitas: enumera siempre los que quieras conservar. Un id desconocido se
+ignora con su evento. El plugin tiene que estar instalado y visible para WordPress antes de
+ejecutar el setup (en desarrollo, el override del compose: `docs/CREATE_INSTANCE.md` §7).
 
 ### Hooks estables de los módulos
 
