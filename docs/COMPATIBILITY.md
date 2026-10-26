@@ -94,7 +94,7 @@ Los **módulos del framework** (`hwe-banners`, `hwe-shipping`, `hwe-product-land
 `hwe-customer-identity`, `hwe-external-integration`, `hwe-loyalty`, `hwe-memberships`) son código propio versionado en este
 repositorio (`backend/wp-content/plugins/`): no se instalan, se activan (`modules` en
 `instance.config.json`). El contrato núcleo ↔ instancia es `HWE_CORE_CONTRACT_VERSION`
-(`2.2.0`, `mu-plugins/hwe-instance-loader.php`).
+(`2.3.0`, `mu-plugins/hwe-instance-loader.php`).
 
 > **Versiones fijadas para reproducibilidad.** `setup.sh` instala estas versiones
 > CONCRETAS (no «la última»), definidas como variables al inicio del script y
