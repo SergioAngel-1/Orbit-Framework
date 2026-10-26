@@ -30,6 +30,14 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **Una tienda sin datos de contacto ya no publica la identidad del framework.** `social.twitter`,
+  `legal.email` y `legal.company` venían con valores por defecto de la plantilla
+  (`@headlesswp`, `hello@headlesswp.com` y `HWE-Orbit`): una tienda que no los rellenaba los
+  publicaba en `Organization.sameAs`, `contactPoint`/`legalName`, en el `creator` de la tarjeta de
+  Twitter y en los datos clave de `llms.txt`. Ahora los tres defaults están vacíos en las dos capas
+  (`CONFIG_DEFAULTS` y el esquema del Control Center) y el código ya trataba el vacío. **Si tu
+  tienda dependía de esos valores por defecto, rellénalos en Marca (Twitter) y Legal (email y
+  razón social).** `brand.name` no cambia.
 - **`/icon` y `/apple-icon` vuelven a servir la imagen.** Las dos rutas de metadatos dinámicas de
   Next no tienen extensión y el `matcher` del proxy solo excluía las rutas con punto: next-intl las
   trataba como páginas, así que respondían un 404 en HTML y el favicon (y el icono de iOS) no

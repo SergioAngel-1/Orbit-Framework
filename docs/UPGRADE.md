@@ -181,6 +181,16 @@ comportamiento y las URL de la v2.1. Lo nuevo es opcional y se configura con **d
 
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.2.0`; compárala si tu código depende de un hook nuevo.
 
+## 3.3 v2.2 → v2.3 (nota de actualización)
+
+Sin cambios incompatibles: una instancia actualizada sin tocar nada conserva el comportamiento
+y las URL.
+
+- **Sin identidad de contacto por defecto.** `social.twitter`, `legal.email` y `legal.company`
+  dejaron de traer valores de la plantilla. Si tu tienda usaba esos valores sin rellenarlos, ahora
+  salen vacíos: rellénalos en **Marca** (Twitter) y **Legal** (email y razón social) del Control
+  Center. El nombre de marca por defecto no cambia.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

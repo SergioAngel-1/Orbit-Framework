@@ -95,6 +95,12 @@ describe("buildLlmsTxt", () => {
     },
   );
 
+  it("sin datos legales en el panel no publica correo ni razón social ajenos", async () => {
+    const body = (await buildLlmsTxt("es"))!;
+    expect(body).not.toContain("@");
+    expect(body).not.toContain("Razón social");
+  });
+
   it("datos clave solo con lo que el panel trae; el cargo del responsable no va", async () => {
     currentConfig.legal.company = "Mi Tienda SL";
     currentConfig.seo.founder_name = "Ana Ruiz";

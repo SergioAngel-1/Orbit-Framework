@@ -26,6 +26,7 @@ trait Contact {
                     'twitter'   => [
                         'type'        => 'text',
                         'label'       => 'Twitter / X',
+                        'default'     => '',
                         'public'      => true,
                         'description' => 'Solo usuario(s), sin URL. Varias cuentas: sepáralas con « | ». El frontend arma https://twitter.com/{usuario}.',
                     ],
@@ -81,9 +82,9 @@ trait Contact {
                 'type'     => 'group',
                 'label'    => 'Legal',
                 'children' => [
-                    'company' => ['type' => 'text',  'label' => 'Razón social',       'default' => 'HWE-Orbit', 'public' => true],
+                    'company' => ['type' => 'text',  'label' => 'Razón social',       'default' => '',           'public' => true],
                     'nif'     => ['type' => 'text',  'label' => 'NIF / RUT / NIT',    'public' => true],
-                    'email'   => ['type' => 'email', 'label' => 'Email de contacto',  'default' => 'hello@headlesswp.com',       'public' => true],
+                    'email'   => ['type' => 'email', 'label' => 'Email de contacto',  'default' => '',           'public' => true],
                     'phone'   => [
                         'type'        => 'text',
                         'label'       => 'Teléfono fijo',

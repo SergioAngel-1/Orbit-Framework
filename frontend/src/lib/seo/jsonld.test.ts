@@ -161,6 +161,13 @@ describe("buildSiteGraph", () => {
     expect(node(graph(c), "WebSite")).not.toHaveProperty("potentialAction");
   });
 
+  it("sin datos legales ni redes, la Organization no publica identidad ajena", () => {
+    const org = node(graph(config()), "Organization")!;
+    expect(org).not.toHaveProperty("sameAs");
+    expect(org).not.toHaveProperty("contactPoint");
+    expect(org).not.toHaveProperty("legalName");
+  });
+
   it("la descripción sale en el idioma de la página", () => {
     const c = config();
     c.brand.description = "Descripción";
