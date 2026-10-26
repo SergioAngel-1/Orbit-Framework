@@ -10,13 +10,25 @@
  *              mientras el BFF protege las llamadas desde el frontend, este
  *              plugin protege WordPress de ataques directos o bypass del proxy.
  *
+ *              Las llamadas del BFF (secreto interno válido, el mismo que exige
+ *              hwe-bff-only) NO consumen el presupuesto por IP de /graphql ni de
+ *              /wp-json: en producción llegan por la red interna con la IP del
+ *              contenedor del frontend, compartida por todos los compradores.
+ *              Sin cabecera, con un secreto incorrecto o sin la constante
+ *              definida se cuentan como cualquier otra petición. El login de
+ *              wp-login.php se cuenta siempre.
+ *
  * Author:      Sergio Jauregui
- * Version:     2.0.0
+ * Version:     2.1.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+// La comprobación del secreto interno del BFF es la MISMA que aplica
+// `hwe-bff-only.php` (una sola copia: ver `hwe-bff-secret.php`).
+require_once __DIR__ . '/hwe-bff-secret.php';
 
 /* ---------------------------------------------------------------------------
  * Configuración por endpoint
@@ -54,10 +66,17 @@ function hwe_rate_limit_init(): void {
 	$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
 
 	// Solo aplicamos rate-limit a los endpoints de API y a los intentos de login.
+	// Las llamadas del BFF no gastan el presupuesto de la API: ver
+	// `hwe_rate_limit_is_bff_request()`. El login nunca se exime (es tráfico
+	// humano directo; el BFF no inicia sesión en wp-login.php).
 	if ( str_contains( $uri, '/graphql' ) ) {
-		hwe_check_rate_limit( HWE_RL_GRAPHQL );
+		if ( ! hwe_rate_limit_is_bff_request() ) {
+			hwe_check_rate_limit( HWE_RL_GRAPHQL );
+		}
 	} elseif ( str_contains( $uri, '/wp-json/' ) ) {
-		hwe_check_rate_limit( HWE_RL_REST );
+		if ( ! hwe_rate_limit_is_bff_request() ) {
+			hwe_check_rate_limit( HWE_RL_REST );
+		}
 	} elseif ( ( str_contains( $uri, 'wp-login.php' )
 			|| ( class_exists( 'HWE_Login_Slug' ) && HWE_Login_Slug::isLoginRequest() ) )
 		&& 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
@@ -68,6 +87,35 @@ function hwe_rate_limit_init(): void {
 		hwe_check_rate_limit( HWE_RL_LOGIN );
 	}
 	// El resto de rutas (admin, etc.) no tienen rate-limit aquí.
+}
+
+/* ---------------------------------------------------------------------------
+ * ¿La petición es del BFF (secreto interno válido)?
+ *
+ * En producción el BFF habla con WordPress por la red interna sin
+ * `X-Forwarded-For`: `REMOTE_ADDR` es la IP del contenedor del frontend, la misma
+ * para TODOS los compradores. Contar esas llamadas contra el presupuesto por IP
+ * hacía que unos pocos usuarios a la vez agotaran el límite y WordPress devolviera
+ * 429 a toda la tienda (Store API, pedidos, fidelización).
+ *
+ * La exención es una CREDENCIAL (`X-HWE-Internal-Secret` con
+ * `HWE_REVALIDATION_SECRET`), no una suposición sobre la red: la comprueba
+ * `hwe_bff_only_has_valid_secret()` con comparación en tiempo constante, y es la
+ * misma regla que la puerta de `hwe-bff-only.php` (no una copia).
+ *
+ * Falla cerrado: sin la constante definida, sin cabecera, con un valor incorrecto
+ * o si la comprobación revienta, la petición se cuenta como cualquier otra.
+ * ------------------------------------------------------------------------ */
+function hwe_rate_limit_is_bff_request(): bool {
+	if ( ! function_exists( 'hwe_bff_only_has_valid_secret' ) ) {
+		return false;
+	}
+
+	try {
+		return (bool) hwe_bff_only_has_valid_secret();
+	} catch ( \Throwable $e ) {
+		return false;
+	}
 }
 
 /* ---------------------------------------------------------------------------

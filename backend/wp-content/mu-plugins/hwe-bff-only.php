@@ -36,6 +36,9 @@
  * sobre la red: la heurística de red privada (sin X-Forwarded-For y desde una IP privada) confía en
  * cualquier contenedor, VPN o proxy mal configurado que comparta red con WordPress.
  *
+ * La comprobación vive en `hwe-bff-secret.php` (compartida con `rate-limit.php`, donde las
+ * llamadas del BFF no consumen el presupuesto por IP).
+ *
  * Si `HWE_REVALIDATION_SECRET` no está definida no hay forma de identificar al BFF: FALLA
  * CERRADO (solo atiende WP-CLI) y se registra, en vez de abrir la puerta.
  *
@@ -57,72 +60,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/**
- * Cabecera con la que el BFF presenta el secreto, tal como la ve PHP en $_SERVER.
- * Es la misma que ya comprueba `hwe-auth.php` en `2fa-status`.
- */
-const HWE_BFF_ONLY_SERVER_KEY = 'HTTP_X_HWE_INTERNAL_SECRET';
-
-/** El secreto esperado, o '' si no está definido (entonces nadie puede identificarse). */
-function hwe_bff_only_expected_secret(): string
-{
-    return defined('HWE_REVALIDATION_SECRET') ? trim((string) HWE_REVALIDATION_SECRET) : '';
-}
-
-/**
- * Registra un problema como máximo una vez por ventana, para que un fallo de
- * configuración no pase desapercibido (todo daría 404 sin explicación) ni inunde el log.
- */
-function hwe_bff_only_log_throttled(string $key, string $message, int $windowSeconds = 60): void
-{
-    static $last = [];
-    $now = time();
-    if (isset($last[$key]) && ($now - $last[$key]) < $windowSeconds) {
-        return;
-    }
-    $last[$key] = $now;
-    error_log('[hwe] bff-only: ' . $message);
-}
-
-/**
- * ¿La petición trae el secreto interno correcto?
- *
- * Se comparan los SHA-256 de ambos valores con `hash_equals`: tiempo constante también
- * respecto a la LONGITUD, que `hash_equals` sobre las cadenas crudas sí delataría.
- */
-function hwe_bff_only_has_valid_secret(): bool
-{
-    $expected = hwe_bff_only_expected_secret();
-    if ($expected === '') {
-        hwe_bff_only_log_throttled(
-            'no-secret',
-            'HWE_REVALIDATION_SECRET no está definido: GraphQL, la Store API y hwe/v1/auth|consent|loyalty|memberships '
-            . 'solo atienden a WP-CLI. Defínelo en wp-config.php con el mismo valor que el frontend.',
-            3600
-        );
-        return false;
-    }
-
-    $received = isset($_SERVER[HWE_BFF_ONLY_SERVER_KEY])
-        ? trim((string) wp_unslash($_SERVER[HWE_BFF_ONLY_SERVER_KEY]))
-        : '';
-    if ($received === '') {
-        return false;
-    }
-
-    if (hash_equals(hash('sha256', $expected), hash('sha256', $received))) {
-        return true;
-    }
-
-    // Presente pero incorrecto: casi siempre es el BFF con otro secreto (despliegue a
-    // medias, rotación). Sin este aviso la causa sería invisible: todo respondería 404.
-    hwe_bff_only_log_throttled(
-        'bad-secret',
-        'secreto interno inválido recibido; si es el BFF, comprueba que HWE_REVALIDATION_SECRET '
-        . 'coincide en el frontend y en WordPress.'
-    );
-    return false;
-}
+// La comprobación del secreto vive en un archivo compartido con `rate-limit.php`:
+// las dos puertas tienen que aplicar exactamente la misma regla (ver su cabecera).
+require_once __DIR__ . '/hwe-bff-secret.php';
 
 /**
  * Heurística de red de la versión anterior: llamada interna = sin `X-Forwarded-For` y
