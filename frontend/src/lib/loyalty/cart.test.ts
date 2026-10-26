@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CONFIG_DEFAULTS } from "@/lib/config/defaults";
 import type { LoyaltyConfig } from "@/lib/config/types";
 import { maxRedeemable, parseLoyaltyCartExtension } from "./cart";
+
+// El parser también corre en el navegador (la extensión se lee del carrito que
+// pinta el cajón). Importar zod aquí lo arrastraría al bundle inicial: el mock
+// rompe la carga del módulo si alguien vuelve a depender de él.
+vi.mock("zod", () => {
+  throw new Error("El parser del carrito no debe cargar zod en el navegador");
+});
 
 /** Config base con aritmética sencilla; cada prueba ajusta solo lo que mide. */
 function config(overrides: Partial<LoyaltyConfig> = {}): LoyaltyConfig {
@@ -224,5 +231,52 @@ describe("parseLoyaltyCartExtension", () => {
         extensions: { "hwe-loyalty": { ...extension, extra: true } },
       }),
     ).toEqual(extension);
+  });
+
+  it("una extensión parcial (falta un campo) se rechaza entera", () => {
+    const partial: Record<string, unknown> = { ...extension };
+    delete partial.min_redeem;
+
+    expect(
+      parseLoyaltyCartExtension({ extensions: { "hwe-loyalty": partial } }),
+    ).toBeNull();
+  });
+
+  it("exige los tipos del contrato, incluido el motivo", () => {
+    expect(
+      parseLoyaltyCartExtension({
+        extensions: { "hwe-loyalty": { ...extension, reason: 3 } },
+      }),
+    ).toBeNull();
+    expect(
+      parseLoyaltyCartExtension({
+        extensions: { "hwe-loyalty": { ...extension, discount: "" } },
+      }),
+    ).toBeNull();
+    expect(
+      parseLoyaltyCartExtension({
+        extensions: { "hwe-loyalty": { ...extension, discount: "10,5" } },
+      }),
+    ).toBeNull();
+    expect(
+      parseLoyaltyCartExtension({
+        extensions: { "hwe-loyalty": { ...extension, balance: 1.5 } },
+      }),
+    ).toBeNull();
+    expect(
+      parseLoyaltyCartExtension({
+        extensions: { "hwe-loyalty": { ...extension, full_payment_available: 1 } },
+      }),
+    ).toBeNull();
+  });
+
+  it("acepta un motivo ausente y lo normaliza a null", () => {
+    const withoutReason: Record<string, unknown> = { ...extension };
+    delete withoutReason.reason;
+
+    expect(
+      parseLoyaltyCartExtension({ extensions: { "hwe-loyalty": withoutReason } })
+        ?.reason,
+    ).toBeNull();
   });
 });

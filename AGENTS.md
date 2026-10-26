@@ -650,7 +650,9 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
   cada uso** (limitación del plugin WPGraphQL JWT).
 - **`@tailwindcss/typography` YA está instalado** (en `devDependencies`): `prose` está
   disponible para las descripciones de producto. *(Corrige una nota antigua que decía lo contrario.)*
-- **Sentry YA está cableado**: `sentry.{client,server,edge}.config.ts` + `src/instrumentation.ts`.
+- **Sentry YA está cableado**: `sentry.{server,edge}.config.ts` + `src/instrumentation.ts` y, en el
+  navegador, `src/instrumentation-client.ts` (carga diferida; sin `NEXT_PUBLIC_SENTRY_DSN` no viaja
+  el SDK). Replay es opt-in (`NEXT_PUBLIC_SENTRY_REPLAY`). Ver `docs/OBSERVABILITY.md` §2.1.
   El logger usa `pino` con eventos estructurados.
 - **Redis es compartido entre WordPress y el BFF**: WordPress usa el prefijo `hwe-wp:` y un flush
   *selectivo*; un `wp cache flush` a secas borraría las listas de revocación, el rate-limit y la

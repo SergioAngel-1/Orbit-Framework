@@ -1,5 +1,11 @@
-import { z } from "zod";
 import type { StoreCart } from "@/types/woocommerce";
+import {
+  isBoolean,
+  isMinorUnits,
+  isNonNegativeInteger,
+  isRecord,
+  isString,
+} from "@/lib/validation/light";
 
 // ============================================================================
 //  Lectura de `extensions["hwe-memberships"]` del carrito.
@@ -81,8 +87,6 @@ export interface MembershipsCartExtension {
   purchase_notice: MembershipPurchaseNotice;
 }
 
-const MINOR_UNITS = /^\d+$/;
-
 const FREE_DELIVERY_REASONS = [
   "membership_free_delivery",
   "already_free",
@@ -93,73 +97,135 @@ const FREE_DELIVERY_REASONS = [
 
 const PURCHASE_NOTICES = ["renewal", "upgrade", "scheduled"] as const;
 
+const BLOCKED_ITEM_REASONS = [
+  "membership_required",
+  "membership_early_access",
+] as const;
+
+const KNOWN_FREE_DELIVERY_REASONS: ReadonlySet<string> = new Set(FREE_DELIVERY_REASONS);
+const KNOWN_PURCHASE_NOTICES: ReadonlySet<string> = new Set(PURCHASE_NOTICES);
+const KNOWN_BLOCKED_ITEM_REASONS: ReadonlySet<string> = new Set(BLOCKED_ITEM_REASONS);
+
 /**
- * Un motivo futuro no debe romper la lectura del resto del carrito: se
- * normaliza a `null`, igual que hace el lector de fidelización.
+ * Normaliza un motivo/aviso: `null` si falta o es desconocido, y `undefined`
+ * (contrato incumplido) si no es un string. Un valor futuro no rompe la lectura
+ * del resto del carrito; un tipo erróneo sí.
  */
-const freeDeliveryReasonSchema = z
-  .string()
-  .nullish()
-  .transform((reason): MembershipFreeDeliveryReason | null =>
-    reason && (FREE_DELIVERY_REASONS as readonly string[]).includes(reason)
-      ? (reason as MembershipFreeDeliveryReason)
-      : null,
-  );
+function knownOrNull(
+  value: unknown,
+  known: ReadonlySet<string>,
+): string | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (!isString(value)) return undefined;
+  return known.has(value) ? value : null;
+}
 
-const purchaseNoticeSchema = z
-  .string()
-  .nullish()
-  .transform((notice): MembershipPurchaseNotice =>
-    notice && (PURCHASE_NOTICES as readonly string[]).includes(notice)
-      ? (notice as Exclude<MembershipPurchaseNotice, null>)
-      : null,
-  );
+function parseLevel(raw: unknown): MembershipLevel | null | undefined {
+  if (raw === null) return null;
+  if (!isRecord(raw)) return undefined;
 
-const extensionSchema = z.object({
-  level: z
-    .object({
-      id: z.number().int().nonnegative(),
-      slug: z.string(),
-      rank: z.number().int().nonnegative(),
-      name: z.string(),
-    })
-    .nullable(),
-  member_discount: z.object({
-    total: z.string().regex(MINOR_UNITS),
-    lines: z.record(z.string(), z.string().regex(MINOR_UNITS)),
-  }),
-  free_delivery: z.object({
-    available: z.boolean(),
-    remaining: z.number().int().nonnegative(),
-    requested: z.boolean(),
-    applied: z.boolean(),
-    reason: freeDeliveryReasonSchema,
-  }),
-  blocked_items: z.array(
-    z.object({
-      key: z.string(),
-      product_id: z.number().int().nonnegative(),
-      reason: z.enum(["membership_required", "membership_early_access"]),
-      min_rank: z.number().int().nonnegative(),
-      level_slug: z.string(),
-      level_name: z.string(),
-      opens_at: z
-        .string()
-        .nullish()
-        .transform((opensAt) => opensAt ?? null),
-    }),
-  ),
-  purchase_notice: purchaseNoticeSchema,
-});
+  const { id, slug, rank, name } = raw;
+  if (
+    !isNonNegativeInteger(id) ||
+    !isString(slug) ||
+    !isNonNegativeInteger(rank) ||
+    !isString(name)
+  ) {
+    return undefined;
+  }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return { id, slug, rank, name };
+}
+
+function parseMemberDiscount(
+  raw: unknown,
+): MembershipsCartExtension["member_discount"] | undefined {
+  if (!isRecord(raw) || !isMinorUnits(raw.total) || !isRecord(raw.lines)) {
+    return undefined;
+  }
+
+  const lines: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw.lines)) {
+    if (!isMinorUnits(value)) return undefined;
+    lines[key] = value;
+  }
+
+  return { total: raw.total, lines };
+}
+
+function parseFreeDelivery(
+  raw: unknown,
+): MembershipsCartExtension["free_delivery"] | undefined {
+  if (!isRecord(raw)) return undefined;
+
+  const { available, remaining, requested, applied } = raw;
+  if (
+    !isBoolean(available) ||
+    !isNonNegativeInteger(remaining) ||
+    !isBoolean(requested) ||
+    !isBoolean(applied)
+  ) {
+    return undefined;
+  }
+
+  const reason = knownOrNull(raw.reason, KNOWN_FREE_DELIVERY_REASONS);
+  if (reason === undefined) return undefined;
+
+  return {
+    available,
+    remaining,
+    requested,
+    applied,
+    reason: reason as MembershipFreeDelivery["reason"],
+  };
+}
+
+function parseBlockedItems(raw: unknown): MembershipBlockedItem[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+
+  const items: MembershipBlockedItem[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry)) return undefined;
+
+    const { key, product_id, reason, min_rank, level_slug, level_name } = entry;
+    if (
+      !isString(key) ||
+      !isNonNegativeInteger(product_id) ||
+      !isString(reason) ||
+      !KNOWN_BLOCKED_ITEM_REASONS.has(reason) ||
+      !isNonNegativeInteger(min_rank) ||
+      !isString(level_slug) ||
+      !isString(level_name)
+    ) {
+      return undefined;
+    }
+
+    const opensAt = entry.opens_at;
+    if (opensAt !== undefined && opensAt !== null && !isString(opensAt)) {
+      return undefined;
+    }
+
+    items.push({
+      key,
+      product_id,
+      reason: reason as MembershipBlockedItem["reason"],
+      min_rank,
+      level_slug,
+      level_name,
+      opens_at: opensAt ?? null,
+    });
+  }
+
+  return items;
 }
 
 /**
  * Lee `extensions["hwe-memberships"]` del carrito. Devuelve `null` si la
  * extensión no existe (módulo apagado) o si no cumple el contrato: una
  * extensión malformada nunca rompe el carrito.
+ *
+ * Validación manual a propósito (ver `lib/validation/light.ts`): importar zod
+ * aquí lo arrastraría al bundle inicial de cualquier página con cajón de carrito.
  */
 export function parseMembershipsCartExtension(
   cart: Pick<StoreCart, "extensions"> | unknown,
@@ -168,6 +234,28 @@ export function parseMembershipsCartExtension(
   const raw = cart.extensions[MEMBERSHIPS_CART_EXTENSION];
   if (!isRecord(raw)) return null;
 
-  const parsed = extensionSchema.safeParse(raw);
-  return parsed.success ? parsed.data : null;
+  const level = parseLevel(raw.level);
+  const memberDiscount = parseMemberDiscount(raw.member_discount);
+  const freeDelivery = parseFreeDelivery(raw.free_delivery);
+  const blockedItems = parseBlockedItems(raw.blocked_items);
+  const purchaseNotice = knownOrNull(raw.purchase_notice, KNOWN_PURCHASE_NOTICES);
+
+  if (
+    level === undefined ||
+    memberDiscount === undefined ||
+    freeDelivery === undefined ||
+    blockedItems === undefined ||
+    purchaseNotice === undefined
+  ) {
+    return null;
+  }
+
+  // Se reconstruye con las claves del contrato: las extra se descartan.
+  return {
+    level,
+    member_discount: memberDiscount,
+    free_delivery: freeDelivery,
+    blocked_items: blockedItems,
+    purchase_notice: purchaseNotice as MembershipPurchaseNotice,
+  };
 }

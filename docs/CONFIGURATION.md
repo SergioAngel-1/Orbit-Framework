@@ -152,7 +152,19 @@ configuran en el panel (*Integraciones*); aquí solo quedan dos variables de **d
 | `BACKUP_RETAIN_DAYS` | Días de retención local de las copias (el panel puede sobrescribirlo). |
 | `ORDER_NOTIFICATION_WEBHOOK_URL` | (opc.) Webhook interno (Slack/Teams/ERP/cola) al que el BFF notifica eventos de pedido. Los correos **al cliente** los envía WooCommerce. |
 | `LOG_LEVEL` | Nivel de pino (`debug`/`info`/`warn`/`error`). |
-| `SENTRY_DSN` | DSN de Sentry (si se omite, no se envía nada). |
+| `SENTRY_DSN` | DSN de Sentry para servidor y edge (si se omite, no se envía nada). Activa también el túnel `/monitoring` y la subida de source maps. |
+| `NEXT_PUBLIC_SENTRY_DSN` | DSN del SDK de navegador. **Sin él (ni `SENTRY_DSN`) no se carga nada de Sentry en el cliente.** Con él, el SDK se carga de forma diferida tras la inactividad y los errores de la ventana previa se envían al inicializar. Es público por diseño (un DSN no es un secreto). |
+| `NEXT_PUBLIC_SENTRY_REPLAY` | `true` activa Session Replay en el cliente. Por defecto **apagado**: graba la sesión del comprador y pesa en el bundle. |
+
+> **Sentry en el cliente (rendimiento).** `instrumentation-client.ts` no importa
+> `@sentry/nextjs` de forma estática. Sin DSN público no entra ni un byte del SDK
+> en el bundle inicial; con DSN se carga por import dinámico cuando el navegador
+> queda inactivo (o en la primera navegación del App Router) y replay solo se
+> registra con `NEXT_PUBLIC_SENTRY_REPLAY=true`. La contrapartida: los errores que
+> ocurran antes de que se ejecute el script de instrumentación no se capturan; los
+> de la ventana entre el arranque y la carga sí (buffer en memoria). Para que el
+> DSN llegue al navegador tiene que existir **en el build** (variable de build en
+> Docker); `SENTRY_DSN` se reexpone como público si no defines el específico.
 
 ---
 

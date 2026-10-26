@@ -460,6 +460,8 @@ services:
         NEXT_PUBLIC_SITE_URL:        "https://${PUBLIC_DOMAIN}"
         CSP_ANALYTICS_PROVIDERS:     "${CSP_ANALYTICS_PROVIDERS:-}"
         SENTRY_DSN:                  "${SENTRY_DSN:-}"
+        NEXT_PUBLIC_SENTRY_DSN:      "${NEXT_PUBLIC_SENTRY_DSN:-}"
+        NEXT_PUBLIC_SENTRY_REPLAY:   "${NEXT_PUBLIC_SENTRY_REPLAY:-}"
         # Paciencia y ritmo del prerender SOLO en el build (con WordPress cargado por
         # el propio build, los defaults se quedan cortos). Vacíos = defaults.
         GRAPHQL_TIMEOUT_MS:          "${BUILD_GRAPHQL_TIMEOUT_MS:-}"

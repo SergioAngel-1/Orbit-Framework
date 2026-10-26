@@ -6,6 +6,29 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Changed
+- **Sentry en el navegador es opcional y se carga de forma diferida.** `instrumentation-client.ts`
+  ya no importa `@sentry/nextjs` de forma estática: el SDK (~162 kB gz con el chunk de replay
+  aparte) solo se pide cuando hay `NEXT_PUBLIC_SENTRY_DSN` y el navegador queda inactivo (o en la
+  primera navegación del App Router). **Sin DSN, `next.config.mjs` resuelve `@sentry/nextjs` a un
+  no-op y el SDK no viaja en el build.** `SENTRY_DSN` se sigue usando para servidor/edge y, si no
+  hay DSN público, se reexpone como `NEXT_PUBLIC_SENTRY_DSN` para no duplicar la variable. Session
+  Replay pasa a ser **opt-in** (`NEXT_PUBLIC_SENTRY_REPLAY=true`): antes se registraba siempre. Los
+  errores de la ventana previa a la carga se guardan en un buffer y se envían al inicializar.
+
+### Performance
+- **El JS inicial de una página de tienda baja ~107 kB gz (−32 %).** Medido con `next build` +
+  `next start` sobre el stub de CI (`STUB_GRAPHQL_PORT=18162`), sumando los chunks gz que referencia
+  el HTML: `/` pasó de **331,9 kB** a **224,6 kB** sin DSN y a **226,8 kB** con DSN (el SDK real
+  queda en un chunk de 162,2 kB que no se descarga hasta la carga diferida). En el build sin DSN no
+  queda ninguna referencia al SDK.
+- **Los parsers de extensiones del carrito ya no importan zod.** `lib/loyalty/cart.ts` y
+  `lib/memberships/cart.ts` validan con guards manuales equivalentes (`lib/validation/light.ts`):
+  mismas reglas y mismos tests, sin arrastrar ~34 kB gz al bundle de un componente cliente que los
+  importe. En el build de este repositorio zod solo entraba en la página de checkout (validación de
+  formularios), no en el bundle compartido; el cambio elimina esa dependencia de los parsers de
+  carrito para cualquier instancia que los use en el cajón.
+
 ### Fixed
 - **El cashback y las comisiones por porcentaje pagan su valor real en la moneda.** `hwe-loyalty`
   convertía un porcentaje de la base (dinero) directamente en unidades, así que el porcentaje

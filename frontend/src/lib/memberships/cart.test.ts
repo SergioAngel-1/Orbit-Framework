@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MEMBERSHIPS_CART_EXTENSION, parseMembershipsCartExtension } from "./cart";
+
+// El parser también corre en el navegador (la extensión se lee del carrito que
+// pinta el cajón). Importar zod aquí lo arrastraría al bundle inicial: el mock
+// rompe la carga del módulo si alguien vuelve a depender de él.
+vi.mock("zod", () => {
+  throw new Error("El parser del carrito no debe cargar zod en el navegador");
+});
 
 // ============================================================================
 //  Lectura de `extensions["hwe-memberships"]`.
@@ -123,5 +130,81 @@ describe("parseMembershipsCartExtension", () => {
       reason: "membership_required",
       opens_at: null,
     });
+  });
+
+  it("una extensión parcial se rechaza entera", () => {
+    const partial: Record<string, unknown> = { ...EXTENSION };
+    delete partial.free_delivery;
+
+    expect(parseMembershipsCartExtension(cartWith(partial))).toBeNull();
+    expect(
+      parseMembershipsCartExtension(
+        cartWith({ ...EXTENSION, free_delivery: { available: true } }),
+      ),
+    ).toBeNull();
+  });
+
+  it("valida cada línea del descuento y el array de bloqueos", () => {
+    expect(
+      parseMembershipsCartExtension(
+        cartWith({
+          ...EXTENSION,
+          member_discount: { total: "0", lines: { "linea-1": 1500 } },
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      parseMembershipsCartExtension(
+        cartWith({ ...EXTENSION, member_discount: { total: "0", lines: [] } }),
+      ),
+    ).toBeNull();
+    expect(
+      parseMembershipsCartExtension(cartWith({ ...EXTENSION, blocked_items: {} })),
+    ).toBeNull();
+    expect(
+      parseMembershipsCartExtension(cartWith({ ...EXTENSION, blocked_items: ["x"] })),
+    ).toBeNull();
+    expect(
+      parseMembershipsCartExtension(
+        cartWith({
+          ...EXTENSION,
+          blocked_items: [{ ...EXTENSION.blocked_items[0], reason: "otro" }],
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      parseMembershipsCartExtension(
+        cartWith({
+          ...EXTENSION,
+          blocked_items: [{ ...EXTENSION.blocked_items[0], min_rank: -1 }],
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it("normaliza `purchase_notice` y `opens_at` ausentes", () => {
+    const parsed = parseMembershipsCartExtension(
+      cartWith({
+        ...EXTENSION,
+        purchase_notice: undefined,
+        blocked_items: [{ ...EXTENSION.blocked_items[0], opens_at: undefined }],
+      }),
+    );
+
+    expect(parsed?.purchase_notice).toBeNull();
+    expect(parsed?.blocked_items[0].opens_at).toBeNull();
+  });
+
+  it("ignora claves extra sin cambiar el contrato", () => {
+    expect(
+      parseMembershipsCartExtension(
+        cartWith({
+          ...EXTENSION,
+          extra: true,
+          level: { ...LEVEL, extra: true },
+          blocked_items: [{ ...EXTENSION.blocked_items[0], extra: true }],
+        }),
+      ),
+    ).toEqual(EXTENSION);
   });
 });
