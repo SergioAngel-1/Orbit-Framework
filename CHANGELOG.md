@@ -126,6 +126,16 @@ cambios incompatibles. **Para actualizar una instancia** sigue `docs/UPGRADE.md`
 tag) y la nota §3.2 «v2.1 → v2.2».
 
 ### Added
+- **Páginas propias y exclusiones del sitemap por la instancia (`InstanceRegistry.sitemap`).**
+  Una instancia puede añadir sus vistas al segmento `paginas` y retirar del sitemap y de
+  `llms.txt` rutas del núcleo, de legal o de landings declarando solo datos en
+  `frontend/src/instance/registry.ts`: `pages` (ruta interna, `changeFrequency` opcional —def.
+  `monthly`— y `priority` opcional —def. 0.5—, expandidas a todos los idiomas con alternates y
+  x-default, con la URL pública de `publicPaths`) y `exclude` (rutas internas exactas o un
+  prefijo con `/*`). Ya no hace falta editar `app/_sitemap/entries.ts` ni `_llms/build.ts`. La
+  validación es fail-soft (una entrada mal formada se descarta con el evento
+  `instance.sitemap.invalid_entry`) y sin el campo nada cambia. Sin cambios incompatibles;
+  `HWE_CORE_CONTRACT_VERSION` pasa a `2.3.0`.
 - **Rutas públicas configurables por la instancia (`InstanceRegistry.publicPaths`).** Una
   instancia puede servir las carpetas de `app/[locale]/` con otros tramos públicos (p. ej. en
   español) declarando solo datos en `frontend/src/instance/registry.ts` (`"/products":

@@ -186,6 +186,10 @@ comportamiento y las URL de la v2.1. Lo nuevo es opcional y se configura con **d
 Sin cambios incompatibles: una instancia actualizada sin tocar nada conserva el comportamiento
 y las URL.
 
+- **Sitemap de la instancia (`InstanceRegistry.sitemap`).** Opcional: declara `pages` (páginas
+  propias que se añaden al segmento `paginas` en todos los idiomas, respetando `publicPaths`) y
+  `exclude` (rutas internas exactas o un prefijo con `/*`, también aplicado a `llms.txt`) sin
+  editar `app/_sitemap/entries.ts`. Sin el campo, la salida es idéntica. Contrato `2.3.0`.
 - **Sin identidad de contacto por defecto.** `social.twitter`, `legal.email` y `legal.company`
   dejaron de traer valores de la plantilla. Si tu tienda usaba esos valores sin rellenarlos, ahora
   salen vacíos: rellénalos en **Marca** (Twitter) y **Legal** (email y razón social) del Control

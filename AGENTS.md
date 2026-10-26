@@ -42,7 +42,8 @@ repo y es clave no confundirlas:
   `hwe_geo_packs`, `hwe_product_fields`, `hwe_order_item_details`, `hwe_landings_static_entries`,
   `hwe_banners_decor_presets`… `HWE_CORE_CONTRACT_VERSION` es la versión del contrato.
 - **Frontend:** `src/instance/registry.ts` exporta un `InstanceRegistry` (**solo datos**, nunca
-  componentes: tags ISR, landings con sección única, campos de producto, visuales decorativos) y es
+  componentes: tags ISR, landings con sección única, campos de producto, visuales decorativos,
+  `publicPaths` y `sitemap` —páginas propias y exclusiones de sitemap/`llms.txt`—) y es
   el **único** módulo de instancia que el núcleo importa. Una regla de ESLint impide que
   `lib/`, `app/api/`, `proxy.ts` y `components/ui/` importen `@/components/**` (salvo `ui/`) o
   `@/instance/**` (salvo `@/instance/registry`). `config.d.ts` tipa `SiteConfig.instance`.
@@ -444,7 +445,9 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
 - **SEO/GEO**: `lib/seo/` es la única fuente (`jsonld`, `opengraph`, `title`, `meta-description`,
   `page-metadata`, `urls`, `breadcrumbs`, `listing`, `safe-json-ld`, `og-static`). Rutas de máquina:
   sitemap segmentado (`app/_sitemap/entries.ts`), `robots.txt` (`app/_robots/build.ts`) y
-  `llms.txt` por idioma (`app/_llms/build.ts`); las funciones puras viven en carpetas privadas
+  `llms.txt` por idioma (`app/_llms/build.ts`); una instancia añade páginas y excluye rutas del
+  sitemap/`llms.txt` con **datos** en `InstanceRegistry.sitemap` (`lib/instance/sitemap.ts`), sin
+  editar `entries.ts`; las funciones puras viven en carpetas privadas
   `_x/` porque un route handler solo puede exportar métodos HTTP. Toda página indexable declara
   `pageMetadata`; toda vista privada `privateMetadata` (lo impone un test sobre `PRIVATE_PATHS`);
   todo JSON-LD pasa por `safeJsonLd`. Todo lee `getSiteConfig()`, nada tiene la URL o la marca

@@ -20,6 +20,14 @@ export const instanceRegistry: InstanceRegistry = {
     // registro, el job «contrato» lo caza (ver `lib/auth/email-links.test.ts`).
     "/reset-password": "/example-access",
   },
+  // Sitemap (contrato 2.3): una página propia y una exclusión neutras. El job «contrato»
+  // superpone este registro y el sitemap/llms.txt del núcleo tienen que seguir generándose.
+  sitemap: {
+    pages: [
+      { path: "/example-page", changeFrequency: "yearly", priority: 0.3 },
+    ],
+    exclude: ["/legal/cookies"],
+  },
   timeZone: "America/Bogota",
   // Campos de producto declarativos: las mismas claves y tipos que `hwe_product_fields` del
   // backend (`mu-plugins/instance/50-example-product-field.php`).

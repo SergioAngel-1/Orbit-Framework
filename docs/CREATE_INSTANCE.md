@@ -384,6 +384,11 @@ Los hijos heredan el prefijo del padre (una entrada propia manda), el mapa se va
 valor por idioma (`{ es: "/novedades", en: "/blog" }`). Contrato completo:
 `docs/FRONTEND_CONNECT.md` §A.4.
 
+Para las **páginas propias** de la instancia y las rutas que no quieres anunciar, no edites el
+núcleo: declara `sitemap.pages` (se añaden al sitemap en todos los idiomas, respetando
+`publicPaths`) y `sitemap.exclude` (rutas internas exactas o un prefijo con `/*`) en el mismo
+`registry.ts`. También afecta a `llms.txt`. Ver `docs/FRONTEND_CONNECT.md` §A.4.
+
 ### Instancia de un solo idioma
 
 El framework trae `es` (principal) y `en`. Una tienda que solo publica en un idioma **no

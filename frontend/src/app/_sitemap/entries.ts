@@ -12,6 +12,7 @@ import {
 import { productLearnPaths } from "@/lib/landings/product-learn-href";
 import { editorialSitemapEntries } from "@/lib/landings/editorial-list";
 import { entityPaths, hreflangLanguages, localizedPath } from "@/lib/seo/urls";
+import { isSitemapPathExcluded, resolveInstanceSitemap } from "@/lib/instance/sitemap";
 import type { SitemapSegment } from "@/lib/seo/sitemap-segments";
 import { logger } from "@/lib/observability/logger";
 
@@ -250,5 +251,24 @@ export async function buildSitemapEntries(
     }
   }
 
-  return paths.flatMap((entry) => expand(baseUrl, entry));
+  // Ajustes de la instancia (`InstanceRegistry.sitemap`): `exclude` se aplica a las entradas
+  // del núcleo ANTES de expandir por idioma, comparando contra la ruta INTERNA. Las páginas
+  // propias se añaden después y no se duplican con una ruta del núcleo que siga anunciada
+  // (si la instancia excluye una ruta y la redeclara, gana su declaración).
+  const rules = resolveInstanceSitemap();
+  const announced = paths.filter((entry) => !isSitemapPathExcluded(entry.path, rules));
+  if (segmento === "paginas") {
+    const present = new Set(announced.map((entry) => entry.path));
+    for (const page of rules.pages) {
+      if (present.has(page.path)) continue;
+      present.add(page.path);
+      announced.push({
+        path: page.path,
+        changeFrequency: page.changeFrequency,
+        priority: page.priority,
+      });
+    }
+  }
+
+  return announced.flatMap((entry) => expand(baseUrl, entry));
 }

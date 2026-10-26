@@ -6,6 +6,7 @@ import { getCategories } from "@/lib/catalog/products";
 import { publishedEditorialLandings } from "@/lib/landings/editorial-list";
 import { absoluteLocalized } from "@/lib/seo/urls";
 import { metaDescription } from "@/lib/seo/meta-description";
+import { isSitemapPathExcluded, resolveInstanceSitemap } from "@/lib/instance/sitemap";
 
 // ============================================================================
 //  /llms.txt — superficie machine-readable para agentes de IA.
@@ -49,6 +50,10 @@ export async function buildLlmsTxt(locale: string): Promise<string | null> {
   const base = (config.brand.url || "").replace(/\/$/, "");
   const name = config.brand.name;
   const abs = (path: string) => absoluteLocalized(base, path, locale);
+  // Las exclusiones del registro de la instancia se aplican a las páginas principales, a
+  // los documentos legales y a las guías, comparando contra la ruta INTERNA. No añade
+  // secciones ni textos: el copy de `llms.txt` vive en i18n.
+  const rules = resolveInstanceSitemap();
   const lines: string[] = [];
 
   // Encabezado: rótulo, lema y descripción larga, ya resueltos al idioma.
@@ -60,6 +65,7 @@ export async function buildLlmsTxt(locale: string): Promise<string | null> {
 
   lines.push("", `## ${t("sections.pages")}`);
   for (const [key, path] of MAIN_PAGES) {
+    if (isSitemapPathExcluded(path, rules)) continue;
     lines.push(
       `- [${t(`pages.${key}.label`)}](${abs(path)}): ${t(`pages.${key}.text`, { brand: name })}`,
     );
@@ -87,6 +93,7 @@ export async function buildLlmsTxt(locale: string): Promise<string | null> {
   if (guides.length > 0) {
     lines.push("", `## ${t("sections.guides")}`);
     for (const guide of guides) {
+      if (isSitemapPathExcluded(guide.href, rules)) continue;
       const text = metaDescription(guide.description, 120);
       lines.push(`- [${guide.title}](${abs(guide.href)})${text ? `: ${text}` : ""}`);
     }
@@ -94,6 +101,7 @@ export async function buildLlmsTxt(locale: string): Promise<string | null> {
 
   lines.push("", `## ${t("sections.legal")}`);
   for (const slug of LEGAL_SLUGS) {
+    if (isSitemapPathExcluded(`/legal/${slug}`, rules)) continue;
     lines.push(
       `- [${t(`legal.${slug}.label`)}](${abs(`/legal/${slug}`)}): ${t(`legal.${slug}.text`)}`,
     );

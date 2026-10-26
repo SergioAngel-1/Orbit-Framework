@@ -1005,6 +1005,41 @@ lectores que reconocen enlaces del CMS (banners, cuerpo del blog) aceptan las do
 declaran `pathnames` de next-intl: solo localizan un href que sea una clave exacta del mapa, así
 que una ficha concreta (`/products/vela-roja`) saldría sin traducir.
 
+### Páginas propias y exclusiones del sitemap (`InstanceRegistry.sitemap`)
+
+Opcional, y solo datos. Permite añadir al segmento `paginas` las vistas propias de la instancia y
+retirar del sitemap y de `llms.txt` rutas del núcleo, de legal o de landings **sin editar
+`app/_sitemap/entries.ts` ni `_llms/build.ts`**:
+
+```ts
+export const instanceRegistry: InstanceRegistry = {
+  revalidationTags: [],
+  sitemap: {
+    // Rutas INTERNAS (formato de `pathnames`): se expanden a todos los idiomas con
+    // alternates y x-default. La URL pública sale de `localizedPath`, así que
+    // `publicPaths` sigue mandando. `changeFrequency` (def. "monthly") y
+    // `priority` (def. 0.5, entre 0 y 1) son opcionales.
+    pages: [{ path: "/example-page", changeFrequency: "yearly", priority: 0.3 }],
+    // Rutas INTERNAS exactas, o un prefijo con /* (incluye fichas y landings).
+    exclude: ["/legal/cookies", "/products/*"],
+  },
+};
+```
+
+Reglas:
+
+- `pages` solo entra en `paginas`; una ruta que ya está en el núcleo no se duplica (gana la del
+  núcleo) **salvo que la instancia la excluya y la redeclare**, en cuyo caso gana su declaración.
+- `exclude` se aplica a las entradas de los tres segmentos antes de expandir por idioma,
+  comparando contra la ruta **interna**. `/products/*` excluye `/products`, sus fichas y sus
+  landings, pero no `/products-extra`.
+- En `llms.txt` se aplica a las páginas principales, a los documentos legales y a las guías;
+  categorías y datos de negocio no cambian.
+- Validación **fail-soft**: una entrada mal formada (sin barra inicial, con consulta o ancla,
+  prioridad fuera de rango, frecuencia desconocida) se descarta y se registra con el evento
+  `instance.sitemap.invalid_entry`; el sitemap sigue generándose. Sin el campo, todo es idéntico
+  al comportamiento anterior.
+
 ## A.5 Design tokens (paleta/tipografía dinámica)
 
 `design.colors.*`/`design.typography.*` (§A.3) están pensados para mapearse 1:1 a variables
@@ -1204,7 +1239,8 @@ una funcionalidad de cuenta/carrito distinta al estándar.
 6. **SEO** (si la página es pública e indexable): `generateMetadata` con `pageMetadata(...)`
    (`lib/seo/page-metadata.ts`: título con la plantilla del sitio, descripción por palabra
    completa, canónica + hreflang y los campos de sitio de Open Graph), la ruta en
-   `app/_sitemap/entries.ts` si debe indexarse, y JSON-LD si aplica (`lib/seo/jsonld.ts`:
+   `InstanceRegistry.sitemap.pages` si debe indexarse (**no** edites `app/_sitemap/entries.ts`),
+   y JSON-LD si aplica (`lib/seo/jsonld.ts`:
    `Product`, `Article`/`BlogPosting`, `Person`, `BreadcrumbList`, `CollectionPage`,
    `LocalBusiness`, `VideoObject`, `Service`, `WebSite`/`Organization`; siempre serializado con
    `safeJsonLd`). Una vista privada declara `privateMetadata()`; una vista derivada de un
