@@ -276,13 +276,99 @@ describe("getProductUrls (sitemap)", () => {
         slug: "camiseta",
         slugs: { es: "camiseta", en: "t-shirt", "pt-BR": "camiseta-br" },
         locales: ["es", "en", "pt-BR"],
+        hidden: false,
       },
       {
         slug: "solo-es",
         slugs: { es: "solo-es", en: "solo-es", "pt-BR": "solo-es" },
         locales: ["es"],
+        hidden: false,
       },
     ]);
+  });
+
+  it("marca como oculta solo la visibilidad HIDDEN", async () => {
+    fetchGraphQL.mockResolvedValue({
+      products: {
+        nodes: [
+          { slug: "oculta", name: "Oculta", catalogVisibility: "HIDDEN" },
+          { slug: "catalogo", name: "Catálogo", catalogVisibility: "CATALOG" },
+          { slug: "busqueda", name: "Búsqueda", catalogVisibility: "SEARCH" },
+          { slug: "visible", name: "Visible", catalogVisibility: "VISIBLE" },
+          { slug: "sin-dato", name: "Sin dato" },
+        ],
+      },
+    });
+
+    const urls = await getProductUrls();
+
+    expect(urls.map((url) => [url.slug, url.hidden])).toEqual([
+      ["oculta", true],
+      ["catalogo", false],
+      ["busqueda", false],
+      ["visible", false],
+      ["sin-dato", false],
+    ]);
+  });
+
+  it("con `all`, recorre el cursor y devuelve las 250 fichas de tres páginas", async () => {
+    const catalog = Array.from({ length: 250 }, (_, i) => ({
+      slug: `producto-${i}`,
+      name: `Producto ${i}`,
+    }));
+    fetchGraphQL.mockImplementation(
+      async (_document: unknown, options: { variables: { after?: string } }) => {
+        const from = Number(options.variables.after ?? 0);
+        const nodes = catalog.slice(from, from + 100);
+        const next = from + 100 < catalog.length ? String(from + 100) : null;
+        return {
+          products: {
+            pageInfo: { hasNextPage: next !== null, endCursor: next },
+            nodes,
+          },
+        };
+      },
+    );
+
+    const urls = await getProductUrls({ all: true });
+
+    expect(fetchGraphQL).toHaveBeenCalledTimes(3);
+    expect(urls).toHaveLength(250);
+    expect(urls[0]!.slug).toBe("producto-0");
+    expect(urls[249]!.slug).toBe("producto-249");
+  });
+
+  it("sin la opción hace UNA sola petición de 100 (presupuesto de prerender)", async () => {
+    fetchGraphQL.mockResolvedValue({
+      products: {
+        pageInfo: { hasNextPage: true, endCursor: "100" },
+        nodes: [{ slug: "una", name: "Una" }],
+      },
+    });
+
+    const urls = await getProductUrls();
+
+    expect(fetchGraphQL).toHaveBeenCalledTimes(1);
+    expect(urls).toHaveLength(1);
+    const variables = (fetchGraphQL.mock.calls[0]![1] as { variables: object })
+      .variables;
+    expect(variables).toMatchObject({ first: 100 });
+    expect(variables).not.toHaveProperty("after");
+  });
+
+  it("una respuesta sin `products` es una lista vacía, no una excepción", async () => {
+    fetchGraphQL.mockResolvedValue({});
+
+    expect(await getProductUrls({ all: true })).toEqual([]);
+  });
+
+  it("sin información de página se detiene tras la primera tanda", async () => {
+    fetchGraphQL.mockResolvedValue({
+      products: { nodes: [{ slug: "una", name: "Una" }] },
+    });
+
+    expect(await getProductUrls({ all: true })).toHaveLength(1);
+    expect(fetchGraphQL).toHaveBeenCalledTimes(1);
   });
 
   it("un fallo del catálogo da lista vacía (el sitemap sigue con el resto)", async () => {

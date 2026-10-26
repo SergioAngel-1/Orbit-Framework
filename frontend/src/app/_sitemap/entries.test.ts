@@ -28,9 +28,22 @@ vi.mock("@/lib/catalog/products", () => ({
       slug: "camiseta",
       slugs: { es: "camiseta", en: "t-shirt" },
       locales: ["es", "en"],
+      hidden: false,
     },
     // Sin traducción: solo existe en el idioma por defecto.
-    { slug: "gorra", slugs: { es: "gorra", en: "gorra" }, locales: ["es"] },
+    {
+      slug: "gorra",
+      slugs: { es: "gorra", en: "gorra" },
+      locales: ["es"],
+      hidden: false,
+    },
+    // Visibilidad «oculta»: accesible por URL, pero no se anuncia.
+    {
+      slug: "oculta",
+      slugs: { es: "oculta", en: "hidden" },
+      locales: ["es", "en"],
+      hidden: true,
+    },
   ],
   getCategories: async () => [
     {
@@ -64,7 +77,7 @@ vi.mock("@/lib/blog/categories", () => ({
   ],
 }));
 vi.mock("@/lib/observability/logger", () => ({
-  logger: { warn: vi.fn(), error: vi.fn() },
+  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 import { SITEMAP_SEGMENTS } from "@/lib/seo/sitemap-segments";
@@ -121,6 +134,20 @@ describe("buildSitemapEntries", () => {
     expect(entries.map((e) => e.url)).not.toContain(
       "https://mitienda.example/en/products/camiseta",
     );
+  });
+
+  it("una ficha oculta no se anuncia, ni ella ni su landing, en ningún idioma", async () => {
+    learn.slugs = ["oculta"];
+    learn.locales = { oculta: ["es", "en"] };
+
+    const urls = (await buildSitemapEntries("catalogo")).map((e) => e.url);
+
+    expect(urls.some((url) => url.includes("/products/oculta"))).toBe(false);
+    expect(urls.some((url) => url.includes("/products/hidden"))).toBe(false);
+    expect(urls.some((url) => url.includes("oculta/learn"))).toBe(false);
+    // La visible sigue saliendo, con todas sus filas por idioma.
+    expect(urls).toContain("https://mitienda.example/products/camiseta");
+    expect(urls).toContain("https://mitienda.example/en/products/t-shirt");
   });
 
   it("sin traducción no se anuncia el idioma: ni fila ni hreflang", async () => {

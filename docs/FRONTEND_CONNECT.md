@@ -785,7 +785,9 @@ responden **404** y el banner no encola ni guarda comprobante.
 - **Sitemap segmentado**: `/sitemap.xml` es el índice y cada fichero vive en
   `/sitemap/<segmento>.xml` (`paginas`, `catalogo`, `blog`; ciclo de vida distinto, mismas fuentes
   de invalidación que las páginas). Sin `lastmod` si no hay fecha real; vacío con la config
-  degradada; una entidad sin traducción solo emite su idioma por defecto.
+  degradada; una entidad sin traducción solo emite su idioma por defecto. El segmento `catalogo`
+  recorre el catálogo completo por cursor (no se trunca a 100) y no anuncia las fichas con
+  visibilidad de catálogo «oculta» (`HIDDEN`), que siguen accesibles por URL.
 - **Open Graph**: Next REEMPLAZA `openGraph` entero en cada página que lo declara. Los campos de
   sitio (`og:site_name`, `og:locale` con país, `og:locale:alternate`, imagen por defecto) salen de
   `siteOpenGraph(config, locale, canónica)`; el layout no fija `title` ni `description` (los

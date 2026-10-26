@@ -214,11 +214,17 @@ export const PRODUCT_BY_SLUG_QUERY = productBySlugQuery(false);
 export const PRODUCT_BY_SLUG_QUERY_WITH_MEMBERSHIPS = productBySlugQuery(true);
 
 export const PRODUCT_SLUGS_QUERY = /* GraphQL */ `
-  query ProductSlugs($first: Int = 100) {
-    products(first: $first, where: { status: "publish" }) {
+  query ProductSlugs($first: Int = 100, $after: String) {
+    products(first: $first, after: $after, where: { status: "publish" }) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       nodes {
         slug
         name
+        # Visibilidad de catálogo de WooCommerce: HIDDEN no se anuncia en el sitemap.
+        catalogVisibility
         # @translation Product: name slug
       }
     }

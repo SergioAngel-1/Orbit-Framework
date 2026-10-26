@@ -156,7 +156,20 @@ export async function buildSitemapEntries(
       // la ficha Y la landing existen.
       const learn = await getProductBoundLandingSlugs();
       const learnLocales = learn.size > 0 ? await getProductBoundLandingLocales() : {};
-      for (const { slug, slugs, locales } of await getProductUrls()) {
+      // `all` recorre el catálogo completo por cursor: con la tanda única de 100
+      // del prerender, una tienda con más fichas dejaba el resto fuera del sitemap.
+      const products = await getProductUrls({ all: true });
+      const hidden = products.filter((product) => product.hidden).length;
+      if (hidden > 0) {
+        logger.info(
+          { event: "sitemap.hidden_products_skipped", count: hidden },
+          "sitemap: fichas con visibilidad oculta fuera del segmento de catálogo",
+        );
+      }
+      for (const { slug, slugs, locales, hidden: isHidden } of products) {
+        // La ficha oculta sigue siendo accesible por URL, pero no se anuncia; su
+        // landing de producto tampoco.
+        if (isHidden) continue;
         paths.push({
           path: `/products/${slug}`,
           locales,

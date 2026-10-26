@@ -30,6 +30,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **El sitemap no anuncia fichas ocultas y ya no se trunca a 100.** El segmento `catalogo` lista
+  ahora el catálogo completo recorriendo el cursor de WooGraphQL (hasta 20 tandas, el mismo tope
+  que el índice del blog); antes `getProductUrls()` pedía una única tanda de 100 y una tienda con
+  más fichas dejaba el resto fuera. Además omite las fichas con visibilidad de catálogo «oculta»
+  (`HIDDEN`), incluida su landing de producto: siguen accesibles por URL y se prerenderizan, pero
+  no se anuncian. El presupuesto de prerender no cambia (`getProductUrls()` sin opciones sigue
+  haciendo una sola petición de 100).
 - **El JSON-LD de producto no emite `image: []` ni `description: ""`.** Una ficha sin foto ni
   descripción declaraba ambas claves vacías, que los buscadores leen como datos presentes y sin
   valor. Ahora se omiten cuando no hay URL de imagen o la descripción queda vacía tras recortar
