@@ -7,6 +7,7 @@ namespace HWE\Tests\Unit\ControlCenter;
 use Brain\Monkey\Functions;
 use HWE\ControlCenter\FreeShippingRule;
 use HWE\ControlCenter\WooCashGatewaySync;
+use HWE\ControlCenter\WooCountrySync;
 use HWE\ControlCenter\WooCurrencySync;
 use HWE\ControlCenter\WooGuestCheckoutSync;
 use HWE\Tests\TestCase;
@@ -110,6 +111,45 @@ final class WooSyncTest extends TestCase
         $this->options['woocommerce_currency'] = 'EUR';
 
         $this->assertSame('', $this->notices(fn () => WooCurrencySync::maybeWarnDivergence()));
+    }
+
+    // ── país base ───────────────────────────────────────────────────────────
+
+    public function testCountrySyncPushesTheConfiguredCountry(): void {
+        $this->options['woocommerce_default_country'] = 'ES';
+
+        WooCountrySync::sync('CO');
+
+        $this->assertSame([['woocommerce_default_country', 'CO']], $this->updates);
+    }
+
+    public function testCountrySyncKeepsTheProvinceWhenTheCountryMatches(): void {
+        $this->options['woocommerce_default_country'] = 'CO:ANT';
+
+        WooCountrySync::sync('CO');
+
+        $this->assertSame([], $this->updates);
+    }
+
+    public function testCountrySyncSkipsEmptyAndInvalidValues(): void {
+        $this->options['woocommerce_default_country'] = 'ES';
+
+        WooCountrySync::sync('');
+        WooCountrySync::sync('colombia');
+        WooCountrySync::sync('C');
+
+        $this->assertSame([], $this->updates);
+    }
+
+    public function testCountrySyncFailureIsLogged(): void {
+        $this->options['woocommerce_default_country'] = 'ES';
+        $this->failUpdates = true;
+
+        WooCountrySync::sync('CO');
+
+        $this->assertCount(1, $this->logged);
+        $this->assertStringContainsString('woocommerce_default_country', $this->logged[0]);
+        $this->assertStringStartsWith('[hwe]', $this->logged[0]);
     }
 
     // ── checkout de invitados ───────────────────────────────────────────────

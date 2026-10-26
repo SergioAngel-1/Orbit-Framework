@@ -7,6 +7,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Changed
+- **El país base de WooCommerce sigue a `ecommerce.country` al guardar.** Una tienda de otro país
+  se quedaba con `ES` en WooCommerce → Ajustes → General y calculaba impuestos y tarifas de envío
+  contra el país equivocado. Ahora, al guardar la config (también desde `wp hwe setup`), si el
+  país del panel es un código ISO de dos letras mayúsculas y no coincide con el nativo, se escribe
+  el nuevo valor sin provincia. Si el país ya coincide se conserva la provincia (`CO:ANT`); un
+  valor vacío o inválido no toca nada. **Una tienda con el país nativo distinto lo verá alineado
+  al siguiente guardado.** La zona de envío que crea `setup.sh` no cambia en esta versión.
 - **Solo tests: la suite del núcleo ya no depende del registro de la instancia en los correos de
   auth.** `email-links.test.ts` y los tests de `forgot-password`/`verify-email` fijaban las rutas
   internas sin aislar `@/instance/registry`, así que una tienda que remapeara `/reset-password` o

@@ -74,6 +74,9 @@ add_action(
         // Se lee lo YA persistido, no `$publicData`: un `wp hwe setup` *sparse* o una
         // importación pueden no traer la moneda y la sincronización no debe depender de eso.
         HWE\ControlCenter\WooCurrencySync::sync( (string) HWE\ControlCenter\Storage::get( [ 'ecommerce', 'currency' ], '' ) );
+        // El país base nativo (con o sin provincia) sigue al panel: una tienda de otro país
+        // no puede quedarse calculando impuestos y envíos contra `ES`.
+        HWE\ControlCenter\WooCountrySync::sync( (string) HWE\ControlCenter\Storage::get( [ 'ecommerce', 'country' ], '' ) );
         HWE\ControlCenter\WooGuestCheckoutSync::sync();
         HWE\ControlCenter\WooCashGatewaySync::sync();
         HWE\ControlCenter\FreeShippingRule::flushRates();
