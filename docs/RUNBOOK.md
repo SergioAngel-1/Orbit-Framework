@@ -253,7 +253,7 @@ intentos por IP cada 5 minutos.
 | Todo responde 404 desde el BFF a WordPress | `[hwe] bff-only:` en el log de PHP | `HWE_REVALIDATION_SECRET` distinto o ausente en un lado (ver §3). |
 | 500 intermitentes y el contenedor de WordPress se reinicia | `docker inspect hwe_wordpress` → `OOMKilled`, `docker stats` | Presupuesto de memoria (§5): revisar OPcache, `MaxRequestWorkers` y `memory_limit`. |
 | `payments.webhook.mismatch` | Importe/moneda no casan | NO marcar pagado a mano; investigar pedido y evento de la pasarela. |
-| Muchos 429 | Rate-limit disparado | ¿Ataque o cliente legítimo? Ajustar límites o bloquear IP en Caddy. |
+| Muchos 429 | Rate-limit disparado (solo cuenta el tráfico que **no** es del BFF: las llamadas con `X-HWE-Internal-Secret` válido están exentas) | ¿Ataque o cliente legítimo? Ajustar límites o bloquear IP en Caddy. |
 | `checkout.link_owner_failed` | Pedido no ligado al cliente | Conciliar manualmente `customer_id` del pedido en wc/v3. |
 | Boot del frontend falla | Guard de secretos | Revisar `.env`: secretos reales, ≥24 chars y `ALLOWED_ORIGIN` exacto. |
 | Login con 2FA responde 503 | Redis caído | El 2FA falla cerrado sin Redis: restaurarlo. |

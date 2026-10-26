@@ -36,6 +36,8 @@ abstract class RateLimitTestCase extends TestCase
             $this->transients[$key] = $value;
             return true;
         });
+        // `error_log` es redefinible (backend/patchwork.json); por defecto no escribe.
+        Functions\when('error_log')->justReturn(true);
 
         $this->loadOwnFile('mu-plugins/rate-limit.php');
 
@@ -48,6 +50,19 @@ abstract class RateLimitTestCase extends TestCase
     {
         $_SERVER = [];
         parent::tearDown();
+    }
+
+    /**
+     * Presenta (o retira) el secreto interno del BFF, como lo hace el frontend.
+     * Se mantiene entre peticiones de un mismo test, igual que lo haría un cliente.
+     */
+    protected function withSecret(?string $secret): void
+    {
+        if (null === $secret) {
+            unset($_SERVER['HTTP_X_HWE_INTERNAL_SECRET']);
+            return;
+        }
+        $_SERVER['HTTP_X_HWE_INTERNAL_SECRET'] = $secret;
     }
 
     /** Simula una petición. @return bool true si pasa; false si el rate-limit la rechaza. */

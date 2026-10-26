@@ -30,6 +30,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **El rate-limit de WordPress ya no cuenta las llamadas del BFF como si fueran de un solo
+  cliente.** `/wp-json/` (120/min) y `/graphql` (60/min) se limitaban por IP, y el BFF llega por la
+  red interna con la IP del contenedor del frontend: todos los compradores compartían un único
+  presupuesto y unas decenas de usuarios a la vez dejaban la tienda en 429 (`loyalty.summary_failed`,
+  `cart.get.error`, `measurement.purchase.error`). Las peticiones con el secreto interno válido
+  (`X-HWE-Internal-Secret` = `HWE_REVALIDATION_SECRET`, la misma comprobación de `hwe-bff-only`, ahora
+  en el mu-plugin compartido `hwe-bff-secret.php`) no consumen ese presupuesto; sin cabecera, con un
+  secreto incorrecto o sin la constante definida se cuentan como antes, y `wp-login.php` no cambia.
+  El abuso a través del BFF lo sigue acotando su propio rate-limit por usuario/IP.
 - **El cashback y las comisiones por porcentaje pagan su valor real en la moneda.** `hwe-loyalty`
   convertía un porcentaje de la base (dinero) directamente en unidades, así que el porcentaje
   devuelto dependía de `point_value`: con el `0.01` por defecto, un cashback del 3 % pagaba el

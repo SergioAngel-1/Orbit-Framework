@@ -140,6 +140,7 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 │           ├── hwe-instance-loader.php  # carga `instance/*.php` (TU código; ver §1.1)
 │           ├── instance/                #   rutas de la instancia: el framework solo versiona su README
 │           ├── hwe-bff-only.php         # ⭐ WordPress solo atiende al BFF (secreto interno)
+│           ├── hwe-bff-secret.php       # comprobación compartida de ese secreto (bff-only + rate-limit)
 │           ├── hwe-content-i18n/        # traducción de contenido a N idiomas (ver §6.10)
 │           ├── hwe-geo/                 # paquetes por país (ver §6.11)
 │           ├── hwe-seo/  hwe-product-fields/  hwe-order-item-details.php  hwe-smtp.php  hwe-svg-uploads.php …
@@ -148,7 +149,7 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 │           ├── woocommerce-headless.php # ajustes Store API (nonce) + CORS
 │           ├── hwe-email-chrome.php      # emails transaccionales con marca (+ themes/hwe-headless-base/woocommerce/emails/)
 │           ├── graphql-protection.php   # límites de profundidad/complejidad + introspección off
-│           ├── rate-limit.php           # rate-limit de /graphql y /wp-json (XFF de confianza)
+│           ├── rate-limit.php           # rate-limit de /graphql y /wp-json (XFF de confianza; exento el BFF)
 │           ├── hwe-auth.php             # ⭐ REST: reset pass, verificación email, 2FA, logout-all
 │           ├── hwe-auth/                #   su lógica por responsabilidad (traits de HWE_Auth_Endpoints)
 │           └── hwe-control-center/      # ⭐ plugin de config central + secretos cifrados (AES-GCM).
@@ -315,6 +316,13 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   wc/v3 y Store API); un test (`lib/security/wordpress-calls.test.ts`) rompe si una ruta nueva usa
   `fetch` a WordPress por su cuenta. `proxy.ts` es la única excepción (edge). Verificación en vivo:
   `sh backend/scripts/verify-security.sh`.
+- **Rate-limit de WordPress y BFF**: `/graphql` (60/min) y `/wp-json/` (120/min) se limitan por IP
+  en `rate-limit.php`, pero las llamadas con el **secreto interno válido** (la misma comprobación de
+  `hwe-bff-only`, en `hwe-bff-secret.php`) **no gastan** ese presupuesto: por la red interna todas
+  llegan con la IP del contenedor del frontend y unas decenas de compradores dejaban la tienda en
+  429. Sin cabecera, con un secreto incorrecto o sin `HWE_REVALIDATION_SECRET` se cuentan como
+  siempre; `wp-login.php` se cuenta siempre. El abuso a través del BFF lo acota el rate-limit por
+  usuario/IP del BFF (`guardMutation`).
 - **Anti-replay de webhooks**: `lib/security/replay.ts` (`markEventOnce`) en los webhooks de
   pago y de Woo (`order-created/updated`), más rate-limit por IP. Defensa frente a reenvío de
   eventos firmados capturados.
