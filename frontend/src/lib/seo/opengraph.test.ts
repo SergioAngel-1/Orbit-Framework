@@ -27,6 +27,13 @@ describe("siteOpenGraph", () => {
     expect(siteTwitter(config, "es")).not.toHaveProperty("description");
   });
 
+  it("sin cuenta declarada, la tarjeta no atribuye un creador ajeno", () => {
+    expect(siteTwitter(config, "es").creator).toBeUndefined();
+    const withAccount = structuredClone(config);
+    withAccount.social.twitter = "@mi_cuenta";
+    expect(siteTwitter(withAccount, "es").creator).toBe("@mi_cuenta");
+  });
+
   it("lleva los campos que una página no tiene por qué repetir", () => {
     const og = siteOpenGraph(config, "es");
     expect(og.siteName).toBe("Mi Tienda");

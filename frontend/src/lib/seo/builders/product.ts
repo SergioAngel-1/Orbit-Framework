@@ -188,13 +188,19 @@ export function buildProductJsonLd({
     offer.hasMerchantReturnPolicy = policy;
   }
 
+  // `image: []` y `description: ""` no son «sin dato»: Google los lee como datos
+  // declarados y vacíos (y una ficha sin foto no tiene por qué inventar una de
+  // respaldo). Sin valor, la clave no se emite.
+  const imageUrl = product.image?.sourceUrl?.trim();
+  const hasDescription = description.trim() !== "";
+
   const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org/",
     "@type": "Product",
     "@id": `${url}#product`,
     name: product.name,
-    image: product.image ? [product.image.sourceUrl] : [],
-    description,
+    ...(imageUrl ? { image: [imageUrl] } : {}),
+    ...(hasDescription ? { description } : {}),
     sku: String(product.databaseId),
     brand: { "@type": "Brand", name: brandName },
     // speakable: marca los bloques óptimos para asistentes de voz/IA.

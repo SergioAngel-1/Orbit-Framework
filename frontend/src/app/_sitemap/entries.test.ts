@@ -2,9 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CONFIG_DEFAULTS } from "@/lib/config/defaults";
 import type { SiteConfig } from "@/lib/config/types";
 
-// Las URL que construye el núcleo no dependen del registro de la instancia: estos tests
-// fijan el caso sin mapa público (los mapas se prueban en los `*.public-paths.test.ts`).
-vi.mock("@/instance/registry", () => ({ instanceRegistry: {} }));
+// El núcleo no depende del registro de la instancia: estos tests fijan el caso sin mapa
+// público (los mapas se prueban en los `*.public-paths.test.ts`). El registro es mutable
+// para probar `sitemap.pages` / `sitemap.exclude` sin tocar el del framework.
+const registry = vi.hoisted(() => ({
+  publicPaths: undefined as unknown,
+  sitemap: undefined as unknown,
+}));
+vi.mock("@/instance/registry", () => ({ instanceRegistry: registry }));
 
 let currentConfig: SiteConfig;
 let degraded = false;
@@ -28,9 +33,22 @@ vi.mock("@/lib/catalog/products", () => ({
       slug: "camiseta",
       slugs: { es: "camiseta", en: "t-shirt" },
       locales: ["es", "en"],
+      hidden: false,
     },
     // Sin traducción: solo existe en el idioma por defecto.
-    { slug: "gorra", slugs: { es: "gorra", en: "gorra" }, locales: ["es"] },
+    {
+      slug: "gorra",
+      slugs: { es: "gorra", en: "gorra" },
+      locales: ["es"],
+      hidden: false,
+    },
+    // Visibilidad «oculta»: accesible por URL, pero no se anuncia.
+    {
+      slug: "oculta",
+      slugs: { es: "oculta", en: "hidden" },
+      locales: ["es", "en"],
+      hidden: true,
+    },
   ],
   getCategories: async () => [
     {
@@ -64,7 +82,7 @@ vi.mock("@/lib/blog/categories", () => ({
   ],
 }));
 vi.mock("@/lib/observability/logger", () => ({
-  logger: { warn: vi.fn(), error: vi.fn() },
+  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 import { SITEMAP_SEGMENTS } from "@/lib/seo/sitemap-segments";
@@ -74,6 +92,8 @@ beforeEach(() => {
   degraded = false;
   learn.slugs = [];
   learn.locales = {};
+  registry.publicPaths = undefined;
+  registry.sitemap = undefined;
   currentConfig = structuredClone(CONFIG_DEFAULTS);
   currentConfig.brand.url = "https://mitienda.example/";
 });
@@ -121,6 +141,20 @@ describe("buildSitemapEntries", () => {
     expect(entries.map((e) => e.url)).not.toContain(
       "https://mitienda.example/en/products/camiseta",
     );
+  });
+
+  it("una ficha oculta no se anuncia, ni ella ni su landing, en ningún idioma", async () => {
+    learn.slugs = ["oculta"];
+    learn.locales = { oculta: ["es", "en"] };
+
+    const urls = (await buildSitemapEntries("catalogo")).map((e) => e.url);
+
+    expect(urls.some((url) => url.includes("/products/oculta"))).toBe(false);
+    expect(urls.some((url) => url.includes("/products/hidden"))).toBe(false);
+    expect(urls.some((url) => url.includes("oculta/learn"))).toBe(false);
+    // La visible sigue saliendo, con todas sus filas por idioma.
+    expect(urls).toContain("https://mitienda.example/products/camiseta");
+    expect(urls).toContain("https://mitienda.example/en/products/t-shirt");
   });
 
   it("sin traducción no se anuncia el idioma: ni fila ni hreflang", async () => {
@@ -269,6 +303,109 @@ describe("buildSitemapEntries", () => {
     expect(urls).toContain("https://mitienda.example/blog/category/guias");
     expect(urls.some((u) => u.includes("/category/vacia"))).toBe(false);
     expect(urls.some((u) => u.includes("/category/uncategorized"))).toBe(false);
+  });
+
+  describe("sitemap de la instancia (InstanceRegistry.sitemap)", () => {
+    const urls = async (segmento: "paginas" | "catalogo" = "paginas") =>
+      (await buildSitemapEntries(segmento)).map((entry) => entry.url);
+
+    it("una página declarada sale en el segmento `paginas` en todos los idiomas, con alternates", async () => {
+      registry.sitemap = {
+        pages: [{ path: "/guide", changeFrequency: "weekly", priority: 0.7 }],
+      };
+
+      const entries = await buildSitemapEntries("paginas");
+      const es = entries.find((e) => e.url === "https://mitienda.example/guide")!;
+
+      expect(es.changeFrequency).toBe("weekly");
+      expect(es.priority).toBe(0.7);
+      expect(es.alternates!.languages).toEqual({
+        es: "https://mitienda.example/guide",
+        en: "https://mitienda.example/en/guide",
+        "x-default": "https://mitienda.example/guide",
+      });
+      expect(await urls()).toContain("https://mitienda.example/en/guide");
+    });
+
+    it("con publicPaths, la URL pública de la página es la de la instancia", async () => {
+      registry.publicPaths = { "/guide": "/guia" };
+      registry.sitemap = { pages: [{ path: "/guide" }] };
+
+      const entries = await buildSitemapEntries("paginas");
+      expect(entries.map((e) => e.url)).toContain("https://mitienda.example/guia");
+      expect(entries.map((e) => e.url)).toContain("https://mitienda.example/en/guia");
+      expect(entries.map((e) => e.url)).not.toContain("https://mitienda.example/guide");
+    });
+
+    it("una ruta que ya está en el núcleo no se duplica", async () => {
+      registry.sitemap = {
+        pages: [
+          { path: "/about" },
+          { path: "/contact", changeFrequency: "weekly", priority: 0.9 },
+        ],
+      };
+
+      const about = (await buildSitemapEntries("paginas")).filter(
+        (entry) => entry.url === "https://mitienda.example/about",
+      );
+      expect(about).toHaveLength(1);
+      expect(about[0]!.priority).toBe(0.5);
+      const contact = (await buildSitemapEntries("paginas")).filter(
+        (entry) => entry.url === "https://mitienda.example/contact",
+      );
+      expect(contact).toHaveLength(1);
+      expect(contact[0]!.priority).toBe(0.4);
+    });
+
+    it("una exclusión exacta retira el documento legal del sitemap", async () => {
+      registry.sitemap = { exclude: ["/legal/privacy"] };
+
+      const all = await urls();
+      expect(all).toContain("https://mitienda.example/legal/cookies");
+      expect(all).not.toContain("https://mitienda.example/legal/privacy");
+      expect(all).not.toContain("https://mitienda.example/en/legal/privacy");
+    });
+
+    it("una exclusión con `/*` retira el prefijo (fichas y landings) sin tocar textos que solo empiezan igual", async () => {
+      registry.sitemap = {
+        pages: [{ path: "/products-extra" }],
+        exclude: ["/products/*"],
+      };
+
+      const all = await urls("catalogo");
+      expect(all).not.toContain("https://mitienda.example/products/camiseta");
+      // Lo que no cuelga de `/products/` sigue anunciado.
+      expect(all).toContain("https://mitienda.example/en/categories/clothes");
+      expect((await urls()).filter((url) => url.includes("/products"))).toEqual([
+        "https://mitienda.example/products-extra",
+        "https://mitienda.example/en/products-extra",
+      ]);
+
+      learn.slugs = ["camiseta"];
+      learn.locales = { camiseta: ["es", "en"] };
+      expect((await urls("catalogo")).some((url) => url.includes("/learn"))).toBe(
+        false,
+      );
+    });
+
+    it("excluir y redeclarar la misma ruta hace que gane la declaración de la instancia", async () => {
+      registry.sitemap = {
+        pages: [{ path: "/about", changeFrequency: "weekly", priority: 0.9 }],
+        exclude: ["/about"],
+      };
+
+      const about = (await buildSitemapEntries("paginas")).filter(
+        (entry) => entry.url === "https://mitienda.example/about",
+      );
+      expect(about).toHaveLength(1);
+      expect(about[0]!.priority).toBe(0.9);
+    });
+
+    it("sin el campo, la salida es idéntica a la de listas vacías", async () => {
+      const baseline = JSON.stringify(await buildSitemapEntries("paginas"));
+      registry.sitemap = { pages: [], exclude: [] };
+      expect(JSON.stringify(await buildSitemapEntries("paginas"))).toBe(baseline);
+    });
   });
 
   it("con la config degradada emite un urlset vacío, no URLs con el dominio por defecto", async () => {

@@ -330,7 +330,13 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Excluye internos de Next y cualquier ruta con punto (sitemap.xml, *.png…).
+  // Excluye internos de Next (`_next`), cualquier ruta con punto (sitemap.xml,
+  // *.png…) y las dos rutas de metadatos dinámicas que Next sirve sin
+  // extensión (`/icon` y `/apple-icon`): next-intl las trataba como páginas y
+  // respondía un 404 en HTML en vez de la imagen. Las formas con barra
+  // (`icon/`, `apple-icon/`) cubren además `/icon/<id>` y `/apple-icon/<id>`,
+  // que sirve `generateImageMetadata`. La exclusión es por ruta completa: una
+  // página llamada `/icon-guide` (o `/en/icon/…`) sigue pasando por el proxy.
   // /api/* sí entra (para la barrera de Origin y el refresh).
-  matcher: ["/((?!_next|.*\\..*).*)"],
+  matcher: ["/((?!_next|.*\\..*|icon$|icon/|apple-icon$|apple-icon/).*)"],
 };

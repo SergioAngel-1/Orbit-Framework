@@ -99,7 +99,7 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
 | Grupo | Rutas | Qué hace |
 |---|---|---|
 | Auth | `POST /api/auth/{login,register,refresh,logout,logout-all}`, `GET /api/auth/me`, `POST /api/auth/{forgot-password,reset-password,verify-email,resend-verification,change-password}`, `POST /api/auth/2fa/{setup,activate,disable,status}`, `POST /api/auth/verify-2fa` | Sesión JWT en cookies httpOnly, 2FA TOTP opcional, verificación de email opcional no bloqueante. `register`, `forgot-password` y `resend-verification` aceptan `locale` (uno de `routing.locales`): el correo y su enlace salen en ese idioma. `verify-email` no exige sesión (el token identifica al usuario). `change-password` cambia la contraseña con `POST hwe/v1/auth/change-password` (solo BFF y con sesión; WordPress verifica la actual y bloquea 15 min tras 5 fallos), cierra las demás sesiones y reemite la de este dispositivo. Con `auth.phone_login_enabled`, `login` acepta el teléfono como usuario y `register` un `phone` E.164 opcional (409 si ya es de otra cuenta). |
-| Tienda | `GET/POST /api/store/cart`, `POST /api/store/cart/items`, `POST /api/store/checkout`, `GET/PUT /api/store/customer`, `GET/POST/DELETE /api/store/coupons`, `GET /api/store/orders/[id]`, `GET /api/store/products`, `GET/POST/DELETE /api/store/wishlist`, `GET/POST /api/store/reviews/[productId]`, `GET/PUT /api/store/addresses`, `GET /api/store/shipping` | Proxy autorizado a la Store API / WC REST v3 de WooCommerce. |
+| Tienda | `GET/POST/DELETE /api/store/cart` (el `DELETE` vacía el carrito y devuelve el carrito vacío), `POST /api/store/cart/items`, `POST /api/store/checkout`, `GET/PUT /api/store/customer`, `GET/POST/DELETE /api/store/coupons`, `GET /api/store/orders/[id]`, `GET /api/store/products`, `GET/POST/DELETE /api/store/wishlist`, `GET/POST /api/store/reviews/[productId]`, `GET/PUT /api/store/addresses`, `GET /api/store/shipping` | Proxy autorizado a la Store API / WC REST v3 de WooCommerce. |
 | Fidelización | `GET /api/loyalty/{summary,transactions,referrals,referral-link,validate-code}`, `POST /api/loyalty/transfer`, `POST/DELETE /api/store/cart/points` | Módulo `loyalty`: monedero y referidos. Ver «Fidelización» más abajo. |
 | Pagos | `POST /api/payments/create`, `POST /api/payments/webhook/[provider]`, `GET /api/payments/return` | Capa agnóstica de pasarela (`lib/payments/`). **La prueba de pago es el webhook verificado, nunca el `return`.** El `returnUrl` opcional de `create` debe ser del propio sitio (origen = `ALLOWED_ORIGIN`; si no, 422). |
 | Webhooks de Woo | `POST /api/webhooks/woocommerce/{order-created,order-updated}` | Firma HMAC verificada, dispara efectos (`lib/woocommerce/order-events.ts`). |
@@ -785,7 +785,9 @@ responden **404** y el banner no encola ni guarda comprobante.
 - **Sitemap segmentado**: `/sitemap.xml` es el índice y cada fichero vive en
   `/sitemap/<segmento>.xml` (`paginas`, `catalogo`, `blog`; ciclo de vida distinto, mismas fuentes
   de invalidación que las páginas). Sin `lastmod` si no hay fecha real; vacío con la config
-  degradada; una entidad sin traducción solo emite su idioma por defecto.
+  degradada; una entidad sin traducción solo emite su idioma por defecto. El segmento `catalogo`
+  recorre el catálogo completo por cursor (no se trunca a 100) y no anuncia las fichas con
+  visibilidad de catálogo «oculta» (`HIDDEN`), que siguen accesibles por URL.
 - **Open Graph**: Next REEMPLAZA `openGraph` entero en cada página que lo declara. Los campos de
   sitio (`og:site_name`, `og:locale` con país, `og:locale:alternate`, imagen por defecto) salen de
   `siteOpenGraph(config, locale, canónica)`; el layout no fija `title` ni `description` (los
@@ -1003,6 +1005,43 @@ lectores que reconocen enlaces del CMS (banners, cuerpo del blog) aceptan las do
 declaran `pathnames` de next-intl: solo localizan un href que sea una clave exacta del mapa, así
 que una ficha concreta (`/products/vela-roja`) saldría sin traducir.
 
+### Páginas propias y exclusiones del sitemap (`InstanceRegistry.sitemap`)
+
+Opcional, y solo datos. Permite añadir al segmento `paginas` las vistas propias de la instancia y
+retirar del sitemap y de `llms.txt` rutas del núcleo, de legal o de landings **sin editar
+`app/_sitemap/entries.ts` ni `_llms/build.ts`**:
+
+```ts
+export const instanceRegistry: InstanceRegistry = {
+  revalidationTags: [],
+  sitemap: {
+    // Rutas INTERNAS (formato de `pathnames`): se expanden a todos los idiomas con
+    // alternates y x-default. La URL pública sale de `localizedPath`, así que
+    // `publicPaths` sigue mandando. `changeFrequency` (def. "monthly") y
+    // `priority` (def. 0.5, entre 0 y 1) son opcionales.
+    pages: [{ path: "/example-page", changeFrequency: "yearly", priority: 0.3 }],
+    // Rutas INTERNAS exactas, o un prefijo con /* (incluye fichas y landings).
+    exclude: ["/legal/cookies", "/products/*"],
+  },
+};
+```
+
+Reglas:
+
+- `pages` solo entra en `paginas`; una ruta que ya está en el núcleo no se duplica (gana la del
+  núcleo) **salvo que la instancia la excluya y la redeclare**, en cuyo caso gana su declaración.
+- Las `pages` declaradas **no se filtran por `exclude`**: la declaración explícita gana y la
+  página se anuncia aunque también case con una exclusión (exacta o de prefijo).
+- `exclude` se aplica a las entradas de los tres segmentos antes de expandir por idioma,
+  comparando contra la ruta **interna**. `/products/*` excluye `/products`, sus fichas y sus
+  landings, pero no `/products-extra`.
+- En `llms.txt` se aplica a las páginas principales, a los documentos legales y a las guías;
+  categorías y datos de negocio no cambian.
+- Validación **fail-soft**: una entrada mal formada (sin barra inicial, con consulta o ancla,
+  prioridad fuera de rango, frecuencia desconocida) se descarta y se registra con el evento
+  `instance.sitemap.invalid_entry`; el sitemap sigue generándose. Sin el campo, todo es idéntico
+  al comportamiento anterior.
+
 ## A.5 Design tokens (paleta/tipografía dinámica)
 
 `design.colors.*`/`design.typography.*` (§A.3) están pensados para mapearse 1:1 a variables
@@ -1202,7 +1241,8 @@ una funcionalidad de cuenta/carrito distinta al estándar.
 6. **SEO** (si la página es pública e indexable): `generateMetadata` con `pageMetadata(...)`
    (`lib/seo/page-metadata.ts`: título con la plantilla del sitio, descripción por palabra
    completa, canónica + hreflang y los campos de sitio de Open Graph), la ruta en
-   `app/_sitemap/entries.ts` si debe indexarse, y JSON-LD si aplica (`lib/seo/jsonld.ts`:
+   `InstanceRegistry.sitemap.pages` si debe indexarse (**no** edites `app/_sitemap/entries.ts`),
+   y JSON-LD si aplica (`lib/seo/jsonld.ts`:
    `Product`, `Article`/`BlogPosting`, `Person`, `BreadcrumbList`, `CollectionPage`,
    `LocalBusiness`, `VideoObject`, `Service`, `WebSite`/`Organization`; siempre serializado con
    `safeJsonLd`). Una vista privada declara `privateMetadata()`; una vista derivada de un

@@ -27,13 +27,15 @@ x-logging: &default-logging
 x-wordpress-config-extra: &wordpress-config-extra |
   define( 'GRAPHQL_JWT_AUTH_SECRET_KEY', '${GRAPHQL_JWT_AUTH_SECRET_KEY:-changeme-super-secret-jwt-key}' );
   define( 'WP_ENVIRONMENT_TYPE', '${WP_ENVIRONMENT_TYPE:-local}' );
-  define( 'HEADLESS_FRONTEND_URL', '${HEADLESS_FRONTEND_URL:-http://localhost:3000}' );
+  // El valor por defecto sigue el puerto PUBLICADO del frontend (`FRONTEND_PORT`, 3000):
+  // una segunda pila en otro puerto no debe mandar sus enlaces al :3000 de la primera.
+  define( 'HEADLESS_FRONTEND_URL', '${HEADLESS_FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3000}}' );
   // URL del frontend para llamadas SERVIDOR A SERVIDOR (revalidación ISR, medición de
   // consentimiento, webhooks que crea setup.sh). Dentro de un contenedor, `localhost` es el
   // propio contenedor: la pública de desarrollo no alcanza al servicio `frontend`. Sin esta
   // variable se usa HEADLESS_FRONTEND_URL (HWE\ControlCenter\FrontendUrl::internal(), mu-plugins/hwe-control-center/FrontendUrl.php).
   define( 'HEADLESS_FRONTEND_INTERNAL_URL', '${HEADLESS_FRONTEND_INTERNAL_URL:-http://frontend:3000}' );
-  define( 'HEADLESS_ALLOWED_ORIGINS', '${HEADLESS_ALLOWED_ORIGINS:-http://localhost:3000}' );
+  define( 'HEADLESS_ALLOWED_ORIGINS', '${HEADLESS_ALLOWED_ORIGINS:-http://localhost:${FRONTEND_PORT:-3000}}' );
   define( 'HWE_REVALIDATION_SECRET', '${HWE_REVALIDATION_SECRET:-changeme-hwe-revalidation-secret}' );
   define( 'HWE_BACKUPS_DIR', '/var/www/hwe-backups' );
   define( 'WP_REDIS_HOST', 'redis' );
@@ -377,8 +379,11 @@ services:
       # El navegador NO habla con WordPress (todo pasa por el BFF): el servidor Next
       # (SSR/ISR y Route Handlers) lo resuelve por la red interna de Docker.
       WORDPRESS_INTERNAL_API_URL: "${WORDPRESS_INTERNAL_API_URL:-http://wordpress:80/graphql}"
-      # Origen autorizado para CSRF / verificación de Origin (Fases 1 y 4).
-      ALLOWED_ORIGIN: "${ALLOWED_ORIGIN:-http://localhost:3000}"
+      # Origen público del frontend (canónicas, sitemap, JSON-LD, enlaces de correo) y
+      # origen autorizado para CSRF / verificación de Origin. Si no se declaran, siguen
+      # el puerto PUBLICADO (`FRONTEND_PORT`), no el interno del contenedor (:3000).
+      NEXT_PUBLIC_SITE_URL: "${NEXT_PUBLIC_SITE_URL:-http://localhost:${FRONTEND_PORT:-3000}}"
+      ALLOWED_ORIGIN: "${ALLOWED_ORIGIN:-http://localhost:${FRONTEND_PORT:-3000}}"
       # Secreto JWT compartido con WordPress: el frontend verifica la firma
       # de los tokens localmente (server-only, sin prefijo NEXT_PUBLIC_).
       GRAPHQL_JWT_AUTH_SECRET_KEY: "${GRAPHQL_JWT_AUTH_SECRET_KEY:-changeme-super-secret-jwt-key}"

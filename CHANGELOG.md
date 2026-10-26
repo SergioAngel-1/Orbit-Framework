@@ -6,7 +6,33 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **Páginas propias y exclusiones del sitemap por la instancia (`InstanceRegistry.sitemap`).**
+  Una instancia puede añadir sus vistas al segmento `paginas` y retirar del sitemap y de
+  `llms.txt` rutas del núcleo, de legal o de landings declarando solo datos en
+  `frontend/src/instance/registry.ts`: `pages` (ruta interna, `changeFrequency` opcional —def.
+  `monthly`— y `priority` opcional —def. 0.5—, expandidas a todos los idiomas con alternates y
+  x-default, con la URL pública de `publicPaths`) y `exclude` (rutas internas exactas o un
+  prefijo con `/*`). Ya no hace falta editar `app/_sitemap/entries.ts` ni `_llms/build.ts`. La
+  validación es fail-soft (una entrada mal formada se descarta con el evento
+  `instance.sitemap.invalid_entry`) y sin el campo nada cambia. Sin cambios incompatibles;
+  `HWE_CORE_CONTRACT_VERSION` pasa a `2.3.0`.
+
 ### Changed
+- **El país base de WooCommerce sigue a `ecommerce.country` al guardar.** Una tienda de otro país
+  se quedaba con `ES` en WooCommerce → Ajustes → General y calculaba impuestos y tarifas de envío
+  contra el país equivocado. Ahora, al guardar la config (también desde `wp hwe setup`), si el
+  país del panel es un código ISO de dos letras mayúsculas y no coincide con el nativo, se escribe
+  el nuevo valor sin provincia. Si el país ya coincide se conserva la provincia (`CO:ANT`); un
+  valor vacío o inválido no toca nada. **Una tienda con el país nativo distinto lo verá alineado
+  al siguiente guardado.** La zona de envío que crea `setup.sh` no cambia en esta versión.
+- **Solo tests: la suite del núcleo ya no depende del registro de la instancia en los correos de
+  auth.** `email-links.test.ts` y los tests de `forgot-password`/`verify-email` fijaban las rutas
+  internas sin aislar `@/instance/registry`, así que una tienda que remapeara `/reset-password` o
+  `/verify-email` con `publicPaths` veía fallar tests del núcleo. Ahora simulan un registro vacío
+  (como los tests de sitemap y `llms.txt`) y el ejemplo vivo remapea también `/reset-password`,
+  de modo que el job «contrato» detecte en el futuro cualquier test no aislado. Sin cambios de
+  comportamiento.
 - **Sentry en el navegador es opcional y se carga de forma diferida.** `instrumentation-client.ts`
   ya no importa `@sentry/nextjs` de forma estática: el SDK (~162 kB gz con el chunk de replay
   aparte) solo se pide cuando hay `NEXT_PUBLIC_SENTRY_DSN` y el navegador queda inactivo (o en la
@@ -30,6 +56,44 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **El frontend de desarrollo deriva su origen público de `FRONTEND_PORT`.** Con una pila en otro
+  puerto, `NEXT_PUBLIC_SITE_URL`, `ALLOWED_ORIGIN`, `HEADLESS_FRONTEND_URL` y
+  `HEADLESS_ALLOWED_ORIGINS` seguían fijando `localhost:3000`: los enlaces de recuperación y
+  verificación apuntaban al puerto de otra pila y la barrera de Origin del BFF rechazaba las
+  escrituras. Ahora, si no se declaran, `docker-compose.yml` las deriva de `FRONTEND_PORT`
+  (`http://localhost:<puerto>`); con el valor por defecto los valores efectivos son los de
+  siempre. Solo hay que tocar las cuatro variables si el origen público no es ese.
+- **El sitemap no anuncia fichas ocultas y ya no se trunca a 100.** El segmento `catalogo` lista
+  ahora el catálogo completo recorriendo el cursor de WooGraphQL (hasta 20 tandas, el mismo tope
+  que el índice del blog); antes `getProductUrls()` pedía una única tanda de 100 y una tienda con
+  más fichas dejaba el resto fuera. Además omite las fichas con visibilidad de catálogo «oculta»
+  (`HIDDEN`), incluida su landing de producto: siguen accesibles por URL y se prerenderizan, pero
+  no se anuncian. El presupuesto de prerender no cambia (`getProductUrls()` sin opciones sigue
+  haciendo una sola petición de 100).
+- **El JSON-LD de producto no emite `image: []` ni `description: ""`.** Una ficha sin foto ni
+  descripción declaraba ambas claves vacías, que los buscadores leen como datos presentes y sin
+  valor. Ahora se omiten cuando no hay URL de imagen o la descripción queda vacía tras recortar
+  espacios; no se inventa una imagen de respaldo. Con foto y descripción la salida es la misma.
+- **Una tienda sin datos de contacto ya no publica la identidad del framework.** `social.twitter`,
+  `legal.email` y `legal.company` venían con valores por defecto de la plantilla
+  (`@headlesswp`, `hello@headlesswp.com` y `HWE-Orbit`): una tienda que no los rellenaba los
+  publicaba en `Organization.sameAs`, `contactPoint`/`legalName`, en el `creator` de la tarjeta de
+  Twitter y en los datos clave de `llms.txt`. Ahora los tres defaults están vacíos en las dos capas
+  (`CONFIG_DEFAULTS` y el esquema del Control Center) y el código ya trataba el vacío. **Si tu
+  tienda dependía de esos valores por defecto, rellénalos en Marca (Twitter) y Legal (email y
+  razón social).** `brand.name` no cambia.
+- **`/icon` y `/apple-icon` vuelven a servir la imagen.** Las dos rutas de metadatos dinámicas de
+  Next no tienen extensión y el `matcher` del proxy solo excluía las rutas con punto: next-intl las
+  trataba como páginas, así que respondían un 404 en HTML y el favicon (y el icono de iOS) no
+  cargaba. El `matcher` las excluye ahora por nombre exacto, sin tocar `/icon-guide` ni `/api/*`
+  (la barrera de Origin sigue entrando).
+- **Vaciar el carrito responde 200 con el carrito vacío, no 500.** La Store API de WooCommerce
+  contesta a `DELETE /cart/items` con una lista vacía, y el BFF la pasaba a
+  `completeStoreCart` como si fuera un `StoreCart`: la petición acababa en 500 y el cajón seguía
+  enseñando las líneas viejas. Ahora, si la respuesta no tiene forma de carrito, `DELETE
+  /api/store/cart` relee el carrito con la misma sesión y el token que haya devuelto el vaciado, y
+  responde con ese carrito completado. Si la relectura falla se devuelve el error normalizado; el
+  `Cart-Token` se sigue persistiendo en su cookie.
 - **El rate-limit de WordPress ya no cuenta las llamadas del BFF como si fueran de un solo
   cliente.** `/wp-json/` (120/min) y `/graphql` (60/min) se limitaban por IP, y el BFF llega por la
   red interna con la IP del contenedor del frontend: todos los compradores compartían un único

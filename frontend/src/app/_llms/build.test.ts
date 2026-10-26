@@ -6,7 +6,9 @@ import { catalogFor, hasOwnCatalog } from "@/i18n/messages/catalogs";
 
 // Las URL que construye el núcleo no dependen del registro de la instancia: estos tests
 // fijan el caso sin mapa público (los mapas se prueban en los `*.public-paths.test.ts`).
-vi.mock("@/instance/registry", () => ({ instanceRegistry: {} }));
+// El registro es mutable para probar `sitemap.exclude` sin tocar el del framework.
+const registry = vi.hoisted(() => ({ sitemap: undefined as unknown }));
+vi.mock("@/instance/registry", () => ({ instanceRegistry: registry }));
 
 let currentConfig: SiteConfig;
 let degraded = false;
@@ -51,6 +53,7 @@ import { buildLlmsTxt } from "./build";
 
 beforeEach(() => {
   degraded = false;
+  registry.sitemap = undefined;
   currentConfig = structuredClone(CONFIG_DEFAULTS);
   currentConfig.brand.name = "Mi Tienda";
   currentConfig.brand.url = "https://mitienda.example/";
@@ -95,6 +98,12 @@ describe("buildLlmsTxt", () => {
     },
   );
 
+  it("sin datos legales en el panel no publica correo ni razón social ajenos", async () => {
+    const body = (await buildLlmsTxt("es"))!;
+    expect(body).not.toContain("@");
+    expect(body).not.toContain("Razón social");
+  });
+
   it("datos clave solo con lo que el panel trae; el cargo del responsable no va", async () => {
     currentConfig.legal.company = "Mi Tienda SL";
     currentConfig.seo.founder_name = "Ana Ruiz";
@@ -103,6 +112,55 @@ describe("buildLlmsTxt", () => {
     expect(body).toContain("- Razón social: Mi Tienda SL");
     expect(body).toContain("- Responsable: Ana Ruiz");
     expect(body).not.toContain("Fundadora");
+  });
+
+  describe("exclusiones del registro de la instancia", () => {
+    it("una exclusión exacta retira el documento legal", async () => {
+      registry.sitemap = { exclude: ["/legal/privacy"] };
+      const body = (await buildLlmsTxt("es"))!;
+
+      expect(body).not.toContain("/legal/privacy");
+      expect(body).toContain("/legal/cookies");
+    });
+
+    it("una exclusión con `/*` retira todos los legales", async () => {
+      registry.sitemap = { exclude: ["/legal/*"] };
+      const body = (await buildLlmsTxt("es"))!;
+
+      expect(body).not.toContain("/legal/privacy");
+      expect(body).not.toContain("/legal/terms");
+    });
+
+    it("también retira una página principal y no toca el resto", async () => {
+      registry.sitemap = { exclude: ["/about"] };
+      const body = (await buildLlmsTxt("es"))!;
+
+      expect(body).not.toContain("https://mitienda.example/about");
+      expect(body).toContain("https://mitienda.example/products");
+    });
+
+    it("retira una guía por su ruta interna", async () => {
+      currentConfig.modules = { ...currentConfig.modules, landings: true };
+      currentConfig.landings = {
+        registry: "guide | Guide | article",
+        editorial: {
+          guide: {
+            published: true,
+            url: { base: "area", path: "guide" },
+          },
+        },
+      };
+      expect(await buildLlmsTxt("es")).toContain("/learn/guide");
+
+      registry.sitemap = { exclude: ["/learn/guide"] };
+      expect(await buildLlmsTxt("es")).not.toContain("/learn/guide");
+    });
+
+    it("sin el campo, la salida es idéntica a la de listas vacías", async () => {
+      const baseline = await buildLlmsTxt("es");
+      registry.sitemap = { pages: [], exclude: [] };
+      expect(await buildLlmsTxt("es")).toBe(baseline);
+    });
   });
 
   it("desactivado en el panel: no hay fichero", async () => {

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CONFIG_DEFAULTS } from "./defaults";
 import { MODULE_IDS } from "./modules";
@@ -31,6 +33,37 @@ describe("CONFIG_DEFAULTS", () => {
 
   it("trae `instance` (vacío en el framework)", () => {
     expect(CONFIG_DEFAULTS.instance).toEqual({});
+  });
+
+  // Una tienda que no rellena estos campos no debe publicar una cuenta, un correo
+  // ni una razón social ajenos (redes en sameAs, contactPoint, legalName,
+  // creator de Twitter y datos de llms.txt). El nombre de marca por defecto NO
+  // cambia: es el nombre de producto de la plantilla.
+  it("no inventa identidad de contacto ni redes", () => {
+    expect(CONFIG_DEFAULTS.social.twitter).toBe("");
+    expect(CONFIG_DEFAULTS.legal.email).toBe("");
+    expect(CONFIG_DEFAULTS.legal.company).toBe("");
+    expect(CONFIG_DEFAULTS.brand.name).toBe("HWE-Orbit");
+  });
+
+  // El comentario de `defaults.ts` exige paridad con los `'default'` del esquema de
+  // WordPress. Este test lo comprueba en el lado PHP para los campos que dejaron de
+  // tener valor por defecto.
+  it("los defaults de contacto coinciden con el esquema de WordPress", () => {
+    const contact = readFileSync(
+      join(
+        __dirname,
+        "../../../../backend/wp-content/mu-plugins/hwe-control-center/SchemaGroups/Contact.php",
+      ),
+      "utf8",
+    );
+    const field = (name: string) =>
+      new RegExp(`'${name}'\\s*=>\\s*\\[[\\s\\S]*?\\],`).exec(contact)?.[0] ?? "";
+
+    const emptyDefault = /'default'\s*=>\s*''/;
+    expect(field("company")).toMatch(emptyDefault);
+    expect(field("email")).toMatch(emptyDefault);
+    expect(field("twitter")).toMatch(emptyDefault);
   });
 
   it("cubre los grupos públicos del esquema", () => {

@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// Sin registro de la instancia: una ruta pública que remapee `/verify-email` no
+// debe cambiar lo que este test del núcleo comprueba.
+vi.mock("@/instance/registry", () => ({ instanceRegistry: {} }));
+
 import { POST } from "./route";
 
 // ============================================================================

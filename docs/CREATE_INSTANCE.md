@@ -78,6 +78,14 @@ variables de entorno, `.env.example` las documenta):
 | `REDIS_PORT` | `6379` | Puerto de Redis en el host (`127.0.0.1`). |
 | `WORDPRESS_PORT` / `FRONTEND_PORT` | `8080` / `3000` | Puertos de WordPress y del frontend en el host. |
 
+Con `FRONTEND_PORT` distinto de `3000` basta con cambiar esa variable: si no se declaran,
+`docker-compose.yml` deriva de ella `NEXT_PUBLIC_SITE_URL`, `ALLOWED_ORIGIN`,
+`HEADLESS_FRONTEND_URL` y `HEADLESS_ALLOWED_ORIGINS` (`http://localhost:<FRONTEND_PORT>`), así
+que los enlaces de recuperación/verificación y la barrera de Origin apuntan a la pila correcta.
+Solo hay que ajustar esas cuatro variables a mano si el origen público no es
+`http://localhost:<puerto>` (dominio propio, proxy, acceso desde la LAN); en producción van en
+`.env.prod` y no se derivan.
+
 Los scripts de verificación (`backend/scripts/verify-modules.sh`, `verify-integration.sh`)
 resuelven sus contenedores **por servicio de Compose del proyecto actual**, no por un nombre
 fijo, y aceptan `HWE_WP_CONTAINER` / `HWE_CLI_CONTAINER` como anulación explícita. Si el
@@ -270,6 +278,12 @@ producción), no dentro de ninguna imagen: tras actualizarlo en el host, reinici
 Para una instancia ya desplegada, ver `docs/UPGRADE.md` («Imágenes y plugins de una instancia ya
 desplegada»).
 
+Para que `wp hwe setup` active el plugin junto con los módulos, regístralo en el filtro
+`hwe_modules_catalog` desde `mu-plugins/instance/` y añade su id a la clave `modules` de
+`instance.config.json`. **Con `modules` presente, el setup desactiva los módulos del catálogo
+que no listes**, así que enumera también los del framework que quieras conservar. Receta:
+`docs/PLUGIN_DEVELOPMENT.md` §0.
+
 ### CI de la instancia
 
 `.github/**` es núcleo (`docs/UPGRADE.md` §1): **no lo edites**, cada merge choca. Pero hay
@@ -376,6 +390,11 @@ Los hijos heredan el prefijo del padre (una entrada propia manda), el mapa se va
 valor por idioma (`{ es: "/novedades", en: "/blog" }`). Contrato completo:
 `docs/FRONTEND_CONNECT.md` §A.4.
 
+Para las **páginas propias** de la instancia y las rutas que no quieres anunciar, no edites el
+núcleo: declara `sitemap.pages` (se añaden al sitemap en todos los idiomas, respetando
+`publicPaths`) y `sitemap.exclude` (rutas internas exactas o un prefijo con `/*`) en el mismo
+`registry.ts`. También afecta a `llms.txt`. Ver `docs/FRONTEND_CONNECT.md` §A.4.
+
 ### Instancia de un solo idioma
 
 El framework trae `es` (principal) y `en`. Una tienda que solo publica en un idioma **no
@@ -399,6 +418,10 @@ necesita mantener el catálogo inglés** ni que el núcleo lo dé por hecho:
 
    Sin `timeZone` se mantienen los valores de siempre (`es` → `Europe/Madrid`, `en` →
    `America/New_York`), que es lo que espera el framework sin configurar nada.
+
+   `timeZone` solo gobierna el **frontend** (fechas y horas que renderiza la web). WordPress
+   tiene su propia zona en **Ajustes → General → Zona horaria**, que `wp hwe setup` no toca y
+   que manda en el panel y en los correos de pedido: mantén las dos alineadas.
 
 Los tests del núcleo se ejecutan con los idiomas del framework (un `vitest` compartido fija
 `es`/`en`), así que el CI de tu instancia sigue corriendo la misma batería; el job «Frontend (un

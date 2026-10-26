@@ -16,6 +16,17 @@ export const instanceRegistry: InstanceRegistry = {
   // El ejemplo superpuesto demuestra que el núcleo sabe leerlos sin que su suite dependa de ellos.
   publicPaths: {
     "/about": "/nosotros",
+    // Una vista de auth: si un test del núcleo fija su URL interna sin aislar el
+    // registro, el job «contrato» lo caza (ver `lib/auth/email-links.test.ts`).
+    "/reset-password": "/example-access",
+  },
+  // Sitemap (contrato 2.3): una página propia y una exclusión neutras. El job «contrato»
+  // superpone este registro y el sitemap/llms.txt del núcleo tienen que seguir generándose.
+  sitemap: {
+    pages: [
+      { path: "/example", changeFrequency: "yearly", priority: 0.3 },
+    ],
+    exclude: ["/legal/cookies"],
   },
   timeZone: "America/Bogota",
   // Campos de producto declarativos: las mismas claves y tipos que `hwe_product_fields` del

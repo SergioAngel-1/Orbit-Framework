@@ -40,6 +40,12 @@ final class SchemaDefaultsTest extends TestCase
         $this->assertTrue($defaults['payments']['gateway_enabled']);
         $this->assertSame('allow', $defaults['geo']['ai_crawlers']);
         $this->assertSame('', $defaults['geo']['faq_en']);
+        // Sin identidad de contacto ni redes por defecto: una tienda que no
+        // rellena estos campos no puede publicar los de nadie (sameAs,
+        // contactPoint, legalName, creator de la tarjeta).
+        $this->assertSame('', $defaults['social']['twitter']);
+        $this->assertSame('', $defaults['legal']['email']);
+        $this->assertSame('', $defaults['legal']['company']);
         $this->assertSame([], $defaults['instance'] ?? [], 'El grupo instance vacío no aporta defaults.');
     }
 

@@ -12,6 +12,7 @@ import {
 import { productLearnPaths } from "@/lib/landings/product-learn-href";
 import { editorialSitemapEntries } from "@/lib/landings/editorial-list";
 import { entityPaths, hreflangLanguages, localizedPath } from "@/lib/seo/urls";
+import { isSitemapPathExcluded, resolveInstanceSitemap } from "@/lib/instance/sitemap";
 import type { SitemapSegment } from "@/lib/seo/sitemap-segments";
 import { logger } from "@/lib/observability/logger";
 
@@ -156,7 +157,20 @@ export async function buildSitemapEntries(
       // la ficha Y la landing existen.
       const learn = await getProductBoundLandingSlugs();
       const learnLocales = learn.size > 0 ? await getProductBoundLandingLocales() : {};
-      for (const { slug, slugs, locales } of await getProductUrls()) {
+      // `all` recorre el catálogo completo por cursor: con la tanda única de 100
+      // del prerender, una tienda con más fichas dejaba el resto fuera del sitemap.
+      const products = await getProductUrls({ all: true });
+      const hidden = products.filter((product) => product.hidden).length;
+      if (hidden > 0) {
+        logger.info(
+          { event: "sitemap.hidden_products_skipped", count: hidden },
+          "sitemap: fichas con visibilidad oculta fuera del segmento de catálogo",
+        );
+      }
+      for (const { slug, slugs, locales, hidden: isHidden } of products) {
+        // La ficha oculta sigue siendo accesible por URL, pero no se anuncia; su
+        // landing de producto tampoco.
+        if (isHidden) continue;
         paths.push({
           path: `/products/${slug}`,
           locales,
@@ -237,5 +251,24 @@ export async function buildSitemapEntries(
     }
   }
 
-  return paths.flatMap((entry) => expand(baseUrl, entry));
+  // Ajustes de la instancia (`InstanceRegistry.sitemap`): `exclude` se aplica a las entradas
+  // del núcleo ANTES de expandir por idioma, comparando contra la ruta INTERNA. Las páginas
+  // propias se añaden después y no se duplican con una ruta del núcleo que siga anunciada
+  // (si la instancia excluye una ruta y la redeclara, gana su declaración).
+  const rules = resolveInstanceSitemap();
+  const announced = paths.filter((entry) => !isSitemapPathExcluded(entry.path, rules));
+  if (segmento === "paginas") {
+    const present = new Set(announced.map((entry) => entry.path));
+    for (const page of rules.pages) {
+      if (present.has(page.path)) continue;
+      present.add(page.path);
+      announced.push({
+        path: page.path,
+        changeFrequency: page.changeFrequency,
+        priority: page.priority,
+      });
+    }
+  }
+
+  return announced.flatMap((entry) => expand(baseUrl, entry));
 }

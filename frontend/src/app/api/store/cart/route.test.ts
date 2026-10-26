@@ -4,7 +4,8 @@ import { readCartToken, writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { getSession } from "@/lib/auth/session";
 import { ensureCartDestination } from "@/lib/woocommerce/cart-destination";
-import { GET } from "./route";
+import { WooCommerceError } from "@/lib/woocommerce/client";
+import { DELETE, GET } from "./route";
 
 // ============================================================================
 //  GET /api/store/cart — rate-limit de la lectura.
@@ -40,10 +41,14 @@ const request = (ip = "203.0.113.9") =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // `clearAllMocks` no descarta las respuestas `...Once` que un test dejó sin
+  // consumir: sin este reset, un test en rojo contaminaría al siguiente.
+  vi.mocked(storeFetch).mockReset();
   vi.mocked(rateLimit).mockResolvedValue(OK);
   vi.mocked(readCartToken).mockResolvedValue(undefined as never);
   vi.mocked(storeFetch).mockResolvedValue({ data: CART, cartToken: "nuevo" } as never);
   vi.mocked(getSession).mockResolvedValue(null);
+  vi.mocked(ensureCartDestination).mockResolvedValue(null);
 });
 
 describe("GET /api/store/cart", () => {
@@ -136,6 +141,82 @@ describe("GET /api/store/cart — sesión y existencias", () => {
     );
     expect((await res.json()).items).toEqual([]);
     expect(writeCartToken).toHaveBeenCalledWith("t2");
+  });
+});
+
+// ============================================================================
+//  DELETE /api/store/cart — vaciar el carrito.
+//
+//  La Store API de WooCommerce responde al vaciado con una LISTA vacía, no con el
+//  carrito: darla por buena hacía que el handler devolviera 500 y el cajón se
+//  quedara con las líneas viejas. Tras el vaciado se relee el carrito.
+// ============================================================================
+
+describe("DELETE /api/store/cart", () => {
+  it("si el vaciado devuelve una lista vacía, relee el carrito y responde 200 con él", async () => {
+    vi.mocked(storeFetch)
+      .mockResolvedValueOnce({ data: [], cartToken: "token-vaciado" } as never)
+      .mockResolvedValueOnce({ data: CART, cartToken: "token-releido" } as never);
+
+    const res = await DELETE(request());
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(CART);
+    expect(storeFetch).toHaveBeenNthCalledWith(
+      1,
+      "/cart/items",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+    expect(storeFetch).toHaveBeenNthCalledWith(
+      2,
+      "/cart",
+      expect.objectContaining({ cartToken: "token-vaciado" }),
+    );
+    expect(writeCartToken).toHaveBeenCalledWith("token-releido");
+  });
+
+  it("si el vaciado ya devuelve un carrito, no hace una segunda lectura", async () => {
+    vi.mocked(storeFetch).mockResolvedValueOnce({
+      data: CART,
+      cartToken: "token-directo",
+    } as never);
+
+    const res = await DELETE(request());
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(CART);
+    expect(storeFetch).toHaveBeenCalledTimes(1);
+    expect(writeCartToken).toHaveBeenCalledWith("token-directo");
+  });
+
+  it("si la relectura falla, responde con el error normalizado (no un 200 falso)", async () => {
+    vi.mocked(storeFetch)
+      .mockResolvedValueOnce({ data: [], cartToken: "token-vaciado" } as never)
+      .mockRejectedValueOnce(new WooCommerceError("Store API caída", 503));
+
+    const res = await DELETE(request());
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({
+      error: "El servicio de tienda no está disponible.",
+    });
+    expect(writeCartToken).not.toHaveBeenCalled();
+  });
+
+  it("pasa la sesión a las dos llamadas: el carrito es el de la cuenta", async () => {
+    vi.mocked(getSession).mockResolvedValue({
+      token: "jwt-del-cliente",
+      userId: "7",
+    } as never);
+    vi.mocked(storeFetch)
+      .mockResolvedValueOnce({ data: [], cartToken: "token-vaciado" } as never)
+      .mockResolvedValueOnce({ data: CART, cartToken: "token-releido" } as never);
+
+    await DELETE(request());
+
+    for (const call of vi.mocked(storeFetch).mock.calls) {
+      expect(call[1]).toMatchObject({ authToken: "jwt-del-cliente" });
+    }
   });
 });
 

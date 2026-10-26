@@ -349,6 +349,38 @@ export interface ProductUrlEntry {
   slugs: Record<string, string>;
   /** Idiomas del sitio en los que la ficha existe de verdad (el por defecto, siempre). */
   locales: string[];
+  /**
+   * Visibilidad de catálogo «oculta» (WooCommerce `HIDDEN`). La ficha sigue
+   * siendo accesible por URL y se prerenderiza; el sitemap no la anuncia.
+   */
+  hidden: boolean;
+}
+
+export interface GetProductUrlsOptions {
+  /**
+   * Recorre TODO el catálogo por cursor (hasta `MAX_URL_PAGES` tandas). Lo pide el
+   * sitemap. Sin la opción se conserva la tanda única de 100 que consumen
+   * `generateStaticParams` (ficha y landing): el presupuesto de prerender no cambia.
+   */
+  all?: boolean;
+}
+
+const URL_PAGE_SIZE = 100;
+/** Mismo tope que `getPostsIndex`: una lista sin fin no puede colgar el sitemap. */
+const MAX_URL_PAGES = 20;
+
+/** Forma cruda de la consulta de slugs (todo opcional: el stub de CI responde `{}`). */
+interface RawProductUrlNode {
+  slug: string;
+  name: string;
+  catalogVisibility?: string | null;
+}
+
+interface ProductUrlsResponse {
+  products?: {
+    pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+    nodes?: Localizable<RawProductUrlNode>[];
+  };
 }
 
 /**
@@ -356,20 +388,53 @@ export interface ProductUrlEntry {
  * el idioma de la página. Un fallo del catálogo da lista vacía y queda en el log:
  * el sitemap sigue con el resto.
  */
-export async function getProductUrls(): Promise<ProductUrlEntry[]> {
+export async function getProductUrls(
+  options: GetProductUrlsOptions = {},
+): Promise<ProductUrlEntry[]> {
   try {
-    const data = await fetchLocalizedGraphQL<{
-      products: { nodes: Localizable<{ slug: string; name: string }>[] };
-    }>(PRODUCT_SLUGS_QUERY, secondaryLocales(), {
-      variables: { first: 100 },
-      revalidate: CATALOG_REVALIDATE,
-      tags: ["products"],
-    });
-    return data.products.nodes.map((node) => ({
-      slug: node.slug,
-      slugs: urlSlugsByLocale(node),
-      locales: translatedLocales(node, "name"),
-    }));
+    const entries: ProductUrlEntry[] = [];
+    const pages = options.all ? MAX_URL_PAGES : 1;
+    let cursor: string | null = null;
+    let pendingPages = false;
+    for (let page = 0; page < pages; page++) {
+      const data: ProductUrlsResponse =
+        await fetchLocalizedGraphQL<ProductUrlsResponse>(
+          PRODUCT_SLUGS_QUERY,
+          secondaryLocales(),
+          {
+            variables: options.all
+              ? { first: URL_PAGE_SIZE, after: cursor }
+              : { first: URL_PAGE_SIZE },
+            revalidate: CATALOG_REVALIDATE,
+            tags: ["products"],
+          },
+        );
+      for (const node of data.products?.nodes ?? []) {
+        entries.push({
+          slug: node.slug,
+          slugs: urlSlugsByLocale(node),
+          locales: translatedLocales(node, "name"),
+          hidden: node.catalogVisibility === "HIDDEN",
+        });
+      }
+      const { hasNextPage, endCursor } = data.products?.pageInfo ?? {};
+      pendingPages = Boolean(hasNextPage && endCursor);
+      if (!options.all || !pendingPages) break;
+      cursor = endCursor ?? null;
+    }
+    if (options.all && pendingPages) {
+      // El tope de 2000 fichas no debe ser silencioso: lo que quede fuera no se
+      // anuncia en el sitemap, y el dueño tiene que saberlo por el log.
+      logger.warn(
+        {
+          event: "catalog.product_urls_truncated",
+          maxPages: MAX_URL_PAGES,
+          pageSize: URL_PAGE_SIZE,
+        },
+        "El catálogo supera el tope de fichas del sitemap: quedan fichas sin anunciar",
+      );
+    }
+    return entries;
   } catch (error) {
     logger.error(
       {

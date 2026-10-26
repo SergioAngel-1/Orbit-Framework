@@ -123,6 +123,34 @@ export type PublicPathValue = string | Readonly<Record<string, string>>;
 /** Mapa ruta interna → ruta pública (`"/products": "/productos"`). */
 export type PublicPathMap = Readonly<Record<string, PublicPathValue>>;
 
+/** Frecuencia de cambio que admite el protocolo de sitemaps. */
+export type SitemapChangeFrequency =
+  "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
+
+/** Una página propia de la instancia que se anuncia en el sitemap. */
+export interface InstanceSitemapPage {
+  /** Ruta INTERNA (formato de `pathnames`, p. ej. `"/example-page"`). */
+  path: string;
+  /** Por defecto, `"monthly"`. */
+  changeFrequency?: SitemapChangeFrequency;
+  /** Entre 0 y 1. Por defecto, `0.5`. */
+  priority?: number;
+}
+
+/**
+ * Ajustes del sitemap y de `llms.txt` declarados por la instancia: páginas propias y rutas
+ * que no se anuncian. Solo datos; ver `lib/instance/sitemap.ts`.
+ */
+export interface InstanceSitemap {
+  /** Páginas propias, en el segmento `paginas`, expandidas a todos los idiomas. */
+  pages?: readonly InstanceSitemapPage[];
+  /**
+   * Rutas INTERNAS que no se anuncian: exactas (`"/legal/privacy"`) o un prefijo con `/*`
+   * (`"/products/*"`, que incluye las fichas y sus landings).
+   */
+  exclude?: readonly string[];
+}
+
 export interface InstanceRegistry {
   /** Tags ISR extra que `/api/revalidate` acepta además de los del núcleo. */
   revalidationTags: string[];
@@ -138,6 +166,11 @@ export interface InstanceRegistry {
    * pública a la interna. Sin este campo, todas las URL son las de siempre.
    */
   publicPaths?: PublicPathMap;
+  /**
+   * Sitemap de la instancia: páginas propias que se añaden al segmento `paginas` y rutas que
+   * no se anuncian (ni en el sitemap ni en `llms.txt`). Sin el campo, nada cambia.
+   */
+  sitemap?: InstanceSitemap;
   /**
    * Zona horaria de la tienda (IANA, p. ej. `"America/Bogota"`), igual para todos los idiomas
    * o por idioma (`{ es: "America/Bogota", en: "America/New_York" }`). La usa

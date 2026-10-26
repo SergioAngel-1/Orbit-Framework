@@ -24,7 +24,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     locale: "es",
   },
   social: {
-    twitter: "@headlesswp",
+    twitter: "",
     instagram: "",
     facebook: "",
     linkedin: "",
@@ -34,9 +34,9 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     wikidata: "",
   },
   legal: {
-    company: "HWE-Orbit",
+    company: "",
     nif: "",
-    email: "hello@headlesswp.com",
+    email: "",
     phone: "",
     mobile: "",
     address: "",
