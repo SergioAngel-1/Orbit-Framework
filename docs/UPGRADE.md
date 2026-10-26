@@ -183,17 +183,28 @@ comportamiento y las URL de la v2.1. Lo nuevo es opcional y se configura con **d
 
 ## 3.3 v2.2 → v2.3 (nota de actualización)
 
-Sin cambios incompatibles: una instancia actualizada sin tocar nada conserva el comportamiento
-y las URL.
+Sin cambios incompatibles de contrato; revisa estos puntos de comportamiento:
 
 - **Sitemap de la instancia (`InstanceRegistry.sitemap`).** Opcional: declara `pages` (páginas
   propias que se añaden al segmento `paginas` en todos los idiomas, respetando `publicPaths`) y
   `exclude` (rutas internas exactas o un prefijo con `/*`, también aplicado a `llms.txt`) sin
-  editar `app/_sitemap/entries.ts`. Sin el campo, la salida es idéntica. Contrato `2.3.0`.
+  editar `app/_sitemap/entries.ts`. Sin el campo, la salida es la anterior. Contrato `2.3.0`.
+- **Fichas ocultas fuera del sitemap y catálogo completo.** Las fichas con visibilidad `HIDDEN`
+  de WooCommerce (y su landing de producto) dejan de anunciarse, y el segmento `catalogo`
+  recorre **todo** el catálogo por cursor en vez de solo las 100 primeras fichas. Si tu tienda
+  tenía fichas ocultas anunciadas, desaparecen del sitemap; si tiene más de 100 publicadas,
+  ahora salen todas. El resto de segmentos y `llms.txt` no cambian.
+- **El país base de WooCommerce sigue a `ecommerce.country`.** Al guardar el Control Center se
+  alinea la opción nativa `woocommerce_default_country` con el país configurado (si el país ya
+  coincide no se toca, para conservar la provincia). Si habías cambiado el país de WooCommerce a
+  mano y el panel guarda otro, el siguiente guardado lo sobrescribe: revisa
+  `ecommerce.country` antes de guardar.
 - **Sin identidad de contacto por defecto.** `social.twitter`, `legal.email` y `legal.company`
   dejaron de traer valores de la plantilla. Si tu tienda usaba esos valores sin rellenarlos, ahora
   salen vacíos: rellénalos en **Marca** (Twitter) y **Legal** (email y razón social) del Control
   Center. El nombre de marca por defecto no cambia.
+
+`HWE_CORE_CONTRACT_VERSION` pasa a `2.3.0`; compárala si tu código depende de un hook nuevo.
 
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
