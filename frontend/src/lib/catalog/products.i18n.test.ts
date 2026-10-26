@@ -26,6 +26,7 @@ import {
   getCategoryStaticParams,
   getProductUrls,
 } from "./products";
+import { logger } from "@/lib/observability/logger";
 
 const card = {
   id: "p1",
@@ -40,6 +41,7 @@ const card = {
 
 beforeEach(() => {
   fetchGraphQL.mockReset();
+  vi.mocked(logger.warn).mockClear();
 });
 
 describe("getProducts: variables que acepta WooGraphQL", () => {
@@ -336,6 +338,28 @@ describe("getProductUrls (sitemap)", () => {
     expect(urls).toHaveLength(250);
     expect(urls[0]!.slug).toBe("producto-0");
     expect(urls[249]!.slug).toBe("producto-249");
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("al llegar al tope de tandas avisa de que quedan fichas sin anunciar", async () => {
+    fetchGraphQL.mockResolvedValue({
+      products: {
+        pageInfo: { hasNextPage: true, endCursor: "100" },
+        nodes: [{ slug: "una", name: "Una" }],
+      },
+    });
+
+    const urls = await getProductUrls({ all: true });
+
+    expect(fetchGraphQL).toHaveBeenCalledTimes(20);
+    expect(urls).toHaveLength(20);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "catalog.product_urls_truncated",
+        maxPages: 20,
+      }),
+      expect.any(String),
+    );
   });
 
   it("sin la opción hace UNA sola petición de 100 (presupuesto de prerender)", async () => {

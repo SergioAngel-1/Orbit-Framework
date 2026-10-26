@@ -395,6 +395,7 @@ export async function getProductUrls(
     const entries: ProductUrlEntry[] = [];
     const pages = options.all ? MAX_URL_PAGES : 1;
     let cursor: string | null = null;
+    let pendingPages = false;
     for (let page = 0; page < pages; page++) {
       const data: ProductUrlsResponse =
         await fetchLocalizedGraphQL<ProductUrlsResponse>(
@@ -417,8 +418,21 @@ export async function getProductUrls(
         });
       }
       const { hasNextPage, endCursor } = data.products?.pageInfo ?? {};
-      if (!options.all || !hasNextPage || !endCursor) break;
-      cursor = endCursor;
+      pendingPages = Boolean(hasNextPage && endCursor);
+      if (!options.all || !pendingPages) break;
+      cursor = endCursor ?? null;
+    }
+    if (options.all && pendingPages) {
+      // El tope de 2000 fichas no debe ser silencioso: lo que quede fuera no se
+      // anuncia en el sitemap, y el dueño tiene que saberlo por el log.
+      logger.warn(
+        {
+          event: "catalog.product_urls_truncated",
+          maxPages: MAX_URL_PAGES,
+          pageSize: URL_PAGE_SIZE,
+        },
+        "El catálogo supera el tope de fichas del sitemap: quedan fichas sin anunciar",
+      );
     }
     return entries;
   } catch (error) {
