@@ -15,6 +15,12 @@
  * esa base se resta la parte pagada con puntos (meta `_hwe_loyalty_discount`, escrita por la
  * tarea de canje) y el resultado nunca baja de 0. Los puntos se redondean siempre hacia abajo.
  *
+ * **Valor frente a unidades** (`toUnits()`): `cashback_percent` y las comisiones N1/N2 son un
+ * porcentaje del **valor** de la base, no una cantidad de unidades. Se aplica el porcentaje y se
+ * convierte el importe con `point_value` (`floor(round(importe / point_value, 6))`); con
+ * `point_value <= 0` se mantiene 1 unidad = 1 de la moneda y se registra una vez. Las ganancias
+ * en unidades fijas (bono por producto y primas de alta) no pasan por la conversión.
+ *
  * **Qué líneas cuentan** (punto de extensión `hwe_loyalty_line_earns`): cada línea de producto
  * decide con el filtro `HWE_Loyalty_Earnings::FILTER_LINE_EARNS`, que recibe la línea y el pedido
  * y por defecto vale `true`. Un módulo puede excluir productos que no deben puntuar (por ejemplo,
@@ -82,6 +88,9 @@ final class HWE_Loyalty_Earnings {
 
 	/** Cuántos pedidos anteriores se miran para decidir si es la primera compra cobrada. */
 	private const PRIOR_ORDER_LIMIT = 20;
+
+	/** ¿Ya se avisó de que una conversión sin valor de unidad usa 1 unidad = 1 de moneda? */
+	private static bool $zeroValueLogged = false;
 
 	/** Engancha los eventos de estado de WooCommerce. Lo llama `HWE_Loyalty::boot()`. */
 	public static function register(): void {
@@ -265,6 +274,42 @@ final class HWE_Loyalty_Earnings {
 	}
 
 	/**
+	 * Convierte un importe de la moneda de la tienda a unidades, redondeando hacia abajo.
+	 *
+	 * Es la ÚNICA conversión dinero → unidades del cálculo de ganancias y fija el contrato de
+	 * los ajustes en porcentaje: `cashback_percent` y las comisiones N1/N2 son un porcentaje
+	 * del **valor** de la compra, no una cantidad de unidades. Ejemplo: 3 % de 59 900 con
+	 * `point_value = 10` son 1 797 de valor, es decir 179 unidades (no 1 797).
+	 *
+	 * Se redondea a 6 decimales antes de truncar (`floor( round( $amount / $value, 6 ) )`) para
+	 * que la aritmética binaria no reste una unidad en un cociente exacto (`0.1 / 0.01` no es
+	 * `10` exacto en coma flotante). Con `point_value <= 0` (canje desactivado) se conserva el
+	 * comportamiento histórico de 1 unidad = 1 de la moneda y se registra una sola vez.
+	 *
+	 * @param array<string,mixed> $settings Ajustes saneados de `HWE_Loyalty_Settings::get()`.
+	 */
+	public static function toUnits( float $amount, array $settings ): int {
+		if ( $amount <= 0.0 ) {
+			return 0;
+		}
+
+		$value = (float) ( $settings['point_value'] ?? 0.0 );
+		if ( $value > 0.0 ) {
+			return (int) floor( round( $amount / $value, 6 ) );
+		}
+
+		if ( ! self::$zeroValueLogged ) {
+			self::$zeroValueLogged = true;
+			self::log(
+				'point_value ≤ 0: se convierte 1 unidad = 1 de la moneda; configura el valor de la unidad'
+				. ' para que los porcentajes paguen su valor real en la tienda.'
+			);
+		}
+
+		return (int) floor( round( $amount, 6 ) );
+	}
+
+	/**
 	 * ¿La línea cuenta para la base y el bono? Lo decide `hwe_loyalty_line_earns`, que por
 	 * defecto vale `true`. Un valor no booleano se registra y se trata como `true`: un filtro mal
 	 * escrito no debe dejar al comprador sin ganancias.
@@ -335,7 +380,7 @@ final class HWE_Loyalty_Earnings {
 		$earnings = array();
 
 		if ( ! empty( $settings['cashback_enabled'] ) && $base > 0 ) {
-			$points = (int) floor( $base * (int) $settings['cashback_percent'] / 100 );
+			$points = self::toUnits( $base * (int) $settings['cashback_percent'] / 100, $settings );
 			if ( $points > 0 ) {
 				$earnings[] = self::earning(
 					$buyerId,
@@ -369,7 +414,7 @@ final class HWE_Loyalty_Earnings {
 				$isFirst = self::isFirstCollectedOrder( $order, $buyerId );
 
 				$l1Percent = $isFirst ? $firstPercent : $nextPercent;
-				$l1Points  = $base > 0 ? (int) floor( $base * $l1Percent / 100 ) : 0;
+				$l1Points  = $base > 0 ? self::toUnits( $base * $l1Percent / 100, $settings ) : 0;
 				if ( $l1Points > 0 ) {
 					$earnings[] = self::earning( $referrerId, 'referral_commission_l1', $l1Points, $ref, $data );
 				}
@@ -377,7 +422,7 @@ final class HWE_Loyalty_Earnings {
 				if ( $level2Percent > 0 ) {
 					$second = HWE_Loyalty_Referrals::referrerOf( $referrerId );
 					if ( null !== $second && $second !== $buyerId && HWE_Loyalty_Settings::canParticipate( $second ) ) {
-						$l2Points = $base > 0 ? (int) floor( $base * $level2Percent / 100 ) : 0;
+						$l2Points = $base > 0 ? self::toUnits( $base * $level2Percent / 100, $settings ) : 0;
 						if ( $l2Points > 0 ) {
 							$earnings[] = self::earning( $second, 'referral_commission_l2', $l2Points, $ref, $data );
 						}
