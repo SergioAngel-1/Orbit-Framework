@@ -137,6 +137,27 @@ describe("buildProductJsonLd — devoluciones", () => {
     expect(policy).not.toHaveProperty("returnMethod");
   });
 
+  it("sin foto ni descripción, no emite `image` ni `description` vacías", () => {
+    const ld = buildProductJsonLd({
+      product: { ...product, image: null } as ProductDetail,
+      config: config(),
+      url: "https://mitienda.example/products/camiseta",
+      description: "   ",
+    });
+    expect(ld).not.toHaveProperty("image");
+    expect(ld).not.toHaveProperty("description");
+    // El resto del nodo no cambia.
+    expect(ld.name).toBe("Camiseta");
+    expect(ld.offers).toBeDefined();
+    expect(ld.brand).toBeDefined();
+  });
+
+  it("con foto y descripción, la salida conserva ambas claves", () => {
+    const ld = productLd();
+    expect(ld.image).toEqual(["https://mitienda.example/c.jpg"]);
+    expect(ld.description).toBe("Una camiseta");
+  });
+
   it("la ficha lleva @id y validFrom", () => {
     const ld = productLd();
     expect(ld["@id"]).toBe("https://mitienda.example/products/camiseta#product");

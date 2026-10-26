@@ -30,6 +30,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **El JSON-LD de producto no emite `image: []` ni `description: ""`.** Una ficha sin foto ni
+  descripción declaraba ambas claves vacías, que los buscadores leen como datos presentes y sin
+  valor. Ahora se omiten cuando no hay URL de imagen o la descripción queda vacía tras recortar
+  espacios; no se inventa una imagen de respaldo. Con foto y descripción la salida es la misma.
 - **Una tienda sin datos de contacto ya no publica la identidad del framework.** `social.twitter`,
   `legal.email` y `legal.company` venían con valores por defecto de la plantilla
   (`@headlesswp`, `hello@headlesswp.com` y `HWE-Orbit`): una tienda que no los rellenaba los
