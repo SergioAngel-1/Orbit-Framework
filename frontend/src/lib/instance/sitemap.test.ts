@@ -67,6 +67,25 @@ describe("resolveInstanceSitemap", () => {
     );
   });
 
+  it.each([
+    ["pages", { pages: 5 as never }],
+    ["exclude", { exclude: 5 as never }],
+  ])(
+    "un campo `%s` que no es una lista se ignora en vez de romper el sitemap",
+    (_label, map) => {
+      expect(() => resolveInstanceSitemap(map)).not.toThrow();
+      expect(resolveInstanceSitemap(map)).toEqual({
+        pages: [],
+        exact: [],
+        prefixes: [],
+      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ event: "instance.sitemap.invalid_entry" }),
+        expect.any(String),
+      );
+    },
+  );
+
   it("separa exclusiones exactas y prefijos (`/*`)", () => {
     const rules = resolveInstanceSitemap({
       exclude: ["/legal/privacy", "/products/*", "/about"],

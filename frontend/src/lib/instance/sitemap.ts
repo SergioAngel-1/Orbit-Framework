@@ -154,12 +154,22 @@ export function resolveInstanceSitemap(
     return rules;
   }
 
-  for (const entry of map.pages ?? []) {
+  // Un campo que no sea lista se ignora entero (con su evento) en vez de lanzar:
+  // el registro es dato de instancia y la generación del sitemap nunca se rompe.
+  const pages = Array.isArray(map.pages) ? map.pages : [];
+  if (map.pages !== undefined && !Array.isArray(map.pages)) {
+    warnInvalid("páginas: el campo debe ser una lista", map.pages);
+  }
+  for (const entry of pages) {
     const page = normalizePage(entry);
     if (page) rules.pages.push(page);
   }
 
-  for (const entry of map.exclude ?? []) {
+  const exclude = Array.isArray(map.exclude) ? map.exclude : [];
+  if (map.exclude !== undefined && !Array.isArray(map.exclude)) {
+    warnInvalid("exclusiones: el campo debe ser una lista", map.exclude);
+  }
+  for (const entry of exclude) {
     const isPrefix = typeof entry === "string" && entry.trim().endsWith("/*");
     const route = normalizeRoute(entry, "exclusión", true);
     if (route === null) continue;
