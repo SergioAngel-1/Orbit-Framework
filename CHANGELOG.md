@@ -30,6 +30,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **`/icon` y `/apple-icon` vuelven a servir la imagen.** Las dos rutas de metadatos dinámicas de
+  Next no tienen extensión y el `matcher` del proxy solo excluía las rutas con punto: next-intl las
+  trataba como páginas, así que respondían un 404 en HTML y el favicon (y el icono de iOS) no
+  cargaba. El `matcher` las excluye ahora por nombre exacto, sin tocar `/icon-guide` ni `/api/*`
+  (la barrera de Origin sigue entrando).
 - **Vaciar el carrito responde 200 con el carrito vacío, no 500.** La Store API de WooCommerce
   contesta a `DELETE /cart/items` con una lista vacía, y el BFF la pasaba a
   `completeStoreCart` como si fuera un `StoreCart`: la petición acababa en 500 y el cajón seguía
