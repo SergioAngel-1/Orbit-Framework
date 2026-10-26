@@ -76,6 +76,7 @@ final class SettingsTest extends TestCase
             'card_token_ttl_hours',
             'expiring_notice_days',
             'referral_gift_requires_email_verification',
+            'plans_earn_points',
         ];
     }
 
@@ -108,6 +109,7 @@ final class SettingsTest extends TestCase
         $this->assertSame('number', $children['card_token_ttl_hours']['type']);
         $this->assertSame('number', $children['expiring_notice_days']['type']);
         $this->assertSame('boolean', $children['referral_gift_requires_email_verification']['type']);
+        $this->assertSame('boolean', $children['plans_earn_points']['type']);
     }
 
     public function testTheSchemaDefaultsAreTheOnesOfTheContract(): void
@@ -125,6 +127,7 @@ final class SettingsTest extends TestCase
         $this->assertSame('24', $children['card_token_ttl_hours']['default']);
         $this->assertSame('7', $children['expiring_notice_days']['default']);
         $this->assertSame(true, $children['referral_gift_requires_email_verification']['default']);
+        $this->assertSame(false, $children['plans_earn_points']['default']);
         $this->assertSame(1, $children['card_token_ttl_hours']['min']);
         $this->assertSame(720, $children['card_token_ttl_hours']['max']);
         $this->assertSame(0, $children['expiring_notice_days']['min']);
@@ -175,6 +178,7 @@ final class SettingsTest extends TestCase
                 'card_token_ttl_hours'                  => 24,
                 'expiring_notice_days'                  => 7,
                 'referral_gift_requires_email_verification' => true,
+                'plans_earn_points'                     => false,
             ],
             \HWE_Memberships_Settings::get()
         );
@@ -191,6 +195,7 @@ final class SettingsTest extends TestCase
             'card_token_ttl_hours'                  => '9999',
             'expiring_notice_days'                  => '-3',
             'referral_gift_requires_email_verification' => '0',
+            'plans_earn_points'                     => '1',
         ];
 
         $settings = \HWE_Memberships_Settings::get();
@@ -201,6 +206,7 @@ final class SettingsTest extends TestCase
         $this->assertSame(720, $settings['card_token_ttl_hours'], 'El TTL se recorta a su máximo.');
         $this->assertSame(0, $settings['expiring_notice_days'], 'Los días negativos caen a 0.');
         $this->assertFalse($settings['referral_gift_requires_email_verification']);
+        $this->assertTrue($settings['plans_earn_points']);
     }
 
     public function testTheTtlNeverGoesBelowOneHour(): void

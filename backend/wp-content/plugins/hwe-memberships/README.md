@@ -68,6 +68,7 @@ de `frontend/src/lib/config/{types,defaults}.ts`; los demás son operativos del 
 | `card_token_ttl_hours` | entero | `24` | no | Horas de vigencia del token, recortadas a 1–720. |
 | `expiring_notice_days` | entero | `7` | no | Días de antelación del aviso de caducidad; un valor negativo se recorta a 0. |
 | `referral_gift_requires_email_verification` | booleano | `true` | no | El regalo al referido solo se concede al verificar su correo. |
+| `plans_earn_points` | booleano | `false` | no | Los planes generan puntos de fidelización (base, cashback, comisiones y bono). Apagado, la línea del plan no puntúa; sus puntos de activación se abonan igual. |
 
 `HWE_Memberships_Settings::get()` nunca falla: lee cada valor con
 `\HWE\ControlCenter\Storage::get` y, sin Control Center, usa `DEFAULTS`. `moduleActive()` exige el
@@ -265,6 +266,14 @@ constancia de su propio ciclo, que escuchan solo hooks `hwe_membership_*`).
 `loyalty`. `shipping` publica `hwe_shipping_free_reason` y la constante
 `HWE_SHIPPING_FREE_REASON_FILTER`; membresías es su consumidor.
 
+- **Los planes no generan puntos.** El puente engancha `hwe_loyalty_line_earns` y devuelve
+  `false` para la línea de un producto de membresía (también para una variación, que hereda el
+  vínculo de su padre). Así el precio del plan no entra en la base de `loyalty` ni paga el bono
+  por producto. Es coherente con el descuento de socio, que tampoco se aplica a un plan: sus
+  puntos de activación son el beneficio del nivel, no un cashback por comprarlo. La instancia
+  puede revertirlo con «Los planes generan puntos de fidelización» (`plans_earn_points`,
+  apagado por defecto). Sin `loyalty` cargado no se registra el filtro.
+
 ## Carné digital
 
 `HWE_Memberships_Card::issue()` emite un token aleatorio de 32 bytes (hex), guarda **solo su
@@ -349,7 +358,8 @@ historial. Siempre ids numéricos, nunca datos personales:
 | `hwe_memberships_collected_on_completion` | `( string[] $methods ): string[]` | Medios que esperan a `completed` (defecto `cod`). |
 
 **Consume:** `hwe_email_verified`, `hwe_loyalty_attribution_confirmed`,
-`hwe_loyalty_entry_types`, `hwe_loyalty_order_earnings`, `hwe_loyalty_referrer_of`,
+`hwe_loyalty_entry_types`, `hwe_loyalty_order_earnings`, `hwe_loyalty_line_earns`,
+`hwe_loyalty_referrer_of`,
 `hwe_shipping_free_reason`, `hwe_control_center_schema`, `hwe_translatable_fields` y
 `hwe_revalidation_tags`.
 

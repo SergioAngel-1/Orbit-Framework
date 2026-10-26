@@ -15,6 +15,13 @@
  * esa base se resta la parte pagada con puntos (meta `_hwe_loyalty_discount`, escrita por la
  * tarea de canje) y el resultado nunca baja de 0. Los puntos se redondean siempre hacia abajo.
  *
+ * **Qué líneas cuentan** (punto de extensión `hwe_loyalty_line_earns`): cada línea de producto
+ * decide con el filtro `HWE_Loyalty_Earnings::FILTER_LINE_EARNS`, que recibe la línea y el pedido
+ * y por defecto vale `true`. Un módulo puede excluir productos que no deben puntuar (por ejemplo,
+ * el plan de una membresía) sin que `loyalty` conozca ese módulo. El mismo filtro rige el bono por
+ * producto: una línea que no cuenta para la base tampoco genera bono. Un valor no booleano se
+ * registra y se trata como `true` (no se pierden ganancias por un filtro mal escrito).
+ *
  * **Conceptos** (§6.2): cashback al comprador (si está activo y participa); comisión N1 al
  * referidor (porcentaje de primera compra o siguientes, dentro de `commission_duration_days`
  * desde la confirmación de la atribución —o desde su atribución si todavía está pendiente—);
@@ -56,6 +63,12 @@ final class HWE_Loyalty_Earnings {
 
 	/** Marca de pedido pagado íntegramente con puntos (la escribe la tarea de canje). */
 	public const META_PAID_WITH_POINTS = '_hwe_loyalty_paid_with_points';
+
+	/**
+	 * Filtro por línea de producto: ¿cuenta para la base de ganancias y el bono por producto?
+	 * Recibe `( bool $earns, WC_Order_Item_Product $item, WC_Order $order )`.
+	 */
+	public const FILTER_LINE_EARNS = 'hwe_loyalty_line_earns';
 
 	public const STATUS_PROCESSED = 'processed';
 	public const STATUS_REVERSED  = 'reversed';
@@ -230,13 +243,14 @@ final class HWE_Loyalty_Earnings {
 	/**
 	 * Base de cálculo: totales de línea (después de cupones) más sus impuestos, menos la parte
 	 * pagada con puntos, con suelo 0. Se ignoran el envío y todas las `fee_lines` (los extras de
-	 * envío del módulo `shipping` no se pueden distinguir de otros fees).
+	 * envío del módulo `shipping` no se pueden distinguir de otros fees). Las líneas que el filtro
+	 * `hwe_loyalty_line_earns` excluye no suman.
 	 */
 	public static function orderBase( WC_Order $order ): float {
 		$total = 0.0;
 
 		foreach ( (array) $order->get_items( 'line_item' ) as $item ) {
-			if ( ! is_object( $item ) ) {
+			if ( ! is_object( $item ) || ! self::lineEarns( $item, $order ) ) {
 				continue;
 			}
 			$total += (float) $item->get_total();
@@ -248,6 +262,26 @@ final class HWE_Loyalty_Earnings {
 		$decimals = function_exists( 'wc_get_price_decimals' ) ? (int) wc_get_price_decimals() : 2;
 
 		return round( $base, max( 0, $decimals ) );
+	}
+
+	/**
+	 * ¿La línea cuenta para la base y el bono? Lo decide `hwe_loyalty_line_earns`, que por
+	 * defecto vale `true`. Un valor no booleano se registra y se trata como `true`: un filtro mal
+	 * escrito no debe dejar al comprador sin ganancias.
+	 */
+	private static function lineEarns( object $item, WC_Order $order ): bool {
+		/** @var mixed $earns */
+		$earns = apply_filters( self::FILTER_LINE_EARNS, true, $item, $order );
+
+		if ( ! is_bool( $earns ) ) {
+			self::log(
+				'el filtro ' . self::FILTER_LINE_EARNS . ' devolvió ' . get_debug_type( $earns )
+				. '; la línea cuenta.'
+			);
+			return true;
+		}
+
+		return $earns;
 	}
 
 	/**
@@ -352,10 +386,15 @@ final class HWE_Loyalty_Earnings {
 			}
 		}
 
-		// Bono por producto: al N1, independiente de la ventana de comisión.
+		// Bono por producto: al N1, independiente de la ventana de comisión. Solo cuenta las
+		// líneas que la base acepta: un producto excluido (p. ej. un plan de membresía) tampoco
+		// genera bono.
 		$bonus = 0;
 		foreach ( (array) $order->get_items( 'line_item' ) as $item ) {
 			if ( ! is_object( $item ) || ! method_exists( $item, 'get_quantity' ) ) {
+				continue;
+			}
+			if ( ! self::lineEarns( $item, $order ) ) {
 				continue;
 			}
 			$quantity  = (int) $item->get_quantity();

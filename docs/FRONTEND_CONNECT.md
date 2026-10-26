@@ -619,7 +619,10 @@ no pide el campo de GraphQL, la extensión de la Store API no se registra y no s
 
 **Config pública** (`config.memberships`):
 `card_enabled`, `card_verify_path` (ruta del QR, normalizada) y `member_number_prefix`. El resto de
-ajustes son operativos de WordPress y no salen por la config. El BFF expone los tipos y helpers en
+ajustes son operativos de WordPress y no salen por la config. Entre ellos, «Los planes generan
+puntos de fidelización» (`plans_earn_points`, apagado por defecto) decide si la línea de un plan
+entra en la base de `loyalty`; el frontend no calcula puntos ganados (los abona WordPress), así
+que no replica esa regla. El BFF expone los tipos y helpers en
 `lib/memberships/` (`MembershipLevel`, `MembershipState`, `MembershipHistoryPage`,
 `MembershipsCartExtension`, `MembershipVerification`…, `parseMembershipsCartExtension`,
 `normalizeMembershipRequirement`, `describeBenefit`, `describeHistoryEntry`, `formatMemberNumber`,

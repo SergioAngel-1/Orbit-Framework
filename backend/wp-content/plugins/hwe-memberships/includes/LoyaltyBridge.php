@@ -19,6 +19,9 @@
  *    atribución, pero esa copia divergía cuando `loyalty` reasignaba, anonimizaba o
  *    desvinculaba la red. La meta solo se conserva para exportar y borrar restos de versiones
  *    anteriores (`REFERRER_META`); este puente ya no la escribe ni la lee.
+ *  · `lineEarns()` se engancha a `hwe_loyalty_line_earns` para que las líneas de un plan de
+ *    membresía no generen puntos (base, cashback, comisiones y bono por producto). La instancia
+ *    lo revierte con «Los planes generan puntos de fidelización» (`plans_earn_points`).
  *
  * Nada de aquí compone textos para el cliente ni registra datos personales: solo ids y claves
  * técnicas en `error_log('[hwe] memberships: …')`.
@@ -73,6 +76,89 @@ final class HWE_Memberships_LoyaltyBridge {
 		}
 
 		add_filter( 'hwe_loyalty_entry_types', array( self::class, 'entryTypes' ) );
+		// Las líneas de un plan no puntúan salvo que la instancia active `plans_earn_points`.
+		add_filter( 'hwe_loyalty_line_earns', array( self::class, 'lineEarns' ), 10, 3 );
+	}
+
+	/**
+	 * Excluye las líneas de un plan de membresía de la base de ganancias y del bono por producto.
+	 *
+	 * `loyalty` aplica `hwe_loyalty_line_earns` a cada línea con `true` por defecto. Aquí se
+	 * devuelve `false` para un producto de membresía (o una variación suya) mientras la instancia
+	 * no active «Los planes generan puntos de fidelización». Nunca se pisa una decisión anterior:
+	 * un `false` de otro filtro se respeta, y un valor no booleano se devuelve tal cual para que
+	 * `loyalty` lo registre y lo trate como `true`.
+	 *
+	 * @param mixed $earns Valor recibido (por defecto `true`).
+	 * @param mixed $item  Línea de pedido (`WC_Order_Item_Product`).
+	 * @param mixed $order Pedido (`WC_Order`).
+	 * @return mixed
+	 */
+	public static function lineEarns( $earns, $item, $order ) {
+		if ( ! is_bool( $earns ) || ! $earns ) {
+			return $earns;
+		}
+
+		if ( self::plansEarnPoints() || ! class_exists( 'HWE_Memberships_Products' ) ) {
+			return true;
+		}
+
+		foreach ( self::lineProductIds( $item ) as $productId ) {
+			if ( HWE_Memberships_Products::isMembershipLine( $productId ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * ¿La instancia quiere que los planes generen puntos? Falla cerrado (no puntúan) si el
+	 * ajuste no se puede leer: es la misma decisión por defecto del Control Center.
+	 */
+	private static function plansEarnPoints(): bool {
+		if ( ! class_exists( 'HWE_Memberships_Settings' ) ) {
+			return false;
+		}
+
+		try {
+			$settings = HWE_Memberships_Settings::get();
+		} catch ( \Throwable $e ) {
+			self::logOnce(
+				'earn:settings',
+				'no se pudo leer «planes generan puntos»; los planes no puntúan: ' . $e->getMessage()
+			);
+			return false;
+		}
+
+		return ! empty( $settings['plans_earn_points'] );
+	}
+
+	/**
+	 * Ids de producto de una línea de pedido: el producto y su variación, cuando existan. En una
+	 * línea de variación, WooCommerce guarda el padre en `product_id` y la variación en
+	 * `variation_id`.
+	 *
+	 * @param mixed $item
+	 * @return list<int>
+	 */
+	private static function lineProductIds( $item ): array {
+		if ( ! is_object( $item ) ) {
+			return array();
+		}
+
+		$ids = array();
+		foreach ( array( 'get_product_id', 'get_variation_id' ) as $method ) {
+			if ( ! method_exists( $item, $method ) ) {
+				continue;
+			}
+			$id = (int) $item->{$method}();
+			if ( $id > 0 ) {
+				$ids[ $id ] = $id;
+			}
+		}
+
+		return array_values( $ids );
 	}
 
 	/**
