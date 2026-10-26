@@ -37,6 +37,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **El frontend de desarrollo deriva su origen público de `FRONTEND_PORT`.** Con una pila en otro
+  puerto, `NEXT_PUBLIC_SITE_URL`, `ALLOWED_ORIGIN`, `HEADLESS_FRONTEND_URL` y
+  `HEADLESS_ALLOWED_ORIGINS` seguían fijando `localhost:3000`: los enlaces de recuperación y
+  verificación apuntaban al puerto de otra pila y la barrera de Origin del BFF rechazaba las
+  escrituras. Ahora, si no se declaran, `docker-compose.yml` las deriva de `FRONTEND_PORT`
+  (`http://localhost:<puerto>`); con el valor por defecto los valores efectivos son los de
+  siempre. Solo hay que tocar las cuatro variables si el origen público no es ese.
 - **El sitemap no anuncia fichas ocultas y ya no se trunca a 100.** El segmento `catalogo` lista
   ahora el catálogo completo recorriendo el cursor de WooGraphQL (hasta 20 tandas, el mismo tope
   que el índice del blog); antes `getProductUrls()` pedía una única tanda de 100 y una tienda con

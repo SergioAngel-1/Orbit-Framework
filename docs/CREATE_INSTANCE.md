@@ -78,6 +78,14 @@ variables de entorno, `.env.example` las documenta):
 | `REDIS_PORT` | `6379` | Puerto de Redis en el host (`127.0.0.1`). |
 | `WORDPRESS_PORT` / `FRONTEND_PORT` | `8080` / `3000` | Puertos de WordPress y del frontend en el host. |
 
+Con `FRONTEND_PORT` distinto de `3000` basta con cambiar esa variable: si no se declaran,
+`docker-compose.yml` deriva de ella `NEXT_PUBLIC_SITE_URL`, `ALLOWED_ORIGIN`,
+`HEADLESS_FRONTEND_URL` y `HEADLESS_ALLOWED_ORIGINS` (`http://localhost:<FRONTEND_PORT>`), así
+que los enlaces de recuperación/verificación y la barrera de Origin apuntan a la pila correcta.
+Solo hay que ajustar esas cuatro variables a mano si el origen público no es
+`http://localhost:<puerto>` (dominio propio, proxy, acceso desde la LAN); en producción van en
+`.env.prod` y no se derivan.
+
 Los scripts de verificación (`backend/scripts/verify-modules.sh`, `verify-integration.sh`)
 resuelven sus contenedores **por servicio de Compose del proyecto actual**, no por un nombre
 fijo, y aceptan `HWE_WP_CONTAINER` / `HWE_CLI_CONTAINER` como anulación explícita. Si el

@@ -337,6 +337,37 @@ describe("docker-compose.yml (desarrollo)", () => {
     expect(service(dev, "wp-cron")).toContain("wp cron event run --due-now");
   });
 
+  it("deriva el origen público y los orígenes permitidos de FRONTEND_PORT", () => {
+    const frontend = service(dev, "frontend");
+    const devOrigin = "http://localhost:${FRONTEND_PORT:-3000}";
+
+    // Sin esto, una pila en otro puerto publicaba enlaces de recuperación y
+    // verificación al :3000 de otra pila (o a nada) y el navegador no podía
+    // escribir en /api/* porque su Origin no coincidía con ALLOWED_ORIGIN.
+    expect(frontend).toMatch(
+      new RegExp(
+        `NEXT_PUBLIC_SITE_URL:\\s+"\\$\\{NEXT_PUBLIC_SITE_URL:-${devOrigin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\}"`,
+      ),
+    );
+    expect(frontend).toMatch(
+      new RegExp(
+        `ALLOWED_ORIGIN:\\s+"\\$\\{ALLOWED_ORIGIN:-${devOrigin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\}"`,
+      ),
+    );
+    const wordpress = wordpressConfig(dev);
+    expect(wordpress).toContain(
+      `define( 'HEADLESS_FRONTEND_URL', '\${HEADLESS_FRONTEND_URL:-http://localhost:\${FRONTEND_PORT:-3000}}' );`,
+    );
+    expect(wordpress).toContain(
+      `define( 'HEADLESS_ALLOWED_ORIGINS', '\${HEADLESS_ALLOWED_ORIGINS:-http://localhost:\${FRONTEND_PORT:-3000}}' );`,
+    );
+  });
+
+  it("con el puerto por defecto, los valores efectivos son los de siempre", () => {
+    expect(dev).toContain("${FRONTEND_PORT:-3000}");
+    expect(root(".env.example")).toMatch(/^FRONTEND_PORT=3000$/m);
+  });
+
   it("monta los plugins propios (módulos) que setup.sh activa", () => {
     for (const plugin of [
       "hwe-banners",
