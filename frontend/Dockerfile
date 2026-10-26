@@ -60,7 +60,9 @@ COPY --from=deps /app/node_modules ./node_modules
 #   - NEXT_PUBLIC_SITE_URL: fallback de `brand.url` si el CMS no responde.
 #   - CSP_ANALYTICS_PROVIDERS: estrecha los hosts de analítica autorizados en la
 #     CSP. La CSP la evalúa `next.config.mjs` al construir.
-#   - SENTRY_DSN: activa el wrap de `withSentryConfig` (túnel `/monitoring`).
+#   - SENTRY_DSN: activa el wrap de `withSentryConfig` (túnel `/monitoring`) y,
+#     si no hay `NEXT_PUBLIC_SENTRY_DSN`, se reexpone como DSN público del
+#     cliente. `NEXT_PUBLIC_SENTRY_REPLAY=true` activa replay (opt-in).
 #   - Ritmo y paciencia del prerender (solo afectan al BUILD, no al artefacto):
 #     sin valor, Next y el cliente GraphQL usan sus defaults.
 #
@@ -77,6 +79,8 @@ ARG WORDPRESS_INTERNAL_API_URL
 ARG NEXT_PUBLIC_SITE_URL
 ARG CSP_ANALYTICS_PROVIDERS
 ARG SENTRY_DSN
+ARG NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_SENTRY_REPLAY
 ARG NEXT_STATIC_GENERATION_MAX_CONCURRENCY
 ARG NEXT_STATIC_GENERATION_MIN_PAGES_PER_WORKER
 ARG NEXT_STATIC_PAGE_GENERATION_TIMEOUT
@@ -88,6 +92,8 @@ ENV WORDPRESS_PUBLIC_URL=$WORDPRESS_PUBLIC_URL \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     CSP_ANALYTICS_PROVIDERS=$CSP_ANALYTICS_PROVIDERS \
     SENTRY_DSN=$SENTRY_DSN \
+    NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
+    NEXT_PUBLIC_SENTRY_REPLAY=$NEXT_PUBLIC_SENTRY_REPLAY \
     NEXT_STATIC_GENERATION_MAX_CONCURRENCY=$NEXT_STATIC_GENERATION_MAX_CONCURRENCY \
     NEXT_STATIC_GENERATION_MIN_PAGES_PER_WORKER=$NEXT_STATIC_GENERATION_MIN_PAGES_PER_WORKER \
     NEXT_STATIC_PAGE_GENERATION_TIMEOUT=$NEXT_STATIC_PAGE_GENERATION_TIMEOUT \

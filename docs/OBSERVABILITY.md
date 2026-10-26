@@ -49,7 +49,23 @@ Clientes WP (graphql-client / woocommerce/client / store-client)
   `payments.webhook.paid`, `guard.blocked`, `orders.get.idor`). Filtra por `event`.
 - **Errores no controlados:** `src/instrumentation.ts` (`onRequestError`) los registra
   y, si `SENTRY_DSN` está definido, los envía a **Sentry**
-  (`sentry.{client,server,edge}.config.ts`).
+  (`sentry.server.config.ts` y `sentry.edge.config.ts`).
+
+### 2.1 Sentry en el navegador
+
+- **Sin DSN público no se carga nada.** `src/instrumentation-client.ts` solo importa
+  `lib/observability/client-sentry.ts`, que hace un import **dinámico** de
+  `@sentry/nextjs`; el SDK (~178 kB gz con replay) ya no viaja en el bundle inicial
+  de todas las páginas. Para activarlo define `NEXT_PUBLIC_SENTRY_DSN` (o `SENTRY_DSN`,
+  que `next.config.mjs` reexpone como público) **en el build**: Next inlinea el valor.
+- **Carga diferida:** el SDK se importa cuando el navegador queda inactivo
+  (`requestIdleCallback`, con tope de 3 s) y, si el usuario navega antes, en la
+  primera transición del App Router (`onRouterTransitionStart`). Los errores de la
+  ventana previa se guardan en un buffer (20) y se envían al inicializar. Lo que se
+  pierde: lo ocurrido antes de que se ejecute el script de arranque de Next.
+- **Session Replay es opt-in:** `NEXT_PUBLIC_SENTRY_REPLAY=true`. Por defecto no se
+  registra `replayIntegration()` (graba la sesión del comprador y pesa). Con replay
+  activo, muestreo de sesión 10 % y 100 % en error.
 
 ## 3. Eventos que merecen alerta
 

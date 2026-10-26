@@ -152,22 +152,55 @@ const catalogAliases = Object.fromEntries(
   ]),
 );
 
+// ----------------------------------------------------------------------------
+//  DSN público de Sentry para el cliente. Next solo inlinea los accesos
+//  literales a `process.env.NEXT_PUBLIC_*`; si la instancia solo define
+//  `SENTRY_DSN` (como hasta ahora), se reexpone con el nombre público para que
+//  el navegador lo vea. Un DSN NO es un secreto: el SDK de navegador lo publica
+//  por diseño. `NEXT_PUBLIC_SENTRY_DSN` tiene prioridad.
+// ----------------------------------------------------------------------------
+const publicSentryDsn =
+  process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN || "";
+const clientSentryEnv = {
+  ...(publicSentryDsn ? { NEXT_PUBLIC_SENTRY_DSN: publicSentryDsn } : {}),
+  ...(process.env.NEXT_PUBLIC_SENTRY_REPLAY
+    ? { NEXT_PUBLIC_SENTRY_REPLAY: process.env.NEXT_PUBLIC_SENTRY_REPLAY }
+    : {}),
+};
+
+// Sin DSN no hay nada que instrumentar EN EL NAVEGADOR: el SDK de cliente se
+// resuelve a un no-op y no viaja en el build. La condición `browser` deja el
+// SDK real en servidor/edge (ahí no se inicializa sin DSN, pero un despliegue
+// puede activarlo sin reconstruir la imagen).
+const sentryAliases = publicSentryDsn
+  ? {}
+  : {
+      "@sentry/nextjs": {
+        browser: "./src/lib/observability/sentry-noop.ts",
+      },
+    };
+const turbopackAliases = {
+  ...Object.fromEntries(
+    OPTIONAL_CATALOGS.map(({ specifier }) => [specifier, "./src/i18n/messages/es.json"]),
+  ),
+  ...sentryAliases,
+};
+
 const nextConfig = withNextIntl({
-  // Un catálogo opcional ausente se resuelve al español (ver `OPTIONAL_CATALOGS`).
-  ...(OPTIONAL_CATALOGS.length > 0
+  // Congeladas en el bundle al construir (ver `clientSentryEnv` arriba).
+  env: clientSentryEnv,
+  // Catálogos opcionales y, sin DSN, el stub de Sentry (ver arriba).
+  ...(Object.keys(turbopackAliases).length > 0
     ? {
-        turbopack: {
-          resolveAlias: Object.fromEntries(
-            OPTIONAL_CATALOGS.map(({ specifier }) => [
-              specifier,
-              "./src/i18n/messages/es.json",
-            ]),
-          ),
-        },
-        webpack: (config) => {
-          config.resolve.alias = { ...config.resolve.alias, ...catalogAliases };
-          return config;
-        },
+        turbopack: { resolveAlias: turbopackAliases },
+        ...(OPTIONAL_CATALOGS.length > 0
+          ? {
+              webpack: (config) => {
+                config.resolve.alias = { ...config.resolve.alias, ...catalogAliases };
+                return config;
+              },
+            }
+          : {}),
       }
     : {}),
 
@@ -236,10 +269,11 @@ const nextConfig = withNextIntl({
 
 let finalConfig = nextConfig;
 
-// Envuelve con Sentry si el SDK está disponible y hay DSN.
+// Envuelve con Sentry si el SDK está disponible y hay DSN (de servidor o
+// público). El wrap aporta el túnel `/monitoring` y la subida de source maps.
 try {
   const { withSentryConfig } = await import("@sentry/nextjs");
-  if (process.env.SENTRY_DSN) {
+  if (process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN) {
     finalConfig = withSentryConfig(nextConfig, {
       silent: !process.env.CI,
       widenClientFileUpload: true,

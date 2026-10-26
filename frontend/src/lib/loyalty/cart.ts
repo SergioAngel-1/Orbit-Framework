@@ -1,7 +1,13 @@
-import { z } from "zod";
 import type { LoyaltyCartExtension } from "./types";
 import type { LoyaltyConfig } from "@/lib/config/types";
 import type { StoreCart } from "@/types/woocommerce";
+import {
+  isBoolean,
+  isMinorUnits,
+  isNonNegativeInteger,
+  isRecord,
+  isString,
+} from "@/lib/validation/light";
 
 // ============================================================================
 //  Lectura del canje y cálculo del máximo canjeable para MOSTRAR.
@@ -124,34 +130,26 @@ const REASONS = [
   "cart_below_cash_minimum",
 ] as const;
 
-const extensionSchema = z.object({
-  available: z.boolean(),
-  // Un motivo futuro no debe romper la lectura: se normaliza a `null`.
-  reason: z
-    .string()
-    .nullish()
-    .transform((reason): LoyaltyCartExtension["reason"] =>
-      reason && (REASONS as readonly string[]).includes(reason)
-        ? (reason as LoyaltyCartExtension["reason"])
-        : null,
-    ),
-  balance: z.number().int().nonnegative(),
-  points_applied: z.number().int().nonnegative(),
-  // Importe de la Store API: unidades menores como string de dígitos.
-  discount: z.string().regex(/^\d+$/),
-  max_redeemable: z.number().int().nonnegative(),
-  min_redeem: z.number().int().nonnegative(),
-  full_payment_available: z.boolean(),
-});
+const KNOWN_REASONS: ReadonlySet<string> = new Set(REASONS);
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+/**
+ * Normaliza el motivo: `null` si falta o es desconocido, y `undefined` (que
+ * invalida la extensión) si no es un string. Misma regla que el `transform` de
+ * zod que sustituye: un motivo futuro no rompe la lectura, un tipo erróneo sí.
+ */
+function parseReason(value: unknown): LoyaltyCartExtension["reason"] | undefined {
+  if (value === undefined || value === null) return null;
+  if (!isString(value)) return undefined;
+  return KNOWN_REASONS.has(value) ? (value as LoyaltyCartExtension["reason"]) : null;
 }
 
 /**
  * Lee `extensions["hwe-loyalty"]` del carrito. Tolera la extensión ausente (el
  * módulo apagado no la registra) y una malformada (un plugin de terceros, una
  * versión distinta): devuelve `null` en vez de lanzar.
+ *
+ * Validación manual a propósito (ver `lib/validation/light.ts`): importar zod
+ * aquí lo arrastraría al bundle inicial de cualquier página con cajón de carrito.
  */
 export function parseLoyaltyCartExtension(
   cart: Pick<StoreCart, "extensions"> | unknown,
@@ -160,6 +158,41 @@ export function parseLoyaltyCartExtension(
   const raw = cart.extensions[LOYALTY_CART_EXTENSION];
   if (!isRecord(raw)) return null;
 
-  const parsed = extensionSchema.safeParse(raw);
-  return parsed.success ? parsed.data : null;
+  const {
+    available,
+    balance,
+    points_applied,
+    discount,
+    max_redeemable,
+    min_redeem,
+    full_payment_available,
+  } = raw;
+
+  if (
+    !isBoolean(available) ||
+    !isNonNegativeInteger(balance) ||
+    !isNonNegativeInteger(points_applied) ||
+    !isMinorUnits(discount) ||
+    !isNonNegativeInteger(max_redeemable) ||
+    !isNonNegativeInteger(min_redeem) ||
+    !isBoolean(full_payment_available)
+  ) {
+    return null;
+  }
+
+  const reason = parseReason(raw.reason);
+  // `undefined` = motivo de un tipo que no es string: contrato incumplido.
+  if (reason === undefined) return null;
+
+  // Se reconstruye con las claves del contrato: las extra se descartan.
+  return {
+    available,
+    reason,
+    balance,
+    points_applied,
+    discount,
+    max_redeemable,
+    min_redeem,
+    full_payment_available,
+  };
 }
