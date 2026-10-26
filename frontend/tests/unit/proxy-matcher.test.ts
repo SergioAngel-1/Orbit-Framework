@@ -23,6 +23,9 @@ describe("matcher del proxy", () => {
   it("no entra en las rutas de metadatos dinámicas de Next", () => {
     expect(matches("/icon")).toBe(false);
     expect(matches("/apple-icon")).toBe(false);
+    // `generateImageMetadata` sirve las variantes en `/icon/<id>`.
+    expect(matches("/icon/1")).toBe(false);
+    expect(matches("/apple-icon/1")).toBe(false);
   });
 
   it("sí entra en las páginas (con y sin prefijo de idioma)", () => {
