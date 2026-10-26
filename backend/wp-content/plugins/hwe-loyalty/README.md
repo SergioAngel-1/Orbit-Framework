@@ -41,18 +41,18 @@ Todos los campos son públicos excepto `allowed_roles`, que es un ajuste operati
 | `referrals_enabled` | booleano | `false` | Comisiones y puntos por alta de referidos. Exige puntos activos. |
 | `currency_name` / `currency_name_plural` | texto | `punto` / `puntos` | Nombre de la unidad. Ningún texto del módulo lo lleva escrito a mano. |
 | `currency_icon` | imagen | vacío | Icono de la unidad (medioteca o URL). |
-| `point_value` | texto decimal | `0.01` | Valor de 1 unidad en la moneda de la tienda. Con 0 o menos, el canje queda desactivado. |
+| `point_value` | texto decimal | `0.01` | Valor de 1 unidad en la moneda de la tienda. Convierte a unidades los porcentajes (cashback y comisiones) y el canje. Con 0 o menos, el canje queda desactivado y los porcentajes se pagan 1 unidad = 1 de la moneda (se registra una vez). |
 | `min_redeem` | entero | `100` | Mínimo de unidades para canjear. |
 | `max_redeem_per_order` | entero | `0` | Tope por pedido. 0 = sin tope. |
 | `max_redeem_percent` | entero | `0` | Tope del descuento como porcentaje (0–100) de la base **sin envío** (productos + cargos ajenos), convertido a unidades hacia abajo. Se combina con los demás topes tomando el menor. 0 = sin tope. |
 | `full_payment_enabled` | booleano | `false` | Permite cubrir el pedido completo (envío incluido). |
 | `min_cash_due` | texto decimal | `0.01` | Con el pago completo apagado, importe que debe quedar por pagar en dinero. |
 | `expiry_days` | entero | `0` | Caducidad de los abonos. 0 = no caducan. |
-| `cashback_enabled` / `cashback_percent` | booleano / entero | `false` / `0` | Devolución al comprador sobre la base de la compra. |
+| `cashback_enabled` / `cashback_percent` | booleano / entero | `false` / `0` | Devolución al comprador sobre la base de la compra. El porcentaje es **valor**: se convierte a unidades con `point_value`. |
 | `events.registration` / `events.review` / `events.birthday` | entero | `0` | Unidades por evento. 0 = apagado. |
 | `referral_signup_points_l1` / `_l2` | entero | `0` | Unidades al referidor por el alta del referido (nivel 1 y 2). |
-| `commission_first_percent` / `commission_next_percent` | entero | `0` | Comisión del referidor en la primera compra y en las siguientes. |
-| `level2_enabled` / `commission_level2_percent` | booleano / entero | `false` / `0` | Comisión para el referidor del referidor. |
+| `commission_first_percent` / `commission_next_percent` | entero | `0` | Comisión del referidor en la primera compra y en las siguientes, **en valor**: se convierte a unidades con `point_value`. |
+| `level2_enabled` / `commission_level2_percent` | booleano / entero | `false` / `0` | Comisión para el referidor del referidor, **en valor**: se convierte a unidades con `point_value`. |
 | `commission_duration_days` | entero | `0` | Días en los que se paga comisión desde la atribución. 0 = sin límite. |
 | `transfers_enabled` | booleano | `false` | Transferencias entre usuarios por código de referido. |
 | `transfer_min` / `transfer_fee_percent` / `transfer_daily_cap` | entero | `100` / `0` / `0` | Mínimo por transferencia, comisión de la tienda y tope diario. |
@@ -200,11 +200,19 @@ por pedido: un pedido ya procesado, revertido o saltado no vuelve a abonar.
   módulo excluye así productos que no deben puntuar (el caso vivo: el plan de `memberships`) sin
   que `loyalty` conozca ese módulo. El mismo filtro rige el bono por producto: una línea que no
   cuenta para la base tampoco paga bono. Un valor no booleano se registra y se trata como `true`.
-- **Cashback** (si activo): `% cashback × base` al comprador.
-- **Comisión N1**: `% primera compra` si es el primer pedido cobrado del comprador (por cuenta,
-  ignorando el actual) y `% siguientes` después, dentro de `commission_duration_days` desde la
-  confirmación de la atribución (`0` = sin límite).
-- **Comisión N2** (si `level2_enabled`): `% nivel 2 × base` al referidor del referidor.
+- **Conversión dinero → unidades** (`HWE_Loyalty_Earnings::toUnits()`): el porcentaje se aplica
+  al **valor** de la base y el resultado se convierte a unidades con `point_value`
+  (`floor(round(importe / point_value, 6))`, hacia abajo). Ejemplo: 3 % de 59 900 con
+  `point_value = 10` son 1 797 de valor, es decir **179 unidades** (no 1 797). Con el `0.01` por
+  defecto, 3 % de 100 son 300 unidades (valor 3). Es la única conversión del cálculo de
+  ganancias; con `point_value <= 0` (canje desactivado) se mantiene 1 unidad = 1 de la moneda y
+  se registra una sola vez. Los importes en **unidades fijas** (bono por producto, eventos y
+  primas de alta) no pasan por ella.
+- **Cashback** (si activo): `toUnits(% cashback × base)` al comprador.
+- **Comisión N1**: `toUnits(% primera compra × base)` si es el primer pedido cobrado del comprador
+  (por cuenta, ignorando el actual) y `toUnits(% siguientes × base)` después, dentro de
+  `commission_duration_days` desde la confirmación de la atribución (`0` = sin límite).
+- **Comisión N2** (si `level2_enabled`): `toUnits(% nivel 2 × base)` al referidor del referidor.
 - **Bono por producto**: `bono × cantidad` por línea al N1, si el producto declara
   `loyalty_referrer_bonus` (campo de producto entero ≥ 0, no traducible).
 - **Exclusiones**: pedidos de invitado, pedidos pagados del todo con unidades y la parte pagada

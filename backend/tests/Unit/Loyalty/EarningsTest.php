@@ -67,7 +67,9 @@ final class EarningsTest extends TestCase
                 'referrals_enabled'         => '1',
                 'currency_name'             => 'punto',
                 'currency_name_plural'      => 'puntos',
-                'point_value'               => '0.01',
+                // 1 unidad = 1 de la moneda: el resto de casos prueba la lógica de porcentajes,
+                // ventanas y reversión sin el factor de conversión, que tiene tests propios.
+                'point_value'               => '1',
                 'expiry_days'               => '0',
                 'cashback_enabled'          => '0',
                 'cashback_percent'          => '0',
@@ -414,6 +416,101 @@ final class EarningsTest extends TestCase
         $this->assertSame(9, $this->pointsOf(self::BUYER, 'cashback'), '9.9 se redondea hacia abajo.');
     }
 
+    // ── Valor de la unidad en los porcentajes ────────────────────────────────
+
+    public function test_cashback_percent_is_a_value_converted_to_units_with_the_point_value(): void
+    {
+        $this->clearReferrer(self::BUYER);
+        $this->setLoyalty([
+            'cashback_enabled' => '1',
+            'cashback_percent' => '3',
+            'point_value'      => '10',
+        ]);
+        $this->makeOrder(55, self::BUYER, ['items' => [$this->item(101, 1, 59900.0)]]);
+
+        \HWE_Loyalty_Earnings::processOrder(55);
+
+        $this->assertSame(
+            179,
+            $this->pointsOf(self::BUYER, 'cashback'),
+            '3 % de 59 900 = 1 797 de valor; con 1 unidad = 10, son 179.7 → 179 unidades.'
+        );
+    }
+
+    public function test_the_default_point_value_turns_the_percentage_into_its_value_in_units(): void
+    {
+        $this->clearReferrer(self::BUYER);
+        $this->setLoyalty([
+            'cashback_enabled' => '1',
+            'cashback_percent' => '3',
+            'point_value'      => '0.01',
+        ]);
+        $this->makeOrder(55, self::BUYER, ['items' => [$this->item(101, 1, 100.0)]]);
+
+        \HWE_Loyalty_Earnings::processOrder(55);
+
+        $this->assertSame(
+            300,
+            $this->pointsOf(self::BUYER, 'cashback'),
+            '3 % de 100 = 3 de valor; con 1 unidad = 0.01, son 300 unidades.'
+        );
+    }
+
+    public function test_point_value_one_keeps_the_previous_unit_per_currency_result(): void
+    {
+        $this->clearReferrer(self::BUYER);
+        $this->setLoyalty([
+            'cashback_enabled' => '1',
+            'cashback_percent' => '10',
+            'point_value'      => '1',
+        ]);
+        $this->makeOrder(55, self::BUYER, ['items' => [$this->item(101, 1, 100.0)]]);
+
+        \HWE_Loyalty_Earnings::processOrder(55);
+
+        $this->assertSame(10, $this->pointsOf(self::BUYER, 'cashback'), 'Con 1 unidad = 1, el porcentaje no cambia.');
+    }
+
+    public function test_zero_point_value_keeps_one_unit_per_currency_and_logs_it_once(): void
+    {
+        $this->clearReferrer(self::BUYER);
+        $this->setLoyalty([
+            'cashback_enabled' => '1',
+            'cashback_percent' => '3',
+            'point_value'      => '0',
+        ]);
+
+        $this->makeOrder(55, self::BUYER, ['items' => [$this->item(101, 1, 100.0)]]);
+        \HWE_Loyalty_Earnings::processOrder(55);
+        $this->makeOrder(56, self::BUYER, ['items' => [$this->item(101, 1, 100.0)]]);
+        \HWE_Loyalty_Earnings::processOrder(56);
+
+        $this->assertSame(6, $this->pointsOf(self::BUYER, 'cashback'), 'Sin valor de la unidad, 1 unidad = 1 de moneda.');
+        $warnings = array_values(array_filter(
+            $this->logged,
+            static fn (string $message): bool => str_contains($message, 'point_value')
+        ));
+        $this->assertCount(1, $warnings, 'La conversión sin valor de unidad se registra una sola vez.');
+        $this->assertStringContainsString('1 unidad = 1 de la moneda', $warnings[0]);
+    }
+
+    public function test_level_one_and_two_percentage_commissions_are_converted_with_the_point_value(): void
+    {
+        $this->setLoyalty([
+            'commission_first_percent'  => '10',
+            'commission_next_percent'   => '0',
+            'level2_enabled'            => '1',
+            'commission_level2_percent' => '3',
+            'point_value'               => '10',
+        ]);
+        $this->makeOrder(55, self::BUYER, ['items' => [$this->item(101, 1, 59900.0)]]);
+
+        \HWE_Loyalty_Earnings::processOrder(55);
+
+        $this->assertSame(599, $this->pointsOf(self::REFERRER, 'referral_commission_l1'), '10 % de 59 900 / 10 = 599.');
+        $this->assertSame(179, $this->pointsOf(self::GRANDPARENT, 'referral_commission_l2'), '3 % de 59 900 / 10 = 179.7 → 179.');
+    }
+
     // ── Comisiones N1 y N2 ───────────────────────────────────────────────────
 
     public function test_first_purchase_uses_the_first_percent_and_later_ones_use_the_next(): void
@@ -526,6 +623,25 @@ final class EarningsTest extends TestCase
         $this->assertSame(
             'earn:order:55:referral_product_bonus:' . self::REFERRER,
             (string) $this->entriesOf(self::REFERRER, 'referral_product_bonus')[0]['idempotency_key']
+        );
+    }
+
+    public function test_the_product_bonus_is_fixed_units_and_does_not_depend_on_the_point_value(): void
+    {
+        $this->setLoyalty([
+            'commission_first_percent' => '0',
+            'commission_next_percent'  => '0',
+            'point_value'              => '10',
+        ]);
+        $this->postMeta[101]['_hwe_loyalty_referrer_bonus'] = '5';
+
+        $this->makeOrder(55, self::BUYER, ['items' => [$this->item(101, 2, 70.0)]]);
+        \HWE_Loyalty_Earnings::processOrder(55);
+
+        $this->assertSame(
+            10,
+            $this->pointsOf(self::REFERRER, 'referral_product_bonus'),
+            'El bono por producto son unidades fijas (5 × 2), no un importe convertido.'
         );
     }
 

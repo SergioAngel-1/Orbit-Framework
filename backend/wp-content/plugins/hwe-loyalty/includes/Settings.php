@@ -179,7 +179,7 @@ final class HWE_Loyalty_Settings {
 				'label'       => 'Valor de 1 unidad en la moneda de la tienda',
 				'default'     => $d['point_value'],
 				'public'      => true,
-				'description' => 'Decimal (p. ej. 0.01). Con 0 o menos, el canje queda desactivado.',
+				'description' => 'Decimal (p. ej. 0.01). Convierte a unidades los porcentajes (cashback y comisiones) y el canje. Con 0 o menos, el canje queda desactivado y los porcentajes se pagan 1 unidad = 1 de la moneda.',
 			),
 			'min_redeem'                => array(
 				'type'        => 'number',
@@ -242,7 +242,7 @@ final class HWE_Loyalty_Settings {
 				'min'         => 0,
 				'max'         => 100,
 				'public'      => true,
-				'description' => 'Porcentaje de la base de compra que recibe el comprador. 0 = no devuelve nada.',
+				'description' => 'Porcentaje de la base de compra que recibe el comprador, en valor: se convierte a unidades con el valor de la unidad. 0 = no devuelve nada.',
 			),
 			'events'                    => array(
 				'type'     => 'group',
@@ -297,7 +297,7 @@ final class HWE_Loyalty_Settings {
 				'min'         => 0,
 				'max'         => 100,
 				'public'      => true,
-				'description' => 'Porcentaje de la base de la primera compra pagada del referido.',
+				'description' => 'Porcentaje de la base de la primera compra pagada del referido, en valor: se convierte a unidades con el valor de la unidad.',
 			),
 			'commission_next_percent'   => array(
 				'type'        => 'number',
@@ -306,7 +306,7 @@ final class HWE_Loyalty_Settings {
 				'min'         => 0,
 				'max'         => 100,
 				'public'      => true,
-				'description' => 'Porcentaje de la base de las compras posteriores a la primera.',
+				'description' => 'Porcentaje de la base de las compras posteriores a la primera, en valor: se convierte a unidades con el valor de la unidad.',
 			),
 			'level2_enabled'            => array(
 				'type'        => 'boolean',
@@ -322,7 +322,7 @@ final class HWE_Loyalty_Settings {
 				'min'         => 0,
 				'max'         => 100,
 				'public'      => true,
-				'description' => 'Porcentaje para el referidor del referidor. Solo con el nivel 2 encendido.',
+				'description' => 'Porcentaje para el referidor del referidor, en valor: se convierte a unidades con el valor de la unidad. Solo con el nivel 2 encendido.',
 			),
 			'commission_duration_days'  => array(
 				'type'        => 'number',

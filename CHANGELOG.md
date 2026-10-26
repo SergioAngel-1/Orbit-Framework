@@ -7,6 +7,18 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **El cashback y las comisiones por porcentaje pagan su valor real en la moneda.** `hwe-loyalty`
+  convertía un porcentaje de la base (dinero) directamente en unidades, así que el porcentaje
+  devuelto dependía de `point_value`: con el `0.01` por defecto, un cashback del 3 % pagaba el
+  0,03 % del valor de la compra; con `point_value = 10`, el 30 %. Ahora la conversión es única
+  (`HWE_Loyalty_Earnings::toUnits()`): se aplica el porcentaje al valor de la base y se divide por
+  `point_value` (`floor(round(importe / point_value, 6))`), que es el mismo contrato que ya usaban
+  el canje y la descripción del campo. Un 3 % de 59 900 con `point_value = 10` son 179 unidades,
+  no 1 797. Las ganancias en unidades fijas (bono por producto, puntos por evento y primas de
+  alta) no cambian. Con `point_value <= 0` (canje desactivado) se conserva 1 unidad = 1 de la
+  moneda y se registra una vez. **Cambio de importes para las instancias con `point_value != 1`:**
+  no se migra el libro —los abonos ya hechos se quedan— y la corrección se aplica a los pedidos
+  procesados a partir de la actualización. Fix compatible (parche).
 - **Los planes de membresía ya no generan puntos de fidelización.** `hwe-loyalty` calculaba la
   base de ganancias con todas las líneas del pedido, así que comprar un plan generaba cashback,
   comisiones y bono como cualquier producto. Ahora cada línea decide con el filtro nuevo

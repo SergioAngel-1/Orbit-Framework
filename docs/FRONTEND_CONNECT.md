@@ -912,7 +912,10 @@ y `/api/store/products?search=` (búsqueda; el listado sin búsqueda sigue sirvi
   core: `lib/banners/getBanner(type, location, locale)` con ISR tag `banners`.
 - `loyalty.*` — configuración pública del módulo `loyalty` (nombres de la unidad, valor, topes
   —`max_redeem_per_order` y `max_redeem_percent`—, eventos, comisiones y transferencias).
-  `allowed_roles` es operativo y **no** se publica. Con el
+  `allowed_roles` es operativo y **no** se publica. `cashback_percent` y los porcentajes de
+  comisión son **valor**: WordPress los convierte a unidades con `point_value`
+  (`floor(importe / point_value)`); el frontend no calcula ganancias, solo presenta el valor del
+  saldo (`pointsToMoney`). Con el
   módulo apagado llegan los defaults y las rutas del BFF responden 404; con `points_enabled`
   apagado, las de puntos; con `referrals_enabled` o `transfers_enabled` apagados, las suyas.
 - `memberships.*` — solo los tres campos públicos del carné (`card_enabled`, `card_verify_path`,
