@@ -1,4 +1,11 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+// Las URL internas de estos tests no dependen del registro de la instancia: sin
+// este mock, una tienda que remapee `/reset-password` o `/verify-email` con
+// `publicPaths` haría fallar la suite del núcleo. Los mapas se prueban en
+// `email-links.public-paths.test.ts`.
+vi.mock("@/instance/registry", () => ({ instanceRegistry: {} }));
+
 import { authEmailLocale, authEmailUrl } from "./email-links";
 
 afterEach(() => {

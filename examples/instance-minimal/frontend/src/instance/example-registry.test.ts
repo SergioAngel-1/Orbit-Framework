@@ -11,9 +11,19 @@ import { toInternalPath, toPublicPath } from "@/lib/instance/public-paths";
 
 describe("registro del ejemplo (contrato 2.2)", () => {
   it("sirve `/about` en `/nosotros` y deshace el camino", () => {
-    expect(instanceRegistry.publicPaths).toMatchObject({ "/about": "/nosotros" });
+    expect(instanceRegistry.publicPaths).toMatchObject({
+      "/about": "/nosotros",
+    });
     expect(toPublicPath("/about", "es")).toBe("/nosotros");
     expect(toInternalPath("/nosotros", "es")).toBe("/about");
+  });
+
+  it("remapea también una vista de auth, para que el contrato cace tests no aislados", () => {
+    expect(instanceRegistry.publicPaths).toMatchObject({
+      "/reset-password": "/example-access",
+    });
+    expect(toPublicPath("/reset-password", "es")).toBe("/example-access");
+    expect(toInternalPath("/example-access", "es")).toBe("/reset-password");
   });
 
   it("declara la zona horaria de la tienda", () => {

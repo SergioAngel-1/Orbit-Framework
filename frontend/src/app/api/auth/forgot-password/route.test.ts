@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// El enlace se fija sin mapa de rutas públicas: los remapeos de una instancia se
+// prueban en `email-links.public-paths.test.ts` y aquí solo estorbarían.
+vi.mock("@/instance/registry", () => ({ instanceRegistry: {} }));
+
 import { POST } from "./route";
 
 // ============================================================================

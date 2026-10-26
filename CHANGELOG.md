@@ -7,6 +7,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Changed
+- **Solo tests: la suite del núcleo ya no depende del registro de la instancia en los correos de
+  auth.** `email-links.test.ts` y los tests de `forgot-password`/`verify-email` fijaban las rutas
+  internas sin aislar `@/instance/registry`, así que una tienda que remapeara `/reset-password` o
+  `/verify-email` con `publicPaths` veía fallar tests del núcleo. Ahora simulan un registro vacío
+  (como los tests de sitemap y `llms.txt`) y el ejemplo vivo remapea también `/reset-password`,
+  de modo que el job «contrato» detecte en el futuro cualquier test no aislado. Sin cambios de
+  comportamiento.
 - **Sentry en el navegador es opcional y se carga de forma diferida.** `instrumentation-client.ts`
   ya no importa `@sentry/nextjs` de forma estática: el SDK (~162 kB gz con el chunk de replay
   aparte) solo se pide cuando hay `NEXT_PUBLIC_SENTRY_DSN` y el navegador queda inactivo (o en la

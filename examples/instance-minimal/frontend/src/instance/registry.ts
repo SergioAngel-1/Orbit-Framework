@@ -16,6 +16,9 @@ export const instanceRegistry: InstanceRegistry = {
   // El ejemplo superpuesto demuestra que el núcleo sabe leerlos sin que su suite dependa de ellos.
   publicPaths: {
     "/about": "/nosotros",
+    // Una vista de auth: si un test del núcleo fija su URL interna sin aislar el
+    // registro, el job «contrato» lo caza (ver `lib/auth/email-links.test.ts`).
+    "/reset-password": "/example-access",
   },
   timeZone: "America/Bogota",
   // Campos de producto declarativos: las mismas claves y tipos que `hwe_product_fields` del
