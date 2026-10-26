@@ -11,6 +11,7 @@ import { completeStoreCart } from "@/lib/woocommerce/complete-cart";
 import { requestLocale } from "@/lib/i18n/request-locale";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
+import { WooCommerceError } from "@/lib/woocommerce/client";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/http/request-ip";
 import { logger } from "@/lib/observability/logger";
@@ -104,6 +105,21 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * ¿La respuesta tiene forma de carrito? La Store API de WooCommerce contesta al
+ * vaciado con una LISTA vacía (`[]`), no con el carrito: tratarla como carrito
+ * hacía reventar `completeStoreCart` (500) y el navegador se quedaba con las
+ * líneas viejas hasta recargar.
+ */
+function isStoreCart(data: unknown): data is StoreCart {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    !Array.isArray(data) &&
+    Array.isArray((data as StoreCart).items)
+  );
+}
+
 /** DELETE /api/store/cart — vacía el carrito por completo. */
 export async function DELETE(request: Request) {
   const blocked = await guardMutation(request, {
@@ -112,15 +128,33 @@ export async function DELETE(request: Request) {
   if (blocked) return blocked;
   try {
     const { cartToken: token, authToken } = await getCartRequestAuth();
-    const { data, cartToken } = await storeFetch<StoreCart>("/cart/items", {
+    const cleared = await storeFetch<StoreCart | unknown>("/cart/items", {
       method: "DELETE",
       cartToken: token,
       authToken,
     });
+    let cart: StoreCart;
+    let cartToken = cleared.cartToken ?? token;
+    if (isStoreCart(cleared.data)) {
+      // Alguna versión de la Store API ya devuelve el carrito vaciado.
+      cart = cleared.data;
+    } else {
+      // Relectura con la misma sesión y el token que haya dejado el vaciado.
+      const reread = await storeFetch<StoreCart>("/cart", { cartToken, authToken });
+      if (!isStoreCart(reread.data)) {
+        throw new WooCommerceError(
+          "La Store API no devolvió un carrito tras vaciarlo.",
+          502,
+          "wc_store_invalid_cart",
+        );
+      }
+      cart = reread.data;
+      cartToken = reread.cartToken ?? cartToken;
+    }
     await writeCartToken(cartToken);
     logger.info({ event: "cart.clear" }, "Carrito vaciado");
     return NextResponse.json(
-      await completeStoreCart(data, requestLocale(request.headers)),
+      await completeStoreCart(cart, requestLocale(request.headers)),
     );
   } catch (error) {
     logger.error(

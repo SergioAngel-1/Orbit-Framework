@@ -30,6 +30,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **Vaciar el carrito responde 200 con el carrito vacío, no 500.** La Store API de WooCommerce
+  contesta a `DELETE /cart/items` con una lista vacía, y el BFF la pasaba a
+  `completeStoreCart` como si fuera un `StoreCart`: la petición acababa en 500 y el cajón seguía
+  enseñando las líneas viejas. Ahora, si la respuesta no tiene forma de carrito, `DELETE
+  /api/store/cart` relee el carrito con la misma sesión y el token que haya devuelto el vaciado, y
+  responde con ese carrito completado. Si la relectura falla se devuelve el error normalizado; el
+  `Cart-Token` se sigue persistiendo en su cookie.
 - **El rate-limit de WordPress ya no cuenta las llamadas del BFF como si fueran de un solo
   cliente.** `/wp-json/` (120/min) y `/graphql` (60/min) se limitaban por IP, y el BFF llega por la
   red interna con la IP del contenedor del frontend: todos los compradores compartían un único
