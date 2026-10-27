@@ -662,7 +662,11 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
   consultada en `getSession`); `/api/auth/logout-all` y el **cambio de contraseña** rotan el "user
   secret" en WP e invalidan de verdad los refresh tokens (el plugin JWT 0.7 no compara ese secreto
   por sí solo: lo impone un filtro propio, `enforceRefreshTokenSecret`). El refresh **no rota en
-  cada uso** (limitación del plugin WPGraphQL JWT).
+  cada uso** (limitación del plugin WPGraphQL JWT). Y `verifyAuthToken` **solo acepta access
+  tokens**: rechaza cualquier JWT con `data.user.user_secret`, el marcador del refresh token (que se
+  firma con el mismo secreto y algoritmo), así que un `hwe_rt` colocado en la cookie de acceso no
+  monta sesión en el BFF. El refresh token solo vale en `/api/auth/refresh` y en el refresco
+  transparente de `proxy.ts`, que lo canjean en WordPress.
 - **`@tailwindcss/typography` YA está instalado** (en `devDependencies`): `prose` está
   disponible para las descripciones de producto. *(Corrige una nota antigua que decía lo contrario.)*
 - **Sentry YA está cableado**: `sentry.{server,edge}.config.ts` + `src/instrumentation.ts` y, en el

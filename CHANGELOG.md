@@ -128,6 +128,19 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ### Security
 
 - **La pasarela de pruebas `noop` ya no puede cobrar ni marcar pedidos pagados en producción. El despliegue de producción traía `PAYMENT_PROVIDER=noop` por defecto (`docker-compose.prod.yml`, `.env.prod.example`) y `noop` firmaba sus webhooks con el literal público `noop-sandbox-secret`: cualquiera podía enviar un evento «aprobado» a `/api/payments/webhook/noop` y dejar un pedido `processing` con `set_paid: true` sin cobro. Ahora la pasarela de pruebas no existe con `NODE_ENV=production`: el registro no la activa ni atiende su webhook (404) aunque `PAYMENT_PROVIDER` o el panel la indiquen, `noop` ya no usa el literal público fuera de desarrollo/test, el guard de arranque aborta con `PAYMENT_PROVIDER=noop` o con el secreto público, y las plantillas de producción ya no fijan `noop`. Acción del operador: fija una pasarela real en producción (`wompi`, `avalpay`…) y deja `NOOP_INTEGRITY_SECRET` vacío; sin pasarela, el cobro responde 503 (antes caía a `noop`).**
+- **El BFF ya no acepta un refresh token como sesión.** WPGraphQL JWT Authentication firma el
+  access token y el refresh token con el mismo secreto y el mismo algoritmo (HS256): la firma no
+  distingue una credencial de la otra, y el refresh token se reconoce solo por
+  `data.user.user_secret` (y vive 365 días). `verifyAuthToken` comprobaba la firma y que existiera
+  `data.user.id`, pero no el tipo de credencial, así que un `hwe_rt` filtrado presentado en la
+  cookie de acceso montaba sesión en todo el BFF —también en las rutas que consultan WooCommerce con
+  las claves de administrador del BFF, que nunca pasan por WordPress— y ni `logout-all` ni el cambio
+  de contraseña lo revocaban: ambos solo rotan el secreto por usuario, que WordPress compara
+  únicamente cuando valida un bearer (`enforceRefreshTokenSecret`). Ahora el verificador del BFF
+  exige la forma de access token y rechaza cualquier JWT que lleve `data.user.user_secret`; el
+  refresh token sigue teniendo su único uso legítimo en `/api/auth/refresh` y en el refresco
+  transparente de `proxy.ts`, que lo canjean en WordPress. No cambia el contrato para sesiones
+  legítimas (login, registro, 2FA y refresco siguen igual) y no requiere acción del operador.
 
 ## [2.2.0] — 2026-10-25
 
