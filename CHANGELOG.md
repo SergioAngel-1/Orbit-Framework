@@ -173,6 +173,22 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   actualizar: **los códigos de recuperación emitidos antes dejan de valer y hay que regenerarlos**;
   el TOTP de la app de autenticación sigue funcionando sin cambios. El contrato del BFF no cambia:
   `recoveryCode` ya admite el nuevo formato de 39 caracteres sin recortarlo.
+- **La reseña de un pedido ya no puede publicar reseñas de producto con
+  `ecommerce.reviews_enabled` apagado.** El handler `POST /api/store/orders/[id]/review`
+  solo comprobaba el módulo `site-reviews` y el `products: true` del cuerpo llegaba
+  directamente a `publishProductReviews`, que escribe el lote en
+  `/wp-json/wc/v3/products/reviews/batch` con las claves de administración y crea cada
+  reseña como aprobada y `verified`. Un comprador con un pedido completado podía, con una
+  petición manual mismo-origen (cookie de sesión + token CSRF), saltarse el flag que la
+  ruta hermana de reseñas de producto (`/api/store/reviews/*`) y la UI sí respetan y
+  publicar opiniones verificadas aunque el administrador tuviera las reseñas de producto
+  apagadas, que además aparecían en el JSON-LD de la ficha. Ahora el fan-out a productos
+  solo se ejecuta con el flag encendido y `publishProductReviews` vuelve a comprobarlo por
+  su cuenta (defensa en profundidad para todos sus llamadores); con el flag apagado la
+  reseña del pedido (módulo `site-reviews`, independiente del flag) se sigue guardando y
+  la respuesta devuelve `productsReviewed: 0`, y el JSON-LD de producto deja de emitir
+  `aggregateRating`/`review`. El flag apagado no cambia el 404 de la ruta: solo impide el
+  fan-out. No requiere acción de los operadores.
 
 ## [2.2.0] — 2026-10-25
 

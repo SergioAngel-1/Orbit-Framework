@@ -1,5 +1,6 @@
 import "server-only";
 import { revalidateTag } from "next/cache";
+import { getSiteConfig } from "@/lib/config";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { invalidateCachedEligibility } from "@/lib/account/review-eligibility";
 import { resolveReviewerName } from "./reviewer-name";
@@ -94,6 +95,12 @@ export async function publishProductReviews(input: {
   rating: number;
   content: string;
 }): Promise<number> {
+  // Defensa en profundidad: la comparten «Calificar pedido» y la ficha, y una
+  // ruta nueva no debe poder publicar reseñas de producto con la funcionalidad
+  // apagada. Se comprueba antes de leer nada de WooCommerce.
+  const config = await getSiteConfig();
+  if (!config.ecommerce.reviews_enabled) return 0;
+
   const { userId, customer, productIds, rating, content } = input;
   const reviewed = await reviewedProductIds(customer, productIds);
   const pending = productIds.filter((pid) => !reviewed.has(pid));

@@ -517,7 +517,7 @@ frontend nunca calcula ni firma un importe; solo muestra lo que devuelve la Stor
 |---|---|---|
 | `POST /api/store/orders/[id]/reorder` | «Volver a pedir»: añade al carrito lo que hoy se puede comprar y devuelve `{ cart, added[], skipped[] }`. | Solo el dueño (404 si no). Recorta la cantidad al stock; `skipped[].reason` = `unavailable` \| `out_of_stock`. |
 | `POST /api/store/orders/[id]/received` | «Recibí mi pedido»: `processing` → `completed`. | Solo el dueño y solo desde `processing` (422 si no). Habilita calificar y reseñar. |
-| `POST /api/store/orders/[id]/review` | Califica el pedido (reseña del **sitio**) y, con `products: true`, publica la misma reseña en sus productos. | Módulo `site-reviews` (404 si está apagado). Solo el dueño, solo `completed`, una por pedido (409). |
+| `POST /api/store/orders/[id]/review` | Califica el pedido (reseña del **sitio**) y, con `products: true`, publica la misma reseña en sus productos. | Módulo `site-reviews` (404 si está apagado). Solo el dueño, solo `completed`, una por pedido (409). El fan-out a productos solo ocurre con `ecommerce.reviews_enabled` encendido; apagado, la reseña del pedido se guarda y `products` se ignora (`productsReviewed: 0`). |
 | `GET /api/store/reviews/[productId]` | Elegibilidad para reseñar el producto: `{ canReview, reason, reviewerName?, order? }`. Nunca 401. | `reason`: `auth` · `not_purchased` · `not_received` · `already_reviewed` · `null`. |
 | `POST /api/store/reviews/[productId]` | Reseña de producto. | Exige un pedido **completado** con el producto (403; `not_received` 409 si solo hay uno en preparación). Autor siempre del perfil de la sesión. Se publica aprobada y `verified`. `sameForOrder: true` la replica en los demás productos del pedido. |
 
@@ -911,7 +911,10 @@ de implementación de la UI heredada. El BFF también los respeta (`requireFlag`
 `requireModule` con los módulos): con el flag apagado responden **404** `/api/store/reviews/*`
 (reseñas de producto), `/api/store/wishlist` y `/api/store/products?include=` (lista de deseos),
 y `/api/store/products?search=` (búsqueda; el listado sin búsqueda sigue sirviéndose). El 403 de
-`/api/store/coupons` con `coupons_enabled` apagado se mantiene.
+`/api/store/coupons` con `coupons_enabled` apagado se mantiene. Con `reviews_enabled` apagado
+tampoco hay fan-out de reseñas de producto desde `POST /api/store/orders/[id]/review`: la reseña
+del pedido (módulo `site-reviews`, independiente del flag) se guarda igual, pero `products: true`
+se ignora. El JSON-LD de la ficha deja de emitir `aggregateRating`/`review` con el flag apagado.
 
 - `brand.logo` — URL del logo de cabecera (medioteca WP). Vacío = renderizar `brand.name`
   como texto.
