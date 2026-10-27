@@ -2,13 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getProducts } from "@/lib/catalog/products";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { wcFetch } from "@/lib/woocommerce/client";
+import { getSiteConfig } from "@/lib/config";
 import { GET } from "./route";
 
 // ============================================================================
-//  GET /api/store/products — rate-limit en la búsqueda no autenticada.
+//  GET /api/store/products — presupuesto del listado público.
 //
-//  La búsqueda es la parte cara y abusable (un recorrido por el catálogo por cada
-//  pulsación); el listado normal es cacheable y no se limita.
+//  TODO este GET acaba en WordPress (WPGraphQL para el listado, wc/v3 para la
+//  lista de ids) y el BFF llama con el secreto interno, así que WordPress no le
+//  aplica su propio límite. Un atacante anónimo que varía `category`, `first`,
+//  `after`… obtiene una consulta nueva por cada URL (la clave del Data Cache
+//  incluye las variables): el presupuesto por IP tiene que cubrir cualquier
+//  forma del GET, no solo `?search=`, y aplicarse ANTES de tocar WordPress.
 // ============================================================================
 
 vi.mock("@/lib/catalog/products", () => ({ getProducts: vi.fn() }));
@@ -29,13 +34,16 @@ vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-const OK = { success: true, remaining: 10, retryAfter: 0, limit: 20 };
+const OK = { success: true, remaining: 10, retryAfter: 0, limit: 60 };
 const EMPTY = { products: [], pageInfo: { hasNextPage: false, endCursor: null } };
 
 const request = (query: string, ip = "203.0.113.5") =>
   new Request(`https://tienda.example/api/store/products${query}`, {
     headers: { "x-forwarded-for": ip },
   });
+
+const lastFilters = () =>
+  vi.mocked(getProducts).mock.calls.at(-1)![0] as Record<string, unknown>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -49,37 +57,89 @@ beforeEach(() => {
   vi.mocked(getProducts).mockResolvedValue(EMPTY as never);
 });
 
-describe("búsqueda", () => {
-  it("se limita por IP", async () => {
-    const res = await GET(request("?search=camiseta"));
+describe("presupuesto por IP de todo el GET", () => {
+  it.each([
+    ["listado base", ""],
+    ["con filtros", "?category=ropa&minPrice=10&maxPrice=99.5&sort=price-asc"],
+    ["paginación", "?after=YXJyYXljb25uZWN0aW9uOjEy&first=12"],
+    ["búsqueda", "?search=camiseta"],
+    ["lista de ids", "?include=1"],
+  ])("%s consume el mismo límite", async (_caso, query) => {
+    const res = await GET(request(query));
 
     expect(res.status).toBe(200);
-    expect(rateLimit).toHaveBeenCalledWith("products-search:203.0.113.5", 20, 60);
+    expect(rateLimit).toHaveBeenCalledWith("products-list:203.0.113.5", 60, 60);
   });
 
-  it("superar el límite da 429 con Retry-After y no consulta el catálogo", async () => {
-    vi.mocked(rateLimit).mockResolvedValue({ ...OK, success: false, retryAfter: 33 });
+  it("la petición 61 devuelve 429 con Retry-After y no consulta el catálogo", async () => {
+    let calls = 0;
+    vi.mocked(rateLimit).mockImplementation(async () => {
+      calls += 1;
+      return calls > 60
+        ? { ...OK, success: false, remaining: 0, retryAfter: 42 }
+        : { ...OK, remaining: 60 - calls };
+    });
 
-    const res = await GET(request("?search=camiseta"));
+    const responses: Response[] = [];
+    for (let i = 0; i < 61; i++) {
+      responses.push(await GET(request(`?category=f${i}&first=12`)));
+    }
 
-    expect(res.status).toBe(429);
-    expect(res.headers.get("Retry-After")).toBe("33");
-    expect(getProducts).not.toHaveBeenCalled();
-  });
-
-  it("una búsqueda en blanco no cuenta como búsqueda", async () => {
-    await GET(request("?search=%20%20"));
-
-    expect(rateLimit).not.toHaveBeenCalled();
+    expect(responses.slice(0, 60).every((r) => r.status === 200)).toBe(true);
+    expect(responses[60]!.status).toBe(429);
+    expect(responses[60]!.headers.get("Retry-After")).toBe("42");
+    // El 429 sale antes de resolver la config del sitio y del catálogo: solo las
+    // 60 peticiones aceptadas llegan a WordPress.
+    expect(getSiteConfig).toHaveBeenCalledTimes(60);
+    expect(getProducts).toHaveBeenCalledTimes(60);
+    expect(wcFetch).not.toHaveBeenCalled();
   });
 });
 
-describe("listado sin búsqueda", () => {
-  it("no se limita (es cacheable)", async () => {
-    const res = await GET(request("?category=ropa&first=12"));
+describe("parámetros de la consulta", () => {
+  it("acota `first` al máximo de la frontera", async () => {
+    await GET(request("?first=1000000"));
 
-    expect(res.status).toBe(200);
-    expect(rateLimit).not.toHaveBeenCalled();
+    expect(lastFilters().first).toBe(24);
+  });
+
+  it("un `first` que no es un entero positivo cae al tamaño por defecto", async () => {
+    await GET(request("?first=abc"));
+
+    expect(lastFilters().first).toBe(12);
+  });
+
+  it("descarta `category`, precios y `after` mal formados antes de consultar", async () => {
+    await GET(
+      request("?category=..%2Fetc&minPrice=abc&maxPrice=-3&after=%3Cscript%3E"),
+    );
+
+    expect(lastFilters()).toMatchObject({
+      category: undefined,
+      minPrice: undefined,
+      maxPrice: undefined,
+      after: undefined,
+    });
+  });
+
+  it("las formas válidas siguen pasando tal cual", async () => {
+    await GET(
+      request(
+        "?search=camiseta&category=ropa&minPrice=10&maxPrice=99.5&sort=price-asc" +
+          "&after=YXJyYXljb25uZWN0aW9uOjEy&first=12&locale=en",
+      ),
+    );
+
+    expect(lastFilters()).toEqual({
+      locale: "en",
+      search: "camiseta",
+      after: "YXJyYXljb25uZWN0aW9uOjEy",
+      category: "ropa",
+      minPrice: "10",
+      maxPrice: "99.5",
+      sort: "price-asc",
+      first: 12,
+    });
   });
 });
 
@@ -149,12 +209,6 @@ describe("include (ids concretos)", () => {
 
     expect(String(lastQuery().include).split(",")).toHaveLength(100);
   });
-
-  it("no pasa por el rate-limit de la búsqueda", async () => {
-    await GET(request("?include=1"));
-
-    expect(rateLimit).not.toHaveBeenCalled();
-  });
 });
 
 describe("con las funciones apagadas en el Control Center", () => {
@@ -165,7 +219,6 @@ describe("con las funciones apagadas en el Control Center", () => {
 
     expect(res.status).toBe(404);
     expect(getProducts).not.toHaveBeenCalled();
-    expect(rateLimit).not.toHaveBeenCalled();
   });
 
   it("búsqueda apagada: el listado sin búsqueda sigue sirviéndose", async () => {
