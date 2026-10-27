@@ -43,7 +43,9 @@ name: CD
 #  ── Cómo volver atrás ───────────────────────────────────────────────────────
 #  Cada tag deja `ghcr.io/<repo>/frontend:<tag>`. Para volver a una versión:
 #  Actions → CD → «Run workflow» → entorno + `image_tag` = la etiqueta anterior.
-#  No hay build: se vuelve a desplegar la imagen ya publicada.
+#  No hay build: se vuelve a desplegar la imagen ya publicada. La etiqueta se
+#  valida contra la gramática de Docker (máx. 128; empieza por [A-Za-z0-9_];
+#  solo [A-Za-z0-9_.-]) y se trata como dato, nunca como código shell.
 # ============================================================================
 
 on:
@@ -90,11 +92,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # El `image_tag` del dispatch es DATO, no código. GitHub sustituye `${{ … }}`
+      # como texto antes de que bash lo parsee: interpolarlo en el `run:` dejaba
+      # que quien dispara el workflow ejecutase comandos en el runner (con
+      # `packages: write`) y, al pasar por `image_ref`, en el host de despliegue.
+      # Por eso entra por `env:`, se valida contra la gramática de Docker antes de
+      # cualquier uso y los outputs se escriben con `printf`.
+      - name: Validar y resolver tag de imagen
+        id: meta
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ -n "${IMAGE_TAG}" ]; then
+            # Rollback: se redepliega una imagen YA publicada, sin build.
+            TAG="$(sh .github/scripts/validate-image-tag.sh "${IMAGE_TAG}")"
+            printf 'build=false\n' >> "$GITHUB_OUTPUT"
+          elif [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            TAG="manual-$(git rev-parse --short HEAD)"
+            printf 'build=true\n' >> "$GITHUB_OUTPUT"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            printf 'build=true\n' >> "$GITHUB_OUTPUT"
+          fi
+          # GHCR exige el nombre del repositorio en minúsculas; `github.repository`
+          # conserva las mayúsculas del propietario/repositorio (p. ej. «Org/Repo»).
+          IMAGE_LC="${IMAGE,,}"
+          printf 'tag=%s\n' "${TAG}" >> "$GITHUB_OUTPUT"
+          printf 'image_ref=%s:%s\n' "${IMAGE_LC}" "${TAG}" >> "$GITHUB_OUTPUT"
+          printf 'latest_ref=%s:latest\n' "${IMAGE_LC}" >> "$GITHUB_OUTPUT"
+
       # EL REQUISITO DE TESTS, EN CÓDIGO. Se consulta `actions/workflows/ci.yml/runs`
       # y no el estado combinado de checks del commit a propósito: el combinado
       # mezcla checks de terceros y daría verde con la suite sin haberse ejecutado.
+      # Solo se salta con un `image_tag` YA validado por el paso anterior
+      # (`build=false`): un valor sin validar no puede desactivar el gate.
       - name: Exigir CI en verde para este commit
-        if: ${{ inputs.image_tag == '' }}
+        if: steps.meta.outputs.build == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SHA: ${{ github.sha }}
@@ -109,26 +144,6 @@ jobs:
             exit 1
           fi
           echo "CI en verde para ${SHA} (${OK} ejecución/es correcta/s)."
-
-      - name: Resolver tag de imagen
-        id: meta
-        run: |
-          if [ -n "${{ inputs.image_tag }}" ]; then
-            TAG="${{ inputs.image_tag }}"
-            echo "build=false" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="manual-$(git rev-parse --short HEAD)"
-            echo "build=true" >> "$GITHUB_OUTPUT"
-          else
-            TAG="${GITHUB_REF_NAME}"
-            echo "build=true" >> "$GITHUB_OUTPUT"
-          fi
-          # GHCR exige el nombre del repositorio en minúsculas; `github.repository`
-          # conserva las mayúsculas del propietario/repositorio (p. ej. «Org/Repo»).
-          IMAGE_LC="${IMAGE,,}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "image_ref=${IMAGE_LC}:${TAG}" >> "$GITHUB_OUTPUT"
-          echo "latest_ref=${IMAGE_LC}:latest" >> "$GITHUB_OUTPUT"
 
       - name: Login en GHCR
         if: steps.meta.outputs.build == 'true'
@@ -202,15 +217,19 @@ jobs:
       - name: Desplegar (SSH → pull + up -d + calentar)
         if: steps.guard.outputs.skip != 'true'
         uses: appleboy/ssh-action@v1
+        env:
+          FRONTEND_IMAGE: ${{ needs.build-push.outputs.image_ref }}
         with:
           host: ${{ secrets.DEPLOY_SSH_HOST }}
           username: ${{ secrets.DEPLOY_SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           command_timeout: 30m
+          # La referencia se entrega como variable de entorno, no interpolada en el
+          # script: el shell remoto nunca la re-parsea como código.
+          envs: FRONTEND_IMAGE
           script: |
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
-            export FRONTEND_IMAGE="${{ needs.build-push.outputs.image_ref }}"
             docker compose -f docker-compose.prod.yml --env-file .env.prod pull frontend
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
             # Recarga el Caddyfile sin cortar conexiones (si cambió).
@@ -284,15 +303,17 @@ jobs:
       - name: Desplegar (SSH → pull + up -d)
         if: steps.guard.outputs.skip != 'true'
         uses: appleboy/ssh-action@v1
+        env:
+          FRONTEND_IMAGE: ${{ needs.build-push.outputs.image_ref }}
         with:
           host: ${{ secrets.DEPLOY_SSH_HOST }}
           username: ${{ secrets.DEPLOY_SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           command_timeout: 30m
+          envs: FRONTEND_IMAGE
           script: |
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
-            export FRONTEND_IMAGE="${{ needs.build-push.outputs.image_ref }}"
             docker compose -f docker-compose.prod.yml --env-file .env.prod pull frontend
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
             docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T caddy \

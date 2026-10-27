@@ -33,6 +33,7 @@ seguridad se toma ahí, **fallando cerrado** cuando falta una pieza.
 | Integrador externo con demasiado poder | Módulo `external-integration`: IP exacta de una lista, contraseña de aplicación solo en GraphQL, rol mínimo, política **cerrada** de operaciones y campos (suelos que ningún filtro rebaja) | `plugins/hwe-external-integration/` |
 | Consentimiento no demostrable (RGPD) | Registro del consentimiento con comprobante (módulo `consent-log`), IP truncada, retención configurable | `plugins/hwe-consent-log/` |
 | Configuración con secretos por defecto | Guard de arranque: aborta en producción con secretos por defecto, cortos o `ALLOWED_ORIGIN` mal formado | `lib/security/secret-guard.ts` |
+| Inyección de comandos desde un dispatch del CD | El `image_tag` del `workflow_dispatch` se trata como **dato**: entra por `env:`, se valida contra la gramática de Docker antes de usarse (`validate-image-tag.sh`), los outputs se escriben con `printf` y la referencia de imagen llega al host por `envs`. Ningún `inputs.*`, `steps.*.outputs.*` ni `needs.*.outputs.*` se interpola en `run:`/`script:` | `.github/workflows/cd.yml`, `.github/scripts/validate-image-tag.sh` |
 | Fuga de secretos en el repo | Solo `.env.example`, gitleaks en CI | `.gitleaks.toml`, `.github/workflows/ci.yml` |
 | Datos de una instancia mezclados con el framework | Puerta anti-instancia en CI (regla de frontera en ESLint + grep) | `.github/scripts/check-anti-instance.sh` |
 
