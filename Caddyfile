@@ -191,6 +191,26 @@
         }
     }
 
+    # ── BFF: tope de cuerpo estricto ────────────────────────────────────────
+    # El `request_body` global de arriba (130 MB) existe para las subidas de la
+    # medioteca, pero el catch-all lo heredaba para TODO, incluido `/api/*`: un
+    # POST anónimo a un webhook podía llegar con 130 MB y el handler los
+    # buffereaba antes de mirar la firma. En Caddy gana el PRIMER `handle` que
+    # casa, así que este bloque va antes del catch-all del frontend.
+    #
+    # 1 MB es holgado para cualquier JSON o webhook del BFF; la aplicación corta
+    # aún más abajo (64 KiB JSON, 256 KiB webhooks) con 413. El tope de aquí es
+    # la red de seguridad para cuando el BFF no llega a ejecutarse.
+    handle /api/* {
+        request_body {
+            max_size 1MB
+        }
+        reverse_proxy frontend:3000 {
+            lb_try_duration 30s
+            lb_try_interval 250ms
+        }
+    }
+
     # ── Frontend (Next.js) ── todo lo demás ─────────────────────────────────
     # `lb_try_*`: durante el `up -d` del despliegue el contenedor viejo se para y
     # el nuevo tarda unos segundos en escuchar; sin reintento, Caddy respondía 502

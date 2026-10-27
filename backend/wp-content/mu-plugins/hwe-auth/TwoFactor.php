@@ -10,6 +10,12 @@
 defined('ABSPATH') || exit;
 
 trait HWE_Auth_TwoFactor {
+    /**
+     * Marca de la migración que invalida los códigos de recuperación del formato
+     * antiguo (40 bits, `sha256` sin pimienta). Ver `migrateRecoveryCodesV2()`.
+     */
+    private const RECOVERY_MIGRATION_OPTION = 'hwe_2fa_recovery_v2_migrated';
+
     public static function handleGet2faStatus(WP_REST_Request $request): WP_REST_Response {
         $user_id = (int) $request->get_param('user_id');
         $secret  = get_user_meta($user_id, 'hwe_2fa_secret', true);
@@ -84,16 +90,24 @@ trait HWE_Auth_TwoFactor {
             // No se guarda un secreto "cifrado" vacío como si fuera válido.
             return new WP_REST_Response(['error' => 'No se pudo activar 2FA: falta configurar una clave de cifrado en el servidor.'], 500);
         }
-        update_user_meta($user_id, 'hwe_2fa_secret', $encrypted);
-        update_user_meta($user_id, 'hwe_2fa_enabled', '1');
 
+        // 128 bits por código (16 bytes en hex), mostrados en grupos de 4. El
+        // verificador es un HMAC con clave derivada de un secreto del servidor:
+        // una copia de la base no permite recorrer el espacio offline.
         $codes  = [];
         $hashes = [];
         for ($i = 0; $i < self::RECOVERY_CODES_COUNT; $i++) {
-            $recovery = strtolower(bin2hex(random_bytes(5))); // 10 hex chars
-            $codes[]  = substr($recovery, 0, 5) . '-' . substr($recovery, 5);
-            $hashes[] = hash('sha256', $recovery);
+            $recovery = bin2hex(random_bytes(16)); // 32 hex chars
+            $hash     = self::recoveryCodeHash($recovery);
+            if ($hash === '') {
+                return new WP_REST_Response(['error' => 'No se pudo activar 2FA: falta configurar una clave de cifrado en el servidor.'], 500);
+            }
+            $codes[]  = implode('-', str_split($recovery, 4));
+            $hashes[] = $hash;
         }
+
+        update_user_meta($user_id, 'hwe_2fa_secret', $encrypted);
+        update_user_meta($user_id, 'hwe_2fa_enabled', '1');
         update_user_meta($user_id, 'hwe_2fa_recovery', $hashes);
 
         // Los códigos en claro se devuelven UNA sola vez (no se vuelven a mostrar).
@@ -117,12 +131,57 @@ trait HWE_Auth_TwoFactor {
     }
 
     /**
+     * Verificador de un código de recuperación: HMAC-SHA-256 con una pimienta
+     * derivada de la clave de servidor (`cryptoKey()`, fuera de la base de datos).
+     * Sin clave devuelve '' y, por tanto, la verificación falla cerrada.
+     *
+     * El SHA-256 desnudo anterior permitía recomputar el hash desde `wp_usermeta`
+     * y recorrer los 2^40 códigos offline. Con la pimienta, sin la clave del
+     * servidor no se puede fabricar el verificador.
+     */
+    private static function recoveryCodeHash(string $raw): string {
+        $key = self::cryptoKey();
+        if ($key === '') {
+            return '';
+        }
+        $pepper = hash_hmac('sha256', 'hwe-2fa-recovery-pepper', $key, true);
+        return hash_hmac('sha256', strtolower($raw), $pepper);
+    }
+
+    /**
+     * Invalida una sola vez los códigos de recuperación del formato antiguo
+     * (40 bits, `sha256` sin pimienta). Los códigos nuevos exigen re-alta; el
+     * TOTP sigue funcionando. Idempotente: la opción marca la migración hecha y
+     * no se vuelve a ejecutar (si no, borraría los códigos nuevos en cada carga).
+     */
+    public static function migrateRecoveryCodesV2(): void {
+        if (get_option(self::RECOVERY_MIGRATION_OPTION, false)) {
+            return;
+        }
+
+        if (!function_exists('delete_metadata')) {
+            // No marcamos la migración como hecha: se reintentará en la próxima carga.
+            error_log('[hwe] auth: no se pudieron invalidar los códigos de recuperación 2FA antiguos: falta delete_metadata().');
+            return;
+        }
+
+        // Borra `hwe_2fa_recovery` de todos los usuarios (y la caché de meta).
+        delete_metadata('user', 0, 'hwe_2fa_recovery', '', true);
+        if (!update_option(self::RECOVERY_MIGRATION_OPTION, '1', true)) {
+            // Sin la marca, la migración se reintenta en la próxima carga.
+            error_log('[hwe] auth: no se pudo marcar la migración de códigos de recuperación 2FA; se reintentará.');
+        }
+    }
+
+    /**
      * Verifica un código de recuperación 2FA y, si es válido, lo consume (lo
      * elimina de la lista para que no pueda reutilizarse).
      */
     private static function verifyAndConsumeRecoveryCode(int $user_id, string $raw): bool {
-        $raw = strtolower(str_replace('-', '', $raw));
-        if ($raw === '') {
+        $raw = strtolower(str_replace('-', '', trim($raw)));
+        // Solo el formato nuevo (32 hex = 128 bits). Un código antiguo de 10 hex
+        // no llega a compararse: se rechaza sin consumir nada.
+        if (!preg_match('/^[0-9a-f]{32}$/', $raw)) {
             return false;
         }
 
@@ -131,7 +190,11 @@ trait HWE_Auth_TwoFactor {
             return false;
         }
 
-        $candidate = hash('sha256', $raw);
+        $candidate = self::recoveryCodeHash($raw);
+        if ($candidate === '') {
+            return false;
+        }
+
         $matched   = false;
         $remaining = [];
         foreach ($hashes as $h) {

@@ -419,3 +419,39 @@ describe("buildCollectionPageJsonLd", () => {
     expect(COLLECTION_ITEM_LIST_LIMIT).toBe(24);
   });
 });
+
+describe("buildProductJsonLd — reseñas", () => {
+  const reviewed = {
+    ...product,
+    reviews: {
+      averageRating: 4.5,
+      items: [{ rating: 5, authorName: "Ana", date: "2026-01-01", content: "Bien" }],
+    },
+  } as unknown as ProductDetail;
+
+  const ld = (reviewsEnabled: boolean) => {
+    const c = config();
+    c.ecommerce.reviews_enabled = reviewsEnabled;
+    return buildProductJsonLd({
+      product: reviewed,
+      config: c,
+      url: "https://mitienda.example/products/camiseta",
+      description: "Una camiseta",
+    }) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  };
+
+  it("con reviews_enabled apagado no emite aggregateRating ni review", () => {
+    const node = ld(false);
+    expect(node).not.toHaveProperty("aggregateRating");
+    expect(node).not.toHaveProperty("review");
+  });
+
+  it("con reviews_enabled encendido los emite", () => {
+    const node = ld(true);
+    expect(node.aggregateRating).toMatchObject({
+      ratingValue: 4.5,
+      reviewCount: 1,
+    });
+    expect(node.review).toHaveLength(1);
+  });
+});

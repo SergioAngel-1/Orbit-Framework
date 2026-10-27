@@ -1,4 +1,10 @@
 import { NextResponse } from "next/server";
+import {
+  BodyTooLarge,
+  MAX_WEBHOOK_BODY_BYTES,
+  bodyTooLarge,
+  readTextBody,
+} from "@/lib/api/body";
 import { revalidateTag } from "next/cache";
 import { clearPaymentSettingsCache } from "@/lib/payments/credentials";
 import { verifyHmacSignature, verifyWooWebhook } from "@/lib/security/webhook";
@@ -87,7 +93,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const rawBody = await request.text();
+  // Cuerpo CRUDO con tope: las dos firmas se calculan sobre estos bytes, pero
+  // nunca se materializa más de `MAX_WEBHOOK_BODY_BYTES` (413 si se pasa).
+  let rawBody: string;
+  try {
+    rawBody = await readTextBody(request, MAX_WEBHOOK_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
+    throw error;
+  }
 
   // ── Rama 1: revalidación de configuración del plugin ─────────────────────
   const hweSignature = request.headers.get("x-hwe-signature");

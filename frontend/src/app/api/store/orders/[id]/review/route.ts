@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BodyTooLarge, bodyTooLarge, readJsonBody } from "@/lib/api/body";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { getSession } from "@/lib/auth/session";
 import { getSiteConfig } from "@/lib/config";
@@ -30,6 +31,12 @@ const ERRORS = {
  * (`canRateOrder`), la misma regla para las dos reseñas: uno «Procesando» lo
  * completa antes el cliente con «Recibí mi pedido» (`orders/[id]/received`).
  *
+ * La reseña del sitio y la de producto son independientes: `products` solo
+ * publica en los productos si `ecommerce.reviews_enabled` está encendido. Con
+ * el flag apagado la reseña del pedido se guarda igual (el módulo `site-reviews`
+ * no lo gobierna) y la parte de producto se ignora, como ya hace la ficha
+ * (`/api/store/reviews/*`, 404 cuando está apagado) y la propia UI.
+ *
  * Solo el dueño del pedido con sesión: el invitado ve en «gracias» una
  * invitación a iniciar sesión, no el formulario. Las reseñas de producto se
  * crean como las de la ficha (aprobadas, `verified`, nombre del perfil, nunca
@@ -40,9 +47,13 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  // Con el módulo `site-reviews` apagado, la ruta no existe.
-  const disabled = requireModule(await getSiteConfig(), "site-reviews");
+  // Con el módulo `site-reviews` apagado, la ruta no existe. Ojo: el flag de
+  // reseñas de PRODUCTO no se gatea aquí con un 404 — apagaría también la
+  // reseña del pedido, que es otra funcionalidad.
+  const config = await getSiteConfig();
+  const disabled = requireModule(config, "site-reviews");
   if (disabled) return disabled;
+  const productReviewsEnabled = config.ecommerce.reviews_enabled;
 
   const session = await getSession();
   const blocked = await guardMutation(request, {
@@ -64,7 +75,14 @@ export async function POST(
     return NextResponse.json({ error: "Id de pedido inválido." }, { status: 400 });
   }
 
-  const parsed = orderReviewSchema.safeParse(await request.json().catch(() => null));
+  let body: unknown = null;
+  try {
+    body = await readJsonBody(request);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
+  }
+
+  const parsed = orderReviewSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: ERRORS.invalid.error, details: parsed.error.flatten().fieldErrors },
@@ -98,7 +116,9 @@ export async function POST(
     }
 
     let productsReviewed = 0;
-    if (products) {
+    // La reseña del pedido (site-reviews) no la apaga `reviews_enabled`: solo
+    // se impide publicar la misma nota en los productos.
+    if (products && productReviewsEnabled) {
       productsReviewed = await reviewOrderProducts(order, userId, rating, content);
     }
 

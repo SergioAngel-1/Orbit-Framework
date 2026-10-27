@@ -116,10 +116,10 @@ plantillas; nunca subas claves reales.**
 
 | Variable | Descripción |
 |----------|-------------|
-| `PAYMENT_PROVIDER` | Anulación de la pasarela activa: `noop` (sandbox) \| `wompi` \| `avalpay` \| `payu` \| `bold`. **Manda el panel**; esta variable solo la anula. |
+| `PAYMENT_PROVIDER` | Anulación de la pasarela activa: `wompi` \| `avalpay` \| `payu` \| `bold`… **Manda el panel**; esta variable solo la anula. `noop` es la pasarela de PRUEBAS: solo vale en desarrollo/test; en producción el arranque la rechaza y no se activa aunque esté guardada. Sin pasarela decidida, el cobro responde 503. |
 | `PAYMENT_CURRENCY` | Moneda ISO-4217 de respaldo. La moneda de la tienda es `ecommerce.currency` del panel (defecto `EUR`; fíjala siempre). |
 | `NEXT_PUBLIC_PAYMENT_RETURN_URL` | URL de retorno tras el checkout alojado. `POST /api/payments/create` solo acepta un `returnUrl` del propio sitio. |
-| `NOOP_INTEGRITY_SECRET` | Secreto de los webhooks del proveedor `noop`. |
+| `NOOP_INTEGRITY_SECRET` | Secreto de firma del sandbox `noop` (desarrollo/test). En producción no se usa: el literal público del repositorio lo rechaza el guard de arranque. |
 | `WOMPI_*`, `PAYU_*`, `BOLD_*` | Credenciales server-only por pasarela. Wompi y Aval Pay se configuran de punta a punta **desde el panel**; PayU y Bold son stubs (501). |
 
 Para añadir una pasarela: `lib/payments/providers/<nombre>.ts` (ver `docs/FRONTEND_CONNECT.md`, «Pagos»).

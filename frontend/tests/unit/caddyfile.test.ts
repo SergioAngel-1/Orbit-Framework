@@ -221,3 +221,38 @@ describe("Caddyfile: endurecimiento de la cara pública", () => {
     expect(generic).toContain("max-age=3600, must-revalidate");
   });
 });
+
+// ============================================================================
+//  Tope de cuerpo del BFF separado del de medios.
+//
+//  El `request_body` global (130 MB) existe para las subidas de la medioteca,
+//  pero el catch-all lo heredaba tal cual para `/api/*`: un POST anónimo a un
+//  webhook podía llegar con 130 MB y el handler los buffereaba antes de mirar
+//  la firma. `/api/*` necesita su propio `handle` ANTES del catch-all, con un
+//  tope pequeño; `handle` en Caddy se queda con el PRIMER bloque que casa.
+// ============================================================================
+
+describe("Caddyfile: tope de cuerpo estricto para /api/*", () => {
+  it("tiene un handle /api/* con request_body max_size 1MB y proxy al frontend", () => {
+    const start = code.indexOf("handle /api/* {");
+
+    expect(start, "falta el bloque handle /api/*").toBeGreaterThan(-1);
+    const block = code.slice(start, code.indexOf("\n    }\n", start));
+
+    expect(block).toMatch(/request_body \{[\s\S]*?max_size 1MB/);
+    expect(block).toContain("reverse_proxy frontend:3000");
+  });
+
+  it("/api/* va ANTES del catch-all del frontend (en Caddy gana el primero)", () => {
+    const api = code.indexOf("handle /api/* {");
+    const catchAll = code.indexOf("handle {\n        reverse_proxy frontend:3000");
+
+    expect(api).toBeGreaterThanOrEqual(0);
+    expect(catchAll).toBeGreaterThanOrEqual(0);
+    expect(api).toBeLessThan(catchAll);
+  });
+
+  it("el tope global de medios sigue siendo 130MB (uploads de 128MB)", () => {
+    expect(code).toMatch(/max_size 130MB/);
+  });
+});

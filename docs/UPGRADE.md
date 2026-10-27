@@ -206,6 +206,85 @@ Sin cambios incompatibles de contrato; revisa estos puntos de comportamiento:
 
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.3.0`; compárala si tu código depende de un hook nuevo.
 
+## 3.4 Correcciones de seguridad (auditoría posterior a v2.3)
+
+Correcciones de seguridad que cambian comportamiento. Revisa cada punto si tu instancia lo toca:
+
+- **Seguridad: la pasarela de pruebas `noop` deja de existir en producción (acción requerida).**
+  - **Qué cambia:** con `NODE_ENV=production`, `noop` no se activa ni atiende webhooks (404),
+    aunque `PAYMENT_PROVIDER=noop` o el Control Center la indiquen. El guard de arranque aborta si
+    `PAYMENT_PROVIDER=noop` o si `NOOP_INTEGRITY_SECRET` es el literal público
+    `noop-sandbox-secret` (o demasiado corto). `.env.prod.example` y `docker-compose.prod.yml` ya
+    no traen `noop` por defecto: sin pasarela decidida, el cobro responde **503** y su webhook
+    **404**.
+  - **A quién afecta:** a cualquier despliegue de producción que dependiera del `noop` por defecto
+    o de la plantilla de producción; y a quien ejecute el e2e opcional `E2E_FULL=1` (usa `noop`)
+    contra un servidor con `next start`.
+  - **Qué hacer:** elige una pasarela real (`wompi`, `avalpay`, …) en Control Center → Pagos o con
+    `PAYMENT_PROVIDER`, y deja `NOOP_INTEGRITY_SECRET` vacío en producción. Para el e2e de compra
+    (`E2E_FULL=1`) usa una pila en desarrollo (`npm run dev`, donde `noop` sigue disponible) o una
+    pasarela de sandbox real. Los tests e2e del CI no se ven afectados: no fijan
+    `PAYMENT_PROVIDER` y no ejecutan la compra con `noop`.
+
+- **Seguridad: el rate-limit de WordPress clasifica por ruta y las formas REST/GraphQL sin enlaces permanentes ahora gastan presupuesto.**
+  - **Qué cambia:** `rate-limit.php` deja de clasificar por subcadena del `REQUEST_URI` y usa la ruta parseada. Todo POST a `/wp-login.php` (incluida `?action=lostpassword`) o a la ruta de `HWE_LOGIN_SLUG` gasta **siempre** el cubo de login (5 intentos/5 min por IP), lleve la query que lleve. Además, las peticiones que WordPress despacha como REST mediante `?rest_route=` (instalaciones con enlaces permanentes planos) y las de `/wp-json` sin barra final ahora consumen el presupuesto REST de 120/min por IP, y las de `?graphql` el de GraphQL de 60/min; antes `?rest_route=` no se contaba en absoluto.
+  - **A quién afecta:** instalaciones con enlaces permanentes planos, integraciones o proxies propios que llamen a la REST API con `?rest_route=` sin el secreto interno del BFF, y cualquier script que haga más de 120 peticiones REST por minuto desde una misma IP sin ese secreto. El login del panel no cambia de límite (5/5 min) ni de comportamiento legítimo.
+  - **Qué hacer:** no hay migración ni variable nueva. Si una integración propia supera esos presupuestos, enrútala por el BFF/`wpFetch` (que envía `X-HWE-Internal-Secret` y está exenta), activa enlaces permanentes bonitos, o mantén el volumen por debajo del límite documentado. Para diagnosticar un 429, revisa el evento `[HWE Rate-Limit]` en el log de WordPress y el `Retry-After` de la respuesta.
+
+- **Tope de cuerpo en `/api/*` (413) — revisa rutas de subida propias**
+
+  **Qué cambia.** El BFF aplica ahora un tope de bytes a todo cuerpo que lee: **64 KiB** para
+  los JSON de escritura y **256 KiB** para los webhooks firmados. Al superarlo responde **413**
+  y deja de leer. Además, el `Caddyfile` incorpora un bloque `handle /api/*` con
+  `request_body max_size 1MB`, separado de los 130 MB que siguen disponibles para las subidas
+  de la medioteca (`/wp-admin/*`, `/wp-json/*`).
+
+  **A quién afecta.** A ninguna ruta del framework: no hay endpoints de `/api/*` que envíen
+  cuerpos de ese tamaño. Afecta solo si **tu instancia** añadió bajo `/api/*` una ruta que
+  recibe ficheros o JSON de más de 1 MB (por ejemplo, una subida propia): Caddy la cortará
+  antes de llegar a Next.js.
+
+  **Qué hacer.** Si tienes una ruta así, no la cuelgues de `/api/*` o sube el `max_size` de ese
+  `handle` en tu `Caddyfile`; si hospedas sin Caddy, el tope de la aplicación sigue siendo
+  64 KiB/256 KiB salvo que esa ruta use explícitamente un lector con otro límite
+  (`frontend/src/lib/api/body.ts`). No hay variables de entorno nuevas ni migración de datos.
+
+- **Los códigos de recuperación de 2FA anteriores dejan de valer.** El formato nuevo usa 128
+  bits y guarda solo un HMAC-SHA-256 con una pimienta derivada de la clave de servidor
+  (`HWE_2FA_KEY`, fuera de la base). Al actualizar, una migración idempotente
+  (`hwe_2fa_recovery_v2_migrated`) borra `hwe_2fa_recovery` de todos los usuarios y no acepta el
+  formato antiguo de 40 bits. **A quién afecta:** cuentas con 2FA activo que aún tuvieran códigos
+  de recuperación sin usar. **Qué hacer:** cada usuario debe **regenerar** sus códigos
+  (desactivar y volver a activar el 2FA, o rehacer el alta) antes de necesitarlos; el código TOTP
+  de la app de autenticación sigue funcionando. No hay que migrar datos a mano ni cambiar
+  variables. Si faltan `HWE_2FA_KEY`, `AUTH_KEY` y `GRAPHQL_JWT_AUTH_SECRET_KEY`, activar 2FA
+  responde 500 y la verificación de recuperación falla cerrada: define una clave de servidor
+  antes de desplegar.
+
+- **Post destacado: ahora exige `edit_others_posts`**
+
+  **Qué cambia.** La pantalla `Entradas → Post Destacado` y su guardado (opción
+  `hwe_featured_post_id`, la portada de `/blog`) ya no se autorizan con `edit_posts`: exigen
+  `edit_others_posts`. El nonce se mantiene y, además, el id se valida al escribir (solo un post
+  `post` publicado; `0` limpia la selección). Un id inválido no se guarda y se avisa.
+
+  **A quién afecta.** Instalaciones cuyo blog usaba los roles **Colaborador** o **Autor** para
+  elegir el destacado: esos usuarios dejan de ver la pantalla y de poder cambiarlo. Editor y
+  Administrador no cambian (tienen `edit_others_posts`).
+
+  **Qué hacer.** Si quieres que otro rol siga curando el destacado, concédele una capacidad
+  propia y devuélvela desde el código de la instancia (nunca vuelvas a `edit_posts`, que reabre el
+  hueco):
+
+  ```php
+  add_filter( 'hwe_featured_post_capability', static function (): string {
+      return 'curate_featured_post';
+  } );
+  ```
+
+  y asigna `curate_featured_post` al rol que corresponda. Un valor vacío o que no sea texto se
+  ignora (se exige `edit_others_posts` y se registra el descarte).
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

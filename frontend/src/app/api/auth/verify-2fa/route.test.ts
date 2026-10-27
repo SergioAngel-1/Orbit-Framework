@@ -23,7 +23,8 @@ import { POST } from "./route";
 const AUTH = "AUTH-TOKEN-REAL.firma.xyz";
 const REFRESH = "REFRESH-TOKEN-REAL";
 const GOOD_TOTP = "123456";
-const GOOD_RECOVERY = "RECOVERY-OK";
+// Formato real: 32 hex en grupos de 4 (128 bits).
+const GOOD_RECOVERY = "0123-4567-89ab-cdef-0123-4567-89ab-cdef";
 
 const cookieSet = vi.fn();
 vi.mock("next/headers", () => ({ cookies: async () => ({ set: cookieSet }) }));

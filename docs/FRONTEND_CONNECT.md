@@ -98,7 +98,7 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
 
 | Grupo | Rutas | Qué hace |
 |---|---|---|
-| Auth | `POST /api/auth/{login,register,refresh,logout,logout-all}`, `GET /api/auth/me`, `POST /api/auth/{forgot-password,reset-password,verify-email,resend-verification,change-password}`, `POST /api/auth/2fa/{setup,activate,disable,status}`, `POST /api/auth/verify-2fa` | Sesión JWT en cookies httpOnly, 2FA TOTP opcional, verificación de email opcional no bloqueante. `register`, `forgot-password` y `resend-verification` aceptan `locale` (uno de `routing.locales`): el correo y su enlace salen en ese idioma. `verify-email` no exige sesión (el token identifica al usuario). `change-password` cambia la contraseña con `POST hwe/v1/auth/change-password` (solo BFF y con sesión; WordPress verifica la actual y bloquea 15 min tras 5 fallos), cierra las demás sesiones y reemite la de este dispositivo. Con `auth.phone_login_enabled`, `login` acepta el teléfono como usuario y `register` un `phone` E.164 opcional (409 si ya es de otra cuenta). |
+| Auth | `POST /api/auth/{login,register,refresh,logout,logout-all}`, `GET /api/auth/me`, `POST /api/auth/{forgot-password,reset-password,verify-email,resend-verification,change-password}`, `POST /api/auth/2fa/{setup,activate,disable,status}`, `POST /api/auth/verify-2fa` | Sesión JWT en cookies httpOnly, 2FA TOTP opcional, verificación de email opcional no bloqueante. La cookie de sesión solo acepta el **access token**: un refresh token presentado en ella se rechaza (el refresh token solo se canjea en `refresh` y en el refresco transparente del proxy). `register`, `forgot-password` y `resend-verification` aceptan `locale` (uno de `routing.locales`): el correo y su enlace salen en ese idioma. `verify-email` no exige sesión (el token identifica al usuario). `change-password` cambia la contraseña con `POST hwe/v1/auth/change-password` (solo BFF y con sesión; WordPress verifica la actual y bloquea 15 min tras 5 fallos), cierra las demás sesiones y reemite la de este dispositivo. `reset-password` también cierra todas las sesiones anteriores del usuario (rota su secreto JWT y destruye las sesiones de WordPress): los refresh tokens emitidos antes del reset dejan de valer. Con `auth.phone_login_enabled`, `login` acepta el teléfono como usuario y `register` un `phone` E.164 opcional (409 si ya es de otra cuenta). |
 | Tienda | `GET/POST/DELETE /api/store/cart` (el `DELETE` vacía el carrito y devuelve el carrito vacío), `POST /api/store/cart/items`, `POST /api/store/checkout`, `GET/PUT /api/store/customer`, `GET/POST/DELETE /api/store/coupons`, `GET /api/store/orders/[id]`, `GET /api/store/products`, `GET/POST/DELETE /api/store/wishlist`, `GET/POST /api/store/reviews/[productId]`, `GET/PUT /api/store/addresses`, `GET /api/store/shipping` | Proxy autorizado a la Store API / WC REST v3 de WooCommerce. |
 | Fidelización | `GET /api/loyalty/{summary,transactions,referrals,referral-link,validate-code}`, `POST /api/loyalty/transfer`, `POST/DELETE /api/store/cart/points` | Módulo `loyalty`: monedero y referidos. Ver «Fidelización» más abajo. |
 | Pagos | `POST /api/payments/create`, `POST /api/payments/webhook/[provider]`, `GET /api/payments/return` | Capa agnóstica de pasarela (`lib/payments/`). **La prueba de pago es el webhook verificado, nunca el `return`.** El `returnUrl` opcional de `create` debe ser del propio sitio (origen = `ALLOWED_ORIGIN`; si no, 422). |
@@ -118,6 +118,10 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
    schema de la ruta no declara se ignoran (salvo en `PUT /api/store/customer`, que es
    estricto). Así, `POST /api/store/reviews/[productId]` solo lee `rating` y `content`: el nombre
    y el email del autor salen **siempre** de la cuenta autenticada, nunca del cuerpo.
+5. Todo cuerpo tiene un **tope de bytes**: **64 KiB** para los JSON de escritura y **256 KiB**
+   para los webhooks firmados (`lib/api/body.ts`). Al superarlo se responde **413**
+   `{ error }` sin leer el resto; un frontend que necesite más debe trocear la operación, no
+   ampliar el tope.
 
 ### Pagos: medios, pasarela y confirmación
 
@@ -140,8 +144,10 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   medio activo; si no, **409**. Sin pasarela decidida, **503**.
 - **Pasarela activa:** la elegida en el Control Center; `PAYMENT_PROVIDER` del entorno solo la
   anula (desarrollo, CI). En producción sin ninguna **no hay `noop`**: el cobro falla con un
-  error claro. Con `payments.gateway_enabled` apagado (p. ej. «solo WhatsApp») **no hay pasarela
-  activa**, aunque quede una guardada: ni cobro (503) ni aviso de pruebas ni webhook de `noop`. Credenciales por `GET hwe/v1/payments/credentials` (interno), en caché de memoria
+  error claro. `noop` tampoco se activa en producción aunque el entorno o el panel lo indiquen:
+  su webhook responde **404** y el guard de arranque rechaza `PAYMENT_PROVIDER=noop`. Con
+  `payments.gateway_enabled` apagado (p. ej. «solo WhatsApp») **no hay pasarela activa**,
+  aunque quede una guardada: ni cobro (503) ni aviso de pruebas ni webhook de `noop`. Credenciales por `GET hwe/v1/payments/credentials` (interno), en caché de memoria
   del proceso (60 s) que `POST /api/revalidate` vacía al guardar el Control Center.
 - **Modo de pruebas:** `isActiveGatewaySandbox()` (`lib/payments/registry.ts`, server-only)
   dice si la pasarela cobra con credenciales de sandbox; la vista debe avisarlo
@@ -511,7 +517,7 @@ frontend nunca calcula ni firma un importe; solo muestra lo que devuelve la Stor
 |---|---|---|
 | `POST /api/store/orders/[id]/reorder` | «Volver a pedir»: añade al carrito lo que hoy se puede comprar y devuelve `{ cart, added[], skipped[] }`. | Solo el dueño (404 si no). Recorta la cantidad al stock; `skipped[].reason` = `unavailable` \| `out_of_stock`. |
 | `POST /api/store/orders/[id]/received` | «Recibí mi pedido»: `processing` → `completed`. | Solo el dueño y solo desde `processing` (422 si no). Habilita calificar y reseñar. |
-| `POST /api/store/orders/[id]/review` | Califica el pedido (reseña del **sitio**) y, con `products: true`, publica la misma reseña en sus productos. | Módulo `site-reviews` (404 si está apagado). Solo el dueño, solo `completed`, una por pedido (409). |
+| `POST /api/store/orders/[id]/review` | Califica el pedido (reseña del **sitio**) y, con `products: true`, publica la misma reseña en sus productos. | Módulo `site-reviews` (404 si está apagado). Solo el dueño, solo `completed`, una por pedido (409). El fan-out a productos solo ocurre con `ecommerce.reviews_enabled` encendido; apagado, la reseña del pedido se guarda y `products` se ignora (`productsReviewed: 0`). |
 | `GET /api/store/reviews/[productId]` | Elegibilidad para reseñar el producto: `{ canReview, reason, reviewerName?, order? }`. Nunca 401. | `reason`: `auth` · `not_purchased` · `not_received` · `already_reviewed` · `null`. |
 | `POST /api/store/reviews/[productId]` | Reseña de producto. | Exige un pedido **completado** con el producto (403; `not_received` 409 si solo hay uno en preparación). Autor siempre del perfil de la sesión. Se publica aprobada y `verified`. `sameForOrder: true` la replica en los demás productos del pedido. |
 
@@ -905,7 +911,10 @@ de implementación de la UI heredada. El BFF también los respeta (`requireFlag`
 `requireModule` con los módulos): con el flag apagado responden **404** `/api/store/reviews/*`
 (reseñas de producto), `/api/store/wishlist` y `/api/store/products?include=` (lista de deseos),
 y `/api/store/products?search=` (búsqueda; el listado sin búsqueda sigue sirviéndose). El 403 de
-`/api/store/coupons` con `coupons_enabled` apagado se mantiene.
+`/api/store/coupons` con `coupons_enabled` apagado se mantiene. Con `reviews_enabled` apagado
+tampoco hay fan-out de reseñas de producto desde `POST /api/store/orders/[id]/review`: la reseña
+del pedido (módulo `site-reviews`, independiente del flag) se guarda igual, pero `products: true`
+se ignora. El JSON-LD de la ficha deja de emitir `aggregateRating`/`review` con el flag apagado.
 
 - `brand.logo` — URL del logo de cabecera (medioteca WP). Vacío = renderizar `brand.name`
   como texto.

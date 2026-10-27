@@ -12,6 +12,12 @@ describe("disable2faBodySchema", () => {
     });
   });
 
+  it("acepta el código de 128 bits (32 hex en grupos de 4) sin recortarlo", () => {
+    const recoveryCode = "0123-4567-89ab-cdef-0123-4567-89ab-cdef";
+
+    expect(disable2faBodySchema.parse({ recoveryCode })).toEqual({ recoveryCode });
+  });
+
   it("acepta ambos (el endpoint da prioridad al de recuperación)", () => {
     expect(
       disable2faBodySchema.safeParse({ code: "123456", recoveryCode: "aaaaa-bbbbb" })

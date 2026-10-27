@@ -8,7 +8,9 @@ import crypto from "node:crypto";
 //  pedidos de invitado.
 //
 //  Requiere la PILA COMPLETA levantada y sembrada (WordPress + WooCommerce con
-//  al menos un producto). Por eso es OPT-IN: se ejecuta solo con E2E_FULL=1.
+//  al menos un producto) servida en DESARROLLO (`npm run dev`): la pasarela
+//  `noop` solo existe fuera de producción. Por eso es OPT-IN: se ejecuta solo
+//  con E2E_FULL=1.
 //
 //  Variables:
 //    E2E_FULL=1                 → activa esta suite

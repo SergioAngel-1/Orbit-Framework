@@ -14,6 +14,50 @@ export const dynamic = "force-dynamic";
 /** Tope de ids por petición: el `per_page` máximo de WooCommerce. */
 const MAX_INCLUDE_IDS = 100;
 
+/**
+ * Presupuesto por IP de TODO el GET (listado, filtros, paginación, búsqueda y
+ * lista de ids). Cada URL distinta es una consulta nueva a WordPress (la clave
+ * del Data Cache incluye las variables), y el BFF llama con el secreto interno,
+ * así que WordPress no le aplica su propio límite: el único tope posible está
+ * aquí. Fail-open si Redis no responde, como todo rate-limit no estricto.
+ */
+const LIST_LIMIT = 60;
+const LIST_WINDOW_SECONDS = 60;
+
+/** Tamaño de página por defecto y tope que se entrega a WPGraphQL. */
+const DEFAULT_FIRST = 12;
+const MAX_FIRST = 24;
+
+/** Un cursor de WPGraphQL es base64 (`arrayconnection:NN`); nada más entra en la consulta. */
+const CURSOR_RE = /^[A-Za-z0-9+/=_-]{1,200}$/;
+
+/**
+ * Slug de categoría de WordPress: letras de cualquier alfabeto, números, `_`,
+ * `%` (los slugs no latinos guardan el percent-encoding), `.` y `-`. Descarta
+ * controles, barras y cualquier cosa que no sea un slug.
+ */
+const CATEGORY_RE = /^[\p{L}\p{N}_%.\-]{1,200}$/u;
+
+/** Precio del filtro: número finito y no negativo, con un techo absurdo. */
+const MAX_PRICE = 1_000_000_000;
+
+function categoryParam(raw: string | null): string | undefined {
+  const value = raw?.trim();
+  return value && CATEGORY_RE.test(value) ? value : undefined;
+}
+
+function priceParam(raw: string | null): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  const price = Number(value);
+  return Number.isFinite(price) && price >= 0 && price <= MAX_PRICE ? value : undefined;
+}
+
+function afterParam(raw: string | null): string | undefined {
+  const value = raw?.trim();
+  return value && CURSOR_RE.test(value) ? value : undefined;
+}
+
 /** Ids de producto válidos de `?include=1,2,3`: enteros positivos, sin duplicados, acotados. */
 function parseProductIds(raw: string): number[] {
   const ids = new Set<number>();
@@ -27,6 +71,25 @@ function parseProductIds(raw: string): number[] {
 }
 
 export async function GET(request: Request) {
+  // Antes de CUALQUIER trabajo contra WordPress (config, catálogo o wc/v3):
+  // todo este GET consume el mismo presupuesto por IP, aunque el atacante varíe
+  // `category`, `first`, `after` o no use `search`.
+  const rl = await rateLimit(
+    `products-list:${getClientIp(request)}`,
+    LIST_LIMIT,
+    LIST_WINDOW_SECONDS,
+  );
+  if (!rl.success) {
+    logger.warn(
+      { event: "api.products.rate_limited" },
+      "Rate-limit en el listado de productos",
+    );
+    return NextResponse.json(
+      { error: "Demasiadas peticiones." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const includeParam = searchParams.get("include");
   const config = await getSiteConfig();
@@ -101,23 +164,9 @@ export async function GET(request: Request) {
     }
   }
 
-  // La búsqueda es la parte cara y abusable de este endpoint público (un recorrido
-  // por el catálogo por cada pulsación); el listado normal es cacheable y no se
-  // limita. Fail-open si Redis no responde, como todo rate-limit no estricto.
+  // La búsqueda, igual que el resto del GET, ya pasó por el presupuesto común de
+  // arriba: no lleva un límite aparte ni una rama que el atacante pueda esquivar.
   const searchQuery = searchParams.get("search")?.trim() ?? "";
-  if (searchQuery) {
-    const rl = await rateLimit(`products-search:${getClientIp(request)}`, 20, 60);
-    if (!rl.success) {
-      logger.warn(
-        { event: "api.products.search_rate_limited" },
-        "Rate-limit en la búsqueda de productos",
-      );
-      return NextResponse.json(
-        { error: "Demasiadas búsquedas." },
-        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
-      );
-    }
-  }
 
   // Idioma de los textos y las URLs: solo uno de los del sitio (un valor ajeno
   // cae al idioma por defecto y nunca llega a la query).
@@ -126,16 +175,24 @@ export async function GET(request: Request) {
     ? requestedLocale
     : routing.defaultLocale;
 
+  // Todo lo que entra en la consulta se valida/acota aquí: un parámetro mal
+  // formado se descarta antes de construirla, y `first` nunca supera el tope.
+  const requestedFirst = Number(searchParams.get("first"));
+  const first =
+    Number.isInteger(requestedFirst) && requestedFirst > 0
+      ? Math.min(requestedFirst, MAX_FIRST)
+      : DEFAULT_FIRST;
+
   try {
     const result = await getProducts({
       locale,
       search: searchQuery || undefined,
-      after: searchParams.get("after") || undefined,
-      category: searchParams.get("category") || undefined,
-      minPrice: searchParams.get("minPrice") || undefined,
-      maxPrice: searchParams.get("maxPrice") || undefined,
+      after: afterParam(searchParams.get("after")),
+      category: categoryParam(searchParams.get("category")),
+      minPrice: priceParam(searchParams.get("minPrice")),
+      maxPrice: priceParam(searchParams.get("maxPrice")),
       sort: searchParams.get("sort") || undefined,
-      first: Number(searchParams.get("first")) || 12,
+      first,
     });
 
     return NextResponse.json(result, {

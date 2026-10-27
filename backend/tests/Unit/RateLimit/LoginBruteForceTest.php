@@ -54,6 +54,14 @@ final class LoginBruteForceTest extends RateLimitTestCase
         yield 'detrás de index.php' => ['/index.php/wp-login.php'];
         yield 'en subdirectorio' => ['/wp/wp-login.php'];
         yield 'recuperar contraseña (acción de wp-login.php)' => ['/wp-login.php?action=lostpassword'];
+        // Regresión: un marcador de API en la query no puede mover el intento de
+        // credenciales a otro presupuesto (el cubo de login es el único válido).
+        yield 'login con marcador REST en la query' => ['/wp-login.php?x=/wp-json/'];
+        yield 'login con marcador GraphQL en la query' => ['/wp-login.php?x=/graphql'];
+        yield 'recuperar contraseña con marcador REST' => ['/wp-login.php?action=lostpassword&x=/wp-json/'];
+        yield 'login con rest_route en la query' => ['/wp-login.php?rest_route=/wp/v2/users'];
+        // Forma con PATH_INFO: algunos servidores siguen despachando wp-login.php.
+        yield 'login con PATH_INFO y marcador REST' => ['/wp-login.php/extra?x=/wp-json/'];
     }
 
     /** @dataProvider loginUrls */
@@ -98,5 +106,31 @@ final class LoginBruteForceTest extends RateLimitTestCase
 
         $this->assertTrue($this->request('POST', '/wp-json/wp/v2/posts'));
         $this->assertTrue($this->request('POST', '/graphql'));
+    }
+
+    public function testAMarkerInTheQueryChargesTheLoginBucketOnly(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_SERVER['REQUEST_URI'] = '/wp-login.php?x=/wp-json/';
+        \hwe_rate_limit_init();
+
+        $ipHash = md5('203.0.113.9');
+        $this->assertArrayHasKey('hwe_rl_login_' . $ipHash, $this->transients);
+        $this->assertArrayNotHasKey('hwe_rl_rest_' . $ipHash, $this->transients);
+        $this->assertArrayNotHasKey('hwe_rl_gql_' . $ipHash, $this->transients);
+    }
+
+    public function testTheMovedLoginWithAnApiMarkerStillChargesTheLoginBudget(): void
+    {
+        if (!defined('HWE_LOGIN_SLUG')) {
+            define('HWE_LOGIN_SLUG', 'panel-acceso');
+        }
+        $this->loadOwnFile('mu-plugins/hwe-login-slug.php');
+
+        $this->assertSame(5, $this->allowedBeforeBlocking('POST', '/panel-acceso?x=/wp-json/', 20));
+
+        $ipHash = md5('203.0.113.9');
+        $this->assertArrayHasKey('hwe_rl_login_' . $ipHash, $this->transients);
+        $this->assertArrayNotHasKey('hwe_rl_rest_' . $ipHash, $this->transients);
     }
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BodyTooLarge, bodyTooLarge, readJsonBody } from "@/lib/api/body";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { getCartRequestAuth } from "@/lib/woocommerce/cart-session";
@@ -92,8 +93,9 @@ export async function POST(request: Request) {
 
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonBody(request);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
     logger.warn({ event: "cart.points.invalid_json" }, "JSON inválido en el canje");
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }

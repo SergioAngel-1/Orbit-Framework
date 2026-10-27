@@ -51,6 +51,34 @@ describe("verifyAuthToken", () => {
     const token = await signToken({ data: { user: {} } }, 300);
     expect(await verifyAuthToken(token)).toBeNull();
   });
+
+  // --------------------------------------------------------------------------
+  //  Binding de tipo de credencial. WPGraphQL JWT Authentication firma el access
+  //  token y el refresh token con el MISMO secreto y el MISMO algoritmo (HS256).
+  //  La única diferencia es que el refresh lleva `data.user.user_secret` (y vive
+  //  365 días). Si el BFF no lo mira, un `hwe_rt` robado se puede presentar como
+  //  cookie de acceso y sobrevive a logout-all y al cambio de contraseña, que
+  //  solo rotan ese secreto por usuario.
+  // --------------------------------------------------------------------------
+
+  it("rechaza un refresh token de WPGraphQL presentado como token de acceso", async () => {
+    const refreshToken = await signToken(
+      {
+        iss: "https://wp.example",
+        data: { user: { id: "42", user_secret: "secreto-vigente-del-usuario" } },
+      },
+      365 * 24 * 60 * 60,
+    );
+    expect(await verifyAuthToken(refreshToken)).toBeNull();
+  });
+
+  it("acepta el access token del mismo usuario (no lleva user_secret)", async () => {
+    const accessToken = await signToken(
+      { iss: "https://wp.example", data: { user: { id: "42" } } },
+      300,
+    );
+    await expect(verifyAuthToken(accessToken)).resolves.toEqual({ userId: "42" });
+  });
 });
 
 describe("getTokenMaxAgeSeconds", () => {

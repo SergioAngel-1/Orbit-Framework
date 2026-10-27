@@ -29,7 +29,7 @@ paquete multi-clase.
 | `security.php` | mu-plugin | Hardening: bloquea enumeración de usuarios, pingbacks, oculta versión, etc. |
 | `hwe-bff-only.php` | mu-plugin | GraphQL, la Store API (`wc/store`) y `hwe/v1/auth|consent` solo atienden al BFF: exige el secreto interno (`X-HWE-Internal-Secret` = `HWE_REVALIDATION_SECRET`, comparación en tiempo constante) o WP-CLI; si no, 404 por ruta y por parámetro. Falla cerrado sin secreto configurado. |
 | `hwe-bff-secret.php` | mu-plugin | La comprobación del secreto interno del BFF en un solo sitio: la usan `hwe-bff-only.php` (404) y `rate-limit.php` (las llamadas del BFF no consumen el presupuesto por IP de `/graphql` ni `/wp-json`). |
-| `rate-limit.php` | mu-plugin | Rate-limit de `/graphql` y `/wp-json` (XFF de confianza) y de los intentos de login; exento para las llamadas del BFF con secreto interno válido (`hwe-bff-secret.php`). |
+| `rate-limit.php` | mu-plugin | Rate-limit de `/graphql` y `/wp-json` (clasificado por la ruta parseada, sin que la query cambie de cubo; XFF de confianza) y de los intentos de login; exento para las llamadas del BFF con secreto interno válido (`hwe-bff-secret.php`). |
 | `graphql-protection.php` | mu-plugin | Límites de profundidad/complejidad de GraphQL e introspección off. |
 | `woocommerce-headless.php` | mu-plugin | Ajustes de la Store API (desactiva el nonce; seguro porque el BFF impone Origin + CSRF). Pasarelas headless siempre disponibles (`hwe_offline`, `hwe_whatsapp_link`) y aviso si COD/BACS siguen activos en producción. |
 | `hwe-post-revalidate.php` | mu-plugin | Revalida el tag ISR `posts` al guardar entradas, etiquetas o categorías del blog. |

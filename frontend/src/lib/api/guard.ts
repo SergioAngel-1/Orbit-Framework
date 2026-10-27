@@ -1,5 +1,11 @@
 import "server-only";
 import { NextResponse } from "next/server";
+import {
+  BodyTooLarge,
+  MAX_JSON_BODY_BYTES,
+  assertBodyWithinLimit,
+  bodyTooLarge,
+} from "@/lib/api/body";
 import { assertAllowedOrigin } from "@/lib/security/origin";
 import { verifyCsrf } from "@/lib/security/csrf";
 import { rateLimit } from "@/lib/security/rate-limit";
@@ -27,6 +33,11 @@ export interface GuardOptions {
     /** Modo estricto: usa fallback en memoria si Redis cae (recomendado en auth). */
     strict?: boolean;
   };
+  /**
+   * Tope de bytes del cuerpo de la petición. Por defecto `MAX_JSON_BODY_BYTES`
+   * (64 KiB). Solo se puede subir de forma explícita; nunca se omite.
+   */
+  maxBodyBytes?: number;
 }
 
 export async function guardMutation(
@@ -41,6 +52,28 @@ export async function guardMutation(
       return undefined;
     }
   })();
+
+  // 0) Tope de bytes. Antes que Origin/CSRF a propósito: rechazar un cuerpo
+  //    enorme es lo más barato y no debe depender de leerlo. El conteo real
+  //    (cuerpos sin `Content-Length`) lo hace el lector `readJsonBody` de cada
+  //    handler; aquí se corta ya si el cliente declara más de lo permitido.
+  const maxBodyBytes = options.maxBodyBytes ?? MAX_JSON_BODY_BYTES;
+  try {
+    assertBodyWithinLimit(request, maxBodyBytes);
+  } catch (error) {
+    if (!(error instanceof BodyTooLarge)) throw error;
+    logger.warn(
+      {
+        event: "guard.blocked",
+        reason: "body_too_large",
+        path,
+        requestId,
+        maxBodyBytes,
+      },
+      "Escritura bloqueada: cuerpo demasiado grande",
+    );
+    return bodyTooLarge();
+  }
 
   // 1) Origen permitido.
   if (!assertAllowedOrigin(request)) {

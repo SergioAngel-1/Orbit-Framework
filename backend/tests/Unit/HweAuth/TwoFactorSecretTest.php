@@ -82,7 +82,8 @@ final class TwoFactorSecretTest extends HweAuthTestCase
         $codes = $response->get_data()['recovery_codes'];
         $this->assertCount(10, $codes);
         foreach ($codes as $code) {
-            $this->assertMatchesRegularExpression('/^[0-9a-f]{5}-[0-9a-f]{5}$/', $code);
+            // 128 bits: 32 hex en grupos de 4.
+            $this->assertMatchesRegularExpression('/^[0-9a-f]{4}(-[0-9a-f]{4}){7}$/', $code);
         }
 
         // El secreto se guarda CIFRADO, nunca en claro.
@@ -91,10 +92,11 @@ final class TwoFactorSecretTest extends HweAuthTestCase
         $this->assertStringNotContainsString(self::SECRET, $stored);
         $this->assertSame('1', $this->meta('hwe_2fa_enabled'));
 
-        // De los códigos de recuperación solo se guardan los hashes.
+        // De los códigos de recuperación solo se guardan verificadores con
+        // pimienta de servidor: nunca el código en claro ni su SHA-256 desnudo.
         $hashes = $this->meta('hwe_2fa_recovery');
         $this->assertCount(10, $hashes);
-        $this->assertContains(hash('sha256', str_replace('-', '', $codes[0])), $hashes);
+        $this->assertNotContains(hash('sha256', str_replace('-', '', $codes[0])), $hashes);
         $this->assertStringNotContainsString($codes[0], json_encode($this->meta));
     }
 

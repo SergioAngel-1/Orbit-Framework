@@ -148,10 +148,16 @@ docker compose -f docker-compose.prod.yml up -d --force-recreate frontend wordpr
 - **Cerrar TODAS las sesiones de un usuario** (p. ej. cuenta comprometida):
   `POST /api/auth/logout-all` — rota el secreto JWT del usuario en WordPress, lo
   que invalida sus refresh tokens. Cambiar la contraseña hace lo mismo y conserva
-  solo la sesión actual. Los access tokens vivos caducan en minutos.
+  solo la sesión actual. **Restablecer la contraseña** (también el reset nativo de
+  `wp-login.php`) rota el secreto y destruye las sesiones nativas de WordPress, así
+  que los refresh tokens anteriores al reset dejan de valer. Los access tokens vivos
+  caducan en minutos.
 - **2FA:** el usuario recupera acceso con un **código de recuperación** si pierde
   el dispositivo. Si los agota, un administrador puede limpiar el meta
-  `hwe_2fa_secret`/`hwe_2fa_recovery` del usuario en WordPress.
+  `hwe_2fa_secret`/`hwe_2fa_recovery` del usuario en WordPress. Los códigos del
+  formato antiguo (40 bits) se invalidan al actualizar (migración
+  `hwe_2fa_recovery_v2_migrated`): pide a los usuarios con 2FA que regeneren sus
+  códigos; el TOTP sigue funcionando.
 - **Integrador externo:** su usuario de servicio solo vive en WordPress (WP-CLI);
   retirar el acceso es vaciar `HWE_INTEGRATION_ALLOWED_IPS` y recrear `wordpress`
   (`/graphql` vuelve a cerrarse), o apagar el módulo `external-integration`.

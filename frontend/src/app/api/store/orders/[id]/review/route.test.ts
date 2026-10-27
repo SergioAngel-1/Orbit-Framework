@@ -48,15 +48,19 @@ const call = (body: unknown = VALID, id = "10") =>
     { params: Promise.resolve({ id }) },
   );
 
-function modules(enabled: boolean) {
+function siteConfig({
+  siteReviews = true,
+  reviewsEnabled = true,
+}: { siteReviews?: boolean; reviewsEnabled?: boolean } = {}) {
   vi.mocked(getSiteConfig).mockResolvedValue({
-    modules: { "site-reviews": enabled },
+    modules: { "site-reviews": siteReviews },
+    ecommerce: { reviews_enabled: reviewsEnabled },
   } as never);
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  modules(true);
+  siteConfig();
   vi.mocked(getSession).mockResolvedValue({ userId: "7", token: "jwt" } as never);
   vi.mocked(createSiteReview).mockResolvedValue({ ok: true, review: REVIEW });
   vi.mocked(wcFetch).mockImplementation((async (path: string) =>
@@ -71,13 +75,44 @@ beforeEach(() => {
 
 describe("módulo site-reviews", () => {
   it("apagado: 404 y no toca nada", async () => {
-    modules(false);
+    siteConfig({ siteReviews: false });
 
     const res = await call();
 
     expect(res.status).toBe(404);
     expect(createSiteReview).not.toHaveBeenCalled();
     expect(wcFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("flag ecommerce.reviews_enabled", () => {
+  it("apagado: guarda la reseña del pedido pero no publica en los productos", async () => {
+    siteConfig({ reviewsEnabled: false });
+
+    const res = await call({ ...VALID, products: true });
+
+    expect(res.status).toBe(201);
+    expect((await res.json()).productsReviewed).toBe(0);
+    // La reseña del sitio (módulo site-reviews) NO la apaga reviews_enabled.
+    expect(createSiteReview).toHaveBeenCalled();
+    expect(
+      vi
+        .mocked(wcFetch)
+        .mock.calls.some(([path]) => path === "/products/reviews/batch"),
+    ).toBe(false);
+  });
+
+  it("encendido: sigue publicando en los productos", async () => {
+    siteConfig({ reviewsEnabled: true });
+
+    const res = await call({ ...VALID, products: true });
+
+    expect((await res.json()).productsReviewed).toBe(2);
+    expect(
+      vi
+        .mocked(wcFetch)
+        .mock.calls.some(([path]) => path === "/products/reviews/batch"),
+    ).toBe(true);
   });
 });
 

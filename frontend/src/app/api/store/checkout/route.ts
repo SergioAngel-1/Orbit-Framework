@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BodyTooLarge, bodyTooLarge, readJsonBody } from "@/lib/api/body";
 import { cookies } from "next/headers";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { WooCommerceError, wcFetch } from "@/lib/woocommerce/client";
@@ -132,8 +133,9 @@ export async function POST(request: Request) {
 
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonBody(request);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
     logger.warn({ event: "checkout.invalid_json" }, "JSON inválido en checkout");
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }

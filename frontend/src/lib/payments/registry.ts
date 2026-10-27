@@ -30,34 +30,51 @@ export function listProviders(): string[] {
 }
 
 /**
- * Id de la pasarela activa: la del Control Center, salvo anulación con
- * `PAYMENT_PROVIDER` (precedencia completa en `credentials.ts`). `null` en
- * producción si no hay ninguna decidida, y siempre que el pago en línea esté
- * apagado: el panel oculta entonces la pasarela, pero su valor (el `noop` por
- * defecto) sigue guardado y no debe contar como activa.
+ * Pasarelas de PRUEBAS que firman con un secreto conocido (`noop` cae a
+ * `noop-sandbox-secret`, escrito en el repo). En producción NO existen: no se
+ * pueden activar ni atender por webhook, sea cual sea la configuración guardada
+ * o la variable de entorno. Fuera de producción su webhook solo se atiende si
+ * son la pasarela activa.
  */
-async function activeProviderId(): Promise<string | null> {
-  const [settings, config] = await Promise.all([getPaymentSettings(), getSiteConfig()]);
-  return enabledPaymentChoices(config).includes("online") ? settings.provider : null;
+const TEST_ONLY_PROVIDERS = new Set(["noop"]);
+
+/** ¿Corre el runtime de producción? (`next start` fija `NODE_ENV=production`). */
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
 }
 
 /**
- * Pasarelas de PRUEBAS que firman con un secreto conocido (`noop` cae a
- * `noop-sandbox-secret`, escrito en el repo). Su webhook solo se atiende si son
- * la pasarela activa: atendidas siempre, cualquiera podía firmar un «aprobado»
- * para su propio pedido y marcarlo pagado sin pagar.
+ * Id de la pasarela activa: la del Control Center, salvo anulación con
+ * `PAYMENT_PROVIDER` (precedencia completa en `credentials.ts`). `null` en
+ * producción si no hay ninguna decidida o si la decidida es de PRUEBAS, y
+ * siempre que el pago en línea esté apagado: el panel oculta entonces la
+ * pasarela, pero su valor (el `noop` por defecto) sigue guardado y no debe
+ * contar como activa.
  */
-const TEST_ONLY_PROVIDERS = new Set(["noop"]);
+async function activeProviderId(): Promise<string | null> {
+  const [settings, config] = await Promise.all([getPaymentSettings(), getSiteConfig()]);
+  const id = enabledPaymentChoices(config).includes("online")
+    ? settings.provider
+    : null;
+  // La pasarela de pruebas no existe en producción aunque el entorno o el panel
+  // la sigan indicando: ni cobra ni atiende webhooks.
+  if (id && isProduction() && TEST_ONLY_PROVIDERS.has(id)) return null;
+  return id;
+}
 
 /**
  * ¿Se atienden los webhooks de esta pasarela? Las reales, siempre (una
  * notificación tardía de la anterior tras cambiar de pasarela es legítima y va
  * firmada con SU secreto; sin secreto configurado, su verificación falla); las
- * de pruebas, solo si están activas.
+ * de pruebas, NUNCA en producción y fuera de ella solo si están activas.
  */
 export async function acceptsWebhooksFrom(id: string): Promise<boolean> {
   if (!registry.has(id)) return false;
-  return !TEST_ONLY_PROVIDERS.has(id) || (await activeProviderId()) === id;
+  if (!TEST_ONLY_PROVIDERS.has(id)) return true;
+  // El proveedor de pruebas firma con un secreto publicado: en producción no
+  // existe, sea cual sea la configuración guardada o la variable de entorno.
+  if (isProduction()) return false;
+  return (await activeProviderId()) === id;
 }
 
 /** ¿La pasarela activa cobra en su entorno de pruebas? */

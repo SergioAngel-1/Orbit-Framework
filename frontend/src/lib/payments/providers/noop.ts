@@ -22,8 +22,20 @@ import type {
 //    puede firmar un evento y POSTearlo a /api/payments/webhook/noop.
 // ============================================================================
 
-/** Secreto de firma del sandbox (NO es una credencial real). */
-const SANDBOX_SECRET = process.env.NOOP_INTEGRITY_SECRET || "noop-sandbox-secret";
+/** Secreto público del sandbox: SOLO vale en desarrollo y test. */
+const PUBLIC_SANDBOX_SECRET = "noop-sandbox-secret";
+
+/**
+ * Secreto con el que se firman los webhooks del sandbox. En producción el
+ * literal público del repositorio NO vale: sin `NOOP_INTEGRITY_SECRET` no hay
+ * secreto y ningún evento se puede verificar. (En producción, además, el
+ * registro ni siquiera atiende el webhook de `noop`.)
+ */
+function sandboxSecret(): string {
+  const configured = process.env.NOOP_INTEGRITY_SECRET?.trim();
+  if (configured) return configured;
+  return process.env.NODE_ENV === "production" ? "" : PUBLIC_SANDBOX_SECRET;
+}
 
 /** Cabecera donde el sandbox envía la firma del evento. */
 const SIGNATURE_HEADER = "x-noop-signature";
@@ -56,8 +68,11 @@ export class NoopProvider implements PaymentProvider {
   }
 
   async verifyWebhook(rawBody: string, headers: Headers): Promise<WebhookVerification> {
+    const secret = sandboxSecret();
+    if (!secret) return { valid: false, reference: "", status: "error" };
+
     const signature = headers.get(SIGNATURE_HEADER) ?? "";
-    const expected = hmacSha256(rawBody, SANDBOX_SECRET, "hex");
+    const expected = hmacSha256(rawBody, secret, "hex");
     const valid = signature.length > 0 && safeEqual(signature, expected);
 
     let event: NoopEvent;

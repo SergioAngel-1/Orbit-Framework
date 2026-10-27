@@ -70,6 +70,10 @@ openssl rand -hex 32
 openssl rand -hex 32
 ```
 
+`PAYMENT_PROVIDER` debe ser una pasarela **real** (`wompi`, `avalpay`, …): `noop` es solo
+de pruebas, el arranque de producción lo rechaza y su webhook responde 404. En producción no
+se usa `NOOP_INTEGRITY_SECRET`: no lo generes ni pongas el literal público del repositorio.
+
 ### 3. Construir la imagen del frontend
 
 ```bash
@@ -155,6 +159,10 @@ curl -s https://tienda.mi-dominio.com/api/health | jq .
    Copia `backend/wp-content/mu-plugins/` al servidor.
 4. Configura los webhooks de WooCommerce (ver §Webhooks más abajo).
 
+> Sin Caddy no hay tope de proxy, pero no hace falta: el BFF corta cada cuerpo por
+> bytes (`lib/api/body.ts`) con **413** —64 KiB en JSON y 256 KiB en webhooks—, así que
+> el límite que imponga la plataforma es solo una segunda red de seguridad.
+
 ---
 
 ## Panel de WordPress en su propio host (opcional)
@@ -169,11 +177,17 @@ El `Caddyfile` en la raíz del repositorio enruta automáticamente:
 
 | Ruta | Destino |
 |------|---------|
+| `/api/*` | Next.js (BFF), con un tope de cuerpo propio de **1 MB** |
 | `/wp-admin/*`, `/wp-login.php` | WordPress (panel de admin) |
 | `/wp-json/*` | WordPress (REST API / webhooks) |
 | `/graphql` | WordPress (GraphQL endpoint) |
 | `/wp-content/*` | WordPress (medios, con caché larga) |
 | Todo lo demás | Next.js (frontend) |
+
+El `Caddyfile` aplica un `request_body max_size 130MB` global para las subidas de la
+medioteca, pero `/api/*` tiene su propio bloque con **1 MB**: son JSON y webhooks, no
+medios. Es una segunda red de seguridad; la aplicación ya responde **413** por encima de
+64 KiB (JSON) o 256 KiB (webhooks) con `lib/api/body.ts`.
 
 Variables de entorno que consume el `Caddyfile`:
 - `PUBLIC_DOMAIN` — dominio sin protocol (ej. `tienda.mi-dominio.com`).

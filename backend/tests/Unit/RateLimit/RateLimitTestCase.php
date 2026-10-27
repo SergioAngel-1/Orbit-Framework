@@ -25,11 +25,16 @@ abstract class RateLimitTestCase extends TestCase
         parent::setUp();
 
         $_SERVER = ['REMOTE_ADDR' => '203.0.113.9'];
+        // La clasificación mira la ruta parseada y las formas `?rest_route=` /
+        // `?graphql`: los superglobales no pueden arrastrarse entre peticiones.
+        $_GET = [];
+        $_POST = [];
         $this->transients = [];
 
         Functions\stubs([
             'wp_unslash' => static fn ($value) => $value,
             'sanitize_text_field' => static fn ($value) => is_string($value) ? trim($value) : '',
+            'wp_parse_url' => static fn ($url, $component = -1) => parse_url((string) $url, (int) $component),
         ]);
         Functions\when('get_transient')->alias(fn (string $key) => $this->transients[$key] ?? false);
         Functions\when('set_transient')->alias(function (string $key, $value): bool {
@@ -49,6 +54,8 @@ abstract class RateLimitTestCase extends TestCase
     protected function tearDown(): void
     {
         $_SERVER = [];
+        $_GET = [];
+        $_POST = [];
         parent::tearDown();
     }
 

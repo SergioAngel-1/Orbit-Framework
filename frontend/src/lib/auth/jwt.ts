@@ -27,15 +27,38 @@ export interface AuthTokenPayload {
 
 /**
  * Verifica la firma y vigencia del JWT de acceso y extrae el id de usuario.
- * Devuelve `null` si el token es inválido, está expirado o no contiene el id.
+ * Devuelve `null` si el token es inválido, está expirado, no contiene el id o
+ * NO es un token de acceso (ver más abajo).
+ *
+ * WPGraphQL JWT Authentication firma el access token y el refresh token con el
+ * MISMO secreto y el MISMO algoritmo (HS256): la firma no distingue una
+ * credencial de la otra. Lo único que las separa es que el refresh token lleva
+ * `data.user.user_secret` y vive mucho más (365 días). Por eso, además de la
+ * firma, aquí se exige la forma de access token: un refresh token presentado en
+ * la cookie de acceso se rechaza. Si no se hiciera, un `hwe_rt` filtrado montaría
+ * una sesión en todo el BFF —también en las rutas que consultan WooCommerce con
+ * las claves de administrador del BFF, que nunca pasan por WordPress— y ni
+ * `logout-all` ni el cambio de contraseña lo revocarían: ambos solo rotan el
+ * secreto por usuario, que WordPress compara en `enforceRefreshTokenSecret`
+ * únicamente cuando valida un bearer. El refresh token sigue teniendo un único
+ * uso legítimo: `/api/auth/refresh` (y el refresco transparente de `proxy.ts`),
+ * que lo canjean en WordPress y no pasan por esta función.
  */
 export async function verifyAuthToken(token: string): Promise<AuthTokenPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecretKey(), {
       algorithms: ["HS256"],
     });
-    const data = payload as { data?: { user?: { id?: string | number } } };
-    const id = data.data?.user?.id;
+    const data = payload as {
+      data?: { user?: { id?: string | number; user_secret?: unknown } };
+    };
+    const user = data.data?.user;
+    // Marcador de refresh token: no es una sesión. Falla cerrado si el claim
+    // aparece, aunque venga vacío.
+    if (user && "user_secret" in user) {
+      return null;
+    }
+    const id = user?.id;
     return id != null ? { userId: String(id) } : null;
   } catch {
     return null;

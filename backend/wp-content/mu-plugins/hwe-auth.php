@@ -34,9 +34,16 @@ class HWE_Auth_Endpoints {
 
     public static function register(): void {
         add_action('rest_api_init', [self::class, 'registerRoutes']);
+        // Una sola vez por instalación: invalida los códigos de recuperación del
+        // formato antiguo (40 bits, SHA-256 sin pimienta). El TOTP no se toca.
+        add_action('init', [self::class, 'migrateRecoveryCodesV2']);
         // El plugin JWT no compara el secreto de un refresh token con el vigente:
         // sin esto, rotarlo (logout-all, cambio de contraseña) no cierra ninguna sesión.
         add_filter('graphql_jwt_auth_validate_token', [self::class, 'enforceRefreshTokenSecret']);
+        // El reset de contraseña pasa por `wp_set_password()` (el del BFF y también
+        // el nativo de wp-login.php, que no pasa por el BFF): ahí se cierran las
+        // sesiones anteriores aunque la operación no venga del BFF.
+        add_action('wp_set_password', [self::class, 'handlePasswordSet'], 10, 2);
     }
 
     public static function registerRoutes(): void {

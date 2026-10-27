@@ -48,6 +48,7 @@ de terceros del volumen `wordpress_content`. En producción el compose monta
 | `hwe_order_item_details` | filtro | Declarar detalles de línea de pedido (`clave => ['label', 'validate', 'applies_to', 'required', 'meta_key']`): el núcleo los toma de `extensions` en `cart/add-item`, los valida en el servidor, impide pagar una línea sin ellos y los guarda como meta **visible** de la línea (correos, wp-admin, API). El validador devuelve el valor, `['value', 'data']` o un `WP_Error`. |
 | `hwe_product_landing_icons` | filtro | Ampliar los íconos del selector de la landing de producto (clave en minúsculas → etiqueta); la instancia declara los mismos dibujos en su frontend. |
 | `hwe_control_center_public_config` | filtro | `( array $public ): array`. Añade campos **públicos** (nunca secretos) a `GET /wp-json/hwe/v1/config`, p. ej. `shipping.distance_enabled` del módulo `shipping`. Lo aplica `RestApi` del Control Center justo antes de responder. |
+| `hwe_featured_post_capability` | filtro | `( string $capability ): string`. Capacidad que autoriza la pantalla `Entradas → Post Destacado` y su guardado; por defecto `edit_others_posts` (Colaborador y Autor no pueden cambiar el destacado de todo el sitio). Devuelve una capacidad; un valor vacío o que no sea texto se ignora y se registra. |
 
 **Grupos reservados a un módulo:** el núcleo declara vacíos los grupos raíz `shipping`,
 `landings`, `loyalty` y `memberships`; el plugin del módulo los puebla con

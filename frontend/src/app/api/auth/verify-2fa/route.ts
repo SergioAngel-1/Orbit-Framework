@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BodyTooLarge, bodyTooLarge, readJsonBody } from "@/lib/api/body";
 import { cookies } from "next/headers";
 import { verify as verifyTotp } from "otplib";
 import { twoFactorCodeSchema } from "@/lib/validation/auth";
@@ -55,8 +56,13 @@ export async function POST(request: Request) {
 
   let body: { ephemeralToken?: string; code?: string; recoveryCode?: string };
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonBody<{
+      ephemeralToken?: string;
+      code?: string;
+      recoveryCode?: string;
+    }>(request);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 

@@ -302,6 +302,11 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   riesgo de un doble envío.
 - **Guard unificado** (Origin → CSRF → rate-limit) aplicado en cada escritura:
   `lib/api/guard.ts`. Si añades un endpoint de escritura, **úsalo**.
+- **Tope de cuerpo en el BFF**: ningún handler de `/api/*` lee el cuerpo con
+  `request.json()`/`request.text()` directamente. Usa `readJsonBody` (64 KiB) o
+  `readTextBody` (webhooks: `MAX_WEBHOOK_BODY_BYTES`, 256 KiB) de `lib/api/body.ts` y
+  responde `bodyTooLarge()` (413); `guardMutation` corta además por `Content-Length`. El
+  lector cuenta los bytes reales, así que también acota cuerpos `chunked` sin longitud.
 - **Guard de arranque**: `lib/security/secret-guard.ts` (llamado desde `instrumentation.ts`)
   **aborta el boot en producción** si los secretos siguen con valores por defecto o son cortos.
 - **IP del cliente anti-spoofing**: `lib/http/request-ip.ts` usa `TRUSTED_PROXY_COUNT`
@@ -361,8 +366,11 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   se invalida tras 5 códigos incorrectos (hay que volver a iniciar sesión).
 - El **secreto TOTP se cifra en reposo** en WP con **AES-256-GCM** (`hwe-auth.php`,
   clave dedicada `HWE_2FA_KEY` con fallback a `AUTH_KEY`). Verificación TOTP con `otplib` v13.
-- **Códigos de recuperación**: 10 por usuario, guardados **hasheados**; se consumen de uno
-  en uno (`2fa-recovery/verify`). Sirven en `verify-2fa` (campo `recoveryCode`).
+- **Códigos de recuperación**: 10 por usuario, de **128 bits** (`random_bytes(16)` en hex,
+  mostrados en grupos de 4) y guardados como **HMAC-SHA-256 con una pimienta derivada de la
+  clave de servidor** (`HWE_2FA_KEY`, fuera de la BD), nunca como SHA-256 desnudo; se consumen
+  de uno en uno (`2fa-recovery/verify`). Sirven en `verify-2fa` (campo `recoveryCode`). La
+  migración `hwe_2fa_recovery_v2_migrated` invalida los códigos del formato antiguo (40 bits).
 - **`2fa-status` no es público**: requiere el secreto interno del BFF
   (`X-HWE-Internal-Secret` = `HWE_REVALIDATION_SECRET`) o que el usuario consulte su propio id.
 - **Desactivar exige re-verificación** (código TOTP o de recuperación), no solo sesión.
@@ -482,6 +490,10 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   La pasarela activa y sus credenciales vienen del Control Center (`credentials.ts`, caché en
   memoria); `PAYMENT_PROVIDER` solo la anula. Medios del checkout (pago en línea, link por
   WhatsApp, efectivo): `checkout-options.ts`, ver `docs/FRONTEND_CONNECT.md` (A.2 «Pagos»).
+- **`noop` es solo de desarrollo/test:** su webhook firma con un secreto publicado
+  (`noop-sandbox-secret`). En `NODE_ENV=production` no se activa ni atiende webhooks (404),
+  aunque `PAYMENT_PROVIDER` o el panel lo indiquen; el guard de arranque rechaza
+  `PAYMENT_PROVIDER=noop` y el literal público como `NOOP_INTEGRITY_SECRET`.
 - **Endpoints BFF** en `app/api/payments/`: `create` (POST, sesión + guard + propiedad →
   `createCheckout`), `webhook/[provider]` (server-to-server, **sin CSRF/Origin**, valida
   firma + importe + moneda → marca pagado, idempotente) y `return` (GET, solo estado). La
@@ -658,7 +670,11 @@ mayoría de problemas (límites server/client, RSC, edge runtime, prerender por 
   consultada en `getSession`); `/api/auth/logout-all` y el **cambio de contraseña** rotan el "user
   secret" en WP e invalidan de verdad los refresh tokens (el plugin JWT 0.7 no compara ese secreto
   por sí solo: lo impone un filtro propio, `enforceRefreshTokenSecret`). El refresh **no rota en
-  cada uso** (limitación del plugin WPGraphQL JWT).
+  cada uso** (limitación del plugin WPGraphQL JWT). Y `verifyAuthToken` **solo acepta access
+  tokens**: rechaza cualquier JWT con `data.user.user_secret`, el marcador del refresh token (que se
+  firma con el mismo secreto y algoritmo), así que un `hwe_rt` colocado en la cookie de acceso no
+  monta sesión en el BFF. El refresh token solo vale en `/api/auth/refresh` y en el refresco
+  transparente de `proxy.ts`, que lo canjean en WordPress.
 - **`@tailwindcss/typography` YA está instalado** (en `devDependencies`): `prose` está
   disponible para las descripciones de producto. *(Corrige una nota antigua que decía lo contrario.)*
 - **Sentry YA está cableado**: `sentry.{server,edge}.config.ts` + `src/instrumentation.ts` y, en el

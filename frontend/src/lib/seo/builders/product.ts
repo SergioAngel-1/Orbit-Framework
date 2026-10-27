@@ -211,11 +211,16 @@ export function buildProductJsonLd({
     offers: offer,
   };
 
-  // aggregateRating + review (solo con reseñas reales — exigido por Google).
+  // aggregateRating + review (solo con reseñas reales — exigido por Google) y
+  // solo con `ecommerce.reviews_enabled` encendido: con el flag apagado la
+  // ficha no muestra reseñas, así que declararlas aquí sería publicar en el
+  // schema estrellas y opiniones que el administrador apagó.
   // `reviewCount` sale de las reseñas que trajo `getProductBySlug` (tope de
   // 100): coincide con `averageRating` salvo en un producto con más de esas
   // 100 reseñas, límite técnico de WPGraphQL que no vale la pena paginar aquí.
-  const reviews = product.reviews?.items ?? [];
+  const reviews = config.ecommerce.reviews_enabled
+    ? (product.reviews?.items ?? [])
+    : [];
   const rated = reviews.filter((r) => r.rating > 0);
   if (rated.length > 0 && product.reviews.averageRating > 0) {
     jsonLd.aggregateRating = {

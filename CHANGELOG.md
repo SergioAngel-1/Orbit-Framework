@@ -125,6 +125,83 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   recupere el comportamiento anterior. El canje no cambia: los puntos siguen pudiendo pagar un
   plan, porque es un medio de pago y no una ganancia. Fix compatible (parche).
 
+### Security
+
+- **La pasarela de pruebas `noop` ya no puede cobrar ni marcar pedidos pagados en producción. El despliegue de producción traía `PAYMENT_PROVIDER=noop` por defecto (`docker-compose.prod.yml`, `.env.prod.example`) y `noop` firmaba sus webhooks con el literal público `noop-sandbox-secret`: cualquiera podía enviar un evento «aprobado» a `/api/payments/webhook/noop` y dejar un pedido `processing` con `set_paid: true` sin cobro. Ahora la pasarela de pruebas no existe con `NODE_ENV=production`: el registro no la activa ni atiende su webhook (404) aunque `PAYMENT_PROVIDER` o el panel la indiquen, `noop` ya no usa el literal público fuera de desarrollo/test, el guard de arranque aborta con `PAYMENT_PROVIDER=noop` o con el secreto público, y las plantillas de producción ya no fijan `noop`. Acción del operador: fija una pasarela real en producción (`wompi`, `avalpay`…) y deja `NOOP_INTEGRITY_SECRET` vacío; sin pasarela, el cobro responde 503 (antes caía a `noop`).**
+- **El BFF ya no acepta un refresh token como sesión.** WPGraphQL JWT Authentication firma el
+  access token y el refresh token con el mismo secreto y el mismo algoritmo (HS256): la firma no
+  distingue una credencial de la otra, y el refresh token se reconoce solo por
+  `data.user.user_secret` (y vive 365 días). `verifyAuthToken` comprobaba la firma y que existiera
+  `data.user.id`, pero no el tipo de credencial, así que un `hwe_rt` filtrado presentado en la
+  cookie de acceso montaba sesión en todo el BFF —también en las rutas que consultan WooCommerce con
+  las claves de administrador del BFF, que nunca pasan por WordPress— y ni `logout-all` ni el cambio
+  de contraseña lo revocaban: ambos solo rotan el secreto por usuario, que WordPress compara
+  únicamente cuando valida un bearer (`enforceRefreshTokenSecret`). Ahora el verificador del BFF
+  exige la forma de access token y rechaza cualquier JWT que lleve `data.user.user_secret`; el
+  refresh token sigue teniendo su único uso legítimo en `/api/auth/refresh` y en el refresco
+  transparente de `proxy.ts`, que lo canjean en WordPress. No cambia el contrato para sesiones
+  legítimas (login, registro, 2FA y refresco siguen igual) y no requiere acción del operador.
+- **Restablecer la contraseña cierra las sesiones anteriores.** El reset
+  (`POST /api/auth/reset-password` → `POST hwe/v1/auth/reset-password`) cambiaba la contraseña
+  con `reset_password()` y respondía 200 sin tocar `graphql_jwt_auth_secret`, el único mecanismo
+  del servidor para invalidar refresh tokens. Como el plugin WPGraphQL JWT Authentication 0.7.2
+  emite refresh tokens de hasta 365 días que solo se comparan con ese secreto
+  (`enforceRefreshTokenSecret`), un `hwe_rt` copiado antes del reset seguía canjeándose por un
+  access token nuevo en `/api/auth/refresh`: el atacante conservaba la cuenta que la víctima creía
+  recuperada. Ahora `handleResetPassword()` llama al helper `revokeRefreshTokens()` (el mismo de
+  `logout-all`), que rota el secreto del usuario y destruye sus sesiones nativas de WordPress; si
+  la rotación falla, el reset responde **500** con `error_log('[hwe] auth: reset-password: …')` en
+  vez de dar el cierre por hecho. La misma rotación se engancha a la acción `wp_set_password` del
+  núcleo, así que cubre también el reset nativo de `wp-login.php` (que no cruza el BFF). **Cambio de comportamiento:** los refresh tokens emitidos
+  antes de un reset dejan de valer (es lo esperado) y `logout-all` responde 500 si no pudo rotar
+  el secreto. Sin acción del operador.
+- **El presupuesto de fuerza bruta del login de WordPress ya no se puede esquivar añadiendo un marcador de API a la query. `rate-limit.php` clasificaba con `str_contains()` sobre el `REQUEST_URI` completo (query incluida) y evaluaba `/graphql` y `/wp-json/` antes que el login: `POST /wp-login.php?x=/wp-json/` gastaba el cubo REST (120/min) y `POST /wp-login.php?x=/graphql` el de GraphQL (60/min), mientras el cubo de login (5/300 s) quedaba intacto; con `HWE_LOGIN_SLUG` pasaba igual con `POST /<slug>?x=/wp-json/`, y la acción `lostpassword` sufría el mismo escape. Un cliente no autenticado pasaba de 5 intentos cada 5 minutos a unos 120-180 por minuto contra el único login humano de la pila, que además no pasa por el segundo factor del BFF. Ahora la clasificación usa la ruta parseada (`wp_parse_url(..., PHP_URL_PATH)`), el intento de login (POST a `/wp-login.php` o a la ruta de `HWE_LOGIN_SLUG`) se decide primero y gasta solo `HWE_RL_LOGIN` con cualquier query, y REST/GraphQL se reconocen por segmento de ruta y por las formas que WordPress despacha (`?rest_route=`, `?graphql`). Sin variables nuevas ni migración: el login sigue limitado a 5 intentos cada 5 minutos por IP y las exenciones del BFF (secreto interno) y de WP-CLI se mantienen. Nota para operadores: las peticiones REST con `?rest_route=` (enlaces permanentes planos) y `/wp-json` sin barra final ahora sí consumen el presupuesto de 120/min que antes no tocaban; las llamadas del BFF con el secreto interno siguen exentas.**
+- **Tope de bytes en los cuerpos del BFF (413).** Cada Route Handler materializaba el cuerpo completo con `request.text()`/`request.json()` antes de decidir nada —incluida la firma de los webhooks—: el rate-limit cuenta peticiones, no bytes, y el único tope era el `request_body max_size 130MB` global de Caddy (pensado para medios), que el catch-all heredaba también para `/api/*`. Un POST anónimo a un webhook podía enviar 130 MB, bufferease en el proceso (~2× los bytes de red: buffer + cadena) y hashearse antes de responder 401; dos concurrentes superaban el límite de 512 MB del contenedor del frontend y tumbaban la tienda entera hasta que Docker la reiniciaba. Ahora `frontend/src/lib/api/body.ts` impone **64 KiB** para los JSON de escritura y **256 KiB** para los webhooks firmados: comprueba el `Content-Length` declarado y cuenta los bytes reales del stream (cuerpos `chunked` sin longitud), cancela la lectura al pasarse y responde **413** sin hashear ni tocar WordPress. `guardMutation` aplica el tope JSON a toda escritura y `lib/security/webhook.ts` sigue verificando sobre los bytes crudos, ya acotados. Caddy añade un bloque `handle /api/*` con `request_body max_size 1MB`, separado de los 130 MB de la medioteca. **Cambio de comportamiento:** un cuerpo de escritura mayor de 64 KiB (o un webhook mayor de 256 KiB) recibe 413; no hay variables nuevas ni migración y ninguna ruta del framework manda cuerpos de ese tamaño.
+- **El listado público de productos ya tiene presupuesto por IP sobre todo el GET, no solo sobre `?search=`.** `GET /api/store/products` es anónimo y cada forma de su query string (`category`, `first`, `after`, precios…) acababa en una consulta WPGraphQL distinta: la clave del Data Cache incluye las variables, así que variar la URL producía siempre un fallo de caché, y WordPress exime del suyo a todo el tráfico del BFF (secreto interno), que en producción comparte cinco workers de Apache con el resto de la tienda. El único `rateLimit` vivía dentro de `if (searchQuery)`, de modo que el listado, los filtros y la paginación no tocaban el limitador. Ahora todo el handler consume un presupuesto de 60 peticiones/minuto por IP antes de resolver la config del sitio o llamar a WordPress (429 con `Retry-After` si se supera), `first` se acota en la frontera a 24 (12 por defecto) y `category`, `minPrice`, `maxPrice` y `after` mal formados se descartan antes de construir la consulta. **Cambio de comportamiento:** el listado, los filtros y el scroll infinito comparten ahora ese límite (la UI pide 12 por página, así que el uso normal no lo roza); una integración que pidiera más de 24 productos por página recibirá como máximo 24. No requiere acción del operador.
+- **El `image_tag` del CD deja de ser código: se valida antes de cualquier uso.** El workflow `.github/workflows/cd.yml` interpolaba `${{ inputs.image_tag }}` dentro del `run:` que resolvía la etiqueta de imagen y volcaba el resultado con `echo` sin escapar en `$GITHUB_OUTPUT`; después, la referencia derivada se interpolaba en el `script:` remoto de `appleboy/ssh-action`. Como GitHub sustituye las expresiones como texto antes de que bash (o el shell del host) las parsee, una etiqueta maliciosa ejecutaba comandos en el runner —que tiene `packages: write` y el token del checkout— y en el host de despliegue. Ahora la etiqueta entra por `env:`, se valida contra la gramática de Docker (máximo 128 caracteres; primer carácter `[A-Za-z0-9_]`; resto `[A-Za-z0-9_.-]`) mediante `.github/scripts/validate-image-tag.sh`, los outputs se escriben con `printf` y la referencia de imagen se entrega al SSH por `envs`. El gate de «CI en verde» solo se omite cuando el paso anterior ya validó una etiqueta de rollback. Cambio de comportamiento: un `image_tag` que no cumpla la gramática de Docker se rechaza con error antes de construir o desplegar; los tags válidos y el rollback siguen funcionando igual.
+- **Los códigos de recuperación de 2FA pasan a 128 bits y a un verificador HMAC con pimienta de
+  servidor.** Se generaban con `random_bytes(5)` (40 bits) y se guardaba `hash('sha256', $code)`
+  sin sal ni pimienta, así que quien obtuviera una copia de `wp_usermeta` (backup, réplica de
+  lectura, volcado SQL o SQLi en otro componente) podía recorrer el espacio offline (~2^36,5
+  intentos esperados con 10 códigos) y usar el código recuperado como segundo factor, incluso
+  para desactivar el 2FA. Ahora cada código tiene **128 bits** (`random_bytes(16)`, 32 hex
+  mostrados en 8 grupos de 4) y solo se guarda un **HMAC-SHA-256** con una pimienta derivada de
+  la clave de servidor fuera de la BD (`HWE_2FA_KEY`, con los mismos respaldos que el cifrado del
+  secreto TOTP), comparado con `hash_equals` y de un solo uso; sin clave la operación falla
+  cerrada (500 al activar, rechazo al verificar, con `error_log('[hwe] auth: …')`). Una migración
+  idempotente versionada (`hwe_2fa_recovery_v2_migrated`) borra los códigos del formato antiguo al
+  actualizar: **los códigos de recuperación emitidos antes dejan de valer y hay que regenerarlos**;
+  el TOTP de la app de autenticación sigue funcionando sin cambios. El contrato del BFF no cambia:
+  `recoveryCode` ya admite el nuevo formato de 39 caracteres sin recortarlo.
+- **La reseña de un pedido ya no puede publicar reseñas de producto con
+  `ecommerce.reviews_enabled` apagado.** El handler `POST /api/store/orders/[id]/review`
+  solo comprobaba el módulo `site-reviews` y el `products: true` del cuerpo llegaba
+  directamente a `publishProductReviews`, que escribe el lote en
+  `/wp-json/wc/v3/products/reviews/batch` con las claves de administración y crea cada
+  reseña como aprobada y `verified`. Un comprador con un pedido completado podía, con una
+  petición manual mismo-origen (cookie de sesión + token CSRF), saltarse el flag que la
+  ruta hermana de reseñas de producto (`/api/store/reviews/*`) y la UI sí respetan y
+  publicar opiniones verificadas aunque el administrador tuviera las reseñas de producto
+  apagadas, que además aparecían en el JSON-LD de la ficha. Ahora el fan-out a productos
+  solo se ejecuta con el flag encendido y `publishProductReviews` vuelve a comprobarlo por
+  su cuenta (defensa en profundidad para todos sus llamadores); con el flag apagado la
+  reseña del pedido (módulo `site-reviews`, independiente del flag) se sigue guardando y
+  la respuesta devuelve `productsReviewed: 0`, y el JSON-LD de producto deja de emitir
+  `aggregateRating`/`review`. El flag apagado no cambia el 404 de la ruta: solo impide el
+  fan-out. No requiere acción de los operadores.
+- **El post destacado de `/blog` deja de estar al alcance de Colaborador y Autor.** La pantalla
+  `Entradas → Post Destacado` y su guardado se autorizaban con `edit_posts`, una capacidad que
+  ambos roles tienen, y el nonce lo imprimía esa misma pantalla: un Colaborador podía fijar
+  cualquier entrada ya publicada como portada del blog (o limpiar la selección) sin poder editar
+  el contenido de otros autores. Ahora la pantalla y el handler exigen `edit_others_posts`
+  (`HWE_FEATURED_POST_CAP`, filtrable con `hwe_featured_post_capability` para que una instancia
+  conceda otra capacidad de forma explícita y sin volver a `edit_posts`), el nonce sigue siendo
+  obligatorio y el id se valida al guardar: solo se acepta un post `post` publicado; `0` limpia
+  la selección y un id inexistente, de otro tipo o no público no se guarda, se avisa en la
+  pantalla y se registra con `[hwe] featured-post: …`. Cambio de comportamiento: Colaborador y
+  Autor ya no ven la pantalla ni pueden cambiar el destacado; si tu tienda usaba uno de esos
+  roles para curarlo, concede la capacidad con el hook (ver `docs/UPGRADE.md`).
+
 ## [2.2.0] — 2026-10-25
 
 Puntos de extensión para instancias y los huecos que aparecieron al instanciar el framework en

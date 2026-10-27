@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BodyTooLarge, bodyTooLarge, readJsonBody } from "@/lib/api/body";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { getCartRequestAuth } from "@/lib/woocommerce/cart-session";
@@ -16,10 +17,16 @@ import type { StoreCart } from "@/types/woocommerce";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Lee el JSON del carrito. Un JSON inválido sigue devolviendo `null` (422 como
+ * hasta ahora); un cuerpo por encima del tope propaga `BodyTooLarge` para que el
+ * handler responda 413.
+ */
 async function readBody(request: Request): Promise<unknown> {
   try {
-    return await request.json();
-  } catch {
+    return await readJsonBody(request);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) throw error;
     return null;
   }
 }
@@ -30,7 +37,15 @@ export async function POST(request: Request) {
     rateLimit: { name: "cart", limit: 60, windowSeconds: 60 },
   });
   if (blocked) return blocked;
-  const parsed = addItemSchema.safeParse(await readBody(request));
+  let body: unknown;
+  try {
+    body = await readBody(request);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
+    throw error;
+  }
+
+  const parsed = addItemSchema.safeParse(body);
   if (!parsed.success) {
     logger.warn(
       { event: "cart.add_item.validation" },
@@ -75,7 +90,15 @@ export async function PATCH(request: Request) {
     rateLimit: { name: "cart", limit: 60, windowSeconds: 60 },
   });
   if (blocked) return blocked;
-  const parsed = updateItemSchema.safeParse(await readBody(request));
+  let body: unknown;
+  try {
+    body = await readBody(request);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
+    throw error;
+  }
+
+  const parsed = updateItemSchema.safeParse(body);
   if (!parsed.success) {
     logger.warn(
       { event: "cart.update_item.validation" },
@@ -120,7 +143,15 @@ export async function DELETE(request: Request) {
     rateLimit: { name: "cart", limit: 60, windowSeconds: 60 },
   });
   if (blocked) return blocked;
-  const parsed = removeItemSchema.safeParse(await readBody(request));
+  let body: unknown;
+  try {
+    body = await readBody(request);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
+    throw error;
+  }
+
+  const parsed = removeItemSchema.safeParse(body);
   if (!parsed.success) {
     logger.warn(
       { event: "cart.remove_item.validation" },
