@@ -482,6 +482,10 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   La pasarela activa y sus credenciales vienen del Control Center (`credentials.ts`, caché en
   memoria); `PAYMENT_PROVIDER` solo la anula. Medios del checkout (pago en línea, link por
   WhatsApp, efectivo): `checkout-options.ts`, ver `docs/FRONTEND_CONNECT.md` (A.2 «Pagos»).
+- **`noop` es solo de desarrollo/test:** su webhook firma con un secreto publicado
+  (`noop-sandbox-secret`). En `NODE_ENV=production` no se activa ni atiende webhooks (404),
+  aunque `PAYMENT_PROVIDER` o el panel lo indiquen; el guard de arranque rechaza
+  `PAYMENT_PROVIDER=noop` y el literal público como `NOOP_INTEGRITY_SECRET`.
 - **Endpoints BFF** en `app/api/payments/`: `create` (POST, sesión + guard + propiedad →
   `createCheckout`), `webhook/[provider]` (server-to-server, **sin CSRF/Origin**, valida
   firma + importe + moneda → marca pagado, idempotente) y `return` (GET, solo estado). La

@@ -502,9 +502,15 @@ services:
       WC_WEBHOOK_SECRET:                "${WC_WEBHOOK_SECRET}"
       REDIS_URL:                        "redis://redis:6379"
       HWE_REVALIDATION_SECRET:          "${HWE_REVALIDATION_SECRET}"
-      PAYMENT_PROVIDER:                 "${PAYMENT_PROVIDER:-noop}"
+      # Sin valor por defecto: producción sin pasarela decidida falla cerrada
+      # (503 en el cobro y 404 en el webhook de pruebas), nunca cae a `noop`.
+      # `noop` no es válido en producción: el guard de arranque lo rechaza y el
+      # registro de pagos no lo activa ni atiende su webhook.
+      PAYMENT_PROVIDER:                 "${PAYMENT_PROVIDER:-}"
       PAYMENT_CURRENCY:                 "${PAYMENT_CURRENCY:-EUR}"
       NEXT_PUBLIC_PAYMENT_RETURN_URL:   "https://${PUBLIC_DOMAIN}/checkout/return"
+      # Solo para el sandbox `noop` (desarrollo/test). En producción déjalo vacío:
+      # el literal público del repo no es un secreto y el guard lo rechaza.
       NOOP_INTEGRITY_SECRET:            "${NOOP_INTEGRITY_SECRET:-}"
       # ── Paciencia EN RUNTIME con WordPress ─────────────────────────────────
       # Una petición ABORTADA por plazo no entra en el Data Cache de Next: la

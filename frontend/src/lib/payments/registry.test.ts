@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getPaymentSettings = vi.fn();
 vi.mock("./credentials", () => ({
@@ -109,6 +109,34 @@ describe("acceptsWebhooksFrom", () => {
     getPaymentSettings.mockResolvedValue({ provider: "wompi" });
 
     expect(await acceptsWebhooksFrom("wompi")).toBe(true);
+  });
+
+  describe("en producción", () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("la pasarela de pruebas no atiende aunque sea la activa por entorno o panel", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      getPaymentSettings.mockResolvedValue({ provider: "noop" });
+
+      expect(await acceptsWebhooksFrom("noop")).toBe(false);
+    });
+
+    it("la pasarela de pruebas no se puede cobrar (503): no hay respaldo silencioso", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      getPaymentSettings.mockResolvedValue({ provider: "noop" });
+
+      await expect(getActiveProvider()).rejects.toMatchObject({
+        status: 503,
+        code: "provider_unavailable",
+      });
+      expect(await isActiveGatewaySandbox()).toBe(false);
+    });
+
+    it("una pasarela real sigue atendiendo sus webhooks", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+
+      expect(await acceptsWebhooksFrom("wompi")).toBe(true);
+    });
   });
 });
 

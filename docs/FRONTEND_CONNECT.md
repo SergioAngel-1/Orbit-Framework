@@ -140,8 +140,10 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   medio activo; si no, **409**. Sin pasarela decidida, **503**.
 - **Pasarela activa:** la elegida en el Control Center; `PAYMENT_PROVIDER` del entorno solo la
   anula (desarrollo, CI). En producción sin ninguna **no hay `noop`**: el cobro falla con un
-  error claro. Con `payments.gateway_enabled` apagado (p. ej. «solo WhatsApp») **no hay pasarela
-  activa**, aunque quede una guardada: ni cobro (503) ni aviso de pruebas ni webhook de `noop`. Credenciales por `GET hwe/v1/payments/credentials` (interno), en caché de memoria
+  error claro. `noop` tampoco se activa en producción aunque el entorno o el panel lo indiquen:
+  su webhook responde **404** y el guard de arranque rechaza `PAYMENT_PROVIDER=noop`. Con
+  `payments.gateway_enabled` apagado (p. ej. «solo WhatsApp») **no hay pasarela activa**,
+  aunque quede una guardada: ni cobro (503) ni aviso de pruebas ni webhook de `noop`. Credenciales por `GET hwe/v1/payments/credentials` (interno), en caché de memoria
   del proceso (60 s) que `POST /api/revalidate` vacía al guardar el Control Center.
 - **Modo de pruebas:** `isActiveGatewaySandbox()` (`lib/payments/registry.ts`, server-only)
   dice si la pasarela cobra con credenciales de sandbox; la vista debe avisarlo

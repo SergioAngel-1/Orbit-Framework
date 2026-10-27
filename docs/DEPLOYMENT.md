@@ -70,6 +70,10 @@ openssl rand -hex 32
 openssl rand -hex 32
 ```
 
+`PAYMENT_PROVIDER` debe ser una pasarela **real** (`wompi`, `avalpay`, …): `noop` es solo
+de pruebas, el arranque de producción lo rechaza y su webhook responde 404. En producción no
+se usa `NOOP_INTEGRITY_SECRET`: no lo generes ni pongas el literal público del repositorio.
+
 ### 3. Construir la imagen del frontend
 
 ```bash

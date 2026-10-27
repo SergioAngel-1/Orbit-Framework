@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { afterEach, describe, it, expect, beforeAll, vi } from "vitest";
 import { NoopProvider } from "@/lib/payments/providers/noop";
 import { registerProvider, getProvider, listProviders } from "@/lib/payments/registry";
 import { hmacSha256 } from "@/lib/payments/signature";
@@ -70,5 +70,35 @@ describe("NoopProvider.verifyWebhook", () => {
     expect(provider.mapStatus("VOIDED")).toBe("voided");
     expect(provider.mapStatus("PENDING")).toBe("pending");
     expect(provider.mapStatus("???")).toBe("error");
+  });
+
+  describe("fuera de desarrollo/test", () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    const body = JSON.stringify({ reference: "123", status: "APPROVED" });
+
+    it("sin NOOP_INTEGRITY_SECRET, el literal público no verifica ningún evento", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NOOP_INTEGRITY_SECRET", "");
+      const headers = new Headers({
+        "x-noop-signature": hmacSha256(body, "noop-sandbox-secret", "hex"),
+      });
+
+      const v = await provider.verifyWebhook(body, headers);
+
+      expect(v.valid).toBe(false);
+    });
+
+    it("con un secreto propio, la firma hecha con el literal público tampoco vale", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NOOP_INTEGRITY_SECRET", "secreto-de-sandbox-propio-0123456789");
+      const headers = new Headers({
+        "x-noop-signature": hmacSha256(body, "noop-sandbox-secret", "hex"),
+      });
+
+      const v = await provider.verifyWebhook(body, headers);
+
+      expect(v.valid).toBe(false);
+    });
   });
 });

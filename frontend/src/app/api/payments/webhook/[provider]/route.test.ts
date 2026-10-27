@@ -130,6 +130,20 @@ describe("la pasarela de pruebas (noop)", () => {
     expect(markOrderPaid).not.toHaveBeenCalled();
   });
 
+  it("en producción, aunque PAYMENT_PROVIDER=noop, se ignora (404) y no marca nada", async () => {
+    // El default del despliegue de producción llegó a inyectar `noop`, y su
+    // secreto de firma es un literal del repositorio: cualquiera podía marcar su
+    // pedido como pagado sin cobro. La producción no debe atenderlo NUNCA.
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("PAYMENT_PROVIDER", "noop");
+    vi.stubEnv("NOOP_INTEGRITY_SECRET", "");
+
+    const res = await call(noopEvent());
+
+    expect(res.status).toBe(404);
+    expect(markOrderPaid).not.toHaveBeenCalled();
+  });
+
   it("activa (desarrollo, CI), sí: marca el pedido pagado", async () => {
     vi.stubEnv("PAYMENT_PROVIDER", "noop");
 

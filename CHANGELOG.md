@@ -125,6 +125,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   recupere el comportamiento anterior. El canje no cambia: los puntos siguen pudiendo pagar un
   plan, porque es un medio de pago y no una ganancia. Fix compatible (parche).
 
+### Security
+
+- **La pasarela de pruebas `noop` ya no puede cobrar ni marcar pedidos pagados en producción. El despliegue de producción traía `PAYMENT_PROVIDER=noop` por defecto (`docker-compose.prod.yml`, `.env.prod.example`) y `noop` firmaba sus webhooks con el literal público `noop-sandbox-secret`: cualquiera podía enviar un evento «aprobado» a `/api/payments/webhook/noop` y dejar un pedido `processing` con `set_paid: true` sin cobro. Ahora la pasarela de pruebas no existe con `NODE_ENV=production`: el registro no la activa ni atiende su webhook (404) aunque `PAYMENT_PROVIDER` o el panel la indiquen, `noop` ya no usa el literal público fuera de desarrollo/test, el guard de arranque aborta con `PAYMENT_PROVIDER=noop` o con el secreto público, y las plantillas de producción ya no fijan `noop`. Acción del operador: fija una pasarela real en producción (`wompi`, `avalpay`…) y deja `NOOP_INTEGRITY_SECRET` vacío; sin pasarela, el cobro responde 503 (antes caía a `noop`).**
+
 ## [2.2.0] — 2026-10-25
 
 Puntos de extensión para instancias y los huecos que aparecieron al instanciar el framework en

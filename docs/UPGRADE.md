@@ -206,6 +206,26 @@ Sin cambios incompatibles de contrato; revisa estos puntos de comportamiento:
 
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.3.0`; compárala si tu código depende de un hook nuevo.
 
+## 3.4 Correcciones de seguridad (auditoría posterior a v2.3)
+
+Correcciones de seguridad que cambian comportamiento. Revisa cada punto si tu instancia lo toca:
+
+- **Seguridad: la pasarela de pruebas `noop` deja de existir en producción (acción requerida).**
+  - **Qué cambia:** con `NODE_ENV=production`, `noop` no se activa ni atiende webhooks (404),
+    aunque `PAYMENT_PROVIDER=noop` o el Control Center la indiquen. El guard de arranque aborta si
+    `PAYMENT_PROVIDER=noop` o si `NOOP_INTEGRITY_SECRET` es el literal público
+    `noop-sandbox-secret` (o demasiado corto). `.env.prod.example` y `docker-compose.prod.yml` ya
+    no traen `noop` por defecto: sin pasarela decidida, el cobro responde **503** y su webhook
+    **404**.
+  - **A quién afecta:** a cualquier despliegue de producción que dependiera del `noop` por defecto
+    o de la plantilla de producción; y a quien ejecute el e2e opcional `E2E_FULL=1` (usa `noop`)
+    contra un servidor con `next start`.
+  - **Qué hacer:** elige una pasarela real (`wompi`, `avalpay`, …) en Control Center → Pagos o con
+    `PAYMENT_PROVIDER`, y deja `NOOP_INTEGRITY_SECRET` vacío en producción. Para el e2e de compra
+    (`E2E_FULL=1`) usa una pila en desarrollo (`npm run dev`, donde `noop` sigue disponible) o una
+    pasarela de sandbox real. Los tests e2e del CI no se ven afectados: no fijan
+    `PAYMENT_PROVIDER` y no ejecutan la compra con `noop`.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

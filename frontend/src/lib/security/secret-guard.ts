@@ -47,6 +47,8 @@ interface SecretRule {
   checkLength?: boolean;
   /** Exigir que el valor sea un ORIGEN exacto (esquema://host[:puerto]). */
   checkOrigin?: boolean;
+  /** Validar solo en producción (secretos del sandbox que en desarrollo son legítimos). */
+  prodOnly?: boolean;
 }
 
 const RULES: SecretRule[] = [
@@ -56,6 +58,9 @@ const RULES: SecretRule[] = [
   { name: "HWE_REVALIDATION_SECRET", required: true, checkLength: true },
   { name: "WC_CONSUMER_KEY", required: true },
   { name: "WC_CONSUMER_SECRET", required: true },
+  // El sandbox `noop` firma con este secreto. En desarrollo el literal público
+  // del repo es aceptable; en producción no (y `noop` tampoco puede estar activo).
+  { name: "NOOP_INTEGRITY_SECRET", required: false, checkLength: true, prodOnly: true },
   // Sin ALLOWED_ORIGIN, `assertAllowedOrigin` devuelve true y la verificación de
   // Origin de `guardMutation` queda desactivada en silencio: es obligatoria.
   { name: "ALLOWED_ORIGIN", required: true, checkOrigin: true },
@@ -109,6 +114,7 @@ export function findSecretProblems(
   const isProd = env.NODE_ENV === "production";
 
   for (const rule of RULES) {
+    if (rule.prodOnly && !isProd) continue;
     const value = env[rule.name];
 
     if (!value) {
@@ -128,6 +134,14 @@ export function findSecretProblems(
       const problem = originProblem(rule.name, value, isProd);
       if (problem) problems.push(problem);
     }
+  }
+
+  // La pasarela de pruebas (`noop`) firma con un secreto publicado: no puede
+  // estar activa en producción ni aunque la fije el entorno o el panel.
+  if (isProd && env.PAYMENT_PROVIDER?.trim().toLowerCase() === "noop") {
+    problems.push(
+      "PAYMENT_PROVIDER=noop no es válido en producción: configura una pasarela real.",
+    );
   }
 
   return problems;

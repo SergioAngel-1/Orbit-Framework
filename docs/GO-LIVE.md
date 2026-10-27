@@ -55,7 +55,10 @@
 
 ## 4. Pagos
 
-- [ ] Elegir `PAYMENT_PROVIDER` y `PAYMENT_CURRENCY`. (`noop` solo para validar el flujo.)
+- [ ] Elegir una pasarela **real** y `PAYMENT_CURRENCY` en Control Center → Pagos o con
+      `PAYMENT_PROVIDER` (`wompi`, `avalpay`…). `noop` es solo de pruebas: en producción el
+      arranque aborta con `PAYMENT_PROVIDER=noop`, no se activa aunque quede guardada, y su
+      webhook responde 404. Sin pasarela, el cobro responde 503.
 - [ ] Integrar la pasarela real (credenciales server-only) — ver `AGENTS.md §6.8`.
 - [ ] Configurar el **webhook de la pasarela** → `/api/payments/webhook/<provider>` y probar
       un pago de extremo a extremo (estado `pending` → `processing` por webhook firmado).
@@ -98,6 +101,8 @@ frontend, wp-cron y backup. Queda pendiente, y conviene probarlo en staging:
 ## 9. Verificación final
 
 - [ ] `cd frontend && npx tsc --noEmit && npx next lint && npx next build` en verde.
-- [ ] `npm test` (unitarios) en verde; e2e de compra (`E2E_FULL=1`) contra staging sembrado.
+- [ ] `npm test` (unitarios) en verde; e2e de compra (`E2E_FULL=1`) contra una pila de
+      **desarrollo/híbrido** sembrada (la pasarela `noop` solo existe fuera de producción) o con
+      una pasarela de sandbox real.
 - [ ] Recorrido manual: registro → (2FA opcional) → carrito → checkout → pago → pedido visible en cuenta.
 - [ ] Cabeceras de seguridad presentes (CSP, HSTS en prod) y `/wp-admin` accesible solo por HTTPS.

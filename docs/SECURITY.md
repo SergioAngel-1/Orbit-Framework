@@ -24,7 +24,7 @@ seguridad se toma ahí, **fallando cerrado** cuando falta una pieza.
 | Secreto TOTP en reposo / en tránsito | AES-256-GCM con clave dedicada (`HWE_2FA_KEY`, sin clave de reserva); el QR lo genera el BFF, ningún tercero lo ve; recuperación con códigos hasheados | `mu-plugins/hwe-auth/` |
 | Sesión robada o cuenta comprometida | Blocklist de access tokens, `logout-all` que rota el secreto del usuario, cambio de contraseña que cierra las demás sesiones | `lib/auth/revocation.ts`, `hwe-auth.php` |
 | Duplicación de pedidos | Clave de idempotencia (Redis): un duplicado detectado no vuelve a proceder aunque Redis falle después; sin Redis (o si falla la reserva) el checkout sigue y queda registrado como `error` | `lib/security/idempotency.ts` |
-| Pago falsificado | Confirmación solo por webhook firmado, con importe y moneda verificados; anti-replay | `lib/payments/*`, `lib/security/replay.ts` |
+| Pago falsificado | Confirmación solo por webhook firmado, con importe y moneda verificados; anti-replay; la pasarela de pruebas (`noop`) no existe en producción: no se activa ni atiende webhooks, sea cual sea la configuración | `lib/payments/*`, `lib/security/replay.ts` |
 | Webhook falso | HMAC-SHA256 con secreto compartido, un único verificador, falla cerrado con secreto vacío | `lib/security/webhook.ts` |
 | IDOR (otro usuario ve mis datos) | Autorización por propietario en handlers; el pedido de invitado solo con su cookie `order_key` | `lib/woocommerce/client.ts`, `lib/checkout/` |
 | Redirecciones abiertas | `returnUrl` de pagos solo del propio sitio; `?return=` con `safeInternalPath` | `lib/navigation/safe-return.ts` |
@@ -61,6 +61,7 @@ El Licenciatario es responsable de:
 - [ ] HTTPS forzado (HSTS + redirect 80→443)
 - [ ] Cabeceras verificadas (`securityheaders.com` ≥ A)
 - [ ] Webhooks configurados con secreto y prueba de firma
+- [ ] Pasarela de pago **real** configurada en producción (sin `noop`: el arranque lo rechaza y su webhook responde 404)
 - [ ] Rate-limit con Redis activo y umbrales ajustados
 - [ ] Cookies `Secure` + `SameSite` en producción
 - [ ] CSP revisada (`img-src` incluye `WORDPRESS_PUBLIC_URL`; `connect-src` solo `'self'`: el navegador no habla con WordPress; `CSP_ANALYTICS_PROVIDERS` si no usas todos los proveedores)
