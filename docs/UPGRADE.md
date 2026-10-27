@@ -261,6 +261,30 @@ Correcciones de seguridad que cambian comportamiento. Revisa cada punto si tu in
   responde 500 y la verificación de recuperación falla cerrada: define una clave de servidor
   antes de desplegar.
 
+- **Post destacado: ahora exige `edit_others_posts`**
+
+  **Qué cambia.** La pantalla `Entradas → Post Destacado` y su guardado (opción
+  `hwe_featured_post_id`, la portada de `/blog`) ya no se autorizan con `edit_posts`: exigen
+  `edit_others_posts`. El nonce se mantiene y, además, el id se valida al escribir (solo un post
+  `post` publicado; `0` limpia la selección). Un id inválido no se guarda y se avisa.
+
+  **A quién afecta.** Instalaciones cuyo blog usaba los roles **Colaborador** o **Autor** para
+  elegir el destacado: esos usuarios dejan de ver la pantalla y de poder cambiarlo. Editor y
+  Administrador no cambian (tienen `edit_others_posts`).
+
+  **Qué hacer.** Si quieres que otro rol siga curando el destacado, concédele una capacidad
+  propia y devuélvela desde el código de la instancia (nunca vuelvas a `edit_posts`, que reabre el
+  hueco):
+
+  ```php
+  add_filter( 'hwe_featured_post_capability', static function (): string {
+      return 'curate_featured_post';
+  } );
+  ```
+
+  y asigna `curate_featured_post` al rol que corresponda. Un valor vacío o que no sea texto se
+  ignora (se exige `edit_others_posts` y se registra el descarte).
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

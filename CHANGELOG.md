@@ -189,6 +189,18 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   la respuesta devuelve `productsReviewed: 0`, y el JSON-LD de producto deja de emitir
   `aggregateRating`/`review`. El flag apagado no cambia el 404 de la ruta: solo impide el
   fan-out. No requiere acción de los operadores.
+- **El post destacado de `/blog` deja de estar al alcance de Colaborador y Autor.** La pantalla
+  `Entradas → Post Destacado` y su guardado se autorizaban con `edit_posts`, una capacidad que
+  ambos roles tienen, y el nonce lo imprimía esa misma pantalla: un Colaborador podía fijar
+  cualquier entrada ya publicada como portada del blog (o limpiar la selección) sin poder editar
+  el contenido de otros autores. Ahora la pantalla y el handler exigen `edit_others_posts`
+  (`HWE_FEATURED_POST_CAP`, filtrable con `hwe_featured_post_capability` para que una instancia
+  conceda otra capacidad de forma explícita y sin volver a `edit_posts`), el nonce sigue siendo
+  obligatorio y el id se valida al guardar: solo se acepta un post `post` publicado; `0` limpia
+  la selección y un id inexistente, de otro tipo o no público no se guarda, se avisa en la
+  pantalla y se registra con `[hwe] featured-post: …`. Cambio de comportamiento: Colaborador y
+  Autor ya no ven la pantalla ni pueden cambiar el destacado; si tu tienda usaba uno de esos
+  roles para curarlo, concede la capacidad con el hook (ver `docs/UPGRADE.md`).
 
 ## [2.2.0] — 2026-10-25
 

@@ -20,30 +20,68 @@ if ( ! defined( 'ABSPATH' ) ) {
 const HWE_FEATURED_POST_OPTION = 'hwe_featured_post_id';
 const HWE_FEATURED_POST_PAGE_SLUG = 'hwe-featured-post';
 
+/**
+ * Capacidad que autoriza elegir el destacado de todo el sitio.
+ *
+ * `edit_posts` no sirve: un Colaborador (y un Autor) lo tiene y no puede editar
+ * el contenido de los demás. Se exige autoridad sobre el contenido ajeno.
+ */
+const HWE_FEATURED_POST_CAP = 'edit_others_posts';
+
+/**
+ * Capacidad efectiva de la pantalla y del guardado.
+ *
+ * `hwe_featured_post_capability` permite a una instancia conceder otra capacidad
+ * explícitamente (p. ej. un rol propio de curador) sin volver a `edit_posts`. Un
+ * valor vacío o que no sea texto se descarta y se registra: el control falla cerrado.
+ */
+function hwe_featured_post_capability(): string {
+	$capability = apply_filters( 'hwe_featured_post_capability', HWE_FEATURED_POST_CAP );
+	if ( ! is_string( $capability ) || '' === $capability ) {
+		error_log( sprintf( '[hwe] featured-post: capacidad no válida (%s); se exige %s.', gettype( $capability ), HWE_FEATURED_POST_CAP ) );
+		return HWE_FEATURED_POST_CAP;
+	}
+	return $capability;
+}
+
 add_action( 'admin_menu', function (): void {
 	add_submenu_page(
 		'edit.php',
 		__( 'Post Destacado', 'hwe' ),
 		__( 'Post Destacado', 'hwe' ),
-		'edit_posts',
+		hwe_featured_post_capability(),
 		HWE_FEATURED_POST_PAGE_SLUG,
 		'hwe_featured_post_render_page'
 	);
 } );
 
 function hwe_featured_post_render_page(): void {
-	if ( ! current_user_can( 'edit_posts' ) ) {
-		return;
+	if ( ! current_user_can( hwe_featured_post_capability() ) ) {
+		wp_die(
+			esc_html__( 'No tienes permiso para elegir el post destacado.', 'hwe' ),
+			esc_html__( 'Acceso denegado', 'hwe' ),
+			[ 'response' => 403 ]
+		);
 	}
 
 	if ( isset( $_POST['hwe_featured_post_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['hwe_featured_post_nonce'] ) ), 'hwe_featured_post_save' ) ) {
-		$selected = isset( $_POST['hwe_featured_post_id'] ) ? absint( $_POST['hwe_featured_post_id'] ) : 0;
-		if ( $selected > 0 ) {
-			update_option( HWE_FEATURED_POST_OPTION, $selected );
-		} else {
+		$selected = isset( $_POST['hwe_featured_post_id'] ) ? absint( wp_unslash( $_POST['hwe_featured_post_id'] ) ) : 0;
+
+		if ( 0 === $selected ) {
 			delete_option( HWE_FEATURED_POST_OPTION );
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Guardado.', 'hwe' ) . '</p></div>';
+		} else {
+			$target = get_post( $selected );
+			// Solo un post `post` publicado puede ser el destacado: un id obsoleto,
+			// de otro tipo o no público no se guarda (el resolver lo ignoraría).
+			if ( $target instanceof WP_Post && 'post' === $target->post_type && 'publish' === $target->post_status ) {
+				update_option( HWE_FEATURED_POST_OPTION, $selected );
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Guardado.', 'hwe' ) . '</p></div>';
+			} else {
+				error_log( sprintf( '[hwe] featured-post: id %d descartado; no es un post publicado.', $selected ) );
+				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'No se guardó: la entrada seleccionada no existe o no está publicada.', 'hwe' ) . '</p></div>';
+			}
 		}
-		echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Guardado.', 'hwe' ) . '</p></div>';
 	}
 
 	$current = (int) get_option( HWE_FEATURED_POST_OPTION, 0 );
