@@ -85,6 +85,20 @@ final class CryptoKeyTest extends HweAuthTestCase
         $this->assertNull($data['secret']);
     }
 
+    public function test_sin_ninguna_clave_un_codigo_de_recuperacion_se_rechaza_y_se_registra(): void
+    {
+        Functions\expect('error_log')->atLeast()->once()->with(\Mockery::pattern('/^\[hwe\] auth: /'));
+
+        $this->setMeta('hwe_2fa_recovery', [str_repeat('a', 64)]);
+        $raw = implode('-', str_split(str_repeat('ab', 16), 4));
+
+        $response = \HWE_Auth_Endpoints::handleConsumeRecoveryCode(new \WP_REST_Request(['code' => $raw]));
+
+        // Sin clave de servidor no se puede recomputar el verificador: falla cerrado.
+        $this->assertSame(401, $response->get_status());
+        $this->assertCount(1, $this->meta('hwe_2fa_recovery'));
+    }
+
     public function test_un_valor_legado_en_texto_plano_sigue_leyendose(): void
     {
         // Compatibilidad con instalaciones anteriores al cifrado: no pasa por la clave.

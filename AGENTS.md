@@ -366,8 +366,11 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   se invalida tras 5 códigos incorrectos (hay que volver a iniciar sesión).
 - El **secreto TOTP se cifra en reposo** en WP con **AES-256-GCM** (`hwe-auth.php`,
   clave dedicada `HWE_2FA_KEY` con fallback a `AUTH_KEY`). Verificación TOTP con `otplib` v13.
-- **Códigos de recuperación**: 10 por usuario, guardados **hasheados**; se consumen de uno
-  en uno (`2fa-recovery/verify`). Sirven en `verify-2fa` (campo `recoveryCode`).
+- **Códigos de recuperación**: 10 por usuario, de **128 bits** (`random_bytes(16)` en hex,
+  mostrados en grupos de 4) y guardados como **HMAC-SHA-256 con una pimienta derivada de la
+  clave de servidor** (`HWE_2FA_KEY`, fuera de la BD), nunca como SHA-256 desnudo; se consumen
+  de uno en uno (`2fa-recovery/verify`). Sirven en `verify-2fa` (campo `recoveryCode`). La
+  migración `hwe_2fa_recovery_v2_migrated` invalida los códigos del formato antiguo (40 bits).
 - **`2fa-status` no es público**: requiere el secreto interno del BFF
   (`X-HWE-Internal-Secret` = `HWE_REVALIDATION_SECRET`) o que el usuario consulte su propio id.
 - **Desactivar exige re-verificación** (código TOTP o de recuperación), no solo sesión.

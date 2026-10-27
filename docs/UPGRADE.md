@@ -249,6 +249,18 @@ Correcciones de seguridad que cambian comportamiento. Revisa cada punto si tu in
   64 KiB/256 KiB salvo que esa ruta use explícitamente un lector con otro límite
   (`frontend/src/lib/api/body.ts`). No hay variables de entorno nuevas ni migración de datos.
 
+- **Los códigos de recuperación de 2FA anteriores dejan de valer.** El formato nuevo usa 128
+  bits y guarda solo un HMAC-SHA-256 con una pimienta derivada de la clave de servidor
+  (`HWE_2FA_KEY`, fuera de la base). Al actualizar, una migración idempotente
+  (`hwe_2fa_recovery_v2_migrated`) borra `hwe_2fa_recovery` de todos los usuarios y no acepta el
+  formato antiguo de 40 bits. **A quién afecta:** cuentas con 2FA activo que aún tuvieran códigos
+  de recuperación sin usar. **Qué hacer:** cada usuario debe **regenerar** sus códigos
+  (desactivar y volver a activar el 2FA, o rehacer el alta) antes de necesitarlos; el código TOTP
+  de la app de autenticación sigue funcionando. No hay que migrar datos a mano ni cambiar
+  variables. Si faltan `HWE_2FA_KEY`, `AUTH_KEY` y `GRAPHQL_JWT_AUTH_SECRET_KEY`, activar 2FA
+  responde 500 y la verificación de recuperación falla cerrada: define una clave de servidor
+  antes de desplegar.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

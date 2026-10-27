@@ -117,12 +117,14 @@ describe("la prueba de posesión llega a WordPress", () => {
     expect(putCalls()[0]!.body).toEqual({ secret: null, code: "123456" });
   });
 
-  it("con un código de recuperación, WP lo verifica y consume UNA sola vez, en el PUT", async () => {
-    const res = await POST(request({ recoveryCode: "aaaaa-bbbbb" }));
+  it("con un código de recuperación de 128 bits, WP lo verifica y consume UNA sola vez, en el PUT", async () => {
+    // Formato real: 32 hex en grupos de 4. El BFF no lo recorta.
+    const recovery = "0123-4567-89ab-cdef-0123-4567-89ab-cdef";
+    const res = await POST(request({ recoveryCode: recovery }));
 
     expect(res.status).toBe(200);
     expect(putCalls()).toHaveLength(1);
-    expect(putCalls()[0]!.body).toEqual({ secret: null, recovery_code: "aaaaa-bbbbb" });
+    expect(putCalls()[0]!.body).toEqual({ secret: null, recovery_code: recovery });
     // El BFF no lo consume antes: el PUT lo encontraría ya gastado y fallaría.
     expect(wpCalls.some((c) => c.url.includes("2fa-recovery/verify"))).toBe(false);
   });
