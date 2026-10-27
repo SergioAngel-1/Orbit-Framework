@@ -1,5 +1,6 @@
 import "@/lib/payments/providers"; // efecto secundario: registra las pasarelas
 import { NextResponse } from "next/server";
+import { BodyTooLarge, bodyTooLarge, readJsonBody } from "@/lib/api/body";
 import { guardMutation } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { getSession } from "@/lib/auth/session";
@@ -47,8 +48,9 @@ export async function POST(request: Request) {
 
     let body: unknown;
     try {
-      body = await request.json();
-    } catch {
+      body = await readJsonBody(request);
+    } catch (error) {
+      if (error instanceof BodyTooLarge) return bodyTooLarge();
       logger.warn(
         { event: "payments.create.invalid_json" },
         "JSON inválido en payments.create",

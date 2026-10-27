@@ -1,4 +1,10 @@
 import { NextResponse } from "next/server";
+import {
+  BodyTooLarge,
+  MAX_WEBHOOK_BODY_BYTES,
+  bodyTooLarge,
+  readTextBody,
+} from "@/lib/api/body";
 import { verifyWooWebhook } from "@/lib/security/webhook";
 import { markEventOnce } from "@/lib/security/replay";
 import { rateLimit } from "@/lib/security/rate-limit";
@@ -27,7 +33,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Demasiadas peticiones." }, { status: 429 });
   }
 
-  const rawBody = await request.text();
+  // Cuerpo CRUDO con tope duro: la firma se verifica sobre estos bytes, pero
+  // nunca se materializa más de `MAX_WEBHOOK_BODY_BYTES` (413 si se pasa).
+  let rawBody: string;
+  try {
+    rawBody = await readTextBody(request, MAX_WEBHOOK_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
+    throw error;
+  }
   const signature = request.headers.get("x-wc-webhook-signature");
 
   if (!verifyWooWebhook(rawBody, signature)) {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BodyTooLarge, bodyTooLarge, readJsonBody } from "@/lib/api/body";
 import { guardMutation } from "@/lib/api/guard";
 import { getSiteConfig } from "@/lib/config";
 import { requireModule } from "@/lib/api/modules";
@@ -43,8 +44,9 @@ export async function POST(request: Request) {
 
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonBody(request);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
   const parsed = parseConsentRecordRequest(body, routing.locales);

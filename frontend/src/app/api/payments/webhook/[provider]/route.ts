@@ -1,5 +1,11 @@
 import "@/lib/payments/providers"; // efecto secundario: registra las pasarelas
 import { NextResponse, after } from "next/server";
+import {
+  BodyTooLarge,
+  MAX_WEBHOOK_BODY_BYTES,
+  bodyTooLarge,
+  readTextBody,
+} from "@/lib/api/body";
 import { handleApiError } from "@/lib/api/errors";
 import { acceptsWebhooksFrom, getProvider } from "@/lib/payments/registry";
 import { rateLimit } from "@/lib/security/rate-limit";
@@ -70,8 +76,15 @@ export async function POST(
     return NextResponse.json({ error: "No encontrado." }, { status: 404 });
   }
 
-  // Cuerpo CRUDO: la firma se calcula sobre los bytes exactos recibidos.
-  const rawBody = await request.text();
+  // Cuerpo CRUDO con tope duro: la firma se calcula sobre los bytes exactos
+  // recibidos, pero nunca se materializa más de `MAX_WEBHOOK_BODY_BYTES`.
+  let rawBody: string;
+  try {
+    rawBody = await readTextBody(request, MAX_WEBHOOK_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
+    throw error;
+  }
   const requestId = getOrCreateRequestId(request.headers);
 
   // Contexto de correlación: los `getOrder`/`markOrderPaid` (wc/v3) propagarán

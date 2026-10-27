@@ -118,6 +118,10 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
    schema de la ruta no declara se ignoran (salvo en `PUT /api/store/customer`, que es
    estricto). Así, `POST /api/store/reviews/[productId]` solo lee `rating` y `content`: el nombre
    y el email del autor salen **siempre** de la cuenta autenticada, nunca del cuerpo.
+5. Todo cuerpo tiene un **tope de bytes**: **64 KiB** para los JSON de escritura y **256 KiB**
+   para los webhooks firmados (`lib/api/body.ts`). Al superarlo se responde **413**
+   `{ error }` sin leer el resto; un frontend que necesite más debe trocear la operación, no
+   ampliar el tope.
 
 ### Pagos: medios, pasarela y confirmación
 

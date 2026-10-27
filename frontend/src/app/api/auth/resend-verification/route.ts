@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BodyTooLarge, bodyTooLarge, readJsonBody } from "@/lib/api/body";
 import { requireSession } from "@/lib/auth/session";
 import { guardMutation } from "@/lib/api/guard";
 import { logger } from "@/lib/observability/logger";
@@ -26,7 +27,13 @@ export async function POST(request: Request) {
   }
 
   // Cuerpo opcional: `{ locale }` del visitante (sin cuerpo, el idioma por defecto).
-  const body = (await request.json().catch(() => null)) as { locale?: unknown } | null;
+  // Un JSON inválido se ignora (comportamiento de siempre); uno demasiado grande no.
+  let body: { locale?: unknown } | null = null;
+  try {
+    body = await readJsonBody<{ locale?: unknown }>(request);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
+  }
   const locale = authEmailLocale(body?.locale);
 
   try {

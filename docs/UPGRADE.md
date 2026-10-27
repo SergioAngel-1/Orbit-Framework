@@ -231,6 +231,24 @@ Correcciones de seguridad que cambian comportamiento. Revisa cada punto si tu in
   - **A quién afecta:** instalaciones con enlaces permanentes planos, integraciones o proxies propios que llamen a la REST API con `?rest_route=` sin el secreto interno del BFF, y cualquier script que haga más de 120 peticiones REST por minuto desde una misma IP sin ese secreto. El login del panel no cambia de límite (5/5 min) ni de comportamiento legítimo.
   - **Qué hacer:** no hay migración ni variable nueva. Si una integración propia supera esos presupuestos, enrútala por el BFF/`wpFetch` (que envía `X-HWE-Internal-Secret` y está exenta), activa enlaces permanentes bonitos, o mantén el volumen por debajo del límite documentado. Para diagnosticar un 429, revisa el evento `[HWE Rate-Limit]` en el log de WordPress y el `Retry-After` de la respuesta.
 
+- **Tope de cuerpo en `/api/*` (413) — revisa rutas de subida propias**
+
+  **Qué cambia.** El BFF aplica ahora un tope de bytes a todo cuerpo que lee: **64 KiB** para
+  los JSON de escritura y **256 KiB** para los webhooks firmados. Al superarlo responde **413**
+  y deja de leer. Además, el `Caddyfile` incorpora un bloque `handle /api/*` con
+  `request_body max_size 1MB`, separado de los 130 MB que siguen disponibles para las subidas
+  de la medioteca (`/wp-admin/*`, `/wp-json/*`).
+
+  **A quién afecta.** A ninguna ruta del framework: no hay endpoints de `/api/*` que envíen
+  cuerpos de ese tamaño. Afecta solo si **tu instancia** añadió bajo `/api/*` una ruta que
+  recibe ficheros o JSON de más de 1 MB (por ejemplo, una subida propia): Caddy la cortará
+  antes de llegar a Next.js.
+
+  **Qué hacer.** Si tienes una ruta así, no la cuelgues de `/api/*` o sube el `max_size` de ese
+  `handle` en tu `Caddyfile`; si hospedas sin Caddy, el tope de la aplicación sigue siendo
+  64 KiB/256 KiB salvo que esa ruta use explícitamente un lector con otro límite
+  (`frontend/src/lib/api/body.ts`). No hay variables de entorno nuevas ni migración de datos.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

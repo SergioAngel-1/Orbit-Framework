@@ -302,6 +302,11 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   riesgo de un doble envío.
 - **Guard unificado** (Origin → CSRF → rate-limit) aplicado en cada escritura:
   `lib/api/guard.ts`. Si añades un endpoint de escritura, **úsalo**.
+- **Tope de cuerpo en el BFF**: ningún handler de `/api/*` lee el cuerpo con
+  `request.json()`/`request.text()` directamente. Usa `readJsonBody` (64 KiB) o
+  `readTextBody` (webhooks: `MAX_WEBHOOK_BODY_BYTES`, 256 KiB) de `lib/api/body.ts` y
+  responde `bodyTooLarge()` (413); `guardMutation` corta además por `Content-Length`. El
+  lector cuenta los bytes reales, así que también acota cuerpos `chunked` sin longitud.
 - **Guard de arranque**: `lib/security/secret-guard.ts` (llamado desde `instrumentation.ts`)
   **aborta el boot en producción** si los secretos siguen con valores por defecto o son cortos.
 - **IP del cliente anti-spoofing**: `lib/http/request-ip.ts` usa `TRUSTED_PROXY_COUNT`

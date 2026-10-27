@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { BodyTooLarge, bodyTooLarge, readJsonBody } from "@/lib/api/body";
 import { wcFetch } from "@/lib/woocommerce/client";
 import { getSession } from "@/lib/auth/session";
 import { getSiteConfig } from "@/lib/config";
@@ -64,7 +65,14 @@ export async function POST(
     return NextResponse.json({ error: "Id de pedido inválido." }, { status: 400 });
   }
 
-  const parsed = orderReviewSchema.safeParse(await request.json().catch(() => null));
+  let body: unknown = null;
+  try {
+    body = await readJsonBody(request);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
+  }
+
+  const parsed = orderReviewSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: ERRORS.invalid.error, details: parsed.error.flatten().fieldErrors },
