@@ -63,28 +63,48 @@ const HWE_RL_LOGIN = [
 add_action( 'init', 'hwe_rate_limit_init', 1 );
 
 function hwe_rate_limit_init(): void {
-	$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	// Se clasifica por la RUTA parseada, nunca por el URI completo: la query la
+	// controla el cliente y una subcadena allí (`?x=/wp-json/`, `?x=/graphql`…)
+	// movía un intento de login a otro presupuesto y dejaba el de login intacto.
+	// Mismo patrón que `hwe_is_graphql_request()` en headless-config.php.
+	$uri    = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	$path   = (string) wp_parse_url( (string) $uri, PHP_URL_PATH );
+	$method = isset( $_SERVER['REQUEST_METHOD'] ) ? (string) $_SERVER['REQUEST_METHOD'] : '';
 
-	// Solo aplicamos rate-limit a los endpoints de API y a los intentos de login.
-	// Las llamadas del BFF no gastan el presupuesto de la API: ver
-	// `hwe_rate_limit_is_bff_request()`. El login nunca se exime (es tráfico
-	// humano directo; el BFF no inicia sesión en wp-login.php).
-	if ( str_contains( $uri, '/graphql' ) ) {
+	// 1) El login se decide PRIMERO y solo gasta el cubo de login. Cualquier query
+	//    (`?action=lostpassword`, `?x=/wp-json/`…) se ignora para clasificar, igual
+	//    que hace WordPress al elegir el manejador por la ruta física.
+	//    `HWE_Login_Slug`: el login movido a su propia ruta (hwe-login-slug.php)
+	//    tiene que seguir contando intentos, o moverlo lo dejaría sin defensa.
+	//    Solo el envío de credenciales (POST): cargar la página (GET) no cuenta, para
+	//    no bloquear a quien solo la visita.
+	if ( 'POST' === $method
+		&& ( (bool) preg_match( '#(?:^|/)wp-login\.php(?:/|$)#', $path )
+			|| ( class_exists( 'HWE_Login_Slug' ) && HWE_Login_Slug::isLoginRequest() ) ) ) {
+		hwe_check_rate_limit( HWE_RL_LOGIN );
+		return;
+	}
+
+	// 2) GraphQL y REST por SEGMENTO de la ruta parseada, más las formas con las
+	//    que WordPress despacha cada API cuando no usa enlaces permanentes
+	//    (`?graphql`, `?rest_route=`). Las llamadas del BFF no gastan presupuesto:
+	//    ver `hwe_rate_limit_is_bff_request()`; el login nunca se exime (es tráfico
+	//    humano directo; el BFF no inicia sesión en wp-login.php).
+	$is_graphql = (bool) preg_match( '#(?:^|/)graphql(?:/|$)#', $path )
+		|| isset( $_GET['graphql'] ) || isset( $_POST['graphql'] );
+
+	if ( $is_graphql ) {
 		if ( ! hwe_rate_limit_is_bff_request() ) {
 			hwe_check_rate_limit( HWE_RL_GRAPHQL );
 		}
-	} elseif ( str_contains( $uri, '/wp-json/' ) ) {
-		if ( ! hwe_rate_limit_is_bff_request() ) {
-			hwe_check_rate_limit( HWE_RL_REST );
-		}
-	} elseif ( ( str_contains( $uri, 'wp-login.php' )
-			|| ( class_exists( 'HWE_Login_Slug' ) && HWE_Login_Slug::isLoginRequest() ) )
-		&& 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
-		// `HWE_Login_Slug`: el login movido a su propia ruta (hwe-login-slug.php)
-		// tiene que seguir contando intentos, o moverlo lo dejaría sin defensa.
-		// Solo el envío de credenciales (POST): cargar la página (GET) no cuenta, para
-		// no bloquear a quien solo la visita.
-		hwe_check_rate_limit( HWE_RL_LOGIN );
+		return;
+	}
+
+	$is_rest = (bool) preg_match( '#(?:^|/)wp-json(?:/|$)#', $path )
+		|| isset( $_GET['rest_route'] ) || isset( $_POST['rest_route'] );
+
+	if ( $is_rest && ! hwe_rate_limit_is_bff_request() ) {
+		hwe_check_rate_limit( HWE_RL_REST );
 	}
 	// El resto de rutas (admin, etc.) no tienen rate-limit aquí.
 }

@@ -226,6 +226,11 @@ Correcciones de seguridad que cambian comportamiento. Revisa cada punto si tu in
     pasarela de sandbox real. Los tests e2e del CI no se ven afectados: no fijan
     `PAYMENT_PROVIDER` y no ejecutan la compra con `noop`.
 
+- **Seguridad: el rate-limit de WordPress clasifica por ruta y las formas REST/GraphQL sin enlaces permanentes ahora gastan presupuesto.**
+  - **Qué cambia:** `rate-limit.php` deja de clasificar por subcadena del `REQUEST_URI` y usa la ruta parseada. Todo POST a `/wp-login.php` (incluida `?action=lostpassword`) o a la ruta de `HWE_LOGIN_SLUG` gasta **siempre** el cubo de login (5 intentos/5 min por IP), lleve la query que lleve. Además, las peticiones que WordPress despacha como REST mediante `?rest_route=` (instalaciones con enlaces permanentes planos) y las de `/wp-json` sin barra final ahora consumen el presupuesto REST de 120/min por IP, y las de `?graphql` el de GraphQL de 60/min; antes `?rest_route=` no se contaba en absoluto.
+  - **A quién afecta:** instalaciones con enlaces permanentes planos, integraciones o proxies propios que llamen a la REST API con `?rest_route=` sin el secreto interno del BFF, y cualquier script que haga más de 120 peticiones REST por minuto desde una misma IP sin ese secreto. El login del panel no cambia de límite (5/5 min) ni de comportamiento legítimo.
+  - **Qué hacer:** no hay migración ni variable nueva. Si una integración propia supera esos presupuestos, enrútala por el BFF/`wpFetch` (que envía `X-HWE-Internal-Secret` y está exenta), activa enlaces permanentes bonitos, o mantén el volumen por debajo del límite documentado. Para diagnosticar un 429, revisa el evento `[HWE Rate-Limit]` en el log de WordPress y el `Retry-After` de la respuesta.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.
