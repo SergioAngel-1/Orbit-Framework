@@ -68,3 +68,4 @@ require_once __DIR__ . '/Stubs/wp-rest.php';
 require_once __DIR__ . '/Stubs/wp-error.php';
 require_once __DIR__ . '/Stubs/wp-graphql.php';
 require_once __DIR__ . '/Stubs/wp-post.php';
+require_once __DIR__ . '/Stubs/wp-session-tokens.php';

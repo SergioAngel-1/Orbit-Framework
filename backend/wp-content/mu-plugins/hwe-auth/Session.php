@@ -1,6 +1,7 @@
 <?php
 /**
- * Cierre de todas las sesiones y datos del usuario autenticado.
+ * Cierre de sesiones (las propias o las de cualquier usuario tras un cambio de
+ * contraseña) y datos del usuario autenticado.
  *
  * Es un trait de `HWE_Auth_Endpoints` (hwe-auth.php): la clase se parte por responsabilidad
  * para que cada archivo se lea de una vez. Los métodos usan `self::` y las constantes de la
@@ -10,17 +11,60 @@
 defined('ABSPATH') || exit;
 
 trait HWE_Auth_Session {
+    /**
+     * Cierra todas las sesiones de un usuario: rota su secreto JWT y destruye sus
+     * sesiones nativas de WordPress.
+     *
+     * Rotar el secreto invalida sus refresh tokens, pero SOLO porque
+     * `enforceRefreshTokenSecret` los compara con el vigente: el plugin WPGraphQL JWT
+     * Authentication (0.7.2) no lo hace por sí mismo. Los access tokens vivos caducan
+     * solos (corta duración), y el BFF además los revoca vía blocklist.
+     *
+     * Lo usan `logout-all`, el reset de contraseña y la acción `wp_set_password` (por
+     * la que pasa el reset nativo de `wp-login.php`, que no cruza el BFF).
+     * Devuelve `false` si la rotación no se pudo guardar: quien llama NO debe dar el
+     * cierre de sesiones por hecho.
+     */
+    public static function revokeRefreshTokens(int $user_id): bool {
+        $rotated = update_user_meta(
+            $user_id,
+            'graphql_jwt_auth_secret',
+            wp_generate_password(64, true, true)
+        );
+
+        // Las sesiones nativas de WordPress (wp-admin) no usan el JWT, así que la
+        // rotación no las toca: un cambio de contraseña debe cerrarlas también.
+        if (class_exists('WP_Session_Tokens')) {
+            WP_Session_Tokens::get_instance($user_id)->destroy_all();
+        }
+
+        return $rotated !== false;
+    }
+
+    /**
+     * Reacción a la acción `wp_set_password` del núcleo: cualquier cambio de
+     * contraseña cierra las sesiones anteriores, aunque no pase por el BFF.
+     *
+     * @param mixed $password Contraseña en claro (no se usa).
+     * @param mixed $user_id  Usuario cuya contraseña cambió.
+     */
+    public static function handlePasswordSet($password, $user_id): void {
+        $user_id = (int) $user_id;
+        if ($user_id > 0 && !self::revokeRefreshTokens($user_id)) {
+            error_log('[hwe] auth: wp_set_password: no se pudo rotar el secreto JWT del usuario ' . $user_id);
+        }
+    }
+
     public static function handleLogoutAll(WP_REST_Request $request): WP_REST_Response {
         $user_id = get_current_user_id();
         if (!$user_id) {
             return new WP_REST_Response(['error' => 'Usuario no autenticado.'], 401);
         }
 
-        // Rotar el secreto JWT del usuario invalida sus refresh tokens, pero SOLO porque
-        // `enforceRefreshTokenSecret` los compara con él: el plugin WPGraphQL JWT
-        // Authentication (0.7.0) no lo hace por sí mismo. Los access tokens vivos
-        // caducan solos (corta duración), y el BFF además los revoca vía blocklist.
-        update_user_meta($user_id, 'graphql_jwt_auth_secret', wp_generate_password(64, true, true));
+        if (!self::revokeRefreshTokens((int) $user_id)) {
+            error_log('[hwe] auth: logout-all: no se pudo rotar el secreto JWT del usuario ' . $user_id);
+            return new WP_REST_Response(['error' => 'No se pudieron cerrar las sesiones.'], 500);
+        }
 
         return new WP_REST_Response(['ok' => true], 200);
     }

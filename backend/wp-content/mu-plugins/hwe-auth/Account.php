@@ -105,6 +105,16 @@ trait HWE_Auth_Account {
 
         reset_password($user, $new_password);
 
+        // Un reset es una recuperación de cuenta: invalida los refresh tokens emitidos
+        // antes (misma rotación que `logout-all`) y las sesiones nativas de WordPress.
+        // La acción `wp_set_password` ya lo intenta, pero se repite aquí para poder
+        // responder 500 si no se pudo cerrar ninguna: reportar éxito dejaría a la
+        // víctima creyendo que recuperó la cuenta mientras la sesión robada sigue viva.
+        if (!self::revokeRefreshTokens((int) $user->ID)) {
+            error_log('[hwe] auth: reset-password: no se pudo rotar el secreto JWT del usuario ' . $user->ID);
+            return new WP_REST_Response(['error' => 'No se pudieron cerrar las sesiones anteriores.'], 500);
+        }
+
         return new WP_REST_Response(['ok' => true], 200);
     }
 

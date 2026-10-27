@@ -141,6 +141,20 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   refresh token sigue teniendo su único uso legítimo en `/api/auth/refresh` y en el refresco
   transparente de `proxy.ts`, que lo canjean en WordPress. No cambia el contrato para sesiones
   legítimas (login, registro, 2FA y refresco siguen igual) y no requiere acción del operador.
+- **Restablecer la contraseña cierra las sesiones anteriores.** El reset
+  (`POST /api/auth/reset-password` → `POST hwe/v1/auth/reset-password`) cambiaba la contraseña
+  con `reset_password()` y respondía 200 sin tocar `graphql_jwt_auth_secret`, el único mecanismo
+  del servidor para invalidar refresh tokens. Como el plugin WPGraphQL JWT Authentication 0.7.2
+  emite refresh tokens de hasta 365 días que solo se comparan con ese secreto
+  (`enforceRefreshTokenSecret`), un `hwe_rt` copiado antes del reset seguía canjeándose por un
+  access token nuevo en `/api/auth/refresh`: el atacante conservaba la cuenta que la víctima creía
+  recuperada. Ahora `handleResetPassword()` llama al helper `revokeRefreshTokens()` (el mismo de
+  `logout-all`), que rota el secreto del usuario y destruye sus sesiones nativas de WordPress; si
+  la rotación falla, el reset responde **500** con `error_log('[hwe] auth: reset-password: …')` en
+  vez de dar el cierre por hecho. La misma rotación se engancha a la acción `wp_set_password` del
+  núcleo, así que cubre también el reset nativo de `wp-login.php` (que no cruza el BFF). **Cambio de comportamiento:** los refresh tokens emitidos
+  antes de un reset dejan de valer (es lo esperado) y `logout-all` responde 500 si no pudo rotar
+  el secreto. Sin acción del operador.
 
 ## [2.2.0] — 2026-10-25
 
