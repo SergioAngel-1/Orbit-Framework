@@ -56,6 +56,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **La migración de códigos de recuperación 2FA ya no se ejecuta antes de instalar WordPress.**
+  En una instalación nueva, WP-CLI carga los mu-plugins y dispara `init` antes de que existan
+  `wp_options`/`wp_usermeta`; `migrateRecoveryCodesV2()` intentaba leer la opción y borrar metas y
+  el log de `setup.sh` recogía errores de «tabla inexistente». Ahora sale sin tocar la base si
+  `wp_installing()` es verdadero o `is_blog_installed()` es falso, y se ejecuta una sola vez en la
+  primera carga con el sitio instalado (sigue siendo idempotente).
 - **El frontend de desarrollo deriva su origen público de `FRONTEND_PORT`.** Con una pila en otro
   puerto, `NEXT_PUBLIC_SITE_URL`, `ALLOWED_ORIGIN`, `HEADLESS_FRONTEND_URL` y
   `HEADLESS_ALLOWED_ORIGINS` seguían fijando `localhost:3000`: los enlaces de recuperación y

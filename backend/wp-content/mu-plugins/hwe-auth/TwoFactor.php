@@ -155,6 +155,17 @@ trait HWE_Auth_TwoFactor {
      * no se vuelve a ejecutar (si no, borraría los códigos nuevos en cada carga).
      */
     public static function migrateRecoveryCodesV2(): void {
+        // En una instalación NUEVA, WP-CLI carga los mu-plugins y dispara `init` antes
+        // de que existan `wp_options`/`wp_usermeta`: leer o borrar metas ahí falla y
+        // WordPress escribe errores de «tabla inexistente» en el log de `setup.sh`.
+        // No se marca nada: la migración se ejecuta en la primera carga ya instalada.
+        if (function_exists('wp_installing') && wp_installing()) {
+            return;
+        }
+        if (function_exists('is_blog_installed') && !is_blog_installed()) {
+            return;
+        }
+
         if (get_option(self::RECOVERY_MIGRATION_OPTION, false)) {
             return;
         }
