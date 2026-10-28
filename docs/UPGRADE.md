@@ -285,6 +285,35 @@ Correcciones de seguridad que cambian comportamiento. Revisa cada punto si tu in
   y asigna `curate_featured_post` al rol que corresponda. Un valor vacío o que no sea texto se
   ignora (se exige `edit_others_posts` y se registra el descarte).
 
+## 3.5 Correcciones de auditoría (2FA e infraestructura)
+
+Tres fallos observados en una instalación nueva y en producción. No cambian rutas ni contratos:
+
+- **La migración de códigos de recuperación 2FA ya no toca la base antes de instalar WordPress.**
+  `migrateRecoveryCodesV2()` (enganchada en `init`) sale sin hacer nada si `wp_installing()` es
+  verdadero o `is_blog_installed()` es falso. En una instalación nueva, `setup.sh` (WP-CLI) cargaba
+  los mu-plugins antes de existir `wp_options`/`wp_usermeta` y el log recogía errores de «tabla
+  inexistente». No hay acción: la migración se ejecuta una vez en la primera carga ya instalada y
+  sigue siendo idempotente.
+
+- **`HWE_LOGIN_SLUG=` vacío ya no secuestra la raíz `/` en Caddy.** Caddy solo aplica
+  `{$HWE_LOGIN_SLUG:wp-login.php}` si la variable **no existe**; con el valor vacío el `handle`
+  quedaba en `/` y la portada redirigía a `/wp-admin/`. El compose de producción pasa ahora
+  `${HWE_LOGIN_SLUG:-wp-login.php}` a Caddy, así que vacío se comporta como «sin mover» (login en
+  `/wp-login.php`). WordPress sigue recibiendo el valor vacío y no mueve nada. **Si despliegas
+  Caddy fuera de este compose**, no definas la variable o define `HWE_LOGIN_SLUG=wp-login.php`
+  cuando no quieras mover el login. No hay migración de datos.
+
+- **El contenedor `backup` de producción arranca con una imagen que ya trae sus dependencias.**
+  El servicio usaba `alpine:3.23` y ejecutaba `apk add mariadb-client jq` en cada arranque, pero
+  solo está conectado a la red interna `data` (sin Internet): la instalación fallaba y el
+  contenedor reiniciaba en bucle sin hacer ninguna copia. Ahora se construye desde
+  `backend/docker/backup/Dockerfile` con `mariadb-client` y `jq` ya instalados
+  (`pull_policy: build`, imagen local `hwe-backup:prod`); el `apk add` del entrypoint queda solo
+  como respaldo y, si aun así faltan binarios, sale con un error claro. **Qué hacer:** ejecuta
+  `docker compose -f docker-compose.prod.yml build backup` (o deja que `up -d` la construya) y
+  recrea el servicio. La red, los volúmenes, las capacidades y los límites no cambian.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

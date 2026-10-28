@@ -216,8 +216,14 @@ admin muestra el estado en **Ajustes → Redis**.
 
 ### Automáticos (contenedor `backup` en docker-compose.prod.yml)
 
-El servicio `backup` corre en Alpine con `mariadb-client` y programa un backup diario
-a las **03:00 UTC** via cron. Respaldo:
+El servicio `backup` usa una imagen propia construida desde
+`backend/docker/backup/Dockerfile`, que ya incluye `mariadb-client` y `jq`. Así el contenedor
+no necesita salida a Internet (vive solo en la red interna `data`) y no intenta instalar nada
+en cada arranque. Compose la construye con `up -d`; para hacerlo explícito:
+```bash
+docker compose -f docker-compose.prod.yml build backup
+```
+Programa un backup diario a las **03:00 UTC** via cron. Respaldo:
 - `backups/db-YYYYMMDD-HHmmss.sql.gz` — volcado completo de MariaDB.
 - `backups/uploads-YYYYMMDD-HHmmss.tar.gz` — medios de `wp-content/uploads`.
 - Retención: `BACKUP_RETAIN_DAYS` días (por defecto 14 en prod, configurable en `.env.prod`).

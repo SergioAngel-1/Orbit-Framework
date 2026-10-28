@@ -21,8 +21,35 @@ SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEST="${BACKUP_DIR:-/backups}"
 CONFIG_FILE="${DEST}/hwe-backup-config.json"
 
-echo "[backup] Instalando dependencias (mariadb-client + jq)..."
-apk add --no-cache mariadb-client jq >/dev/null 2>&1
+# La imagen propia (backend/docker/backup/Dockerfile) ya trae mariadb-client y jq.
+# `apk add` queda SOLO como respaldo para una imagen vieja o un arranque suelto: en
+# producción este contenedor vive en la red interna `data`, sin salida a Internet.
+missing_dependencies() {
+    missing=""
+    if ! command -v mysqldump >/dev/null 2>&1 && ! command -v mariadb-dump >/dev/null 2>&1; then
+        missing="mariadb-client"
+    fi
+    if ! command -v jq >/dev/null 2>&1; then
+        missing="${missing:+$missing }jq"
+    fi
+    printf '%s' "$missing"
+}
+
+MISSING_DEPS=$(missing_dependencies)
+if [ -n "$MISSING_DEPS" ]; then
+    echo "[backup] Faltan dependencias ($MISSING_DEPS); intentando instalarlas con apk..."
+    apk add --no-cache mariadb-client jq >/dev/null 2>&1 || true
+    MISSING_DEPS=$(missing_dependencies)
+fi
+
+if [ -n "$MISSING_DEPS" ]; then
+    # Sin esto el entrypoint moría con el error crudo de `apk` y el contenedor
+    # reiniciaba en bucle; ahora el motivo queda claro en `docker logs`.
+    echo "[backup] ✗ Error: faltan dependencias ($MISSING_DEPS) y no se pudieron instalar." >&2
+    echo "[backup]   Usa la imagen con las dependencias horneadas (backend/docker/backup/Dockerfile):" >&2
+    echo "[backup]   docker compose -f docker-compose.prod.yml build backup" >&2
+    exit 1
+fi
 
 # NO chmod aquí: backup-cron.sh y backup-trigger-watch.sh se montan `:ro`
 # (docker-compose*.yml) por seguridad, así que chmod fallaría con "Read-only

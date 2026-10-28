@@ -142,8 +142,11 @@ services:
       - caddy_config:/config      # configuración Caddy persistente
     environment:
       PUBLIC_DOMAIN: "${PUBLIC_DOMAIN:?PUBLIC_DOMAIN must be set}"
-      # Mismo valor que en WordPress: Caddy enruta /<slug> al panel.
-      HWE_LOGIN_SLUG: "${HWE_LOGIN_SLUG:-}"
+      # Mismo valor que en WordPress: Caddy enruta /<slug> al panel. Con la
+      # variable vacía, Caddy recibe el valor por defecto porque un placeholder
+      # `{$VAR:defecto}` distingue «sin definir» de «definida vacía»: con vacío
+      # renderizaría `/` y secuestraría la raíz del sitio.
+      HWE_LOGIN_SLUG: "${HWE_LOGIN_SLUG:-wp-login.php}"
       # Host del panel (opcional). Con valor, `/wp-admin` y el login redirigen allí;
       # el sitio del panel lo define caddy/conf.d/admin.caddy (ver caddy/README.md).
       ADMIN_DOMAIN:  "${ADMIN_DOMAIN:-}"
@@ -163,8 +166,9 @@ services:
     healthcheck:
       # La API de administración escucha solo en loopback y no toca el sitio:
       # comprueba que Caddy está vivo y ha cargado su configuración, sin
-      # depender de que el upstream responda.
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:2019/config/"]
+      # depender de que el upstream responda. 127.0.0.1 y no `localhost`: en la
+      # imagen `localhost` resuelve primero a ::1, donde la API no escucha.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:2019/config/"]
       interval: 30s
       timeout: 5s
       start_period: 10s
@@ -625,8 +629,14 @@ services:
 
   # ── Backup cron (diario 03:00 UTC) ──────────────────────────────────────────
   backup:
-    image: alpine:3.23
-    pull_policy: if_not_present
+    # Imagen propia con mariadb-client y jq YA instalados: el contenedor solo
+    # está en la red interna `data` (sin Internet), así que un `apk add` en cada
+    # arranque fallaba y lo dejaba en bucle de reinicio sin hacer ninguna copia.
+    # `pull_policy: build` evita que Compose intente bajar esta etiqueta local.
+    image: hwe-backup:prod
+    build:
+      context: ./backend/docker/backup
+    pull_policy: build
     container_name: ${HWE_CONTAINER_PREFIX:-hwe}_backup
     logging: *default-logging
     restart: unless-stopped

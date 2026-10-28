@@ -417,7 +417,11 @@ describe("sondas de salud: miden lo que dicen medir", () => {
   it("Caddy tiene sonda propia (API de administración en loopback)", () => {
     const caddyService = service(prod, "caddy");
     expect(caddyService).toContain("healthcheck:");
-    expect(caddyService).toContain("http://localhost:2019/config/");
+    // 127.0.0.1 y no `localhost`: en la imagen de Caddy `localhost` resuelve
+    // primero a ::1 y la API de administración solo escucha en IPv4, así que
+    // la sonda fallaba siempre y el contenedor quedaba `unhealthy`.
+    expect(caddyService).toContain("http://127.0.0.1:2019/config/");
+    expect(caddyService).not.toContain("http://localhost:2019/");
   });
 });
 
@@ -476,9 +480,12 @@ describe("imágenes: tags reproducibles", () => {
   });
 
   it("producción no baja imágenes nuevas a mitad de un despliegue", () => {
-    for (const name of ["caddy", "db", "wordpress", "redis", "backup"]) {
+    for (const name of ["caddy", "db", "wordpress", "redis"]) {
       expect(service(prod, name), name).toContain("pull_policy: if_not_present");
     }
+    // `backup` se construye en el servidor (imagen local con mariadb-client y jq):
+    // su política es `build`, no una descarga de un registro.
+    expect(service(prod, "backup")).toContain("pull_policy: build");
   });
 });
 
@@ -534,6 +541,31 @@ describe("Caddyfile", () => {
 
   it("importa los sitios opcionales de caddy/conf.d", () => {
     expect(caddy).toContain("import /etc/caddy/conf.d/*.caddy");
+  });
+});
+
+describe("Caddy: HWE_LOGIN_SLUG vacío no secuestra la raíz", () => {
+  it("Caddy recibe /wp-login.php cuando la variable está vacía", () => {
+    // Caddy solo aplica `{$VAR:defecto}` si la variable NO existe: con el valor
+    // vacío, `handle /{$HWE_LOGIN_SLUG:wp-login.php}` se convertía en `handle /`
+    // y la portada respondía 302 a /wp-admin/ en vez de servir la tienda.
+    const caddyService = service(prod, "caddy");
+
+    expect(caddyService).toContain('HWE_LOGIN_SLUG: "${HWE_LOGIN_SLUG:-wp-login.php}"');
+    expect(caddyService).not.toContain('HWE_LOGIN_SLUG: "${HWE_LOGIN_SLUG:-}"');
+  });
+
+  it("WordPress sigue tratando la variable vacía como «sin mover»", () => {
+    expect(wordpressConfig(prod)).toContain(
+      "define( 'HWE_LOGIN_SLUG', '${HWE_LOGIN_SLUG:-}' );",
+    );
+  });
+
+  it("el Caddyfile mantiene wp-login.php como valor por defecto", () => {
+    expect(caddy).toContain("handle /{$HWE_LOGIN_SLUG:wp-login.php} {");
+    expect(caddy).toContain(
+      "path /wp-admin /wp-admin/* /wp-login.php /{$HWE_LOGIN_SLUG:wp-login.php}",
+    );
   });
 });
 

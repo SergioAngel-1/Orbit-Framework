@@ -98,7 +98,10 @@
         reverse_proxy wordpress:80
     }
     # Login movido (HWE_LOGIN_SLUG, ver hwe-login-slug.php). Sin la variable, la ruta
-    # cae en /wp-login.php y este bloque repite el anterior sin efecto.
+    # cae en /wp-login.php y este bloque repite el anterior sin efecto. OJO: Caddy solo
+    # aplica el defecto si la variable NO existe; definida vacía, este handle sería `/`
+    # y secuestraría la portada. docker-compose.prod.yml pasa `wp-login.php` cuando está
+    # vacía (los despliegues fuera del compose deben omitirla o darle ese valor).
     handle /{$HWE_LOGIN_SLUG:wp-login.php} {
         header >X-Frame-Options "SAMEORIGIN"
         reverse_proxy wordpress:80
