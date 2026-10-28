@@ -296,6 +296,14 @@ Tres fallos observados en una instalación nueva y en producción. No cambian ru
   inexistente». No hay acción: la migración se ejecuta una vez en la primera carga ya instalada y
   sigue siendo idempotente.
 
+- **`HWE_LOGIN_SLUG=` vacío ya no secuestra la raíz `/` en Caddy.** Caddy solo aplica
+  `{$HWE_LOGIN_SLUG:wp-login.php}` si la variable **no existe**; con el valor vacío el `handle`
+  quedaba en `/` y la portada redirigía a `/wp-admin/`. El compose de producción pasa ahora
+  `${HWE_LOGIN_SLUG:-wp-login.php}` a Caddy, así que vacío se comporta como «sin mover» (login en
+  `/wp-login.php`). WordPress sigue recibiendo el valor vacío y no mueve nada. **Si despliegas
+  Caddy fuera de este compose**, no definas la variable o define `HWE_LOGIN_SLUG=wp-login.php`
+  cuando no quieras mover el login. No hay migración de datos.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

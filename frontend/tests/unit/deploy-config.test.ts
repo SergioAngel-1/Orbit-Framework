@@ -537,6 +537,31 @@ describe("Caddyfile", () => {
   });
 });
 
+describe("Caddy: HWE_LOGIN_SLUG vacío no secuestra la raíz", () => {
+  it("Caddy recibe /wp-login.php cuando la variable está vacía", () => {
+    // Caddy solo aplica `{$VAR:defecto}` si la variable NO existe: con el valor
+    // vacío, `handle /{$HWE_LOGIN_SLUG:wp-login.php}` se convertía en `handle /`
+    // y la portada respondía 302 a /wp-admin/ en vez de servir la tienda.
+    const caddyService = service(prod, "caddy");
+
+    expect(caddyService).toContain('HWE_LOGIN_SLUG: "${HWE_LOGIN_SLUG:-wp-login.php}"');
+    expect(caddyService).not.toContain('HWE_LOGIN_SLUG: "${HWE_LOGIN_SLUG:-}"');
+  });
+
+  it("WordPress sigue tratando la variable vacía como «sin mover»", () => {
+    expect(wordpressConfig(prod)).toContain(
+      "define( 'HWE_LOGIN_SLUG', '${HWE_LOGIN_SLUG:-}' );",
+    );
+  });
+
+  it("el Caddyfile mantiene wp-login.php como valor por defecto", () => {
+    expect(caddy).toContain("handle /{$HWE_LOGIN_SLUG:wp-login.php} {");
+    expect(caddy).toContain(
+      "path /wp-admin /wp-admin/* /wp-login.php /{$HWE_LOGIN_SLUG:wp-login.php}",
+    );
+  });
+});
+
 describe("CD", () => {
   it("construye la imagen con WORDPRESS_PUBLIC_URL (sin ella el Dockerfile falla)", () => {
     expect(cd).toContain("WORDPRESS_PUBLIC_URL=${{ vars.WORDPRESS_PUBLIC_URL }}");

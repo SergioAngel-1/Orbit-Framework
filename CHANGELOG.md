@@ -62,6 +62,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   el log de `setup.sh` recogía errores de «tabla inexistente». Ahora sale sin tocar la base si
   `wp_installing()` es verdadero o `is_blog_installed()` es falso, y se ejecuta una sola vez en la
   primera carga con el sitio instalado (sigue siendo idempotente).
+- **`HWE_LOGIN_SLUG=` vacío ya no secuestra la raíz `/` en Caddy.** Caddy solo aplica el valor por
+  defecto de `{$HWE_LOGIN_SLUG:wp-login.php}` si la variable no existe; con el valor vacío que
+  traían las plantillas, el `handle` quedaba en `/` y `https://<dominio>/` respondía 302 a
+  `/wp-admin/` en vez de servir la tienda. `docker-compose.prod.yml` pasa ahora a Caddy
+  `${HWE_LOGIN_SLUG:-wp-login.php}` (vacío = login en `/wp-login.php`) y WordPress sigue
+  recibiendo el valor vacío, que ya trataba como «sin mover». La ruta `/wp-login.php` puede
+  aparecer dos veces en el matcher de Caddy cuando el slug cae al valor por defecto; es inocuo.
 - **El frontend de desarrollo deriva su origen público de `FRONTEND_PORT`.** Con una pila en otro
   puerto, `NEXT_PUBLIC_SITE_URL`, `ALLOWED_ORIGIN`, `HEADLESS_FRONTEND_URL` y
   `HEADLESS_ALLOWED_ORIGINS` seguían fijando `localhost:3000`: los enlaces de recuperación y

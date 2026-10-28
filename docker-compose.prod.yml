@@ -142,8 +142,11 @@ services:
       - caddy_config:/config      # configuración Caddy persistente
     environment:
       PUBLIC_DOMAIN: "${PUBLIC_DOMAIN:?PUBLIC_DOMAIN must be set}"
-      # Mismo valor que en WordPress: Caddy enruta /<slug> al panel.
-      HWE_LOGIN_SLUG: "${HWE_LOGIN_SLUG:-}"
+      # Mismo valor que en WordPress: Caddy enruta /<slug> al panel. Con la
+      # variable vacía, Caddy recibe el valor por defecto porque un placeholder
+      # `{$VAR:defecto}` distingue «sin definir» de «definida vacía»: con vacío
+      # renderizaría `/` y secuestraría la raíz del sitio.
+      HWE_LOGIN_SLUG: "${HWE_LOGIN_SLUG:-wp-login.php}"
       # Host del panel (opcional). Con valor, `/wp-admin` y el login redirigen allí;
       # el sitio del panel lo define caddy/conf.d/admin.caddy (ver caddy/README.md).
       ADMIN_DOMAIN:  "${ADMIN_DOMAIN:-}"
