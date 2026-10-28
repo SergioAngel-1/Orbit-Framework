@@ -476,9 +476,12 @@ describe("imágenes: tags reproducibles", () => {
   });
 
   it("producción no baja imágenes nuevas a mitad de un despliegue", () => {
-    for (const name of ["caddy", "db", "wordpress", "redis", "backup"]) {
+    for (const name of ["caddy", "db", "wordpress", "redis"]) {
       expect(service(prod, name), name).toContain("pull_policy: if_not_present");
     }
+    // `backup` se construye en el servidor (imagen local con mariadb-client y jq):
+    // su política es `build`, no una descarga de un registro.
+    expect(service(prod, "backup")).toContain("pull_policy: build");
   });
 });
 

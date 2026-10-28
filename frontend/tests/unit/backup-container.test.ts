@@ -52,6 +52,27 @@ describe("docker-compose.prod.yml: servicio backup", () => {
   it("devuelve SOLO SETUID y SETGID, que crond necesita para lanzar cada tarea", () => {
     expect(yamlList(block, "cap_add").sort()).toEqual(["SETGID", "SETUID"]);
   });
+
+  it("construye una imagen local con las dependencias horneadas y no la busca en un registro", () => {
+    expect(block).toContain("image: hwe-backup:prod");
+    expect(block).toMatch(/\n {4}build:\n {6}context: \.\/backend\/docker\/backup\n/);
+    // Con `if_not_present`/`missing`, Compose intentaría bajar una etiqueta que
+    // solo existe en el servidor; `build` la reconstruye desde el Dockerfile.
+    expect(block).toContain("pull_policy: build");
+
+    const dockerfile = read("backend/docker/backup/Dockerfile");
+    expect(dockerfile).toMatch(/FROM alpine:3\.23/);
+    expect(dockerfile).toMatch(/RUN apk add --no-cache mariadb-client jq/);
+  });
+
+  it("solo está en la red interna data (el contenedor no necesita Internet)", () => {
+    const networks = block.match(/\n {4}networks:\n((?: {6}- *\w+\n)+)/);
+    const items = networks
+      ? [...networks[1]!.matchAll(/- *(\w+)/g)].map((match) => match[1]!)
+      : [];
+
+    expect(items).toEqual(["data"]);
+  });
 });
 
 describe("backup-entrypoint.sh: arranca con los scripts montados en solo lectura", () => {
@@ -114,10 +135,18 @@ describe("backup-entrypoint.sh", () => {
     expect(entrypoint).not.toMatch(/>>\s*\/var\/log\/backup\.log/);
   });
 
-  it("un fallo de `apk add` no se esconde tras el contenedor: el job fallaría después a la vista", () => {
-    const apk = entrypoint.split("\n").find((line) => line.includes("apk add"));
+  it("el `apk add` es solo un respaldo: primero comprueba los binarios y falla claro si faltan", () => {
+    const apk = entrypoint.indexOf("apk add");
+    const check = entrypoint.indexOf("command -v mysqldump");
 
-    expect(apk).toBeDefined();
-    expect(apk).toContain(">/dev/null");
+    expect(check, "debe comprobar si mysqldump/mariadb-dump existe").toBeGreaterThan(
+      -1,
+    );
+    expect(
+      apk,
+      "no debe instalar en cada arranque como camino principal",
+    ).toBeGreaterThan(check);
+    expect(entrypoint).toContain("Faltan dependencias");
+    expect(entrypoint).toMatch(/exit 1/);
   });
 });

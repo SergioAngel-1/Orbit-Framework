@@ -628,8 +628,14 @@ services:
 
   # ── Backup cron (diario 03:00 UTC) ──────────────────────────────────────────
   backup:
-    image: alpine:3.23
-    pull_policy: if_not_present
+    # Imagen propia con mariadb-client y jq YA instalados: el contenedor solo
+    # está en la red interna `data` (sin Internet), así que un `apk add` en cada
+    # arranque fallaba y lo dejaba en bucle de reinicio sin hacer ninguna copia.
+    # `pull_policy: build` evita que Compose intente bajar esta etiqueta local.
+    image: hwe-backup:prod
+    build:
+      context: ./backend/docker/backup
+    pull_policy: build
     container_name: ${HWE_CONTAINER_PREFIX:-hwe}_backup
     logging: *default-logging
     restart: unless-stopped

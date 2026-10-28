@@ -69,6 +69,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `${HWE_LOGIN_SLUG:-wp-login.php}` (vacío = login en `/wp-login.php`) y WordPress sigue
   recibiendo el valor vacío, que ya trataba como «sin mover». La ruta `/wp-login.php` puede
   aparecer dos veces en el matcher de Caddy cuando el slug cae al valor por defecto; es inocuo.
+- **El contenedor `backup` de producción ya arranca y hace copias.** Usaba `alpine:3.23` y
+  ejecutaba `apk add mariadb-client jq` en cada arranque, pero solo está en la red interna `data`
+  (sin Internet): la instalación fallaba y el contenedor reiniciaba en bucle sin copiar nada. Ahora
+  el servicio se construye desde `backend/docker/backup/Dockerfile` con las dependencias
+  horneadas (`image: hwe-backup:prod`, `pull_policy: build`), conserva la red `data`, los
+  volúmenes, las capacidades y los límites, y el `apk add` del entrypoint queda solo como
+  respaldo: si aun así faltan binarios, sale con un error claro en lugar de fallar en silencio.
 - **El frontend de desarrollo deriva su origen público de `FRONTEND_PORT`.** Con una pila en otro
   puerto, `NEXT_PUBLIC_SITE_URL`, `ALLOWED_ORIGIN`, `HEADLESS_FRONTEND_URL` y
   `HEADLESS_ALLOWED_ORIGINS` seguían fijando `localhost:3000`: los enlaces de recuperación y

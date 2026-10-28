@@ -304,6 +304,16 @@ Tres fallos observados en una instalación nueva y en producción. No cambian ru
   Caddy fuera de este compose**, no definas la variable o define `HWE_LOGIN_SLUG=wp-login.php`
   cuando no quieras mover el login. No hay migración de datos.
 
+- **El contenedor `backup` de producción arranca con una imagen que ya trae sus dependencias.**
+  El servicio usaba `alpine:3.23` y ejecutaba `apk add mariadb-client jq` en cada arranque, pero
+  solo está conectado a la red interna `data` (sin Internet): la instalación fallaba y el
+  contenedor reiniciaba en bucle sin hacer ninguna copia. Ahora se construye desde
+  `backend/docker/backup/Dockerfile` con `mariadb-client` y `jq` ya instalados
+  (`pull_policy: build`, imagen local `hwe-backup:prod`); el `apk add` del entrypoint queda solo
+  como respaldo y, si aun así faltan binarios, sale con un error claro. **Qué hacer:** ejecuta
+  `docker compose -f docker-compose.prod.yml build backup` (o deja que `up -d` la construya) y
+  recrea el servicio. La red, los volúmenes, las capacidades y los límites no cambian.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.
