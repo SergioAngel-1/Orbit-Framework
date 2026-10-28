@@ -417,7 +417,11 @@ describe("sondas de salud: miden lo que dicen medir", () => {
   it("Caddy tiene sonda propia (API de administración en loopback)", () => {
     const caddyService = service(prod, "caddy");
     expect(caddyService).toContain("healthcheck:");
-    expect(caddyService).toContain("http://localhost:2019/config/");
+    // 127.0.0.1 y no `localhost`: en la imagen de Caddy `localhost` resuelve
+    // primero a ::1 y la API de administración solo escucha en IPv4, así que
+    // la sonda fallaba siempre y el contenedor quedaba `unhealthy`.
+    expect(caddyService).toContain("http://127.0.0.1:2019/config/");
+    expect(caddyService).not.toContain("http://localhost:2019/");
   });
 });
 
