@@ -291,6 +291,9 @@ final class ContentSeoTest extends TestCase
     }
 
     public function testProductExposesAValidGtinOrNull(): void {
+        // Sin el método nativo (WooCommerce < 9.2): se lee la meta. Stub explícito porque
+        // otro test de la suite puede dejar `wc_get_product` declarada.
+        Functions\when('wc_get_product')->justReturn(null);
         hwe_product_seo_register_graphql();
         $resolve = $this->fieldsOf('Product')['hweGtin']['resolve'];
         $product = new FakePost28();
@@ -303,6 +306,12 @@ final class ContentSeoTest extends TestCase
 
         $this->meta['post:22:_global_unique_id'] = '12345';
         $this->assertNull($resolve($product), 'Un largo que el estándar no admite no se declara.');
+
+        // Con WooCommerce 9.2+, manda el campo nativo.
+        Functions\when('wc_get_product')->justReturn(new class {
+            public function get_global_unique_id(): string { return '012345678905'; }
+        });
+        $this->assertSame('012345678905', $resolve($product));
     }
 
     public function testCategoryExposesSeoFieldsWithoutEnglishVariants(): void {
