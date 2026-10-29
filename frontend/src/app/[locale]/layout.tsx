@@ -86,8 +86,15 @@ export async function generateMetadata({
     // cada página indexable pasa la suya (`siteOpenGraph(config, locale, canónica)`).
     openGraph: siteOpenGraph(config, locale),
     twitter: siteTwitter(config, locale),
-    ...(config.seo.google_site_verification && {
-      verification: { google: config.seo.google_site_verification },
+    ...((config.seo.google_site_verification || config.seo.bing_site_verification) && {
+      verification: {
+        ...(config.seo.google_site_verification && {
+          google: config.seo.google_site_verification,
+        }),
+        ...(config.seo.bing_site_verification && {
+          other: { "msvalidate.01": config.seo.bing_site_verification },
+        }),
+      },
     }),
   };
 }

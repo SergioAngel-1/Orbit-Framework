@@ -886,7 +886,7 @@ loyalty: { points_enabled, referrals_enabled, currency_name, currency_name_plura
            transfer_daily_cap }
 memberships: { card_enabled, card_verify_path, member_number_prefix }
 integrations: { analytics_provider, analytics_id }
-seo: { title_template, robots, google_site_verification, default_og, og_image, product_brand,
+seo: { title_template, robots, google_site_verification, bing_site_verification, default_og, og_image, product_brand,
        shipping_amount, return_days, return_category, return_method, return_fees,
        handling_days, transit_days, alternate_names, organization_logo, founding_date,
        knows_about, founder_name, founder_role, founder_url, business_type }

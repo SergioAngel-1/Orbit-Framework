@@ -162,7 +162,10 @@ Preguntas:
 ## 7. Bloque: SEO / GEO (visibilidad en buscadores y en IA)
 
 Preguntas:
-- ¿Tienen cuenta de Google Search Console (código de verificación)?
+- ¿Tienen cuenta de Google Search Console y de Bing Webmaster Tools (códigos de verificación)?
+- ¿Sustituye a una web anterior? Necesitamos la lista de sus URLs para las redirecciones 301
+  (`redirects` del registro de la instancia).
+- ¿Habrá un staging público? Lleva `HWE_NOINDEX=true`.
 - ¿Quieren aparecer citados por asistentes de IA (ChatGPT, Perplexity, Claude)? ¿O prefieren
   bloquear el entrenamiento de IA sobre su contenido?
 - ¿Hay una persona fundadora/responsable que quieran destacar (para E-E-A-T)?
@@ -171,6 +174,7 @@ Preguntas:
 
 **Determina**: `seo.*`, `geo.*` en `instance.config.json` — todo esto ya está implementado y
 conectado (`/about`, JSON-LD de producto, `robots.txt`, `/llms.txt`), es puramente config.
+La lista de comprobación del lanzamiento está en `docs/GO-LIVE.md` §6 bis.
 
 ---
 

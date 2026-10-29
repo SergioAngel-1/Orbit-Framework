@@ -203,6 +203,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     title_template: "%s · %site%",
     robots: "index,follow",
     google_site_verification: "",
+    bing_site_verification: "",
     default_og: "auto",
     og_image: "",
     product_brand: "",
