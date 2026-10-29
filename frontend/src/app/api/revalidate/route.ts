@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import {
   BodyTooLarge,
   MAX_WEBHOOK_BODY_BYTES,
@@ -12,6 +12,7 @@ import { rateLimit } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/http/request-ip";
 import { logger } from "@/lib/observability/logger";
 import { instanceRegistry } from "@/instance/registry";
+import { notifyProductChange } from "@/lib/seo/indexnow";
 
 export const dynamic = "force-dynamic";
 
@@ -150,6 +151,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Firma de webhook inválida." }, { status: 401 });
   }
   revalidateTag("products", "max");
+  // IndexNow (si hay `INDEXNOW_KEY`): la ficha cambiada se anuncia después de
+  // responder, para no alargar el webhook de WooCommerce.
+  after(() => notifyProductChange(rawBody));
   logger.info({ event: "revalidate.products" }, "Catálogo de productos revalidado");
   return NextResponse.json({ revalidated: true, tag: "products", now: Date.now() });
 }

@@ -87,6 +87,7 @@ plantillas; nunca subas claves reales.**
 | `AUTH_COOKIE_NAME`, `JWT_REFRESH_COOKIE_NAME`, `CSRF_COOKIE_NAME`, `CART_COOKIE_NAME` | (opc.) Nombres de cookie (`hwe_at`, `hwe_rt`, `hwe_csrf`, `hwe_cart`) | — |
 | `REFRESH_TOKEN_MAX_AGE_DAYS`, `CART_COOKIE_MAX_AGE_DAYS` | (opc.) Vida del refresh token (30) y de la cookie del carrito (7) | — |
 | `COOKIE_DOMAIN` | (opc.) Dominio de cookie para subdominios | `.tu-dominio.com` |
+| `INDEXNOW_KEY` | (opc.) Activa **IndexNow**: cada webhook `product.*` anuncia la ficha a Bing, Yandex, Naver y Seznam (Google no lo usa), en lotes, y la clave se publica en `/indexnow.txt`. 8–128 caracteres `[a-zA-Z0-9-]`. Nunca con `HWE_NOINDEX` ni en desarrollo | `openssl rand -hex 16` |
 | `HWE_NOINDEX` | (opc.) Guarda de **staging**: `true` saca el sitio entero de los buscadores (`robots.txt` con `Disallow: /`, `noindex` en cada página y `X-Robots-Tag`), mande lo que mande el Control Center. Se lee en ejecución. **Vacía en producción** | `true` |
 | `TRUSTED_PROXY_COUNT` | Proxies de confianza delante del BFF (Caddy = 1). Decide cómo se calcula la IP real desde `X-Forwarded-For` | `1` |
 | `WP_ADMIN_PASSWORD` y demás | Ver «WordPress» arriba | — |

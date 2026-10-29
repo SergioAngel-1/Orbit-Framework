@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { revalidateTag } from "next/cache";
+import { after } from "next/server";
+import { notifyProductChange } from "@/lib/seo/indexnow";
 import { rateLimit } from "@/lib/security/rate-limit";
 import { POST } from "./route";
 
@@ -14,6 +16,11 @@ import { POST } from "./route";
 // ============================================================================
 
 vi.mock("next/cache", () => ({ revalidateTag: vi.fn() }));
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: vi.fn(),
+}));
+vi.mock("@/lib/seo/indexnow", () => ({ notifyProductChange: vi.fn() }));
 vi.mock("@/lib/security/rate-limit", () => ({ rateLimit: vi.fn() }));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -68,6 +75,10 @@ describe("firmas", () => {
 
     expect(res.status).toBe(200);
     expect(revalidateTag).toHaveBeenCalledWith("products", "max");
+    // IndexNow va después de responder, con el cuerpo del webhook.
+    const task = vi.mocked(after).mock.calls.at(-1)?.[0] as () => unknown;
+    await task();
+    expect(notifyProductChange).toHaveBeenCalledWith(body);
   });
 
   it("HWE: una firma hex con prefijo válida revalida el tag pedido", async () => {
