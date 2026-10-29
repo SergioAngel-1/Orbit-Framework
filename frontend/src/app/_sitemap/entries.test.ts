@@ -437,6 +437,17 @@ describe("buildSitemapEntries", () => {
       );
     });
 
+    it("una exclusión exacta retira la ficha y la categoría concretas, en todos los idiomas", async () => {
+      registry.sitemap = { exclude: ["/products/camiseta", "/categories/ropa"] };
+
+      const all = await urls("catalogo");
+      expect(all).not.toContain("https://mitienda.example/products/camiseta");
+      expect(all).not.toContain("https://mitienda.example/en/products/t-shirt");
+      expect(all).not.toContain("https://mitienda.example/categories/ropa");
+      expect(all).not.toContain("https://mitienda.example/en/categories/clothes");
+      expect(all).toContain("https://mitienda.example/products/gorra");
+    });
+
     it("excluir y redeclarar la misma ruta hace que gane la declaración de la instancia", async () => {
       registry.sitemap = {
         pages: [{ path: "/about", changeFrequency: "weekly", priority: 0.9 }],

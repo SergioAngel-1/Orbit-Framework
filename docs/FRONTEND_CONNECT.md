@@ -52,6 +52,11 @@ Este documento tiene dos partes con garantías muy distintas:
     override; usa el título/resumen nativos), `seoNoindex` (boolean: `noindex, follow` y fuera
     del sitemap/`llms.txt`) y `seoCanonical` (URL absoluta de la versión principal; null = la
     propia). El frontend los aplica con `lib/seo/entity-index.ts`.
+    La landing de un producto (`/products/<slug>/learn`) hereda la caja de su ficha: con la
+    ficha `noindex` o con canónica manual, la landing va `noindex, follow` y sin `alternates`
+    (no se le inventa canónica), igual que el sitemap, que la omite
+    (`inheritedIndexMetadata`). `llms.txt` no lista landings de producto, solo las editoriales
+    de URL libre.
   - `Product.hweGtin`: GTIN del campo nativo de WooCommerce (9.2+), solo con 8/12/13/14
     dígitos; null si no hay o no es válido.
   - `MediaItem.isReferenceImage` (boolean): foto genérica compartida por varios productos;
@@ -1048,8 +1053,12 @@ Reglas:
 - `exclude` se aplica a las entradas de los tres segmentos antes de expandir por idioma,
   comparando contra la ruta **interna**. `/products/*` excluye `/products`, sus fichas y sus
   landings, pero no `/products-extra`.
-- En `llms.txt` se aplica a las páginas principales, a los documentos legales y a las guías;
-  categorías y datos de negocio no cambian.
+- En `llms.txt` se aplica a las páginas principales, a los documentos legales, a las guías y a
+  las categorías (`/categories/<slug-nativo>`); los datos de negocio no cambian.
+- El índice A-Z (`/products/archive`) sigue el mismo criterio para fichas
+  (`/products/<slug-nativo>`) y categorías: caja SEO de la entidad **y** `exclude`. Una vista
+  de la instancia que reescriba un índice o un listado debe llamar a `isPathAnnounced(ruta,
+  entidad)` (`lib/seo/announce.ts`) en vez de repetir las dos comprobaciones.
 - Validación **fail-soft**: una entrada mal formada (sin barra inicial, con consulta o ancla,
   prioridad fuera de rango, frecuencia desconocida) se descarta y se registra con el evento
   `instance.sitemap.invalid_entry`; el sitemap sigue generándose. Sin el campo, todo es idéntico

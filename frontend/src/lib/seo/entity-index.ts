@@ -44,6 +44,23 @@ export function entityIndexMetadata<A extends { canonical: string }>(
 }
 
 /**
+ * `alternates` y `robots` de una página que CUELGA de una entidad (la landing
+ * `/products/<slug>/learn` de una ficha) y hereda su caja SEO. Coherente con el
+ * sitemap, que omite la landing cuando la ficha no se anuncia:
+ *
+ *  - ficha `noindex` → la landing, también (`noindex, follow`, sin `alternates`);
+ *  - ficha con canónica manual → la landing NO hereda esa canónica (apuntaría a la
+ *    ficha ajena, que no es su contenido) ni se anuncia como indexable: `noindex,
+ *    follow`, sin `alternates`. Inventar una canónica propia contradiría a la ficha.
+ */
+export function inheritedIndexMetadata<A>(
+  alternates: A,
+  parent: EntityIndexControls,
+): { alternates?: A; robots?: Metadata["robots"] } {
+  return isEntityAnnounced(parent) ? { alternates } : { robots: ENTITY_NOINDEX_ROBOTS };
+}
+
+/**
  * Los controles tal como llegan de GraphQL, sin claves vacías: una entidad sin
  * marcar no arrastra `seoNoindex: false` / `seoCanonical: null` por todo el código.
  */

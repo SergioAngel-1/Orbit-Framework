@@ -60,7 +60,7 @@ vi.mock("@/components/landings/product/landing-product-view", () => ({
 }));
 
 import { getSiteConfig } from "@/lib/config";
-import ProductLearnPage from "./page";
+import ProductLearnPage, { generateMetadata } from "./page";
 
 type El = ReactElement<{ children?: ReactNode } & Record<string, unknown>>;
 
@@ -255,5 +255,41 @@ describe("ProductLearnPage", () => {
     );
 
     expect(jsonLdTypes(await render())).not.toContain("FAQPage");
+  });
+});
+
+describe("generateMetadata (caja SEO heredada de la ficha)", () => {
+  const meta = () =>
+    generateMetadata({ params: Promise.resolve({ locale: "es", slug: "camiseta" }) });
+
+  it("ficha normal: la landing se anuncia con su canónica y sin robots", async () => {
+    const metadata = await meta();
+
+    expect(metadata.alternates?.canonical).toBe("/products/camiseta/learn");
+    expect(metadata.robots).toBeUndefined();
+  });
+
+  it("ficha noindex: la landing va noindex,follow y sin alternates", async () => {
+    resolveEntityRoute.mockResolvedValue({
+      ...route(),
+      entity: { ...product, seoNoindex: true },
+    });
+
+    const metadata = await meta();
+
+    expect(metadata.robots).toEqual({ index: false, follow: true });
+    expect(metadata.alternates).toBeUndefined();
+  });
+
+  it("ficha con canónica manual: la landing no inventa canónica, va noindex,follow", async () => {
+    resolveEntityRoute.mockResolvedValue({
+      ...route(),
+      entity: { ...product, seoCanonical: "https://otra.example/camiseta" },
+    });
+
+    const metadata = await meta();
+
+    expect(metadata.robots).toEqual({ index: false, follow: true });
+    expect(metadata.alternates).toBeUndefined();
   });
 });

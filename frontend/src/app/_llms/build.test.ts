@@ -156,6 +156,17 @@ describe("buildLlmsTxt", () => {
       expect(await buildLlmsTxt("es")).not.toContain("/learn/guide");
     });
 
+    it("retira una categoría por su ruta interna (exacta o con `/*`) y no toca las demás", async () => {
+      registry.sitemap = { exclude: ["/categories/camisetas"] };
+      let body = (await buildLlmsTxt("es"))!;
+      expect(body).not.toContain("/categories/camisetas");
+      expect(body).toContain("/categories/gorras");
+
+      registry.sitemap = { exclude: ["/categories/*"] };
+      body = (await buildLlmsTxt("es"))!;
+      expect(body).not.toContain("/categories/");
+    });
+
     it("sin el campo, la salida es idéntica a la de listas vacías", async () => {
       const baseline = await buildLlmsTxt("es");
       registry.sitemap = { pages: [], exclude: [] };
