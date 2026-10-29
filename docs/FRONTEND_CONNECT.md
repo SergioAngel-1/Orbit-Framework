@@ -1055,6 +1055,17 @@ Reglas:
   `instance.sitemap.invalid_entry`; el sitemap sigue generándose. Sin el campo, todo es idéntico
   al comportamiento anterior.
 
+### Redirecciones de migración (`InstanceRegistry.redirects`)
+
+Lista de `{ from, to, permanent? }` que el **proxy** aplica antes de next-intl
+(`lib/instance/redirects.ts`): `from` es la ruta pública tal como llega, exacta o un prefijo
+con `/*`; `to`, una ruta del sitio o una URL `http(s)` (con `*` para copiar el resto del
+prefijo). Responde **301** (302 con `permanent: false`) y conserva la consulta salvo que el
+destino traiga la suya. Validación: sin `/api` ni `/_next`, sin consulta en `from`, sin bucles,
+sin destinos que no sean rutas o `http(s)`, tope de 2000 reglas; una regla inválida se descarta
+con el evento `instance.redirect_invalid` y `tests/unit/proxy-redirects.test.ts` compila el
+registro real en modo estricto (CI falla). El matcher del proxy no cubre rutas con extensión.
+
 ## A.5 Design tokens (paleta/tipografía dinámica)
 
 `design.colors.*`/`design.typography.*` (§A.3) están pensados para mapearse 1:1 a variables

@@ -151,6 +151,17 @@ export interface InstanceSitemap {
   exclude?: readonly string[];
 }
 
+/**
+ * Redirección de la instancia (ver `lib/instance/redirects.ts`). `from` es la ruta PÚBLICA
+ * tal como llega, exacta o un prefijo con `/*`; `to`, una ruta del sitio o una URL http(s)
+ * (con `*` para copiar el resto de un prefijo). 301 salvo `permanent: false` (302).
+ */
+export interface InstanceRedirect {
+  from: string;
+  to: string;
+  permanent?: boolean;
+}
+
 export interface InstanceRegistry {
   /** Tags ISR extra que `/api/revalidate` acepta además de los del núcleo. */
   revalidationTags: string[];
@@ -171,6 +182,11 @@ export interface InstanceRegistry {
    * no se anuncian (ni en el sitemap ni en `llms.txt`). Sin el campo, nada cambia.
    */
   sitemap?: InstanceSitemap;
+  /**
+   * Redirecciones 301 de la migración (URLs de la web anterior → las nuevas). Las aplica el
+   * proxy antes que el idioma; ver `lib/instance/redirects.ts`. Sin el campo, ninguna.
+   */
+  redirects?: readonly InstanceRedirect[];
   /**
    * Zona horaria de la tienda (IANA, p. ej. `"America/Bogota"`), igual para todos los idiomas
    * o por idioma (`{ es: "America/Bogota", en: "America/New_York" }`). La usa
