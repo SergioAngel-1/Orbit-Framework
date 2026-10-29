@@ -17,6 +17,7 @@ import { isSignedRoute } from "@/lib/security/signed-routes";
 import { internalSecretHeaders } from "@/lib/security/internal-secret";
 import { toInternalPath, toPublicPath } from "@/lib/instance/public-paths";
 import { compileRedirects, matchRedirect } from "@/lib/instance/redirects";
+import { ENV_NOINDEX_HEADER, indexingBlockedByEnv } from "@/lib/seo/indexing";
 import { normalizeReferralCode } from "@/lib/loyalty/referral-code";
 import { REF_COOKIE, refCookieOptions } from "@/lib/loyalty/ref-cookie";
 
@@ -341,6 +342,9 @@ export async function proxy(request: NextRequest) {
   // El último código que llega reemplaza al anterior; si no hay, la cookie que
   // ya tuviera el navegador se queda intacta.
   if (referralCode) response.cookies.set(REF_COOKIE, referralCode, refCookieOptions());
+  // Guarda de staging (`HWE_NOINDEX`): también en la cabecera, que un buscador
+  // respeta aunque no llegue a leer el `<meta>` (redirecciones, errores).
+  if (indexingBlockedByEnv()) response.headers.set("X-Robots-Tag", ENV_NOINDEX_HEADER);
   response.headers.set(REQUEST_ID_HEADER, requestId);
   return response;
 }

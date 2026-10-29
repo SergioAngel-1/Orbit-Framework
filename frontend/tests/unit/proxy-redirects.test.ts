@@ -43,6 +43,20 @@ describe("proxy con redirecciones de la instancia", () => {
   });
 });
 
+describe("guarda de staging (HWE_NOINDEX)", () => {
+  it("las páginas llevan X-Robots-Tag solo con la guarda activa", async () => {
+    expect((await get("/about")).headers.get("x-robots-tag")).toBeNull();
+    vi.stubEnv("HWE_NOINDEX", "true");
+    try {
+      expect((await get("/about")).headers.get("x-robots-tag")).toBe(
+        "noindex, nofollow",
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe("contrato: las redirecciones del registro real son válidas", () => {
   it("compilan en modo estricto", async () => {
     const { instanceRegistry } =

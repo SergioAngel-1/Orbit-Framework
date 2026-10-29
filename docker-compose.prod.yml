@@ -506,6 +506,9 @@ services:
       WC_WEBHOOK_SECRET:                "${WC_WEBHOOK_SECRET}"
       REDIS_URL:                        "redis://redis:6379"
       HWE_REVALIDATION_SECRET:          "${HWE_REVALIDATION_SECRET}"
+      # Guarda de staging: `true` saca el sitio de los buscadores (robots.txt, meta y
+      # X-Robots-Tag) sin tocar el Control Center. Vacía en producción.
+      HWE_NOINDEX:                      "${HWE_NOINDEX:-}"
       # Sin valor por defecto: producción sin pasarela decidida falla cerrada
       # (503 en el cobro y 404 en el webhook de pruebas), nunca cae a `noop`.
       # `noop` no es válido en producción: el guard de arranque lo rechaza y el

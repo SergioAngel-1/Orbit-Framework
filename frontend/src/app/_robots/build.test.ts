@@ -7,6 +7,11 @@ import type { SiteConfig } from "@/lib/config/types";
 let currentConfig: SiteConfig;
 let degraded = false;
 
+const warn = vi.fn();
+vi.mock("@/lib/observability/logger", () => ({
+  logger: { warn: (...a: unknown[]) => warn(...a), error: vi.fn(), info: vi.fn() },
+}));
+
 vi.mock("@/lib/config", () => ({
   getSiteConfig: async () => currentConfig,
   isFallbackSiteConfig: () => degraded,
@@ -104,6 +109,29 @@ describe("robots.txt", () => {
   it("sin Content-Signal activado no emite la directiva", async () => {
     currentConfig = config({ content_signal: false });
     expect(await robots()).not.toContain("Content-Signal");
+  });
+
+  it("con HWE_NOINDEX (staging) veta todo y no se cachea", async () => {
+    vi.stubEnv("HWE_NOINDEX", "true");
+    vi.stubEnv("NODE_ENV", "production");
+    const res = await robotsResponse();
+    expect(await res.text()).toBe("User-agent: *\nDisallow: /\n");
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("noindex en el panel sin la guarda de entorno deja un aviso en el log", async () => {
+    warn.mockClear();
+    currentConfig = config();
+    currentConfig.seo.robots = "noindex,nofollow";
+    await robots();
+    expect(warn).toHaveBeenCalledWith(
+      { event: "seo.site_noindex" },
+      expect.any(String),
+    );
+    warn.mockClear();
+    currentConfig = config();
+    await robots();
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it("en desarrollo veta todo", async () => {
