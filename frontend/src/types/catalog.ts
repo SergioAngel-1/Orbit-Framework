@@ -70,6 +70,12 @@ export interface ProductDetail extends CatalogProduct {
   /** Override de la caja SEO del editor (hwe-seo). Null = usar nombre/resumen. */
   seoTitle: string | null;
   seoDescription: string | null;
+  /** SKU real de WooCommerce. Null sin SKU (no se sustituye por el ID interno). */
+  sku?: string | null;
+  /** GTIN validado en el backend (8, 12, 13 o 14 dígitos). */
+  gtin?: string | null;
+  /** URLs de la galería, sin la imagen principal. */
+  gallery?: string[];
   attributes: ProductAttributeOption[];
   variations: ProductVariationData[];
   reviews: { averageRating: number; items: ProductReview[] };

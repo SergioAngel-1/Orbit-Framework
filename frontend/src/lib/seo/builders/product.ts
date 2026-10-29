@@ -33,6 +33,13 @@ function decimal(amount: number): string {
   return String(Number(amount.toFixed(6)));
 }
 
+/** `stockStatus` de WooGraphQL a disponibilidad de schema.org. */
+const AVAILABILITY_MAP: Record<string, string> = {
+  IN_STOCK: "https://schema.org/InStock",
+  OUT_OF_STOCK: "https://schema.org/OutOfStock",
+  ON_BACKORDER: "https://schema.org/BackOrder",
+};
+
 const RETURN_METHOD_MAP: Record<string, string[]> = {
   mail: ["https://schema.org/ReturnByMail"],
   in_store: ["https://schema.org/ReturnInStore"],
@@ -121,7 +128,6 @@ export function buildProductJsonLd({
   const currency = config.ecommerce.currency || "EUR";
   const country = config.ecommerce.country || "ES";
   const brandName = config.seo.product_brand || config.brand.name;
-  const inStock = product.stockStatus !== "OUT_OF_STOCK";
 
   // Precio: el de las variaciones si las hay (cada una trae su importe), si no
   // el de la ficha, que en un producto variable es el rango ya formateado.
@@ -152,10 +158,27 @@ export function buildProductJsonLd({
     validFrom: today(),
     priceValidUntil: priceValidUntil(),
     itemCondition: "https://schema.org/NewCondition",
-    availability: inStock
-      ? "https://schema.org/InStock"
-      : "https://schema.org/OutOfStock",
+    availability:
+      AVAILABILITY_MAP[product.stockStatus ?? ""] ?? AVAILABILITY_MAP.IN_STOCK,
   });
+
+  // Precio tachado: solo en una oferta simple rebajada cuyo precio normal se lee
+  // y es MAYOR que el que se cobra. Google lo pinta junto al precio de venta.
+  const regular = parseMoneyAmount(product.regularPrice);
+  if (
+    offer["@type"] === "Offer" &&
+    product.onSale &&
+    low !== null &&
+    regular !== null &&
+    regular > low
+  ) {
+    offer.priceSpecification = {
+      "@type": "UnitPriceSpecification",
+      priceType: "https://schema.org/StrikethroughPrice",
+      price: decimal(regular),
+      priceCurrency: currency,
+    };
+  }
 
   // shippingDetails (opcional, gobernado por la pestaña SEO). El campo del
   // panel admite un importe («5», o con texto suelto: «5 EUR») o un RANGO
@@ -224,22 +247,27 @@ export function buildProductJsonLd({
   // declarados y vacíos (y una ficha sin foto no tiene por qué inventar una de
   // respaldo). Sin valor, la clave no se emite.
   const imageUrl = product.image?.sourceUrl?.trim();
+  // La foto principal primero y después la galería, sin repetir: Google elige
+  // entre varias proporciones, y una ficha con una sola foto pierde opciones.
+  const images = [
+    ...new Set([imageUrl, ...(product.gallery ?? [])].filter((u): u is string => !!u)),
+  ];
   const hasDescription = description.trim() !== "";
+  const sku = product.sku?.trim();
+  const gtin = product.gtin?.trim();
 
   const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org/",
     "@type": "Product",
     "@id": `${url}#product`,
     name: product.name,
-    ...(imageUrl ? { image: [imageUrl] } : {}),
+    ...(images.length > 0 ? { image: images } : {}),
     ...(hasDescription ? { description } : {}),
-    sku: String(product.databaseId),
+    // El SKU real de WooCommerce. El ID interno NO es un SKU: declararlo como tal
+    // lo cruza con el feed de Merchant Center y no coincide.
+    ...(sku ? { sku } : {}),
+    ...(gtin ? { gtin } : {}),
     brand: { "@type": "Brand", name: brandName },
-    // speakable: marca los bloques óptimos para asistentes de voz/IA.
-    speakable: {
-      "@type": "SpeakableSpecification",
-      cssSelector: [".product-name", ".product-summary"],
-    },
     // Sin precio legible no hay oferta: un importe inventado (o un 0) es peor
     // que ninguno, y Merchant Center penaliza el precio que no coincide.
     ...(low !== null ? { offers: offer } : {}),

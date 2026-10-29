@@ -90,6 +90,9 @@ interface RawProductNode {
   related?: { nodes: RawProductNode[] } | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
+  sku?: string | null;
+  hweGtin?: string | null;
+  galleryImages?: { nodes: { sourceUrl: string | null }[] } | null;
   hweFields?: RawProductField[] | null;
   /** Requisito del módulo `memberships`; el campo NO existe con el módulo apagado. */
   hweMembership?: unknown;
@@ -307,6 +310,11 @@ export async function getProductBySlug(
     description: pickTranslated(node, "description", locale),
     seoTitle: pickTranslated(node, "seoTitle", locale)?.trim() || null,
     seoDescription: pickTranslated(node, "seoDescription", locale)?.trim() || null,
+    sku: node.sku?.trim() || null,
+    gtin: node.hweGtin?.trim() || null,
+    gallery: (node.galleryImages?.nodes ?? [])
+      .map((image) => image.sourceUrl?.trim() ?? "")
+      .filter(Boolean),
     fields: readProductFields(node.hweFields),
     urlSlugs: urlSlugsByLocale(node),
     locales: translatedLocales(node, "name"),
@@ -354,6 +362,8 @@ export interface ProductUrlEntry {
    * siendo accesible por URL y se prerenderiza; el sitemap no la anuncia.
    */
   hidden: boolean;
+  /** Última edición en WooCommerce (sin zona: hora del sitio). Vacío si no la trae. */
+  modified?: string;
 }
 
 export interface GetProductUrlsOptions {
@@ -373,6 +383,7 @@ const MAX_URL_PAGES = 20;
 interface RawProductUrlNode {
   slug: string;
   name: string;
+  modified?: string | null;
   catalogVisibility?: string | null;
 }
 
@@ -415,6 +426,7 @@ export async function getProductUrls(
           slugs: urlSlugsByLocale(node),
           locales: translatedLocales(node, "name"),
           hidden: node.catalogVisibility === "HIDDEN",
+          ...(node.modified ? { modified: node.modified } : {}),
         });
       }
       const { hasNextPage, endCursor } = data.products?.pageInfo ?? {};

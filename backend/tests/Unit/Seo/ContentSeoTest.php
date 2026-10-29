@@ -249,6 +249,21 @@ final class ContentSeoTest extends TestCase
         }
     }
 
+    public function testProductExposesAValidGtinOrNull(): void {
+        hwe_product_seo_register_graphql();
+        $resolve = $this->fieldsOf('Product')['hweGtin']['resolve'];
+        $product = new FakePost28();
+        $product->databaseId = 22;
+
+        $this->assertNull($resolve($product), 'Sin código.');
+
+        $this->meta['post:22:_global_unique_id'] = '84-1234567890-3';
+        $this->assertSame('8412345678903', $resolve($product), 'Solo dígitos.');
+
+        $this->meta['post:22:_global_unique_id'] = '12345';
+        $this->assertNull($resolve($product), 'Un largo que el estándar no admite no se declara.');
+    }
+
     public function testCategoryExposesSeoFieldsWithoutEnglishVariants(): void {
         hwe_category_seo_register_graphql();
 

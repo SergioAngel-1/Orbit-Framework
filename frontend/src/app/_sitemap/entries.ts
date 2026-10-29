@@ -86,6 +86,13 @@ function expand(baseUrl: string, entry: SitemapPath): MetadataRoute.Sitemap {
   }));
 }
 
+/** Fecha del CMS a `Date`; `undefined` si falta o no se entiende (nunca la de hoy). */
+function validDate(value?: string | null): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 /** Slugs legales: la misma lista que sirve `/legal/[slug]`. */
 const LEGAL_SLUGS = ["privacy", "cookies", "terms", "returns"] as const;
 
@@ -167,7 +174,7 @@ export async function buildSitemapEntries(
           "sitemap: fichas con visibilidad oculta fuera del segmento de catálogo",
         );
       }
-      for (const { slug, slugs, locales, hidden: isHidden } of products) {
+      for (const { slug, slugs, locales, hidden: isHidden, modified } of products) {
         // La ficha oculta sigue siendo accesible por URL, pero no se anuncia; su
         // landing de producto tampoco.
         if (isHidden) continue;
@@ -177,6 +184,7 @@ export async function buildSitemapEntries(
           paths: entityPaths("/products", slugs),
           changeFrequency: "weekly",
           priority: 0.7,
+          ...(validDate(modified) ? { lastModified: validDate(modified) } : {}),
         });
         if (learn.has(slug)) {
           const translated = learnLocales[slug] ?? [routing.defaultLocale];

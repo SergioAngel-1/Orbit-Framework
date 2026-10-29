@@ -123,6 +123,47 @@ describe("buildProductJsonLd — precio", () => {
     });
   });
 
+  it("rebajado: el precio normal va como StrikethroughPrice", () => {
+    const offers = ld({ onSale: true, price: "€15,00", regularPrice: "€20,00" }).offers;
+    expect(offers.price).toBe("15");
+    expect(offers.priceSpecification).toMatchObject({
+      priceType: "https://schema.org/StrikethroughPrice",
+      price: "20",
+    });
+    expect(
+      ld({ onSale: false, price: "€15,00", regularPrice: "€20,00" }).offers,
+    ).not.toHaveProperty("priceSpecification");
+  });
+
+  it("disponibilidad: reserva es BackOrder", () => {
+    expect(ld({ stockStatus: "ON_BACKORDER" }).offers.availability).toBe(
+      "https://schema.org/BackOrder",
+    );
+    expect(ld({ stockStatus: "OUT_OF_STOCK" }).offers.availability).toBe(
+      "https://schema.org/OutOfStock",
+    );
+  });
+
+  it("SKU y GTIN reales; sin ellos no se inventan (ni el ID interno)", () => {
+    expect(ld({})).not.toHaveProperty("sku");
+    expect(ld({})).not.toHaveProperty("gtin");
+    const full = ld({ sku: "CAM-01", gtin: "8412345678903" } as Partial<ProductDetail>);
+    expect(full.sku).toBe("CAM-01");
+    expect(full.gtin).toBe("8412345678903");
+  });
+
+  it("la galería sigue a la foto principal, sin repetirla", () => {
+    expect(
+      ld({
+        gallery: ["https://mitienda.example/c.jpg", "https://mitienda.example/d.jpg"],
+      } as Partial<ProductDetail>).image,
+    ).toEqual(["https://mitienda.example/c.jpg", "https://mitienda.example/d.jpg"]);
+  });
+
+  it("Product no declara speakable (schema.org no lo admite en ese tipo)", () => {
+    expect(ld({})).not.toHaveProperty("speakable");
+  });
+
   it("sin precio legible no se declara oferta", () => {
     expect(ld({ price: null })).not.toHaveProperty("offers");
   });
