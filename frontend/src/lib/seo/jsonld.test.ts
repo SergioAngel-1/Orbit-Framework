@@ -69,6 +69,9 @@ describe("buildProductJsonLd — precio", () => {
     // Rango de un producto variable: antes salía 100020.00.
     ["$10.00 - $20.00", [10, 20]],
     ["10,00&nbsp;€ &ndash; 20,00&nbsp;€", [10, 20]],
+    // Formatos reales de WooGraphQL 11.x (miles con coma), en COP y en EUR.
+    ["$10,000.00 - $20,000.00", [10000, 20000]],
+    ["€15,000.00", [15000]],
     ["", []],
     ["Consultar", []],
   ])("parsePriceAmounts(%j) → %j", (raw, expected) => {
