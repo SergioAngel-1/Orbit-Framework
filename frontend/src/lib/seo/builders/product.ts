@@ -1,4 +1,5 @@
 import type { SiteConfig } from "@/lib/config/types";
+import { parseMoneyAmount } from "@/lib/format";
 import type { ProductDetail } from "@/types/catalog";
 
 // ============================================================================
@@ -12,12 +13,24 @@ const RETURN_CATEGORY_MAP: Record<string, string> = {
   none: "https://schema.org/MerchantReturnNotPermitted",
 };
 
-/** Normaliza un precio de WooGraphQL ("&euro;19,99") a decimal con punto. */
-function parsePrice(raw?: string | null): string {
-  return (raw ?? "0")
-    .replace(/[^\d.,]/g, "")
-    .replace(/\.(?=\d{3})/g, "")
-    .replace(",", ".");
+/**
+ * Importes de un precio de WooGraphQL: uno («&#36;12.000», «&euro;19,99») o dos
+ * si es el rango de un producto variable («$10 – $20»). El `price` llega
+ * FORMATEADO, con entidades HTML y separadores de la tienda: se parte por el
+ * guion del rango y cada lado lo lee `parseMoneyAmount`, el mismo lector que usa
+ * el resto del sitio. Vacío si no se entiende: un precio dudoso no se declara.
+ */
+export function parsePriceAmounts(raw?: string | null): number[] {
+  const text = (raw ?? "").replace(/&ndash;|&#8211;|&mdash;|&#8212;/g, "–");
+  return text
+    .split(/\s[-–—]\s|[–—]/)
+    .map((part) => parseMoneyAmount(part))
+    .filter((amount): amount is number => amount !== null && amount >= 0);
+}
+
+/** Importe con punto decimal y sin ceros de relleno, como lo pide schema.org. */
+function decimal(amount: number): string {
+  return String(Number(amount.toFixed(6)));
 }
 
 const RETURN_METHOD_MAP: Record<string, string[]> = {
@@ -110,11 +123,30 @@ export function buildProductJsonLd({
   const brandName = config.seo.product_brand || config.brand.name;
   const inStock = product.stockStatus !== "OUT_OF_STOCK";
 
-  const offer: Record<string, unknown> = {
-    "@type": "Offer",
+  // Precio: el de las variaciones si las hay (cada una trae su importe), si no
+  // el de la ficha, que en un producto variable es el rango ya formateado.
+  const variationAmounts = (product.variations ?? [])
+    .map((variation) => parseMoneyAmount(variation.price))
+    .filter((amount): amount is number => amount !== null && amount >= 0);
+  const amounts =
+    variationAmounts.length > 0 ? variationAmounts : parsePriceAmounts(product.price);
+  const low = amounts.length > 0 ? Math.min(...amounts) : null;
+  const high = amounts.length > 0 ? Math.max(...amounts) : null;
+
+  // Un rango real (variaciones con precios distintos) es un `AggregateOffer`: un
+  // `Offer` con un único precio afirmaría que todas las variantes cuestan eso.
+  const offer: Record<string, unknown> =
+    low !== null && high !== null && low !== high
+      ? {
+          "@type": "AggregateOffer",
+          lowPrice: decimal(low),
+          highPrice: decimal(high),
+          offerCount: Math.max(variationAmounts.length, 1),
+        }
+      : { "@type": "Offer", ...(low !== null ? { price: decimal(low) } : {}) };
+  Object.assign(offer, {
     url,
     priceCurrency: currency,
-    price: parsePrice(product.price),
     // Mismo criterio que `priceValidUntil`: el precio publicado vale desde el
     // día en que se sirve la ficha (ISR la regenera cada pocos minutos).
     validFrom: today(),
@@ -123,7 +155,7 @@ export function buildProductJsonLd({
     availability: inStock
       ? "https://schema.org/InStock"
       : "https://schema.org/OutOfStock",
-  };
+  });
 
   // shippingDetails (opcional, gobernado por la pestaña SEO). El campo del
   // panel admite un importe («5», o con texto suelto: «5 EUR») o un RANGO
@@ -208,7 +240,9 @@ export function buildProductJsonLd({
       "@type": "SpeakableSpecification",
       cssSelector: [".product-name", ".product-summary"],
     },
-    offers: offer,
+    // Sin precio legible no hay oferta: un importe inventado (o un 0) es peor
+    // que ninguno, y Merchant Center penaliza el precio que no coincide.
+    ...(low !== null ? { offers: offer } : {}),
   };
 
   // aggregateRating + review (solo con reseñas reales — exigido por Google) y

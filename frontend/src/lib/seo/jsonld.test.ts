@@ -20,6 +20,7 @@ import {
   businessType,
   parseAmountRange,
   parseDayRange,
+  parsePriceAmounts,
   postalAddress,
   videoUploadDateTime,
 } from "./jsonld";
@@ -49,6 +50,83 @@ const productLd = (c = config()) =>
     url: "https://mitienda.example/products/camiseta",
     description: "Una camiseta",
   }) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+describe("buildProductJsonLd — precio", () => {
+  const ld = (patch: Partial<ProductDetail>) =>
+    buildProductJsonLd({
+      product: { ...product, ...patch } as ProductDetail,
+      config: config(),
+      url: "https://mitienda.example/products/camiseta",
+      description: "Una camiseta",
+    }) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  it.each([
+    ["&euro;19,99", [19.99]],
+    // WooCommerce escribe el `$` como entidad: antes salía 3612000.
+    ["&#36;12.000", [12000]],
+    ["$ 50.000", [50000]],
+    ["$1,234.56", [1234.56]],
+    // Rango de un producto variable: antes salía 100020.00.
+    ["$10.00 - $20.00", [10, 20]],
+    ["10,00&nbsp;€ &ndash; 20,00&nbsp;€", [10, 20]],
+    ["", []],
+    ["Consultar", []],
+  ])("parsePriceAmounts(%j) → %j", (raw, expected) => {
+    expect(parsePriceAmounts(raw)).toEqual(expected);
+  });
+
+  it("un precio simple es un Offer con punto decimal", () => {
+    expect(ld({ price: "&#36;12.000" }).offers).toMatchObject({
+      "@type": "Offer",
+      price: "12000",
+      priceCurrency: "EUR",
+    });
+  });
+
+  it("un variable con precios distintos es un AggregateOffer con su rango", () => {
+    const offers = ld({
+      type: "VARIABLE",
+      price: "$10.00 - $20.00",
+      variations: [
+        {
+          databaseId: 1,
+          price: "&#36;10.00",
+          regularPrice: null,
+          salePrice: null,
+          stockStatus: "IN_STOCK",
+          attributes: [],
+        },
+        {
+          databaseId: 2,
+          price: "&#36;20.00",
+          regularPrice: null,
+          salePrice: null,
+          stockStatus: "IN_STOCK",
+          attributes: [],
+        },
+      ],
+    }).offers;
+    expect(offers).toMatchObject({
+      "@type": "AggregateOffer",
+      lowPrice: "10",
+      highPrice: "20",
+      offerCount: 2,
+    });
+    expect(offers).not.toHaveProperty("price");
+  });
+
+  it("sin variaciones cargadas, el rango del precio formateado sirve igual", () => {
+    expect(ld({ price: "$10.00 - $20.00" }).offers).toMatchObject({
+      "@type": "AggregateOffer",
+      lowPrice: "10",
+      highPrice: "20",
+    });
+  });
+
+  it("sin precio legible no se declara oferta", () => {
+    expect(ld({ price: null })).not.toHaveProperty("offers");
+  });
+});
 
 describe("buildProductJsonLd — envío", () => {
   it("sin importe en el panel no declara shippingDetails", () => {
