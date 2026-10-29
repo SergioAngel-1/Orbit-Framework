@@ -10,7 +10,8 @@ import { categoryHref, productHref } from "@/lib/catalog/product-href";
 import { groupProductsByInitial } from "@/lib/catalog/archive-format";
 import { getSiteConfig } from "@/lib/config";
 import { pageMetadata } from "@/lib/seo/page-metadata";
-import { isEntityAnnounced } from "@/lib/seo/entity-index";
+import { isPathAnnounced } from "@/lib/seo/announce";
+import { resolveInstanceSitemap } from "@/lib/instance/sitemap";
 import { buildPageBreadcrumbJsonLd } from "@/lib/seo/breadcrumbs";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 
@@ -64,15 +65,22 @@ export default async function ProductsArchivePage({
   } catch {
     failed = true;
   }
+  // Mismo criterio que el sitemap y `llms.txt`: caja SEO + exclusiones de la
+  // instancia (`isPathAnnounced`, contra la ruta interna con el slug nativo).
+  const rules = resolveInstanceSitemap();
   const categories = failed
     ? []
-    : (await getCategories(locale).catch(() => [])).filter(isEntityAnnounced);
-  // Mismo criterio que el sitemap: ni fichas ocultas ni las que no existen en
-  // este idioma (servirían el texto de otro).
+    : (await getCategories(locale).catch(() => [])).filter((category) =>
+        isPathAnnounced(`/categories/${category.slug}`, category, rules),
+      );
+  // Ni fichas ocultas ni las que no existen en este idioma (servirían el texto
+  // de otro).
   const groups = groupProductsByInitial(
     entries.filter(
       (entry) =>
-        !entry.hidden && isEntityAnnounced(entry) && entry.locales.includes(locale),
+        !entry.hidden &&
+        entry.locales.includes(locale) &&
+        isPathAnnounced(`/products/${entry.slug}`, entry, rules),
     ),
     locale,
   );
