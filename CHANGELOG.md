@@ -75,6 +75,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **Sitemap vacío y `llms.txt` en 404 hasta una hora tras cada despliegue.** El índice, los
+  segmentos y `llms.txt` eran ISR: se prerenderizaban en el build de la imagen, que corre sin
+  WordPress, y servían ese resultado degradado hasta revalidar. Ahora son dinámicos (como
+  `robots.txt` e `indexnow.txt`); los datos siguen en la Data Cache y el CDN los cachea
+  (`s-maxage`). Un test impide volver a ponerles ISR.
 - **El precio del JSON-LD de producto salía corrupto** en tiendas con `$` (COP/USD) y en
   productos variables: «&#36;12.000» se declaraba como 3612000 y «$10.00 - $20.00» como
   100020.00. Ahora lo lee `parseMoneyAmount`; un variable con precios distintos es un

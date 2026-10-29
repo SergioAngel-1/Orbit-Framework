@@ -11,7 +11,11 @@ import { logger } from "@/lib/observability/logger";
 // ============================================================================
 
 export const runtime = "nodejs";
-export const revalidate = 3600;
+// Dinámico a propósito: un ISR se prerenderiza en el build de la imagen, que corre SIN
+// WordPress, y servía el resultado degradado (vacío / 404) hasta una hora tras cada
+// despliegue. Los datos van por la Data Cache con sus tags y el CDN cachea la respuesta
+// (`s-maxage`), así que pedirlo en cada petición es barato.
+export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<Response> {
   const config = await getSiteConfig();
