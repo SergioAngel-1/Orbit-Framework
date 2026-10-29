@@ -8,6 +8,7 @@ import {
   translatedLocales,
 } from "@/lib/i18n/translation";
 import { localizedUrlSlug, urlSlugsByLocale } from "@/lib/i18n/url-slug";
+import { readIndexControls } from "@/lib/seo/entity-index";
 import { logger } from "@/lib/observability/logger";
 import { readProductFields, type RawProductField } from "@/lib/catalog/product-fields";
 import { membershipsCatalogEnabled } from "@/lib/memberships/catalog-flag";
@@ -90,6 +91,8 @@ interface RawProductNode {
   related?: { nodes: RawProductNode[] } | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
+  seoNoindex?: boolean | null;
+  seoCanonical?: string | null;
   sku?: string | null;
   hweGtin?: string | null;
   galleryImages?: { nodes: { sourceUrl: string | null }[] } | null;
@@ -310,6 +313,7 @@ export async function getProductBySlug(
     description: pickTranslated(node, "description", locale),
     seoTitle: pickTranslated(node, "seoTitle", locale)?.trim() || null,
     seoDescription: pickTranslated(node, "seoDescription", locale)?.trim() || null,
+    ...readIndexControls(node),
     sku: node.sku?.trim() || null,
     gtin: node.hweGtin?.trim() || null,
     gallery: (node.galleryImages?.nodes ?? [])
@@ -364,6 +368,9 @@ export interface ProductUrlEntry {
    * siendo accesible por URL y se prerenderiza; el sitemap no la anuncia.
    */
   hidden: boolean;
+  /** Caja SEO: con `noindex` o canónica ajena la ficha no se anuncia. */
+  seoNoindex?: boolean | null;
+  seoCanonical?: string | null;
   /** Última edición en WooCommerce (sin zona: hora del sitio). Vacío si no la trae. */
   modified?: string;
 }
@@ -391,6 +398,8 @@ interface RawProductUrlNode {
   slug: string;
   name: string;
   modified?: string | null;
+  seoNoindex?: boolean | null;
+  seoCanonical?: string | null;
   catalogVisibility?: string | null;
 }
 
@@ -440,6 +449,7 @@ export async function getProductUrls(
           locales: translatedLocales(node, "name"),
           hidden: node.catalogVisibility === "HIDDEN",
           ...(node.modified ? { modified: node.modified } : {}),
+          ...readIndexControls(node),
         });
       }
       const { hasNextPage, endCursor } = data.products?.pageInfo ?? {};
@@ -509,6 +519,7 @@ export async function getCategory(
       description: pickTranslated(cat, "description", locale),
       seoTitle: pickTranslated(cat, "seoTitle", locale)?.trim() || null,
       seoDescription: pickTranslated(cat, "seoDescription", locale)?.trim() || null,
+      ...readIndexControls(cat),
       urlSlug: localizedUrlSlug(cat, locale),
       urlSlugs: urlSlugsByLocale(cat),
       locales: translatedLocales(cat, "name"),
@@ -549,6 +560,7 @@ export async function getCategories(
       slug: c.slug,
       description: pickTranslated(c, "description", locale),
       urlSlug: localizedUrlSlug(c, locale),
+      ...readIndexControls(c),
       membership: normalizeMembershipRequirement(c.hweMembership),
       ...(options.allLocales
         ? { urlSlugs: urlSlugsByLocale(c), locales: translatedLocales(c, "name") }

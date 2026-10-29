@@ -49,6 +49,29 @@ vi.mock("@/lib/catalog/products", () => ({
       locales: ["es", "en"],
       hidden: true,
     },
+    // Caja SEO: noindex, o canónica en otra URL. Accesibles, pero no se anuncian.
+    {
+      slug: "sin-indexar",
+      slugs: { es: "sin-indexar", en: "sin-indexar" },
+      locales: ["es"],
+      hidden: false,
+      seoNoindex: true,
+    },
+    {
+      slug: "copia",
+      slugs: { es: "copia", en: "copia" },
+      locales: ["es"],
+      hidden: false,
+      seoCanonical: "https://mitienda.example/products/camiseta",
+    },
+    // Con fecha real de edición en WooCommerce.
+    {
+      slug: "fechada",
+      slugs: { es: "fechada", en: "fechada" },
+      locales: ["es"],
+      hidden: false,
+      modified: "2026-10-01T10:00:00",
+    },
   ],
   getCategories: async () => [
     {
@@ -56,6 +79,7 @@ vi.mock("@/lib/catalog/products", () => ({
       urlSlugs: { es: "ropa", en: "clothes" },
       locales: ["es", "en"],
     },
+    { slug: "privada", urlSlugs: { es: "privada" }, locales: ["es"], seoNoindex: true },
   ],
 }));
 vi.mock("@/lib/blog/posts", () => ({
@@ -71,6 +95,13 @@ vi.mock("@/lib/blog/posts", () => ({
       modified: null,
       slugs: { es: "sin-fecha", en: "sin-fecha" },
       locales: ["es"],
+    },
+    {
+      slug: "sin-indexar",
+      modified: null,
+      slugs: { es: "sin-indexar" },
+      locales: ["es"],
+      seoNoindex: true,
     },
   ],
 }));
@@ -115,12 +146,30 @@ describe("buildSitemapEntries", () => {
     expect(entries.map((e) => e.url)).toContain("https://mitienda.example/en");
   });
 
-  it("el catálogo lista fichas y categorías, sin lastmod inventado", async () => {
+  it("el catálogo lista fichas y categorías, con lastmod solo si es real", async () => {
     const entries = await buildSitemapEntries("catalogo");
     const urls = entries.map((e) => e.url);
     expect(urls).toContain("https://mitienda.example/products/camiseta");
     expect(urls).toContain("https://mitienda.example/en/categories/clothes");
-    for (const entry of entries) expect(entry).not.toHaveProperty("lastModified");
+    expect(urls).toContain("https://mitienda.example/products/archive");
+    for (const entry of entries) {
+      if (entry.url.endsWith("/products/fechada")) {
+        expect(entry.lastModified).toEqual(new Date("2026-10-01T10:00:00"));
+      } else {
+        expect(entry).not.toHaveProperty("lastModified");
+      }
+    }
+  });
+
+  it("la caja SEO saca del sitemap lo marcado noindex o con canónica ajena", async () => {
+    const catalog = (await buildSitemapEntries("catalogo")).map((e) => e.url);
+    expect(catalog.some((url) => url.includes("/products/sin-indexar"))).toBe(false);
+    expect(catalog.some((url) => url.includes("/products/copia"))).toBe(false);
+    expect(catalog.some((url) => url.includes("/categories/privada"))).toBe(false);
+
+    const blog = (await buildSitemapEntries("blog")).map((e) => e.url);
+    expect(blog.some((url) => url.includes("/blog/sin-indexar"))).toBe(false);
+    expect(blog).toContain("https://mitienda.example/blog/sin-fecha");
   });
 
   it("la ficha traducida usa el slug de cada idioma en la URL y en el hreflang", async () => {

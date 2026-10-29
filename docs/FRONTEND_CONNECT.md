@@ -49,7 +49,11 @@ Este documento tiene dos partes con garantías muy distintas:
   `POST /api/revalidate` (firma HMAC, `lib/security/webhook.ts`).
 - **Campos propios en el schema GraphQL** (mu-plugins del núcleo):
   - `Post`, `Page`, `Product`, `ProductCategory` → `seoTitle`, `seoDescription` (null = sin
-    override; usa el título/resumen nativos).
+    override; usa el título/resumen nativos), `seoNoindex` (boolean: `noindex, follow` y fuera
+    del sitemap/`llms.txt`) y `seoCanonical` (URL absoluta de la versión principal; null = la
+    propia). El frontend los aplica con `lib/seo/entity-index.ts`.
+  - `Product.hweGtin`: GTIN del campo nativo de WooCommerce (9.2+), solo con 8/12/13/14
+    dígitos; null si no hay o no es válido.
   - `MediaItem.isReferenceImage` (boolean): foto genérica compartida por varios productos;
     la ficha la etiqueta como «Imagen de referencia».
   - `RootQuery.hweFeaturedPost`: entrada destacada elegida a mano (null si no hay).

@@ -55,6 +55,9 @@ export interface WPPost {
   /** Override de hwe-post-seo.php. Null = usar título/resumen nativos. */
   seoTitle?: string | null;
   seoDescription?: string | null;
+  /** Controles de indexación de la caja SEO (ver `lib/seo/entity-index.ts`). */
+  seoNoindex?: boolean | null;
+  seoCanonical?: string | null;
   tags?: { nodes: WPTag[] } | null;
   categories?: { nodes: WPCategory[] } | null;
   /** Tramo de URL en el idioma de la página (slug traducido si lo hay). Ver `blogPostHref`. */

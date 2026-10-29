@@ -22,6 +22,7 @@ import { buildArticleJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
 import { siteTitle } from "@/lib/seo/title";
+import { entityIndexMetadata } from "@/lib/seo/entity-index";
 import { metaDescription } from "@/lib/seo/meta-description";
 import { logReadFailure } from "@/lib/observability/read-failure";
 
@@ -65,9 +66,10 @@ export async function generateMetadata({
     return {
       title: siteTitle(config, post.seoTitle || post.title),
       ...(description ? { description } : {}),
-      alternates: canonical,
+      // Caja SEO: `noindex` o canónica manual mandan sobre las propias.
+      ...entityIndexMetadata(canonical, post),
       openGraph: {
-        ...siteOpenGraph(config, locale, canonical.canonical),
+        ...siteOpenGraph(config, locale, post.seoCanonical || canonical.canonical),
         type: "article",
         publishedTime: wpDateIso(post.dateGmt, post.date),
         modifiedTime: wpDateIso(post.modifiedGmt, post.modified ?? post.date),

@@ -12,6 +12,7 @@ import {
 import { productLearnPaths } from "@/lib/landings/product-learn-href";
 import { editorialSitemapEntries } from "@/lib/landings/editorial-list";
 import { entityPaths, hreflangLanguages, localizedPath } from "@/lib/seo/urls";
+import { isEntityAnnounced } from "@/lib/seo/entity-index";
 import { isSitemapPathExcluded, resolveInstanceSitemap } from "@/lib/instance/sitemap";
 import type { SitemapSegment } from "@/lib/seo/sitemap-segments";
 import { logger } from "@/lib/observability/logger";
@@ -176,10 +177,11 @@ export async function buildSitemapEntries(
           "sitemap: fichas con visibilidad oculta fuera del segmento de catálogo",
         );
       }
-      for (const { slug, slugs, locales, hidden: isHidden, modified } of products) {
-        // La ficha oculta sigue siendo accesible por URL, pero no se anuncia; su
-        // landing de producto tampoco.
-        if (isHidden) continue;
+      for (const product of products) {
+        const { slug, slugs, locales, hidden: isHidden, modified } = product;
+        // La ficha oculta (o marcada `noindex` / con canónica ajena en su caja SEO)
+        // sigue siendo accesible por URL, pero no se anuncia; su landing tampoco.
+        if (isHidden || !isEntityAnnounced(product)) continue;
         paths.push({
           path: `/products/${slug}`,
           locales,
@@ -209,6 +211,7 @@ export async function buildSitemapEntries(
       for (const cat of await getCategories(routing.defaultLocale, {
         allLocales: true,
       })) {
+        if (!isEntityAnnounced(cat)) continue;
         paths.push({
           path: `/categories/${cat.slug}`,
           ...(cat.locales ? { locales: cat.locales } : {}),
@@ -246,7 +249,9 @@ export async function buildSitemapEntries(
       );
     }
     try {
-      for (const { slug, modified, slugs, locales } of await getPostSlugs()) {
+      for (const post of await getPostSlugs()) {
+        if (!isEntityAnnounced(post)) continue;
+        const { slug, modified, slugs, locales } = post;
         paths.push({
           path: `/blog/${slug}`,
           locales,

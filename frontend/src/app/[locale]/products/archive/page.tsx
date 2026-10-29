@@ -10,6 +10,7 @@ import { categoryHref, productHref } from "@/lib/catalog/product-href";
 import { groupProductsByInitial } from "@/lib/catalog/archive-format";
 import { getSiteConfig } from "@/lib/config";
 import { pageMetadata } from "@/lib/seo/page-metadata";
+import { isEntityAnnounced } from "@/lib/seo/entity-index";
 import { buildPageBreadcrumbJsonLd } from "@/lib/seo/breadcrumbs";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 
@@ -63,11 +64,16 @@ export default async function ProductsArchivePage({
   } catch {
     failed = true;
   }
-  const categories = failed ? [] : await getCategories(locale).catch(() => []);
+  const categories = failed
+    ? []
+    : (await getCategories(locale).catch(() => [])).filter(isEntityAnnounced);
   // Mismo criterio que el sitemap: ni fichas ocultas ni las que no existen en
   // este idioma (servirían el texto de otro).
   const groups = groupProductsByInitial(
-    entries.filter((entry) => !entry.hidden && entry.locales.includes(locale)),
+    entries.filter(
+      (entry) =>
+        !entry.hidden && isEntityAnnounced(entry) && entry.locales.includes(locale),
+    ),
     locale,
   );
 

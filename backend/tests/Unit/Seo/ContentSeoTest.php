@@ -74,6 +74,7 @@ final class ContentSeoTest extends TestCase
             'esc_textarea' => static fn ($v) => (string) $v,
             'wp_nonce_field' => static fn ($action, $name) => '<input type="hidden" name="' . $name . '" value="nonce:' . $action . '">',
             '__' => static fn ($v) => $v,
+            'esc_html__' => static fn ($v) => $v,
         ]);
         Functions\when('update_post_meta')->alias(function (int $id, string $key, string $value): bool {
             $this->meta["post:{$id}:{$key}"] = $value;
@@ -166,6 +167,31 @@ final class ContentSeoTest extends TestCase
         $this->assertSame([], $this->meta);
     }
 
+    public function testNoindexAndCanonicalAreSavedAndCleared(): void {
+        $_POST = [
+            'hwe_product_seo_nonce' => 'valido',
+            'hwe_product_seo_noindex' => '1',
+            'hwe_product_seo_canonical' => ' https://otra.example/principal ',
+        ];
+        hwe_product_seo_save(22);
+        $this->assertSame('1', $this->meta['post:22:_hwe_seo_noindex']);
+        $this->assertSame('https://otra.example/principal', $this->meta['post:22:_hwe_seo_canonical']);
+
+        // Casilla sin marcar y URL vacía: se borran las dos metas.
+        $_POST = ['hwe_product_seo_nonce' => 'valido'];
+        hwe_product_seo_save(22);
+        $this->assertArrayNotHasKey('post:22:_hwe_seo_noindex', $this->meta);
+        $this->assertArrayNotHasKey('post:22:_hwe_seo_canonical', $this->meta);
+    }
+
+    public function testACanonicalThatIsNotAnAbsoluteHttpUrlIsDiscarded(): void {
+        foreach (['/ruta-relativa', 'javascript:alert(1)', 'ftp://x.example/a', 'https://'] as $raw) {
+            $_POST = ['hwe_category_seo_nonce' => 'valido', 'hwe_category_seo_canonical' => $raw];
+            hwe_category_seo_save(5);
+            $this->assertArrayNotHasKey('term:5:_hwe_seo_canonical', $this->meta, $raw);
+        }
+    }
+
     public function testCategorySaveWritesTermMetas(): void {
         $_POST = [
             'hwe_category_seo_nonce' => 'valido',
@@ -220,6 +246,8 @@ final class ContentSeoTest extends TestCase
         $this->assertStringContainsString('name="hwe_product_seo_description"', $html);
         $this->assertStringContainsString('value="Actual"', $html);
         $this->assertSame(4, substr_count($html, 'data-hwe-seo-min="'), 'Título y descripción en las dos cajas.');
+        $this->assertStringContainsString('name="hwe_post_seo_noindex"', $html);
+        $this->assertStringContainsString('name="hwe_product_seo_canonical"', $html);
         $this->assertSame(1, substr_count($html, '<script>'), 'El contador se imprime una sola vez por página.');
     }
 
@@ -246,7 +274,20 @@ final class ContentSeoTest extends TestCase
             $this->assertArrayHasKey('seoTitle', $fields, $type);
             $this->assertArrayHasKey('seoDescription', $fields, $type);
             $this->assertSame('String', $fields['seoTitle']['type']);
+            $this->assertSame('String', $fields['seoCanonical']['type'], $type);
+            $this->assertSame('Boolean', $fields['seoNoindex']['type'], $type);
         }
+    }
+
+    public function testNoindexResolvesToABoolean(): void {
+        hwe_category_seo_register_graphql();
+        $resolve = $this->fieldsOf('ProductCategory')['seoNoindex']['resolve'];
+        $term = new FakeTerm28();
+        $term->term_id = 5;
+
+        $this->assertFalse($resolve($term));
+        $this->meta['term:5:_hwe_seo_noindex'] = '1';
+        $this->assertTrue($resolve($term));
     }
 
     public function testProductExposesAValidGtinOrNull(): void {

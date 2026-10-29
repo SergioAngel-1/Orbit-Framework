@@ -15,6 +15,7 @@ import {
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
 import { siteTitle } from "@/lib/seo/title";
+import { entityIndexMetadata } from "@/lib/seo/entity-index";
 import { metaDescription } from "@/lib/seo/meta-description";
 import { ProductGrid } from "@/components/products/product-grid";
 import { stripHtml } from "@/lib/format";
@@ -74,8 +75,13 @@ export async function generateMetadata({
     return {
       title: siteTitle(config, result.category.seoTitle || result.category.name),
       ...(description ? { description } : {}),
-      alternates: canonical,
-      openGraph: siteOpenGraph(config, locale, canonical.canonical),
+      // Caja SEO: `noindex` o canónica manual mandan sobre las propias.
+      ...entityIndexMetadata(canonical, result.category),
+      openGraph: siteOpenGraph(
+        config,
+        locale,
+        result.category.seoCanonical || canonical.canonical,
+      ),
       twitter: siteTwitter(config, locale),
     };
   } catch (error) {

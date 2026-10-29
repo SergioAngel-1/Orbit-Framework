@@ -258,6 +258,8 @@ export const POST_BY_SLUG_QUERY = /* GraphQL */ `
       content
       seoTitle
       seoDescription
+      seoNoindex
+      seoCanonical
       # @translation Post
       author {
         node {
@@ -308,6 +310,8 @@ export const POST_SLUGS_QUERY = /* GraphQL */ `
       nodes {
         slug
         modified
+        seoNoindex
+        seoCanonical
         # @translation Post: title slug
       }
     }
