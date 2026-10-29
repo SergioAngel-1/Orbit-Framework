@@ -247,7 +247,14 @@
     "reviewNotReceived": "Cuando recibas tu pedido podrás reseñar este producto.",
     "reviewAlready": "Ya dejaste tu reseña de este producto.",
     "reviewPublishingAs": "Publicarás como {name}.",
-    "reviewSameForOrder": "Publicar la misma reseña en los demás productos de mi pedido ({count})"
+    "reviewSameForOrder": "Publicar la misma reseña en los demás productos de mi pedido ({count})",
+    "archiveTitle": "Catálogo completo",
+    "archiveDescription": "Todos los productos de la tienda, de la A a la Z.",
+    "archiveEmpty": "Todavía no hay productos publicados.",
+    "archiveError": "No se pudo cargar el catálogo. Inténtalo de nuevo en unos minutos.",
+    "archiveCategories": "Categorías",
+    "viewArchive": "Ver el catálogo completo",
+    "loadError": "No se pudieron cargar más productos. Reintentar"
   },
   "addToCart": {
     "add": "Añadir al carrito",

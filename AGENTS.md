@@ -458,6 +458,8 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   editar `entries.ts`; las funciones puras viven en carpetas privadas
   `_x/` porque un route handler solo puede exportar métodos HTTP. Toda página indexable declara
   `pageMetadata`; toda vista privada `privateMetadata` (lo impone un test sobre `PRIVATE_PATHS`);
+  todo listado con scroll infinito enlaza en su HTML inicial un índice estático que un rastreador
+  sí recorre (`/blog/archive`, `/products/archive`);
   todo JSON-LD pasa por `safeJsonLd`. Todo lee `getSiteConfig()`, nada tiene la URL o la marca
   hardcodeada.
 - **Utilidades de resistencia/rendimiento**: `lib/http/fetch-retry`, `lib/wordpress/media` +

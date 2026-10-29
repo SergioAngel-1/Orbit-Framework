@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { permanentRedirect } from "@/i18n/navigation";
+import { Link, permanentRedirect } from "@/i18n/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getCategory, getCategoryStaticParams } from "@/lib/catalog/products";
 import { resolveEntityRoute } from "@/lib/i18n/entity-route";
@@ -171,6 +171,15 @@ export default async function CategoryPage({
         />
       )}
       <ProductGrid products={result.products} />
+      {/* La categoría pinta una sola tanda: el índice A-Z enlaza el resto. */}
+      {result.products.length > 0 && (
+        <Link
+          href="/products/archive"
+          className="mt-10 inline-block text-sm font-semibold text-brand hover:underline dark:text-accent"
+        >
+          {t("viewArchive")}
+        </Link>
+      )}
     </div>
   );
 }

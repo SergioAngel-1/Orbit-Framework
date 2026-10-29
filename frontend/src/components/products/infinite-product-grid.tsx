@@ -27,6 +27,7 @@ export function InfiniteProductGrid({
   const [products, setProducts] = useState(initialProducts);
   const [pageInfo, setPageInfo] = useState(initialPageInfo);
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const loadMore = useCallback(async () => {
@@ -51,14 +52,16 @@ export function InfiniteProductGrid({
       setProducts((prev) => [...prev, ...data.products]);
       setPageInfo(data.pageInfo);
     } catch {
-      /* silent fail */
+      // Sin esto el observador volvería a pedir en bucle contra un fallo: se
+      // detiene y deja un botón para reintentar a mano.
+      setFailed(true);
     } finally {
       setLoading(false);
     }
   }, [filters, locale, pageInfo]);
 
   useEffect(() => {
-    if (!pageInfo.hasNextPage || loading) return;
+    if (!pageInfo.hasNextPage || loading || failed) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -74,7 +77,7 @@ export function InfiniteProductGrid({
     return () => {
       if (sentinel) observer.unobserve(sentinel);
     };
-  }, [pageInfo, loading, loadMore]);
+  }, [pageInfo, loading, failed, loadMore]);
 
   if (products.length === 0) {
     return (
@@ -97,8 +100,16 @@ export function InfiniteProductGrid({
       </div>
 
       {pageInfo.hasNextPage && (
-        <div ref={sentinelRef} className="mt-10 flex justify-center">
-          {loading ? (
+        <div ref={sentinelRef} className="mt-10 flex justify-center" aria-live="polite">
+          {failed ? (
+            <button
+              type="button"
+              onClick={() => setFailed(false)}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:border-brand hover:text-brand dark:border-gray-700 dark:hover:border-accent dark:hover:text-accent"
+            >
+              {t("loadError")}
+            </button>
+          ) : loading ? (
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
                 <circle

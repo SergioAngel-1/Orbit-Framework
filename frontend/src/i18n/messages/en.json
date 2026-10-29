@@ -247,7 +247,14 @@
     "reviewNotReceived": "Once you receive your order you'll be able to review this product.",
     "reviewAlready": "You already reviewed this product.",
     "reviewPublishingAs": "You'll publish as {name}.",
-    "reviewSameForOrder": "Publish the same review on the other products in my order ({count})"
+    "reviewSameForOrder": "Publish the same review on the other products in my order ({count})",
+    "archiveTitle": "Full catalog",
+    "archiveDescription": "Every product in the store, from A to Z.",
+    "archiveEmpty": "No products published yet.",
+    "archiveError": "The catalog could not be loaded. Please try again in a few minutes.",
+    "archiveCategories": "Categories",
+    "viewArchive": "View the full catalog",
+    "loadError": "Could not load more products. Retry"
   },
   "cart": {
     "title": "Your cart",

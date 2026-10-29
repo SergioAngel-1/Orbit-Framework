@@ -156,6 +156,8 @@ export async function buildSitemapEntries(
   }
 
   if (segmento === "catalogo") {
+    // El índice A-Z de fichas: lo mueve el mismo tag `products` que el catálogo.
+    paths.push({ path: "/products/archive", changeFrequency: "weekly", priority: 0.4 });
     // Fail-soft deliberado: un sitemap sin productos es mejor que una ruta
     // caída, pero el fallo queda visible en los logs.
     try {

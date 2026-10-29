@@ -355,6 +355,8 @@ export interface ProductUrlEntry {
   slug: string;
   /** Tramo de URL por idioma del sitio. */
   slugs: Record<string, string>;
+  /** Nombre por idioma del sitio (con caída al nativo). */
+  names: Record<string, string>;
   /** Idiomas del sitio en los que la ficha existe de verdad (el por defecto, siempre). */
   locales: string[];
   /**
@@ -373,6 +375,11 @@ export interface GetProductUrlsOptions {
    * `generateStaticParams` (ficha y landing): el presupuesto de prerender no cambia.
    */
   all?: boolean;
+  /**
+   * Relanza el fallo tras registrarlo. Lo pide el índice del catálogo: una lista vacía
+   * por una caída la cachearía ISR como si fuera la buena (el sitemap prefiere seguir).
+   */
+  strict?: boolean;
 }
 
 const URL_PAGE_SIZE = 100;
@@ -424,6 +431,12 @@ export async function getProductUrls(
         entries.push({
           slug: node.slug,
           slugs: urlSlugsByLocale(node),
+          names: Object.fromEntries(
+            routing.locales.map((l) => [
+              l,
+              pickTranslated(node, "name", l) ?? node.name,
+            ]),
+          ),
           locales: translatedLocales(node, "name"),
           hidden: node.catalogVisibility === "HIDDEN",
           ...(node.modified ? { modified: node.modified } : {}),
@@ -455,6 +468,7 @@ export async function getProductUrls(
       },
       "No se pudo listar las fichas del catálogo",
     );
+    if (options.strict) throw error;
     return [];
   }
 }
