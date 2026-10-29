@@ -8,21 +8,20 @@ import { buildLlmsTxt, llmsResponse } from "@/app/_llms/build";
 //  Vive junto a las páginas `[locale]` y no como una carpeta por idioma: una
 //  ruta con punto en el nombre queda fuera del matcher del proxy (`.*\..*`), así
 //  que next-intl no la toca, y Next la resuelve con este handler sin desviar
-//  el resto de `/en/...` a otro sitio. `dynamicParams = false`: un idioma que
-//  no es de `routing.locales` (o el canónico, que tiene su propia ruta en la
-//  raíz) es un 404, no un fichero inventado.
+//  el resto de `/en/...` a otro sitio. Un idioma que no es de `routing.locales`
+//  (o el canónico, que tiene su propia ruta en la raíz) es un 404, no un fichero
+//  inventado: lo comprueba el propio handler.
 // ============================================================================
 export const runtime = "nodejs";
-export const revalidate = 3600;
-export const dynamicParams = false;
+// Dinámico a propósito: un ISR se prerenderiza en el build de la imagen, que corre SIN
+// WordPress, y servía el resultado degradado (vacío / 404) hasta una hora tras cada
+// despliegue. Los datos van por la Data Cache con sus tags y el CDN cachea la respuesta
+// (`s-maxage`), así que pedirlo en cada petición es barato.
+export const dynamic = "force-dynamic";
 
 const SECONDARY_LOCALES = routing.locales.filter(
   (locale) => locale !== routing.defaultLocale,
 );
-
-export function generateStaticParams() {
-  return SECONDARY_LOCALES.map((locale) => ({ locale }));
-}
 
 export async function GET(
   _request: Request,

@@ -16,6 +16,8 @@ import {
 import { isSignedRoute } from "@/lib/security/signed-routes";
 import { internalSecretHeaders } from "@/lib/security/internal-secret";
 import { toInternalPath, toPublicPath } from "@/lib/instance/public-paths";
+import { compileRedirects, matchRedirect } from "@/lib/instance/redirects";
+import { ENV_NOINDEX_HEADER, indexingBlockedByEnv } from "@/lib/seo/indexing";
 import { normalizeReferralCode } from "@/lib/loyalty/referral-code";
 import { REF_COOKIE, refCookieOptions } from "@/lib/loyalty/ref-cookie";
 
@@ -23,10 +25,11 @@ import { REF_COOKIE, refCookieOptions } from "@/lib/loyalty/ref-cookie";
 //  Proxy compuesto (antes "middleware"; Next 16 renombró el convenio a `proxy`,
 //  mismo comportamiento y runtime edge):
 //   1. Barrera de Origin para escrituras en /api  (edge-compatible).
-//   2. next-intl: detección/redirect/rewrite de locale (solo páginas).
-//   3. Refresh transparente del JWT: si caducó, lo renueva y lo propaga al
+//   2. Redirecciones 301 de la instancia (`InstanceRegistry.redirects`).
+//   3. next-intl: detección/redirect/rewrite de locale (solo páginas).
+//   4. Refresh transparente del JWT: si caducó, lo renueva y lo propaga al
 //      navegador y al request en curso (para que el SSR vea el token fresco).
-//   4. Captura de `?ref=<código>` en páginas: deja la cookie httpOnly `hwe_ref`
+//   5. Captura de `?ref=<código>` en páginas: deja la cookie httpOnly `hwe_ref`
 //      sin consultar WordPress ni la config (edge). La URL no cambia.
 //
 //  next-intl NO debe tocar /api ni archivos (sitemap.xml, *.png…): el matcher
@@ -34,6 +37,8 @@ import { REF_COOKIE, refCookieOptions } from "@/lib/loyalty/ref-cookie";
 // ============================================================================
 
 const intlMiddleware = createMiddleware(routing);
+/** Reglas de `InstanceRegistry.redirects`, compiladas una vez por arranque. */
+const INSTANCE_REDIRECTS = compileRedirects();
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function isExpired(token: string): boolean {
@@ -256,7 +261,19 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
-  // 3) Páginas: refresca (reconstruyendo el request) y deja que next-intl
+  // 3) Redirecciones de la instancia (migración): antes que el idioma y que el
+  //    refresh, porque la URL antigua no es una página de este sitio.
+  const legacy = matchRedirect(pathname, request.nextUrl.search, INSTANCE_REDIRECTS);
+  if (legacy) {
+    const res = NextResponse.redirect(
+      new URL(legacy.location, request.url),
+      legacy.status,
+    );
+    res.headers.set(REQUEST_ID_HEADER, requestId);
+    return res;
+  }
+
+  // 4) Páginas: refresca (reconstruyendo el request) y deja que next-intl
   //    construya la respuesta de locale sobre el request ya actualizado.
   //
   //    Un `?ref=<código>` con formato válido se guarda en una cookie httpOnly
@@ -325,6 +342,9 @@ export async function proxy(request: NextRequest) {
   // El último código que llega reemplaza al anterior; si no hay, la cookie que
   // ya tuviera el navegador se queda intacta.
   if (referralCode) response.cookies.set(REF_COOKIE, referralCode, refCookieOptions());
+  // Guarda de staging (`HWE_NOINDEX`): también en la cabecera, que un buscador
+  // respeta aunque no llegue a leer el `<meta>` (redirecciones, errores).
+  if (indexingBlockedByEnv()) response.headers.set("X-Robots-Tag", ENV_NOINDEX_HEADER);
   response.headers.set(REQUEST_ID_HEADER, requestId);
   return response;
 }

@@ -6,6 +6,7 @@ import { getCategories } from "@/lib/catalog/products";
 import { publishedEditorialLandings } from "@/lib/landings/editorial-list";
 import { absoluteLocalized } from "@/lib/seo/urls";
 import { metaDescription } from "@/lib/seo/meta-description";
+import { isEntityAnnounced } from "@/lib/seo/entity-index";
 import { isSitemapPathExcluded, resolveInstanceSitemap } from "@/lib/instance/sitemap";
 
 // ============================================================================
@@ -75,7 +76,7 @@ export async function buildLlmsTxt(locale: string): Promise<string | null> {
     const categories = await getCategories(locale);
     if (categories.length > 0) {
       lines.push("", `## ${t("sections.categories")}`);
-      for (const cat of categories) {
+      for (const cat of categories.filter(isEntityAnnounced)) {
         const text = metaDescription(cat.description, 120);
         lines.push(
           `- [${cat.name}](${abs(categoryHref(cat))}): ${

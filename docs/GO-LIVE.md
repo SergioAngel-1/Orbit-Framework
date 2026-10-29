@@ -76,6 +76,48 @@
 - [ ] Servicios de analítica y publicidad configurados en Control Center → Integraciones (solo se cargan **tras consentimiento**); `CSP_ANALYTICS_PROVIDERS` estrecha la CSP a los que uses.
 - [ ] Revisar textos legales (`/[locale]/legal/*`) con tu información real.
 
+## 6 bis. SEO y visibilidad
+
+Todo el SEO técnico ya viene hecho (metadatos, canónicas, hreflang, JSON-LD, sitemap segmentado,
+`robots.txt`, `llms.txt`); lo que queda es configuración y comprobación.
+
+**Antes de abrir**
+- [ ] Control Center → SEO → *Indexación por defecto* en **Indexar todo**, y `HWE_NOINDEX` vacía
+      en el `.env` de producción. Si venís de staging, compruébalo dos veces: el ajuste del panel
+      viaja con la base de datos. Con el panel en `noindex` y sin la guarda, el log deja el evento
+      `seo.site_noindex`.
+- [ ] `curl -s https://<dominio>/robots.txt`: sin `Disallow: /` en el grupo `*` y con la línea
+      `Sitemap:` apuntando al dominio real (si falta, la config de WordPress no está llegando).
+- [ ] `curl -s https://<dominio>/sitemap.xml`: índice con `paginas`, `catalogo` y `blog`; abre
+      `sitemap/catalogo.xml` y comprueba que salen las fichas con el dominio real.
+- [ ] Datos de producto completos en Control Center → SEO: marca, coste de envío (importe o rango),
+      plazos de preparación y tránsito, y política de devoluciones (días, método, quién paga).
+      En WooCommerce, **SKU** y **GTIN/EAN** en cada producto que los tenga.
+- [ ] Entidad de marca en Control Center → GEO: logo, fecha de fundación, nombres alternativos y
+      redes sociales (`sameAs`).
+- [ ] Si la tienda sustituye a una web anterior: lista de sus URLs (su sitemap o Search Console →
+      Páginas) declarada en `redirects` del registro de la instancia (`docs/CREATE_INSTANCE.md`),
+      y las de extensión (`.html`, `.php`) en Caddy. Prueba 5–10 con `curl -I`: un solo salto, 301.
+
+**El día del lanzamiento**
+- [ ] **Google Search Console**: propiedad de dominio (registro DNS) o código en Control Center →
+      SEO; envía `https://<dominio>/sitemap.xml` (el índice, no los segmentos).
+- [ ] **Bing Webmaster Tools**: código `msvalidate.01` en Control Center → SEO (o importar desde
+      Search Console) y el mismo sitemap. Bing alimenta también a DuckDuckGo, Yahoo y ChatGPT Search.
+- [ ] `INDEXNOW_KEY` en el `.env` (`openssl rand -hex 16`) y `curl https://<dominio>/indexnow.txt`
+      devuelve la clave: cada cambio de producto se anuncia al momento a Bing y Yandex.
+- [ ] **Prueba de resultados enriquecidos** (search.google.com/test/rich-results) sobre una ficha
+      con oferta, una con variaciones, una categoría y una entrada del blog: `Product` sin errores
+      y con `offers` (precio igual al de la página), `BreadcrumbList`, `CollectionPage`, `Article`.
+- [ ] **Merchant Center** (opcional, recomendado): listados gratuitos con la ficha como fuente; los
+      datos estructurados de envío y devoluciones ya están en cada producto.
+
+**Primeras semanas**
+- [ ] Search Console → Páginas: las fichas pasan a «Indexadas» y no hay «Duplicada sin canónica
+      seleccionada por el usuario» ni «Rastreada: actualmente sin indexar» en masa.
+- [ ] Search Console → Mejoras: «Fragmentos de productos» y «Fichas de comerciante» sin errores.
+- [ ] Ninguna URL de la web anterior devolviendo 404 en el informe de rastreo.
+
 ## 7. Operación
 
 - [ ] Backups activados (contenedor `backup` o cron) y copiándose **fuera del servidor**.

@@ -51,6 +51,12 @@ trait Seo {
                         'label'  => 'Código de verificación Google Search Console',
                         'public' => true,
                     ],
+                    'bing_site_verification'    => [
+                        'type'        => 'text',
+                        'label'       => 'Código de verificación Bing Webmaster Tools',
+                        'public'      => true,
+                        'description' => 'El valor de la meta msvalidate.01 (solo el código). Bing alimenta también a DuckDuckGo, Yahoo y ChatGPT Search.',
+                    ],
                     'default_og'                => [
                         'type'        => 'select',
                         'label'       => 'Imagen Open Graph por defecto',

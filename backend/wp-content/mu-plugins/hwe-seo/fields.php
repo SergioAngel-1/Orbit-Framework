@@ -12,7 +12,9 @@
  * este con `require_once`.
  *
  * Metas: `_hwe_seo_title` y `_hwe_seo_description` (de post o de término). Vacío = se
- * borra la meta y el frontend usa el título/resumen nativos.
+ * borra la meta y el frontend usa el título/resumen nativos. Además, dos controles de
+ * indexación: `_hwe_seo_noindex` ('1' = fuera de buscadores y del sitemap) y
+ * `_hwe_seo_canonical` (URL absoluta de la versión principal; esta deja de anunciarse).
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -38,6 +40,22 @@ function hwe_seo_fields(): array {
 		'title'       => array( '_hwe_seo_title', HWE_SEO_TITLE_MAX, HWE_SEO_TITLE_MIN, false ),
 		'description' => array( '_hwe_seo_description', HWE_SEO_DESC_MAX, HWE_SEO_DESC_MIN, true ),
 	);
+}
+
+/** Metas de los controles de indexación (no son texto con contador). */
+const HWE_SEO_NOINDEX_META   = '_hwe_seo_noindex';
+const HWE_SEO_CANONICAL_META = '_hwe_seo_canonical';
+
+/**
+ * URL canónica saneada: absoluta, http(s) y bien formada. Cualquier otra cosa es ''
+ * (= sin override): una canónica rota haría que el buscador descarte la página.
+ */
+function hwe_seo_clean_canonical( string $raw ): string {
+	$url = trim( sanitize_text_field( $raw ) );
+	if ( '' === $url || ! preg_match( '#^https?://#i', $url ) ) {
+		return '';
+	}
+	return false !== filter_var( $url, FILTER_VALIDATE_URL ) ? mb_substr( $url, 0, 2048 ) : '';
 }
 
 /** Nombre del input de un campo para una entidad (`hwe_post_seo_title`). */
@@ -88,7 +106,44 @@ function hwe_seo_render_fields( string $entity, array $values, string $wrap, arr
 		}
 	}
 
+	$out .= hwe_seo_render_index_controls( $entity, $values, $wrap );
 	return $out . hwe_seo_counter_script();
+}
+
+/**
+ * Casilla «noindex» y URL canónica, con el mismo envoltorio que los campos de texto.
+ *
+ * @param array<string,string> $values
+ */
+function hwe_seo_render_index_controls( string $entity, array $values, string $wrap ): string {
+	$noindex_name   = hwe_seo_input_name( $entity, 'noindex' );
+	$canonical_name = hwe_seo_input_name( $entity, 'canonical' );
+	$checked        = '1' === (string) ( $values['noindex'] ?? '' ) ? ' checked' : '';
+
+	$controls = array(
+		array(
+			'<label for="' . esc_attr( $noindex_name ) . '"><strong>' . esc_html__( 'Ocultar de buscadores', 'hwe' ) . '</strong></label>',
+			'<label><input type="checkbox" id="' . esc_attr( $noindex_name ) . '" name="' . esc_attr( $noindex_name ) . '" value="1"' . $checked . '> noindex</label>',
+			esc_html__( 'La página sigue accesible por su URL, pero sale del sitemap y pide a los buscadores que no la indexen.', 'hwe' ),
+		),
+		array(
+			'<label for="' . esc_attr( $canonical_name ) . '"><strong>' . esc_html__( 'URL canónica', 'hwe' ) . '</strong></label>',
+			'<input type="url" id="' . esc_attr( $canonical_name ) . '" name="' . esc_attr( $canonical_name ) . '" style="width:100%" placeholder="https://" value="' . esc_attr( (string) ( $values['canonical'] ?? '' ) ) . '">',
+			esc_html__( 'Opcional. Solo si el contenido principal vive en OTRA URL: esta deja de anunciarse y apunta a esa.', 'hwe' ),
+		),
+	);
+
+	$out = '';
+	foreach ( $controls as [ $label, $input, $desc ] ) {
+		if ( 'term-edit' === $wrap ) {
+			$out .= '<tr class="form-field"><th>' . $label . '</th><td>' . $input . '<p class="description">' . $desc . '</p></td></tr>';
+		} elseif ( 'term-add' === $wrap ) {
+			$out .= '<div class="form-field">' . $label . $input . '<p>' . $desc . '</p></div>';
+		} else {
+			$out .= '<p>' . $label . '<br>' . $input . '</p><p class="description">' . $desc . '</p>';
+		}
+	}
+	return $out;
 }
 
 /**
@@ -123,6 +178,12 @@ function hwe_seo_read_post( string $entity ): ?array {
 		$clean = $textarea ? sanitize_textarea_field( $raw ) : sanitize_text_field( $raw );
 		$values[ $meta ] = mb_substr( $clean, 0, $max );
 	}
+	$noindex_name   = hwe_seo_input_name( $entity, 'noindex' );
+	$canonical_name = hwe_seo_input_name( $entity, 'canonical' );
+	$values[ HWE_SEO_NOINDEX_META ]   = ! empty( $_POST[ $noindex_name ] ) ? '1' : '';
+	$values[ HWE_SEO_CANONICAL_META ] = isset( $_POST[ $canonical_name ] )
+		? hwe_seo_clean_canonical( (string) wp_unslash( $_POST[ $canonical_name ] ) )
+		: '';
 	return $values;
 }
 
@@ -167,12 +228,14 @@ function hwe_seo_save_term_fields( string $entity, int $term_id, string $capabil
 	}
 }
 
-/** Valores actuales de un post o término. @return array{title:string,description:string} */
+/** Valores actuales de un post o término. @return array{title:string,description:string,noindex:string,canonical:string} */
 function hwe_seo_current_values( string $kind, int $id ): array {
 	$get = 'term' === $kind ? 'get_term_meta' : 'get_post_meta';
 	return array(
 		'title'       => (string) $get( $id, '_hwe_seo_title', true ),
 		'description' => (string) $get( $id, '_hwe_seo_description', true ),
+		'noindex'     => (string) $get( $id, HWE_SEO_NOINDEX_META, true ),
+		'canonical'   => (string) $get( $id, HWE_SEO_CANONICAL_META, true ),
 	);
 }
 
@@ -207,7 +270,14 @@ function hwe_seo_register_graphql_fields( string $graphql_type, string $kind, ar
 		};
 	};
 
-	$metas = array( 'seoTitle' => '_hwe_seo_title', 'seoDescription' => '_hwe_seo_description' );
+	$metas = array(
+		'seoTitle'       => '_hwe_seo_title',
+		'seoDescription' => '_hwe_seo_description',
+		'seoCanonical'   => HWE_SEO_CANONICAL_META,
+	);
+	$descriptions += array(
+		'seoCanonical' => __( 'URL canónica manual (absoluta). Null = la propia URL de la entidad.', 'hwe' ),
+	);
 	foreach ( $metas as $name => $meta ) {
 		register_graphql_field( $graphql_type, $name, array(
 			'type'        => 'String',
@@ -215,6 +285,12 @@ function hwe_seo_register_graphql_fields( string $graphql_type, string $kind, ar
 			'resolve'     => $resolver( $meta ),
 		) );
 	}
+	$noindex = $resolver( HWE_SEO_NOINDEX_META );
+	register_graphql_field( $graphql_type, 'seoNoindex', array(
+		'type'        => 'Boolean',
+		'description' => __( 'true = fuera de buscadores (noindex) y del sitemap.', 'hwe' ),
+		'resolve'     => static fn ( $node ): bool => '1' === $noindex( $node ),
+	) );
 }
 
 /**

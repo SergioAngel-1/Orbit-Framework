@@ -51,5 +51,35 @@ function hwe_product_seo_register_graphql(): void {
 		'seoTitle'       => __( 'Título SEO override (<title> / og:title). Null = el frontend usa el nombre del producto.', 'hwe' ),
 		'seoDescription' => __( 'Descripción SEO override (meta description / og:description). Null = el frontend usa la descripción corta del producto.', 'hwe' ),
 	) );
+	if ( function_exists( 'register_graphql_field' ) ) {
+		register_graphql_field( 'Product', 'hweGtin', array(
+			'type'        => 'String',
+			'description' => __( 'GTIN del producto (EAN, UPC, ISBN) para el JSON-LD. Null = sin código válido.', 'hwe' ),
+			'resolve'     => static function ( $node ): ?string {
+				$id = is_object( $node ) && isset( $node->databaseId ) ? (int) $node->databaseId : 0;
+				return $id > 0 ? hwe_product_seo_gtin( $id ) : null;
+			},
+		) );
+	}
 }
 add_action( 'graphql_register_types', 'hwe_product_seo_register_graphql' );
+
+/**
+ * GTIN del producto: el campo nativo «GTIN, UPC, EAN o ISBN» de WooCommerce (9.2+).
+ * Solo se devuelve con un largo que el estándar admite (8, 12, 13 o 14 dígitos): un
+ * código mal escrito invalida el nodo `Product` entero, y es mejor no declararlo.
+ */
+function hwe_product_seo_gtin( int $product_id ): ?string {
+	$value = '';
+	if ( function_exists( 'wc_get_product' ) ) {
+		$product = wc_get_product( $product_id );
+		if ( $product && method_exists( $product, 'get_global_unique_id' ) ) {
+			$value = (string) $product->get_global_unique_id();
+		}
+	}
+	if ( '' === $value ) {
+		$value = (string) get_post_meta( $product_id, '_global_unique_id', true );
+	}
+	$digits = (string) preg_replace( '/\D/', '', $value );
+	return in_array( strlen( $digits ), array( 8, 12, 13, 14 ), true ) ? $digits : null;
+}

@@ -7,7 +7,12 @@ import { cleanBase } from "./shared";
 //  `BreadcrumbList`. Funciones puras.
 // ============================================================================
 
-/** JSON-LD `FAQPage` (formato muy citado por motores generativos). */
+/**
+ * JSON-LD `FAQPage`. Google retiró los resultados enriquecidos de FAQ para todos
+ * los sitios (7-5-2026): ya no dan fragmento en la SERP. Se mantiene porque
+ * describe bien un bloque de preguntas visible en la página, no por una ventaja
+ * en buscadores ni en motores generativos, que no está demostrada.
+ */
 export function buildFaqJsonLd(items: FaqItem[]) {
   return {
     "@context": "https://schema.org",

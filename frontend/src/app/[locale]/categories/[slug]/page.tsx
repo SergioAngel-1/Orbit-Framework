@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { permanentRedirect } from "@/i18n/navigation";
+import { Link, permanentRedirect } from "@/i18n/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { getCategory, getCategoryStaticParams } from "@/lib/catalog/products";
 import { resolveEntityRoute } from "@/lib/i18n/entity-route";
@@ -15,6 +15,7 @@ import {
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
 import { siteTitle } from "@/lib/seo/title";
+import { entityIndexMetadata } from "@/lib/seo/entity-index";
 import { metaDescription } from "@/lib/seo/meta-description";
 import { ProductGrid } from "@/components/products/product-grid";
 import { stripHtml } from "@/lib/format";
@@ -74,8 +75,13 @@ export async function generateMetadata({
     return {
       title: siteTitle(config, result.category.seoTitle || result.category.name),
       ...(description ? { description } : {}),
-      alternates: canonical,
-      openGraph: siteOpenGraph(config, locale, canonical.canonical),
+      // Caja SEO: `noindex` o canónica manual mandan sobre las propias.
+      ...entityIndexMetadata(canonical, result.category),
+      openGraph: siteOpenGraph(
+        config,
+        locale,
+        result.category.seoCanonical || canonical.canonical,
+      ),
       twitter: siteTwitter(config, locale),
     };
   } catch (error) {
@@ -171,6 +177,15 @@ export default async function CategoryPage({
         />
       )}
       <ProductGrid products={result.products} />
+      {/* La categoría pinta una sola tanda: el índice A-Z enlaza el resto. */}
+      {result.products.length > 0 && (
+        <Link
+          href="/products/archive"
+          className="mt-10 inline-block text-sm font-semibold text-brand hover:underline dark:text-accent"
+        >
+          {t("viewArchive")}
+        </Link>
+      )}
     </div>
   );
 }

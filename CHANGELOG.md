@@ -7,6 +7,25 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **SEO listo para lanzar: controles por contenido, migración, staging e IndexNow.**
+  - Caja SEO del editor (entradas, páginas, productos, categorías): «Ocultar de buscadores»
+    (`seoNoindex`: `noindex, follow`, fuera del sitemap, `llms.txt` y del índice) y «URL
+    canónica» (`seoCanonical`, solo absoluta http/https). Frontend: `lib/seo/entity-index.ts`.
+  - Redirecciones 301 de la web anterior como datos en `InstanceRegistry.redirects`, exactas o
+    de prefijo (`/producto/*` → `/products/*`), aplicadas por el proxy antes del idioma y
+    validadas en CI con el registro real (`lib/instance/redirects.ts`).
+  - `HWE_NOINDEX=true` (staging), leída en ejecución: robots.txt `Disallow: /` (la ruta pasa a
+    dinámica) y `X-Robots-Tag: noindex, nofollow` en cada página, sin tocar el Control Center;
+    con el panel en noindex y sin la guarda, el log avisa (`seo.site_noindex`).
+  - IndexNow con `INDEXNOW_KEY`: el webhook `product.*` anuncia la ficha a Bing/Yandex en
+    lotes; la clave se sirve en `/indexnow.txt`.
+  - `/products/archive`: índice A-Z de todas las fichas, enlazado desde la tienda y cada
+    categoría, para que ninguna ficha dependa solo del sitemap.
+  - Product JSON-LD con SKU real, GTIN (`Product.hweGtin`, campo nativo de WooCommerce 9.2+),
+    galería, precio tachado (`StrikethroughPrice`) y `BackOrder`; `lastmod` real en el
+    segmento `catalogo` del sitemap.
+  - Verificación de Bing (`seo.bing_site_verification`) y lista SEO del lanzamiento en
+    `docs/GO-LIVE.md` §6 bis.
 - **Páginas propias y exclusiones del sitemap por la instancia (`InstanceRegistry.sitemap`).**
   Una instancia puede añadir sus vistas al segmento `paginas` y retirar del sitemap y de
   `llms.txt` rutas del núcleo, de legal o de landings declarando solo datos en
@@ -56,6 +75,16 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **Sitemap vacío y `llms.txt` en 404 hasta una hora tras cada despliegue.** El índice, los
+  segmentos y `llms.txt` eran ISR: se prerenderizaban en el build de la imagen, que corre sin
+  WordPress, y servían ese resultado degradado hasta revalidar. Ahora son dinámicos (como
+  `robots.txt` e `indexnow.txt`); los datos siguen en la Data Cache y el CDN los cachea
+  (`s-maxage`). Un test impide volver a ponerles ISR.
+- **El precio del JSON-LD de producto salía corrupto** en tiendas con `$` (COP/USD) y en
+  productos variables: «&#36;12.000» se declaraba como 3612000 y «$10.00 - $20.00» como
+  100020.00. Ahora lo lee `parseMoneyAmount`; un variable con precios distintos es un
+  `AggregateOffer` y, sin precio legible, no se declara oferta. Fuera también `speakable` de
+  `Product` (schema.org no lo admite ahí) y el ID interno como `sku`.
 - **La migración de códigos de recuperación 2FA ya no se ejecuta antes de instalar WordPress.**
   En una instalación nueva, WP-CLI carga los mu-plugins y dispara `init` antes de que existan
   `wp_options`/`wp_usermeta`; `migrateRecoveryCodesV2()` intentaba leer la opción y borrar metas y

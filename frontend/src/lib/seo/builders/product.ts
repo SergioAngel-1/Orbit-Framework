@@ -1,4 +1,5 @@
 import type { SiteConfig } from "@/lib/config/types";
+import { parseMoneyAmount } from "@/lib/format";
 import type { ProductDetail } from "@/types/catalog";
 
 // ============================================================================
@@ -12,13 +13,32 @@ const RETURN_CATEGORY_MAP: Record<string, string> = {
   none: "https://schema.org/MerchantReturnNotPermitted",
 };
 
-/** Normaliza un precio de WooGraphQL ("&euro;19,99") a decimal con punto. */
-function parsePrice(raw?: string | null): string {
-  return (raw ?? "0")
-    .replace(/[^\d.,]/g, "")
-    .replace(/\.(?=\d{3})/g, "")
-    .replace(",", ".");
+/**
+ * Importes de un precio de WooGraphQL: uno («&#36;12.000», «&euro;19,99») o dos
+ * si es el rango de un producto variable («$10 – $20»). El `price` llega
+ * FORMATEADO, con entidades HTML y separadores de la tienda: se parte por el
+ * guion del rango y cada lado lo lee `parseMoneyAmount`, el mismo lector que usa
+ * el resto del sitio. Vacío si no se entiende: un precio dudoso no se declara.
+ */
+export function parsePriceAmounts(raw?: string | null): number[] {
+  const text = (raw ?? "").replace(/&ndash;|&#8211;|&mdash;|&#8212;/g, "–");
+  return text
+    .split(/\s[-–—]\s|[–—]/)
+    .map((part) => parseMoneyAmount(part))
+    .filter((amount): amount is number => amount !== null && amount >= 0);
 }
+
+/** Importe con punto decimal y sin ceros de relleno, como lo pide schema.org. */
+function decimal(amount: number): string {
+  return String(Number(amount.toFixed(6)));
+}
+
+/** `stockStatus` de WooGraphQL a disponibilidad de schema.org. */
+const AVAILABILITY_MAP: Record<string, string> = {
+  IN_STOCK: "https://schema.org/InStock",
+  OUT_OF_STOCK: "https://schema.org/OutOfStock",
+  ON_BACKORDER: "https://schema.org/BackOrder",
+};
 
 const RETURN_METHOD_MAP: Record<string, string[]> = {
   mail: ["https://schema.org/ReturnByMail"],
@@ -108,22 +128,57 @@ export function buildProductJsonLd({
   const currency = config.ecommerce.currency || "EUR";
   const country = config.ecommerce.country || "ES";
   const brandName = config.seo.product_brand || config.brand.name;
-  const inStock = product.stockStatus !== "OUT_OF_STOCK";
 
-  const offer: Record<string, unknown> = {
-    "@type": "Offer",
+  // Precio: el de las variaciones si las hay (cada una trae su importe), si no
+  // el de la ficha, que en un producto variable es el rango ya formateado.
+  const variationAmounts = (product.variations ?? [])
+    .map((variation) => parseMoneyAmount(variation.price))
+    .filter((amount): amount is number => amount !== null && amount >= 0);
+  const amounts =
+    variationAmounts.length > 0 ? variationAmounts : parsePriceAmounts(product.price);
+  const low = amounts.length > 0 ? Math.min(...amounts) : null;
+  const high = amounts.length > 0 ? Math.max(...amounts) : null;
+
+  // Un rango real (variaciones con precios distintos) es un `AggregateOffer`: un
+  // `Offer` con un único precio afirmaría que todas las variantes cuestan eso.
+  const offer: Record<string, unknown> =
+    low !== null && high !== null && low !== high
+      ? {
+          "@type": "AggregateOffer",
+          lowPrice: decimal(low),
+          highPrice: decimal(high),
+          offerCount: Math.max(variationAmounts.length, 1),
+        }
+      : { "@type": "Offer", ...(low !== null ? { price: decimal(low) } : {}) };
+  Object.assign(offer, {
     url,
     priceCurrency: currency,
-    price: parsePrice(product.price),
     // Mismo criterio que `priceValidUntil`: el precio publicado vale desde el
     // día en que se sirve la ficha (ISR la regenera cada pocos minutos).
     validFrom: today(),
     priceValidUntil: priceValidUntil(),
     itemCondition: "https://schema.org/NewCondition",
-    availability: inStock
-      ? "https://schema.org/InStock"
-      : "https://schema.org/OutOfStock",
-  };
+    availability:
+      AVAILABILITY_MAP[product.stockStatus ?? ""] ?? AVAILABILITY_MAP.IN_STOCK,
+  });
+
+  // Precio tachado: solo en una oferta simple rebajada cuyo precio normal se lee
+  // y es MAYOR que el que se cobra. Google lo pinta junto al precio de venta.
+  const regular = parseMoneyAmount(product.regularPrice);
+  if (
+    offer["@type"] === "Offer" &&
+    product.onSale &&
+    low !== null &&
+    regular !== null &&
+    regular > low
+  ) {
+    offer.priceSpecification = {
+      "@type": "UnitPriceSpecification",
+      priceType: "https://schema.org/StrikethroughPrice",
+      price: decimal(regular),
+      priceCurrency: currency,
+    };
+  }
 
   // shippingDetails (opcional, gobernado por la pestaña SEO). El campo del
   // panel admite un importe («5», o con texto suelto: «5 EUR») o un RANGO
@@ -192,23 +247,30 @@ export function buildProductJsonLd({
   // declarados y vacíos (y una ficha sin foto no tiene por qué inventar una de
   // respaldo). Sin valor, la clave no se emite.
   const imageUrl = product.image?.sourceUrl?.trim();
+  // La foto principal primero y después la galería, sin repetir: Google elige
+  // entre varias proporciones, y una ficha con una sola foto pierde opciones.
+  const images = [
+    ...new Set([imageUrl, ...(product.gallery ?? [])].filter((u): u is string => !!u)),
+  ];
   const hasDescription = description.trim() !== "";
+  const sku = product.sku?.trim();
+  const gtin = product.gtin?.trim();
 
   const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org/",
     "@type": "Product",
     "@id": `${url}#product`,
     name: product.name,
-    ...(imageUrl ? { image: [imageUrl] } : {}),
+    ...(images.length > 0 ? { image: images } : {}),
     ...(hasDescription ? { description } : {}),
-    sku: String(product.databaseId),
+    // El SKU real de WooCommerce. El ID interno NO es un SKU: declararlo como tal
+    // lo cruza con el feed de Merchant Center y no coincide.
+    ...(sku ? { sku } : {}),
+    ...(gtin ? { gtin } : {}),
     brand: { "@type": "Brand", name: brandName },
-    // speakable: marca los bloques óptimos para asistentes de voz/IA.
-    speakable: {
-      "@type": "SpeakableSpecification",
-      cssSelector: [".product-name", ".product-summary"],
-    },
-    offers: offer,
+    // Sin precio legible no hay oferta: un importe inventado (o un 0) es peor
+    // que ninguno, y Merchant Center penaliza el precio que no coincide.
+    ...(low !== null ? { offers: offer } : {}),
   };
 
   // aggregateRating + review (solo con reseñas reales — exigido por Google) y

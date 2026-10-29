@@ -22,6 +22,7 @@ import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
 import { absoluteLocalized } from "@/lib/seo/urls";
 import { resolveTitleTemplate } from "@/lib/seo/title";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
+import { indexingBlockedByEnv } from "@/lib/seo/indexing";
 import { pickClientMessages } from "@/lib/i18n/client-messages";
 
 const inter = Inter({
@@ -56,8 +57,10 @@ export async function generateMetadata({
   // %site% se sustituye aquí; %s lo resuelve Next con el título de cada página.
   const titleTemplate = resolveTitleTemplate(config.seo.title_template, siteName);
 
-  // Indexación por defecto según la pestaña SEO (index/follow vs noindex).
-  const noindex = config.seo.robots === "noindex,nofollow";
+  // Indexación por defecto según la pestaña SEO (index/follow vs noindex), o la
+  // guarda de entorno `HWE_NOINDEX` (staging). En páginas estáticas/ISR esto se
+  // hornea en el build: en ejecución, la guarda la garantiza `X-Robots-Tag` (proxy).
+  const noindex = config.seo.robots === "noindex,nofollow" || indexingBlockedByEnv();
 
   return {
     title: {
@@ -84,8 +87,15 @@ export async function generateMetadata({
     // cada página indexable pasa la suya (`siteOpenGraph(config, locale, canónica)`).
     openGraph: siteOpenGraph(config, locale),
     twitter: siteTwitter(config, locale),
-    ...(config.seo.google_site_verification && {
-      verification: { google: config.seo.google_site_verification },
+    ...((config.seo.google_site_verification || config.seo.bing_site_verification) && {
+      verification: {
+        ...(config.seo.google_site_verification && {
+          google: config.seo.google_site_verification,
+        }),
+        ...(config.seo.bing_site_verification && {
+          other: { "msvalidate.01": config.seo.bing_site_verification },
+        }),
+      },
     }),
   };
 }

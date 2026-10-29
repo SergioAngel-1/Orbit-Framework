@@ -277,16 +277,35 @@ describe("getProductUrls (sitemap)", () => {
       {
         slug: "camiseta",
         slugs: { es: "camiseta", en: "t-shirt", "pt-BR": "camiseta-br" },
+        names: { es: "Camiseta", en: "T-shirt", "pt-BR": "Camiseta BR" },
         locales: ["es", "en", "pt-BR"],
         hidden: false,
       },
       {
         slug: "solo-es",
         slugs: { es: "solo-es", en: "solo-es", "pt-BR": "solo-es" },
+        names: { es: "Solo es", en: "Solo es", "pt-BR": "Solo es" },
         locales: ["es"],
         hidden: false,
       },
     ]);
+  });
+
+  it("conserva la fecha de edición para el lastmod del sitemap", async () => {
+    fetchGraphQL.mockResolvedValue({
+      products: { nodes: [{ slug: "a", name: "A", modified: "2026-10-01T10:00:00" }] },
+    });
+
+    const [url] = await getProductUrls();
+
+    expect(url.modified).toBe("2026-10-01T10:00:00");
+  });
+
+  it("con `strict`, un fallo se registra y se relanza (sin él, lista vacía)", async () => {
+    fetchGraphQL.mockRejectedValue(new Error("caído"));
+
+    await expect(getProductUrls()).resolves.toEqual([]);
+    await expect(getProductUrls({ strict: true })).rejects.toThrow("caído");
   });
 
   it("marca como oculta solo la visibilidad HIDDEN", async () => {

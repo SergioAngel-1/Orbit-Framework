@@ -12,6 +12,7 @@ import {
 import { productLearnPaths } from "@/lib/landings/product-learn-href";
 import { editorialSitemapEntries } from "@/lib/landings/editorial-list";
 import { entityPaths, hreflangLanguages, localizedPath } from "@/lib/seo/urls";
+import { isEntityAnnounced } from "@/lib/seo/entity-index";
 import { isSitemapPathExcluded, resolveInstanceSitemap } from "@/lib/instance/sitemap";
 import type { SitemapSegment } from "@/lib/seo/sitemap-segments";
 import { logger } from "@/lib/observability/logger";
@@ -86,6 +87,13 @@ function expand(baseUrl: string, entry: SitemapPath): MetadataRoute.Sitemap {
   }));
 }
 
+/** Fecha del CMS a `Date`; `undefined` si falta o no se entiende (nunca la de hoy). */
+function validDate(value?: string | null): Date | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 /** Slugs legales: la misma lista que sirve `/legal/[slug]`. */
 const LEGAL_SLUGS = ["privacy", "cookies", "terms", "returns"] as const;
 
@@ -149,6 +157,8 @@ export async function buildSitemapEntries(
   }
 
   if (segmento === "catalogo") {
+    // El índice A-Z de fichas: lo mueve el mismo tag `products` que el catálogo.
+    paths.push({ path: "/products/archive", changeFrequency: "weekly", priority: 0.4 });
     // Fail-soft deliberado: un sitemap sin productos es mejor que una ruta
     // caída, pero el fallo queda visible en los logs.
     try {
@@ -167,16 +177,18 @@ export async function buildSitemapEntries(
           "sitemap: fichas con visibilidad oculta fuera del segmento de catálogo",
         );
       }
-      for (const { slug, slugs, locales, hidden: isHidden } of products) {
-        // La ficha oculta sigue siendo accesible por URL, pero no se anuncia; su
-        // landing de producto tampoco.
-        if (isHidden) continue;
+      for (const product of products) {
+        const { slug, slugs, locales, hidden: isHidden, modified } = product;
+        // La ficha oculta (o marcada `noindex` / con canónica ajena en su caja SEO)
+        // sigue siendo accesible por URL, pero no se anuncia; su landing tampoco.
+        if (isHidden || !isEntityAnnounced(product)) continue;
         paths.push({
           path: `/products/${slug}`,
           locales,
           paths: entityPaths("/products", slugs),
           changeFrequency: "weekly",
           priority: 0.7,
+          ...(validDate(modified) ? { lastModified: validDate(modified) } : {}),
         });
         if (learn.has(slug)) {
           const translated = learnLocales[slug] ?? [routing.defaultLocale];
@@ -199,6 +211,7 @@ export async function buildSitemapEntries(
       for (const cat of await getCategories(routing.defaultLocale, {
         allLocales: true,
       })) {
+        if (!isEntityAnnounced(cat)) continue;
         paths.push({
           path: `/categories/${cat.slug}`,
           ...(cat.locales ? { locales: cat.locales } : {}),
@@ -236,7 +249,9 @@ export async function buildSitemapEntries(
       );
     }
     try {
-      for (const { slug, modified, slugs, locales } of await getPostSlugs()) {
+      for (const post of await getPostSlugs()) {
+        if (!isEntityAnnounced(post)) continue;
+        const { slug, modified, slugs, locales } = post;
         paths.push({
           path: `/blog/${slug}`,
           locales,

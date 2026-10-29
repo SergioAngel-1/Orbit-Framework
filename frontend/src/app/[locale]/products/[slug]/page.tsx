@@ -14,6 +14,7 @@ import { buildProductJsonLd, buildBreadcrumbJsonLd } from "@/lib/seo/jsonld";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
 import { siteTitle } from "@/lib/seo/title";
+import { entityIndexMetadata } from "@/lib/seo/entity-index";
 import { metaDescription } from "@/lib/seo/meta-description";
 import { Badge } from "@/components/ui/badge";
 import { ProductGrid } from "@/components/products/product-grid";
@@ -81,9 +82,10 @@ export async function generateMetadata({
     return {
       title: siteTitle(config, product.seoTitle || product.name),
       ...(description ? { description } : {}),
-      alternates: canonical,
+      // Caja SEO: `noindex` o canónica manual mandan sobre las propias.
+      ...entityIndexMetadata(canonical, product),
       openGraph: {
-        ...siteOpenGraph(config, locale, canonical.canonical),
+        ...siteOpenGraph(config, locale, product.seoCanonical || canonical.canonical),
         ...(images ? { images } : {}),
       },
       twitter: {

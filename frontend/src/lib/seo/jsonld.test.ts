@@ -20,6 +20,7 @@ import {
   businessType,
   parseAmountRange,
   parseDayRange,
+  parsePriceAmounts,
   postalAddress,
   videoUploadDateTime,
 } from "./jsonld";
@@ -49,6 +50,127 @@ const productLd = (c = config()) =>
     url: "https://mitienda.example/products/camiseta",
     description: "Una camiseta",
   }) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+describe("buildProductJsonLd — precio", () => {
+  const ld = (patch: Partial<ProductDetail>) =>
+    buildProductJsonLd({
+      product: { ...product, ...patch } as ProductDetail,
+      config: config(),
+      url: "https://mitienda.example/products/camiseta",
+      description: "Una camiseta",
+    }) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  it.each([
+    ["&euro;19,99", [19.99]],
+    // WooCommerce escribe el `$` como entidad: antes salía 3612000.
+    ["&#36;12.000", [12000]],
+    ["$ 50.000", [50000]],
+    ["$1,234.56", [1234.56]],
+    // Rango de un producto variable: antes salía 100020.00.
+    ["$10.00 - $20.00", [10, 20]],
+    ["10,00&nbsp;€ &ndash; 20,00&nbsp;€", [10, 20]],
+    // Formatos reales de WooGraphQL 11.x (miles con coma), en COP y en EUR.
+    ["$10,000.00 - $20,000.00", [10000, 20000]],
+    ["€15,000.00", [15000]],
+    ["", []],
+    ["Consultar", []],
+  ])("parsePriceAmounts(%j) → %j", (raw, expected) => {
+    expect(parsePriceAmounts(raw)).toEqual(expected);
+  });
+
+  it("un precio simple es un Offer con punto decimal", () => {
+    expect(ld({ price: "&#36;12.000" }).offers).toMatchObject({
+      "@type": "Offer",
+      price: "12000",
+      priceCurrency: "EUR",
+    });
+  });
+
+  it("un variable con precios distintos es un AggregateOffer con su rango", () => {
+    const offers = ld({
+      type: "VARIABLE",
+      price: "$10.00 - $20.00",
+      variations: [
+        {
+          databaseId: 1,
+          price: "&#36;10.00",
+          regularPrice: null,
+          salePrice: null,
+          stockStatus: "IN_STOCK",
+          attributes: [],
+        },
+        {
+          databaseId: 2,
+          price: "&#36;20.00",
+          regularPrice: null,
+          salePrice: null,
+          stockStatus: "IN_STOCK",
+          attributes: [],
+        },
+      ],
+    }).offers;
+    expect(offers).toMatchObject({
+      "@type": "AggregateOffer",
+      lowPrice: "10",
+      highPrice: "20",
+      offerCount: 2,
+    });
+    expect(offers).not.toHaveProperty("price");
+  });
+
+  it("sin variaciones cargadas, el rango del precio formateado sirve igual", () => {
+    expect(ld({ price: "$10.00 - $20.00" }).offers).toMatchObject({
+      "@type": "AggregateOffer",
+      lowPrice: "10",
+      highPrice: "20",
+    });
+  });
+
+  it("rebajado: el precio normal va como StrikethroughPrice", () => {
+    const offers = ld({ onSale: true, price: "€15,00", regularPrice: "€20,00" }).offers;
+    expect(offers.price).toBe("15");
+    expect(offers.priceSpecification).toMatchObject({
+      priceType: "https://schema.org/StrikethroughPrice",
+      price: "20",
+    });
+    expect(
+      ld({ onSale: false, price: "€15,00", regularPrice: "€20,00" }).offers,
+    ).not.toHaveProperty("priceSpecification");
+  });
+
+  it("disponibilidad: reserva es BackOrder", () => {
+    expect(ld({ stockStatus: "ON_BACKORDER" }).offers.availability).toBe(
+      "https://schema.org/BackOrder",
+    );
+    expect(ld({ stockStatus: "OUT_OF_STOCK" }).offers.availability).toBe(
+      "https://schema.org/OutOfStock",
+    );
+  });
+
+  it("SKU y GTIN reales; sin ellos no se inventan (ni el ID interno)", () => {
+    expect(ld({})).not.toHaveProperty("sku");
+    expect(ld({})).not.toHaveProperty("gtin");
+    const full = ld({ sku: "CAM-01", gtin: "8412345678903" } as Partial<ProductDetail>);
+    expect(full.sku).toBe("CAM-01");
+    expect(full.gtin).toBe("8412345678903");
+  });
+
+  it("la galería sigue a la foto principal, sin repetirla", () => {
+    expect(
+      ld({
+        gallery: ["https://mitienda.example/c.jpg", "https://mitienda.example/d.jpg"],
+      } as Partial<ProductDetail>).image,
+    ).toEqual(["https://mitienda.example/c.jpg", "https://mitienda.example/d.jpg"]);
+  });
+
+  it("Product no declara speakable (schema.org no lo admite en ese tipo)", () => {
+    expect(ld({})).not.toHaveProperty("speakable");
+  });
+
+  it("sin precio legible no se declara oferta", () => {
+    expect(ld({ price: null })).not.toHaveProperty("offers");
+  });
+});
 
 describe("buildProductJsonLd — envío", () => {
   it("sin importe en el panel no declara shippingDetails", () => {

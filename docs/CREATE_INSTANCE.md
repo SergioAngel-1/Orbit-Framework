@@ -395,6 +395,27 @@ núcleo: declara `sitemap.pages` (se añaden al sitemap en todos los idiomas, re
 `publicPaths`) y `sitemap.exclude` (rutas internas exactas o un prefijo con `/*`) en el mismo
 `registry.ts`. También afecta a `llms.txt`. Ver `docs/FRONTEND_CONNECT.md` §A.4.
 
+Si la tienda **sustituye a una web anterior**, declara sus URLs viejas en `redirects` del mismo
+`registry.ts` (solo datos): cada una responde **301** a la nueva antes de que el idioma entre en
+juego, así que no se pierde lo que ya estaba indexado ni los enlaces externos.
+
+```ts
+redirects: [
+  { from: "/quienes-somos", to: "/about" },
+  // Prefijo: el resto de la ruta se copia en el `*` del destino.
+  { from: "/producto/*", to: "/products/*" },
+  { from: "/categoria-producto/*", to: "/categories/*" },
+],
+```
+
+`from` es la ruta pública tal como llegaba (con `/en/...` si la web vieja tenía idiomas), sin
+consulta; `to`, una ruta del sitio o una URL `https://`. La consulta de la petición se conserva
+(los `utm_*` no se pierden). Una regla inválida (bucles, `/api`, destinos `javascript:`…) se
+descarta con un aviso en el log, y el test `tests/unit/proxy-redirects.test.ts` hace fallar CI
+con el registro real. **Límite:** el proxy no ve las rutas con extensión (`/pagina.html`,
+`/index.php`): esas van en el proxy de entrada (Caddy, `redir`). Saca la lista de URLs viejas de
+su sitemap o de Search Console (Páginas → indexadas) antes de apagar la web anterior.
+
 ### Instancia de un solo idioma
 
 El framework trae `es` (principal) y `en`. Una tienda que solo publica en un idioma **no

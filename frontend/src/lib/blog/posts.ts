@@ -1,4 +1,5 @@
 import "server-only";
+import { readIndexControls } from "@/lib/seo/entity-index";
 import { cache } from "react";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { fetchLocalizedGraphQL } from "@/lib/i18n/fetch-localized";
@@ -264,6 +265,9 @@ export interface PostSlugEntry {
   slugs: Record<string, string>;
   /** Idiomas del sitio en los que la entrada existe de verdad (el por defecto, siempre). */
   locales: string[];
+  /** Caja SEO: con `noindex` o canónica ajena la entrada no se anuncia. */
+  seoNoindex?: boolean | null;
+  seoCanonical?: string | null;
 }
 
 /**
@@ -274,7 +278,12 @@ export async function getPostSlugs(): Promise<PostSlugEntry[]> {
   interface SlugsResponse {
     posts?: {
       pageInfo?: { hasNextPage: boolean; endCursor: string | null };
-      nodes: ({ slug: string; modified: string | null } & Record<string, unknown>)[];
+      nodes: ({
+        slug: string;
+        modified: string | null;
+        seoNoindex?: boolean | null;
+        seoCanonical?: string | null;
+      } & Record<string, unknown>)[];
     };
   }
   try {
@@ -296,6 +305,7 @@ export async function getPostSlugs(): Promise<PostSlugEntry[]> {
           modified: n.modified ?? null,
           slugs: urlSlugsByLocale(n),
           locales: translatedLocales(n, "title"),
+          ...readIndexControls(n),
         })),
       );
       const { hasNextPage, endCursor } = data.posts?.pageInfo ?? {

@@ -49,7 +49,11 @@ Este documento tiene dos partes con garantías muy distintas:
   `POST /api/revalidate` (firma HMAC, `lib/security/webhook.ts`).
 - **Campos propios en el schema GraphQL** (mu-plugins del núcleo):
   - `Post`, `Page`, `Product`, `ProductCategory` → `seoTitle`, `seoDescription` (null = sin
-    override; usa el título/resumen nativos).
+    override; usa el título/resumen nativos), `seoNoindex` (boolean: `noindex, follow` y fuera
+    del sitemap/`llms.txt`) y `seoCanonical` (URL absoluta de la versión principal; null = la
+    propia). El frontend los aplica con `lib/seo/entity-index.ts`.
+  - `Product.hweGtin`: GTIN del campo nativo de WooCommerce (9.2+), solo con 8/12/13/14
+    dígitos; null si no hay o no es válido.
   - `MediaItem.isReferenceImage` (boolean): foto genérica compartida por varios productos;
     la ficha la etiqueta como «Imagen de referencia».
   - `RootQuery.hweFeaturedPost`: entrada destacada elegida a mano (null si no hay).
@@ -882,7 +886,7 @@ loyalty: { points_enabled, referrals_enabled, currency_name, currency_name_plura
            transfer_daily_cap }
 memberships: { card_enabled, card_verify_path, member_number_prefix }
 integrations: { analytics_provider, analytics_id }
-seo: { title_template, robots, google_site_verification, default_og, og_image, product_brand,
+seo: { title_template, robots, google_site_verification, bing_site_verification, default_og, og_image, product_brand,
        shipping_amount, return_days, return_category, return_method, return_fees,
        handling_days, transit_days, alternate_names, organization_logo, founding_date,
        knows_about, founder_name, founder_role, founder_url, business_type }
@@ -1050,6 +1054,17 @@ Reglas:
   prioridad fuera de rango, frecuencia desconocida) se descarta y se registra con el evento
   `instance.sitemap.invalid_entry`; el sitemap sigue generándose. Sin el campo, todo es idéntico
   al comportamiento anterior.
+
+### Redirecciones de migración (`InstanceRegistry.redirects`)
+
+Lista de `{ from, to, permanent? }` que el **proxy** aplica antes de next-intl
+(`lib/instance/redirects.ts`): `from` es la ruta pública tal como llega, exacta o un prefijo
+con `/*`; `to`, una ruta del sitio o una URL `http(s)` (con `*` para copiar el resto del
+prefijo). Responde **301** (302 con `permanent: false`) y conserva la consulta salvo que el
+destino traiga la suya. Validación: sin `/api` ni `/_next`, sin consulta en `from`, sin bucles,
+sin destinos que no sean rutas o `http(s)`, tope de 2000 reglas; una regla inválida se descarta
+con el evento `instance.redirect_invalid` y `tests/unit/proxy-redirects.test.ts` compila el
+registro real en modo estricto (CI falla). El matcher del proxy no cubre rutas con extensión.
 
 ## A.5 Design tokens (paleta/tipografía dinámica)
 

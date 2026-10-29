@@ -1,6 +1,8 @@
 import { routing } from "@/i18n/routing";
 import { localizedPath } from "@/lib/seo/urls";
 import { getSiteConfig, isFallbackSiteConfig } from "@/lib/config";
+import { indexingBlockedByEnv } from "@/lib/seo/indexing";
+import { logger } from "@/lib/observability/logger";
 
 // Contenido de /robots.txt. Es un route handler de texto (en vez de la
 // convención metadata) para poder emitir la directiva Content-Signal (borrador
@@ -76,11 +78,22 @@ export function contentSignal(policy: string): string {
 
 /** Respuesta completa de `/robots.txt`. */
 export async function robotsResponse(): Promise<Response> {
-  if (process.env.NODE_ENV === "development") {
-    return text("User-agent: *\nDisallow: /\n");
+  // Desarrollo y entornos con la guarda `HWE_NOINDEX` (staging): todo vetado y sin
+  // caché, para que un CDN no sirva esta versión cuando se quite la guarda.
+  if (process.env.NODE_ENV === "development" || indexingBlockedByEnv()) {
+    return text("User-agent: *\nDisallow: /\n", { cacheable: false });
   }
 
   const config = await getSiteConfig();
+  // Sin la guarda de entorno, un sitio en producción con «Indexación: noindex» en el
+  // Control Center casi siempre es una copia de staging que se trajo su ajuste. No se
+  // cambia nada (puede ser intencionado), pero no puede pasar en silencio.
+  if (config.seo.robots === "noindex,nofollow" && !isFallbackSiteConfig(config)) {
+    logger.warn(
+      { event: "seo.site_noindex" },
+      "El sitio está en noindex por el Control Center (SEO → Indexación) sin HWE_NOINDEX",
+    );
+  }
   const policy = config.geo.ai_crawlers;
   const lines: string[] = [];
 

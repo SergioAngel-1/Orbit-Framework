@@ -178,21 +178,25 @@ function productBySlugQuery(withMemberships: boolean): string {
   query ProductBySlug($slug: ID!, $locale: String) {
     product(id: $slug, idType: SLUG) {
       id databaseId name slug type
-      seoTitle seoDescription
+      seoTitle seoDescription seoNoindex seoCanonical
+      # GTIN validado por el mu-plugin hwe-product-seo (null sin código).
+      hweGtin
       # Campos de producto declarados por la instancia (hwe-product-fields), ya en el idioma.
       hweFields(locale: $locale) { key value }
       # @translation Product
       image { sourceUrl altText isReferenceImage }
       ${withMemberships ? PRODUCT_MEMBERSHIP_FIELDS : ""}
       ... on SimpleProduct {
-        onSale price regularPrice salePrice stockStatus
+        onSale price regularPrice salePrice stockStatus sku
         shortDescription description
+        galleryImages(first: 8) { nodes { sourceUrl } }
         ${REVIEWS_FRAGMENT}
         related(first: 4) { nodes { ...ProductCard } }
       }
       ... on VariableProduct {
-        onSale price regularPrice salePrice stockStatus
+        onSale price regularPrice salePrice stockStatus sku
         shortDescription description
+        galleryImages(first: 8) { nodes { sourceUrl } }
         attributes {
           nodes { id name label variation options }
         }
@@ -223,6 +227,11 @@ export const PRODUCT_SLUGS_QUERY = /* GraphQL */ `
       nodes {
         slug
         name
+        # Fecha real de la última edición: el lastmod del sitemap.
+        modified
+        # Caja SEO: noindex o canónica ajena = no se anuncia.
+        seoNoindex
+        seoCanonical
         # Visibilidad de catálogo de WooCommerce: HIDDEN no se anuncia en el sitemap.
         catalogVisibility
         # @translation Product: name slug
@@ -243,6 +252,8 @@ function categoryBySlugQuery(withMemberships: boolean): string {
       description
       seoTitle
       seoDescription
+      seoNoindex
+      seoCanonical
       ${withMemberships ? CATEGORY_MEMBERSHIP_FIELDS : ""}
       # @translation ProductCategory
       products(first: $first) {
@@ -268,6 +279,8 @@ function categoriesQuery(withMemberships: boolean): string {
         name
         slug
         count
+        seoNoindex
+        seoCanonical
         ${withMemberships ? CATEGORY_MEMBERSHIP_FIELDS : ""}
         # @translation ProductCategory: name description slug
       }

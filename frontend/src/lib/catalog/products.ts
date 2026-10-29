@@ -8,6 +8,7 @@ import {
   translatedLocales,
 } from "@/lib/i18n/translation";
 import { localizedUrlSlug, urlSlugsByLocale } from "@/lib/i18n/url-slug";
+import { readIndexControls } from "@/lib/seo/entity-index";
 import { logger } from "@/lib/observability/logger";
 import { readProductFields, type RawProductField } from "@/lib/catalog/product-fields";
 import { membershipsCatalogEnabled } from "@/lib/memberships/catalog-flag";
@@ -90,6 +91,11 @@ interface RawProductNode {
   related?: { nodes: RawProductNode[] } | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
+  seoNoindex?: boolean | null;
+  seoCanonical?: string | null;
+  sku?: string | null;
+  hweGtin?: string | null;
+  galleryImages?: { nodes: { sourceUrl: string | null }[] } | null;
   hweFields?: RawProductField[] | null;
   /** Requisito del módulo `memberships`; el campo NO existe con el módulo apagado. */
   hweMembership?: unknown;
@@ -307,6 +313,12 @@ export async function getProductBySlug(
     description: pickTranslated(node, "description", locale),
     seoTitle: pickTranslated(node, "seoTitle", locale)?.trim() || null,
     seoDescription: pickTranslated(node, "seoDescription", locale)?.trim() || null,
+    ...readIndexControls(node),
+    sku: node.sku?.trim() || null,
+    gtin: node.hweGtin?.trim() || null,
+    gallery: (node.galleryImages?.nodes ?? [])
+      .map((image) => image.sourceUrl?.trim() ?? "")
+      .filter(Boolean),
     fields: readProductFields(node.hweFields),
     urlSlugs: urlSlugsByLocale(node),
     locales: translatedLocales(node, "name"),
@@ -347,6 +359,8 @@ export interface ProductUrlEntry {
   slug: string;
   /** Tramo de URL por idioma del sitio. */
   slugs: Record<string, string>;
+  /** Nombre por idioma del sitio (con caída al nativo). */
+  names: Record<string, string>;
   /** Idiomas del sitio en los que la ficha existe de verdad (el por defecto, siempre). */
   locales: string[];
   /**
@@ -354,6 +368,11 @@ export interface ProductUrlEntry {
    * siendo accesible por URL y se prerenderiza; el sitemap no la anuncia.
    */
   hidden: boolean;
+  /** Caja SEO: con `noindex` o canónica ajena la ficha no se anuncia. */
+  seoNoindex?: boolean | null;
+  seoCanonical?: string | null;
+  /** Última edición en WooCommerce (sin zona: hora del sitio). Vacío si no la trae. */
+  modified?: string;
 }
 
 export interface GetProductUrlsOptions {
@@ -363,6 +382,11 @@ export interface GetProductUrlsOptions {
    * `generateStaticParams` (ficha y landing): el presupuesto de prerender no cambia.
    */
   all?: boolean;
+  /**
+   * Relanza el fallo tras registrarlo. Lo pide el índice del catálogo: una lista vacía
+   * por una caída la cachearía ISR como si fuera la buena (el sitemap prefiere seguir).
+   */
+  strict?: boolean;
 }
 
 const URL_PAGE_SIZE = 100;
@@ -373,6 +397,9 @@ const MAX_URL_PAGES = 20;
 interface RawProductUrlNode {
   slug: string;
   name: string;
+  modified?: string | null;
+  seoNoindex?: boolean | null;
+  seoCanonical?: string | null;
   catalogVisibility?: string | null;
 }
 
@@ -413,8 +440,16 @@ export async function getProductUrls(
         entries.push({
           slug: node.slug,
           slugs: urlSlugsByLocale(node),
+          names: Object.fromEntries(
+            routing.locales.map((l) => [
+              l,
+              pickTranslated(node, "name", l) ?? node.name,
+            ]),
+          ),
           locales: translatedLocales(node, "name"),
           hidden: node.catalogVisibility === "HIDDEN",
+          ...(node.modified ? { modified: node.modified } : {}),
+          ...readIndexControls(node),
         });
       }
       const { hasNextPage, endCursor } = data.products?.pageInfo ?? {};
@@ -443,6 +478,7 @@ export async function getProductUrls(
       },
       "No se pudo listar las fichas del catálogo",
     );
+    if (options.strict) throw error;
     return [];
   }
 }
@@ -483,6 +519,7 @@ export async function getCategory(
       description: pickTranslated(cat, "description", locale),
       seoTitle: pickTranslated(cat, "seoTitle", locale)?.trim() || null,
       seoDescription: pickTranslated(cat, "seoDescription", locale)?.trim() || null,
+      ...readIndexControls(cat),
       urlSlug: localizedUrlSlug(cat, locale),
       urlSlugs: urlSlugsByLocale(cat),
       locales: translatedLocales(cat, "name"),
@@ -523,6 +560,7 @@ export async function getCategories(
       slug: c.slug,
       description: pickTranslated(c, "description", locale),
       urlSlug: localizedUrlSlug(c, locale),
+      ...readIndexControls(c),
       membership: normalizeMembershipRequirement(c.hweMembership),
       ...(options.allLocales
         ? { urlSlugs: urlSlugsByLocale(c), locales: translatedLocales(c, "name") }

@@ -313,6 +313,17 @@ export default async function ProductsPage({
           wishlistEnabled={config.ecommerce.wishlist_enabled}
         />
       )}
+
+      {/* El scroll infinito no lo recorre un rastreador: este enlace, en el HTML
+          inicial, lleva a la lista de TODAS las fichas. */}
+      {isBaseView && products.length > 0 && (
+        <Link
+          href="/products/archive"
+          className="mt-10 inline-block text-sm font-semibold text-brand hover:underline dark:text-accent"
+        >
+          {t("viewArchive")}
+        </Link>
+      )}
     </div>
   );
 }

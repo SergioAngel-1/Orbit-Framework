@@ -13,11 +13,11 @@ import { SITEMAP_SEGMENTS, type SitemapSegment } from "@/lib/seo/sitemap-segment
 // ============================================================================
 
 export const runtime = "nodejs";
-export const revalidate = 3600;
-
-export async function generateStaticParams(): Promise<{ segmento: string }[]> {
-  return SITEMAP_SEGMENTS.map((segmento) => ({ segmento: `${segmento}.xml` }));
-}
+// Dinámico a propósito: un ISR se prerenderiza en el build de la imagen, que corre SIN
+// WordPress, y servía el resultado degradado (vacío / 404) hasta una hora tras cada
+// despliegue. Los datos van por la Data Cache con sus tags y el CDN cachea la respuesta
+// (`s-maxage`), así que pedirlo en cada petición es barato.
+export const dynamic = "force-dynamic";
 
 export async function GET(
   _request: Request,

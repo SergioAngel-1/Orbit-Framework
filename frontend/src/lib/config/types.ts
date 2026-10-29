@@ -157,6 +157,8 @@ export interface SiteConfig {
     title_template: string;
     robots: string;
     google_site_verification: string;
+    /** Código de la meta `msvalidate.01` de Bing Webmaster Tools. */
+    bing_site_verification: string;
     /** 'auto' = OG/iconos generados desde la marca · 'custom' = usar seo.og_image. */
     default_og: string;
     /** URL de OG cuando default_og es 'custom'. */
