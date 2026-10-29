@@ -2,9 +2,11 @@
 //  Guarda de indexación por ENTORNO (staging, preproducción, demos).
 //
 //  `HWE_NOINDEX=true` en el entorno del frontend saca el sitio entero de los
-//  buscadores sin tocar la config de WordPress: `robots.txt` veta todo, cada
-//  página lleva `noindex, nofollow` en su `<meta>` y el proxy añade la cabecera
-//  `X-Robots-Tag`. Es la guarda que no depende de que alguien se acuerde de
+//  buscadores sin tocar la config de WordPress: `robots.txt` (dinámico) veta
+//  todo y el proxy añade `X-Robots-Tag: noindex, nofollow` a cada página. La
+//  cabecera es la garantía: las páginas estáticas e ISR hornean su `<meta>` en
+//  el build, y solo lo llevan en `noindex` si la variable estaba también ahí
+//  (ante dos directivas, los buscadores aplican la más restrictiva). Es la guarda que no depende de que alguien se acuerde de
 //  cambiar «Indexación» en el Control Center — y la que NO viaja con una copia
 //  de la base de datos de staging a producción, que es justo como un sitio en
 //  producción acaba fuera de Google sin que nadie lo note.

@@ -14,9 +14,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   - Redirecciones 301 de la web anterior como datos en `InstanceRegistry.redirects`, exactas o
     de prefijo (`/producto/*` → `/products/*`), aplicadas por el proxy antes del idioma y
     validadas en CI con el registro real (`lib/instance/redirects.ts`).
-  - `HWE_NOINDEX=true` (staging): robots.txt `Disallow: /`, `noindex` en cada página y
-    `X-Robots-Tag`, sin tocar el Control Center; con el panel en noindex y sin la guarda, el
-    log avisa (`seo.site_noindex`).
+  - `HWE_NOINDEX=true` (staging), leída en ejecución: robots.txt `Disallow: /` (la ruta pasa a
+    dinámica) y `X-Robots-Tag: noindex, nofollow` en cada página, sin tocar el Control Center;
+    con el panel en noindex y sin la guarda, el log avisa (`seo.site_noindex`).
   - IndexNow con `INDEXNOW_KEY`: el webhook `product.*` anuncia la ficha a Bing/Yandex en
     lotes; la clave se sirve en `/indexnow.txt`.
   - `/products/archive`: índice A-Z de todas las fichas, enlazado desde la tienda y cada

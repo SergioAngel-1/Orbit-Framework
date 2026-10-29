@@ -506,8 +506,8 @@ services:
       WC_WEBHOOK_SECRET:                "${WC_WEBHOOK_SECRET}"
       REDIS_URL:                        "redis://redis:6379"
       HWE_REVALIDATION_SECRET:          "${HWE_REVALIDATION_SECRET}"
-      # Guarda de staging: `true` saca el sitio de los buscadores (robots.txt, meta y
-      # X-Robots-Tag) sin tocar el Control Center. Vacía en producción.
+      # Guarda de staging: `true` saca el sitio de los buscadores (robots.txt y
+      # X-Robots-Tag, en ejecución) sin tocar el Control Center. Vacía en producción.
       HWE_NOINDEX:                      "${HWE_NOINDEX:-}"
       # IndexNow (Bing, Yandex…): clave de 8–128 caracteres; vacía = apagado.
       INDEXNOW_KEY:                     "${INDEXNOW_KEY:-}"

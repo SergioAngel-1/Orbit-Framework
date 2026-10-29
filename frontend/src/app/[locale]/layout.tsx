@@ -58,7 +58,8 @@ export async function generateMetadata({
   const titleTemplate = resolveTitleTemplate(config.seo.title_template, siteName);
 
   // Indexación por defecto según la pestaña SEO (index/follow vs noindex), o la
-  // guarda de entorno `HWE_NOINDEX` (staging), que manda sobre el panel.
+  // guarda de entorno `HWE_NOINDEX` (staging). En páginas estáticas/ISR esto se
+  // hornea en el build: en ejecución, la guarda la garantiza `X-Robots-Tag` (proxy).
   const noindex = config.seo.robots === "noindex,nofollow" || indexingBlockedByEnv();
 
   return {

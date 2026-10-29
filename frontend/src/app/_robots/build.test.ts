@@ -111,6 +111,12 @@ describe("robots.txt", () => {
     expect(await robots()).not.toContain("Content-Signal");
   });
 
+  it("la ruta es dinámica: la guarda se lee en ejecución, no en el build", () => {
+    const route = readFileSync(join(__dirname, "..", "robots.txt", "route.ts"), "utf8");
+    expect(route).toMatch(/export const dynamic = "force-dynamic"/);
+    expect(route).not.toMatch(/export const revalidate/);
+  });
+
   it("con HWE_NOINDEX (staging) veta todo y no se cachea", async () => {
     vi.stubEnv("HWE_NOINDEX", "true");
     vi.stubEnv("NODE_ENV", "production");
