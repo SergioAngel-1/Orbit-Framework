@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { entityIndexMetadata, isEntityAnnounced } from "./entity-index";
+import {
+  entityIndexMetadata,
+  inheritedIndexMetadata,
+  isEntityAnnounced,
+} from "./entity-index";
 
 const own = {
   canonical: "/products/camiseta",
@@ -36,5 +40,23 @@ describe("isEntityAnnounced", () => {
     expect(isEntityAnnounced({ seoNoindex: false, seoCanonical: null })).toBe(true);
     expect(isEntityAnnounced({ seoNoindex: true })).toBe(false);
     expect(isEntityAnnounced({ seoCanonical: "https://otra.example/x" })).toBe(false);
+  });
+});
+
+describe("inheritedIndexMetadata", () => {
+  it("con la ficha anunciada, la landing lleva sus propios alternates", () => {
+    expect(inheritedIndexMetadata(own, {})).toEqual({ alternates: own });
+  });
+
+  it("ficha noindex: la landing también, sin alternates", () => {
+    expect(inheritedIndexMetadata(own, { seoNoindex: true })).toEqual({
+      robots: { index: false, follow: true },
+    });
+  });
+
+  it("ficha con canónica manual: la landing no hereda la canónica, va noindex,follow", () => {
+    expect(
+      inheritedIndexMetadata(own, { seoCanonical: "https://otra.example/camiseta" }),
+    ).toEqual({ robots: { index: false, follow: true } });
   });
 });

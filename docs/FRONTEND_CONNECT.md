@@ -52,6 +52,11 @@ Este documento tiene dos partes con garantías muy distintas:
     override; usa el título/resumen nativos), `seoNoindex` (boolean: `noindex, follow` y fuera
     del sitemap/`llms.txt`) y `seoCanonical` (URL absoluta de la versión principal; null = la
     propia). El frontend los aplica con `lib/seo/entity-index.ts`.
+    La landing de un producto (`/products/<slug>/learn`) hereda la caja de su ficha: con la
+    ficha `noindex` o con canónica manual, la landing va `noindex, follow` y sin `alternates`
+    (no se le inventa canónica), igual que el sitemap, que la omite
+    (`inheritedIndexMetadata`). `llms.txt` no lista landings de producto, solo las editoriales
+    de URL libre.
   - `Product.hweGtin`: GTIN del campo nativo de WooCommerce (9.2+), solo con 8/12/13/14
     dígitos; null si no hay o no es válido.
   - `MediaItem.isReferenceImage` (boolean): foto genérica compartida por varios productos;

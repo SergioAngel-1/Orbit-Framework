@@ -31,6 +31,7 @@ import { logReadFailure } from "@/lib/observability/read-failure";
 import { prerenderLongTail } from "@/lib/prerender-budget";
 import { metaDescription } from "@/lib/seo/meta-description";
 import { siteOpenGraph, siteTwitter } from "@/lib/seo/opengraph";
+import { inheritedIndexMetadata } from "@/lib/seo/entity-index";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { siteTitle } from "@/lib/seo/title";
 import { absoluteLocalized, alternatesFor } from "@/lib/seo/urls";
@@ -158,7 +159,9 @@ export async function generateMetadata({
     return {
       title: siteTitle(config, title),
       ...(description ? { description } : {}),
-      alternates: canonical,
+      // Hereda la caja SEO de la ficha: si ella no se anuncia (noindex o canónica
+      // manual), la landing va `noindex, follow` y sin alternates, como en el sitemap.
+      ...inheritedIndexMetadata(canonical, product),
       openGraph: {
         ...siteOpenGraph(config, locale, canonical.canonical),
         type: "article",

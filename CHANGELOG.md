@@ -75,6 +75,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **La landing de producto (`/products/<slug>/learn`) no heredaba la caja SEO de su ficha.** El
+  sitemap ya la omitía con la ficha en `noindex` o con canónica ajena, pero la página seguía
+  declarando sus `alternates` y siendo indexable. Ahora hereda: ficha `noindex` → landing
+  `noindex, follow` sin `alternates`; ficha con canónica manual → también `noindex, follow` (no
+  se inventa una canónica propia ni se hereda la de la ficha). Helper
+  `inheritedIndexMetadata` en `lib/seo/entity-index.ts`. Sin cambios de contrato.
 - **El índice A-Z del catálogo y `llms.txt` ignoraban las exclusiones de la instancia en fichas
   y categorías.** `/products/archive` filtraba las fichas ocultas y las de la caja SEO, pero no
   `InstanceRegistry.sitemap.exclude`: una instancia que excluye fichas o categorías (porque
