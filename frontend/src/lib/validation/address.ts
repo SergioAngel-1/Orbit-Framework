@@ -62,13 +62,25 @@ export function buildAddressSchema(pack: GeoPack) {
 
 export type AddressInput = z.infer<ReturnType<typeof buildAddressSchema>>;
 
+/** A qué dirección apunta una petición: `id` (estable) o `index` (forma anterior). */
+const addressTarget = {
+  id: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,64}$/)
+    .optional(),
+  index: z.number().int().min(0).optional(),
+};
+
+const hasTarget = (target: { id?: string; index?: number }) =>
+  target.id !== undefined || target.index !== undefined;
+const MISSING_TARGET = { message: "Falta la dirección (`id` o `index`).", path: ["id"] };
+
 export function buildAddressUpdateSchema(pack: GeoPack) {
-  return z.object({
-    index: z.number().int().min(0),
-    address: buildAddressSchema(pack),
-  });
+  return z
+    .object({ ...addressTarget, address: buildAddressSchema(pack) })
+    .refine(hasTarget, MISSING_TARGET);
 }
 
-export const addressDeleteSchema = z.object({
-  index: z.number().int().min(0),
-});
+export const addressDeleteSchema = z
+  .object(addressTarget)
+  .refine(hasTarget, MISSING_TARGET);

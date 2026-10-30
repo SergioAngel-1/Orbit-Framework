@@ -57,7 +57,8 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
   const t = useTranslations("addresses");
   const tForm = useTranslations("form");
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
-  const [editing, setEditing] = useState<number | "new" | null>(null);
+  // `id` de la dirección en edición, nunca su posición: la lista puede cambiar mientras tanto.
+  const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState<SavedAddress>(emptyAddress(defaultCountry));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -93,9 +94,9 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
     setMessage(null);
   }
 
-  function startEdit(index: number) {
-    setEditing(index);
-    setForm({ ...addresses[index] });
+  function startEdit(address: SavedAddress) {
+    setEditing(address.id ?? null);
+    setForm({ ...address });
     setError(null);
     setMessage(null);
   }
@@ -120,10 +121,10 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
         setMessage(t("saved"));
         await fetchAddresses();
         setEditing(null);
-      } else if (typeof editing === "number") {
+      } else if (editing !== null) {
         const res = await csrfFetch("/api/store/addresses", {
           method: "PUT",
-          body: { index: editing, address: form },
+          body: { id: editing, address: form },
         });
         if (!res.ok) throw new Error((await res.json()).error || t("saveError"));
         setMessage(t("saved"));
@@ -137,14 +138,16 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
     }
   }
 
-  async function remove(index: number) {
+  async function remove(id: string | undefined) {
     if (!confirm(t("deleteConfirm"))) return;
     try {
       const res = await csrfFetch("/api/store/addresses", {
         method: "DELETE",
-        body: { index },
+        body: { id },
       });
       if (!res.ok) throw new Error((await res.json()).error || t("deleteError"));
+      // La dirección borrada no se puede seguir editando; otra en edición sigue con su `id`.
+      if (editing === id) setEditing(null);
       await fetchAddresses();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("deleteError"));
@@ -176,9 +179,9 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
         <p className="text-sm text-gray-500">{t("empty")}</p>
       )}
 
-      {addresses.map((addr, i) => (
+      {addresses.map((addr) => (
         <div
-          key={i}
+          key={addr.id}
           className="rounded-xl border border-gray-200 p-4 dark:border-gray-700"
         >
           <div className="flex items-start justify-between">
@@ -210,13 +213,13 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => startEdit(i)}
+                onClick={() => startEdit(addr)}
                 className="text-sm text-brand dark:text-accent hover:underline"
               >
                 {t("edit")}
               </button>
               <button
-                onClick={() => remove(i)}
+                onClick={() => remove(addr.id)}
                 className="text-sm text-red-500 hover:underline"
               >
                 {t("delete")}

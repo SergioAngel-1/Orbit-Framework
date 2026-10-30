@@ -322,6 +322,11 @@ es el anterior.
 - **Ventana de la cookie de referido (`InstanceRegistry.referralCookieDays`).** Opcional: días que dura
   `hwe_ref`, entero de 1 a 365. Sin el campo, 30.
 
+- **Libreta de direcciones con `id`.** `GET /api/store/addresses` añade `id` a cada dirección y `PUT` y
+  `DELETE` aceptan `{ id }`. `{ index }` sigue funcionando; tu vista debería pasarse a `id`. **No hay
+  migración de datos:** las direcciones guardadas reciben un identificador derivado al leerlas, que se
+  graba en la siguiente escritura de la libreta. La API de lectura no cambia de forma.
+
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.4.0`; compárala si tu código depende de algo nuevo.
 
 ## 4. Reglas para el framework (para que esto siga funcionando)

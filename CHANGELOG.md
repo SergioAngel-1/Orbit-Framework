@@ -98,6 +98,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **La libreta de direcciones identifica por `id`, no por posición.** Con `index`, si la lista cambiaba
+  entre leer y guardar (otra pestaña, un borrado), la edición caía sobre otra dirección. `PUT` y `DELETE`
+  aceptan `{ id }` (404 si ya no existe) y `{ index }` sigue funcionando. Sin migración de datos: las
+  direcciones guardadas reciben un identificador derivado al leerlas y se graba en la siguiente
+  escritura. El starter (`AddressManager`) ya usa `id`.
 - **Pantallas de último recurso (`app/error.tsx`, `app/not-found.tsx`).** Se pintan cuando el layout de
   `[locale]` falló, sin `globals.css`: salían sin estilos, el error enseñaba `error.message` y el 404
   iba en inglés. Ahora llevan estilos en línea, texto en el idioma por defecto del sitio y, en el

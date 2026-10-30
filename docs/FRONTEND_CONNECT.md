@@ -108,7 +108,7 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
 | Grupo | Rutas | Qué hace |
 |---|---|---|
 | Auth | `POST /api/auth/{login,register,refresh,logout,logout-all}`, `GET /api/auth/me`, `POST /api/auth/{forgot-password,reset-password,verify-email,resend-verification,change-password}`, `POST /api/auth/2fa/{setup,activate,disable,status}`, `POST /api/auth/verify-2fa` | Sesión JWT en cookies httpOnly, 2FA TOTP opcional, verificación de email opcional no bloqueante. La cookie de sesión solo acepta el **access token**: un refresh token presentado en ella se rechaza (el refresh token solo se canjea en `refresh` y en el refresco transparente del proxy). `register`, `forgot-password` y `resend-verification` aceptan `locale` (uno de `routing.locales`): el correo y su enlace salen en ese idioma. `verify-email` no exige sesión (el token identifica al usuario). `change-password` cambia la contraseña con `POST hwe/v1/auth/change-password` (solo BFF y con sesión; WordPress verifica la actual y bloquea 15 min tras 5 fallos), cierra las demás sesiones y reemite la de este dispositivo. `reset-password` también cierra todas las sesiones anteriores del usuario (rota su secreto JWT y destruye las sesiones de WordPress): los refresh tokens emitidos antes del reset dejan de valer. Con `auth.phone_login_enabled`, `login` acepta el teléfono como usuario y `register` un `phone` E.164 opcional (409 si ya es de otra cuenta). |
-| Tienda | `GET/POST/DELETE /api/store/cart` (el `DELETE` vacía el carrito y devuelve el carrito vacío), `POST /api/store/cart/items`, `POST /api/store/checkout`, `GET/PUT /api/store/customer`, `GET/POST/DELETE /api/store/coupons`, `GET /api/store/orders/[id]`, `GET /api/store/products`, `GET/POST/DELETE /api/store/wishlist`, `GET/POST /api/store/reviews/[productId]`, `GET/PUT /api/store/addresses`, `GET /api/store/shipping` | Proxy autorizado a la Store API / WC REST v3 de WooCommerce. |
+| Tienda | `GET/POST/DELETE /api/store/cart` (el `DELETE` vacía el carrito y devuelve el carrito vacío), `POST /api/store/cart/items`, `POST /api/store/checkout`, `GET/PUT /api/store/customer`, `GET/POST/DELETE /api/store/coupons`, `GET /api/store/orders/[id]`, `GET /api/store/products`, `GET/POST/DELETE /api/store/wishlist`, `GET/POST /api/store/reviews/[productId]`, `GET/POST/PUT/DELETE /api/store/addresses`, `GET /api/store/shipping` | Proxy autorizado a la Store API / WC REST v3 de WooCommerce. |
 | Fidelización | `GET /api/loyalty/{summary,transactions,referrals,referral-link,validate-code}`, `POST /api/loyalty/transfer`, `POST/DELETE /api/store/cart/points` | Módulo `loyalty`: monedero y referidos. Ver «Fidelización» más abajo. |
 | Pagos | `POST /api/payments/create`, `POST /api/payments/webhook/[provider]`, `GET /api/payments/return` | Capa agnóstica de pasarela (`lib/payments/`). **La prueba de pago es el webhook verificado, nunca el `return`.** El `returnUrl` opcional de `create` debe ser del propio sitio (origen = `ALLOWED_ORIGIN`; si no, 422). |
 | Webhooks de Woo | `POST /api/webhooks/woocommerce/{order-created,order-updated}` | Firma HMAC verificada, dispara efectos (`lib/woocommerce/order-events.ts`). |
@@ -1071,6 +1071,15 @@ cliente no consigue. Hasta 100 ids; lo que no sea un id se descarta. No es una b
 resta de lo que ya es público, y esos productos siguen disponibles por su URL. Va bajo el mismo
 presupuesto por IP que el resto del GET y no aplica a `?include=`. En el servidor,
 `getProducts({ exclude })`.
+
+### Libreta de direcciones: identificador estable (`/api/store/addresses`)
+
+Cada dirección lleva un `id`. `PUT` y `DELETE` apuntan a una dirección con `{ id }`; si ya no existe,
+responden 404 en vez de caer sobre otra. `{ index }` sigue aceptándose para no romper clientes
+anteriores, pero puede acabar en otra dirección si la libreta cambió desde que se leyó (otra pestaña,
+un borrado): úsalo solo mientras migras. El `id` lo asigna el BFF y lo que mande el cliente se ignora.
+Las libretas anteriores no se migran: el identificador se deriva del contenido al leer y queda grabado
+en la siguiente escritura.
 
 ### Ventana de la cookie de referido (`InstanceRegistry.referralCookieDays`)
 

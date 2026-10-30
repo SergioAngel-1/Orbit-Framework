@@ -4,7 +4,7 @@ import { getGeoPack } from "@/lib/geo";
 import { pushCartDestination } from "@/lib/woocommerce/cart-destination";
 import { CO_PACK } from "../../../../../tests/helpers/geo-pack";
 import type { SavedAddress } from "@/types/address";
-import { PUT } from "./route";
+import { DELETE, GET, POST, PUT } from "./route";
 
 // PUT /api/store/addresses: el pin del cliente (`location`) viaja con su dirección. Se conserva
 // mientras no cambien la calle ni la ciudad; si cambian, se borra y hay que volver a marcarlo.
@@ -150,5 +150,98 @@ describe("PUT /api/store/addresses — ubicación (pin) de la dirección", () =>
     expect(pushCartDestination).toHaveBeenCalledTimes(1);
     const [, addresses] = vi.mocked(pushCartDestination).mock.calls[0];
     expect(addresses[0].location).toEqual(PIN);
+  });
+});
+
+describe("identificador estable de la libreta", () => {
+  const body = (over: Record<string, unknown>) => ({
+    address: editBody({}).address,
+    ...over,
+  });
+
+  function send(method: "POST" | "DELETE", payload: unknown) {
+    const handler = method === "POST" ? POST : DELETE;
+    return handler(
+      new Request("https://tienda.example/api/store/addresses", {
+        method,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    );
+  }
+
+  it("una libreta anterior sale con ids y la primera escritura los graba", async () => {
+    book = [saved({ address_1: "Calle 1" }), saved({ address_1: "Calle 2", is_default: false })];
+
+    const listed = (await (await GET()).json()) as SavedAddress[];
+    expect(listed.every((a) => typeof a.id === "string" && a.id.length > 0)).toBe(true);
+
+    await edit(body({ id: listed[1]!.id, address: editBody({ address_1: "Calle 2B" }).address }));
+
+    const written = storedBook();
+    expect(written.map((a) => a.id)).toEqual(listed.map((a) => a.id));
+    expect(written[1]!.address_1).toBe("Calle 2B");
+  });
+
+  // La carrera real: otra pestaña borra una dirección mientras esta edita. Con `index`,
+  // el guardado caía sobre la dirección equivocada.
+  it("editar por id no pisa otra dirección si la libreta cambió", async () => {
+    book = [saved({ id: "b", address_1: "Calle B" })];
+
+    const res = await edit(body({ id: "a" }));
+
+    expect(res.status).toBe(404);
+    expect(wcFetch).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ method: "PUT" }),
+    );
+  });
+
+  it("borrar por id quita esa dirección, esté donde esté", async () => {
+    book = [
+      saved({ id: "a", address_1: "Calle A" }),
+      saved({ id: "b", address_1: "Calle B", is_default: false }),
+    ];
+
+    const res = await send("DELETE", { id: "b" });
+
+    expect(res.status).toBe(200);
+    expect(storedBook().map((a) => a.id)).toEqual(["a"]);
+  });
+
+  it("el cliente no puede fijar el id de una edición", async () => {
+    book = [saved({ id: "a" })];
+
+    await edit(
+      body({ id: "a", address: { ...editBody({}).address, id: "elegido-por-el-cliente" } }),
+    );
+
+    expect(storedBook()[0]!.id).toBe("a");
+  });
+
+  it("una dirección nueva recibe id propio, aunque el cliente mande otro", async () => {
+    book = [];
+
+    const res = await send("POST", { ...editBody({}).address, id: "elegido-por-el-cliente" });
+
+    const created = (await res.json()) as SavedAddress;
+    expect(res.status).toBe(201);
+    expect(created.id).toMatch(/^addr_/);
+    expect(storedBook()[0]!.id).toBe(created.id);
+  });
+
+  it("`index` sigue funcionando para los clientes anteriores", async () => {
+    book = [saved({ id: "a", address_1: "Calle A" })];
+
+    const res = await edit(editBody({ address_1: "Calle A2" }));
+
+    expect(res.status).toBe(200);
+    expect(storedBook()[0]).toMatchObject({ id: "a", address_1: "Calle A2" });
+  });
+
+  it("sin `id` ni `index` es un 422", async () => {
+    const res = await edit(body({}));
+
+    expect(res.status).toBe(422);
   });
 });
