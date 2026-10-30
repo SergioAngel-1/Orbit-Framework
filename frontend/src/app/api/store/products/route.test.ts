@@ -175,6 +175,13 @@ describe("exclude", () => {
     expect(lastFilters().exclude).toHaveLength(100);
   });
 
+  // La variable de GraphQL es `[Int]`, de 32 bits: un id mayor hacía fallar la consulta entera (502).
+  it("descarta los ids que no caben en un entero de 32 bits", async () => {
+    await GET(request("?exclude=2147483647,2147483648,99999999999"));
+
+    expect(lastFilters().exclude).toEqual([2147483647]);
+  });
+
   it("gasta el presupuesto común por IP, antes de consultar nada", async () => {
     vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 9 } as never);
     const callsBefore = vi.mocked(getProducts).mock.calls.length;
