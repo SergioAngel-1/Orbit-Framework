@@ -7,6 +7,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **Guía para repartir los mensajes de cliente por tramo de ruta** (`docs/FRONTEND_BUILD.md`). Con el
+  catálogo del starter (unos 17 KB) no compensa repartirlos; una instancia con un catálogo mayor tiene
+  el procedimiento y la prueba que evita las claves crudas.
 - **Esquema de color configurable (`design.color_scheme`: `system`, `light`, `dark`).** No todos los sitios
   tienen tema oscuro. Con un esquema fijo el servidor pinta clase, `color-scheme` y `<meta>`: sin parpadeo
   ni diferencias al hidratar, sin leer `localStorage` ni `prefers-color-scheme`, y sin selector de tema.
