@@ -108,7 +108,7 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
 | Grupo | Rutas | Qué hace |
 |---|---|---|
 | Auth | `POST /api/auth/{login,register,refresh,logout,logout-all}`, `GET /api/auth/me`, `POST /api/auth/{forgot-password,reset-password,verify-email,resend-verification,change-password}`, `POST /api/auth/2fa/{setup,activate,disable,status}`, `POST /api/auth/verify-2fa` | Sesión JWT en cookies httpOnly, 2FA TOTP opcional, verificación de email opcional no bloqueante. La cookie de sesión solo acepta el **access token**: un refresh token presentado en ella se rechaza (el refresh token solo se canjea en `refresh` y en el refresco transparente del proxy). `register`, `forgot-password` y `resend-verification` aceptan `locale` (uno de `routing.locales`): el correo y su enlace salen en ese idioma. `verify-email` no exige sesión (el token identifica al usuario). `change-password` cambia la contraseña con `POST hwe/v1/auth/change-password` (solo BFF y con sesión; WordPress verifica la actual y bloquea 15 min tras 5 fallos), cierra las demás sesiones y reemite la de este dispositivo. `reset-password` también cierra todas las sesiones anteriores del usuario (rota su secreto JWT y destruye las sesiones de WordPress): los refresh tokens emitidos antes del reset dejan de valer. Con `auth.phone_login_enabled`, `login` acepta el teléfono como usuario y `register` un `phone` E.164 opcional (409 si ya es de otra cuenta). |
-| Tienda | `GET/POST/DELETE /api/store/cart` (el `DELETE` vacía el carrito y devuelve el carrito vacío), `POST /api/store/cart/items`, `POST /api/store/checkout`, `GET/PUT /api/store/customer`, `GET/POST/DELETE /api/store/coupons`, `GET /api/store/orders/[id]`, `GET /api/store/products`, `GET/POST/DELETE /api/store/wishlist`, `GET/POST /api/store/reviews/[productId]`, `GET/PUT /api/store/addresses`, `GET /api/store/shipping` | Proxy autorizado a la Store API / WC REST v3 de WooCommerce. |
+| Tienda | `GET/POST/DELETE /api/store/cart` (el `DELETE` vacía el carrito y devuelve el carrito vacío), `POST /api/store/cart/items`, `POST /api/store/checkout`, `GET/PUT /api/store/customer`, `GET/POST/DELETE /api/store/coupons`, `GET /api/store/orders/[id]`, `GET /api/store/products`, `GET/POST/DELETE /api/store/wishlist`, `GET/POST /api/store/reviews/[productId]`, `GET/POST/PUT/DELETE /api/store/addresses`, `GET /api/store/shipping` | Proxy autorizado a la Store API / WC REST v3 de WooCommerce. |
 | Fidelización | `GET /api/loyalty/{summary,transactions,referrals,referral-link,validate-code}`, `POST /api/loyalty/transfer`, `POST/DELETE /api/store/cart/points` | Módulo `loyalty`: monedero y referidos. Ver «Fidelización» más abajo. |
 | Pagos | `POST /api/payments/create`, `POST /api/payments/webhook/[provider]`, `GET /api/payments/return` | Capa agnóstica de pasarela (`lib/payments/`). **La prueba de pago es el webhook verificado, nunca el `return`.** El `returnUrl` opcional de `create` debe ser del propio sitio (origen = `ALLOWED_ORIGIN`; si no, 422). |
 | Webhooks de Woo | `POST /api/webhooks/woocommerce/{order-created,order-updated}` | Firma HMAC verificada, dispara efectos (`lib/woocommerce/order-events.ts`). |
@@ -575,7 +575,7 @@ responde **404** como si la ruta no existiera:
 |---|---|---|
 | `GET /api/loyalty/summary` | Puntos | `{ participant, balance, earned, used, expiring: { points, date }, balance_value }`. `balance_value` es la conversión de presentación (unidades mayores); el descuento real lo calcula WordPress. |
 | `GET /api/loyalty/transactions?page&per_page` | Puntos | `{ items, total, pages }`; cada movimiento lleva `id`, `type`, `points` (con signo), `data`, fechas y `description` ya compuesta en el idioma de la petición. `per_page` se recorta a 1..100. |
-| `GET /api/loyalty/referrals?level=1\|2&page&per_page` | Referidos | `{ items: [{ name, date, status, points_generated }], total, pages, totals: { level1, level2, pending, earned } }`. Solo el nombre visible, nunca ids, email ni login. `level` fuera de `1\|2` es 400. |
+| `GET /api/loyalty/referrals?level=1\|2&page&per_page` | Referidos | `{ items: [{ id, name, date, status, points_generated }], total, pages, totals: { level1, level2, pending, earned } }`. `id` es una huella opaca y estable, solo para usarla de clave de lista o para no repetir filas al paginar. Solo el nombre visible, nunca ids de usuario, email ni login. `level` fuera de `1\|2` es 400. |
 | `GET /api/loyalty/referral-link` | Referidos | `{ code, url }`; `url = <config.brand.url>/?ref=<code>`. Si `brand.url` está vacío, la URL es relativa (`/?ref=…`), como el resto de URLs absolutas del núcleo. |
 | `GET /api/loyalty/validate-code?code=` | Referidos, **pública** | `{ valid }` y nada más; rate-limit por IP. |
 | `POST /api/loyalty/transfer` | Transferencias | `guardMutation` estricto + `Idempotency-Key` obligatoria. Devuelve `{ ok: true, sent, received, fee, recipient_name }` o `{ ok: false, error }`; los motivos de negocio son 422, `conflict` 409, `disabled` 404 y `failed` 502. |
@@ -868,6 +868,7 @@ legal:  { company, nif, email, phone, mobile, address, city, region, postal_code
           locations: { location_1…location_5: { label, address, city, region, postal_code,
                        maps, phone, hours, latitude, longitude } } }   // hasta 5 sedes, todas opcionales
 design: {
+  color_scheme: "system" | "light" | "dark"
   colors:     { brand, brand_dark, brand_light, secondary, secondary_dark, accent, surface, background, foreground }
   typography: { font_sans, font_url, font_heading, font_heading_url }
 }
@@ -1064,6 +1065,31 @@ Reglas:
   `instance.sitemap.invalid_entry`; el sitemap sigue generándose. Sin el campo, todo es idéntico
   al comportamiento anterior.
 
+### Excluir productos de un listado (`GET /api/store/products?exclude=1,2,3`)
+
+Quita esos ids del listado en la consulta: las páginas salen completas, cosa que un filtro en el
+cliente no consigue. Hasta 100 ids; lo que no sea un id se descarta. No es una barrera de acceso: solo
+resta de lo que ya es público, y esos productos siguen disponibles por su URL. Va bajo el mismo
+presupuesto por IP que el resto del GET y no aplica a `?include=`. En el servidor,
+`getProducts({ exclude })`.
+
+### Libreta de direcciones: identificador estable (`/api/store/addresses`)
+
+Cada dirección lleva un `id`. `PUT` y `DELETE` apuntan a una dirección con `{ id }`; si ya no existe,
+responden 404 en vez de caer sobre otra. `{ index }` sigue aceptándose para no romper clientes
+anteriores, pero puede acabar en otra dirección si la libreta cambió desde que se leyó (otra pestaña,
+un borrado): úsalo solo mientras migras. El `id` lo asigna el BFF y lo que mande el cliente se ignora.
+Las libretas anteriores no se migran: el identificador se deriva del contenido al leer y queda grabado
+en la siguiente escritura.
+
+### Ventana de la cookie de referido (`InstanceRegistry.referralCookieDays`)
+
+El proxy guarda `?ref=<código>` en la cookie `hwe_ref` durante 30 días. Una instancia con otra
+ventana de atribución declara `referralCookieDays` (entero de 1 a 365) en
+`frontend/src/instance/registry.ts`. Un valor inválido cae a 30 días con el evento
+`instance.referral_cookie_invalid`. Va en el registro y no en el Control Center porque la escribe el
+proxy, que corre en edge y no consulta WordPress.
+
 ### Redirecciones de migración (`InstanceRegistry.redirects`)
 
 Lista de `{ from, to, permanent? }` que el **proxy** aplica antes de next-intl
@@ -1084,6 +1110,24 @@ CSS (`--color-brand`, `--color-brand-dark`, `--color-brand-light`, `--color-seco
 código. El mapeo campo → variable vive en `frontend/src/lib/config/tokens.ts`; el mecanismo de
 inyección en runtime (`components/ui/theme-tokens.tsx`) es parte de la UI heredada (Parte B),
 pero el **contrato de qué 9 colores + 2 tipografías existen** es estable.
+
+### Esquema de color (`design.color_scheme`)
+
+`system` (por defecto) sigue al dispositivo, como siempre. `light` y `dark` lo fijan: el servidor pinta
+`<html class="light" style="color-scheme:light" data-color-scheme="light">` y
+`<meta name="color-scheme">`, sin script, así que no hay parpadeo ni diferencias al hidratar y nadie lee
+`localStorage` ni `prefers-color-scheme`. Elige `light` si el diseño no tiene tema oscuro.
+
+En un layout propio: `resolveColorScheme(config)` (`lib/config/color-scheme.ts`),
+`colorSchemeHtmlProps(scheme)` en `<html>` y `<ColorSchemeHead scheme={scheme} />` en `<head>`
+(`components/ui/color-scheme.tsx`). Si tu cabecera monta `DarkModeToggle`, no la montes con un esquema
+fijo: se retira sola al hidratar, pero llega en el HTML. Si WordPress no responde se usa
+`InstanceRegistry.colorSchemeFallback` (por defecto `system`): una instancia sin tema oscuro declara
+`light`, para que un fallo de la API no cambie su aspecto.
+
+Con `dark`, el fondo y el texto que sigan en el valor por defecto (claros) no se publican, para que
+`.dark` de `globals.css` se aplique; un fondo o un texto elegidos en el panel se respetan. Con `system`
+y el dispositivo en oscuro, el fondo y el texto del panel siguen ganando a `.dark`, como hasta ahora.
 
 ## A.6 Webhooks salientes (WordPress/WooCommerce → tu frontend)
 

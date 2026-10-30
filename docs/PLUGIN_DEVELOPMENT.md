@@ -12,7 +12,7 @@
 El framework es **backend + arquitectura**; la UI y el dominio de cada tienda son de la
 instancia (`AGENTS.md §1.1`). El código de una instancia vive en rutas RESERVADAS que el
 framework nunca toca, y se engancha al núcleo por hooks estables, versionados por
-`HWE_CORE_CONTRACT_VERSION` (hoy `2.3.0`):
+`HWE_CORE_CONTRACT_VERSION` (hoy `2.4.0`):
 
 | Lado | Ruta de instancia | Qué va ahí |
 |---|---|---|
@@ -85,6 +85,19 @@ quitar); una entrada mal formada se descarta y queda en el log. **Si el JSON tra
 del framework que no repitas: enumera siempre los que quieras conservar. Un id desconocido se
 ignora con su evento. El plugin tiene que estar instalado y visible para WordPress antes de
 ejecutar el setup (en desarrollo, el override del compose: `docs/CREATE_INSTANCE.md` §7).
+
+### Correos: reserva de la fuente de titulares
+
+`hwe_email_heading_font_fallback` (filtro, recibe y devuelve una cadena) elige la reserva de una fuente
+de titulares con nombre. Por defecto es serif (`Georgia, 'Times New Roman', serif`). Casi ningún cliente
+de correo carga la fuente de la marca, así que una marca con titulares sans-serif debería cambiarla:
+
+```php
+add_filter('hwe_email_heading_font_fallback', static fn () => "'Segoe UI', 'Helvetica Neue', Arial, sans-serif");
+```
+
+Solo se aceptan letras, cifras, espacios, guiones, comas y comillas simples, porque el valor va dentro de
+un `style`. Con `font_heading` vacío no aplica: los titulares usan la pila del cuerpo.
 
 ### Hooks estables de los módulos
 

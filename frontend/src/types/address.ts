@@ -1,4 +1,9 @@
 export interface SavedAddress {
+  /**
+   * Identificador estable dentro de la libreta. Lo asigna el BFF: al crear una dirección o, en las
+   * guardadas antes de existir este campo, al leerla (`parseSavedAddresses`).
+   */
+  id?: string;
   first_name: string;
   last_name: string;
   company: string;

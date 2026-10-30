@@ -7,6 +7,33 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **Guía para repartir los mensajes de cliente por tramo de ruta** (`docs/FRONTEND_BUILD.md`). Con el
+  catálogo del starter (unos 17 KB) no compensa repartirlos; una instancia con un catálogo mayor tiene
+  el procedimiento y la prueba que evita las claves crudas.
+- **Esquema de color configurable (`design.color_scheme`: `system`, `light`, `dark`).** No todos los sitios
+  tienen tema oscuro. Con un esquema fijo el servidor pinta clase, `color-scheme` y `<meta>`: sin parpadeo
+  ni diferencias al hidratar, sin leer `localStorage` ni `prefers-color-scheme`, y sin selector de tema.
+  Publicado en `/config`; por defecto `system`, sin cambios en el HTML. `lib/config/color-scheme.ts`,
+  `components/ui/color-scheme.tsx` e `InstanceRegistry.colorSchemeFallback` para cuando WordPress no responde.
+- **`GET /api/store/products?exclude=1,2,3` y `getProducts({ exclude })`.** Excluye ids del listado en la
+  consulta, de modo que las páginas salen completas. Es una ruta pública: acepta hasta 100 ids, los
+  normaliza para no multiplicar entradas de caché, solo resta de lo ya público y gasta el presupuesto
+  común por IP. Sin el parámetro, la consulta no cambia.
+- **Ventana de la cookie de referido configurable (`InstanceRegistry.referralCookieDays`).** Entero de 1
+  a 365; sin el campo, los 30 días de siempre. Va en el registro y no en el Control Center porque la
+  escribe el proxy, que corre en edge y no consulta la config. Un valor inválido cae a 30 días con el
+  evento `instance.referral_cookie_invalid`. `HWE_CORE_CONTRACT_VERSION` pasa a `2.4.0`.
+- **Pedidos del cliente paginados con totales y filtros.** `getCustomerOrdersPage` (`lib/account/data.ts`)
+  devuelve `{ orders, total, totalPages }` con filtros `status`, `after`, `before` y `_fields`, sobre un
+  nuevo `wcFetchPage` que conserva `X-WP-Total` y `X-WP-TotalPages`. Ya no hace falta leer el historial
+  entero para paginar o filtrar la lista de la cuenta. `getCustomerOrders` y `wcFetch` no cambian.
+- **Identificador estable en los referidos de la API.** `GET /api/loyalty/referrals` publica en cada
+  fila un `id` opaco (huella con la sal del sitio y ligada a quien consulta, nunca el id de usuario):
+  sirve de clave de lista y para no repetir filas al paginar. Campo nuevo, sin cambios incompatibles.
+- **El campo `richtext` admite tablas.** `RichTextType` guarda `table`, `caption`, `thead`, `tbody`,
+  `tfoot`, `tr`, `th` y `td`, con solo `scope`, `colspan` y `rowspan`; `sanitizeHtml` conserva
+  `caption`, `tfoot` y esos atributos. Antes un `<table>` escrito en el panel se guardaba como texto
+  corrido y se perdía sin aviso. Sin estilos ni manejadores: ambas capas siguen con lista blanca.
 - **SEO listo para lanzar: controles por contenido, migración, staging e IndexNow.**
   - Caja SEO del editor (entradas, páginas, productos, categorías): «Ocultar de buscadores»
     (`seoNoindex`: `noindex, follow`, fuera del sitemap, `llms.txt` y del índice) y «URL
@@ -38,6 +65,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `HWE_CORE_CONTRACT_VERSION` pasa a `2.3.0`.
 
 ### Changed
+- **Fuente de los titulares de correo.** Con `design.typography.font_heading` vacío (el valor por
+  defecto), los titulares usan la pila del cuerpo, como dice el panel, en lugar de Georgia. Con una fuente
+  con nombre, la reserva sigue siendo serif, y el filtro nuevo `hwe_email_heading_font_fallback` permite
+  elegir otra: una marca con titulares sans-serif evita que salgan en serif en casi todos los clientes.
 - **El país base de WooCommerce sigue a `ecommerce.country` al guardar.** Una tienda de otro país
   se quedaba con `ES` en WooCommerce → Ajustes → General y calculaba impuestos y tarifas de envío
   contra el país equivocado. Ahora, al guardar la config (también desde `wp hwe setup`), si el
@@ -75,6 +106,23 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **La libreta de direcciones identifica por `id`, no por posición.** Con `index`, si la lista cambiaba
+  entre leer y guardar (otra pestaña, un borrado), la edición caía sobre otra dirección. `PUT` y `DELETE`
+  aceptan `{ id }` (404 si ya no existe) y `{ index }` sigue funcionando. Sin migración de datos: las
+  direcciones guardadas reciben un identificador derivado al leerlas y se graba en la siguiente
+  escritura. El starter (`AddressManager`) ya usa `id`.
+- **Pantallas de último recurso (`app/error.tsx`, `app/not-found.tsx`).** Se pintan cuando el layout de
+  `[locale]` falló, sin `globals.css`: salían sin estilos, el error enseñaba `error.message` y el 404
+  iba en inglés. Ahora llevan estilos en línea, texto en el idioma por defecto del sitio y, en el
+  error, solo la referencia (`digest`) para cruzar con el log.
+- **Una fuente del panel que nadie registra ya no tira la fuente cargada.** `ThemeTokens` publicaba
+  `--font-sans: "<nombre>", system-ui, sans-serif`: con un nombre sin `@font-face` (la web no importa
+  `font_url`, que solo usan los correos) el sitio caía a la fuente del sistema aunque el layout hubiera
+  cargado otra con `next/font`. Ahora la reserva es `var(--font-inter, system-ui)`. Con el nombre por
+  defecto («Inter») el resultado no cambia. El panel ya explica para qué sirve `font_url`.
+- **`getMenu` ya no traga los fallos de WordPress:** deja el evento
+  `navigation.menu_read_failed` (`warn`) y sigue devolviendo `null`. Un menú sin asignar o una
+  location que el tema no registra no son fallos y no se registran.
 - **La landing de producto (`/products/<slug>/learn`) no heredaba la caja SEO de su ficha.** El
   sitemap ya la omitía con la ficha en `noindex` o con canónica ajena, pero la página seguía
   declarando sus `alternates` y siendo indexable. Ahora hereda: ficha `noindex` → landing

@@ -94,8 +94,10 @@ export interface LoyaltyTransactionPage {
 
 export type LoyaltyReferralStatus = "pending" | "confirmed";
 
-/** Un referido de la red, sin ids ni datos de contacto. */
+/** Un referido de la red, sin ids de usuario ni datos de contacto. */
 export interface LoyaltyReferral {
+  /** Huella opaca y estable: clave de lista, o no repetir filas al paginar. */
+  id: string;
   /** Nombre visible; vacío si la cuenta se eliminó. */
   name: string;
   /** ISO 8601 UTC de la atribución. */

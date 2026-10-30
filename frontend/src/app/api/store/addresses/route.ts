@@ -16,7 +16,9 @@ import { writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { withLock } from "@/lib/security/lock";
 import {
   ADDRESSES_META_KEY,
+  findAddressIndex,
   mergeAddressLocation,
+  newAddressId,
   parseSavedAddresses,
 } from "@/lib/customer/addresses";
 import { logger } from "@/lib/observability/logger";
@@ -84,7 +86,7 @@ export async function POST(request: Request) {
         `/customers/${Number(session.userId)}`,
       );
       const addresses = parseAddresses(customer);
-      const addr = { ...parsed.data };
+      const addr: SavedAddress = { ...parsed.data, id: newAddressId() };
 
       // If marked as default, unmark others
       if (addr.is_default) {
@@ -147,22 +149,22 @@ export async function PUT(request: Request) {
         `/customers/${Number(session.userId)}`,
       );
       const addresses = parseAddresses(customer);
-
-      if (parsed.data.index >= addresses.length || parsed.data.index < 0) {
-        return { notFound: true as const };
-      }
+      const index = findAddressIndex(addresses, parsed.data);
+      if (index < 0) return { notFound: true as const };
 
       // El pin de la dirección anterior se conserva solo si no cambian calle ni ciudad
-      // (`mergeAddressLocation`); si la edición trae uno nuevo, ese vale.
-      const updated = mergeAddressLocation(addresses[parsed.data.index], {
-        ...parsed.data.address,
-      });
+      // (`mergeAddressLocation`); si la edición trae uno nuevo, ese vale. El identificador no
+      // lo decide el cliente: es el de la dirección que se edita.
+      const updated: SavedAddress = {
+        ...mergeAddressLocation(addresses[index], { ...parsed.data.address }),
+        id: addresses[index].id,
+      };
       if (updated.is_default) {
         addresses.forEach((a) => {
           a.is_default = false;
         });
       }
-      addresses[parsed.data.index] = updated;
+      addresses[index] = updated;
 
       await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {
         method: "PUT",
@@ -170,7 +172,7 @@ export async function PUT(request: Request) {
           meta_data: [{ key: ADDRESSES_META_KEY, value: JSON.stringify(addresses) }],
         },
       });
-      return { notFound: false as const, updated, addresses };
+      return { notFound: false as const, updated, addresses, index };
     });
 
     if (result.notFound) {
@@ -181,7 +183,7 @@ export async function PUT(request: Request) {
     logger.info({
       event: "addresses.update",
       userId: session.userId,
-      index: parsed.data.index,
+      index: result.index,
     });
     return NextResponse.json(result.updated, { status: 200 });
   } catch (error) {
@@ -222,12 +224,10 @@ export async function DELETE(request: Request) {
         `/customers/${Number(session.userId)}`,
       );
       const addresses = parseAddresses(customer);
+      const index = findAddressIndex(addresses, parsed.data);
+      if (index < 0) return { notFound: true as const };
 
-      if (parsed.data.index >= addresses.length || parsed.data.index < 0) {
-        return { notFound: true as const };
-      }
-
-      addresses.splice(parsed.data.index, 1);
+      addresses.splice(index, 1);
 
       // If default was removed, set first as default
       if (addresses.length > 0 && !addresses.some((a) => a.is_default)) {
@@ -240,7 +240,7 @@ export async function DELETE(request: Request) {
           meta_data: [{ key: ADDRESSES_META_KEY, value: JSON.stringify(addresses) }],
         },
       });
-      return { notFound: false as const, addresses };
+      return { notFound: false as const, addresses, index };
     });
 
     if (result.notFound) {
@@ -251,7 +251,7 @@ export async function DELETE(request: Request) {
     logger.info({
       event: "addresses.delete",
       userId: session.userId,
-      index: parsed.data.index,
+      index: result.index,
     });
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {

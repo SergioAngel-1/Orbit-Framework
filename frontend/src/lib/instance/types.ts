@@ -13,6 +13,8 @@
  * - `productFields` (mu-plugin `hwe-product-fields`): declaración de los campos de producto.
  */
 
+import type { ColorScheme } from "@/lib/config/types";
+
 /** Política de inversión de un visual decorativo en tema oscuro (ver `lib/banners/decor-presets`). */
 export type DecorInvert = "theme" | "light" | "never";
 
@@ -187,6 +189,17 @@ export interface InstanceRegistry {
    * proxy antes que el idioma; ver `lib/instance/redirects.ts`. Sin el campo, ninguna.
    */
   redirects?: readonly InstanceRedirect[];
+  /**
+   * Días que dura la cookie de referido `hwe_ref`, entero de 1 a 365. Sin el campo, 30. Va aquí y
+   * no en el Control Center porque la escribe el proxy, que no consulta la config.
+   */
+  referralCookieDays?: number;
+  /**
+   * Esquema de color cuando WordPress no responde y no se puede leer `design.color_scheme`. Sin el
+   * campo, `system`. Una instancia sin tema oscuro declara `light`: un fallo de la API no debe
+   * cambiar el aspecto de la tienda.
+   */
+  colorSchemeFallback?: ColorScheme;
   /**
    * Zona horaria de la tienda (IANA, p. ej. `"America/Bogota"`), igual para todos los idiomas
    * o por idioma (`{ es: "America/Bogota", en: "America/New_York" }`). La usa

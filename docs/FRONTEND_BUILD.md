@@ -248,7 +248,7 @@ oscuro.
 | `Spinner` | Carga inline en botones/acciones |
 | `Paginator` | Paginación clásica (alternativa a scroll infinito) |
 | `QuantityCounter` | Selector de cantidad (carrito, ficha de producto) |
-| `DarkModeToggle` | Ya integrado en `SiteHeader`; solo lo tocas si rediseñas el header |
+| `DarkModeToggle` | Ya integrado en `SiteHeader`, que lo omite con un `design.color_scheme` fijo; solo lo tocas si rediseñas el header |
 
 Junto con estos componentes, son igual de obligatorios los **patrones** de
 `docs/FRONTEND_CONNECT.md` Parte A: `getSiteConfig()` como única fuente de marca, el gating por
@@ -324,3 +324,19 @@ concreto página por página. Plantilla de razonamiento:
       `instance.config.json`, de props, o está aislado en su propia carpeta si es código.
 - [ ] `npm run lint`, `npm run type-check`, `npm run test`, `npm run i18n:check` y `npx next build`
       en verde (y `composer test` desde `backend/` si añadiste PHP).
+
+## Mensajes de cliente por tramo de ruta
+
+`NextIntlClientProvider` serializa en el HTML de cada página lo que recibe. El layout heredado pasa
+`pickClientMessages(messages)`: los namespaces de `CLIENT_NAMESPACES`, unos 17 KB con el catálogo del
+starter. Es poco, y por eso el starter no lo reparte. Si tu catálogo crece (decenas de KB en cada
+página, incluidas las landings que no los usan), reparte por tramo:
+
+1. En la raíz deja solo lo que usa el armazón (cabecera, pie, carrito).
+2. En el `layout.tsx` de cada tramo con más Client Components (cuenta, caja, autenticación, ficha) monta
+   otro `NextIntlClientProvider` con lo suyo. **Un proveedor anidado reemplaza al de arriba, no se suma:**
+   cada tramo incluye también los mensajes del armazón.
+3. Declara el reparto como datos en `src/instance/` y añade allí un test que recorra el grafo de imports
+   desde cada archivo de ruta y compruebe que todo Client Component alcanzable encuentra sus namespaces.
+   Sin esa prueba, un olvido solo se ve como una clave cruda en el navegador. Parte de
+   `lib/i18n/client-messages.test.ts`, que hace ese recorrido para la lista global.

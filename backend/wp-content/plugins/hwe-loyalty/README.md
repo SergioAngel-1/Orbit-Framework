@@ -100,7 +100,7 @@ cuerpo, y WordPress se llama por las rutas internas con el secreto del BFF.
 |---|---|---|
 | `GET /api/loyalty/summary` | Puntos | Saldo, total ganado/usado, valor del saldo en dinero, próximo a caducar y `participant`. |
 | `GET /api/loyalty/transactions?page&per_page` | Puntos | Movimientos paginados (tope 100) con su texto ya compuesto en el idioma de la petición. |
-| `GET /api/loyalty/referrals?level=1\|2&page&per_page` | Referidos | Red paginada sin ids ni contacto (nombre visible, fecha, estado y unidades generadas) y totales. |
+| `GET /api/loyalty/referrals?level=1\|2&page&per_page` | Referidos | Red paginada sin ids de usuario ni contacto (`id` opaco y estable, nombre visible, fecha, estado y unidades generadas) y totales. |
 | `GET /api/loyalty/referral-link` | Referidos | `{ code, url }`; la URL se compone con `config.brand.url`. |
 | `GET /api/loyalty/validate-code?code=` | Referidos, **pública** | `{ valid }` y nada más; rate-limit por IP. |
 | `POST /api/loyalty/transfer` | Transferencias | `guardMutation` estricto, `Idempotency-Key` obligatoria y respuesta discriminada (`ok` o `error` estable). |
@@ -279,7 +279,7 @@ apagados responden `404 rest_no_route`.
 |---|---|---|
 | `GET loyalty/summary?user_id` | Puntos | `{ participant, balance, earned, used, expiring: { points, date } }`. El aviso de caducidad mira 30 días (spec §5.3). |
 | `GET loyalty/transactions?user_id&page&per_page` | Puntos | `{ items: [{ id, type, points, data, created_at, expires_at }], total, pages }`, del más nuevo al más antiguo. `per_page` por defecto 20, mínimo 1 y tope 100; `pages = ceil(total / per_page)`. |
-| `GET loyalty/referrals?user_id&level=1\|2&page&per_page` | Referidos | `{ items: [{ name, date, status, points_generated }], total, pages, totals: { level1, level2, pending, earned } }`. `level` por defecto 1; fuera de `1\|2`, 400. |
+| `GET loyalty/referrals?user_id&level=1\|2&page&per_page` | Referidos | `{ items: [{ id, name, date, status, points_generated }], total, pages, totals: { level1, level2, pending, earned } }`. `id` es una huella opaca, estable y propia de cada red. `level` por defecto 1; fuera de `1\|2`, 400. |
 | `GET loyalty/referral-code?user_id` | Referidos | `{ code }` (lo crea si falta). Sin `user_id` válido, 400. |
 | `GET loyalty/validate-code?code` | Referidos | `{ valid }` y nada más: no revela el dueño ni sus datos. |
 | `POST loyalty/attribute` | Referidos | `{ result: "attributed" \| "ignored:<motivo>" }` para una cuenta recién creada. |

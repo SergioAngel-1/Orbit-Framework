@@ -14,6 +14,9 @@ export const dynamic = "force-dynamic";
 /** Tope de ids por petición: el `per_page` máximo de WooCommerce. */
 const MAX_INCLUDE_IDS = 100;
 
+/** Mayor id de producto admitido: `exclude` viaja como `[Int]` de GraphQL, de 32 bits con signo. */
+const MAX_PRODUCT_ID = 2_147_483_647;
+
 /**
  * Presupuesto por IP de TODO el GET (listado, filtros, paginación, búsqueda y
  * lista de ids). Cada URL distinta es una consulta nueva a WordPress (la clave
@@ -64,10 +67,19 @@ function parseProductIds(raw: string): number[] {
   for (const part of raw.split(",")) {
     if (!/^\d+$/.test(part.trim())) continue;
     const id = Number(part);
-    if (Number.isSafeInteger(id) && id > 0) ids.add(id);
+    if (Number.isInteger(id) && id > 0 && id <= MAX_PRODUCT_ID) ids.add(id);
     if (ids.size >= MAX_INCLUDE_IDS) break;
   }
   return [...ids];
+}
+
+/**
+ * Ids de `?exclude=1,2,3`, ordenados: el mismo conjunto en otro orden comparte entrada en el
+ * Data Cache de Next (su clave incluye las variables). Solo RESTA de lo que ya es público, así
+ * que no descubre nada que el listado no enseñe, y va bajo el presupuesto común por IP.
+ */
+function excludeParam(raw: string | null): number[] {
+  return raw ? parseProductIds(raw).sort((a, b) => a - b) : [];
 }
 
 export async function GET(request: Request) {
@@ -183,6 +195,8 @@ export async function GET(request: Request) {
       ? Math.min(requestedFirst, MAX_FIRST)
       : DEFAULT_FIRST;
 
+  const exclude = excludeParam(searchParams.get("exclude"));
+
   try {
     const result = await getProducts({
       locale,
@@ -193,6 +207,7 @@ export async function GET(request: Request) {
       maxPrice: priceParam(searchParams.get("maxPrice")),
       sort: searchParams.get("sort") || undefined,
       first,
+      ...(exclude.length > 0 ? { exclude } : {}),
     });
 
     return NextResponse.json(result, {

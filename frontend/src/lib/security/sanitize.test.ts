@@ -99,6 +99,26 @@ describe("el hook se registra una sola vez", () => {
   });
 });
 
+describe("tablas del contenido del CMS", () => {
+  it("conserva su estructura y sus atributos de accesibilidad", () => {
+    const html =
+      '<table><caption>Envíos</caption><thead><tr><th scope="col" colspan="2">Zona</th></tr></thead>' +
+      '<tbody><tr><td rowspan="2">Centro</td><td>1 día</td></tr></tbody></table>';
+
+    expect(sanitizeHtml(html)).toBe(html);
+  });
+
+  it("no abre vectores de XSS por los atributos de una tabla", () => {
+    const clean = sanitizeHtml(
+      '<table background="javascript:alert(1)" onmouseover="alert(1)" style="x:1">' +
+        '<tr><td onclick="alert(1)" colspan="2">x</td></tr></table>',
+    );
+
+    expect(clean).not.toMatch(/onmouseover|onclick|background|style/);
+    expect(clean).toContain('colspan="2"');
+  });
+});
+
 describe("saneado general (sin regresiones)", () => {
   it.each([
     ["scripts", "<p>hola</p><script>alert(1)</script>", "<script"],

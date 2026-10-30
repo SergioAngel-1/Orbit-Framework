@@ -1,5 +1,5 @@
 import { CONFIG_DEFAULTS } from "./defaults";
-import type { SiteConfig } from "./types";
+import type { ColorScheme, SiteConfig } from "./types";
 
 // ============================================================================
 //  Generador de CSS custom properties desde la configuración de diseño.
@@ -49,6 +49,14 @@ interface TokenEntry {
   transform?: (value: string) => string;
 }
 
+/**
+ * Pila de una fuente del panel. El panel solo publica un NOMBRE: si ninguna hoja lo registra, la
+ * reserva es la fuente que el layout cargó con `next/font` (`--font-inter` en el starter). Sin
+ * ella, `var()` cae a `system-ui` (una variable sin definir invalidaría toda la declaración).
+ */
+const fontStack = (family: string) =>
+  `"${family}", var(--font-inter, system-ui), sans-serif`;
+
 const TOKEN_MAP: TokenEntry[] = [
   { path: ["design", "colors", "brand"], cssVar: "--color-brand", kind: "color" },
   {
@@ -79,13 +87,13 @@ const TOKEN_MAP: TokenEntry[] = [
     path: ["design", "typography", "font_sans"],
     cssVar: "--font-sans",
     kind: "font",
-    transform: (v) => `"${v}", system-ui, sans-serif`,
+    transform: fontStack,
   },
   {
     path: ["design", "typography", "font_heading"],
     cssVar: "--font-heading",
     kind: "font",
-    transform: (v) => `"${v}", system-ui, sans-serif`,
+    transform: fontStack,
   },
 ];
 
@@ -100,6 +108,9 @@ function getNestedValue(
   }
   return typeof current === "string" && current.trim() !== "" ? current : undefined;
 }
+
+/** Tokens cuyo valor por defecto es claro y que `.dark` redefine en `globals.css`. */
+const LIGHT_SURFACE_TOKENS = new Set(["--background", "--foreground"]);
 
 /** Un token cuyo valor no cumplió el formato de su tipo. */
 export interface RejectedToken {
@@ -123,14 +134,32 @@ const MAX_REPORTED_VALUE_LENGTH = 80;
  * de `CONFIG_DEFAULTS` si éste es válido (lo mismo que emitiría una config sin
  * tocar) o se omite; en ambos casos queda en `rejected` para que el llamador lo
  * registre. Un valor vacío es «sin definir», no un error.
+ *
+ * Con el esquema fijado en `dark`, el fondo y el texto que sigan en el valor por defecto (claros) no
+ * se publican: este `<style>` va después de `globals.css` con la misma especificidad y taparía
+ * el `.dark` de la hoja. Un fondo o un texto elegidos en el panel sí se respetan.
  */
-export function resolveDesignTokens(config: Partial<SiteConfig>): ResolvedTokens {
+export function resolveDesignTokens(
+  config: Partial<SiteConfig>,
+  scheme: ColorScheme | undefined = config.design?.color_scheme,
+): ResolvedTokens {
   const declarations: string[] = [];
   const rejected: RejectedToken[] = [];
 
   for (const token of TOKEN_MAP) {
     const raw = getNestedValue(config as Record<string, unknown>, token.path);
     if (raw === undefined) continue;
+    if (
+      scheme === "dark" &&
+      LIGHT_SURFACE_TOKENS.has(token.cssVar) &&
+      raw ===
+        getNestedValue(
+          CONFIG_DEFAULTS as unknown as Record<string, unknown>,
+          token.path,
+        )
+    ) {
+      continue;
+    }
 
     let value = raw;
     if (!isValidTokenValue(token.kind, raw)) {

@@ -1,5 +1,6 @@
 import "server-only";
 import { getSiteConfig } from "@/lib/config";
+import { resolveColorScheme } from "@/lib/config/color-scheme";
 import { resolveDesignTokens } from "@/lib/config/tokens";
 import { logger } from "@/lib/observability/logger";
 
@@ -24,7 +25,10 @@ const MAX_REPORTED = 200;
  */
 export async function ThemeTokens() {
   const config = await getSiteConfig();
-  const { declarations, rejected } = resolveDesignTokens(config);
+  const { declarations, rejected } = resolveDesignTokens(
+    config,
+    resolveColorScheme(config),
+  );
 
   for (const token of rejected) {
     const key = `${token.cssVar}|${token.value}`;

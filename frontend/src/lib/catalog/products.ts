@@ -154,6 +154,11 @@ export interface ProductFilterParams {
   first?: number;
   /** Idioma de la página: textos y tramos de URL traducidos. Por defecto, el idioma por defecto. */
   locale?: string;
+  /**
+   * Ids que el listado no debe traer. A diferencia de filtrar en el cliente, las páginas salen
+   * completas. No es una barrera de acceso: esos productos siguen siendo públicos por su URL.
+   */
+  exclude?: readonly number[];
 }
 
 /** Precio del filtro (llega como texto de la URL) → número, o `undefined` si no vale. */
@@ -203,6 +208,7 @@ export async function getProducts(
       minPrice: priceVariable(options.minPrice),
       maxPrice: priceVariable(options.maxPrice),
       stockStatus: options.stockStatus ? [options.stockStatus] : undefined,
+      exclude: options.exclude?.length ? [...options.exclude] : undefined,
       orderbyField,
       orderbyOrder,
     },

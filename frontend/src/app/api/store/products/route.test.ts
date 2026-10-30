@@ -144,6 +144,66 @@ describe("parámetros de la consulta", () => {
 });
 
 // ============================================================================
+//  GET /api/store/products?exclude=1,2,3: páginas completas sin los ids indicados.
+//  Ruta pública: el parámetro solo resta del listado, va acotado y normalizado.
+// ============================================================================
+
+describe("exclude", () => {
+  it("sin el parámetro, la consulta no cambia", async () => {
+    await GET(request("?first=2"));
+
+    expect(lastFilters()).not.toHaveProperty("exclude");
+  });
+
+  it("traslada los ids al listado, ordenados y sin repetir", async () => {
+    await GET(request("?exclude=30,7,30,12"));
+
+    expect(lastFilters().exclude).toEqual([7, 12, 30]);
+  });
+
+  it("descarta lo que no es un id, sin tocar la consulta", async () => {
+    await GET(request("?exclude=abc,-1,1.5,0,1%20OR%201"));
+
+    expect(lastFilters()).not.toHaveProperty("exclude");
+  });
+
+  it("acota la lista: no se puede pedir una consulta sin límite", async () => {
+    const ids = Array.from({ length: 500 }, (_, index) => index + 1).join(",");
+
+    await GET(request(`?exclude=${ids}`));
+
+    expect(lastFilters().exclude).toHaveLength(100);
+  });
+
+  // La variable de GraphQL es `[Int]`, de 32 bits: un id mayor hacía fallar la consulta entera (502).
+  it("descarta los ids que no caben en un entero de 32 bits", async () => {
+    await GET(request("?exclude=2147483647,2147483648,99999999999"));
+
+    expect(lastFilters().exclude).toEqual([2147483647]);
+  });
+
+  it("gasta el presupuesto común por IP, antes de consultar nada", async () => {
+    vi.mocked(rateLimit).mockResolvedValue({ success: false, retryAfter: 9 } as never);
+    const callsBefore = vi.mocked(getProducts).mock.calls.length;
+
+    const res = await GET(request("?exclude=1"));
+
+    expect(res.status).toBe(429);
+    expect(vi.mocked(getProducts).mock.calls.length).toBe(callsBefore);
+  });
+
+  it("no entra en la rama de `include`, que lee con credenciales del servidor", async () => {
+    vi.mocked(wcFetch).mockResolvedValue([] as never);
+
+    await GET(request("?include=1,2&exclude=2"));
+
+    const { query } = vi.mocked(wcFetch).mock.calls.at(-1)![1]!;
+    expect(query).not.toHaveProperty("exclude");
+    expect(query).toMatchObject({ status: "publish" });
+  });
+});
+
+// ============================================================================
 //  GET /api/store/products?include=1,2,3 (la página de la wishlist).
 //
 //  Esta rama llama a `wc/v3/products` con las credenciales del SERVIDOR, y WooCommerce

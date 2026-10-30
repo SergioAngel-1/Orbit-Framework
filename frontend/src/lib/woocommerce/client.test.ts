@@ -37,6 +37,64 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("wcFetchPage: totales de una colección", () => {
+  it("devuelve los elementos y los totales de las cabeceras", async () => {
+    fetchMock.mockResolvedValue(
+      new Response('[{"id":1}]', {
+        status: 200,
+        headers: { "X-WP-Total": "57", "X-WP-TotalPages": "3" },
+      }),
+    );
+    const { wcFetchPage } = await loadClient("http://wordpress:80/wp-json/wc/v3");
+
+    await expect(wcFetchPage("/orders", { query: { page: 2 } })).resolves.toEqual({
+      items: [{ id: 1 }],
+      total: 57,
+      totalPages: 3,
+    });
+    expect(String(fetchMock.mock.calls[0]![0])).toContain("page=2");
+  });
+
+  it("sin cabeceras, los totales describen solo lo recibido", async () => {
+    fetchMock.mockResolvedValue(new Response('[{"id":1},{"id":2}]', { status: 200 }));
+    const { wcFetchPage } = await loadClient("http://wordpress:80/wp-json/wc/v3");
+
+    await expect(wcFetchPage("/orders")).resolves.toMatchObject({
+      total: 2,
+      totalPages: 1,
+    });
+  });
+
+  it("sin `X-WP-TotalPages`, las calcula con `X-WP-Total` y `per_page`", async () => {
+    fetchMock.mockResolvedValue(
+      new Response('[{"id":1}]', { status: 200, headers: { "X-WP-Total": "57" } }),
+    );
+    const { wcFetchPage } = await loadClient("http://wordpress:80/wp-json/wc/v3");
+
+    await expect(
+      wcFetchPage("/orders", { query: { per_page: 20 } }),
+    ).resolves.toMatchObject({ total: 57, totalPages: 3 });
+  });
+
+  it("sin `per_page`, calcula con el tamaño por defecto de wc/v3", async () => {
+    fetchMock.mockResolvedValue(
+      new Response("[]", { status: 200, headers: { "X-WP-Total": "25" } }),
+    );
+    const { wcFetchPage } = await loadClient("http://wordpress:80/wp-json/wc/v3");
+
+    await expect(wcFetchPage("/orders")).resolves.toMatchObject({ totalPages: 3 });
+  });
+
+  it("wcFetch sigue devolviendo solo el cuerpo", async () => {
+    fetchMock.mockResolvedValue(
+      new Response('[{"id":1}]', { status: 200, headers: { "X-WP-Total": "57" } }),
+    );
+    const { wcFetch } = await loadClient("http://wordpress:80/wp-json/wc/v3");
+
+    await expect(wcFetch("/orders")).resolves.toEqual([{ id: 1 }]);
+  });
+});
+
 describe("wcFetch: salto interno por HTTP", () => {
   it("con la URL de WooCommerce en http:// pide a WordPress que trate la petición como HTTPS", async () => {
     const { wcFetch } = await loadClient("http://wordpress:80/wp-json/wc/v3");

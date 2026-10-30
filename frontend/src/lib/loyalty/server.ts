@@ -254,6 +254,8 @@ export async function getLoyaltyTransactions(
 }
 
 const referralSchema = z.object({
+  // Con `default` para no rechazar la página entera si el plugin aún no lo publica.
+  id: z.string().default(""),
   name: z.string(),
   date: z.string().nullable().optional(),
   status: z.enum(["pending", "confirmed"]),
@@ -276,7 +278,7 @@ export interface ReferralOptions extends PageOptions {
   level: 1 | 2;
 }
 
-/** Red N1/N2 paginada, sin ids ni datos de contacto. */
+/** Red N1/N2 paginada, sin ids de usuario ni datos de contacto. */
 export async function getLoyaltyReferrals(
   userId: number,
   { level, page, perPage }: ReferralOptions,
@@ -300,6 +302,7 @@ export async function getLoyaltyReferrals(
 
   return {
     items: parsed.items.map((item) => ({
+      id: item.id,
       name: item.name,
       date: item.date ?? null,
       status: item.status,

@@ -24,6 +24,19 @@ trait Design {
                 'label'    => 'Diseño',
                 'children' => [
 
+                    'color_scheme' => [
+                        'type'        => 'select',
+                        'label'       => 'Esquema de color',
+                        'default'     => 'system',
+                        'public'      => true,
+                        'options'     => [
+                            'system' => 'Según el dispositivo del visitante',
+                            'light'  => 'Siempre claro',
+                            'dark'   => 'Siempre oscuro',
+                        ],
+                        'description' => 'Elige «Siempre claro» si el diseño de la tienda no tiene tema oscuro. Con un esquema fijo no se ofrece el selector y se ignora la preferencia guardada del visitante.',
+                    ],
+
                     'colors' => [
                         'type'     => 'group',
                         'label'    => 'Colores',
@@ -109,7 +122,7 @@ trait Design {
                                 'type'        => 'url',
                                 'label'       => 'URL Google Fonts (opcional)',
                                 'public'      => true,
-                                'description' => 'Pega la URL de importación de Google Fonts para cargar la fuente.',
+                                'description' => 'Carga la fuente en los correos. La web no la importa: si la fuente no está cargada en el frontend, se usa la que este traiga con next/font.',
                             ],
                             'font_heading' => [
                                 'type'        => 'text',
@@ -122,7 +135,7 @@ trait Design {
                                 'type'        => 'url',
                                 'label'       => 'URL Google Fonts para titulares (opcional)',
                                 'public'      => true,
-                                'description' => 'Pega la URL de importación de Google Fonts para cargar la fuente de titulares.',
+                                'description' => 'Carga la fuente de titulares en los correos. La web no la importa (ver la URL de la fuente principal).',
                             ],
                         ],
                     ],

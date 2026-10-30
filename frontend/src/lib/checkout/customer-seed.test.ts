@@ -41,7 +41,7 @@ describe("checkoutSeedFromCustomer", () => {
       city: "Madrid",
       state: "",
       country: "ES",
-      addresses: [ADDRESS],
+      addresses: [{ ...ADDRESS, id: expect.stringMatching(/^addr_/) }],
       identity: { documentType: null, documentNumber: null, termsAcceptedAt: null },
     });
     // Solo lo que el formulario usa: el resto del meta no sale del servidor.

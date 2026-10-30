@@ -148,6 +148,21 @@ final class GenericTypesTest extends TestCase
         $this->assertArrayHasKey('href', $allowed['a']);
     }
 
+    public function testRichtextAllowsTablesWithStructuralAttributesOnly(): void {
+        $allowed = RichTextType::ALLOWED_HTML;
+
+        foreach (['table', 'caption', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td'] as $tag) {
+            $this->assertArrayHasKey($tag, $allowed, "«{$tag}» debe poder guardarse.");
+        }
+        $this->assertSame(['scope', 'colspan', 'rowspan'], array_keys($allowed['th']));
+        $this->assertSame(['colspan', 'rowspan'], array_keys($allowed['td']));
+        // Nada de estilos ni manejadores: `wp_kses` quita todo atributo que no esté en la
+        // lista, y una tabla no necesita más que su estructura.
+        foreach (['table', 'caption', 'thead', 'tbody', 'tfoot', 'tr'] as $tag) {
+            $this->assertSame([], $allowed[$tag]);
+        }
+    }
+
     public function testRichtextRendersWithoutTinyMCE(): void {
         $html = Registry::get('richtext')->render([], 'hwe_config_g_txt', 'hwe_config[g][txt]', '<p>x</p>', []);
 

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  defaultAddress,
+  findAddressIndex,
   ADDRESSES_META_KEY,
   mergeAddressLocation,
   parseSavedAddresses,
@@ -32,13 +34,13 @@ describe("parseSavedAddresses", () => {
       parseSavedAddresses([
         { key: ADDRESSES_META_KEY, value: JSON.stringify([ADDRESS]) },
       ]),
-    ).toEqual([ADDRESS]);
+    ).toMatchObject([ADDRESS]);
   });
 
   it("acepta el valor ya parseado", () => {
     expect(
       parseSavedAddresses([{ key: ADDRESSES_META_KEY, value: [ADDRESS] as never }]),
-    ).toEqual([ADDRESS]);
+    ).toMatchObject([ADDRESS]);
   });
 
   it.each([
@@ -48,6 +50,104 @@ describe("parseSavedAddresses", () => {
     ["no es una lista", [{ key: ADDRESSES_META_KEY, value: '{"a":1}' }]],
   ])("%s → libreta vacía", (_name, meta) => {
     expect(parseSavedAddresses(meta as never)).toEqual([]);
+  });
+});
+
+describe("identificador de cada dirección", () => {
+  const meta = (book: unknown[]) => [
+    { key: "hwe_addresses", value: JSON.stringify(book) },
+  ];
+  const legacy = (street: string) => ({
+    address_1: street,
+    city: "Lima",
+    is_default: false,
+  });
+
+  it("conserva el que ya está guardado", () => {
+    const [address] = parseSavedAddresses(
+      meta([{ ...legacy("A"), id: "addr_guardado" }]),
+    );
+
+    expect(address!.id).toBe("addr_guardado");
+  });
+
+  it("una libreta anterior recibe ids estables entre lecturas, sin escribir nada", () => {
+    const book = meta([legacy("A"), legacy("B")]);
+
+    const first = parseSavedAddresses(book).map((a) => a.id);
+
+    expect(first.every((id) => /^addr_[a-z0-9]+$/.test(id!))).toBe(true);
+    expect(new Set(first).size).toBe(2);
+    expect(parseSavedAddresses(book).map((a) => a.id)).toEqual(first);
+  });
+
+  it("el id derivado no depende de la posición", () => {
+    const [a, b] = parseSavedAddresses(meta([legacy("A"), legacy("B")]));
+    const [b2, a2] = parseSavedAddresses(meta([legacy("B"), legacy("A")]));
+
+    expect(a2!.id).toBe(a!.id);
+    expect(b2!.id).toBe(b!.id);
+  });
+
+  it("dos direcciones idénticas no comparten id", () => {
+    const ids = parseSavedAddresses(meta([legacy("A"), legacy("A")])).map((a) => a.id);
+
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it("un id guardado repetido o mal formado se sustituye", () => {
+    const ids = parseSavedAddresses(
+      meta([
+        { ...legacy("A"), id: "repetido" },
+        { ...legacy("B"), id: "repetido" },
+        { ...legacy("C"), id: "<script>" },
+      ]),
+    ).map((a) => a.id);
+
+    expect(ids[0]).toBe("repetido");
+    expect(new Set(ids).size).toBe(3);
+    expect(ids[2]).toMatch(/^addr_/);
+  });
+
+  it("una libreta corrupta pierde solo lo que no es una dirección, sin romper", () => {
+    const addresses = parseSavedAddresses(
+      meta([null, "x", legacy("A"), 7, ["y"], legacy("B")]),
+    );
+
+    expect(addresses.map((a) => a.address_1)).toEqual(["A", "B"]);
+    expect(defaultAddress(addresses)?.address_1).toBe("A");
+  });
+});
+
+describe("findAddressIndex", () => {
+  const book = [{ id: "a" }, { id: "b" }] as SavedAddress[];
+
+  it("con `id` encuentra la dirección esté donde esté", () => {
+    expect(findAddressIndex(book, { id: "b" })).toBe(1);
+    expect(findAddressIndex(book, { id: "c" })).toBe(-1);
+  });
+
+  it("tolera huecos en una lista sin sanear, y los válidos conservan su posición", () => {
+    const holed = [
+      null,
+      { id: "a" },
+      undefined,
+      { id: "b" },
+    ] as unknown as SavedAddress[];
+
+    expect(findAddressIndex(holed, { id: "b" })).toBe(3);
+    expect(findAddressIndex(holed, { index: 1 })).toBe(1);
+    expect(findAddressIndex(holed, { index: 0 })).toBe(-1);
+  });
+
+  it("`id` manda sobre `index`", () => {
+    expect(findAddressIndex(book, { id: "b", index: 0 })).toBe(1);
+  });
+
+  it("`index` sigue funcionando, dentro de rango", () => {
+    expect(findAddressIndex(book, { index: 1 })).toBe(1);
+    expect(findAddressIndex(book, { index: 2 })).toBe(-1);
+    expect(findAddressIndex(book, {})).toBe(-1);
   });
 });
 

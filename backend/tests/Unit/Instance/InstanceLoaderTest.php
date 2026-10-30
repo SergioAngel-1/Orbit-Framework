@@ -74,7 +74,7 @@ final class InstanceLoaderTest extends TestCase
     public function testItDefinesTheContractVersion(): void
     {
         $this->assertTrue(defined('HWE_CORE_CONTRACT_VERSION'));
-        $this->assertSame('2.3.0', HWE_CORE_CONTRACT_VERSION);
+        $this->assertSame('2.4.0', HWE_CORE_CONTRACT_VERSION);
     }
 
     public function testAMissingFolderDoesNothing(): void

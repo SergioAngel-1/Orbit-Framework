@@ -311,6 +311,7 @@ final class HWE_Loyalty_ReadRoutes {
 				continue;
 			}
 			$items[] = array(
+				'id'               => HWE_Loyalty_Referrals::publicId( $userId, (int) ( $item['user_id'] ?? 0 ) ),
 				'name'             => is_string( $item['name'] ?? null ) ? $item['name'] : '',
 				'date'             => isset( $item['date'] ) && is_string( $item['date'] ) ? $item['date'] : null,
 				'status'           => is_string( $item['status'] ?? null ) ? $item['status'] : '',

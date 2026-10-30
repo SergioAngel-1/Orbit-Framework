@@ -1,6 +1,7 @@
 import "server-only";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { routing } from "@/i18n/routing";
+import { logReadFailure } from "@/lib/observability/read-failure";
 import type { MenuLink } from "./types";
 
 // ============================================================================
@@ -67,10 +68,16 @@ function toLocationEnum(area: "primary" | "footer", locale: string): string {
   return `${area}${suffix}`.toUpperCase();
 }
 
+/** WPGraphQL rechaza una location que el tema no registró: el valor no está en su enum. */
+function isUnknownMenuLocation(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("MenuLocationEnum");
+}
+
 /**
  * Menú asignado a la location del área/idioma, o `null` si no hay menú
  * asignado, la location no existe o WordPress no responde (fail-soft:
- * la navegación nunca debe tumbar el render).
+ * la navegación nunca debe tumbar el render). Solo el último caso es un fallo y
+ * deja un evento: un idioma sin location registrada es configuración válida.
  */
 export async function getMenu(
   area: "primary" | "footer",
@@ -84,7 +91,14 @@ export async function getMenu(
     });
     const tree = buildMenuTree(data.menuItems.nodes);
     return tree.length > 0 ? tree : null;
-  } catch {
+  } catch (error) {
+    if (!isUnknownMenuLocation(error)) {
+      logReadFailure("navigation.menu_read_failed", error, {
+        level: "warn",
+        message: "No se pudo leer el menú; se usa el de respaldo",
+        context: { area, locale },
+      });
+    }
     return null;
   }
 }

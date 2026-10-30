@@ -128,6 +128,57 @@ final class EmailChromeTest extends TestCase
         $this->assertStringStartsWith("'Inter  body  x 1'", hwe_email_font_stack('body'));
     }
 
+    public function testANamedHeadingFontKeepsItsSerifFallbackByDefault(): void {
+        $this->config(['design' => ['typography' => ['font_heading' => 'Playfair Display']]]);
+
+        $this->assertSame(
+            "'Playfair Display', Georgia, 'Times New Roman', serif",
+            hwe_email_font_stack('heading')
+        );
+    }
+
+    public function testAnEmptyHeadingFontUsesTheBodyStack(): void {
+        $this->config(['design' => ['typography' => ['font_sans' => 'Inter', 'font_heading' => '']]]);
+
+        $this->assertSame(hwe_email_font_stack('body'), hwe_email_font_stack('heading'));
+        $this->assertStringStartsWith("'Inter', ", hwe_email_font_stack('heading'));
+        $this->assertStringNotContainsString('Georgia', hwe_email_font_stack('heading'));
+    }
+
+    public function testAnInstanceCanChooseTheHeadingFallback(): void {
+        $this->config(['design' => ['typography' => ['font_heading' => 'Unbounded']]]);
+        Filters\expectApplied('hwe_email_heading_font_fallback')
+            ->andReturn("'Segoe UI', Arial, sans-serif");
+
+        $this->assertSame("'Unbounded', 'Segoe UI', Arial, sans-serif", hwe_email_font_stack('heading'));
+    }
+
+    public function testTheFilterDoesNotApplyToTheBodyNorToAnEmptyHeading(): void {
+        $this->config(['design' => ['typography' => ['font_sans' => 'Inter', 'font_heading' => '']]]);
+        Filters\expectApplied('hwe_email_heading_font_fallback')->never();
+
+        $this->assertStringEndsWith('sans-serif', hwe_email_font_stack('body'));
+        $this->assertStringEndsWith('sans-serif', hwe_email_font_stack('heading'));
+    }
+
+    /** @return array<string,array{mixed}> */
+    public static function badFallbacks(): array {
+        return [
+            'rompe el style' => ['Arial; } body { x: 1'],
+            'comillas dobles' => ['"Arial"'],
+            'vacío' => [''],
+            'no es texto' => [['Arial']],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('badFallbacks')]
+    public function testAnUnsafeHeadingFallbackIsDiscarded(mixed $value): void {
+        $this->config(['design' => ['typography' => ['font_heading' => 'Unbounded']]]);
+        Filters\expectApplied('hwe_email_heading_font_fallback')->andReturn($value);
+
+        $this->assertSame("'Unbounded', Georgia, 'Times New Roman', serif", hwe_email_font_stack('heading'));
+    }
+
     // ── prueba de plantillas ────────────────────────────────────────────────
 
     public function testTheTestSendForcesTheRecipientAndDropsCopies(): void {
