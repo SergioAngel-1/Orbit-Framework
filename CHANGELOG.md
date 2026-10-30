@@ -86,6 +86,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **Una fuente del panel que nadie registra ya no tira la fuente cargada.** `ThemeTokens` publicaba
+  `--font-sans: "<nombre>", system-ui, sans-serif`: con un nombre sin `@font-face` (la web no importa
+  `font_url`, que solo usan los correos) el sitio caía a la fuente del sistema aunque el layout hubiera
+  cargado otra con `next/font`. Ahora la reserva es `var(--font-inter, system-ui)`. Con el nombre por
+  defecto («Inter») el resultado no cambia. El panel ya explica para qué sirve `font_url`.
 - **`getMenu` ya no traga los fallos de WordPress:** deja el evento
   `navigation.menu_read_failed` (`warn`) y sigue devolviendo `null`. Un menú sin asignar o una
   location que el tema no registra no son fallos y no se registran.

@@ -39,7 +39,9 @@ describe("configuración válida", () => {
 
     expect(css).toContain("--color-brand: #111111");
     expect(css).toContain("--background: #ffffff");
-    expect(css).toContain('--font-sans: "Inter", system-ui, sans-serif');
+    expect(css).toContain(
+      '--font-sans: "Inter", var(--font-inter, system-ui), sans-serif',
+    );
   });
 
   it("aplica un override válido", () => {
@@ -47,7 +49,16 @@ describe("configuración válida", () => {
       "--color-brand: #e11d48",
     );
     expect(buildCssVars(withFont("font_heading", "Playfair Display"))).toContain(
-      '--font-heading: "Playfair Display", system-ui, sans-serif',
+      '--font-heading: "Playfair Display", var(--font-inter, system-ui), sans-serif',
+    );
+  });
+
+  // El panel solo publica un NOMBRE de familia: si nadie la registra (la web no importa
+  // `font_url`), el navegador saltaba a `system-ui` y se perdía la fuente que el layout sí
+  // cargó con `next/font`. La reserva es esa fuente; sin ella, `var()` cae a `system-ui`.
+  it("un nombre que nadie registra cae a la fuente cargada, no a la del sistema", () => {
+    expect(buildCssVars(withFont("font_sans", "Poppins"))).toContain(
+      '--font-sans: "Poppins", var(--font-inter, system-ui), sans-serif',
     );
   });
 
@@ -110,7 +121,9 @@ describe("fuentes inválidas", () => {
   ])("%s: cae al valor por defecto y no se interpola", (_caso, bad) => {
     const css = buildCssVars(withFont("font_sans", bad));
 
-    expect(css).toContain('--font-sans: "Inter", system-ui, sans-serif');
+    expect(css).toContain(
+      '--font-sans: "Inter", var(--font-inter, system-ui), sans-serif',
+    );
     expect(css).not.toContain(bad);
     expect(css).not.toMatch(/[<>]/);
   });

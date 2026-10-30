@@ -49,6 +49,14 @@ interface TokenEntry {
   transform?: (value: string) => string;
 }
 
+/**
+ * Pila de una fuente del panel. El panel solo publica un NOMBRE: si ninguna hoja lo registra, la
+ * reserva es la fuente que el layout cargó con `next/font` (`--font-inter` en el starter). Sin
+ * ella, `var()` cae a `system-ui` (una variable sin definir invalidaría toda la declaración).
+ */
+const fontStack = (family: string) =>
+  `"${family}", var(--font-inter, system-ui), sans-serif`;
+
 const TOKEN_MAP: TokenEntry[] = [
   { path: ["design", "colors", "brand"], cssVar: "--color-brand", kind: "color" },
   {
@@ -79,13 +87,13 @@ const TOKEN_MAP: TokenEntry[] = [
     path: ["design", "typography", "font_sans"],
     cssVar: "--font-sans",
     kind: "font",
-    transform: (v) => `"${v}", system-ui, sans-serif`,
+    transform: fontStack,
   },
   {
     path: ["design", "typography", "font_heading"],
     cssVar: "--font-heading",
     kind: "font",
-    transform: (v) => `"${v}", system-ui, sans-serif`,
+    transform: fontStack,
   },
 ];
 
