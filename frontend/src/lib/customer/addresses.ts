@@ -6,6 +6,10 @@ export const ADDRESSES_META_KEY = "hwe_addresses";
 
 const ADDRESS_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
+function isAddressEntry(entry: unknown): entry is SavedAddress {
+  return typeof entry === "object" && entry !== null && !Array.isArray(entry);
+}
+
 /** Identificador de una dirección nueva. */
 export function newAddressId(): string {
   return `addr_${crypto.randomUUID()}`;
@@ -37,13 +41,12 @@ function withAddressIds(addresses: SavedAddress[]): SavedAddress[] {
 
   // Primero los ya guardados: uno derivado nunca debe quitarle el suyo a otra dirección.
   for (const address of addresses) {
-    const id = address && typeof address === "object" ? stored(address) : null;
+    const id = stored(address);
     if (id) taken.add(id);
   }
 
   const seen = new Set<string>();
   return addresses.map((address) => {
-    if (!address || typeof address !== "object") return address;
     const id = stored(address);
     if (id && !seen.has(id)) {
       seen.add(id);
@@ -69,15 +72,17 @@ export function findAddressIndex(
   addresses: readonly SavedAddress[],
   target: { id?: string; index?: number },
 ): number {
-  if (target.id !== undefined) return addresses.findIndex((a) => a.id === target.id);
+  if (target.id !== undefined) return addresses.findIndex((a) => a?.id === target.id);
   const { index } = target;
-  return index !== undefined && index >= 0 && index < addresses.length ? index : -1;
+  return index !== undefined && index >= 0 && addresses[index] ? index : -1;
 }
 
 /**
  * Libreta de direcciones de un cliente, a partir de su `meta_data` de wc/v3, con el identificador de
  * cada dirección (ver `withAddressIds`).
- * Tolerante: sin meta, JSON roto o una forma inesperada dan `[]`.
+ * Tolerante: sin meta, JSON roto o una forma inesperada dan `[]`, y lo que no sea una dirección en
+ * una libreta corrupta se descarta (toda la lectura y la escritura parten de esta lista: `index` es la
+ * posición en ella, la misma que entrega `GET`, y la siguiente escritura deja la libreta limpia).
  */
 export function parseSavedAddresses(
   metaData: WooCustomer["meta_data"] | undefined,
@@ -86,7 +91,7 @@ export function parseSavedAddresses(
   if (!meta?.value) return [];
   try {
     const parsed = typeof meta.value === "string" ? JSON.parse(meta.value) : meta.value;
-    return Array.isArray(parsed) ? withAddressIds(parsed as SavedAddress[]) : [];
+    return Array.isArray(parsed) ? withAddressIds(parsed.filter(isAddressEntry)) : [];
   } catch {
     return [];
   }

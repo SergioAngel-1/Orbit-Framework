@@ -241,6 +241,51 @@ describe("identificador estable de la libreta", () => {
     expect(storedBook()[0]!.id).toBe(created.id);
   });
 
+  describe("con una libreta corrupta (elementos nulos en el JSON guardado)", () => {
+    const corrupt = () =>
+      [
+        null,
+        saved({ id: "a", address_1: "Calle A" }),
+        "x",
+        saved({ id: "b", address_1: "Calle B", is_default: false }),
+      ] as unknown as SavedAddress[];
+
+    it("GET lista solo las direcciones válidas", async () => {
+      book = corrupt();
+
+      const listed = (await (await GET()).json()) as SavedAddress[];
+
+      expect(listed.map((a) => a.id)).toEqual(["a", "b"]);
+    });
+
+    it("PUT por id no da 500 y la escritura limpia la libreta", async () => {
+      book = corrupt();
+
+      const res = await edit(body({ id: "b" }));
+
+      expect(res.status).toBe(200);
+      expect(storedBook().map((a) => a.id)).toEqual(["a", "b"]);
+    });
+
+    it("PUT por `index` usa la posición de la lista que GET entregó", async () => {
+      book = corrupt();
+
+      const res = await edit({ ...body({}), index: 1 });
+
+      expect(res.status).toBe(200);
+      expect(storedBook()[1]!.id).toBe("b");
+    });
+
+    it("DELETE no da 500", async () => {
+      book = corrupt();
+
+      const res = await send("DELETE", { id: "a" });
+
+      expect(res.status).toBe(200);
+      expect(storedBook().map((a) => a.id)).toEqual(["b"]);
+    });
+  });
+
   it("`index` sigue funcionando para los clientes anteriores", async () => {
     book = [saved({ id: "a", address_1: "Calle A" })];
 

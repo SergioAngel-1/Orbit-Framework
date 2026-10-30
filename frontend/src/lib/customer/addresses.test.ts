@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  defaultAddress,
   findAddressIndex,
   ADDRESSES_META_KEY,
   mergeAddressLocation,
@@ -108,8 +109,13 @@ describe("identificador de cada dirección", () => {
     expect(ids[2]).toMatch(/^addr_/);
   });
 
-  it("no rompe con entradas que no son objetos", () => {
-    expect(parseSavedAddresses(meta(["x", legacy("A")]))).toHaveLength(2);
+  it("una libreta corrupta pierde solo lo que no es una dirección, sin romper", () => {
+    const addresses = parseSavedAddresses(
+      meta([null, "x", legacy("A"), 7, ["y"], legacy("B")]),
+    );
+
+    expect(addresses.map((a) => a.address_1)).toEqual(["A", "B"]);
+    expect(defaultAddress(addresses)?.address_1).toBe("A");
   });
 });
 
@@ -119,6 +125,19 @@ describe("findAddressIndex", () => {
   it("con `id` encuentra la dirección esté donde esté", () => {
     expect(findAddressIndex(book, { id: "b" })).toBe(1);
     expect(findAddressIndex(book, { id: "c" })).toBe(-1);
+  });
+
+  it("tolera huecos en una lista sin sanear, y los válidos conservan su posición", () => {
+    const holed = [
+      null,
+      { id: "a" },
+      undefined,
+      { id: "b" },
+    ] as unknown as SavedAddress[];
+
+    expect(findAddressIndex(holed, { id: "b" })).toBe(3);
+    expect(findAddressIndex(holed, { index: 1 })).toBe(1);
+    expect(findAddressIndex(holed, { index: 0 })).toBe(-1);
   });
 
   it("`id` manda sobre `index`", () => {
