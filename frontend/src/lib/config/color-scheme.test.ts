@@ -6,6 +6,9 @@ vi.mock("./remote", () => ({
   isFallbackSiteConfig: (config: { fallback?: boolean }) => config.fallback === true,
 }));
 
+// Sin respaldo en el registro: la instancia que declare el suyo no debe cambiar estos casos.
+vi.mock("@/instance/registry", () => ({ instanceRegistry: {} }));
+
 import { resolveColorScheme } from "./color-scheme";
 
 const config = (color_scheme: unknown, fallback = false) =>
