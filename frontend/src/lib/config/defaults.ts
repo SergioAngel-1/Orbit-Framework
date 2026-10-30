@@ -40,6 +40,9 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     phone: "",
     mobile: "",
     address: "",
+    city: "",
+    region: "",
+    postal_code: "",
     locations: {
       location_1: {
         label: "",

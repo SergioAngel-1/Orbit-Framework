@@ -53,6 +53,10 @@ export interface SiteConfig {
     phone: string;
     mobile: string;
     address: string;
+    /** Partes de la dirección para datos estructurados (`addressLocality`…). */
+    city: string;
+    region: string;
+    postal_code: string;
     locations: {
       location_1: SiteConfigLocation;
       location_2: SiteConfigLocation;
