@@ -107,6 +107,7 @@ function productsQuery(withMemberships: boolean): string {
       $minPrice: Float
       $maxPrice: Float
       $stockStatus: [StockStatusEnum]
+      $exclude: [Int]
       $orderbyField: ProductsOrderByEnum = DATE
       $orderbyOrder: OrderEnum = DESC
     ) {
@@ -119,6 +120,7 @@ function productsQuery(withMemberships: boolean): string {
           minPrice: $minPrice
           maxPrice: $maxPrice
           stockStatus: $stockStatus
+          exclude: $exclude
           status: "publish"
           orderby: [{ field: $orderbyField, order: $orderbyOrder }]
         }

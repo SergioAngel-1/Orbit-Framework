@@ -7,6 +7,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **`GET /api/store/products?exclude=1,2,3` y `getProducts({ exclude })`.** Excluye ids del listado en la
+  consulta, de modo que las páginas salen completas. Es una ruta pública: acepta hasta 100 ids, los
+  normaliza para no multiplicar entradas de caché, solo resta de lo ya público y gasta el presupuesto
+  común por IP. Sin el parámetro, la consulta no cambia.
 - **Ventana de la cookie de referido configurable (`InstanceRegistry.referralCookieDays`).** Entero de 1
   a 365; sin el campo, los 30 días de siempre. Va en el registro y no en el Control Center porque la
   escribe el proxy, que corre en edge y no consulta la config. Un valor inválido cae a 30 días con el

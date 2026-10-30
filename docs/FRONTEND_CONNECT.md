@@ -1064,6 +1064,14 @@ Reglas:
   `instance.sitemap.invalid_entry`; el sitemap sigue generándose. Sin el campo, todo es idéntico
   al comportamiento anterior.
 
+### Excluir productos de un listado (`GET /api/store/products?exclude=1,2,3`)
+
+Quita esos ids del listado en la consulta: las páginas salen completas, cosa que un filtro en el
+cliente no consigue. Hasta 100 ids; lo que no sea un id se descarta. No es una barrera de acceso: solo
+resta de lo que ya es público, y esos productos siguen disponibles por su URL. Va bajo el mismo
+presupuesto por IP que el resto del GET y no aplica a `?include=`. En el servidor,
+`getProducts({ exclude })`.
+
 ### Ventana de la cookie de referido (`InstanceRegistry.referralCookieDays`)
 
 El proxy guarda `?ref=<código>` en la cookie `hwe_ref` durante 30 días. Una instancia con otra

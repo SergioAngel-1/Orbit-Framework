@@ -70,6 +70,15 @@ function parseProductIds(raw: string): number[] {
   return [...ids];
 }
 
+/**
+ * Ids de `?exclude=1,2,3`, ordenados: el mismo conjunto en otro orden comparte entrada en el
+ * Data Cache de Next (su clave incluye las variables). Solo RESTA de lo que ya es público, así
+ * que no descubre nada que el listado no enseñe, y va bajo el presupuesto común por IP.
+ */
+function excludeParam(raw: string | null): number[] {
+  return raw ? parseProductIds(raw).sort((a, b) => a - b) : [];
+}
+
 export async function GET(request: Request) {
   // Antes de CUALQUIER trabajo contra WordPress (config, catálogo o wc/v3):
   // todo este GET consume el mismo presupuesto por IP, aunque el atacante varíe
@@ -183,6 +192,8 @@ export async function GET(request: Request) {
       ? Math.min(requestedFirst, MAX_FIRST)
       : DEFAULT_FIRST;
 
+  const exclude = excludeParam(searchParams.get("exclude"));
+
   try {
     const result = await getProducts({
       locale,
@@ -193,6 +204,7 @@ export async function GET(request: Request) {
       maxPrice: priceParam(searchParams.get("maxPrice")),
       sort: searchParams.get("sort") || undefined,
       first,
+      ...(exclude.length > 0 ? { exclude } : {}),
     });
 
     return NextResponse.json(result, {
