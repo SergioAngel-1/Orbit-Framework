@@ -86,6 +86,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **Pantallas de último recurso (`app/error.tsx`, `app/not-found.tsx`).** Se pintan cuando el layout de
+  `[locale]` falló, sin `globals.css`: salían sin estilos, el error enseñaba `error.message` y el 404
+  iba en inglés. Ahora llevan estilos en línea, texto en el idioma por defecto del sitio y, en el
+  error, solo la referencia (`digest`) para cruzar con el log.
 - **Una fuente del panel que nadie registra ya no tira la fuente cargada.** `ThemeTokens` publicaba
   `--font-sans: "<nombre>", system-ui, sans-serif`: con un nombre sin `@font-face` (la web no importa
   `font_url`, que solo usan los correos) el sitio caía a la fuente del sistema aunque el layout hubiera

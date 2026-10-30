@@ -1,5 +1,12 @@
 "use client";
 
+import { lastResortCopy, lastResortStyles as styles } from "./last-resort";
+
+/**
+ * Último recurso: atrapa lo que `[locale]/error.tsx` no puede, un fallo del propio layout de
+ * `[locale]`. Sin `globals.css` ni contexto: ver `last-resort.ts`. El mensaje del error nunca se
+ * enseña (puede llevar detalles internos); `digest` es la referencia para cruzar con el log.
+ */
 export default function GlobalError({
   error,
   reset,
@@ -7,25 +14,25 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const copy = lastResortCopy();
   return (
-    // El texto de esta pantalla es fijo en español (idioma canónico del sitio).
-    <html lang="es">
-      <body className="flex min-h-screen items-center justify-center bg-white p-8 dark:bg-gray-950">
-        <div className="max-w-md text-center">
-          <h1 className="mb-4 text-6xl font-extrabold text-gray-200 dark:text-gray-800">
-            500
-          </h1>
-          <p className="mb-6 text-lg text-gray-600 dark:text-gray-400">
-            Error interno del servidor. Inténtalo de nuevo más tarde.
-          </p>
-          <p className="mb-8 text-sm text-gray-400">{error.message}</p>
-          <button
-            onClick={reset}
-            className="rounded-lg bg-brand px-6 py-2 font-semibold text-white transition-colors hover:bg-brand-dark dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"
-          >
-            Reintentar
+    <html lang={copy.lang}>
+      <head>
+        <title>{copy.errorTitle}</title>
+      </head>
+      <body style={styles.body}>
+        <main style={styles.panel}>
+          <h1 style={styles.title}>{copy.errorTitle}</h1>
+          <p style={styles.text}>{copy.errorBody}</p>
+          <button type="button" onClick={reset} style={styles.action}>
+            {copy.retry}
           </button>
-        </div>
+          {error.digest && (
+            <p style={styles.reference}>
+              {copy.reference}: {error.digest}
+            </p>
+          )}
+        </main>
       </body>
     </html>
   );

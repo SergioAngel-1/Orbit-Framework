@@ -1,4 +1,4 @@
-import { routing } from "@/i18n/routing";
+import { lastResortCopy, lastResortStyles as styles } from "./last-resort";
 
 // ============================================================================
 //  Not-found GLOBAL (fuera de [locale]). Next genera internamente `/_not-found`
@@ -8,29 +8,21 @@ import { routing } from "@/i18n/routing";
 // ============================================================================
 
 export default function GlobalNotFound() {
+  const copy = lastResortCopy();
   return (
-    <html lang={routing.defaultLocale}>
+    <html lang={copy.lang}>
       <head>
-        <title>404 — Page not found</title>
+        <title>{copy.notFoundTitle}</title>
       </head>
-      <body
-        style={{
-          fontFamily: "system-ui, sans-serif",
-          display: "flex",
-          minHeight: "100vh",
-          alignItems: "center",
-          justifyContent: "center",
-          margin: 0,
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <h1 style={{ fontSize: "2.5rem", margin: 0 }}>404</h1>
-          <p style={{ color: "#666" }}>Page not found.</p>
+      <body style={styles.body}>
+        <main style={styles.panel}>
+          <h1 style={styles.title}>{copy.notFoundTitle}</h1>
+          <p style={styles.text}>{copy.notFoundBody}</p>
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a href="/" style={{ color: "#2a3fd6", fontWeight: 600 }}>
-            ← Home
+          <a href="/" style={styles.action}>
+            {copy.home}
           </a>
-        </div>
+        </main>
       </body>
     </html>
   );
