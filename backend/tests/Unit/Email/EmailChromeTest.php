@@ -128,6 +128,25 @@ final class EmailChromeTest extends TestCase
         $this->assertStringStartsWith("'Inter  body  x 1'", hwe_email_font_stack('body'));
     }
 
+    public function testHeadingFontFallsBackToSansSerifNotToASerif(): void {
+        // Casi ningún cliente de correo carga la fuente de la marca: el respaldo es lo que
+        // se ve, y debe coincidir con el de la web (`system-ui, sans-serif`).
+        $this->config(['design' => ['typography' => ['font_heading' => 'Unbounded']]]);
+        $stack = hwe_email_font_stack('heading');
+        $this->assertStringStartsWith("'Unbounded', ", $stack);
+        $this->assertStringEndsWith('sans-serif', $stack);
+        $this->assertStringNotContainsString('Georgia', $stack);
+
+        $this->config(['design' => ['typography' => ['font_heading' => '']]]);
+        $this->assertStringNotContainsString('Georgia', hwe_email_font_stack('heading'));
+        $this->assertStringEndsWith('sans-serif', hwe_email_font_stack('heading'));
+    }
+
+    public function testASerifBrandKeepsItsSerifByNamingAHeadingFontThatEveryClientHas(): void {
+        $this->config(['design' => ['typography' => ['font_heading' => 'Georgia']]]);
+        $this->assertStringStartsWith("'Georgia', ", hwe_email_font_stack('heading'));
+    }
+
     // ── prueba de plantillas ────────────────────────────────────────────────
 
     public function testTheTestSendForcesTheRecipientAndDropsCopies(): void {

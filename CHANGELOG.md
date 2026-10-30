@@ -38,6 +38,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `HWE_CORE_CONTRACT_VERSION` pasa a `2.3.0`.
 
 ### Changed
+- **Los titulares de los correos ya no caen a una serif:** el respaldo de `font_heading` era
+  Georgia, así que casi cualquier cliente de correo pintaba los titulares en serif aunque la web
+  fuera sans-serif. Ahora es la misma reserva sans-serif del cuerpo. Una marca con serif la nombra
+  en `design.typography.font_heading` (`Georgia`). Sin cambios de contrato.
 - **El país base de WooCommerce sigue a `ecommerce.country` al guardar.** Una tienda de otro país
   se quedaba con `ES` en WooCommerce → Ajustes → General y calculaba impuestos y tarifas de envío
   contra el país equivocado. Ahora, al guardar la config (también desde `wp hwe setup`), si el

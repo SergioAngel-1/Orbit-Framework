@@ -63,16 +63,17 @@ function hwe_email_color( string $name ): string {
 
 /**
  * Pila tipográfica para el correo: la fuente del Control Center (solo letras, cifras,
- * espacios y guiones: va dentro de un `style`) y reservas seguras.
+ * espacios y guiones: va dentro de un `style`) y reservas seguras. Casi ningún cliente de
+ * correo carga la fuente de la marca, así que la reserva es lo que se ve: siempre sans-serif,
+ * como en la web (`system-ui, sans-serif`). Una marca con serif la nombra en `font_heading`
+ * (p. ej. `Georgia`).
  *
  * @param 'body'|'heading' $which
  */
 function hwe_email_font_stack( string $which ): string {
 	$field = 'heading' === $which ? 'font_heading' : 'font_sans';
 	$name  = trim( (string) preg_replace( '/[^A-Za-z0-9 \-]/', '', hwe_email_setting( array( 'design', 'typography', $field ) ) ) );
-	$tail  = 'heading' === $which
-		? "Georgia, 'Times New Roman', serif"
-		: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+	$tail  = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 	return '' !== $name ? "'" . $name . "', " . $tail : $tail;
 }
 
