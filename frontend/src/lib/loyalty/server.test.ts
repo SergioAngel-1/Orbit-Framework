@@ -213,6 +213,7 @@ describe("getLoyaltyReferrals", () => {
   const page = {
     items: [
       {
+        id: "a1b2c3",
         name: "Ana",
         date: "2026-10-01T10:00:00Z",
         status: "confirmed",

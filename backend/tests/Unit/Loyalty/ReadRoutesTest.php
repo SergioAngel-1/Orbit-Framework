@@ -46,6 +46,8 @@ final class ReadRoutesTest extends TestCase
     {
         parent::setUp();
 
+        Functions\when('wp_salt')->justReturn('sal-de-prueba');
+
         $this->config = [
             'loyalty' => [
                 'points_enabled'    => '1',
@@ -418,6 +420,28 @@ final class ReadRoutesTest extends TestCase
         $this->assertSame([self::USER, 1, 0], $this->wpdb()->historyLimits[1], 'per_page mínimo 1.');
     }
 
+    public function test_each_referral_has_a_stable_opaque_id(): void
+    {
+        $read = fn (): array => \HWE_Loyalty_ReadRoutes::handleReferrals(
+            new \WP_REST_Request(['user_id' => self::USER, 'level' => '1', 'page' => 1, 'per_page' => 20])
+        )->get_data()['items'];
+
+        $items = $read();
+        $ids   = array_column($items, 'id');
+
+        $this->assertCount(2, array_unique($ids), 'Cada referido tiene el suyo.');
+        $this->assertSame($ids, array_column($read(), 'id'), 'No cambia entre lecturas.');
+        foreach ($ids as $id) {
+            $this->assertMatchesRegularExpression('/^[0-9a-f]{24}$/', $id, 'Opaco: no es el id de usuario.');
+        }
+
+        // Un mismo referido no se puede correlacionar entre dos referidores (N1 y N2 de la red).
+        $this->assertNotSame(
+            \HWE_Loyalty_Referrals::publicId(self::USER, self::THIRD),
+            \HWE_Loyalty_Referrals::publicId(self::OTHER, self::THIRD)
+        );
+    }
+
     public function test_referrals_lists_both_levels_without_personal_identifiers(): void
     {
         $levelOne = \HWE_Loyalty_ReadRoutes::handleReferrals(
@@ -430,7 +454,7 @@ final class ReadRoutesTest extends TestCase
         $this->assertSame(1, $page['pages']);
         $this->assertCount(2, $page['items']);
         $this->assertSame(
-            ['name', 'date', 'status', 'points_generated'],
+            ['id', 'name', 'date', 'status', 'points_generated'],
             array_keys($page['items'][0])
         );
         $this->assertSame(

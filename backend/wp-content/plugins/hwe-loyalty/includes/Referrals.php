@@ -707,6 +707,18 @@ final class HWE_Loyalty_Referrals {
 	}
 
 	/**
+	 * Identificador público y estable de un referido dentro de la red de quien consulta.
+	 *
+	 * La API no publica ids de usuario: este es una huella con la sal del sitio, ligada también
+	 * al consultante para que el mismo referido no se pueda correlacionar entre dos redes. Sirve
+	 * de clave de lista y para no repetir filas al paginar; rotar las sales lo cambia, y nada lo
+	 * guarda fuera de la pantalla que lo pidió.
+	 */
+	public static function publicId( int $viewerId, int $referredId ): string {
+		return substr( hash_hmac( 'sha256', "referral:{$viewerId}:{$referredId}", wp_salt( 'auth' ) ), 0, 24 );
+	}
+
+	/**
 	 * Totales de la red de un referidor para el resumen de referidos del BFF.
 	 *
 	 * `level1` y `level2` cuentan las cuentas atribuidas en cada nivel; `pending` cuenta las

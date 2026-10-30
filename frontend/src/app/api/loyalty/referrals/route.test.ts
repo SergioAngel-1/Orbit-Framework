@@ -43,6 +43,7 @@ const PAGE = {
       name: "Ana",
       date: "2026-09-01T00:00:00Z",
       status: "confirmed" as const,
+      id: "a1b2c3",
       points_generated: 40,
     },
   ],

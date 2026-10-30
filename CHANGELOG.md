@@ -7,6 +7,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **Identificador estable en los referidos de la API.** `GET /api/loyalty/referrals` publica en cada
+  fila un `id` opaco (huella con la sal del sitio y ligada a quien consulta, nunca el id de usuario):
+  sirve de clave de lista y para no repetir filas al paginar. Campo nuevo, sin cambios incompatibles.
 - **El campo `richtext` admite tablas.** `RichTextType` guarda `table`, `caption`, `thead`, `tbody`,
   `tfoot`, `tr`, `th` y `td`, con solo `scope`, `colspan` y `rowspan`; `sanitizeHtml` conserva
   `caption`, `tfoot` y esos atributos. Antes un `<table>` escrito en el panel se guardaba como texto
