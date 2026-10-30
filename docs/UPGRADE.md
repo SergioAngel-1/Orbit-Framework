@@ -316,8 +316,8 @@ Tres fallos observados en una instalación nueva y en producción. No cambian ru
 
 ## 3.6 Contrato `2.4.0` (nota de actualización)
 
-Sin cambios incompatibles de contrato: todo lo nuevo es opcional y, sin declararlo, el comportamiento
-es el anterior.
+Sin cambios incompatibles de contrato. Las novedades son opcionales; al final se listan los cambios de
+comportamiento que sí se notan sin declarar nada.
 
 - **Ventana de la cookie de referido (`InstanceRegistry.referralCookieDays`).** Opcional: días que dura
   `hwe_ref`, entero de 1 a 365. Sin el campo, 30.
@@ -332,6 +332,25 @@ es el anterior.
   tuyo: para usarlo, adopta `resolveColorScheme`, `colorSchemeHtmlProps` y `ColorSchemeHead`
   (`docs/FRONTEND_CONNECT.md`, «Esquema de color»). Sin tema oscuro, siembra `light` y declara
   `colorSchemeFallback: "light"` en el registro. No hace falta tocar `globals.css`.
+
+- **Tipos.** `legal.city`, `legal.region`, `legal.postal_code` y `design.color_scheme` son opcionales en
+  `SiteConfig`: tus fixtures tipados siguen compilando, y al leerlos cuenta con `undefined`. En cambio,
+  `LoyaltyReferral.id` es obligatorio, porque la API siempre lo publica: un fixture tipado de
+  `LoyaltyReferralPage` debe añadirlo.
+
+**Cambios de comportamiento visibles sin declarar nada:**
+
+- **Fuente de los titulares de correo.** Con `design.typography.font_heading` vacío (el valor por defecto),
+  los titulares pasan de Georgia a la pila del cuerpo. Con una fuente con nombre, nada cambia: la reserva
+  sigue siendo serif. Si tus titulares son sans-serif, esa reserva es lo que verá casi todo cliente de
+  correo; elige otra con el filtro `hwe_email_heading_font_fallback` (`docs/PLUGIN_DEVELOPMENT.md`).
+- **Reserva de `--font-sans` y `--font-heading`.** Pasa de `system-ui` a `var(--font-inter, system-ui)`. Si
+  el nombre del panel no tiene `@font-face` y tu layout carga Inter con `next/font` bajo `--font-inter`, el
+  sitio pasa de la fuente del sistema a Inter. Sin esa variable, el resultado es el de antes.
+- **`app/error.tsx` y `app/not-found.tsx`.** Se rediseñan con estilos en línea y texto en el idioma por
+  defecto del sitio. El 404 deja de estar en inglés y el error deja de enseñar `error.message`, que pasa a
+  ser solo la referencia `digest`. **Si tu instancia los tradujo, el merge dará conflicto:** toma la versión
+  del framework y, si tu idioma por defecto no es `es` ni `en`, añádelo en `app/last-resort.ts`.
 
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.4.0`; compárala si tu código depende de algo nuevo.
 
