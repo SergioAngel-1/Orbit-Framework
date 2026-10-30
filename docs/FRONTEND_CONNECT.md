@@ -1064,6 +1064,14 @@ Reglas:
   `instance.sitemap.invalid_entry`; el sitemap sigue generándose. Sin el campo, todo es idéntico
   al comportamiento anterior.
 
+### Ventana de la cookie de referido (`InstanceRegistry.referralCookieDays`)
+
+El proxy guarda `?ref=<código>` en la cookie `hwe_ref` durante 30 días. Una instancia con otra
+ventana de atribución declara `referralCookieDays` (entero de 1 a 365) en
+`frontend/src/instance/registry.ts`. Un valor inválido cae a 30 días con el evento
+`instance.referral_cookie_invalid`. Va en el registro y no en el Control Center porque la escribe el
+proxy, que corre en edge y no consulta WordPress.
+
 ### Redirecciones de migración (`InstanceRegistry.redirects`)
 
 Lista de `{ from, to, permanent? }` que el **proxy** aplica antes de next-intl

@@ -188,6 +188,11 @@ export interface InstanceRegistry {
    */
   redirects?: readonly InstanceRedirect[];
   /**
+   * Días que dura la cookie de referido `hwe_ref`, entero de 1 a 365. Sin el campo, 30. Va aquí y
+   * no en el Control Center porque la escribe el proxy, que no consulta la config.
+   */
+  referralCookieDays?: number;
+  /**
    * Zona horaria de la tienda (IANA, p. ej. `"America/Bogota"`), igual para todos los idiomas
    * o por idioma (`{ es: "America/Bogota", en: "America/New_York" }`). La usa
    * `i18n/request.ts` para formatear fechas y horas. Sin ella, se mantienen los valores de

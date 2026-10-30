@@ -7,6 +7,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **Ventana de la cookie de referido configurable (`InstanceRegistry.referralCookieDays`).** Entero de 1
+  a 365; sin el campo, los 30 días de siempre. Va en el registro y no en el Control Center porque la
+  escribe el proxy, que corre en edge y no consulta la config. Un valor inválido cae a 30 días con el
+  evento `instance.referral_cookie_invalid`. `HWE_CORE_CONTRACT_VERSION` pasa a `2.4.0`.
 - **Pedidos del cliente paginados con totales y filtros.** `getCustomerOrdersPage` (`lib/account/data.ts`)
   devuelve `{ orders, total, totalPages }` con filtros `status`, `after`, `before` y `_fields`, sobre un
   nuevo `wcFetchPage` que conserva `X-WP-Total` y `X-WP-TotalPages`. Ya no hace falta leer el historial

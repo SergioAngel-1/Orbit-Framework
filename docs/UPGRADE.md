@@ -314,6 +314,16 @@ Tres fallos observados en una instalación nueva y en producción. No cambian ru
   `docker compose -f docker-compose.prod.yml build backup` (o deja que `up -d` la construya) y
   recrea el servicio. La red, los volúmenes, las capacidades y los límites no cambian.
 
+## 3.6 Contrato `2.4.0` (nota de actualización)
+
+Sin cambios incompatibles de contrato: todo lo nuevo es opcional y, sin declararlo, el comportamiento
+es el anterior.
+
+- **Ventana de la cookie de referido (`InstanceRegistry.referralCookieDays`).** Opcional: días que dura
+  `hwe_ref`, entero de 1 a 365. Sin el campo, 30.
+
+`HWE_CORE_CONTRACT_VERSION` pasa a `2.4.0`; compárala si tu código depende de algo nuevo.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

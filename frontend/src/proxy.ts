@@ -277,9 +277,9 @@ export async function proxy(request: NextRequest) {
   //    construya la respuesta de locale sobre el request ya actualizado.
   //
   //    Un `?ref=<código>` con formato válido se guarda en una cookie httpOnly
-  //    (30 días). Aquí NO se consulta WordPress ni la config: el proxy corre en
-  //    edge y la decisión de usarlo es del registro, que conoce el módulo y sus
-  //    interruptores. Un formato inválido no toca la cookie que ya hubiera y la
+  //    (`InstanceRegistry.referralCookieDays`, 30 días por defecto). Aquí NO se
+  //    consulta WordPress ni la config: el proxy corre en edge y la decisión de usarlo
+  //    es del registro, que conoce el módulo y sus interruptores. Un formato inválido no toca la cookie que ya hubiera y la
   //    URL se queda como está (sin redirección para limpiar el parámetro).
   const referralCode = normalizeReferralCode(request.nextUrl.searchParams.get("ref"));
 
