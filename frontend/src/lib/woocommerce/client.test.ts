@@ -65,6 +65,26 @@ describe("wcFetchPage: totales de una colección", () => {
     });
   });
 
+  it("sin `X-WP-TotalPages`, las calcula con `X-WP-Total` y `per_page`", async () => {
+    fetchMock.mockResolvedValue(
+      new Response('[{"id":1}]', { status: 200, headers: { "X-WP-Total": "57" } }),
+    );
+    const { wcFetchPage } = await loadClient("http://wordpress:80/wp-json/wc/v3");
+
+    await expect(
+      wcFetchPage("/orders", { query: { per_page: 20 } }),
+    ).resolves.toMatchObject({ total: 57, totalPages: 3 });
+  });
+
+  it("sin `per_page`, calcula con el tamaño por defecto de wc/v3", async () => {
+    fetchMock.mockResolvedValue(
+      new Response("[]", { status: 200, headers: { "X-WP-Total": "25" } }),
+    );
+    const { wcFetchPage } = await loadClient("http://wordpress:80/wp-json/wc/v3");
+
+    await expect(wcFetchPage("/orders")).resolves.toMatchObject({ totalPages: 3 });
+  });
+
   it("wcFetch sigue devolviendo solo el cuerpo", async () => {
     fetchMock.mockResolvedValue(
       new Response('[{"id":1}]', { status: 200, headers: { "X-WP-Total": "57" } }),

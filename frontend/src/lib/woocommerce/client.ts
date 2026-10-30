@@ -84,6 +84,8 @@ export interface WcPage<T> {
   totalPages: number;
 }
 
+const WC_DEFAULT_PER_PAGE = 10;
+
 /** Cabecera numérica de paginación; `null` si no viene o no es un entero. */
 function paginationHeader(headers: Headers, name: string): number | null {
   const raw = headers.get(name);
@@ -93,7 +95,8 @@ function paginationHeader(headers: Headers, name: string): number | null {
 
 /**
  * Como `wcFetch`, para colecciones: conserva los totales que WooCommerce manda en las
- * cabeceras. Sin ellas (un proxy que las quita), los totales describen solo lo recibido.
+ * cabeceras. Si un proxy quita alguna, se calcula con la otra; sin ninguna, los totales describen
+ * solo lo recibido.
  *
  * @throws WooCommerceError
  */
@@ -103,11 +106,24 @@ export async function wcFetchPage<T>(
 ): Promise<WcPage<T>> {
   const { data, headers } = await wcRequest<T[] | null>(path, options);
   const items = data ?? [];
+  const total = paginationHeader(headers, "x-wp-total");
   return {
     items,
-    total: paginationHeader(headers, "x-wp-total") ?? items.length,
-    totalPages: paginationHeader(headers, "x-wp-totalpages") ?? (items.length ? 1 : 0),
+    total: total ?? items.length,
+    totalPages:
+      paginationHeader(headers, "x-wp-totalpages") ??
+      (total !== null
+        ? Math.ceil(total / pageSize(options))
+        : items.length > 0
+          ? 1
+          : 0),
   };
+}
+
+/** `per_page` de la petición, o el que aplica wc/v3 si no se indicó. */
+function pageSize(options: WcRequestOptions): number {
+  const size = Number(options.query?.per_page);
+  return Number.isInteger(size) && size > 0 ? size : WC_DEFAULT_PER_PAGE;
 }
 
 async function wcRequest<T>(
