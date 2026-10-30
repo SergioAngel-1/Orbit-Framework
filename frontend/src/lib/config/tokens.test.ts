@@ -62,6 +62,51 @@ describe("configuración válida", () => {
     );
   });
 
+  describe("con el esquema fijado en oscuro", () => {
+    const dark = (colors: Record<string, string> = {}) => ({
+      ...CONFIG_DEFAULTS,
+      design: {
+        ...CONFIG_DEFAULTS.design,
+        color_scheme: "dark" as const,
+        colors: { ...CONFIG_DEFAULTS.design.colors, ...colors },
+      },
+    });
+
+    it("no publica el fondo y el texto claros por defecto, que taparían a `.dark`", () => {
+      const css = buildCssVars(dark());
+
+      expect(css).not.toContain("--background");
+      expect(css).not.toContain("--foreground");
+      expect(css).toContain("--color-brand: #111111");
+    });
+
+    it("respeta un fondo y un texto elegidos en el panel", () => {
+      const css = buildCssVars(dark({ background: "#101020", foreground: "#fafafa" }));
+
+      expect(css).toContain("--background: #101020");
+      expect(css).toContain("--foreground: #fafafa");
+    });
+
+    it("el esquema resuelto manda sobre el de la config (respaldo sin WordPress)", () => {
+      const { declarations } = resolveDesignTokens(CONFIG_DEFAULTS, "dark");
+
+      expect(declarations.join(";")).not.toContain("--background");
+    });
+  });
+
+  it.each(["system", "light"] as const)(
+    "con el esquema `%s` se publican como siempre",
+    (color_scheme) => {
+      const css = buildCssVars({
+        ...CONFIG_DEFAULTS,
+        design: { ...CONFIG_DEFAULTS.design, color_scheme },
+      });
+
+      expect(css).toContain("--background: #ffffff");
+      expect(css).toContain("--foreground: #0a0a0a");
+    },
+  );
+
   it("una fuente sin definir (cadena vacía) no emite el token, y no es un error", () => {
     const { declarations, rejected } = resolveDesignTokens(CONFIG_DEFAULTS);
 

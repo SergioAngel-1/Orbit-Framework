@@ -17,6 +17,7 @@ export { Checkbox } from "./checkbox";
 export type { CheckboxProps } from "./checkbox";
 
 export { DarkModeToggle, DarkModeScript } from "./dark-mode-toggle";
+export { ColorSchemeHead, colorSchemeHtmlProps } from "./color-scheme";
 
 export { Input } from "./input";
 export type { InputProps } from "./input";

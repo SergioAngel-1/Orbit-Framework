@@ -327,6 +327,12 @@ es el anterior.
   migración de datos:** las direcciones guardadas reciben un identificador derivado al leerlas, que se
   graba en la siguiente escritura de la libreta. La API de lectura no cambia de forma.
 
+- **Esquema de color (`design.color_scheme`).** Campo nuevo, `system` por defecto: sin tocarlo, nada
+  cambia. El layout heredado ya lo aplica, pero `app/[locale]/**` es tuyo y una actualización no toca el
+  tuyo: para usarlo, adopta `resolveColorScheme`, `colorSchemeHtmlProps` y `ColorSchemeHead`
+  (`docs/FRONTEND_CONNECT.md`, «Esquema de color»). Sin tema oscuro, siembra `light` y declara
+  `colorSchemeFallback: "light"` en el registro. No hace falta tocar `globals.css`.
+
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.4.0`; compárala si tu código depende de algo nuevo.
 
 ## 4. Reglas para el framework (para que esto siga funcionando)

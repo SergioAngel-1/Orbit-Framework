@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
-import { DarkModeScript } from "./dark-mode-toggle";
+import { DarkModeScript, DarkModeToggle } from "./dark-mode-toggle";
 
 // ============================================================================
 //  `DarkModeScript` en el CLIENTE (navegación blanda, p. ej. al cambiar de
@@ -35,6 +35,7 @@ function prefersDark(matches: boolean) {
 beforeEach(() => {
   vi.stubGlobal("localStorage", memoryStorage());
   document.documentElement.classList.remove("dark");
+  document.documentElement.removeAttribute("data-color-scheme");
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -75,5 +76,33 @@ describe("DarkModeScript (cliente)", () => {
     render(<DarkModeScript />);
 
     expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
+});
+
+describe("con el esquema fijado (`<html data-color-scheme>`)", () => {
+  beforeEach(() => {
+    document.documentElement.setAttribute("data-color-scheme", "light");
+    prefersDark(true);
+    localStorage.setItem("hwe-theme", "dark");
+  });
+
+  it("no lee la preferencia guardada ni la del sistema", () => {
+    render(<DarkModeScript />);
+
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
+
+  it("no ofrece el selector", () => {
+    const { container } = render(<DarkModeToggle />);
+
+    expect(container.querySelector("button")).toBeNull();
+  });
+
+  it("sin el atributo, el selector sigue ahí", () => {
+    document.documentElement.removeAttribute("data-color-scheme");
+
+    const { container } = render(<DarkModeToggle />);
+
+    expect(container.querySelector("button")).not.toBeNull();
   });
 });

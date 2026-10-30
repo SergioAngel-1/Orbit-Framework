@@ -107,6 +107,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
     },
   },
   design: {
+    color_scheme: "system",
     colors: {
       brand: "#111111",
       brand_dark: "#000000",

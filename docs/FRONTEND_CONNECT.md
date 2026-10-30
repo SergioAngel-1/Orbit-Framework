@@ -868,6 +868,7 @@ legal:  { company, nif, email, phone, mobile, address, city, region, postal_code
           locations: { location_1…location_5: { label, address, city, region, postal_code,
                        maps, phone, hours, latitude, longitude } } }   // hasta 5 sedes, todas opcionales
 design: {
+  color_scheme: "system" | "light" | "dark"
   colors:     { brand, brand_dark, brand_light, secondary, secondary_dark, accent, surface, background, foreground }
   typography: { font_sans, font_url, font_heading, font_heading_url }
 }
@@ -1109,6 +1110,24 @@ CSS (`--color-brand`, `--color-brand-dark`, `--color-brand-light`, `--color-seco
 código. El mapeo campo → variable vive en `frontend/src/lib/config/tokens.ts`; el mecanismo de
 inyección en runtime (`components/ui/theme-tokens.tsx`) es parte de la UI heredada (Parte B),
 pero el **contrato de qué 9 colores + 2 tipografías existen** es estable.
+
+### Esquema de color (`design.color_scheme`)
+
+`system` (por defecto) sigue al dispositivo, como siempre. `light` y `dark` lo fijan: el servidor pinta
+`<html class="light" style="color-scheme:light" data-color-scheme="light">` y
+`<meta name="color-scheme">`, sin script, así que no hay parpadeo ni diferencias al hidratar y nadie lee
+`localStorage` ni `prefers-color-scheme`. Elige `light` si el diseño no tiene tema oscuro.
+
+En un layout propio: `resolveColorScheme(config)` (`lib/config/color-scheme.ts`),
+`colorSchemeHtmlProps(scheme)` en `<html>` y `<ColorSchemeHead scheme={scheme} />` en `<head>`
+(`components/ui/color-scheme.tsx`). Si tu cabecera monta `DarkModeToggle`, no la montes con un esquema
+fijo: se retira sola al hidratar, pero llega en el HTML. Si WordPress no responde se usa
+`InstanceRegistry.colorSchemeFallback` (por defecto `system`): una instancia sin tema oscuro declara
+`light`, para que un fallo de la API no cambie su aspecto.
+
+Con `dark`, el fondo y el texto que sigan en el valor por defecto (claros) no se publican, para que
+`.dark` de `globals.css` se aplique; un fondo o un texto elegidos en el panel se respetan. Con `system`
+y el dispositivo en oscuro, el fondo y el texto del panel siguen ganando a `.dark`, como hasta ahora.
 
 ## A.6 Webhooks salientes (WordPress/WooCommerce → tu frontend)
 

@@ -67,6 +67,16 @@ final class SchemaContractTest extends TestCase
         $this->assertSame([], $schema['instance']['children']);
     }
 
+    public function testTheColorSchemeIsPublicAndFollowsTheDeviceByDefault(): void
+    {
+        $field = Schema::get()['design']['children']['color_scheme'];
+
+        $this->assertSame('select', $field['type']);
+        $this->assertSame('system', $field['default'], 'Las instancias actuales no cambian.');
+        $this->assertTrue($field['public']);
+        $this->assertSame(['system', 'light', 'dark'], array_keys($field['options']));
+    }
+
     public function testTheShippingGroupIsReservedForItsModuleAndHasNoDeadFields(): void
     {
         $shipping = Schema::get()['shipping'];

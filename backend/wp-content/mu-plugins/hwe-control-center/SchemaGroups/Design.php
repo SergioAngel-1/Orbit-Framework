@@ -24,6 +24,19 @@ trait Design {
                 'label'    => 'Diseño',
                 'children' => [
 
+                    'color_scheme' => [
+                        'type'        => 'select',
+                        'label'       => 'Esquema de color',
+                        'default'     => 'system',
+                        'public'      => true,
+                        'options'     => [
+                            'system' => 'Según el dispositivo del visitante',
+                            'light'  => 'Siempre claro',
+                            'dark'   => 'Siempre oscuro',
+                        ],
+                        'description' => 'Elige «Siempre claro» si el diseño de la tienda no tiene tema oscuro. Con un esquema fijo no se ofrece el selector y se ignora la preferencia guardada del visitante.',
+                    ],
+
                     'colors' => [
                         'type'     => 'group',
                         'label'    => 'Colores',

@@ -1,5 +1,5 @@
 import { CONFIG_DEFAULTS } from "./defaults";
-import type { SiteConfig } from "./types";
+import type { ColorScheme, SiteConfig } from "./types";
 
 // ============================================================================
 //  Generador de CSS custom properties desde la configuración de diseño.
@@ -109,6 +109,9 @@ function getNestedValue(
   return typeof current === "string" && current.trim() !== "" ? current : undefined;
 }
 
+/** Tokens cuyo valor por defecto es claro y que `.dark` redefine en `globals.css`. */
+const LIGHT_SURFACE_TOKENS = new Set(["--background", "--foreground"]);
+
 /** Un token cuyo valor no cumplió el formato de su tipo. */
 export interface RejectedToken {
   cssVar: string;
@@ -131,14 +134,28 @@ const MAX_REPORTED_VALUE_LENGTH = 80;
  * de `CONFIG_DEFAULTS` si éste es válido (lo mismo que emitiría una config sin
  * tocar) o se omite; en ambos casos queda en `rejected` para que el llamador lo
  * registre. Un valor vacío es «sin definir», no un error.
+ *
+ * Con el esquema fijado en `dark`, el fondo y el texto que sigan en el valor por defecto (claros) no
+ * se publican: este `<style>` va después de `globals.css` con la misma especificidad y taparía
+ * el `.dark` de la hoja. Un fondo o un texto elegidos en el panel sí se respetan.
  */
-export function resolveDesignTokens(config: Partial<SiteConfig>): ResolvedTokens {
+export function resolveDesignTokens(
+  config: Partial<SiteConfig>,
+  scheme: ColorScheme | undefined = config.design?.color_scheme,
+): ResolvedTokens {
   const declarations: string[] = [];
   const rejected: RejectedToken[] = [];
 
   for (const token of TOKEN_MAP) {
     const raw = getNestedValue(config as Record<string, unknown>, token.path);
     if (raw === undefined) continue;
+    if (
+      scheme === "dark" &&
+      LIGHT_SURFACE_TOKENS.has(token.cssVar) &&
+      raw === getNestedValue(CONFIG_DEFAULTS as unknown as Record<string, unknown>, token.path)
+    ) {
+      continue;
+    }
 
     let value = raw;
     if (!isValidTokenValue(token.kind, raw)) {

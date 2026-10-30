@@ -34,6 +34,14 @@ function getServerThemeSnapshot(): boolean {
   return false;
 }
 
+/**
+ * ¿El sitio fija el esquema (`design.color_scheme`)? Lo marca `<html data-color-scheme>`. Entonces no
+ * hay nada que elegir: ni se lee la preferencia guardada ni se ofrece el selector.
+ */
+function isColorSchemeFixed(): boolean {
+  return document.documentElement.hasAttribute("data-color-scheme");
+}
+
 /** Aplica el tema y avisa a los suscriptores (el toggle). */
 function applyDarkClass(dark: boolean): void {
   document.documentElement.classList.toggle("dark", dark);
@@ -94,6 +102,15 @@ export function DarkModeToggle({ className }: { className?: string }) {
     getThemeSnapshot,
     getServerThemeSnapshot,
   );
+  // Quien conozca el esquema en el servidor no debe montar este botón (`SiteHeader`). Esto es la
+  // red para una cabecera propia que lo siga montando: el botón se retira al hidratar.
+  const fixed = useSyncExternalStore(
+    subscribeTheme,
+    isColorSchemeFixed,
+    getServerThemeSnapshot,
+  );
+
+  if (fixed) return null;
 
   const toggle = () => {
     const nextDark = !document.documentElement.classList.contains("dark");
@@ -116,6 +133,7 @@ export function DarkModeToggle({ className }: { className?: string }) {
 
 /** Aplica el tema guardado (o el del sistema) a `<html>`. Misma lógica que el script inline. */
 function applyStoredTheme() {
+  if (isColorSchemeFixed()) return;
   try {
     const stored = localStorage.getItem(THEME_KEY);
     const dark =
@@ -148,7 +166,7 @@ export function DarkModeScript() {
     <script
       // biome-ignore lint/security/noDangerouslySetInnerHtml: inline script necesario para evitar FOUC de modo oscuro
       dangerouslySetInnerHTML={{
-        __html: `(function(){try{var t=localStorage.getItem('${THEME_KEY}');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})()`,
+        __html: `(function(){if(document.documentElement.hasAttribute('data-color-scheme'))return;try{var t=localStorage.getItem('${THEME_KEY}');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})()`,
       }}
     />
   );

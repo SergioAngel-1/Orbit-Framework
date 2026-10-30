@@ -248,7 +248,7 @@ oscuro.
 | `Spinner` | Carga inline en botones/acciones |
 | `Paginator` | Paginación clásica (alternativa a scroll infinito) |
 | `QuantityCounter` | Selector de cantidad (carrito, ficha de producto) |
-| `DarkModeToggle` | Ya integrado en `SiteHeader`; solo lo tocas si rediseñas el header |
+| `DarkModeToggle` | Ya integrado en `SiteHeader`, que lo omite con un `design.color_scheme` fijo; solo lo tocas si rediseñas el header |
 
 Junto con estos componentes, son igual de obligatorios los **patrones** de
 `docs/FRONTEND_CONNECT.md` Parte A: `getSiteConfig()` como única fuente de marca, el gating por

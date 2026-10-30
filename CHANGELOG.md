@@ -7,6 +7,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **Esquema de color configurable (`design.color_scheme`: `system`, `light`, `dark`).** No todos los sitios
+  tienen tema oscuro. Con un esquema fijo el servidor pinta clase, `color-scheme` y `<meta>`: sin parpadeo
+  ni diferencias al hidratar, sin leer `localStorage` ni `prefers-color-scheme`, y sin selector de tema.
+  Publicado en `/config`; por defecto `system`, sin cambios en el HTML. `lib/config/color-scheme.ts`,
+  `components/ui/color-scheme.tsx` e `InstanceRegistry.colorSchemeFallback` para cuando WordPress no responde.
 - **`GET /api/store/products?exclude=1,2,3` y `getProducts({ exclude })`.** Excluye ids del listado en la
   consulta, de modo que las páginas salen completas. Es una ruta pública: acepta hasta 100 ids, los
   normaliza para no multiplicar entradas de caché, solo resta de lo ya público y gasta el presupuesto

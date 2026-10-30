@@ -8,11 +8,12 @@ import "../globals.css";
 import { CartProvider } from "@/components/cart/cart-context";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
-import { DarkModeScript } from "@/components/ui/dark-mode-toggle";
+import { ColorSchemeHead, colorSchemeHtmlProps } from "@/components/ui/color-scheme";
 import { ThemeTokens } from "@/components/ui/theme-tokens";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { getSiteConfig } from "@/lib/config";
+import { resolveColorScheme } from "@/lib/config/color-scheme";
 import { isModuleEnabled } from "@/lib/config/modules";
 import { CurrencyProvider } from "@/components/ui/currency-context";
 import { getMenu } from "@/lib/navigation/menu";
@@ -24,6 +25,7 @@ import { resolveTitleTemplate } from "@/lib/seo/title";
 import { safeJsonLd } from "@/lib/seo/safe-json-ld";
 import { indexingBlockedByEnv } from "@/lib/seo/indexing";
 import { pickClientMessages } from "@/lib/i18n/client-messages";
+import { cn } from "@/lib/utils";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -133,14 +135,21 @@ export default async function LocaleLayout({
   const tNav = await getTranslations("nav");
   const config = await getSiteConfig();
   const primaryMenu = await getMenu("primary", locale);
+  const colorScheme = resolveColorScheme(config);
+  const { className: schemeClass, ...schemeProps } = colorSchemeHtmlProps(colorScheme);
 
   return (
     // suppressHydrationWarning necesario para el script de modo oscuro que
     // añade/quita .dark en <html> antes de que React hidrate.
-    <html lang={locale} className={inter.variable} suppressHydrationWarning>
+    <html
+      lang={locale}
+      className={cn(inter.variable, schemeClass)}
+      {...schemeProps}
+      suppressHydrationWarning
+    >
       <head>
-        {/* Evita FOUC: aplica .dark antes del primer paint */}
-        <DarkModeScript />
+        {/* Evita FOUC: esquema fijo o script que aplica .dark antes del primer paint */}
+        <ColorSchemeHead scheme={colorScheme} />
       </head>
       <body className="min-h-screen bg-[--background] font-sans text-[--foreground] antialiased">
         {/* Design tokens dinámicos desde el panel de configuración */}
@@ -168,6 +177,7 @@ export default async function LocaleLayout({
                 <SiteHeader
                   logoUrl={config.brand.logo || undefined}
                   items={primaryMenu}
+                  themeToggle={colorScheme === "system"}
                 />
 
                 <main id="main-content" className="mx-auto max-w-5xl px-6 py-12">

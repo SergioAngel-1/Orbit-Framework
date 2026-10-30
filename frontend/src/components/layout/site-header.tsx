@@ -53,9 +53,11 @@ export interface SiteHeaderProps {
   logoUrl?: string;
   /** Menú resuelto desde WP (getMenu). undefined/null = fallback NAV_ITEMS + i18n. */
   items?: MenuLink[] | null;
+  /** Ofrecer el selector de tema: solo tiene sentido si el esquema no está fijado. */
+  themeToggle?: boolean;
 }
 
-export function SiteHeader({ logoUrl, items }: SiteHeaderProps = {}) {
+export function SiteHeader({ logoUrl, items, themeToggle = true }: SiteHeaderProps = {}) {
   const t = useTranslations("nav");
   const tSite = useTranslations("site");
   const pathname = usePathname();
@@ -182,7 +184,9 @@ export function SiteHeader({ logoUrl, items }: SiteHeaderProps = {}) {
             </Link>
             <CartIndicator />
             <LocaleSwitcher />
-            <DarkModeToggle className="text-gray-600 dark:text-gray-300" />
+            {themeToggle && (
+              <DarkModeToggle className="text-gray-600 dark:text-gray-300" />
+            )}
           </div>
 
           {/* Acciones móviles */}
@@ -301,7 +305,9 @@ export function SiteHeader({ logoUrl, items }: SiteHeaderProps = {}) {
               {t("contact")}
             </Link>
             <LocaleSwitcher />
-            <DarkModeToggle className="text-gray-600 dark:text-gray-300" />
+            {themeToggle && (
+              <DarkModeToggle className="text-gray-600 dark:text-gray-300" />
+            )}
           </div>
         </div>
       </div>

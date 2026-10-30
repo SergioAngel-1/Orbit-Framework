@@ -66,6 +66,8 @@ export interface SiteConfig {
     };
   };
   design: {
+    /** `system` sigue al dispositivo; `light` y `dark` lo fijan (`lib/config/color-scheme.ts`). */
+    color_scheme: ColorScheme;
     colors: {
       brand: string;
       brand_dark: string;
@@ -392,6 +394,9 @@ export type ModuleId =
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface InstanceConfig {}
+
+/** Esquema de color del sitio (`design.color_scheme`). */
+export type ColorScheme = "system" | "light" | "dark";
 
 /** Una sede del grupo `legal.locations`, tal como llega de la config pública. */
 export interface SiteConfigLocation {
