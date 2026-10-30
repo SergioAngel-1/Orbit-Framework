@@ -61,8 +61,10 @@ const ALLOWED_TAGS = [
   "figure",
   "figcaption",
   "table",
+  "caption",
   "thead",
   "tbody",
+  "tfoot",
   "tr",
   "th",
   "td",
@@ -70,7 +72,19 @@ const ALLOWED_TAGS = [
   "div",
 ];
 
-const ALLOWED_ATTR = ["href", "src", "alt", "title", "target", "rel", "class"];
+const ALLOWED_ATTR = [
+  "href",
+  "src",
+  "alt",
+  "title",
+  "target",
+  "rel",
+  "class",
+  // Estructura y accesibilidad de las tablas del campo `richtext`.
+  "scope",
+  "colspan",
+  "rowspan",
+];
 
 /** Devuelve una versión saneada del HTML, lista para inyectar en el DOM. */
 export function sanitizeHtml(dirty: string): string {

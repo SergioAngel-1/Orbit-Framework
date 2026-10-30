@@ -7,6 +7,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **El campo `richtext` admite tablas.** `RichTextType` guarda `table`, `caption`, `thead`, `tbody`,
+  `tfoot`, `tr`, `th` y `td`, con solo `scope`, `colspan` y `rowspan`; `sanitizeHtml` conserva
+  `caption`, `tfoot` y esos atributos. Antes un `<table>` escrito en el panel se guardaba como texto
+  corrido y se perdía sin aviso. Sin estilos ni manejadores: ambas capas siguen con lista blanca.
 - **SEO listo para lanzar: controles por contenido, migración, staging e IndexNow.**
   - Caja SEO del editor (entradas, páginas, productos, categorías): «Ocultar de buscadores»
     (`seoNoindex`: `noindex, follow`, fuera del sitemap, `llms.txt` y del índice) y «URL

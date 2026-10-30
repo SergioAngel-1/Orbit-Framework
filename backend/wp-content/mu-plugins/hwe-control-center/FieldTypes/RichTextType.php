@@ -9,8 +9,10 @@ namespace HWE\ControlCenter\FieldTypes;
  * en un contenedor oculto arranca con altura 0 y se rompe al cambiar de pestaña. Quicktags
  * es un `<textarea>` con botones y funciona igual oculto.
  *
- * Se sanea con `wp_kses` y una lista conservadora (párrafos, énfasis, enlaces y listas):
- * es contenido de la tienda que acaba en el frontend, no un post de un editor de confianza.
+ * Se sanea con `wp_kses` y una lista conservadora (párrafos, énfasis, enlaces, listas y tablas):
+ * es contenido de la tienda que acaba en el frontend, no un post de un editor de confianza. Las
+ * tablas solo admiten sus atributos de estructura; quicktags no tiene botón para ellas y se
+ * escriben a mano.
  */
 final class RichTextType implements FieldType {
 
@@ -24,6 +26,14 @@ final class RichTextType implements FieldType {
         'ul' => [],
         'ol' => [],
         'li' => [],
+        'table' => [],
+        'caption' => [],
+        'thead' => [],
+        'tbody' => [],
+        'tfoot' => [],
+        'tr' => [],
+        'th' => ['scope' => true, 'colspan' => true, 'rowspan' => true],
+        'td' => ['colspan' => true, 'rowspan' => true],
     ];
 
     public function id(): string {
