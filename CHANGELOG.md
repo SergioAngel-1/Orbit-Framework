@@ -75,6 +75,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **`getMenu` ya no traga los fallos de WordPress:** deja el evento
+  `navigation.menu_read_failed` (`warn`) y sigue devolviendo `null`. Un menú sin asignar o una
+  location que el tema no registra no son fallos y no se registran.
 - **La landing de producto (`/products/<slug>/learn`) no heredaba la caja SEO de su ficha.** El
   sitemap ya la omitía con la ficha en `noindex` o con canónica ajena, pero la página seguía
   declarando sus `alternates` y siendo indexable. Ahora hereda: ficha `noindex` → landing
