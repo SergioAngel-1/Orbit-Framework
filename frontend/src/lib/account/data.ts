@@ -1,5 +1,5 @@
 import "server-only";
-import { wcFetch } from "@/lib/woocommerce/client";
+import { wcFetch, wcFetchPage } from "@/lib/woocommerce/client";
 import { requireSession } from "@/lib/auth/session";
 import type { WooCustomer, WooOrder } from "@/types/woocommerce";
 import { collectProductPurchase, type ProductPurchase } from "./product-purchase";
@@ -25,6 +25,58 @@ export async function getCustomerOrders(page = 1, perPage = 20): Promise<WooOrde
       order: "desc",
     },
   });
+}
+
+export interface CustomerOrdersQuery<K extends keyof WooOrder = keyof WooOrder> {
+  page?: number;
+  /** Tamaño de página, de 1 a 100 (el máximo de wc/v3). */
+  perPage?: number;
+  /** Estados de WooCommerce (`processing`, `completed`…). Sin él, todos. */
+  status?: readonly string[];
+  /** Solo pedidos posteriores a esta fecha ISO 8601. */
+  after?: string;
+  /** Solo pedidos anteriores a esta fecha ISO 8601. */
+  before?: string;
+  /** Campos a traer (`_fields`), para no descargar el pedido entero. */
+  fields?: readonly K[];
+}
+
+export interface CustomerOrdersPage<K extends keyof WooOrder = keyof WooOrder> {
+  orders: Pick<WooOrder, K>[];
+  /** Pedidos del cliente que cumplen los filtros, en todas las páginas. */
+  total: number;
+  totalPages: number;
+}
+
+/**
+ * Una página de pedidos del cliente de la sesión, con filtros y totales. Es lo que necesita
+ * una lista paginada o con filtros: no hace falta leer todo el historial para saber cuántos hay
+ * ni para filtrarlo. El cliente sale SIEMPRE de la sesión. Fechas o estados que WooCommerce no
+ * acepte son un `WooCommerceError` 400.
+ */
+export async function getCustomerOrdersPage<K extends keyof WooOrder = keyof WooOrder>({
+  page = 1,
+  perPage = 20,
+  status,
+  after,
+  before,
+  fields,
+}: CustomerOrdersQuery<K> = {}): Promise<CustomerOrdersPage<K>> {
+  const session = await requireSession();
+  const { items, total, totalPages } = await wcFetchPage<Pick<WooOrder, K>>(`/orders`, {
+    query: {
+      customer: Number(session.userId),
+      page,
+      per_page: Math.min(100, Math.max(1, perPage)),
+      orderby: "date",
+      order: "desc",
+      status: status?.length ? status.join(",") : undefined,
+      after,
+      before,
+      _fields: fields?.length ? fields.join(",") : undefined,
+    },
+  });
+  return { orders: items, total, totalPages };
 }
 
 /** Tope defensivo de páginas para {@link findProductPurchase} (ver ahí). */

@@ -7,6 +7,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **Pedidos del cliente paginados con totales y filtros.** `getCustomerOrdersPage` (`lib/account/data.ts`)
+  devuelve `{ orders, total, totalPages }` con filtros `status`, `after`, `before` y `_fields`, sobre un
+  nuevo `wcFetchPage` que conserva `X-WP-Total` y `X-WP-TotalPages`. Ya no hace falta leer el historial
+  entero para paginar o filtrar la lista de la cuenta. `getCustomerOrders` y `wcFetch` no cambian.
 - **Identificador estable en los referidos de la API.** `GET /api/loyalty/referrals` publica en cada
   fila un `id` opaco (huella con la sal del sitio y ligada a quien consulta, nunca el id de usuario):
   sirve de clave de lista y para no repetir filas al paginar. Campo nuevo, sin cambios incompatibles.

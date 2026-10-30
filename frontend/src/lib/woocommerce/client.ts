@@ -72,6 +72,48 @@ export async function wcFetch<T>(
   path: string,
   options: WcRequestOptions = {},
 ): Promise<T> {
+  return (await wcRequest<T>(path, options)).data;
+}
+
+/** Una página de una colección de wc/v3, con sus totales. */
+export interface WcPage<T> {
+  items: T[];
+  /** `X-WP-Total`: elementos de toda la colección con esos filtros. */
+  total: number;
+  /** `X-WP-TotalPages`. */
+  totalPages: number;
+}
+
+/** Cabecera numérica de paginación; `null` si no viene o no es un entero. */
+function paginationHeader(headers: Headers, name: string): number | null {
+  const raw = headers.get(name);
+  if (raw === null || !/^\d+$/.test(raw.trim())) return null;
+  return Number(raw);
+}
+
+/**
+ * Como `wcFetch`, para colecciones: conserva los totales que WooCommerce manda en las
+ * cabeceras. Sin ellas (un proxy que las quita), los totales describen solo lo recibido.
+ *
+ * @throws WooCommerceError
+ */
+export async function wcFetchPage<T>(
+  path: string,
+  options: WcRequestOptions = {},
+): Promise<WcPage<T>> {
+  const { data, headers } = await wcRequest<T[] | null>(path, options);
+  const items = data ?? [];
+  return {
+    items,
+    total: paginationHeader(headers, "x-wp-total") ?? items.length,
+    totalPages: paginationHeader(headers, "x-wp-totalpages") ?? (items.length ? 1 : 0),
+  };
+}
+
+async function wcRequest<T>(
+  path: string,
+  options: WcRequestOptions,
+): Promise<{ data: T; headers: Headers }> {
   if (!WC_CONSUMER_KEY || !WC_CONSUMER_SECRET) {
     throw new WooCommerceError(
       "Credenciales de WooCommerce no configuradas (WC_CONSUMER_KEY/SECRET).",
@@ -128,7 +170,7 @@ export async function wcFetch<T>(
         );
       }
 
-      return data as T;
+      return { data: data as T, headers: response.headers };
     } catch (error) {
       clearTimeout(timer);
       lastError = error;
