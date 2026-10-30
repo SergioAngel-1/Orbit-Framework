@@ -143,6 +143,27 @@ describe("getCustomerOrdersPage", () => {
     expect(wcFetchPage.mock.calls[0]![1].query.per_page).toBe(100);
   });
 
+  it.each([[0], [-3], [Number.NaN], [Number.POSITIVE_INFINITY]])(
+    "una página o un tamaño inválidos (%s) caen a los valores por defecto",
+    async (value) => {
+      await getCustomerOrdersPage({ page: value, perPage: value });
+
+      expect(wcFetchPage.mock.calls[0]![1].query).toMatchObject({
+        page: 1,
+        per_page: 20,
+      });
+    },
+  );
+
+  it("una página o un tamaño con decimales se truncan a entero", async () => {
+    await getCustomerOrdersPage({ page: 2.9, perPage: 10.5 });
+
+    expect(wcFetchPage.mock.calls[0]![1].query).toMatchObject({
+      page: 2,
+      per_page: 10,
+    });
+  });
+
   it("el cliente sale siempre de la sesión", async () => {
     await getCustomerOrdersPage({ customer: 1 } as never);
 

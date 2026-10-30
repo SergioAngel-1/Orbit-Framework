@@ -48,6 +48,12 @@ export interface CustomerOrdersPage<K extends keyof WooOrder = keyof WooOrder> {
   totalPages: number;
 }
 
+/** Entero ≥ 1; cualquier otro valor cae al indicado (WooCommerce respondería 400). */
+function positiveInteger(value: number, fallback: number): number {
+  const integer = Math.trunc(value);
+  return Number.isFinite(integer) && integer >= 1 ? integer : fallback;
+}
+
 /**
  * Una página de pedidos del cliente de la sesión, con filtros y totales. Es lo que necesita
  * una lista paginada o con filtros: no hace falta leer todo el historial para saber cuántos hay
@@ -66,8 +72,8 @@ export async function getCustomerOrdersPage<K extends keyof WooOrder = keyof Woo
   const { items, total, totalPages } = await wcFetchPage<Pick<WooOrder, K>>(`/orders`, {
     query: {
       customer: Number(session.userId),
-      page,
-      per_page: Math.min(100, Math.max(1, perPage)),
+      page: positiveInteger(page, 1),
+      per_page: Math.min(100, positiveInteger(perPage, 20)),
       orderby: "date",
       order: "desc",
       status: status?.length ? status.join(",") : undefined,
