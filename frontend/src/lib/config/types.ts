@@ -54,9 +54,9 @@ export interface SiteConfig {
     mobile: string;
     address: string;
     /** Partes de la dirección para datos estructurados (`addressLocality`…). */
-    city: string;
-    region: string;
-    postal_code: string;
+    city?: string;
+    region?: string;
+    postal_code?: string;
     locations: {
       location_1: SiteConfigLocation;
       location_2: SiteConfigLocation;
@@ -67,7 +67,7 @@ export interface SiteConfig {
   };
   design: {
     /** `system` sigue al dispositivo; `light` y `dark` lo fijan (`lib/config/color-scheme.ts`). */
-    color_scheme: ColorScheme;
+    color_scheme?: ColorScheme;
     colors: {
       brand: string;
       brand_dark: string;

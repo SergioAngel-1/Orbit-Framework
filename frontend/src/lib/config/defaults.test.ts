@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CONFIG_DEFAULTS } from "./defaults";
 import { MODULE_IDS } from "./modules";
+import type { SiteConfig } from "./types";
 
 /** Claves hoja de un objeto, en forma `a.b.c` (los arrays cuentan como hoja). */
 function leafKeys(value: unknown, prefix = ""): string[] {
@@ -64,6 +65,20 @@ describe("CONFIG_DEFAULTS", () => {
     expect(field("company")).toMatch(emptyDefault);
     expect(field("email")).toMatch(emptyDefault);
     expect(field("twitter")).toMatch(emptyDefault);
+  });
+
+  // Compilarlo es la prueba: una instancia con fixtures tipados de antes de estos campos no
+  // debe dejar de pasar `tsc` al recibir una actualización.
+  it("los campos nuevos son opcionales en el tipo", () => {
+    const fixtureLegal: SiteConfig["legal"] = { ...CONFIG_DEFAULTS.legal };
+    const fixtureDesign: SiteConfig["design"] = { ...CONFIG_DEFAULTS.design };
+    delete fixtureLegal.city;
+    delete fixtureLegal.region;
+    delete fixtureLegal.postal_code;
+    delete fixtureDesign.color_scheme;
+
+    expect(fixtureLegal.city).toBeUndefined();
+    expect(fixtureDesign.color_scheme).toBeUndefined();
   });
 
   it("el esquema de color por defecto no cambia nada: sigue al dispositivo", () => {
