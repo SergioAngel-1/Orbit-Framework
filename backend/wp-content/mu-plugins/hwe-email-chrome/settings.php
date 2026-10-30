@@ -64,17 +64,39 @@ function hwe_email_color( string $name ): string {
 /**
  * Pila tipográfica para el correo: la fuente del Control Center (solo letras, cifras,
  * espacios y guiones: va dentro de un `style`) y reservas seguras. Casi ningún cliente de
- * correo carga la fuente de la marca, así que la reserva es lo que se ve: siempre sans-serif,
- * como en la web (`system-ui, sans-serif`). Una marca con serif la nombra en `font_heading`
- * (p. ej. `Georgia`).
+ * correo carga la fuente de la marca, así que la reserva es lo que suele verse.
+ *
+ * Sin `font_heading`, los titulares usan la pila del cuerpo, como dice el panel. Con ella, su
+ * reserva es serif salvo que la instancia elija otra con `hwe_email_heading_font_fallback`.
  *
  * @param 'body'|'heading' $which
  */
 function hwe_email_font_stack( string $which ): string {
 	$field = 'heading' === $which ? 'font_heading' : 'font_sans';
 	$name  = trim( (string) preg_replace( '/[^A-Za-z0-9 \-]/', '', hwe_email_setting( array( 'design', 'typography', $field ) ) ) );
-	$tail  = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+	if ( 'heading' === $which && '' === $name ) {
+		return hwe_email_font_stack( 'body' );
+	}
+	$tail = 'heading' === $which
+		? hwe_email_heading_font_fallback()
+		: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 	return '' !== $name ? "'" . $name . "', " . $tail : $tail;
+}
+
+/**
+ * Reserva de una fuente de titulares con nombre. Filtro `hwe_email_heading_font_fallback`: una
+ * marca con titulares sans-serif devuelve aquí una pila sans-serif. El valor acaba dentro de un
+ * `style`: solo se aceptan letras, cifras, espacios, guiones, comas y comillas simples; otro
+ * valor, o uno vacío, se registra y deja la reserva por defecto.
+ */
+function hwe_email_heading_font_fallback(): string {
+	$default  = "Georgia, 'Times New Roman', serif";
+	$filtered = apply_filters( 'hwe_email_heading_font_fallback', $default );
+	if ( is_string( $filtered ) && preg_match( "/^[A-Za-z0-9 ,'\-]+$/", $filtered ) ) {
+		return $filtered;
+	}
+	error_log( '[hwe] hwe_email_heading_font_fallback: valor no válido; se usa la reserva por defecto' );
+	return $default;
 }
 
 function hwe_email_brand_name(): string {

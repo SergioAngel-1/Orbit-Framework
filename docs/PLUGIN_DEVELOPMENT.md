@@ -86,6 +86,19 @@ del framework que no repitas: enumera siempre los que quieras conservar. Un id d
 ignora con su evento. El plugin tiene que estar instalado y visible para WordPress antes de
 ejecutar el setup (en desarrollo, el override del compose: `docs/CREATE_INSTANCE.md` §7).
 
+### Correos: reserva de la fuente de titulares
+
+`hwe_email_heading_font_fallback` (filtro, recibe y devuelve una cadena) elige la reserva de una fuente
+de titulares con nombre. Por defecto es serif (`Georgia, 'Times New Roman', serif`). Casi ningún cliente
+de correo carga la fuente de la marca, así que una marca con titulares sans-serif debería cambiarla:
+
+```php
+add_filter('hwe_email_heading_font_fallback', static fn () => "'Segoe UI', 'Helvetica Neue', Arial, sans-serif");
+```
+
+Solo se aceptan letras, cifras, espacios, guiones, comas y comillas simples, porque el valor va dentro de
+un `style`. Con `font_heading` vacío no aplica: los titulares usan la pila del cuerpo.
+
 ### Hooks estables de los módulos
 
 Un módulo que quiera ser contrato publica sus hooks en su `README.md` y aquí. Los del módulo
