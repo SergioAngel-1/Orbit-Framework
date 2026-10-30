@@ -53,11 +53,19 @@ describe("parseSavedAddresses", () => {
 });
 
 describe("identificador de cada dirección", () => {
-  const meta = (book: unknown[]) => [{ key: "hwe_addresses", value: JSON.stringify(book) }];
-  const legacy = (street: string) => ({ address_1: street, city: "Lima", is_default: false });
+  const meta = (book: unknown[]) => [
+    { key: "hwe_addresses", value: JSON.stringify(book) },
+  ];
+  const legacy = (street: string) => ({
+    address_1: street,
+    city: "Lima",
+    is_default: false,
+  });
 
   it("conserva el que ya está guardado", () => {
-    const [address] = parseSavedAddresses(meta([{ ...legacy("A"), id: "addr_guardado" }]));
+    const [address] = parseSavedAddresses(
+      meta([{ ...legacy("A"), id: "addr_guardado" }]),
+    );
 
     expect(address!.id).toBe("addr_guardado");
   });

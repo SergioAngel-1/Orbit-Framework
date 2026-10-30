@@ -171,12 +171,17 @@ describe("identificador estable de la libreta", () => {
   }
 
   it("una libreta anterior sale con ids y la primera escritura los graba", async () => {
-    book = [saved({ address_1: "Calle 1" }), saved({ address_1: "Calle 2", is_default: false })];
+    book = [
+      saved({ address_1: "Calle 1" }),
+      saved({ address_1: "Calle 2", is_default: false }),
+    ];
 
     const listed = (await (await GET()).json()) as SavedAddress[];
     expect(listed.every((a) => typeof a.id === "string" && a.id.length > 0)).toBe(true);
 
-    await edit(body({ id: listed[1]!.id, address: editBody({ address_1: "Calle 2B" }).address }));
+    await edit(
+      body({ id: listed[1]!.id, address: editBody({ address_1: "Calle 2B" }).address }),
+    );
 
     const written = storedBook();
     expect(written.map((a) => a.id)).toEqual(listed.map((a) => a.id));
@@ -213,7 +218,10 @@ describe("identificador estable de la libreta", () => {
     book = [saved({ id: "a" })];
 
     await edit(
-      body({ id: "a", address: { ...editBody({}).address, id: "elegido-por-el-cliente" } }),
+      body({
+        id: "a",
+        address: { ...editBody({}).address, id: "elegido-por-el-cliente" },
+      }),
     );
 
     expect(storedBook()[0]!.id).toBe("a");
@@ -222,7 +230,10 @@ describe("identificador estable de la libreta", () => {
   it("una dirección nueva recibe id propio, aunque el cliente mande otro", async () => {
     book = [];
 
-    const res = await send("POST", { ...editBody({}).address, id: "elegido-por-el-cliente" });
+    const res = await send("POST", {
+      ...editBody({}).address,
+      id: "elegido-por-el-cliente",
+    });
 
     const created = (await res.json()) as SavedAddress;
     expect(res.status).toBe(201);

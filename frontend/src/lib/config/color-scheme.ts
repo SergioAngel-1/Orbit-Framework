@@ -20,7 +20,8 @@ export function resolveColorScheme(
   config: SiteConfig,
   fallback: ColorScheme | undefined = instanceRegistry.colorSchemeFallback,
 ): ColorScheme {
-  if (isFallbackSiteConfig(config)) return isColorScheme(fallback) ? fallback : "system";
+  if (isFallbackSiteConfig(config))
+    return isColorScheme(fallback) ? fallback : "system";
   const scheme = config.design?.color_scheme;
   return isColorScheme(scheme) ? scheme : "system";
 }

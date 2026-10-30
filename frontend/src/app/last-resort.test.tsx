@@ -8,7 +8,10 @@ const SECRET = "connect ECONNREFUSED wordpress:80 secret=abc";
 
 function renderError(digest?: string) {
   return renderToStaticMarkup(
-    <GlobalError error={Object.assign(new Error(SECRET), { digest })} reset={() => {}} />,
+    <GlobalError
+      error={Object.assign(new Error(SECRET), { digest })}
+      reset={() => {}}
+    />,
   );
 }
 

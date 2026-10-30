@@ -39,7 +39,8 @@ async function renderManager() {
   await screen.findByText(/Calle A/);
 }
 
-const lastCall = () => vi.mocked(csrfFetch).mock.calls.at(-1)![1] as Record<string, unknown>;
+const lastCall = () =>
+  vi.mocked(csrfFetch).mock.calls.at(-1)![1] as Record<string, unknown>;
 
 beforeEach(() => {
   book = [address("a", "Calle A"), address("b", "Calle B")];
@@ -49,7 +50,9 @@ beforeEach(() => {
     vi.fn(async () => new Response(JSON.stringify(book), { status: 200 })),
   );
   vi.mocked(csrfFetch).mockReset();
-  vi.mocked(csrfFetch).mockImplementation(async () => new Response("{}", { status: 200 }));
+  vi.mocked(csrfFetch).mockImplementation(
+    async () => new Response("{}", { status: 200 }),
+  );
 });
 
 afterEach(() => {

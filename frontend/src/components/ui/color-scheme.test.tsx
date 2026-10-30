@@ -7,13 +7,16 @@ describe("colorSchemeHtmlProps", () => {
     expect(colorSchemeHtmlProps("system")).toEqual({});
   });
 
-  it.each(["light", "dark"] as const)("con `%s` fija clase, propiedad y marca", (scheme) => {
-    expect(colorSchemeHtmlProps(scheme)).toEqual({
-      className: scheme,
-      style: { colorScheme: scheme },
-      "data-color-scheme": scheme,
-    });
-  });
+  it.each(["light", "dark"] as const)(
+    "con `%s` fija clase, propiedad y marca",
+    (scheme) => {
+      expect(colorSchemeHtmlProps(scheme)).toEqual({
+        className: scheme,
+        style: { colorScheme: scheme },
+        "data-color-scheme": scheme,
+      });
+    },
+  );
 });
 
 describe("ColorSchemeHead", () => {

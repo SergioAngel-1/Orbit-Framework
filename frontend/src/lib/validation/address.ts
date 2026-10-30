@@ -73,7 +73,10 @@ const addressTarget = {
 
 const hasTarget = (target: { id?: string; index?: number }) =>
   target.id !== undefined || target.index !== undefined;
-const MISSING_TARGET = { message: "Falta la dirección (`id` o `index`).", path: ["id"] };
+const MISSING_TARGET = {
+  message: "Falta la dirección (`id` o `index`).",
+  path: ["id"],
+};
 
 export function buildAddressUpdateSchema(pack: GeoPack) {
   return z

@@ -57,7 +57,11 @@ export interface SiteHeaderProps {
   themeToggle?: boolean;
 }
 
-export function SiteHeader({ logoUrl, items, themeToggle = true }: SiteHeaderProps = {}) {
+export function SiteHeader({
+  logoUrl,
+  items,
+  themeToggle = true,
+}: SiteHeaderProps = {}) {
   const t = useTranslations("nav");
   const tSite = useTranslations("site");
   const pathname = usePathname();

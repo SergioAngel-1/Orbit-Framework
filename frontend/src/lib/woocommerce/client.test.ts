@@ -59,7 +59,10 @@ describe("wcFetchPage: totales de una colección", () => {
     fetchMock.mockResolvedValue(new Response('[{"id":1},{"id":2}]', { status: 200 }));
     const { wcFetchPage } = await loadClient("http://wordpress:80/wp-json/wc/v3");
 
-    await expect(wcFetchPage("/orders")).resolves.toMatchObject({ total: 2, totalPages: 1 });
+    await expect(wcFetchPage("/orders")).resolves.toMatchObject({
+      total: 2,
+      totalPages: 1,
+    });
   });
 
   it("wcFetch sigue devolviendo solo el cuerpo", async () => {

@@ -30,14 +30,17 @@ describe("getProducts: exclude", () => {
     expect(fetchGraphQL.mock.calls[0]![1].variables.exclude).toBeUndefined();
   });
 
-  it.each([false, true])("la pide en la consulta (memberships: %s)", async (memberships) => {
-    vi.mocked(membershipsCatalogEnabled).mockResolvedValue(memberships);
+  it.each([false, true])(
+    "la pide en la consulta (memberships: %s)",
+    async (memberships) => {
+      vi.mocked(membershipsCatalogEnabled).mockResolvedValue(memberships);
 
-    await getProducts({ exclude: [7, 12] });
+      await getProducts({ exclude: [7, 12] });
 
-    const [document, options] = fetchGraphQL.mock.calls[0]!;
-    expect(options.variables.exclude).toEqual([7, 12]);
-    expect(document).toContain("$exclude: [Int]");
-    expect(document).toContain("exclude: $exclude");
-  });
+      const [document, options] = fetchGraphQL.mock.calls[0]!;
+      expect(options.variables.exclude).toEqual([7, 12]);
+      expect(document).toContain("$exclude: [Int]");
+      expect(document).toContain("exclude: $exclude");
+    },
+  );
 });

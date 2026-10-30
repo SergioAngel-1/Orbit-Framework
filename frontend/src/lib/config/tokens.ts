@@ -152,7 +152,11 @@ export function resolveDesignTokens(
     if (
       scheme === "dark" &&
       LIGHT_SURFACE_TOKENS.has(token.cssVar) &&
-      raw === getNestedValue(CONFIG_DEFAULTS as unknown as Record<string, unknown>, token.path)
+      raw ===
+        getNestedValue(
+          CONFIG_DEFAULTS as unknown as Record<string, unknown>,
+          token.path,
+        )
     ) {
       continue;
     }

@@ -18,7 +18,9 @@ beforeEach(() => {
 describe("getMenu", () => {
   it("devuelve el árbol del menú asignado, sin registrar nada", async () => {
     fetchGraphQL.mockResolvedValue({
-      menuItems: { nodes: [{ id: "1", parentId: null, label: "Tienda", uri: "/tienda" }] },
+      menuItems: {
+        nodes: [{ id: "1", parentId: null, label: "Tienda", uri: "/tienda" }],
+      },
     });
 
     await expect(getMenu("primary", "es")).resolves.toEqual([
@@ -52,7 +54,9 @@ describe("getMenu", () => {
   // registrara, cada render de ese idioma ensuciaría el log con un falso fallo.
   it("una location que el tema no registra no es un fallo", async () => {
     fetchGraphQL.mockRejectedValue(
-      new Error('Variable "$location" got invalid value "PRIMARY_FR"; Value "PRIMARY_FR" does not exist in "MenuLocationEnum" enum.'),
+      new Error(
+        'Variable "$location" got invalid value "PRIMARY_FR"; Value "PRIMARY_FR" does not exist in "MenuLocationEnum" enum.',
+      ),
     );
 
     await expect(getMenu("primary", "fr")).resolves.toBeNull();

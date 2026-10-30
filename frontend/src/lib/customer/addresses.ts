@@ -31,7 +31,9 @@ function contentHash(text: string): string {
 function withAddressIds(addresses: SavedAddress[]): SavedAddress[] {
   const taken = new Set<string>();
   const stored = (address: SavedAddress) =>
-    typeof address.id === "string" && ADDRESS_ID_RE.test(address.id) ? address.id : null;
+    typeof address.id === "string" && ADDRESS_ID_RE.test(address.id)
+      ? address.id
+      : null;
 
   // Primero los ya guardados: uno derivado nunca debe quitarle el suyo a otra dirección.
   for (const address of addresses) {
