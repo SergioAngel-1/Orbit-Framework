@@ -23,6 +23,9 @@ export const REF_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
 const SECONDS_PER_DAY = 24 * 60 * 60;
 const MAX_DAYS = 365;
 
+/** Se evalúa en cada visita con `?ref=`: el aviso sale una vez por proceso. */
+let invalidDaysReported = false;
+
 /** Vida de `hwe_ref` en segundos. Un valor inválido deja un aviso y cae a los 30 días. */
 export function refCookieMaxAge(
   days: number | undefined = instanceRegistry.referralCookieDays,
@@ -30,7 +33,10 @@ export function refCookieMaxAge(
   if (days === undefined) return REF_COOKIE_MAX_AGE;
   if (!Number.isInteger(days) || days < 1 || days > MAX_DAYS) {
     // Consola y no logger: este módulo también corre en edge (`proxy.ts`).
-    console.warn(JSON.stringify({ event: "instance.referral_cookie_invalid", days }));
+    if (!invalidDaysReported) {
+      invalidDaysReported = true;
+      console.warn(JSON.stringify({ event: "instance.referral_cookie_invalid", days }));
+    }
     return REF_COOKIE_MAX_AGE;
   }
   return days * SECONDS_PER_DAY;

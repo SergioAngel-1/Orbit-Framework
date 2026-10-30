@@ -19,11 +19,26 @@ describe("ventana de la cookie de referido", () => {
 
   it.each([[0], [-1], [1.5], [366], [Number.NaN]])(
     "un valor inválido (%s) cae a 30 días y deja un aviso",
-    (days) => {
+    async (days) => {
+      vi.resetModules();
+      const { refCookieMaxAge: fresh } = await import("./ref-cookie");
       const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-      expect(refCookieMaxAge(days)).toBe(30 * DAY);
+      expect(fresh(days)).toBe(30 * DAY);
       expect(warn.mock.calls[0]![0]).toContain("instance.referral_cookie_invalid");
     },
   );
+
+  // Se evalúa en cada visita con `?ref=`: sin esto, el log se llena con el mismo aviso.
+  it("avisa una sola vez por proceso", async () => {
+    vi.resetModules();
+    const { refCookieMaxAge: fresh } = await import("./ref-cookie");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    fresh(0);
+    fresh(0);
+    fresh(999);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
 });
