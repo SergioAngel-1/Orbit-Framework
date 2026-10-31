@@ -113,7 +113,11 @@ function getNestedValue(
  * Tokens que el panel define solo para el modo claro: `.dark` los redefine en `globals.css`. No hay
  * campos de color de modo oscuro; los de marca (`brand`, `secondary`, `accent`) sí valen en los dos.
  */
-const LIGHT_SURFACE_TOKENS = new Set(["--background", "--foreground", "--color-surface"]);
+const LIGHT_SURFACE_TOKENS = new Set([
+  "--background",
+  "--foreground",
+  "--color-surface",
+]);
 
 /** Un token cuyo valor no cumplió el formato de su tipo. */
 export interface RejectedToken {

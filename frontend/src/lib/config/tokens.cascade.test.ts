@@ -51,7 +51,11 @@ function specificity(selector: string, htmlClass: string): number | null {
   return table[selector]?.() ?? null;
 }
 
-function computed(variable: string, css: string, htmlClass: string): string | undefined {
+function computed(
+  variable: string,
+  css: string,
+  htmlClass: string,
+): string | undefined {
   let best: { weight: number; value: string } | undefined;
   for (const rule of rules(css)) {
     const value = rule.declarations.get(variable);
