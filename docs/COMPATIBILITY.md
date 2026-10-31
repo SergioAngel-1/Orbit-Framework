@@ -1,6 +1,6 @@
 # Matriz de compatibilidad
 
-> Versiones con las que esta plantilla está construida y probada (**v2.2**). Mantener estas
+> Versiones con las que esta plantilla está construida y probada (**v2.4**). Mantener estas
 > versiones (o superiores dentro del mismo *major*, salvo que se indique) evita sorpresas.
 > Para subir un *major*, prueba en *staging* y revisa el `CHANGELOG`. Las versiones de los
 > paquetes npm salen de `frontend/package.json`; las de los plugins de WordPress, de

@@ -6,6 +6,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.4.0] — 2026-10-30
+
+La versión salta a 2.4.0 para coincidir con `HWE_CORE_CONTRACT_VERSION`; no hubo una 2.3.0. Cada sitio
+elige su esquema de color y el tema oscuro funciona con `system`. La API gana pedidos paginados con
+totales y filtros, exclusión de productos en el listado, identificadores estables en referidos y
+direcciones, y tablas en `richtext`. Llegan los controles de SEO para el lanzamiento, y las pantallas
+de último recurso dejan de enseñar mensajes técnicos. Sin cambios incompatibles; los cambios de
+comportamiento observables están en `docs/UPGRADE.md`.
+
 ### Added
 - **Guía para repartir los mensajes de cliente por tramo de ruta** (`docs/FRONTEND_BUILD.md`). Con el
   catálogo del starter (unos 17 KB) no compensa repartirlos; una instancia con un catálogo mayor tiene
@@ -1056,7 +1065,8 @@ están corregidos arriba.
 - Fase 6 — SEO + i18n (next-intl, sitemap, hreflang, JSON-LD).
 - Fase 7 — Pagos: capa de pasarelas agnóstica (provider-agnostic) + proveedor `noop`.
 
-[Sin publicar]: https://example.com/compare/v2.2.0...HEAD
+[Sin publicar]: https://example.com/compare/v2.4.0...HEAD
+[2.4.0]: https://example.com/compare/v2.2.0...v2.4.0
 [2.2.0]: https://example.com/compare/v2.1.0...v2.2.0
 [2.1.0]: https://example.com/compare/v2.0.0...v2.1.0
 [2.0.0]: https://example.com/compare/v1.0.0...v2.0.0

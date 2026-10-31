@@ -211,7 +211,7 @@ Cuando dudes de una ruta, **busca en `frontend/src/lib/`**: está organizado por
 ## 5. Estado del proyecto
 
 > Esta tabla se congela en cada release; el estado vivo entre releases está en
-> `CHANGELOG.md` (`[Sin publicar]`). Actualizada por última vez: **v2.2.0**.
+> `CHANGELOG.md` (`[Sin publicar]`). Actualizada por última vez: **v2.4.0**.
 > Estados realistas (✅ completo · 🟡 parcial · 🧪 stub).
 
 | Área | Estado |
