@@ -36,18 +36,21 @@
   --foreground: #0a0a0a;
 }
 
-/* Tema oscuro activado por clase */
+/*
+ * Tema oscuro, activado por clase. Es la fuente de sus colores: el fondo, el texto y la
+ * superficie del panel son los del modo claro (`ThemeTokens` no los aplica con `.dark`).
+ * No hay rama `@media (prefers-color-scheme: dark)`: sin la clase, las utilidades `dark:` no
+ * aplican y un lienzo oscuro dejaría texto claro sobre tarjetas claras. Es el script de
+ * `DarkModeScript` quien traduce la preferencia del sistema a la clase.
+ */
 .dark {
   --background: #0a0a0a;
   --foreground: #ededed;
-}
-
-/* Tema oscuro por preferencia del sistema (solo cuando no hay clase explícita) */
-@media (prefers-color-scheme: dark) {
-  :root:not(.light):not(.dark) {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-surface: #111827;
+  /* El texto secundario `text-gray-500` queda por debajo de 4,5:1 sobre el lienzo oscuro. */
+  --color-gray-500: #9ca3af;
+  /* Controles nativos y barras de desplazamiento. */
+  color-scheme: dark;
 }
 
 /* ── Base global ──────────────────────────────────────────────────────────── */

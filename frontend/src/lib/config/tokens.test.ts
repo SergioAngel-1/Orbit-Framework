@@ -77,6 +77,7 @@ describe("configuración válida", () => {
 
       expect(css).not.toContain("--background");
       expect(css).not.toContain("--foreground");
+      expect(css).not.toContain("--color-surface");
       expect(css).toContain("--color-brand: #111111");
     });
 

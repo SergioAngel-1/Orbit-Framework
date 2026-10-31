@@ -109,8 +109,15 @@ function getNestedValue(
   return typeof current === "string" && current.trim() !== "" ? current : undefined;
 }
 
-/** Tokens cuyo valor por defecto es claro y que `.dark` redefine en `globals.css`. */
-const LIGHT_SURFACE_TOKENS = new Set(["--background", "--foreground"]);
+/**
+ * Tokens que el panel define solo para el modo claro: `.dark` los redefine en `globals.css`. No hay
+ * campos de color de modo oscuro; los de marca (`brand`, `secondary`, `accent`) sí valen en los dos.
+ */
+const LIGHT_SURFACE_TOKENS = new Set([
+  "--background",
+  "--foreground",
+  "--color-surface",
+]);
 
 /** Un token cuyo valor no cumplió el formato de su tipo. */
 export interface RejectedToken {
@@ -121,8 +128,10 @@ export interface RejectedToken {
 }
 
 export interface ResolvedTokens {
-  /** Declaraciones `--variable: valor`, todas validadas. */
+  /** Declaraciones `--variable: valor`, todas validadas, que valen en cualquier modo. */
   declarations: string[];
+  /** Las que solo valen sin `.dark` (fondo, texto y superficie con el esquema `system`). */
+  lightDeclarations: string[];
   /** Tokens cuyo valor se descartó por no cumplir el formato. */
   rejected: RejectedToken[];
 }
@@ -135,15 +144,20 @@ const MAX_REPORTED_VALUE_LENGTH = 80;
  * tocar) o se omite; en ambos casos queda en `rejected` para que el llamador lo
  * registre. Un valor vacío es «sin definir», no un error.
  *
- * Con el esquema fijado en `dark`, el fondo y el texto que sigan en el valor por defecto (claros) no
- * se publican: este `<style>` va después de `globals.css` con la misma especificidad y taparía
- * el `.dark` de la hoja. Un fondo o un texto elegidos en el panel sí se respetan.
+ * Este `<style>` va después de `globals.css` con la misma especificidad que `.dark`, así que un
+ * `:root` aquí taparía al tema oscuro. Por eso el fondo, el texto y la superficie, que el panel
+ * define para el modo claro:
+ *  - con `system` (o sin esquema) van aparte, en `lightDeclarations`, y solo se aplican sin `.dark`;
+ *  - con `dark` no se publican si siguen en el valor por defecto; uno elegido en el panel sí, porque
+ *    ahí el panel describe justo el modo oscuro;
+ *  - con `light` van con los demás.
  */
 export function resolveDesignTokens(
   config: Partial<SiteConfig>,
   scheme: ColorScheme | undefined = config.design?.color_scheme,
 ): ResolvedTokens {
   const declarations: string[] = [];
+  const lightDeclarations: string[] = [];
   const rejected: RejectedToken[] = [];
 
   for (const token of TOKEN_MAP) {
@@ -176,22 +190,38 @@ export function resolveDesignTokens(
       value = fallback;
     }
 
-    declarations.push(
-      `${token.cssVar}: ${token.transform ? token.transform(value) : value}`,
-    );
+    const lightOnly = scheme !== "light" && scheme !== "dark";
+    (lightOnly && LIGHT_SURFACE_TOKENS.has(token.cssVar)
+      ? lightDeclarations
+      : declarations
+    ).push(`${token.cssVar}: ${token.transform ? token.transform(value) : value}`);
   }
 
-  return { declarations, rejected };
+  return { declarations, lightDeclarations, rejected };
+}
+
+/** La hoja que inyecta `ThemeTokens`; vacía si no hay nada que publicar. */
+export function themeTokensCss({
+  declarations,
+  lightDeclarations,
+}: Pick<ResolvedTokens, "declarations" | "lightDeclarations">): string {
+  const block = (selector: string, lines: string[]) =>
+    lines.length > 0 ? `${selector} {\n  ${lines.join(";\n  ")};\n}` : null;
+  return [block(":root", declarations), block(":root:not(.dark)", lightDeclarations)]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /**
  * Construye las declaraciones CSS custom properties a partir de la config.
- * Devuelve una cadena lista para inyectar dentro de `:root { … }`.
+ * Devuelve todas las declaraciones, también las que solo valen en claro; para la hoja que va al
+ * documento, `themeTokensCss`.
  *
  * @example
  *   buildCssVars(config)
  *   // "--color-brand: #e11d48;\n  --color-brand-dark: #9f1239;\n  ..."
  */
 export function buildCssVars(config: Partial<SiteConfig>): string {
-  return resolveDesignTokens(config).declarations.join(";\n  ");
+  const { declarations, lightDeclarations } = resolveDesignTokens(config);
+  return [...declarations, ...lightDeclarations].join(";\n  ");
 }

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
-import { DarkModeScript, DarkModeToggle } from "./dark-mode-toggle";
+import { DARK_MODE_SCRIPT, DarkModeScript, DarkModeToggle } from "./dark-mode-toggle";
 
 // ============================================================================
 //  `DarkModeScript` en el CLIENTE (navegación blanda, p. ej. al cambiar de
@@ -76,6 +76,36 @@ describe("DarkModeScript (cliente)", () => {
     render(<DarkModeScript />);
 
     expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
+});
+
+describe("con localStorage bloqueado (navegadores internos, políticas)", () => {
+  function blockedStorage() {
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("bloqueado");
+      },
+      setItem: () => {
+        throw new Error("bloqueado");
+      },
+    });
+  }
+
+  it("el componente sigue la preferencia del sistema", () => {
+    blockedStorage();
+    prefersDark(true);
+
+    render(<DarkModeScript />);
+
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+  });
+
+  it("el script inline también: la excepción no se lo salta", () => {
+    blockedStorage();
+    prefersDark(true);
+    new Function(DARK_MODE_SCRIPT)();
+
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
 });
 

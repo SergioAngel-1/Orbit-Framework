@@ -354,6 +354,26 @@ comportamiento que sí se notan sin declarar nada.
 
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.4.0`; compárala si tu código depende de algo nuevo.
 
+## 3.7 Modo oscuro con `design.color_scheme: system` (nota de actualización)
+
+Sin cambios de contrato. **Cambio observable para quien visita con el dispositivo en oscuro** o usa el
+selector de tema; en claro nada cambia:
+
+- **Antes:** `ThemeTokens` tapaba a `.dark`: el lienzo seguía claro, y `.dark .prose` pintaba texto claro
+  encima.
+- **Ahora:** el tema oscuro funciona de punta a punta. El `background`, `foreground` y `surface` del panel
+  solo se aplican sin `.dark`; con él mandan los valores oscuros de `globals.css`. Los colores de marca
+  valen en los dos modos.
+- **Si tu tienda no tiene tema oscuro: fija `light`.** Siembra `design.color_scheme: "light"` y declara
+  `colorSchemeFallback: "light"` en el registro (§3.6). Con `system`, tus visitantes en oscuro verán ahora
+  el lienzo oscuro, y lo que no lleve variantes `dark:` puede dejar de leerse bien.
+- **`globals.css` (zona gris).** El bloque `.dark` gana `--color-surface`, `--color-gray-500` y
+  `color-scheme: dark`, y desaparece la rama `@media (prefers-color-scheme: dark)`. Si tienes el archivo
+  modificado, trae esos cambios a mano; sin ellos, el lienzo y el texto ya funcionan, pero no la superficie
+  ni los controles nativos.
+- **Sin `.dark` por script bloqueado.** Con `localStorage` bloqueado, el script ya aplica la preferencia del
+  sistema. Sin JavaScript, el sitio se ve siempre en claro.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

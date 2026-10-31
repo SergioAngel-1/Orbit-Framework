@@ -134,16 +134,21 @@ export function DarkModeToggle({ className }: { className?: string }) {
 /** Aplica el tema guardado (o el del sistema) a `<html>`. Misma lógica que el script inline. */
 function applyStoredTheme() {
   if (isColorSchemeFixed()) return;
+  // localStorage bloqueado (modo privado, políticas): manda la preferencia del sistema.
+  let stored: string | null = null;
   try {
-    const stored = localStorage.getItem(THEME_KEY);
-    const dark =
-      stored === "dark" ||
-      (stored === null && window.matchMedia("(prefers-color-scheme:dark)").matches);
-    applyDarkClass(dark);
+    stored = localStorage.getItem(THEME_KEY);
   } catch {
-    // localStorage bloqueado (modo privado, políticas): se queda el tema por defecto.
+    stored = null;
   }
+  applyDarkClass(
+    stored === "dark" ||
+      (stored === null && window.matchMedia("(prefers-color-scheme:dark)").matches),
+  );
 }
+
+/** Script inline de {@link DarkModeScript}: la misma lógica que `applyStoredTheme`. */
+export const DARK_MODE_SCRIPT = `(function(){if(document.documentElement.hasAttribute('data-color-scheme'))return;var t=null;try{t=localStorage.getItem('${THEME_KEY}')}catch(e){}if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}})()`;
 
 /**
  * Aplica el tema antes del primer paint, sin parpadeo (FOUC).
@@ -166,7 +171,7 @@ export function DarkModeScript() {
     <script
       // biome-ignore lint/security/noDangerouslySetInnerHtml: inline script necesario para evitar FOUC de modo oscuro
       dangerouslySetInnerHTML={{
-        __html: `(function(){if(document.documentElement.hasAttribute('data-color-scheme'))return;try{var t=localStorage.getItem('${THEME_KEY}');if(t==='dark'||(t===null&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})()`,
+        __html: DARK_MODE_SCRIPT,
       }}
     />
   );
