@@ -1125,9 +1125,11 @@ fijo: se retira sola al hidratar, pero llega en el HTML. Si WordPress no respond
 `InstanceRegistry.colorSchemeFallback` (por defecto `system`): una instancia sin tema oscuro declara
 `light`, para que un fallo de la API no cambie su aspecto.
 
-Con `dark`, el fondo y el texto que sigan en el valor por defecto (claros) no se publican, para que
-`.dark` de `globals.css` se aplique; un fondo o un texto elegidos en el panel se respetan. Con `system`
-y el dispositivo en oscuro, el fondo y el texto del panel siguen ganando a `.dark`, como hasta ahora.
+**Colores del panel en oscuro.** `background`, `foreground` y `surface` describen el modo claro: no hay
+campos de modo oscuro. Con `system`, `ThemeTokens` los publica bajo `:root:not(.dark)` y, con `.dark`
+activo, mandan los valores oscuros de `globals.css`. Los de marca (`brand`, `secondary`, `accent`) valen en
+los dos modos. Con `dark` fijo, esos tres no se publican si siguen en el valor por defecto; uno elegido en
+el panel sí se respeta, porque ahí describe justo el modo oscuro. Con `light`, se publican todos.
 
 ## A.6 Webhooks salientes (WordPress/WooCommerce → tu frontend)
 

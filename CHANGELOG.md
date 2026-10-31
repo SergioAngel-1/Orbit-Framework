@@ -106,6 +106,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   carrito para cualquier instancia que los use en el cajón.
 
 ### Fixed
+- **El modo oscuro con `design.color_scheme: system` funciona de punta a punta.** `ThemeTokens` publicaba
+  los colores claros después de `globals.css`, con la misma especificidad que `.dark`: el lienzo seguía
+  claro y `.dark .prose` pintaba texto claro encima. El `background`, `foreground` y `surface` del panel
+  pasan a aplicarse solo sin `.dark`. **Cambio observable para quien visita en oscuro; en claro nada
+  cambia.** Una tienda sin tema oscuro debe fijar `design.color_scheme: "light"` (`docs/UPGRADE.md` §3.7).
 - **La libreta de direcciones identifica por `id`, no por posición.** Con `index`, si la lista cambiaba
   entre leer y guardar (otra pestaña, un borrado), la edición caía sobre otra dirección. `PUT` y `DELETE`
   aceptan `{ id }` (404 si ya no existe) y `{ index }` sigue funcionando. Sin migración de datos: las

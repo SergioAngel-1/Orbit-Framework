@@ -38,6 +38,19 @@ describe("ThemeTokens", () => {
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
+  it("con `system`, el fondo y el texto solo se aplican sin `.dark`", async () => {
+    vi.mocked(getSiteConfig).mockResolvedValue(CONFIG_DEFAULTS as never);
+
+    const out = html(await ThemeTokens());
+
+    const [root, light] = out.split(":root:not(.dark)");
+    expect(root).toContain("--color-brand: #111111");
+    expect(root).not.toContain("--background");
+    expect(light).toContain("--background: #ffffff");
+    expect(light).toContain("--foreground: #0a0a0a");
+    expect(light).toContain("--color-surface: #e9e9e6");
+  });
+
   it("un valor hostil no puede cerrar el <style>: cae al valor por defecto y se registra", async () => {
     vi.mocked(getSiteConfig).mockResolvedValue({
       ...CONFIG_DEFAULTS,
