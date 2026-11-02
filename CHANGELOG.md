@@ -6,6 +6,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.5.0] — 2026-11-02
+
+Conectar una instancia deja de exigir leer toda la documentación y escribir herramientas propias. El
+contrato se publica en formatos que lee una máquina (`contract/`), las instancias tienen sitio
+reservado para sus rutas BFF (`app/api/instance/**`) y una capa de datos del cliente en el núcleo, y
+el alta, el diagnóstico y la comprobación de actualizaciones son comandos del framework. Sin cambios
+incompatibles; los cambios observables están en `docs/UPGRADE.md` §3.8. `HWE_CORE_CONTRACT_VERSION`
+pasa a `2.5.0`.
+
 ### Added
 - **Frontera núcleo/instancia en un solo manifiesto (`tools/boundaries.json`).** Lo leen la regla de
   ESLint y la nueva comprobación de actualización; un test exige que todo fichero versionado tenga
@@ -1111,7 +1120,8 @@ están corregidos arriba.
 - Fase 6 — SEO + i18n (next-intl, sitemap, hreflang, JSON-LD).
 - Fase 7 — Pagos: capa de pasarelas agnóstica (provider-agnostic) + proveedor `noop`.
 
-[Sin publicar]: https://example.com/compare/v2.4.0...HEAD
+[Sin publicar]: https://example.com/compare/v2.5.0...HEAD
+[2.5.0]: https://example.com/compare/v2.4.0...v2.5.0
 [2.4.0]: https://example.com/compare/v2.2.0...v2.4.0
 [2.2.0]: https://example.com/compare/v2.1.0...v2.2.0
 [2.1.0]: https://example.com/compare/v2.0.0...v2.1.0

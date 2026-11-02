@@ -394,6 +394,43 @@ selector de tema; en claro nada cambia:
 - **Sin `.dark` por script bloqueado.** Con `localStorage` bloqueado, el script ya aplica la preferencia del
   sistema. Sin JavaScript, el sitio se ve siempre en claro.
 
+## 3.8 Contrato `2.5.0` (nota de actualización)
+
+Sin cambios incompatibles de contrato. Todo es opcional salvo lo que se lista al final.
+
+- **Comprueba el merge con el script nuevo.** `node tools/upgrade-check.mjs v2.5.0` (léelo del tag con
+  `git show v2.5.0:tools/upgrade-check.mjs` si aún no está en tu árbol). Declara tus rutas propias que
+  no sean de las carpetas de instancia (scripts de operación, una config sembrada con otro nombre) en
+  `tools/boundaries.local.json` (§1). Si tu instancia escribió su propio script de comprobación, ya
+  puedes retirarlo.
+- **Rutas BFF propias en `app/api/instance/**`** con `instanceRoute` (`docs/FRONTEND_CONNECT.md` §A.2):
+  webhooks firmados en `webhooks/<nombre>`, rutas públicas de máquina sin sesión en `public/<nombre>`.
+  Si colgabas rutas de `app/[locale]/`, muévelas: allí next-intl las reescribe y el proxy no les aplica
+  la barrera de Origin.
+- **Tipos generados del grupo `instance`:** `wp hwe contract instance-types >
+  frontend/src/instance/config.generated.d.ts`. No declares el mismo campo también a mano en
+  `config.d.ts`.
+- **Capa de datos del cliente** (`lib/client/cart.tsx`, `auth.ts`, `checkout.ts`, `bff-error.ts`): úsala
+  en tus vistas en vez de escribir `fetch` contra el BFF.
+- **Comprobación de la pila:** `node tools/doctor.mjs` tras actualizar (§3, paso 6).
+
+**Cambios visibles sin declarar nada:**
+
+- **El starter cambia** en `components/cart/cart-context.tsx`, `components/auth/*-form.tsx`,
+  `components/account/logout-button.tsx` y `components/checkout/checkout-form.tsx`: ahora usan la capa
+  de `lib/client`, con la misma API. Si tu instancia los modificó, el merge dará conflicto en ellos: gana
+  lo tuyo (ruta de instancia), y adopta la capa nueva cuando quieras.
+- **`frontend/eslint.config.mjs` lee `../tools/boundaries.mjs`.** `npm run lint` necesita la carpeta
+  `tools/` del repositorio (la trae el merge). La imagen Docker del frontend no ejecuta ESLint.
+- **`generate-secrets.sh` escribe `HWE_REVALIDATION_SECRET` también en `frontend/.env.local`**, con el
+  valor de la raíz. Si los tuyos ya coincidían, nada cambia; si el del frontend era el placeholder, el
+  BFF en modo híbrido empieza a hablar con WordPress.
+- **Una ruta bajo `/api/instance/public/<nombre>` o `/api/instance/webhooks/<nombre>`** queda fuera de
+  la barrera de Origin del proxy. Los tests de `signed-routes.test.ts` exigen firma a las segundas y
+  prohíben la sesión a las primeras.
+
+`HWE_CORE_CONTRACT_VERSION` pasa a `2.5.0`; compárala si tu código depende de algo nuevo.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.
