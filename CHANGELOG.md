@@ -69,6 +69,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   tenía la instancia: cuando una release reclasificaba una ruta (como los E2E de arriba), la primera
   actualización seguía avisando de una deriva que ya no lo era. Ahora lee el manifiesto de la ref
   (más el `boundaries.local.json` de la instancia).
+- **La suite PHP del núcleo pasa con `HWE_INSTANCE=true` exportado.** `CheckAntiInstanceTest`
+  heredaba el entorno, y una instancia que exporta el interruptor (Vitest lo necesita) apagaba la
+  puerta que el test comprueba: 9 fallos. El test fija ahora el interruptor por caso.
 
 ## [2.5.0] — 2026-11-02
 

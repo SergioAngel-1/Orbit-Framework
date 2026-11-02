@@ -52,7 +52,9 @@ final class CheckAntiInstanceTest extends ShellScriptTestCase
             [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes,
             $this->dir,
-            array_merge(getenv(), $env),
+            // El interruptor lo fija el caso, no el entorno de quien ejecuta la suite: una
+            // instancia exporta `HWE_INSTANCE=true` (Vitest lo necesita) y la puerta se apagaría.
+            array_merge(getenv(), ['HWE_INSTANCE' => ''], $env),
         );
         $out = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
 
