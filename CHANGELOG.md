@@ -6,6 +6,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **`tools/doctor.mjs` comprueba las imágenes del BFF (check 8).** Pide `/api/store/products` (WPGraphQL)
+  y su forma `?include=` (wc/v3) y pasa cada `image.sourceUrl` por el `/_next/image` del propio
+  frontend: un 400 es una URL que no casa con `remotePatterns` (`WORDPRESS_PUBLIC_URL`). Habría
+  detectado el esquema `https` de la medioteca en un sitio `http`.
+
 ### Fixed
 - **Las imágenes que el BFF lee por wc/v3 vuelven a cargar en un sitio `http`.** `wcFetch` manda
   `X-Forwarded-Proto: https` para que WooCommerce acepte las credenciales ck/cs por la red interna, y

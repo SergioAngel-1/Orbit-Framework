@@ -6,7 +6,7 @@
 //  origen de la marca distinto del frontend (los enlaces de correo saldrían
 //  mal), recuperación de contraseña que da 5xx por un origen mal configurado,
 //  URL del sitemap que responden 404 o redirigen, JSON-LD de producto con
-//  imagen vacía, y «soft 404». Lógica en tools/doctor/checks.mjs (pura) y
+//  imagen vacía, «soft 404» e imágenes del BFF que next/image rechaza. Lógica en tools/doctor/checks.mjs (pura) y
 //  tools/doctor/run.mjs (peticiones). Esta CLI solo lee argumentos y formatea.
 //
 //  Uso:  node tools/doctor.mjs [--frontend URL] [--wordpress URL] [--json] [--max-urls N]

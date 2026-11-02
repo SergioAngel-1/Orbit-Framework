@@ -21,6 +21,7 @@ export const CHECK_NAMES = Object.freeze({
   5: "robots y sitemap",
   6: "JSON-LD de producto",
   7: "404 real",
+  8: "imágenes del BFF en next/image",
 });
 
 export const FORGOT_5XX_HINT =
@@ -246,6 +247,44 @@ export function productFindings(product) {
     );
   }
   return findings;
+}
+
+// ---------------------------------------------------------------------------
+//  Check 8: imágenes que devuelve el BFF
+// ---------------------------------------------------------------------------
+
+function productsOf(body) {
+  return Array.isArray(body?.products) ? body.products : [];
+}
+
+/** `databaseId` de los productos de una respuesta de /api/store/products. */
+export function productIds(body) {
+  return productsOf(body)
+    .map((p) => p?.databaseId)
+    .filter((id) => Number.isInteger(id) && id > 0);
+}
+
+/** `image.sourceUrl` no vacías de una respuesta de /api/store/products. */
+export function productImageUrls(body) {
+  return productsOf(body)
+    .map((p) => p?.image?.sourceUrl)
+    .filter((url) => typeof url === "string" && url.trim() !== "");
+}
+
+/**
+ * Veredicto de pedir una imagen del BFF al optimizador de next/image del frontend. Un 400 es
+ * que la URL no casa con `remotePatterns` (se congelan al construir desde WORDPRESS_PUBLIC_URL).
+ */
+export function imageOptimizerVerdict(url, status, error = "") {
+  if (isSuccess(status)) return verdict(STATUS.OK, `next/image sirve ${url}`);
+  if (status === 400) {
+    return verdict(
+      STATUS.FAIL,
+      `next/image rechaza ${url} (400)`,
+      "Esquema, host o puerto distinto del de WORDPRESS_PUBLIC_URL: revisa siteurl/home de WordPress y el build del frontend.",
+    );
+  }
+  return verdict(STATUS.WARN, `next/image ${respondsText(status, error)} para ${url}`);
 }
 
 // ---------------------------------------------------------------------------
