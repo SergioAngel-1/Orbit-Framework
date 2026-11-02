@@ -1,9 +1,9 @@
 # Crear una instancia nueva
 
-Esta plantilla no tiene un generador/CLI de proyectos: **crear una instancia nueva
-es clonar el repositorio completo y rebrandearlo**. Cada cliente/proyecto es su
-propia copia (backend + frontend + Docker), no un "tenant" dentro de una
-instalación compartida.
+Esta plantilla tiene un atajo para el alta (`tools/create-instance.sh`), pero no un
+generador de proyectos: **crear una instancia nueva sigue siendo clonar el repositorio
+completo y rebrandearlo**. Cada cliente/proyecto es su propia copia (backend + frontend +
+Docker), no un "tenant" dentro de una instalación compartida.
 
 Esta guía cubre el flujo completo, incluido el comando `wp hwe setup` para
 seedear la marca/diseño de la instancia en un solo paso en vez de rellenar el
@@ -12,6 +12,14 @@ ver `docs/INSTALL.md`; para el checklist de rebranding manual (logo, i18n,
 páginas legales) ver `docs/CUSTOMIZATION.md`; para producción ver `docs/GO-LIVE.md`.
 
 ## 1. Clonar el framework
+
+> **Atajo: `tools/create-instance.sh`.** Una vez clonado, `bash tools/create-instance.sh <slug> --name
+> "Marca"` en la raíz del clon hace las secciones 2–7 de esta guía: `.env` y `frontend/.env.local` con
+> el slug y los puertos, secretos (`generate-secrets.sh`, `HWE_SECRETS_KEY`, `HWE_2FA_KEY`),
+> `instance.config.json` con el nombre de marca, y con `--plugin` el plugin `hwe-instance-<slug>/` y el
+> override de Docker. Con `--up` levanta la pila (§5–§6) y ejecuta `tools/doctor.mjs`. Sin `--up` no
+> arranca ningún contenedor, y sin `--dry-run` escribe; reejecutarlo no pisa lo que ya existe ni rota
+> secretos. El resto de esta guía sigue siendo la referencia de cada paso.
 
 Parte siempre de una **release** (tag `vX.Y.Z`; la última es la primera entrada con fecha
 de `CHANGELOG.md`), nunca de `main`: lo que hay en `main` entre dos releases está en
@@ -38,6 +46,10 @@ explica cómo reconectarla.
 núcleo: no lo edites; cada merge de una release lo actualiza.
 
 ## 2. Variables de entorno y secretos
+
+> **Atajo:** `tools/create-instance.sh` ya copia los ficheros de entorno, escribe los puertos
+> (`--frontend-port`, `--wordpress-port`, `--db-port`, `--redis-port`) y las URL derivadas, y genera
+> los secretos. Esta sección explica cada variable para revisar lo que el script dejó.
 
 ```bash
 cp .env.example .env

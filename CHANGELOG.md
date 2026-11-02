@@ -6,6 +6,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Añadido
+- **`tools/create-instance.sh`: alta de una instancia con un comando.** Automatiza las secciones 2–7 de
+  `docs/CREATE_INSTANCE.md` (entorno y puertos, secretos, `instance.config.json`, plugin `hwe-instance-<slug>`
+  y override de Docker con `--plugin`; pila y comprobación con `--up`). Idempotente, con `--dry-run`. Prueba:
+  `tools/tests/create-instance.test.sh`.
+
 ## [2.4.0] — 2026-10-30
 
 La versión salta a 2.4.0 para coincidir con `HWE_CORE_CONTRACT_VERSION`; no hubo una 2.3.0. Cada sitio
