@@ -2,7 +2,7 @@
 import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { csrfFetch } from "@/lib/client/csrf";
+import { authApi } from "@/lib/client/auth";
 
 interface Props {
   email?: string;
@@ -22,14 +22,7 @@ export function ForgotPasswordForm({ email: initialEmail }: Props) {
     setError(null);
     const form = new FormData(e.currentTarget);
     try {
-      const res = await csrfFetch("/api/auth/forgot-password", {
-        method: "POST",
-        body: { email: String(form.get("email") ?? ""), locale },
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || t("error"));
-      }
+      await authApi.forgotPassword(String(form.get("email") ?? ""), locale, t("error"));
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error"));

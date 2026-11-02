@@ -137,6 +137,26 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
    `{ error }` sin leer el resto; un frontend que necesite más debe trocear la operación, no
    ampliar el tope.
 
+### Capa de datos del cliente (`lib/client/*`)
+
+Para un frontend que sigue la base del framework (Next.js del repo), la conversación con el BFF
+desde el navegador ya está escrita y versionada en el núcleo: **una vista nueva usa estos
+clientes y hooks, y solo pinta**. Todos llevan CSRF, el idioma de la página y el parseo de
+errores; ninguno tiene UI.
+
+| Módulo | Qué da | Lo que resuelve por ti |
+|---|---|---|
+| `lib/client/cart.tsx` | `<CartStoreProvider onItemAdded>` y `useCartStore()`: `cart`, `count`, `loading`, `error`, `addItem`, `updateItem`, `removeItem`, `clear`, `refresh`, cupones, tarifa, destino y `run(acción)` para mutaciones propias que devuelven el carrito | Mutaciones superpuestas que llegan fuera de orden (gana la última disparada); carga inicial sin parpadeo; un cuerpo que no es un carrito no rompe la vista |
+| `lib/client/auth.ts` | `authApi.login` (→ `signed-in` o `two-factor` con su token), `verifyTwoFactor`, `register`, `logout`, `forgotPassword`, `resetPassword` | La forma de cada petición y la lectura del 2FA |
+| `lib/client/checkout.ts` | `usePlaceOrder()` y `checkoutApi.placeOrder` / `startPayment` | Un envío a la vez y la misma `Idempotency-Key` en los reintentos (nueva tras un pedido creado); el cobro nunca lanza (`none` → la vista de «gracias» ofrece reintentar) |
+| `lib/client/bff-error.ts` | `BffError` (`message`, `status`, `details`, `field(nombre)`) y `readBff` | Colocar cada error del 422 bajo su campo |
+| `lib/client/store-api.ts`, `loyalty.ts`, `wishlist.ts`, `csrf.ts` | Clientes de carrito, reseñas, fidelización, deseos y `csrfFetch` para lo demás | — |
+
+`usePlaceOrder().pending` cubre solo la petición: si tu flujo sigue (redirección al cobro),
+mantén el botón bloqueado hasta navegar, como hace `components/checkout/checkout-form.tsx`. Lo
+visual (un cajón que se abre al añadir, la analítica) va en la vista: el starter lo hace en
+`components/cart/cart-context.tsx`, una capa de 60 líneas sobre `useCartStore`.
+
 ### Rutas BFF de la instancia (`app/api/instance/**`)
 
 Lo que una instancia necesita escribir o leer en privado y el núcleo no trae (devoluciones,

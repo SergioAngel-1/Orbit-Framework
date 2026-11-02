@@ -22,6 +22,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   config-schema` da el de una pila concreta, `wp hwe contract instance-types` genera los tipos de
   `SiteConfig.instance` (ya no se escriben a mano) y `tools/contract/graphql-introspection.mjs` vuelca
   el esquema GraphQL.
+- **Capa de datos del cliente en el núcleo (`lib/client/*`).** `useCartStore` / `CartStoreProvider`
+  (el estado del carrito con el orden de las mutaciones resuelto y `run` para mutaciones propias),
+  `authApi` (login con 2FA, registro, recuperación, salida), `usePlaceOrder` / `checkoutApi` (un
+  envío a la vez e `Idempotency-Key` estable en los reintentos) y `BffError` con los errores por
+  campo. Las vistas del starter (`cart-context`, formularios de auth, checkout) pasan a usarlos y se
+  quedan solo con lo visual; su API no cambia.
 - **Rutas BFF de la instancia en `app/api/instance/**` con `instanceRoute`.** Carpeta reservada que
   hereda del proxy el trato de `/api` (Origin, JWT, sin idioma, fuera de robots) y un envoltorio con
   las guardas del núcleo en su orden (módulo, flag, `guardMutation`, sesión, `no-store`, errores).

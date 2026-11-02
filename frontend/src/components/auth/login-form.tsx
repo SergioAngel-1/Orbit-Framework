@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { csrfFetch } from "@/lib/client/csrf";
+import { authApi } from "@/lib/client/auth";
 import { withReturn } from "@/lib/navigation/safe-return";
 
 /**
@@ -48,25 +48,16 @@ export function LoginForm({
     setError(null);
     const form = new FormData(e.currentTarget);
     try {
-      const res = await csrfFetch("/api/auth/login", {
-        method: "POST",
-        body: {
+      const result = await authApi.login(
+        {
           username: String(form.get("username") ?? ""),
           password: String(form.get("password") ?? ""),
         },
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || tLogin("error"));
-      }
-      const data = (await res.json()) as {
-        user?: { id: string };
-        requires_2fa?: boolean;
-        ephemeralToken?: string;
-      };
-      if (data.requires_2fa && data.ephemeralToken) {
+        tLogin("error"),
+      );
+      if (result.status === "two-factor") {
         setRequires2fa(true);
-        setEphemeralToken(data.ephemeralToken);
+        setEphemeralToken(result.ephemeralToken);
         return;
       }
       router.push(returnTo);
@@ -83,14 +74,7 @@ export function LoginForm({
     setPending(true);
     setError(null);
     try {
-      const res = await csrfFetch("/api/auth/verify-2fa", {
-        method: "POST",
-        body: { ephemeralToken, code },
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || t2fa("verifyError"));
-      }
+      await authApi.verifyTwoFactor(ephemeralToken, code, t2fa("verifyError"));
       router.push(returnTo);
       router.refresh();
     } catch (err) {

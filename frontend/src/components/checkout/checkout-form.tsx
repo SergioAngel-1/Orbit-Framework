@@ -2,7 +2,8 @@
 import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { csrfFetch } from "@/lib/client/csrf";
+import { BffError } from "@/lib/client/bff-error";
+import { checkoutApi, usePlaceOrder } from "@/lib/client/checkout";
 import { useCart } from "@/components/cart/cart-context";
 import { Button } from "@/components/ui/button";
 import { useFormatStoreAmount } from "@/components/ui/currency-context";
@@ -32,11 +33,6 @@ import { cartHasDestination } from "@/lib/shipping/destination";
 import type { ShippingMethod } from "@/lib/shipping/types";
 import type { GeoPack } from "@/lib/geo/types";
 import type { WooCustomer } from "@/types/woocommerce";
-
-interface CheckoutResult {
-  order_id: number;
-  status: string;
-}
 
 /** Campos del formulario, en el orden en que se pintan. */
 const FIELD_NAMES = [
@@ -185,11 +181,11 @@ export function CheckoutForm({
   );
   // Lo que el cliente ya escribió no se pisa con el respaldo asíncrono.
   const touchedRef = useRef(false);
-  // Un envío en vuelo bloquea otro (doble clic, Enter repetido) y la clave de
-  // idempotencia es estable durante todo el intento: un reintento tras un fallo
-  // de red no crea un segundo pedido. Se renueva solo tras crear el pedido.
+  // Un envío en vuelo bloquea otro (doble clic, Enter repetido) durante TODO el
+  // flujo, hasta la redirección al cobro. La clave de idempotencia la lleva
+  // `usePlaceOrder` (núcleo): estable en los reintentos, nueva tras un pedido.
   const submittingRef = useRef(false);
-  const idempotencyKeyRef = useRef<string | null>(null);
+  const { placeOrder } = usePlaceOrder();
   const [choice, setChoice] = useState<PaymentChoice>(paymentChoices[0] ?? "online");
   // Si la lista de medios cambia (config revalidada) y el elegido ya no está,
   // se cae al primero: nunca se envía un medio que el servidor rechazaría.
@@ -361,24 +357,10 @@ export function CheckoutForm({
    * @returns true si redirige al checkout alojado (la página se abandona).
    */
   async function startPayment(orderId: number, returnUrl: string): Promise<boolean> {
-    try {
-      const res = await csrfFetch("/api/payments/create", {
-        method: "POST",
-        body: { reference: orderId, returnUrl },
-      });
-      if (!res.ok) return false; // sin sesión / pasarela no aplicable → fallback
-      const data = (await res.json().catch(() => ({}))) as {
-        mode?: string;
-        redirectUrl?: string;
-      };
-      if (data.mode === "redirect" && data.redirectUrl) {
-        window.location.href = data.redirectUrl;
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
-    }
+    const payment = await checkoutApi.startPayment(orderId, returnUrl);
+    if (payment.mode !== "redirect") return false; // sin sesión / pasarela no aplicable
+    window.location.href = payment.redirectUrl;
+    return true;
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -393,13 +375,9 @@ export function CheckoutForm({
     const billing_address = Object.fromEntries(
       FIELD_NAMES.map((name) => [name, values[name].trim()]),
     );
-    idempotencyKeyRef.current ??= crypto.randomUUID();
-
     try {
-      const res = await csrfFetch("/api/store/checkout", {
-        method: "POST",
-        headers: { "Idempotency-Key": idempotencyKeyRef.current },
-        body: {
+      const order = await placeOrder(
+        {
           billing_address,
           payment_method: paymentMethodFor(effectiveChoice),
           customer_note: "",
@@ -414,19 +392,15 @@ export function CheckoutForm({
           // idioma de la página (el servidor lo guarda solo si hay «Aceptar»).
           tracking: { consent: hasTrackingConsent(), locale },
         },
+        tCheckout.genericError,
+      ).catch((err: unknown) => {
+        if (err instanceof BffError) {
+          setIdentityError(err.field("identity"));
+          setTermsError(err.field("terms_accepted") ? tForm.termsRequired : null);
+        }
+        throw err;
       });
-      const data = (await res.json().catch(() => ({}))) as
-        CheckoutResult | { error?: string };
-      if (!res.ok) {
-        const details = (data as { details?: Record<string, string[]> }).details;
-        setIdentityError(details?.identity?.[0] ?? null);
-        setTermsError(details?.terms_accepted ? tForm.termsRequired : null);
-        throw new Error(("error" in data && data.error) || tCheckout.genericError);
-      }
-
-      const order = data as CheckoutResult;
-      // Pedido creado: el siguiente intento es una compra nueva.
-      idempotencyKeyRef.current = null;
+      if (!order) return; // ya había un pedido en curso
       await refresh();
 
       // La pantalla de «gracias» está en el idioma de la página; el cobro en
