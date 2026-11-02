@@ -152,7 +152,7 @@ function write(dir: string, file: string, content: string) {
  * Repo con el manifiesto real; la «instancia» (rama main) y la «release» (tag)
  * cambian las rutas indicadas de forma incompatible.
  */
-function scenario(paths: string[]) {
+function scenario(paths: string[], onRelease?: (dir: string) => void) {
   workdir = mkdtempSync(path.join(tmpdir(), "upgrade-check-"));
   const dir = workdir;
   run(dir, "git", ["init", "-q", "-b", "main"]);
@@ -174,6 +174,7 @@ function scenario(paths: string[]) {
   run(dir, "git", ["commit", "-q", "-m", "base"]);
   run(dir, "git", ["switch", "-q", "-c", "release"]);
   for (const file of paths) write(dir, file, "framework\n");
+  onRelease?.(dir);
   run(dir, "git", ["commit", "-q", "-am", "release"]);
   run(dir, "git", ["tag", "v9.9.9"]);
   run(dir, "git", ["switch", "-q", "main"]);
@@ -212,6 +213,23 @@ describe("tools/upgrade-check.mjs", () => {
     expect(r.stdout).toContain(
       "NÚCLEO EDITADO:            frontend/src/lib/cart/index.ts",
     );
+  });
+
+  it("clasifica con la frontera de la release que entra, no con la que ya tiene la instancia", () => {
+    // La release pasa un spec E2E del núcleo a zona gris; la instancia ya lo había adaptado.
+    const spec = "frontend/tests/legacy/ejemplo.spec.ts";
+    const r = scenario(
+      [spec, "frontend/src/components/layout/site-header.tsx"],
+      (dir) => {
+        const file = path.join(dir, "tools/boundaries.json");
+        const manifest = JSON.parse(readFileSync(file, "utf8"));
+        manifest.rules.unshift({ path: "frontend/tests/legacy/**", owner: "gray" });
+        writeFileSync(file, JSON.stringify(manifest, null, 2));
+      },
+    );
+    expect(r.stdout).not.toContain("núcleo editado");
+    expect(r.stdout).toContain(`zona gris (a mano):        ${spec}`);
+    expect(r.status).toBe(0);
   });
 
   it("una ref inexistente sale con 2", () => {

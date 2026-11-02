@@ -65,6 +65,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   la instancia y su CI no los ejecuta, pero `upgrade-check` marcaba como deriva del núcleo un spec
   adaptado a un rediseño (`blog.spec.ts`). Siguen llegando con cada release; un choque se decide a
   mano (`docs/UPGRADE.md` §1).
+- **`upgrade-check` juzga con la frontera de la release que entra.** Usaba el `boundaries.json` que ya
+  tenía la instancia: cuando una release reclasificaba una ruta (como los E2E de arriba), la primera
+  actualización seguía avisando de una deriva que ya no lo era. Ahora lee el manifiesto de la ref
+  (más el `boundaries.local.json` de la instancia).
 
 ## [2.5.0] — 2026-11-02
 
