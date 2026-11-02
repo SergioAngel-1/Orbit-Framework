@@ -25,6 +25,7 @@ describe("isSignedRoute", () => {
     "/api/payments/webhook/wompi",
     "/api/payments/webhook/avalpay",
     "/api/payments/webhook/some-provider_2",
+    "/api/instance/webhooks/whatsapp",
   ])("%s está eximida", (path) => {
     expect(isSignedRoute(path)).toBe(true);
   });
@@ -49,6 +50,12 @@ describe("isSignedRoute", () => {
     "/api/payments/webhook/",
     "/api/payments/webhook/wompi/extra",
     "/api/payments/webhook/../create",
+    // Las rutas de instancia que no son webhooks llevan Origin y CSRF.
+    "/api/instance/returns",
+    "/api/instance/webhooks",
+    "/api/instance/webhooks/",
+    "/api/instance/webhooks/whatsapp/extra",
+    "/api/instance/webhook/whatsapp",
     // Otro nivel, otra mayúscula o un esquema no cuentan.
     "/api/store/payments/webhook/wompi",
     "/API/revalidate",

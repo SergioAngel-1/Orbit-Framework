@@ -15,6 +15,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   tocar el árbol, avisa de los archivos del núcleo editados en la instancia y clasifica cada
   conflicto (instancia, zona gris, núcleo). Sustituye a los scripts que cada instancia escribía por su
   cuenta, que no conocían `components/**` y fallaban con cambios del starter.
+- **Rutas BFF de la instancia en `app/api/instance/**` con `instanceRoute`.** Carpeta reservada que
+  hereda del proxy el trato de `/api` (Origin, JWT, sin idioma, fuera de robots) y un envoltorio con
+  las guardas del núcleo en su orden (módulo, flag, `guardMutation`, sesión, `no-store`, errores).
+  Los webhooks de la instancia van en `/api/instance/webhooks/<nombre>`, exentos de Origin y
+  obligados a verificar su firma. Antes, las instancias colgaban sus rutas de `app/[locale]/`, donde
+  next-intl las reescribía y el proxy no les aplicaba la barrera de Origin.
 
 ## [2.4.0] — 2026-10-30
 

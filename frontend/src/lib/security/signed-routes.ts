@@ -35,7 +35,19 @@ const SIGNED_PATHS: ReadonlySet<string> = new Set([
 /** Webhook de pago: `/api/payments/webhook/<proveedor>`, un único segmento. */
 const PAYMENT_WEBHOOK = /^\/api\/payments\/webhook\/[a-z0-9_-]+$/;
 
+/**
+ * Webhook de la instancia: `/api/instance/webhooks/<nombre>`, un único segmento.
+ * La carpeta es de la instancia (`tools/boundaries.json`), así que el núcleo no
+ * puede enumerar sus rutas; el patrón es igual de cerrado que el de pagos y el
+ * mismo test exige a cada `route.ts` que cuelgue de él verificar su firma.
+ */
+const INSTANCE_WEBHOOK = /^\/api\/instance\/webhooks\/[a-z0-9_-]+$/;
+
 /** ¿Se autentica esta ruta por firma, y por tanto queda fuera de la barrera de Origin? */
 export function isSignedRoute(pathname: string): boolean {
-  return SIGNED_PATHS.has(pathname) || PAYMENT_WEBHOOK.test(pathname);
+  return (
+    SIGNED_PATHS.has(pathname) ||
+    PAYMENT_WEBHOOK.test(pathname) ||
+    INSTANCE_WEBHOOK.test(pathname)
+  );
 }

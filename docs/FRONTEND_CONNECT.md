@@ -132,6 +132,29 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
    `{ error }` sin leer el resto; un frontend que necesite más debe trocear la operación, no
    ampliar el tope.
 
+### Rutas BFF de la instancia (`app/api/instance/**`)
+
+Lo que una instancia necesita escribir o leer en privado y el núcleo no trae (devoluciones,
+exportación de datos, un webhook de mensajería…) va en `frontend/src/app/api/instance/**`: carpeta
+**de la instancia** (`tools/boundaries.json`) que cuelga de `/api`, así que hereda del proxy la
+barrera de Origin, el refresco del JWT, la ausencia de prefijo de idioma y el `Disallow` de
+`robots.txt`. No las pongas bajo `app/[locale]/`: ahí next-intl las reescribe y el proxy no las
+trata como API.
+
+- **Rutas normales:** cada método se exporta con `instanceRoute(options, handler)`
+  (`lib/api/instance-route.ts`). Opciones: `module` y `flag` (apagados → 404), `guard` (opciones de
+  `guardMutation`, que se aplica siempre a `POST`/`PUT`/`PATCH`/`DELETE`) y `session`
+  (`"required"` → 401 sin sesión; `"optional"` → `session` puede ser `null`). El handler recibe
+  `{ request, config, session, params }`; la respuesta sale con `Cache-Control: no-store` salvo que
+  fije otro, y una excepción sale por `handleApiError` con el evento `instance_route.error`.
+- **Webhooks:** `/api/instance/webhooks/<nombre>` (un segmento). El proxy los exime de la barrera
+  de Origin; a cambio deben verificar su firma antes de actuar (`verifyHmacSignature`), y
+  `tests/unit/signed-routes.test.ts` lo exige a cada `route.ts` que cuelgue de ahí.
+- El cliente las llama como al resto del BFF: `credentials: "include"` y `X-CSRF-Token` en
+  escrituras (`csrfFetch` de `lib/client/csrf.ts`).
+
+Ejemplo vivo: `examples/instance-minimal/frontend/src/app/api/instance/example/route.ts`.
+
 ### Pagos: medios, pasarela y confirmación
 
 Tres **medios de pago independientes**, cada uno con su interruptor en Control Center →

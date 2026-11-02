@@ -224,6 +224,7 @@ vive en rutas que el framework **nunca toca**, así que `git merge` de un releas
 | El registro de la instancia (tags ISR, landings propias, campos de producto, visuales decorativos) | `frontend/src/instance/registry.ts` — **solo datos**, nunca componentes |
 | Tipado de tus ajustes en `SiteConfig.instance` | `frontend/src/instance/config.d.ts` |
 | Tu dominio (fetchers, formato, validación) | `frontend/src/instance/lib/` |
+| Tus rutas BFF (escrituras propias, webhooks) | `frontend/src/app/api/instance/**`, con `instanceRoute` (`docs/FRONTEND_CONNECT.md` §A.2) |
 | La UI: componentes y vistas | `frontend/src/components/**` (salvo `ui/`) y `frontend/src/app/[locale]/*` |
 
 La UI se **hereda una sola vez** al clonar, como punto de partida neutro (clases de marca,

@@ -38,6 +38,8 @@ de lo local):
 - `backend/wp-content/mu-plugins/instance/**` y `backend/wp-content/plugins/hwe-instance-*/`
   (el framework solo versiona el `README.md` de la primera)
 - `frontend/src/instance/**` (`registry.ts`, `config.d.ts`, `lib/`)
+- `frontend/src/app/api/instance/**` (rutas BFF de la instancia; el framework solo versiona su
+  `README.md`)
 - `frontend/tests/e2e/instance/**` (E2E de la instancia; el framework solo versiona su
   `README.md` y no ejecuta sus specs: `playwright.config.ts` ignora esa carpeta)
 - `frontend/src/components/**` (salvo `ui/`)
