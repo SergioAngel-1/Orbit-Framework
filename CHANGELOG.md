@@ -6,6 +6,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed
+- **Las imágenes que el BFF lee por wc/v3 vuelven a cargar en un sitio `http`.** `wcFetch` manda
+  `X-Forwarded-Proto: https` para que WooCommerce acepte las credenciales ck/cs por la red interna, y
+  WordPress pasaba entonces las URL de la medioteca a `https://`: `next/image` las rechazaba («hostname
+  … is not configured») en todo lo que sale de `/api/store/products?include=` (búsqueda, colecciones,
+  recientes, lista de deseos). El nuevo mu-plugin `hwe-media-scheme.php` devuelve al esquema de
+  `siteurl`/`home` las URL de adjuntos, `srcset` y el placeholder de WooCommerce, solo en peticiones
+  con el secreto interno y solo cuando el sitio está declarado `http`. En producción no cambia nada.
+
 ## [2.5.0] — 2026-11-02
 
 Conectar una instancia deja de exigir leer toda la documentación y escribir herramientas propias. El
