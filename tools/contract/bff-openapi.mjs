@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const API_DIR = join(ROOT, "frontend/src/app/api");
-const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
 const EXPORT = new RegExp(
   `export\\s+(?:async\\s+function|const)\\s+(${METHODS.join("|")})\\b`,
   "g",
@@ -41,8 +41,8 @@ function routeFiles(dir) {
 }
 
 /** `store/orders/[id]` → `/api/store/orders/{id}` y sus parámetros. */
-function pathOf(file) {
-  const segments = relative(API_DIR, dirname(file)).split(sep);
+function pathOf(file, apiDir) {
+  const segments = relative(apiDir, dirname(file)).split(sep);
   const params = [];
   const url = segments
     .map((segment) => {
@@ -96,6 +96,36 @@ function reachable(body, shared) {
   return text;
 }
 
+/** Valor numérico de un literal o de una `const NOMBRE = 123` del módulo; si no, undefined. */
+function numberOf(raw, shared) {
+  const value = raw.trim();
+  if (/^\d[\d_]*$/.test(value)) return Number(value.replace(/_/g, ""));
+  const constant = new RegExp(`\\bconst\\s+${value}\\s*=\\s*([\\d_]+)\\s*;`).exec(shared);
+  return constant ? Number(constant[1].replace(/_/g, "")) : undefined;
+}
+
+/**
+ * Límites por IP de las opciones `rateLimit: { name, limit, windowSeconds, strict }` que
+ * reciben `guardMutation` / `instanceRoute`. Lo que no es literal ni constante del módulo se omite.
+ */
+function rateLimits(text, shared) {
+  const found = [];
+  for (const match of text.matchAll(/\brateLimit:\s*\{([^}]*)\}/g)) {
+    const fields = match[1];
+    const entry = {};
+    const name = /\bname:\s*"([^"]+)"/.exec(fields);
+    if (name) entry.name = name[1];
+    for (const key of ["limit", "windowSeconds"]) {
+      const raw = new RegExp(`\\b${key}:\\s*([A-Za-z0-9_]+)`).exec(fields);
+      const value = raw ? numberOf(raw[1], shared) : undefined;
+      if (value !== undefined) entry[key] = value;
+    }
+    if (/\bstrict:\s*true\b/.test(fields)) entry.strict = true;
+    if (Object.keys(entry).length) found.push(entry);
+  }
+  return found;
+}
+
 /** Lo que un método hace antes de su negocio. */
 function describe(method, body, shared) {
   const text = reachable(body, shared);
@@ -112,11 +142,17 @@ function describe(method, body, shared) {
       text,
     );
   const guarded = /\bguardMutation\(|\binstanceRoute\(/.test(text);
+  // `instanceRoute({ public: true })`: ruta de máquina sin Origin ni CSRF (solo tope de cuerpo
+  // y límite por IP), bajo `/api/instance/public/`.
+  const isPublic = /\binstanceRoute\(/.test(text) && /\bpublic:\s*true\b/.test(text);
   if (signed) {
     operation["x-hwe-auth"] = "signature";
-  } else if (method !== "GET") {
-    operation["x-hwe-csrf"] = guarded && !/csrf:\s*false/.test(text);
+  } else if (method !== "GET" && method !== "OPTIONS") {
+    operation["x-hwe-csrf"] = guarded && !isPublic && !/csrf:\s*false/.test(text);
   }
+  if (isPublic) operation["x-hwe-public"] = true;
+  const limits = rateLimits(text, shared);
+  if (limits.length) operation["x-hwe-rate-limit"] = limits;
   // `required`: sin sesión → 401 garantizado. `read`: la ruta lee la sesión y decide
   // (puede responder 401 o comportarse distinto con y sin cuenta).
   if (/\brequireSession\(|session:\s*"required"/.test(text)) {
@@ -129,14 +165,15 @@ function describe(method, body, shared) {
 }
 
 /**
- * @param {{ includeInstance?: boolean }} [options]
+ * @param {{ includeInstance?: boolean, apiDir?: string }} [options] `apiDir`: carpeta `app/api`
+ *   que se recorre (por defecto la del frontend; los tests pasan una de ejemplo).
  * @returns {Record<string, unknown>} documento OpenAPI 3.1
  */
-export function buildBffOpenApi({ includeInstance = false } = {}) {
+export function buildBffOpenApi({ includeInstance = false, apiDir = API_DIR } = {}) {
   const paths = {};
-  for (const file of routeFiles(API_DIR)) {
+  for (const file of routeFiles(apiDir)) {
     const source = readFileSync(file, "utf8");
-    const { url, params } = pathOf(file);
+    const { url, params } = pathOf(file, apiDir);
     if (!includeInstance && url.startsWith("/api/instance/")) continue;
     const bodies = methodBodies(source);
     const firstExport = bodies.length ? source.search(EXPORT) : source.length;
@@ -169,7 +206,7 @@ export function buildBffOpenApi({ includeInstance = false } = {}) {
       title: "Orbit BFF",
       version: readFileSync(join(ROOT, "FRAMEWORK_VERSION"), "utf8").trim(),
       description:
-        "Inventario de las rutas del BFF (Next.js Route Handlers) generado desde el código por tools/contract/bff-openapi.mjs; no se edita a mano. Sesión en cookies httpOnly; toda escritura con x-hwe-csrf exige el token de GET /api/csrf en X-CSRF-Token y un Origin permitido. Las x-hwe-* describen lo que cada método consulta antes de su negocio: x-hwe-module (apagado → 404), x-hwe-flag (flags que lee; casi siempre apagado → 404, ver la fuente), x-hwe-session (required → 401 sin sesión; read → la lee y decide) y x-hwe-auth: signature (webhook firmado, sin CSRF).",
+        "Inventario de las rutas del BFF (Next.js Route Handlers) generado desde el código por tools/contract/bff-openapi.mjs; no se edita a mano. Sesión en cookies httpOnly; toda escritura con x-hwe-csrf exige el token de GET /api/csrf en X-CSRF-Token y un Origin permitido. Las x-hwe-* describen lo que cada método consulta antes de su negocio: x-hwe-module (apagado → 404), x-hwe-flag (flags que lee; casi siempre apagado → 404, ver la fuente), x-hwe-session (required → 401 sin sesión; read → la lee y decide), x-hwe-auth: signature (webhook firmado, sin CSRF), x-hwe-public (ruta de máquina de la instancia, sin Origin ni CSRF) y x-hwe-rate-limit (límites por IP declarados en las opciones de la guarda; su ausencia no significa que no haya límite: ver la fuente).",
     },
     paths,
   };

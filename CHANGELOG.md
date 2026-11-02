@@ -44,6 +44,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   comentario citaba `revalidateTag(…)` o si verificaba con un envoltorio propio de la instancia.
   Ahora cuentan las llamadas reales, también a envoltorios locales o importados que llaman a un
   verificador del núcleo (`tests/helpers/route-signature.ts`).
+- **`bff-openapi.mjs --include-instance` describe bien las rutas de la instancia.** Una ruta
+  `instanceRoute({ public: true })` salía con `x-hwe-csrf: true` (no aplica `guardMutation`): ahora
+  `x-hwe-csrf: false` y `x-hwe-public: true`. Lista `OPTIONS` y anota `x-hwe-rate-limit` (nombre,
+  límite, ventana y `strict`, con las constantes del módulo resueltas) en todas las rutas, también
+  en `contract/bff.openapi.json`.
 
 ## [2.5.0] — 2026-11-02
 

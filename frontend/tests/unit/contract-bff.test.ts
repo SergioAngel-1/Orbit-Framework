@@ -11,6 +11,7 @@ import { buildBffOpenApi } from "../../../tools/contract/bff-openapi.mjs";
 // ============================================================================
 
 const ROOT = path.resolve(__dirname, "../../..");
+const FIXTURE_API = path.resolve(__dirname, "../fixtures/bff-openapi/api");
 const SNAPSHOT = path.join(ROOT, "contract/bff.openapi.json");
 
 type Operation = Record<string, unknown>;
@@ -57,5 +58,38 @@ describe("contract/bff.openapi.json", () => {
       "x-hwe-session": "required",
       "x-hwe-csrf": true,
     });
+  });
+});
+
+describe("bff-openapi --include-instance", () => {
+  const doc = buildBffOpenApi({ includeInstance: true, apiDir: FIXTURE_API }) as {
+    paths: Paths;
+  };
+  const feed = doc.paths["/api/instance/public/feed"];
+  const returns = doc.paths["/api/instance/returns"];
+
+  it("una ruta public: true no exige CSRF y se marca pública", () => {
+    expect(feed.post["x-hwe-csrf"]).toBe(false);
+    expect(feed.post["x-hwe-public"]).toBe(true);
+    expect(feed.get["x-hwe-public"]).toBe(true);
+    expect(returns.post["x-hwe-csrf"]).toBe(true);
+    expect(returns.post["x-hwe-public"]).toBeUndefined();
+  });
+
+  it("lista OPTIONS", () => {
+    expect(Object.keys(feed).sort()).toEqual(["get", "options", "post"]);
+  });
+
+  it("anota el rateLimit de cada método, con las constantes resueltas", () => {
+    expect(feed.get["x-hwe-rate-limit"]).toEqual([
+      { name: "feed", limit: 30, windowSeconds: 60 },
+    ]);
+    expect(feed.post["x-hwe-rate-limit"]).toEqual([
+      { name: "feed-write", limit: 5, windowSeconds: 60 },
+    ]);
+    expect(returns.post["x-hwe-rate-limit"]).toEqual([
+      { name: "returns", limit: 5, windowSeconds: 600, strict: true },
+    ]);
+    expect(feed.options["x-hwe-rate-limit"]).toBeUndefined();
   });
 });

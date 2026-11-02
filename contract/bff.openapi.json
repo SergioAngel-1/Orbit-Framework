@@ -3,13 +3,21 @@
   "info": {
     "title": "Orbit BFF",
     "version": "2.5.0",
-    "description": "Inventario de las rutas del BFF (Next.js Route Handlers) generado desde el código por tools/contract/bff-openapi.mjs; no se edita a mano. Sesión en cookies httpOnly; toda escritura con x-hwe-csrf exige el token de GET /api/csrf en X-CSRF-Token y un Origin permitido. Las x-hwe-* describen lo que cada método consulta antes de su negocio: x-hwe-module (apagado → 404), x-hwe-flag (flags que lee; casi siempre apagado → 404, ver la fuente), x-hwe-session (required → 401 sin sesión; read → la lee y decide) y x-hwe-auth: signature (webhook firmado, sin CSRF)."
+    "description": "Inventario de las rutas del BFF (Next.js Route Handlers) generado desde el código por tools/contract/bff-openapi.mjs; no se edita a mano. Sesión en cookies httpOnly; toda escritura con x-hwe-csrf exige el token de GET /api/csrf en X-CSRF-Token y un Origin permitido. Las x-hwe-* describen lo que cada método consulta antes de su negocio: x-hwe-module (apagado → 404), x-hwe-flag (flags que lee; casi siempre apagado → 404, ver la fuente), x-hwe-session (required → 401 sin sesión; read → la lee y decide), x-hwe-auth: signature (webhook firmado, sin CSRF), x-hwe-public (ruta de máquina de la instancia, sin Origin ni CSRF) y x-hwe-rate-limit (límites por IP declarados en las opciones de la guarda; su ausencia no significa que no haya límite: ver la fuente)."
   },
   "paths": {
     "/api/auth/2fa/activate": {
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/2fa/activate/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "2fa_activate",
+            "limit": 5,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -22,6 +30,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/2fa/disable/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "2fa_disable",
+            "limit": 3,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -45,6 +61,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/2fa/setup/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "2fa_setup",
+            "limit": 5,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -68,6 +92,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/change-password/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "change_password",
+            "limit": 5,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -80,6 +112,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/forgot-password/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "forgot_password",
+            "limit": 3,
+            "windowSeconds": 300,
+            "strict": true
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -91,6 +131,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/login/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "login",
+            "limit": 5,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -102,6 +150,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/logout/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "logout",
+            "limit": 30,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -113,6 +169,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/logout-all/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "logout_all",
+            "limit": 5,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -136,6 +200,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/refresh/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "refresh",
+            "limit": 30,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -147,6 +219,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/register/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "register",
+            "limit": 5,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -158,6 +238,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/resend-verification/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "resend_verification",
+            "limit": 3,
+            "windowSeconds": 120,
+            "strict": true
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -170,6 +258,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/reset-password/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "reset_password",
+            "limit": 5,
+            "windowSeconds": 300,
+            "strict": true
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -181,6 +277,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/verify-2fa/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "verify_2fa",
+            "limit": 5,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -192,6 +296,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/auth/verify-email/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "verify_email",
+            "limit": 5,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -216,6 +328,13 @@
           "consent-log"
         ],
         "x-hwe-csrf": false,
+        "x-hwe-rate-limit": [
+          {
+            "name": "consent-record",
+            "limit": 20,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -230,6 +349,13 @@
           "consent-log"
         ],
         "x-hwe-csrf": false,
+        "x-hwe-rate-limit": [
+          {
+            "name": "consent-stats",
+            "limit": 60,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -249,6 +375,13 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/contact/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "contact",
+            "limit": 5,
+            "windowSeconds": 300
+          }
+        ],
         "x-hwe-session": "read",
         "responses": {
           "default": {
@@ -392,6 +525,14 @@
           "transfers"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "loyalty-transfer",
+            "limit": 10,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "x-hwe-session": "read",
         "x-hwe-idempotency-key": true,
         "responses": {
@@ -541,6 +682,13 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/payments/create/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "payments",
+            "limit": 10,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "read",
         "responses": {
           "default": {
@@ -635,6 +783,13 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/store/addresses/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "addresses",
+            "limit": 20,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -645,6 +800,13 @@
       "put": {
         "x-hwe-source": "frontend/src/app/api/store/addresses/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "addresses",
+            "limit": 20,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -655,6 +817,13 @@
       "delete": {
         "x-hwe-source": "frontend/src/app/api/store/addresses/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "addresses",
+            "limit": 20,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -693,6 +862,13 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/store/cart/items/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "cart",
+            "limit": 60,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -702,6 +878,13 @@
       "patch": {
         "x-hwe-source": "frontend/src/app/api/store/cart/items/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "cart",
+            "limit": 60,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -711,6 +894,13 @@
       "delete": {
         "x-hwe-source": "frontend/src/app/api/store/cart/items/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "cart",
+            "limit": 60,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -762,6 +952,13 @@
       "delete": {
         "x-hwe-source": "frontend/src/app/api/store/cart/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "cart",
+            "limit": 30,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -773,6 +970,14 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/store/checkout/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "checkout",
+            "limit": 10,
+            "windowSeconds": 60,
+            "strict": true
+          }
+        ],
         "x-hwe-session": "read",
         "x-hwe-idempotency-key": true,
         "responses": {
@@ -786,6 +991,13 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/store/coupons/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "coupon",
+            "limit": 20,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -795,6 +1007,13 @@
       "delete": {
         "x-hwe-source": "frontend/src/app/api/store/coupons/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "coupon",
+            "limit": 20,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -815,6 +1034,13 @@
       "put": {
         "x-hwe-source": "frontend/src/app/api/store/customer/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "customer",
+            "limit": 20,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -850,6 +1076,13 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/store/orders/[id]/received/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "order_received",
+            "limit": 10,
+            "windowSeconds": 3600
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -872,6 +1105,13 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/store/orders/[id]/reorder/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "reorder",
+            "limit": 10,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -897,6 +1137,13 @@
           "site-reviews"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "order_review",
+            "limit": 10,
+            "windowSeconds": 3600
+          }
+        ],
         "x-hwe-session": "read",
         "responses": {
           "default": {
@@ -969,6 +1216,13 @@
           "reviews_enabled"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "review",
+            "limit": 5,
+            "windowSeconds": 3600
+          }
+        ],
         "x-hwe-session": "read",
         "responses": {
           "default": {
@@ -984,6 +1238,13 @@
           "shipping"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "shipping-destination",
+            "limit": 30,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -995,6 +1256,13 @@
       "put": {
         "x-hwe-source": "frontend/src/app/api/store/shipping/route.ts",
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "shipping",
+            "limit": 30,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -1021,6 +1289,13 @@
           "wishlist_enabled"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "wishlist",
+            "limit": 30,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
@@ -1034,6 +1309,13 @@
           "wishlist_enabled"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "wishlist",
+            "limit": 30,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "required",
         "responses": {
           "default": {
