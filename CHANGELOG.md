@@ -22,6 +22,8 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `error` sigue siendo el texto. `cartApi` lanza `BffError` con el mismo mensaje que antes.
 - **`authApi.verifyTwoFactor` admite el código de recuperación** (`{ recoveryCode }` en lugar del
   TOTP), que `/api/auth/verify-2fa` ya aceptaba.
+- **`authApi.logout()` devuelve `true` si cerró la sesión.** Antes ignoraba la respuesta: un 403 o
+  un 429 dejaban las cookies puestas y la vista no podía saberlo.
 
 ### Fixed
 - **Las imágenes que el BFF lee por wc/v3 vuelven a cargar en un sitio `http`.** `wcFetch` manda

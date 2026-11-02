@@ -68,8 +68,13 @@ export const authApi = {
     await post("/api/auth/register", input, fallback);
   },
 
-  async logout(): Promise<void> {
-    await csrfFetch("/api/auth/logout", { method: "POST" });
+  /**
+   * `true` si el BFF cerró la sesión. Con `false` (Origin/CSRF rechazados, límite) las cookies
+   * siguen puestas: la vista puede avisar en vez de dar la sesión por cerrada. Un fallo de red
+   * lanza, como antes.
+   */
+  async logout(): Promise<boolean> {
+    return (await csrfFetch("/api/auth/logout", { method: "POST" })).ok;
   },
 
   /** Responde igual exista o no la cuenta (no revela correos registrados). */

@@ -64,6 +64,16 @@ describe("authApi", () => {
     ).rejects.toThrow("Código no válido.");
   });
 
+  it("logout dice si cerró la sesión", async () => {
+    vi.mocked(csrfFetch).mockResolvedValueOnce(json(200, { ok: true }));
+    await expect(authApi.logout()).resolves.toBe(true);
+    expect(csrfFetch).toHaveBeenLastCalledWith("/api/auth/logout", { method: "POST" });
+
+    // 403 de Origin/CSRF o 429: las cookies siguen puestas, la sesión no se cerró.
+    vi.mocked(csrfFetch).mockResolvedValueOnce(json(403, { error: "Origen no permitido." }));
+    await expect(authApi.logout()).resolves.toBe(false);
+  });
+
   it("un error del BFF sale como BffError con su mensaje, estado y campos", async () => {
     vi.mocked(csrfFetch).mockResolvedValue(
       json(422, { error: "Documento en uso.", details: { identity: ["Ya existe."] } }),
