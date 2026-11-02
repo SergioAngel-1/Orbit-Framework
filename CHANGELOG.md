@@ -6,6 +6,16 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.6.0] — 2026-11-02
+
+Cierra los huecos que encontró la primera instancia al integrar la 2.5.0. Las imágenes que el BFF lee
+por wc/v3 vuelven a cargar en un sitio `http` (y el doctor lo comprueba), la capa de datos del cliente
+expone los fallos que antes se perdían, el contrato de máquina describe bien los tipos propios, las
+rutas públicas y los límites, y los tests y E2E del núcleo dejan de marcar como deriva la redacción y
+los rediseños de la instancia. Sin cambios incompatibles de contrato; lo observable está en
+`docs/UPGRADE.md` §3.9. `HWE_CORE_CONTRACT_VERSION` pasa a `2.6.0` (filtro nuevo
+`hwe_contract_field_schema`).
+
 ### Added
 - **`tools/doctor.mjs` comprueba las imágenes del BFF (check 8).** Pide `/api/store/products` (WPGraphQL)
   y su forma `?include=` (wc/v3) y pasa cada `image.sourceUrl` por el `/_next/image` del propio
@@ -1187,7 +1197,8 @@ están corregidos arriba.
 - Fase 6 — SEO + i18n (next-intl, sitemap, hreflang, JSON-LD).
 - Fase 7 — Pagos: capa de pasarelas agnóstica (provider-agnostic) + proveedor `noop`.
 
-[Sin publicar]: https://example.com/compare/v2.5.0...HEAD
+[Sin publicar]: https://example.com/compare/v2.6.0...HEAD
+[2.6.0]: https://example.com/compare/v2.5.0...v2.6.0
 [2.5.0]: https://example.com/compare/v2.4.0...v2.5.0
 [2.4.0]: https://example.com/compare/v2.2.0...v2.4.0
 [2.2.0]: https://example.com/compare/v2.1.0...v2.2.0

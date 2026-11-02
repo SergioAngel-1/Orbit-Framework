@@ -433,6 +433,44 @@ Sin cambios incompatibles de contrato. Todo es opcional salvo lo que se lista al
 
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.5.0`; compárala si tu código depende de algo nuevo.
 
+## 3.9 Contrato `2.6.0` (nota de actualización)
+
+Sin cambios incompatibles de contrato. Comprueba el merge con `node tools/upgrade-check.mjs v2.6.0`.
+El `upgrade-check` de la 2.5.0 juzga con tu frontera vieja: si avisa de deriva en
+`frontend/tests/e2e/*.spec.ts`, es la reclasificación de esta release (zona gris) y se va al
+fusionar. Desde la 2.6.0 el script usa la frontera de la release que entra.
+
+- **Retira tu parche de esquema de la medioteca**, si escribiste uno: el mu-plugin del núcleo
+  `hwe-media-scheme.php` devuelve al esquema `http` de `siteurl`/`home` las URL de adjuntos que pide
+  el BFF. Después, `node tools/doctor.mjs`: el check 8 pasa cada imagen por `/_next/image`.
+- **Tipos de campo propios:** decláralos con `hwe_contract_field_schema`
+  (`docs/PLUGIN_DEVELOPMENT.md` §0) y regenera `config.generated.d.ts`; sin declararlos siguen
+  saliendo `unknown`.
+- **Capa de datos del cliente:** `BffError.body`, `useCartStore().failure`/`readError`, las
+  mutaciones del carrito devuelven `Promise<boolean>`, `<CartStoreProvider afterAdd>`,
+  `run(acción, { silent: true })`, `authApi.verifyTwoFactor(token, { recoveryCode })` y
+  `authApi.logout()` → `boolean`. Todo es aditivo.
+- **Si editaste tests del núcleo por la redacción de tus catálogos** (`lib/memberships/*`,
+  `lib/loyalty/describe`, `lib/analytics/services`, `api/memberships/history`, `app/_llms/build`),
+  vuelve a la versión del framework: con `HWE_INSTANCE=true` esas aserciones se omiten.
+
+**Cambios visibles sin declarar nada:**
+
+- **Tipos:** las mutaciones de `useCartStore()` pasan de `Promise<void>` a `Promise<boolean>`. Una
+  llamada que ignora el resultado no cambia; una variable anotada a mano como `Promise<void>` deja de
+  compilar (anótala `Promise<boolean>` o quita la anotación).
+- **`cartApi` lanza `BffError`** (subclase de `Error`, mismo `message`) en vez de `Error`.
+- **`frontend/tests/e2e/*.spec.ts` pasan a zona gris** (§1): adaptar un spec del starter a tu
+  rediseño ya no sale como deriva; si el merge choca, decide a mano.
+- **`contract/config.schema.json`:** `image`, `file`, `pairs` y `product_multiselect` salen con
+  `type: string`. **`contract/bff.openapi.json`** añade `x-hwe-public` y `x-hwe-rate-limit`, y lista
+  `OPTIONS`.
+- **`signed-routes.test.ts` analiza el AST:** un webhook que solo citaba el verificador en un
+  comentario ahora falla (bien); uno que verifica con un envoltorio propio, local o importado, ahora
+  pasa.
+
+`HWE_CORE_CONTRACT_VERSION` pasa a `2.6.0`.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.
