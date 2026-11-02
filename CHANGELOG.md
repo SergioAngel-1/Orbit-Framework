@@ -20,6 +20,8 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   mutación (un `BffError` con estado, código y cuerpo en las de serie, o el fallo propio de una
   acción de `run`) y `readError` el fallo de la última lectura del carrito, que antes se tragaba.
   `error` sigue siendo el texto. `cartApi` lanza `BffError` con el mismo mensaje que antes.
+- **`authApi.verifyTwoFactor` admite el código de recuperación** (`{ recoveryCode }` en lugar del
+  TOTP), que `/api/auth/verify-2fa` ya aceptaba.
 
 ### Fixed
 - **Las imágenes que el BFF lee por wc/v3 vuelven a cargar en un sitio `http`.** `wcFetch` manda

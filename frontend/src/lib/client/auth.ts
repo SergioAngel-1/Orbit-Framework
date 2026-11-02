@@ -51,12 +51,17 @@ export const authApi = {
       : { status: "signed-in" };
   },
 
+  /**
+   * `code`: los 6 dígitos del TOTP, o `{ recoveryCode }` si el usuario perdió el dispositivo
+   * (cada código de recuperación vale una sola vez).
+   */
   async verifyTwoFactor(
     ephemeralToken: string,
-    code: string,
+    code: string | { recoveryCode: string },
     fallback = DEFAULT_ERROR,
   ): Promise<void> {
-    await post("/api/auth/verify-2fa", { ephemeralToken, code }, fallback);
+    const proof = typeof code === "string" ? { code } : { recoveryCode: code.recoveryCode };
+    await post("/api/auth/verify-2fa", { ephemeralToken, ...proof }, fallback);
   },
 
   async register(input: RegisterInput, fallback = DEFAULT_ERROR): Promise<void> {

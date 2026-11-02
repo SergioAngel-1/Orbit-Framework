@@ -50,6 +50,20 @@ describe("authApi", () => {
     });
   });
 
+  it("verifyTwoFactor admite un código de recuperación en vez del TOTP", async () => {
+    vi.mocked(csrfFetch).mockResolvedValueOnce(json(200, { ok: true }));
+    await authApi.verifyTwoFactor("eph", { recoveryCode: "abcd-efgh" });
+    expect(csrfFetch).toHaveBeenLastCalledWith("/api/auth/verify-2fa", {
+      method: "POST",
+      body: { ephemeralToken: "eph", recoveryCode: "abcd-efgh" },
+    });
+
+    vi.mocked(csrfFetch).mockResolvedValueOnce(json(401, { error: "Código no válido." }));
+    await expect(
+      authApi.verifyTwoFactor("eph", { recoveryCode: "mal" }),
+    ).rejects.toThrow("Código no válido.");
+  });
+
   it("un error del BFF sale como BffError con su mensaje, estado y campos", async () => {
     vi.mocked(csrfFetch).mockResolvedValue(
       json(422, { error: "Documento en uso.", details: { identity: ["Ya existe."] } }),
