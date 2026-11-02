@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { getSiteConfig } from "@/lib/config";
 import type { SiteConfig } from "@/lib/config/types";
 import { logger } from "@/lib/observability/logger";
+import { rateLimit } from "@/lib/security/rate-limit";
 import { instanceRoute } from "./instance-route";
 
 // ============================================================================
@@ -15,6 +16,14 @@ import { instanceRoute } from "./instance-route";
 vi.mock("@/lib/config", () => ({ getSiteConfig: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
+vi.mock("@/lib/security/rate-limit", () => ({
+  rateLimit: vi.fn(async () => ({
+    success: true,
+    retryAfter: 0,
+    limit: 1,
+    remaining: 1,
+  })),
+}));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
@@ -116,5 +125,50 @@ describe("instanceRoute", () => {
       throw new Error("UNAUTHENTICATED");
     })(request());
     expect(res.status).toBe(401);
+  });
+
+  describe("public: ruta pública de máquina", () => {
+    const guard = { rateLimit: { name: "mcp", limit: 60, windowSeconds: 60 } };
+
+    it("una escritura no pasa por guardMutation, sí por el límite por IP", async () => {
+      const res = await instanceRoute({ public: true, guard }, ok)(request("POST"));
+      expect(res.status).toBe(200);
+      expect(guardMutation).not.toHaveBeenCalled();
+      expect(rateLimit).toHaveBeenCalledWith(
+        expect.stringMatching(/^mcp:/),
+        60,
+        60,
+        expect.anything(),
+      );
+    });
+
+    it("pasado el límite responde 429", async () => {
+      vi.mocked(rateLimit).mockResolvedValueOnce({
+        success: false,
+        retryAfter: 30,
+        limit: 60,
+        remaining: 0,
+      } as Awaited<ReturnType<typeof rateLimit>>);
+      const res = await instanceRoute({ public: true, guard }, ok)(request("POST"));
+      expect(res.status).toBe(429);
+      expect(res.headers.get("Retry-After")).toBe("30");
+      expect(ok).not.toHaveBeenCalled();
+    });
+
+    it("un cuerpo declarado por encima del tope responde 413", async () => {
+      const big = new Request("https://tienda.example/api/instance/public/mcp", {
+        method: "POST",
+        headers: { "content-length": String(10 * 1024 * 1024) },
+        body: "x",
+      });
+      const res = await instanceRoute({ public: true }, ok)(big);
+      expect(res.status).toBe(413);
+    });
+
+    it("no se puede declarar junto con la sesión", () => {
+      expect(() => instanceRoute({ public: true, session: "optional" }, ok)).toThrow(
+        /no puede leer la sesión/,
+      );
+    });
   });
 });

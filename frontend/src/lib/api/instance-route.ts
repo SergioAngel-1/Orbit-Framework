@@ -1,5 +1,11 @@
 import "server-only";
 import { NextResponse } from "next/server";
+import {
+  BodyTooLarge,
+  MAX_JSON_BODY_BYTES,
+  assertBodyWithinLimit,
+  bodyTooLarge,
+} from "@/lib/api/body";
 import { guardMutation, type GuardOptions } from "@/lib/api/guard";
 import { handleApiError } from "@/lib/api/errors";
 import { requireFlag, type EcommerceFlag } from "@/lib/api/flags";
@@ -9,6 +15,8 @@ import { getSiteConfig } from "@/lib/config";
 import type { ModuleId, SiteConfig } from "@/lib/config/types";
 import { logger } from "@/lib/observability/logger";
 import { getRequestId } from "@/lib/observability/request-id";
+import { getClientIp } from "@/lib/http/request-ip";
+import { rateLimit } from "@/lib/security/rate-limit";
 import type { Session } from "@/types/auth";
 
 // ============================================================================
@@ -24,6 +32,12 @@ import type { Session } from "@/types/auth";
 //
 //  Además: `Cache-Control: no-store` por defecto y cualquier excepción pasa por
 //  `handleApiError` (5xx genérico, nunca el detalle) con su evento en el log.
+//
+//  Rutas públicas de máquina (`app/api/instance/public/<nombre>`, p. ej. un
+//  servidor MCP de catálogo): las llaman agentes ajenos sin Origin ni CSRF. Con
+//  `public: true` no se aplica `guardMutation` sino solo el tope de cuerpo y el
+//  límite por IP de `guard.rateLimit`, y la sesión no se puede pedir: el proxy
+//  las exime de la barrera de Origin justo porque no actúan por nadie.
 //
 //  Los webhooks de la instancia NO usan este envoltorio (no llevan CSRF): van en
 //  `app/api/instance/webhooks/<nombre>/route.ts`, el proxy los exime de la
@@ -50,6 +64,11 @@ export interface InstanceRouteOptions<S extends SessionMode | undefined> {
   guard?: GuardOptions;
   /** `required`: sin sesión → 401. `optional`: se lee y puede ser `null`. Sin el campo, no se lee. */
   session?: S;
+  /**
+   * Ruta pública de máquina (`/api/instance/public/<nombre>`): sin Origin ni CSRF, con tope
+   * de cuerpo y `guard.rateLimit` por IP. Incompatible con `session`.
+   */
+  public?: boolean;
 }
 
 export interface InstanceRouteContext<S extends SessionMode | undefined, P> {
@@ -72,6 +91,9 @@ export function instanceRoute<
   options: InstanceRouteOptions<S>,
   handler: (context: InstanceRouteContext<S, P>) => Promise<Response>,
 ): (request: Request, segment?: RouteSegment<P>) => Promise<Response> {
+  if (options.public && options.session) {
+    throw new Error("instanceRoute: una ruta pública no puede leer la sesión.");
+  }
   return async (request, segment) => {
     try {
       const config = await getSiteConfig();
@@ -84,7 +106,10 @@ export function instanceRoute<
         const flagOff = requireFlag(config, options.flag);
         if (flagOff) return flagOff;
       }
-      if (UNSAFE_METHODS.has(request.method)) {
+      if (options.public) {
+        const blocked = await guardPublic(request, options.guard);
+        if (blocked) return blocked;
+      } else if (UNSAFE_METHODS.has(request.method)) {
         const blocked = await guardMutation(request, options.guard);
         if (blocked) return blocked;
       }
@@ -125,4 +150,32 @@ export function instanceRoute<
       return response;
     }
   };
+}
+
+/** Guardas de una ruta pública de máquina: tope de cuerpo y límite por IP, sin Origin ni CSRF. */
+async function guardPublic(
+  request: Request,
+  guard: GuardOptions | undefined,
+): Promise<NextResponse | null> {
+  try {
+    assertBodyWithinLimit(request, guard?.maxBodyBytes ?? MAX_JSON_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof BodyTooLarge) return bodyTooLarge();
+    throw error;
+  }
+  if (!guard?.rateLimit) return null;
+  const { name, limit, windowSeconds, strict } = guard.rateLimit;
+  const result = await rateLimit(
+    `${name}:${getClientIp(request)}`,
+    limit,
+    windowSeconds,
+    {
+      strict,
+    },
+  );
+  if (result.success) return null;
+  return NextResponse.json(
+    { error: "Demasiadas peticiones. Inténtalo más tarde." },
+    { status: 429, headers: { "Retry-After": String(result.retryAfter) } },
+  );
 }

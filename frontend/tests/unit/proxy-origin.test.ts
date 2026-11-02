@@ -65,6 +65,16 @@ describe("barrera de Origin del proxy", () => {
     });
   }
 
+  it("deja pasar una ruta pública de máquina de la instancia sin Origin (MCP)", async () => {
+    expect((await post("/api/instance/public/mcp")).status).not.toBe(403);
+    expect((await post("/api/instance/webhooks/mensajeria")).status).not.toBe(403);
+  });
+
+  it("una ruta normal de la instancia sigue detrás de la barrera", async () => {
+    expect((await post("/api/instance/returns")).status).toBe(403);
+    expect((await post("/api/instance/public/mcp/extra")).status).toBe(403);
+  });
+
   it("sigue bloqueando una escritura de navegador sin Origin ni Referer", async () => {
     const res = await post("/api/store/cart/items");
     expect(res.status).toBe(403);

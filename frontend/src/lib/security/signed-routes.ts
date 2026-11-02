@@ -43,6 +43,20 @@ const PAYMENT_WEBHOOK = /^\/api\/payments\/webhook\/[a-z0-9_-]+$/;
  */
 const INSTANCE_WEBHOOK = /^\/api\/instance\/webhooks\/[a-z0-9_-]+$/;
 
+/**
+ * Ruta pública de máquina de la instancia: `/api/instance/public/<nombre>`, un segmento
+ * (p. ej. un servidor MCP de catálogo). La llaman agentes y servidores ajenos, que no
+ * mandan Origin y no pueden firmar. Queda fuera de la barrera de Origin a cambio de no
+ * actuar nunca en nombre del visitante: `tests/unit/signed-routes.test.ts` prohíbe que
+ * esas rutas lean la sesión o las cookies, que es lo que el Origin protege.
+ */
+const INSTANCE_PUBLIC = /^\/api\/instance\/public\/[a-z0-9_-]+$/;
+
+/** ¿Es una ruta pública de máquina de la instancia (sin sesión, sin barrera de Origin)? */
+export function isPublicMachineRoute(pathname: string): boolean {
+  return INSTANCE_PUBLIC.test(pathname);
+}
+
 /** ¿Se autentica esta ruta por firma, y por tanto queda fuera de la barrera de Origin? */
 export function isSignedRoute(pathname: string): boolean {
   return (

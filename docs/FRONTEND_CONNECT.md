@@ -172,6 +172,11 @@ trata como API.
   (`"required"` → 401 sin sesión; `"optional"` → `session` puede ser `null`). El handler recibe
   `{ request, config, session, params }`; la respuesta sale con `Cache-Control: no-store` salvo que
   fije otro, y una excepción sale por `handleApiError` con el evento `instance_route.error`.
+- **Rutas públicas de máquina:** `/api/instance/public/<nombre>` (un segmento), para lo que llaman
+  agentes o servidores ajenos sin Origin ni firma (p. ej. un servidor MCP de catálogo de solo
+  lectura). El proxy las exime de la barrera de Origin; a cambio no pueden leer la sesión ni las
+  cookies (lo exige `tests/unit/signed-routes.test.ts`). Con `instanceRoute({ public: true, guard:
+  { rateLimit } })` llevan tope de cuerpo y límite por IP en vez de `guardMutation`.
 - **Webhooks:** `/api/instance/webhooks/<nombre>` (un segmento). El proxy los exime de la barrera
   de Origin; a cambio deben verificar su firma antes de actuar (`verifyHmacSignature`), y
   `tests/unit/signed-routes.test.ts` lo exige a cada `route.ts` que cuelgue de ahí.

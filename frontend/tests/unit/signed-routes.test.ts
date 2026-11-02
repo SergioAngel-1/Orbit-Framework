@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { isSignedRoute } from "@/lib/security/signed-routes";
+import { isPublicMachineRoute, isSignedRoute } from "@/lib/security/signed-routes";
 
 // ============================================================================
 //  Lista CERRADA de rutas server-to-server que el proxy exime de la barrera de
@@ -139,4 +139,29 @@ describe("la lista frente a los route.ts reales", () => {
       });
     }
   });
+});
+
+// ── Rutas públicas de máquina de la instancia ───────────────────────────────
+//  Exentas de la barrera de Origin sin firma: solo es correcto si no actúan por
+//  nadie. Ninguna puede leer la sesión ni las cookies.
+describe("isPublicMachineRoute", () => {
+  it.each(["/api/instance/public/mcp", "/api/instance/public/catalogo_2"])(
+    "%s es pública",
+    (path) => expect(isPublicMachineRoute(path)).toBe(true),
+  );
+  it.each([
+    "/api/instance/public",
+    "/api/instance/public/",
+    "/api/instance/public/mcp/extra",
+    "/api/instance/returns",
+    "/api/public/mcp",
+    "/es/api/instance/public/mcp",
+  ])("%s NO es pública", (path) => expect(isPublicMachineRoute(path)).toBe(false));
+
+  const SESSION = /\b(?:getSession|requireSession|getAuthToken|cookies)\(|session:\s*"/;
+  for (const { file, url } of routes.filter((r) => isPublicMachineRoute(r.url))) {
+    it(`${url} no lee la sesión ni las cookies`, () => {
+      expect(readFileSync(file, "utf8")).not.toMatch(SESSION);
+    });
+  }
 });

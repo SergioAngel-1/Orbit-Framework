@@ -9,6 +9,10 @@ núcleo: barrera de Origin en escrituras (proxy), refresco del JWT, sin prefijo 
   `instanceRoute(options, handler)` de `@/lib/api/instance-route`. Aplica módulo/flag (404),
   `guardMutation` en escrituras (Origin → CSRF → rate-limit), sesión (401), `no-store` y el
   mapeo de errores del núcleo. Desde aquí sí puedes importar `@/instance/**` y `@/components/**`.
+- **Rutas públicas de máquina** (`/api/instance/public/<nombre>`, un único segmento): para agentes
+  o servidores ajenos sin Origin ni firma (un servidor MCP de catálogo, por ejemplo). Exentas de la
+  barrera de Origin; no pueden leer la sesión ni las cookies (lo comprueba el mismo test). Usa
+  `instanceRoute({ public: true, guard: { rateLimit } })`.
 - **Webhooks** (`/api/instance/webhooks/<nombre>`, un único segmento): el proxy los exime de la
   barrera de Origin porque los llama otro servidor. Deben verificar su firma antes de actuar
   (`verifyHmacSignature` de `@/lib/security/webhook`); `tests/unit/signed-routes.test.ts` lo

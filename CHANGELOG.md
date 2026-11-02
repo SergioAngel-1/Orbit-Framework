@@ -32,7 +32,8 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   hereda del proxy el trato de `/api` (Origin, JWT, sin idioma, fuera de robots) y un envoltorio con
   las guardas del núcleo en su orden (módulo, flag, `guardMutation`, sesión, `no-store`, errores).
   Los webhooks de la instancia van en `/api/instance/webhooks/<nombre>`, exentos de Origin y
-  obligados a verificar su firma. Antes, las instancias colgaban sus rutas de `app/[locale]/`, donde
+  obligados a verificar su firma, y las rutas públicas de máquina (un servidor MCP, por ejemplo) en
+  `/api/instance/public/<nombre>`, exentas de Origin y sin acceso a la sesión. Antes, las instancias colgaban sus rutas de `app/[locale]/`, donde
   next-intl las reescribía y el proxy no les aplicaba la barrera de Origin.
 - **`tools/create-instance.sh`: alta de una instancia con un comando.** Automatiza las secciones 2–7 de
   `docs/CREATE_INSTANCE.md` (entorno y puertos, secretos, `instance.config.json`, plugin `hwe-instance-<slug>`
