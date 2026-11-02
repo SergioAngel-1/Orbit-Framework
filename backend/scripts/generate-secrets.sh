@@ -84,9 +84,14 @@ NOOP_SECRET=$(gen base64 32)
 set_if_placeholder "$ROOT_ENV" "NOOP_INTEGRITY_SECRET" "$NOOP_SECRET"
 set_if_placeholder "$FRONTEND_ENV" "NOOP_INTEGRITY_SECRET" "$NOOP_SECRET"
 
-# Solo en la raíz: el frontend lo recibe vía docker-compose (${HWE_REVALIDATION_SECRET})
-# cuando corre en Docker; en modo nativo/híbrido no aplica.
+# Secreto interno del BFF: WordPress (`hwe-bff-only`) solo atiende al frontend si cada
+# llamada lo trae. En Docker el frontend lo recibe de la raíz vía docker-compose; en modo
+# nativo/híbrido lo lee de frontend/.env.local, así que va en los dos con el MISMO valor.
+# Si la raíz ya tenía uno propio, se reutiliza: así se arregla un .env.local que se quedó
+# con el placeholder sin rotar el de WordPress.
 set_if_placeholder "$ROOT_ENV" "HWE_REVALIDATION_SECRET" "$(gen hex 32)"
+REVALIDATION_SECRET=$(grep -m1 "^HWE_REVALIDATION_SECRET=" "$ROOT_ENV" | cut -d= -f2-)
+set_if_placeholder "$FRONTEND_ENV" "HWE_REVALIDATION_SECRET" "$REVALIDATION_SECRET"
 
 echo ""
 echo "✔ Secretos listos en ${ROOT_ENV} y ${FRONTEND_ENV}."

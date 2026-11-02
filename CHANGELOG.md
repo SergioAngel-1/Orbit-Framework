@@ -44,6 +44,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   404 real frente a «soft 404». Sin dependencias; sale con 1 si hay algún fallo. Prueba:
   `frontend/tests/unit/doctor.test.ts`.
 
+### Fixed
+- **`generate-secrets.sh` escribe `HWE_REVALIDATION_SECRET` también en `frontend/.env.local`.** Solo lo
+  ponía en la raíz y, en modo híbrido, el BFF se quedaba con el placeholder: WordPress (`hwe-bff-only`)
+  respondía 404 a todo. Si la raíz ya tiene uno propio, se reutiliza sin rotarlo.
+
 ## [2.4.0] — 2026-10-30
 
 La versión salta a 2.4.0 para coincidir con `HWE_CORE_CONTRACT_VERSION`; no hubo una 2.3.0. Cada sitio
