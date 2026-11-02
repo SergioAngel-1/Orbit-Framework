@@ -85,4 +85,19 @@ describe("ESLint: frontera núcleo/instancia", () => {
       ),
     ).toHaveLength(0);
   });
+
+  it("deja a las rutas BFF de la instancia (app/api/instance) importar su código", () => {
+    expect(
+      boundaryErrors(
+        "import { algo } from '@/instance/lib/algo';",
+        "src/app/api/instance/ejemplo/route.ts",
+      ),
+    ).toHaveLength(0);
+    expect(
+      boundaryErrors(
+        "import { algo } from '@/instance/lib/algo';",
+        "src/app/api/store/cart/route.ts",
+      ),
+    ).toHaveLength(1);
+  });
 });

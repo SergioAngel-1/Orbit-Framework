@@ -12,6 +12,11 @@
 import coreWebVitals from "eslint-config-next/core-web-vitals";
 import typescript from "eslint-config-next/typescript";
 import jsxA11y from "eslint-plugin-jsx-a11y";
+import { eslintBoundary, loadBoundaries } from "../tools/boundaries.mjs";
+
+// Qué ficheros son núcleo sale del manifiesto común (`tools/boundaries.json`),
+// el mismo que usa la comprobación de actualización: una sola lista que mantener.
+const boundary = eslintBoundary(loadBoundaries());
 
 const eslintConfig = [
   {
@@ -60,14 +65,11 @@ const eslintConfig = [
   // depender de código de instancia (components/** salvo ui/, instance/** salvo
   // su registro). Los `import type` también cuentan: el contrato de tipos del
   // núcleo debe vivir en el núcleo. La única puerta es `@/instance/registry`
-  // (datos del `InstanceRegistry`, nunca componentes).
+  // (datos del `InstanceRegistry`, nunca componentes). Las rutas BFF propias de
+  // la instancia (`app/api/instance/**`) quedan fuera: son código de instancia.
   {
-    files: [
-      "src/lib/**/*.{ts,tsx}",
-      "src/app/api/**/*.{ts,tsx}",
-      "src/proxy.ts",
-      "src/components/ui/**/*.{ts,tsx}",
-    ],
+    files: boundary.files,
+    ignores: boundary.ignores,
     rules: {
       "no-restricted-imports": [
         "error",

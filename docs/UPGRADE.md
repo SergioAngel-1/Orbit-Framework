@@ -6,6 +6,16 @@
 
 ## 1. Qué es núcleo (se actualiza) y qué es instancia (no se toca)
 
+> **Fuente única: `tools/boundaries.json`.** Las listas de esta sección son su resumen legible. El
+> manifiesto lo leen la regla de frontera de ESLint y `tools/upgrade-check.mjs` (§3), y un test
+> comprueba que esta lista y el manifiesto no divergen. Las rutas propias de tu instancia que no
+> encajan aquí (scripts de operación, una config sembrada con otro nombre) se declaran en
+> `tools/boundaries.local.json`, que es de la instancia y se evalúa antes que el del framework:
+>
+> ```json
+> { "rules": [{ "path": "ops/**", "owner": "instance" }] }
+> ```
+
 **Núcleo del framework** — en una actualización, la versión del framework gana:
 
 - `backend/**` (mu-plugins, tema headless, scripts, config)
@@ -60,9 +70,16 @@ git fetch framework --tags
 1. Lee `CHANGELOG.md` del framework entre tu versión y la nueva (los tags `vX.Y.Z` delimitan).
    Las entradas marcadas **BREAKING** requieren acción manual descrita en la propia entrada. Para
    **v1 → v2** sigue la guía de §5.
-2. Crea una rama: `git checkout -b chore/framework-vX.Y.Z`.
-3. Trae los cambios: `git merge vX.Y.Z` (merge del tag, no de `framework/main`: actualiza
-   siempre a una release, nunca a trabajo en curso).
+2. Comprueba antes de fusionar: `node tools/upgrade-check.mjs vX.Y.Z`. Hace el merge en una rama
+   temporal, lo aborta y deja el árbol como estaba. Avisa de los archivos del núcleo que tu instancia
+   cambió (deriva) y clasifica cada conflicto con el manifiesto de §1: instancia → gana lo local, zona
+   gris → a mano, núcleo o sin listar → sale con 1. Si un conflicto «sin listar» es una ruta tuya,
+   decláralo en `tools/boundaries.local.json`; si es del núcleo, mueve tu cambio a una ruta de
+   instancia o propónlo al framework. Usa el script de la release nueva si ya la tienes
+   (`git show vX.Y.Z:tools/upgrade-check.mjs`) o el de tu árbol.
+3. Crea una rama (`git checkout -b chore/framework-vX.Y.Z`) y trae los cambios: `git merge vX.Y.Z`
+   (merge del tag, no de `framework/main`: actualiza siempre a una release, nunca a trabajo en
+   curso).
 4. Resuelve conflictos con la regla de §1: rutas de núcleo → versión del framework; rutas de
    instancia → versión local; zona gris → a mano.
 5. Verifica. Desde `frontend/`: `npm ci && npm run lint && npm run type-check &&

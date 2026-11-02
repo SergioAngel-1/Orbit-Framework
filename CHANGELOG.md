@@ -6,6 +6,16 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **Frontera núcleo/instancia en un solo manifiesto (`tools/boundaries.json`).** Lo leen la regla de
+  ESLint y la nueva comprobación de actualización; un test exige que todo fichero versionado tenga
+  dueño y que `docs/UPGRADE.md` §1 no diverja. Una instancia declara sus rutas propias en
+  `tools/boundaries.local.json`.
+- **`node tools/upgrade-check.mjs vX.Y.Z`.** Prueba el merge de una release en una rama temporal sin
+  tocar el árbol, avisa de los archivos del núcleo editados en la instancia y clasifica cada
+  conflicto (instancia, zona gris, núcleo). Sustituye a los scripts que cada instancia escribía por su
+  cuenta, que no conocían `components/**` y fallaban con cambios del starter.
+
 ## [2.4.0] — 2026-10-30
 
 La versión salta a 2.4.0 para coincidir con `HWE_CORE_CONTRACT_VERSION`; no hubo una 2.3.0. Cada sitio
