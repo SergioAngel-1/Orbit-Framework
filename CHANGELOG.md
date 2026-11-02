@@ -39,6 +39,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   recientes, lista de deseos). El nuevo mu-plugin `hwe-media-scheme.php` devuelve al esquema de
   `siteurl`/`home` las URL de adjuntos, `srcset` y el placeholder de WooCommerce, solo en peticiones
   con el secreto interno y solo cuando el sitio está declarado `http`. En producción no cambia nada.
+- **`signed-routes.test.ts` analiza el AST, no el texto.** Una ruta de webhook que NO verificaba la
+  firma pasaba si un comentario citaba `verifyHmacSignature(…)`, y una correcta fallaba si un
+  comentario citaba `revalidateTag(…)` o si verificaba con un envoltorio propio de la instancia.
+  Ahora cuentan las llamadas reales, también a envoltorios locales o importados que llaman a un
+  verificador del núcleo (`tests/helpers/route-signature.ts`).
 
 ## [2.5.0] — 2026-11-02
 

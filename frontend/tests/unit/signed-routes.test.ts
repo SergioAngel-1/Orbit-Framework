@@ -3,6 +3,7 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { isPublicMachineRoute, isSignedRoute } from "@/lib/security/signed-routes";
+import { analyzeSignedRoute } from "../helpers/route-signature";
 
 // ============================================================================
 //  Lista CERRADA de rutas server-to-server que el proxy exime de la barrera de
@@ -114,18 +115,15 @@ describe("la lista frente a los route.ts reales", () => {
   });
 
   describe("cada ruta eximida verifica su firma antes de actuar", () => {
-    // Heurística sobre el código fuente; el comportamiento real de cada
-    // verificador lo prueban los tests de su propia ruta.
-    const VERIFIER =
-      /(?<!function )\b(?:verifyWooWebhook|verifyHweSignature|verifyHmacSignature)\(|\.verifyWebhook\(/;
-    const SIDE_EFFECT =
-      /\b(?:revalidateTag|markEventOnce|dispatchOrderEffects|recordAndDiffStatus)\(/;
-
+    // Sobre el AST (`tests/helpers/route-signature.ts`): llamadas reales, no texto
+    // citado en comentarios, y envoltorios propios (locales o importados) cuentan.
+    // El comportamiento real de cada verificador lo prueban los tests de su ruta.
     for (const { file, url } of routes.filter((r) => isSignedRoute(r.url))) {
       it(url, () => {
-        const source = readFileSync(file, "utf8");
-        const verifier = source.search(VERIFIER);
-        const sideEffect = source.search(SIDE_EFFECT);
+        const { verifierAt: verifier, sideEffectAt: sideEffect } = analyzeSignedRoute(
+          file,
+          readFileSync(file, "utf8"),
+        );
 
         expect(
           verifier,
