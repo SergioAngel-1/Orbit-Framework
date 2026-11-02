@@ -34,6 +34,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   Los webhooks de la instancia van en `/api/instance/webhooks/<nombre>`, exentos de Origin y
   obligados a verificar su firma. Antes, las instancias colgaban sus rutas de `app/[locale]/`, donde
   next-intl las reescribía y el proxy no les aplicaba la barrera de Origin.
+- **`tools/create-instance.sh`: alta de una instancia con un comando.** Automatiza las secciones 2–7 de
+  `docs/CREATE_INSTANCE.md` (entorno y puertos, secretos, `instance.config.json`, plugin `hwe-instance-<slug>`
+  y override de Docker con `--plugin`; pila y comprobación con `--up`). Idempotente, con `--dry-run`. Prueba:
+  `tools/tests/create-instance.test.sh`.
+- **`tools/doctor.mjs`: comprobación de integración contra una pila levantada.** Siete checks: origen de
+  `brand.url` frente al frontend, salud del BFF, token CSRF, recuperación de contraseña (un 5xx indica el
+  origen mal configurado), robots y sitemap (404 y redirecciones), JSON-LD de la primera ficha de producto y
+  404 real frente a «soft 404». Sin dependencias; sale con 1 si hay algún fallo. Prueba:
+  `frontend/tests/unit/doctor.test.ts`.
 
 ## [2.4.0] — 2026-10-30
 

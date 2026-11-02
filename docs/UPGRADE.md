@@ -87,9 +87,10 @@ git fetch framework --tags
 5. Verifica. Desde `frontend/`: `npm ci && npm run lint && npm run type-check &&
    npm run i18n:check && npm run test && npx next build`. Desde `backend/`: `composer test`.
 6. Con la pila levantada: `sh backend/scripts/verify-security.sh`, `verify-modules.sh` (y
-   `verify-integration.sh` si usas `external-integration`), `node examples/minimal-consumer/index.mjs`
-   y una prueba de humo manual (login, carrito, checkout). Despliega como cualquier otro
-   cambio (`docs/DEPLOYMENT.md`).
+   `verify-integration.sh` si usas `external-integration`), `node examples/minimal-consumer/index.mjs`,
+   `node tools/doctor.mjs` (origen de la marca, recuperación de contraseña, sitemap, JSON-LD de
+   producto y 404 real: sale con 1 si hay algún fallo) y una prueba de humo manual (login, carrito,
+   checkout). Despliega como cualquier otro cambio (`docs/DEPLOYMENT.md`).
 
 ### 3.1 Instancia creada sin el historial del framework
 
