@@ -16,6 +16,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `usePlaceOrder`) conserva los campos propios de la ruta (`reason`, el estado de un pedido…) que
   antes se perdían; un checkout que explica el fallo ya no tiene que releer la respuesta. Nuevo
   parámetro opcional al final del constructor: la firma anterior sigue valiendo.
+- **`useCartStore()` expone el fallo, no solo su texto.** `failure` es lo que lanzó la última
+  mutación (un `BffError` con estado, código y cuerpo en las de serie, o el fallo propio de una
+  acción de `run`) y `readError` el fallo de la última lectura del carrito, que antes se tragaba.
+  `error` sigue siendo el texto. `cartApi` lanza `BffError` con el mismo mensaje que antes.
 
 ### Fixed
 - **Las imágenes que el BFF lee por wc/v3 vuelven a cargar en un sitio `http`.** `wcFetch` manda

@@ -171,6 +171,45 @@ describe("CartStoreProvider: ganchos de la vista", () => {
     expect(current.error).toBe("Canje no válido.");
   });
 
+  it("run conserva lo que lanzó la acción en `failure`, no solo su texto", async () => {
+    await mount();
+    // Un fallo estructurado de la instancia (no tiene por qué ser un Error).
+    const failure = { kind: "coins", missing: 120 };
+    await act(async () => {
+      await current.run(async () => {
+        throw failure;
+      });
+    });
+    expect(current.failure).toBe(failure);
+    expect(current.error).toBe("Error en el carrito.");
+
+    await act(async () => {
+      await current.run(async () => cartWith(1));
+    });
+    expect(current.failure).toBeNull();
+    expect(current.error).toBeNull();
+  });
+
+  it("un fallo al leer el carrito se expone en `readError` y se limpia al leer bien", async () => {
+    vi.mocked(cartApi.get).mockRejectedValueOnce(new Error("Error 503"));
+    await mount();
+    expect(current.loading).toBe(false);
+    expect(current.cart).toBeNull();
+    expect(current.readError?.message).toBe("Error 503");
+
+    vi.mocked(cartApi.get).mockRejectedValueOnce(new Error("Error 502"));
+    await act(async () => {
+      await current.refresh();
+    });
+    expect(current.readError?.message).toBe("Error 502");
+
+    await act(async () => {
+      await current.refresh();
+    });
+    expect(current.readError).toBeNull();
+    expect(current.count).toBe(0);
+  });
+
   it("fuera del proveedor avisa con un error claro", () => {
     expect(() => renderHook(() => useCartStore())).toThrow(/CartStoreProvider/);
   });

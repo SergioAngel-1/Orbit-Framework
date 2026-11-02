@@ -30,6 +30,14 @@ export interface CartStore {
   loading: boolean;
   /** Mensaje de la última mutación fallida (lo da el BFF). */
   error: string | null;
+  /**
+   * Lo que lanzó la última mutación fallida, tal cual: un `BffError` (estado, código y
+   * cuerpo) en las de serie, o el fallo propio de una acción de `run`. `null` tras una que
+   * sale bien.
+   */
+  failure: unknown;
+  /** Fallo de la última lectura del carrito (carga inicial o `refresh`); `null` si leyó bien. */
+  readError: Error | null;
   /** `extensions`: detalles de la línea declarados por la instancia (`order-item-details`). */
   addItem: (
     id: number,
@@ -52,6 +60,10 @@ export interface CartStore {
   run: (action: () => Promise<StoreCart>) => Promise<boolean>;
 }
 
+function asError(e: unknown): Error {
+  return e instanceof Error ? e : new Error("No se pudo leer el carrito.");
+}
+
 const CartStoreContext = createContext<CartStore | null>(null);
 
 export function useCartStore(): CartStore {
@@ -70,6 +82,8 @@ export function CartStoreProvider({ children, onItemAdded }: CartStoreProviderPr
   const [cart, setCart] = useState<StoreCart | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<unknown>(null);
+  const [readError, setReadError] = useState<Error | null>(null);
   const requestIdRef = useRef(0);
   const onItemAddedRef = useRef(onItemAdded);
   useEffect(() => {
@@ -82,9 +96,13 @@ export function CartStoreProvider({ children, onItemAdded }: CartStoreProviderPr
     setLoading(true);
     try {
       const result = await cartApi.get();
-      if (isLatest()) setCart(result);
-    } catch {
-      /* carrito no disponible: se reintenta en la próxima acción */
+      if (isLatest()) {
+        setCart(result);
+        setReadError(null);
+      }
+    } catch (e) {
+      // Carrito no disponible: se reintenta en la próxima acción; la vista decide si lo dice.
+      if (isLatest()) setReadError(asError(e));
     } finally {
       if (isLatest()) setLoading(false);
     }
@@ -101,8 +119,8 @@ export function CartStoreProvider({ children, onItemAdded }: CartStoreProviderPr
       .then((result) => {
         if (isLatest()) setCart(result);
       })
-      .catch(() => {
-        /* carrito no disponible: se reintenta en la próxima acción */
+      .catch((e: unknown) => {
+        if (isLatest()) setReadError(asError(e));
       })
       .finally(() => {
         if (isLatest()) setLoading(false);
@@ -116,13 +134,20 @@ export function CartStoreProvider({ children, onItemAdded }: CartStoreProviderPr
     const requestId = ++requestIdRef.current;
     const isLatest = () => requestId === requestIdRef.current;
     setError(null);
+    setFailure(null);
     setLoading(true);
     try {
       const result = await action();
-      if (isLatest()) setCart(result);
+      if (isLatest()) {
+        setCart(result);
+        setReadError(null);
+      }
       return true;
     } catch (e) {
-      if (isLatest()) setError(e instanceof Error ? e.message : "Error en el carrito.");
+      if (isLatest()) {
+        setError(e instanceof Error ? e.message : "Error en el carrito.");
+        setFailure(e);
+      }
       return false;
     } finally {
       if (isLatest()) setLoading(false);
@@ -135,6 +160,8 @@ export function CartStoreProvider({ children, onItemAdded }: CartStoreProviderPr
       count: cart?.items_count ?? 0,
       loading,
       error,
+      failure,
+      readError,
       addItem: async (id, quantity = 1, extensions) => {
         const added: { cart?: StoreCart } = {};
         const ok = await run(async () => {
@@ -167,7 +194,7 @@ export function CartStoreProvider({ children, onItemAdded }: CartStoreProviderPr
       },
       run,
     }),
-    [cart, loading, error, refresh, run],
+    [cart, loading, error, failure, readError, refresh, run],
   );
 
   return (
