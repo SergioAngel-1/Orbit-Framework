@@ -24,6 +24,41 @@ namespace HWE\ControlCenter;
 class Cli {
 
     /**
+     * Imprime el contrato de la config pública en un formato que lee una máquina.
+     *
+     * ## OPTIONS
+     *
+     * <what>
+     * : `config-schema` (JSON Schema de `/wp-json/hwe/v1/config`, con el grupo `instance`)
+     *   o `instance-types` (`.d.ts` que tipa `SiteConfig.instance` con los campos de la
+     *   instancia).
+     *
+     * ## EXAMPLES
+     *
+     *     wp hwe contract config-schema > contract/config.schema.json
+     *     wp hwe contract instance-types > frontend/src/instance/config.generated.d.ts
+     *
+     * @param list<string>        $args
+     * @param array<string,mixed> $assoc_args
+     */
+    public static function contract(array $args, array $assoc_args): void {
+        $what = $args[0] ?? '';
+        if ($what === 'config-schema') {
+            $json = json_encode(
+                Contract::publicConfigSchema(Schema::get()),
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+            );
+            \WP_CLI::line((string) $json);
+            return;
+        }
+        if ($what === 'instance-types') {
+            \WP_CLI::line(rtrim(Contract::instanceTypes(Schema::get()), "\n"));
+            return;
+        }
+        \WP_CLI::error('Uso: wp hwe contract <config-schema|instance-types>');
+    }
+
+    /**
      * Aplica un archivo de configuración de instancia.
      *
      * ## OPTIONS

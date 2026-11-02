@@ -70,7 +70,9 @@ prometer nada sobre esa capa.
 uno construido desde cero): el esquema de WPGraphQL/WooGraphQL, los endpoints REST del BFF
 bajo `app/api/*`, el endpoint público `/wp-json/hwe/v1/config` (marca/diseño/flags), y el
 contrato de auth (cookies httpOnly + CSRF). Ese contrato está documentado en
-**`docs/FRONTEND_CONNECT.md`** — es la referencia que sobrevive aunque reescribas toda la UI.
+**`docs/FRONTEND_CONNECT.md`** — es la referencia que sobrevive aunque reescribas toda la UI —, y
+en formato que lee una máquina en **`contract/`** (JSON Schema de `/config`, OpenAPI del BFF;
+generados desde el código y fijados por tests, ver `contract/README.md`).
 
 **El CI también es núcleo.** `.github/**` no se edita en una instancia (ni siquiera para
 adaptarlo a su repositorio): se declara la **variable de repositorio `HWE_INSTANCE=true`** y el
@@ -112,6 +114,8 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 ├── Caddyfile  caddy/           # reverse proxy prod (TLS, HTTP/3); /graphql público restringido; sitios opcionales
 ├── .env.example / .env.prod.example  # TODAS las variables. Copiar a .env / .env.prod
 ├── README.md  AGENTS.md  CHANGELOG.md  LICENSE  EULA.md
+├── contract/                    # ⭐ contrato legible por máquina (generado): config.schema.json, bff.openapi.json
+├── tools/                       # boundaries.json (frontera núcleo/instancia), upgrade-check, contract/
 ├── docs/                        # documentación de cliente y operaciones
 │   ├── INSTALL.md  CONFIGURATION.md  CUSTOMIZATION.md  DEPLOYMENT.md
 │   ├── CREATE_INSTANCE.md       # ⭐ crear una instancia nueva (clonar + `wp hwe setup`)

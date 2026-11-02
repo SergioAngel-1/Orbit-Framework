@@ -15,6 +15,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   tocar el árbol, avisa de los archivos del núcleo editados en la instancia y clasifica cada
   conflicto (instancia, zona gris, núcleo). Sustituye a los scripts que cada instancia escribía por su
   cuenta, que no conocían `components/**` y fallaban con cambios del starter.
+- **Contrato legible por máquina en `contract/`.** `config.schema.json` (JSON Schema de `/config`,
+  generado desde `Schema.php` con los grupos de `loyalty`, `memberships` y `shipping`) y
+  `bff.openapi.json` (OpenAPI 3.1 de las rutas del BFF con las guardas de cada método), fijados por
+  `ContractTest.php`, `contract-config.test.ts` y `contract-bff.test.ts`. `wp hwe contract
+  config-schema` da el de una pila concreta, `wp hwe contract instance-types` genera los tipos de
+  `SiteConfig.instance` (ya no se escriben a mano) y `tools/contract/graphql-introspection.mjs` vuelca
+  el esquema GraphQL.
 - **Rutas BFF de la instancia en `app/api/instance/**` con `instanceRoute`.** Carpeta reservada que
   hereda del proxy el trato de `/api` (Origin, JWT, sin idioma, fuera de robots) y un envoltorio con
   las guardas del núcleo en su orden (módulo, flag, `guardMutation`, sesión, `no-store`, errores).

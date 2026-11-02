@@ -20,5 +20,9 @@
  *
  * La fusión de `deepMerge` adopta las claves remotas que los defaults no conocen,
  * así que `config.instance.example.greeting` llega con el valor de WordPress.
+ *
+ * No hace falta escribirlo a mano: `wp hwe contract instance-types` genera la declaración
+ * desde los campos públicos del grupo `instance` (`contract/README.md`). Guárdala en
+ * `config.generated.d.ts` y deja aquí solo lo que el generador no cubre.
  */
 export {};

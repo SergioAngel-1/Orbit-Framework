@@ -45,7 +45,9 @@ dos capas que **no debes confundir** (ver `AGENTS.md §1.1`):
   resto (nombres, slugs, dominios, y también palabras comunes que contengan un token prohibido).
   El ejemplo vivo es `examples/instance-minimal/` (job «contrato» de CI).
 
-El contrato estable entre backend/BFF y cualquier frontend está en `docs/FRONTEND_CONNECT.md`.
+El contrato estable entre backend/BFF y cualquier frontend está en `docs/FRONTEND_CONNECT.md`, y en
+formato que lee una máquina en `contract/` (JSON Schema de `/config`, OpenAPI del BFF; generados y
+fijados por tests: `contract/README.md`).
 
 ## Comandos (desde `frontend/`)
 

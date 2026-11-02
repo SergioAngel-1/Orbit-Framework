@@ -222,7 +222,7 @@ vive en rutas que el framework **nunca toca**, así que `git merge` de un releas
 | Campos de configuración propios, hooks, tipos de campo | `backend/wp-content/mu-plugins/instance/*.php` (el cargador `hwe-instance-loader.php` los carga en orden alfabético) |
 | Un plugin entero (CPT, tablas, UI de admin) | `backend/wp-content/plugins/hwe-instance-<slug>/` |
 | El registro de la instancia (tags ISR, landings propias, campos de producto, visuales decorativos) | `frontend/src/instance/registry.ts` — **solo datos**, nunca componentes |
-| Tipado de tus ajustes en `SiteConfig.instance` | `frontend/src/instance/config.d.ts` |
+| Tipado de tus ajustes en `SiteConfig.instance` | `frontend/src/instance/config.generated.d.ts`, generado con `wp hwe contract instance-types` (`contract/README.md`); a mano solo en `config.d.ts` |
 | Tu dominio (fetchers, formato, validación) | `frontend/src/instance/lib/` |
 | Tus rutas BFF (escrituras propias, webhooks) | `frontend/src/app/api/instance/**`, con `instanceRoute` (`docs/FRONTEND_CONNECT.md` §A.2) |
 | La UI: componentes y vistas | `frontend/src/components/**` (salvo `ui/`) y `frontend/src/app/[locale]/*` |

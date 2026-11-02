@@ -16,6 +16,11 @@ Este documento tiene dos partes con garantías muy distintas:
   escribió esto — no hay promesa de que el framework la actualice. Trátalo como el punto de
   partida de TU proyecto, no como una librería externa.
 
+> **Contrato legible por máquina:** `contract/` trae el JSON Schema de `/config` y el inventario
+> OpenAPI del BFF, generados desde el código y fijados por tests; el esquema GraphQL se vuelca de
+> cada pila con `tools/contract/graphql-introspection.mjs` (`contract/README.md`). Un agente que
+> conecta un frontend puede empezar por ahí y venir a este documento para el detalle de cada flujo.
+
 > **Smoke test del contrato:** `examples/minimal-consumer/` (script Node sin dependencias)
 > ejercita la Parte A de punta a punta contra una pila levantada — útil para verificar una
 > integración nueva o una actualización del framework.

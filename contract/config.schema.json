@@ -1,0 +1,1207 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://orbit.hwe/contract/config.schema.json",
+    "title": "GET /wp-json/hwe/v1/config",
+    "description": "Config pública del Control Center. Generado desde Schema.php (wp hwe contract config-schema); no se edita a mano.",
+    "type": "object",
+    "additionalProperties": true,
+    "properties": {
+        "brand": {
+            "type": "object",
+            "description": "Identidad de marca",
+            "additionalProperties": true,
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Nombre del sitio",
+                    "default": "HWE-Orbit"
+                },
+                "tagline": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Tagline",
+                    "default": "Framework de e-commerce headless",
+                    "x-hwe-translatable": true
+                },
+                "tagline_en": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Tagline (EN)",
+                    "default": "",
+                    "x-hwe-translation-of": "tagline"
+                },
+                "description": {
+                    "type": "string",
+                    "x-hwe-type": "textarea",
+                    "description": "Descripción breve",
+                    "default": "Tienda headless construida con Next.js y WooCommerce.",
+                    "x-hwe-translatable": true
+                },
+                "description_en": {
+                    "type": "string",
+                    "x-hwe-type": "textarea",
+                    "description": "Descripción breve (EN)",
+                    "default": "",
+                    "x-hwe-translation-of": "description"
+                },
+                "url": {
+                    "type": "string",
+                    "x-hwe-type": "url",
+                    "description": "URL pública del frontend"
+                },
+                "logo": {
+                    "x-hwe-type": "image",
+                    "description": "Logo",
+                    "default": ""
+                },
+                "email_logo": {
+                    "x-hwe-type": "image",
+                    "description": "Logo para correos (opcional)",
+                    "default": ""
+                },
+                "locale": {
+                    "type": "string",
+                    "x-hwe-type": "select",
+                    "description": "Idioma por defecto",
+                    "default": "es"
+                },
+                "icon_url": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "Icono del sitio de WordPress (Ajustes → Identidad del sitio); null si no hay."
+                }
+            }
+        },
+        "i18n": {
+            "type": "object",
+            "description": "Idiomas",
+            "additionalProperties": true,
+            "properties": {
+                "locales": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Idiomas secundarios",
+                    "default": "en"
+                }
+            }
+        },
+        "auth": {
+            "type": "object",
+            "description": "Acceso",
+            "additionalProperties": true,
+            "properties": {
+                "phone_login_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Permitir iniciar sesión y registrarse con el teléfono",
+                    "default": false
+                },
+                "phone_default_dial_code": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Prefijo telefónico por defecto",
+                    "default": ""
+                }
+            }
+        },
+        "social": {
+            "type": "object",
+            "description": "Redes sociales",
+            "additionalProperties": true,
+            "properties": {
+                "twitter": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Twitter / X",
+                    "default": ""
+                },
+                "instagram": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Instagram"
+                },
+                "facebook": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Facebook"
+                },
+                "linkedin": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "LinkedIn (empresa)"
+                },
+                "youtube": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "YouTube"
+                },
+                "whatsapp": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "WhatsApp"
+                },
+                "wikipedia": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Wikipedia"
+                },
+                "wikidata": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Wikidata"
+                }
+            }
+        },
+        "legal": {
+            "type": "object",
+            "description": "Legal",
+            "additionalProperties": true,
+            "properties": {
+                "company": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Razón social",
+                    "default": ""
+                },
+                "nif": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "NIF / RUT / NIT"
+                },
+                "email": {
+                    "type": "string",
+                    "x-hwe-type": "email",
+                    "description": "Email de contacto",
+                    "default": ""
+                },
+                "phone": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Teléfono fijo"
+                },
+                "mobile": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Celular"
+                },
+                "address": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Dirección legal (HQ)"
+                },
+                "city": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Ciudad / municipio"
+                },
+                "region": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Departamento / región"
+                },
+                "postal_code": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Código postal"
+                },
+                "locations": {
+                    "type": "object",
+                    "description": "Sedes",
+                    "additionalProperties": true,
+                    "properties": {
+                        "location_1": {
+                            "type": "object",
+                            "description": "Sede 1",
+                            "additionalProperties": true,
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Nombre"
+                                },
+                                "address": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Dirección"
+                                },
+                                "city": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Ciudad / municipio"
+                                },
+                                "region": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Departamento / región"
+                                },
+                                "postal_code": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Código postal"
+                                },
+                                "maps": {
+                                    "type": "string",
+                                    "x-hwe-type": "url",
+                                    "description": "URL de Google Maps"
+                                },
+                                "phone": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Teléfono"
+                                },
+                                "hours": {
+                                    "type": "string",
+                                    "x-hwe-type": "textarea",
+                                    "description": "Horario de atención"
+                                },
+                                "latitude": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Latitud"
+                                },
+                                "longitude": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Longitud"
+                                }
+                            }
+                        },
+                        "location_2": {
+                            "type": "object",
+                            "description": "Sede 2",
+                            "additionalProperties": true,
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Nombre"
+                                },
+                                "address": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Dirección"
+                                },
+                                "city": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Ciudad / municipio"
+                                },
+                                "region": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Departamento / región"
+                                },
+                                "postal_code": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Código postal"
+                                },
+                                "maps": {
+                                    "type": "string",
+                                    "x-hwe-type": "url",
+                                    "description": "URL de Google Maps"
+                                },
+                                "phone": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Teléfono"
+                                },
+                                "hours": {
+                                    "type": "string",
+                                    "x-hwe-type": "textarea",
+                                    "description": "Horario de atención"
+                                },
+                                "latitude": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Latitud"
+                                },
+                                "longitude": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Longitud"
+                                }
+                            }
+                        },
+                        "location_3": {
+                            "type": "object",
+                            "description": "Sede 3",
+                            "additionalProperties": true,
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Nombre"
+                                },
+                                "address": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Dirección"
+                                },
+                                "city": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Ciudad / municipio"
+                                },
+                                "region": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Departamento / región"
+                                },
+                                "postal_code": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Código postal"
+                                },
+                                "maps": {
+                                    "type": "string",
+                                    "x-hwe-type": "url",
+                                    "description": "URL de Google Maps"
+                                },
+                                "phone": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Teléfono"
+                                },
+                                "hours": {
+                                    "type": "string",
+                                    "x-hwe-type": "textarea",
+                                    "description": "Horario de atención"
+                                },
+                                "latitude": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Latitud"
+                                },
+                                "longitude": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Longitud"
+                                }
+                            }
+                        },
+                        "location_4": {
+                            "type": "object",
+                            "description": "Sede 4",
+                            "additionalProperties": true,
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Nombre"
+                                },
+                                "address": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Dirección"
+                                },
+                                "city": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Ciudad / municipio"
+                                },
+                                "region": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Departamento / región"
+                                },
+                                "postal_code": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Código postal"
+                                },
+                                "maps": {
+                                    "type": "string",
+                                    "x-hwe-type": "url",
+                                    "description": "URL de Google Maps"
+                                },
+                                "phone": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Teléfono"
+                                },
+                                "hours": {
+                                    "type": "string",
+                                    "x-hwe-type": "textarea",
+                                    "description": "Horario de atención"
+                                },
+                                "latitude": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Latitud"
+                                },
+                                "longitude": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Longitud"
+                                }
+                            }
+                        },
+                        "location_5": {
+                            "type": "object",
+                            "description": "Sede 5",
+                            "additionalProperties": true,
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Nombre"
+                                },
+                                "address": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Dirección"
+                                },
+                                "city": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Ciudad / municipio"
+                                },
+                                "region": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Departamento / región"
+                                },
+                                "postal_code": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Código postal"
+                                },
+                                "maps": {
+                                    "type": "string",
+                                    "x-hwe-type": "url",
+                                    "description": "URL de Google Maps"
+                                },
+                                "phone": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Teléfono"
+                                },
+                                "hours": {
+                                    "type": "string",
+                                    "x-hwe-type": "textarea",
+                                    "description": "Horario de atención"
+                                },
+                                "latitude": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Latitud"
+                                },
+                                "longitude": {
+                                    "type": "string",
+                                    "x-hwe-type": "text",
+                                    "description": "Longitud"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "design": {
+            "type": "object",
+            "description": "Diseño",
+            "additionalProperties": true,
+            "properties": {
+                "color_scheme": {
+                    "type": "string",
+                    "x-hwe-type": "select",
+                    "description": "Esquema de color",
+                    "default": "system"
+                },
+                "colors": {
+                    "type": "object",
+                    "description": "Colores",
+                    "additionalProperties": true,
+                    "properties": {
+                        "brand": {
+                            "type": "string",
+                            "x-hwe-type": "color",
+                            "description": "Color principal",
+                            "default": "#111111"
+                        },
+                        "brand_dark": {
+                            "type": "string",
+                            "x-hwe-type": "color",
+                            "description": "Color oscuro (hover/activo)",
+                            "default": "#000000"
+                        },
+                        "brand_light": {
+                            "type": "string",
+                            "x-hwe-type": "color",
+                            "description": "Color claro (énfasis suave)",
+                            "default": "#3a3a3a"
+                        },
+                        "secondary": {
+                            "type": "string",
+                            "x-hwe-type": "color",
+                            "description": "Color secundario",
+                            "default": "#2a3fd6"
+                        },
+                        "secondary_dark": {
+                            "type": "string",
+                            "x-hwe-type": "color",
+                            "description": "Color secundario (hover/activo)",
+                            "default": "#1f2fa3"
+                        },
+                        "accent": {
+                            "type": "string",
+                            "x-hwe-type": "color",
+                            "description": "Color de énfasis",
+                            "default": "#f2c200"
+                        },
+                        "surface": {
+                            "type": "string",
+                            "x-hwe-type": "color",
+                            "description": "Superficie (tarjetas/paneles)",
+                            "default": "#e9e9e6"
+                        },
+                        "background": {
+                            "type": "string",
+                            "x-hwe-type": "color",
+                            "description": "Fondo (modo claro)",
+                            "default": "#ffffff"
+                        },
+                        "foreground": {
+                            "type": "string",
+                            "x-hwe-type": "color",
+                            "description": "Texto (modo claro)",
+                            "default": "#0a0a0a"
+                        }
+                    }
+                },
+                "typography": {
+                    "type": "object",
+                    "description": "Tipografía",
+                    "additionalProperties": true,
+                    "properties": {
+                        "font_sans": {
+                            "type": "string",
+                            "x-hwe-type": "text",
+                            "description": "Fuente principal",
+                            "default": "Inter"
+                        },
+                        "font_url": {
+                            "type": "string",
+                            "x-hwe-type": "url",
+                            "description": "URL Google Fonts (opcional)"
+                        },
+                        "font_heading": {
+                            "type": "string",
+                            "x-hwe-type": "text",
+                            "description": "Fuente de titulares (opcional)"
+                        },
+                        "font_heading_url": {
+                            "type": "string",
+                            "x-hwe-type": "url",
+                            "description": "URL Google Fonts para titulares (opcional)"
+                        }
+                    }
+                }
+            }
+        },
+        "ecommerce": {
+            "type": "object",
+            "description": "Tienda",
+            "additionalProperties": true,
+            "properties": {
+                "currency": {
+                    "type": "string",
+                    "x-hwe-type": "select",
+                    "description": "Moneda",
+                    "default": "EUR"
+                },
+                "country": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "País por defecto",
+                    "default": "ES"
+                },
+                "products_per_page": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Productos por página",
+                    "default": "12"
+                },
+                "reviews_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Habilitar reseñas",
+                    "default": false
+                },
+                "wishlist_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Habilitar wishlist",
+                    "default": false
+                },
+                "coupons_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Habilitar cupones",
+                    "default": false
+                },
+                "search_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Habilitar búsqueda",
+                    "default": true
+                },
+                "checkout_login_required": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Exigir inicio de sesión para comprar",
+                    "default": true
+                },
+                "price_decimals": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "description": "Decimales de precio de WooCommerce; null si WooCommerce no está activo."
+                }
+            }
+        },
+        "banners": {
+            "type": "object",
+            "description": "Banners",
+            "additionalProperties": true,
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Activar sistema de banners",
+                    "default": false
+                }
+            }
+        },
+        "payments": {
+            "type": "object",
+            "description": "Pasarelas de pago",
+            "additionalProperties": true,
+            "properties": {
+                "gateway_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Activar pago en línea",
+                    "default": true
+                },
+                "whatsapp_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Activar link de pago por WhatsApp",
+                    "default": false
+                },
+                "cash_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Activar pago en efectivo",
+                    "default": false
+                }
+            }
+        },
+        "integrations": {
+            "type": "object",
+            "description": "Integraciones",
+            "additionalProperties": true,
+            "properties": {
+                "analytics_provider": {
+                    "type": "string",
+                    "x-hwe-type": "select",
+                    "description": "Proveedor de analítica",
+                    "default": "none"
+                },
+                "analytics_id": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "ID de analítica (G-XXXXXXXX)"
+                },
+                "gtm_id": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Google Tag Manager (GTM-XXXXXXX)"
+                },
+                "meta_pixel_id": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Meta Pixel ID"
+                },
+                "tiktok_pixel_id": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "TikTok Pixel ID"
+                },
+                "hubspot_portal_id": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "HubSpot — ID del portal (Hub ID)"
+                }
+            }
+        },
+        "seo": {
+            "type": "object",
+            "description": "SEO",
+            "additionalProperties": true,
+            "properties": {
+                "title_template": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Plantilla de título",
+                    "default": "%s · %site%"
+                },
+                "robots": {
+                    "type": "string",
+                    "x-hwe-type": "select",
+                    "description": "Indexación por defecto",
+                    "default": "index,follow"
+                },
+                "google_site_verification": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Código de verificación Google Search Console"
+                },
+                "bing_site_verification": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Código de verificación Bing Webmaster Tools"
+                },
+                "default_og": {
+                    "type": "string",
+                    "x-hwe-type": "select",
+                    "description": "Imagen Open Graph por defecto",
+                    "default": "auto"
+                },
+                "og_image": {
+                    "x-hwe-type": "image",
+                    "description": "OG Image"
+                },
+                "product_brand": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Marca por defecto de los productos"
+                },
+                "shipping_amount": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Coste de envío para datos estructurados"
+                },
+                "return_days": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Días de devolución (schema)"
+                },
+                "return_category": {
+                    "type": "string",
+                    "x-hwe-type": "select",
+                    "description": "Tipo de política de devolución",
+                    "default": "finite"
+                },
+                "return_method": {
+                    "type": "string",
+                    "x-hwe-type": "select",
+                    "description": "Cómo se devuelve un producto (schema)",
+                    "default": ""
+                },
+                "return_fees": {
+                    "type": "string",
+                    "x-hwe-type": "select",
+                    "description": "Quién paga la devolución (schema)",
+                    "default": ""
+                },
+                "handling_days": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Días de preparación del pedido (schema)"
+                },
+                "transit_days": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Días de tránsito del envío (schema)"
+                },
+                "organization_logo": {
+                    "x-hwe-type": "image",
+                    "description": "Logo de la organización (JSON-LD)"
+                },
+                "founding_date": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Fecha de fundación (ISO 8601)"
+                },
+                "knows_about": {
+                    "type": "string",
+                    "x-hwe-type": "textarea",
+                    "description": "Áreas de conocimiento (knowsAbout)"
+                },
+                "alternate_names": {
+                    "type": "string",
+                    "x-hwe-type": "textarea",
+                    "description": "Otros nombres de la marca"
+                },
+                "founder_name": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Responsable / fundador (nombre)"
+                },
+                "founder_role": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Responsable / fundador (cargo)"
+                },
+                "founder_url": {
+                    "type": "string",
+                    "x-hwe-type": "url",
+                    "description": "Responsable / fundador (perfil)"
+                },
+                "business_type": {
+                    "type": "string",
+                    "x-hwe-type": "select",
+                    "description": "Tipo de negocio (schema.org)",
+                    "default": "LocalBusiness"
+                }
+            }
+        },
+        "geo": {
+            "type": "object",
+            "description": "GEO (IA)",
+            "additionalProperties": true,
+            "properties": {
+                "ai_crawlers": {
+                    "type": "string",
+                    "x-hwe-type": "select",
+                    "description": "Crawlers de IA",
+                    "default": "allow"
+                },
+                "llms_txt_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Generar /llms.txt",
+                    "default": true
+                },
+                "content_signal": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Declarar Content-Signal en robots.txt",
+                    "default": true
+                },
+                "faq": {
+                    "type": "string",
+                    "x-hwe-type": "textarea",
+                    "description": "Preguntas frecuentes (FAQ)",
+                    "x-hwe-translatable": true
+                },
+                "faq_en": {
+                    "type": "string",
+                    "x-hwe-type": "textarea",
+                    "description": "Preguntas frecuentes (FAQ) (EN)",
+                    "default": "",
+                    "x-hwe-translation-of": "faq"
+                },
+                "faq_payments": {
+                    "type": "string",
+                    "x-hwe-type": "textarea",
+                    "description": "Preguntas frecuentes sobre pagos electrónicos",
+                    "default": "",
+                    "x-hwe-translatable": true,
+                    "x-hwe-translation-of": "faq"
+                },
+                "faq_payments_en": {
+                    "type": "string",
+                    "x-hwe-type": "textarea",
+                    "description": "Preguntas frecuentes sobre pagos electrónicos (EN)",
+                    "default": "",
+                    "x-hwe-translation-of": "faq_payments"
+                }
+            }
+        },
+        "loyalty": {
+            "type": "object",
+            "description": "Fidelización",
+            "additionalProperties": true,
+            "properties": {
+                "points_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Programa de puntos",
+                    "default": false
+                },
+                "referrals_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Programa de referidos",
+                    "default": false
+                },
+                "currency_name": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Nombre de la unidad (singular)",
+                    "default": "punto"
+                },
+                "currency_name_plural": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Nombre de la unidad (plural)",
+                    "default": "puntos"
+                },
+                "currency_icon": {
+                    "x-hwe-type": "image",
+                    "description": "Icono de la unidad",
+                    "default": ""
+                },
+                "point_value": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Valor de 1 unidad en la moneda de la tienda",
+                    "default": "0.01"
+                },
+                "min_redeem": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Mínimo de unidades para canjear",
+                    "default": "100",
+                    "x-hwe-min": 0
+                },
+                "max_redeem_per_order": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Máximo de unidades por pedido",
+                    "default": "0",
+                    "x-hwe-min": 0
+                },
+                "max_redeem_percent": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Tope del canje sobre la base sin envío (%)",
+                    "default": "0",
+                    "x-hwe-min": 0,
+                    "x-hwe-max": 100
+                },
+                "full_payment_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Permitir pagar el pedido completo con puntos",
+                    "default": false
+                },
+                "min_cash_due": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Mínimo a pagar en dinero",
+                    "default": "0.01"
+                },
+                "expiry_days": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Caducidad de las unidades (días)",
+                    "default": "0",
+                    "x-hwe-min": 0
+                },
+                "cashback_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Devolver un porcentaje de la compra al comprador",
+                    "default": false
+                },
+                "cashback_percent": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Porcentaje de devolución por compra",
+                    "default": "0",
+                    "x-hwe-min": 0,
+                    "x-hwe-max": 100
+                },
+                "events": {
+                    "type": "object",
+                    "description": "Unidades por evento",
+                    "additionalProperties": true,
+                    "properties": {
+                        "registration": {
+                            "type": [
+                                "string",
+                                "integer"
+                            ],
+                            "x-hwe-type": "number",
+                            "description": "Al confirmar la cuenta",
+                            "default": "0",
+                            "x-hwe-min": 0
+                        },
+                        "review": {
+                            "type": [
+                                "string",
+                                "integer"
+                            ],
+                            "x-hwe-type": "number",
+                            "description": "Al publicar una reseña",
+                            "default": "0",
+                            "x-hwe-min": 0
+                        },
+                        "birthday": {
+                            "type": [
+                                "string",
+                                "integer"
+                            ],
+                            "x-hwe-type": "number",
+                            "description": "Cumpleaños",
+                            "default": "0",
+                            "x-hwe-min": 0
+                        }
+                    }
+                },
+                "referral_signup_points_l1": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Unidades al referidor por el alta (nivel 1)",
+                    "default": "0",
+                    "x-hwe-min": 0
+                },
+                "referral_signup_points_l2": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Unidades al referidor de nivel 2 por el alta",
+                    "default": "0",
+                    "x-hwe-min": 0
+                },
+                "commission_first_percent": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Comisión del referidor en la primera compra (%)",
+                    "default": "0",
+                    "x-hwe-min": 0,
+                    "x-hwe-max": 100
+                },
+                "commission_next_percent": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Comisión del referidor en las siguientes compras (%)",
+                    "default": "0",
+                    "x-hwe-min": 0,
+                    "x-hwe-max": 100
+                },
+                "level2_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Pagar también al referidor de nivel 2",
+                    "default": false
+                },
+                "commission_level2_percent": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Comisión del referidor de nivel 2 (%)",
+                    "default": "0",
+                    "x-hwe-min": 0,
+                    "x-hwe-max": 100
+                },
+                "commission_duration_days": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Duración de la comisión (días)",
+                    "default": "0",
+                    "x-hwe-min": 0
+                },
+                "transfers_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Permitir transferencias entre usuarios",
+                    "default": false
+                },
+                "transfer_min": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Mínimo de unidades por transferencia",
+                    "default": "100",
+                    "x-hwe-min": 0
+                },
+                "transfer_fee_percent": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Comisión de la tienda por transferencia (%)",
+                    "default": "0",
+                    "x-hwe-min": 0,
+                    "x-hwe-max": 100
+                },
+                "transfer_daily_cap": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ],
+                    "x-hwe-type": "number",
+                    "description": "Tope diario de unidades transferidas",
+                    "default": "0",
+                    "x-hwe-min": 0
+                }
+            }
+        },
+        "memberships": {
+            "type": "object",
+            "description": "Membresías",
+            "additionalProperties": true,
+            "properties": {
+                "card_enabled": {
+                    "type": "boolean",
+                    "x-hwe-type": "boolean",
+                    "description": "Carné de socio",
+                    "default": false
+                },
+                "card_verify_path": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Ruta de verificación del carné",
+                    "default": "/verify"
+                },
+                "member_number_prefix": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "Prefijo del número de socio",
+                    "default": ""
+                }
+            }
+        },
+        "modules": {
+            "type": "object",
+            "description": "Módulos activos: id → encendido (la fuente es el plugin activo, no la config).",
+            "additionalProperties": {
+                "type": "boolean"
+            }
+        }
+    }
+}
