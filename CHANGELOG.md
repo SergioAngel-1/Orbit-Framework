@@ -12,6 +12,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   frontend: un 400 es una URL que no casa con `remotePatterns` (`WORDPRESS_PUBLIC_URL`). Habría
   detectado el esquema `https` de la medioteca en un sitio `http`.
 
+- **`BffError.body`: el cuerpo entero del error del BFF.** `readBff` (y con él `authApi` y
+  `usePlaceOrder`) conserva los campos propios de la ruta (`reason`, el estado de un pedido…) que
+  antes se perdían; un checkout que explica el fallo ya no tiene que releer la respuesta. Nuevo
+  parámetro opcional al final del constructor: la firma anterior sigue valiendo.
+
 ### Fixed
 - **Las imágenes que el BFF lee por wc/v3 vuelven a cargar en un sitio `http`.** `wcFetch` manda
   `X-Forwarded-Proto: https` para que WooCommerce acepte las credenciales ck/cs por la red interna, y

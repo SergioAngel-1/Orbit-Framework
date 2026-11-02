@@ -4,7 +4,8 @@
 //  Error de una llamada al BFF, con lo que la vista necesita para pintarlo.
 //
 //  El BFF responde los errores como `{ error, details?, code? }` (422 con
-//  `details` por campo: `docs/FRONTEND_CONNECT.md` §A.2). Los clientes de
+//  `details` por campo: `docs/FRONTEND_CONNECT.md` §A.2); lo demás que traiga
+//  el cuerpo queda en `body`. Los clientes de
 //  `lib/client/*` lanzan esto en vez de devolver la `Response`, así una vista
 //  no repite el parseo y puede colocar cada mensaje bajo su campo.
 // ============================================================================
@@ -17,6 +18,11 @@ export class BffError extends Error {
     readonly details: Record<string, string[]> = {},
     /** Código estable de la ruta, si lo publica (p. ej. el de WooCommerce). */
     readonly code?: string,
+    /**
+     * Cuerpo JSON completo de la respuesta, con los campos propios de la ruta
+     * (`reason`, el estado de un pedido…); `{}` si no era JSON.
+     */
+    readonly body: Record<string, unknown> = {},
   ) {
     super(message);
     this.name = "BffError";
@@ -33,7 +39,11 @@ export class BffError extends Error {
  * con el mensaje de la ruta o `fallback`.
  */
 export async function readBff<T>(res: Response, fallback: string): Promise<T> {
-  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const parsed: unknown = await res.json().catch(() => ({}));
+  const data =
+    parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
   if (!res.ok) {
     const details =
       data.details && typeof data.details === "object"
@@ -44,6 +54,7 @@ export async function readBff<T>(res: Response, fallback: string): Promise<T> {
       res.status,
       details,
       typeof data.code === "string" ? data.code : undefined,
+      data,
     );
   }
   return data as T;
