@@ -24,6 +24,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   TOTP), que `/api/auth/verify-2fa` ya aceptaba.
 - **`authApi.logout()` devuelve `true` si cerró la sesión.** Antes ignoraba la respuesta: un 403 o
   un 429 dejaban las cookies puestas y la vista no podía saberlo.
+- **Filtro `hwe_contract_field_schema`: el tipo JSON de un tipo de campo propio.** `wp hwe contract
+  instance-types` sacaba `unknown` para cualquier tipo de la instancia; ahora la instancia declara su
+  JSON Schema (escalares, uniones, `enum`, `array`, `object`) y sale tipado en TypeScript y en
+  `config-schema`. Solo se consulta para tipos sin traducción del núcleo. Los tipos del núcleo
+  `image`, `file`, `pairs` y `product_multiselect`, que se publican como texto, salen ya como
+  `string` (`contract/config.schema.json` regenerado).
 
 ### Fixed
 - **Las imágenes que el BFF lee por wc/v3 vuelven a cargar en un sitio `http`.** `wcFetch` manda

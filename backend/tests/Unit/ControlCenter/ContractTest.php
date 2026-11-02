@@ -134,6 +134,88 @@ final class ContractTest extends TestCase
         $this->assertStringNotContainsString('internal', $types);
     }
 
+    /** Grupo `instance` con un campo de cada tipo propio, para los tests del filtro. */
+    private function instanceWithOwnTypes(): void
+    {
+        Filters\expectApplied('hwe_control_center_schema')->andReturnUsing(
+            static function (array $schema): array {
+                $schema['instance']['children']['own'] = [
+                    'type'     => 'group',
+                    'children' => [
+                        'mine'   => ['type' => 'example_upper', 'public' => true],
+                        'tags'   => ['type' => 'example_tags', 'public' => true],
+                        'mode'   => ['type' => 'example_mode', 'public' => true],
+                        'nested' => ['type' => 'example_point', 'public' => true],
+                        'raw'    => ['type' => 'example_raw', 'public' => true],
+                        'photo'  => ['type' => 'image', 'public' => true],
+                        'plain'  => ['type' => 'text', 'public' => true],
+                    ],
+                ];
+                return $schema;
+            }
+        );
+    }
+
+    public function testAnInstanceDeclaresTheJsonTypeOfItsOwnFieldTypes(): void
+    {
+        $this->instanceWithOwnTypes();
+        $calls = [];
+        Filters\expectApplied('hwe_contract_field_schema')->andReturnUsing(
+            static function (array $schema, string $type, array $node) use (&$calls): array {
+                $calls[] = $type;
+                return match ($type) {
+                    'example_upper' => ['type' => 'string'] + $schema,
+                    'example_tags'  => ['type' => 'array', 'items' => ['type' => 'string']] + $schema,
+                    'example_mode'  => ['enum' => ['a', 'b']] + $schema,
+                    'example_point' => [
+                        'type'       => 'object',
+                        'properties' => ['lat' => ['type' => 'number'], 'lng' => ['type' => ['number', 'null']]],
+                    ] + $schema,
+                    default         => $schema,
+                };
+            }
+        );
+
+        $schema = Schema::get();
+        $types  = Contract::instanceTypes($schema);
+
+        $this->assertStringContainsString('mine?: string;', $types);
+        $this->assertStringContainsString('tags?: string[];', $types);
+        $this->assertStringContainsString('mode?: "a" | "b";', $types);
+        $this->assertStringContainsString('nested?: { lat?: number; lng?: number | null };', $types);
+        $this->assertStringContainsString('raw?: unknown;', $types, 'Sin declaración sigue siendo unknown.');
+
+        // Solo se pregunta por los tipos sin traducción del núcleo: el contrato del núcleo no
+        // se puede reescribir desde una instancia.
+        $this->assertNotContains('text', $calls);
+        $this->assertNotContains('image', $calls);
+
+        $json = Contract::publicConfigSchema($schema)['properties']['instance']['properties']['own']['properties'];
+        $this->assertSame(['type' => 'array', 'items' => ['type' => 'string'], 'x-hwe-type' => 'example_tags'], $json['tags']);
+    }
+
+    public function testADeclarationCannotDropTheFieldTypeMarker(): void
+    {
+        $this->instanceWithOwnTypes();
+        Filters\expectApplied('hwe_contract_field_schema')->andReturnUsing(
+            static fn (array $schema, string $type): mixed => $type === 'example_upper' ? ['type' => 'string'] : 'no es un array'
+        );
+
+        $json = Contract::publicConfigSchema(Schema::get())['properties']['instance']['properties']['own']['properties'];
+
+        $this->assertSame('example_upper', $json['mine']['x-hwe-type']);
+        $this->assertSame(['x-hwe-type' => 'example_tags'], $json['tags'], 'Una respuesta que no es un array se descarta.');
+    }
+
+    public function testCoreMediaAndListTypesAreStrings(): void
+    {
+        $this->instanceWithOwnTypes();
+
+        $types = Contract::instanceTypes(Schema::get());
+
+        $this->assertStringContainsString('photo?: string;', $types);
+    }
+
     public function testInstanceTypesWithoutInstanceFields(): void
     {
         $types = Contract::instanceTypes(Schema::get());

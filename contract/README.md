@@ -26,5 +26,11 @@ mano**; un test falla si el código cambia y el fichero no.
   Sustituye a tipar esos campos a mano en `config.d.ts` (no declares el mismo campo en los dos:
   TypeScript exige tipos idénticos al fusionar interfaces). Los `number` salen como
   `string | number`: el Control Center los guarda como texto y un campo nunca guardado sale con su
-  `default`.
+  `default`. Un tipo de campo propio sale `unknown` hasta que la instancia declara su valor con el
+  filtro `hwe_contract_field_schema` (`docs/PLUGIN_DEVELOPMENT.md` §0):
+
+  ```php
+  add_filter('hwe_contract_field_schema', static fn (array $schema, string $type): array =>
+      $type === 'mi_tipo' ? ['type' => 'array', 'items' => ['type' => 'string']] : $schema, 10, 2);
+  ```
 - **Rutas BFF de la instancia:** `node tools/contract/bff-openapi.mjs --include-instance`.

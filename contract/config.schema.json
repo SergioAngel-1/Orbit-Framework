@@ -51,11 +51,13 @@
                     "description": "URL pública del frontend"
                 },
                 "logo": {
+                    "type": "string",
                     "x-hwe-type": "image",
                     "description": "Logo",
                     "default": ""
                 },
                 "email_logo": {
+                    "type": "string",
                     "x-hwe-type": "image",
                     "description": "Logo para correos (opcional)",
                     "default": ""
@@ -775,6 +777,7 @@
                     "default": "auto"
                 },
                 "og_image": {
+                    "type": "string",
                     "x-hwe-type": "image",
                     "description": "OG Image"
                 },
@@ -822,6 +825,7 @@
                     "description": "Días de tránsito del envío (schema)"
                 },
                 "organization_logo": {
+                    "type": "string",
                     "x-hwe-type": "image",
                     "description": "Logo de la organización (JSON-LD)"
                 },
@@ -946,6 +950,7 @@
                     "default": "puntos"
                 },
                 "currency_icon": {
+                    "type": "string",
                     "x-hwe-type": "image",
                     "description": "Icono de la unidad",
                     "default": ""
