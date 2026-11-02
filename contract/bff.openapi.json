@@ -314,6 +314,13 @@
     "/api/blog/posts": {
       "get": {
         "x-hwe-source": "frontend/src/app/api/blog/posts/route.ts",
+        "x-hwe-rate-limit": [
+          {
+            "name": "blog-search",
+            "limit": 30,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -551,6 +558,13 @@
         "x-hwe-loyalty-feature": [
           "referrals"
         ],
+        "x-hwe-rate-limit": [
+          {
+            "name": "loyalty-validate-code",
+            "limit": 30,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -561,6 +575,13 @@
     "/api/memberships/card": {
       "get": {
         "x-hwe-source": "frontend/src/app/api/memberships/card/route.ts",
+        "x-hwe-rate-limit": [
+          {
+            "name": "memberships-card",
+            "limit": 10,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "read",
         "responses": {
           "default": {
@@ -661,6 +682,13 @@
       ],
       "get": {
         "x-hwe-source": "frontend/src/app/api/memberships/verify/[token]/route.ts",
+        "x-hwe-rate-limit": [
+          {
+            "name": "memberships-verify",
+            "limit": 30,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -722,6 +750,13 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/payments/webhook/[provider]/route.ts",
         "x-hwe-auth": "signature",
+        "x-hwe-rate-limit": [
+          {
+            "name": "pay_webhook",
+            "limit": 60,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -733,6 +768,13 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/revalidate/route.ts",
         "x-hwe-auth": "signature",
+        "x-hwe-rate-limit": [
+          {
+            "name": "revalidate",
+            "limit": 120,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -747,6 +789,13 @@
           "shipping"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "shipping_geocode",
+            "limit": 10,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "read",
         "responses": {
           "default": {
@@ -762,6 +811,13 @@
           "shipping"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "shipping_geocode",
+            "limit": 10,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "read",
         "responses": {
           "default": {
@@ -839,6 +895,13 @@
           "memberships"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "cart",
+            "limit": 60,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -851,6 +914,13 @@
           "memberships"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "cart",
+            "limit": 60,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -918,6 +988,13 @@
           "points"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "cart",
+            "limit": 60,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -933,6 +1010,13 @@
           "points"
         ],
         "x-hwe-csrf": true,
+        "x-hwe-rate-limit": [
+          {
+            "name": "cart",
+            "limit": 60,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -943,6 +1027,12 @@
     "/api/store/cart": {
       "get": {
         "x-hwe-source": "frontend/src/app/api/store/cart/route.ts",
+        "x-hwe-rate-limit": [
+          {
+            "limit": 30,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -1180,6 +1270,13 @@
           "wishlist_enabled",
           "search_enabled"
         ],
+        "x-hwe-rate-limit": [
+          {
+            "name": "products-list",
+            "limit": 60,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -1202,6 +1299,13 @@
         "x-hwe-source": "frontend/src/app/api/store/reviews/[productId]/route.ts",
         "x-hwe-flag": [
           "reviews_enabled"
+        ],
+        "x-hwe-rate-limit": [
+          {
+            "name": "review_elig",
+            "limit": 60,
+            "windowSeconds": 60
+          }
         ],
         "x-hwe-session": "read",
         "responses": {
@@ -1328,6 +1432,13 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/webhooks/woocommerce/order-created/route.ts",
         "x-hwe-auth": "signature",
+        "x-hwe-rate-limit": [
+          {
+            "name": "wc_webhook",
+            "limit": 120,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
@@ -1339,6 +1450,13 @@
       "post": {
         "x-hwe-source": "frontend/src/app/api/webhooks/woocommerce/order-updated/route.ts",
         "x-hwe-auth": "signature",
+        "x-hwe-rate-limit": [
+          {
+            "name": "wc_webhook",
+            "limit": 120,
+            "windowSeconds": 60
+          }
+        ],
         "responses": {
           "default": {
             "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."

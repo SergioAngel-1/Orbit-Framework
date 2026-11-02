@@ -48,7 +48,8 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `instanceRoute({ public: true })` salía con `x-hwe-csrf: true` (no aplica `guardMutation`): ahora
   `x-hwe-csrf: false` y `x-hwe-public: true`. Lista `OPTIONS` y anota `x-hwe-rate-limit` (nombre,
   límite, ventana y `strict`, con las constantes del módulo resueltas) en todas las rutas, también
-  en `contract/bff.openapi.json`.
+  en `contract/bff.openapi.json`. Lee también los límites en constantes del módulo (con `as const`, `...spread` y
+  aritmética como `15 * 60`) y las llamadas directas `rateLimit(clave, límite, ventana)`.
 - **Los tests del núcleo ya no fijan la redacción de la instancia.** `messages/**` es de la instancia,
   pero `lib/memberships/{describe,format,server}`, `lib/loyalty/describe`, `lib/analytics/services`,
   `api/memberships/history` y `app/_llms/build` comparaban con las frases del starter: cambiar una

@@ -92,4 +92,19 @@ describe("bff-openapi --include-instance", () => {
     ]);
     expect(feed.options["x-hwe-rate-limit"]).toBeUndefined();
   });
+
+  it("resuelve objetos en constante (con `as const`), expresiones y llamadas directas", () => {
+    const tracking = doc.paths["/api/instance/tracking"];
+    expect(tracking.get["x-hwe-rate-limit"]).toEqual([
+      { name: "tracking-read", limit: 60, windowSeconds: 60 },
+    ]);
+    expect(tracking.post["x-hwe-rate-limit"]).toEqual([
+      { name: "tracking-ip", limit: 10, windowSeconds: 900 },
+      { name: "tracking", limit: 5, windowSeconds: 900, strict: true },
+    ]);
+    expect(doc.paths["/api/instance/webhooks/partner"].post).toMatchObject({
+      "x-hwe-auth": "signature",
+      "x-hwe-rate-limit": [{ name: "partner-webhook", limit: 300, windowSeconds: 60 }],
+    });
+  });
 });

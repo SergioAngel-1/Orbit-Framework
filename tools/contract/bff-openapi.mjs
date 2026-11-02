@@ -96,31 +96,160 @@ function reachable(body, shared) {
   return text;
 }
 
-/** Valor numérico de un literal o de una `const NOMBRE = 123` del módulo; si no, undefined. */
-function numberOf(raw, shared) {
-  const value = raw.trim();
-  if (/^\d[\d_]*$/.test(value)) return Number(value.replace(/_/g, ""));
-  const constant = new RegExp(`\\bconst\\s+${value}\\s*=\\s*([\\d_]+)\\s*;`).exec(shared);
-  return constant ? Number(constant[1].replace(/_/g, "")) : undefined;
+/** Texto entre el paréntesis o la llave en `open` y su pareja (sin contar cadenas). */
+function balanced(source, open) {
+  const pairs = { "(": ")", "{": "}", "[": "]" };
+  let depth = 0;
+  let quote = null;
+  for (let i = open; i < source.length; i += 1) {
+    const ch = source[i];
+    if (quote) {
+      if (ch === "\\") i += 1;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") quote = ch;
+    else if (ch in pairs) depth += 1;
+    else if (ch === ")" || ch === "}" || ch === "]") {
+      depth -= 1;
+      if (depth === 0) return source.slice(open + 1, i);
+    }
+  }
+  return null;
+}
+
+/** Trozos de `text` separados por comas de primer nivel. */
+function splitTopLevel(text) {
+  const parts = [];
+  let depth = 0;
+  let quote = null;
+  let from = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === "\\") i += 1;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") quote = ch;
+    else if ("({[".includes(ch)) depth += 1;
+    else if (")}]".includes(ch)) depth -= 1;
+    else if (ch === "," && depth === 0) {
+      parts.push(text.slice(from, i));
+      from = i + 1;
+    }
+  }
+  parts.push(text.slice(from));
+  return parts.map((p) => p.trim()).filter(Boolean);
+}
+
+/** Inicializador de `const NOMBRE = …` del módulo (sin `as const` ni `satisfies`), o null. */
+function constInit(name, shared) {
+  const match = new RegExp(`\\bconst\\s+${name}\\b[^=]*=\\s*`).exec(shared);
+  if (!match) return null;
+  const at = match.index + match[0].length;
+  const init = "({[".includes(shared[at])
+    ? shared[at] + balanced(shared, at) + { "(": ")", "{": "}", "[": "]" }[shared[at]]
+    : shared.slice(at, shared.indexOf(";", at) === -1 ? undefined : shared.indexOf(";", at));
+  return init.replace(/\s+(?:as\s+const|satisfies\s+[\w.<>]+)\s*$/, "").trim();
+}
+
+/** Campos `clave: valor` de primer nivel de un literal de objeto `{ … }` (con `...CONST`). */
+function objectFields(literal, shared, depth) {
+  const body = literal.trim().startsWith("{") ? balanced(literal.trim(), 0) : null;
+  if (body === null) return null;
+  const fields = {};
+  for (const part of splitTopLevel(body)) {
+    if (part.startsWith("...")) {
+      const spread = evaluate(part.slice(3), shared, depth + 1);
+      if (spread && typeof spread === "object") Object.assign(fields, spread);
+      continue;
+    }
+    const match = /^([A-Za-z_$][\w$]*)\s*:\s*([\s\S]+)$/.exec(part);
+    if (match) fields[match[1]] = match[2].trim();
+    else if (/^[A-Za-z_$][\w$]*$/.test(part)) fields[part] = part; // abreviado `{ limit }`
+  }
+  return fields;
 }
 
 /**
- * Límites por IP de las opciones `rateLimit: { name, limit, windowSeconds, strict }` que
- * reciben `guardMutation` / `instanceRoute`. Lo que no es literal ni constante del módulo se omite.
+ * Valor de una expresión con lo que se sabe sin ejecutar el módulo: literales, `as const`,
+ * aritmética entera (`15 * 60`), constantes del módulo y campos de un objeto constante
+ * (`RATE_LIMIT.limit`). Lo que no resuelve es undefined.
+ */
+function evaluate(expr, shared, depth = 0) {
+  if (depth > 5 || expr === undefined || expr === null) return undefined;
+  let value = String(expr).trim().replace(/\s+as\s+const$/, "").trim();
+  if (/^"[^"]*"$|^'[^']*'$/.test(value)) return value.slice(1, -1);
+  if (value === "true" || value === "false") return value === "true";
+  if (value.startsWith("{")) return objectFields(value, shared, depth) ?? undefined;
+  if (/^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?$/.test(value)) {
+    return evaluate(resolveRef(value, shared, depth), shared, depth + 1);
+  }
+  // Sustituye identificadores y `OBJ.campo` por su número y evalúa la aritmética.
+  const substituted = value.replace(/[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?/g, (ref) => {
+    const resolved = evaluate(resolveRef(ref, shared, depth), shared, depth + 1);
+    return typeof resolved === "number" ? String(resolved) : "NaN";
+  });
+  if (!/^[\d_\s+\-*/().]+$/.test(substituted)) return undefined;
+  const number = Function(`"use strict"; return (${substituted.replace(/_/g, "")});`)();
+  return Number.isFinite(number) ? number : undefined;
+}
+
+/** `NOMBRE` → su inicializador; `OBJ.campo` → el valor del campo en el objeto constante. */
+function resolveRef(ref, shared, depth) {
+  const [name, field] = ref.split(".");
+  const init = constInit(name, shared);
+  if (init === null) return undefined;
+  if (!field) return init;
+  const fields = evaluate(init, shared, depth + 1);
+  return fields && typeof fields === "object" ? fields[field] : undefined;
+}
+
+/** `{ name, limit, windowSeconds, strict }` a partir de los campos (o valores) declarados. */
+function limitEntry({ name, limit, windowSeconds, strict }, shared) {
+  const entry = {};
+  const n = evaluate(name, shared);
+  if (typeof n === "string") entry.name = n;
+  for (const [key, raw] of [["limit", limit], ["windowSeconds", windowSeconds]]) {
+    const value = evaluate(raw, shared);
+    if (typeof value === "number") entry[key] = value;
+  }
+  if (evaluate(strict, shared) === true) entry.strict = true;
+  return entry;
+}
+
+/**
+ * Límites por IP de un método: las opciones `rateLimit: { … }` (o una constante con ese
+ * objeto) de `guardMutation` / `instanceRoute`, y las llamadas directas a
+ * `rateLimit(clave, límite, ventana, { strict })`. El nombre de una llamada directa es el
+ * prefijo literal de su clave (`mcp:${ip}` → `mcp`).
  */
 function rateLimits(text, shared) {
   const found = [];
-  for (const match of text.matchAll(/\brateLimit:\s*\{([^}]*)\}/g)) {
-    const fields = match[1];
-    const entry = {};
-    const name = /\bname:\s*"([^"]+)"/.exec(fields);
-    if (name) entry.name = name[1];
-    for (const key of ["limit", "windowSeconds"]) {
-      const raw = new RegExp(`\\b${key}:\\s*([A-Za-z0-9_]+)`).exec(fields);
-      const value = raw ? numberOf(raw[1], shared) : undefined;
-      if (value !== undefined) entry[key] = value;
+  for (const match of text.matchAll(/\brateLimit\s*:\s*/g)) {
+    const at = match.index + match[0].length;
+    const raw = text[at] === "{" ? `{${balanced(text, at)}}` : /^[\w$.]+/.exec(text.slice(at))?.[0];
+    const fields = evaluate(raw, shared);
+    if (fields && typeof fields === "object") {
+      const entry = limitEntry(fields, shared);
+      if (Object.keys(entry).length) found.push(entry);
     }
-    if (/\bstrict:\s*true\b/.test(fields)) entry.strict = true;
+  }
+  for (const match of text.matchAll(/(?<![.\w])rateLimit\(/g)) {
+    const args = splitTopLevel(balanced(text, match.index + match[0].length - 1) ?? "");
+    if (args.length < 3) continue;
+    const key = /^["'`]([\w.-]+)/.exec(args[0]);
+    const options = evaluate(args[3], shared);
+    const entry = limitEntry(
+      {
+        name: key ? JSON.stringify(key[1]) : undefined,
+        limit: args[1],
+        windowSeconds: args[2],
+        strict: options && typeof options === "object" ? options.strict : undefined,
+      },
+      shared,
+    );
     if (Object.keys(entry).length) found.push(entry);
   }
   return found;
