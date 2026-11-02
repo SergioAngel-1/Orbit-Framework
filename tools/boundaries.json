@@ -21,6 +21,7 @@
     { "path": "frontend/package.json", "owner": "gray" },
     { "path": "frontend/package-lock.json", "owner": "gray" },
     { "path": "frontend/src/i18n/routing.ts", "owner": "gray" },
+    { "path": "frontend/tests/e2e/**", "owner": "gray" },
     { "path": ".gitignore", "owner": "gray" },
     { "path": "frontend/src/app/globals.css", "owner": "gray" },
     { "path": "frontend/src/app/icon.tsx", "owner": "gray" },

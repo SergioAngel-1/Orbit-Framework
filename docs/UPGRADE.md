@@ -52,7 +52,9 @@ dependencias del núcleo; la instancia puede haber añadido las suyas) y
 `frontend/src/i18n/routing.ts` (**solo** la lista `locales` y su `defaultLocale`: una instancia
 de un solo idioma deja `locales: ["es"]`; ver `docs/CREATE_INSTANCE.md`, «Instancia de un solo
 idioma») y `.gitignore` (la instancia quita las líneas que ignoran sus carpetas de instancia para
-versionarlas).
+versionarlas). También los E2E del *starter*, `frontend/tests/e2e/*.spec.ts`: recorren sus
+vistas, que son tuyas, y el CI de una instancia no los ejecuta (solo `tests/e2e/instance/`).
+Adaptarlos a tu rediseño no cuenta como deriva; si un merge choca, decide a mano.
 
 `.github/workflows/**` **no** es zona gris aunque tu instancia tenga su propio CI: sigue siendo
 núcleo y no se edita. Para que el CI del núcleo no falle ni pruebe otra cosa en tu repositorio,

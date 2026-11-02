@@ -55,6 +55,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   frase obligaba a editar un test del núcleo (deriva en `upgrade-check`). Con `HWE_INSTANCE=true`
   esas aserciones se omiten (`tests/helpers/starter-copy.ts`) y se sigue comprobando la forma; en el
   framework se ejecutan igual que antes.
+- **Los E2E del starter (`frontend/tests/e2e/*.spec.ts`) pasan a zona gris.** Recorren vistas de
+  la instancia y su CI no los ejecuta, pero `upgrade-check` marcaba como deriva del núcleo un spec
+  adaptado a un rediseño (`blog.spec.ts`). Siguen llegando con cada release; un choque se decide a
+  mano (`docs/UPGRADE.md` §1).
 
 ## [2.5.0] — 2026-11-02
 

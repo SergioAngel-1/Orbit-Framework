@@ -34,6 +34,11 @@ describe("tools/boundaries.json: dueño de cada ruta", () => {
     ["frontend/src/i18n/messages/es.json", "instance"],
     ["frontend/src/i18n/routing.ts", "gray"],
     ["frontend/package.json", "gray"],
+    // Los E2E del starter recorren sus vistas (de la instancia) y el CI de una instancia no
+    // los ejecuta: adaptarlos a un rediseño no es deriva del núcleo.
+    ["frontend/tests/e2e/blog.spec.ts", "gray"],
+    ["frontend/tests/e2e/instance/tienda.spec.ts", "instance"],
+    ["frontend/tests/unit/boundaries.test.ts", "core"],
     ["backend/wp-content/plugins/hwe-loyalty/hwe-loyalty.php", "core"],
     ["backend/wp-content/plugins/hwe-instance-tienda/plugin.php", "instance"],
     ["backend/wp-content/mu-plugins/instance/10-campos.php", "instance"],
