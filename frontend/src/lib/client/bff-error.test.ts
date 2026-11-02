@@ -17,7 +17,11 @@ const json = (status: number, body: unknown) =>
 describe("readBff", () => {
   it("conserva los campos extra del cuerpo en `body`", async () => {
     const error = await readBff(
-      json(409, { error: "El pedido ya no admite pago.", reason: "expired", status: "cancelled" }),
+      json(409, {
+        error: "El pedido ya no admite pago.",
+        reason: "expired",
+        status: "cancelled",
+      }),
       "Reserva",
     ).catch((e: unknown) => e);
 
@@ -33,9 +37,10 @@ describe("readBff", () => {
   });
 
   it("sin cuerpo JSON, `body` es un objeto vacío y manda el texto de reserva", async () => {
-    const error = (await readBff(new Response("oops", { status: 502 }), "Reserva").catch(
-      (e: unknown) => e,
-    )) as BffError;
+    const error = (await readBff(
+      new Response("oops", { status: 502 }),
+      "Reserva",
+    ).catch((e: unknown) => e)) as BffError;
     expect(error.message).toBe("Reserva");
     expect(error.body).toEqual({});
   });

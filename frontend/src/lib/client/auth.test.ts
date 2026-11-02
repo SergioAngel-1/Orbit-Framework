@@ -58,7 +58,9 @@ describe("authApi", () => {
       body: { ephemeralToken: "eph", recoveryCode: "abcd-efgh" },
     });
 
-    vi.mocked(csrfFetch).mockResolvedValueOnce(json(401, { error: "Código no válido." }));
+    vi.mocked(csrfFetch).mockResolvedValueOnce(
+      json(401, { error: "Código no válido." }),
+    );
     await expect(
       authApi.verifyTwoFactor("eph", { recoveryCode: "mal" }),
     ).rejects.toThrow("Código no válido.");
@@ -70,7 +72,9 @@ describe("authApi", () => {
     expect(csrfFetch).toHaveBeenLastCalledWith("/api/auth/logout", { method: "POST" });
 
     // 403 de Origin/CSRF o 429: las cookies siguen puestas, la sesión no se cerró.
-    vi.mocked(csrfFetch).mockResolvedValueOnce(json(403, { error: "Origen no permitido." }));
+    vi.mocked(csrfFetch).mockResolvedValueOnce(
+      json(403, { error: "Origen no permitido." }),
+    );
     await expect(authApi.logout()).resolves.toBe(false);
   });
 

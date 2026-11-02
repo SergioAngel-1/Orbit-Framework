@@ -24,9 +24,15 @@ beforeEach(() => {
 describe("cartApi", () => {
   it("un error del BFF lleva estado, código y cuerpo", async () => {
     vi.mocked(csrfFetch).mockResolvedValue(
-      json(409, { error: "Sin stock.", code: "woocommerce_rest_cart_invalid", available: 1 }),
+      json(409, {
+        error: "Sin stock.",
+        code: "woocommerce_rest_cart_invalid",
+        available: 1,
+      }),
     );
-    const error = (await cartApi.updateItem("k", 5).catch((e: unknown) => e)) as BffError;
+    const error = (await cartApi
+      .updateItem("k", 5)
+      .catch((e: unknown) => e)) as BffError;
 
     expect(error).toBeInstanceOf(BffError);
     expect(error.message).toBe("Sin stock.");

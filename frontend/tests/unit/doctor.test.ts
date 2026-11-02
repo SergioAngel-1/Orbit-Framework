@@ -168,11 +168,16 @@ function frontendHandler(mode: Mode, origin: () => string) {
     if (req.method === "GET" && pathname === "/api/store/products") {
       // `?include=` lee por wc/v3: la pila rota reproduce el `X-Forwarded-Proto: https` que
       // subía las URL de la medioteca a https en un sitio http.
-      const include = new URL(req.url ?? "/", "http://fake.invalid").searchParams.get("include");
+      const include = new URL(req.url ?? "/", "http://fake.invalid").searchParams.get(
+        "include",
+      );
       const base = include && mode === "broken" ? o.replace(/^http:/, "https:") : o;
       return sendJson(res, 200, {
         products: [
-          { databaseId: 7, image: { sourceUrl: `${base}/wp-content/uploads/vela.jpg` } },
+          {
+            databaseId: 7,
+            image: { sourceUrl: `${base}/wp-content/uploads/vela.jpg` },
+          },
           { databaseId: 8, image: null },
         ],
         pageInfo: { hasNextPage: false, endCursor: null },
@@ -180,7 +185,8 @@ function frontendHandler(mode: Mode, origin: () => string) {
     }
     if (req.method === "GET" && pathname === "/_next/image") {
       // Como el optimizador real: solo el origen de `remotePatterns` (WORDPRESS_PUBLIC_URL).
-      const src = new URL(req.url ?? "/", "http://fake.invalid").searchParams.get("url") ?? "";
+      const src =
+        new URL(req.url ?? "/", "http://fake.invalid").searchParams.get("url") ?? "";
       return src.startsWith(`${o}/wp-content/uploads/`)
         ? send(res, 200, "img", { "Content-Type": "image/jpeg" })
         : send(res, 400, `"url" parameter is not allowed`);
@@ -381,7 +387,10 @@ describe("doctor: lógica pura (checks.mjs)", () => {
   it("extrae ids e imágenes de una respuesta de /api/store/products", () => {
     const body = {
       products: [
-        { databaseId: 7, image: { sourceUrl: "http://wp.test/wp-content/uploads/a.jpg" } },
+        {
+          databaseId: 7,
+          image: { sourceUrl: "http://wp.test/wp-content/uploads/a.jpg" },
+        },
         { databaseId: 8, image: null },
         { databaseId: "x", image: { sourceUrl: "" } },
       ],

@@ -60,7 +60,8 @@ export const authApi = {
     code: string | { recoveryCode: string },
     fallback = DEFAULT_ERROR,
   ): Promise<void> {
-    const proof = typeof code === "string" ? { code } : { recoveryCode: code.recoveryCode };
+    const proof =
+      typeof code === "string" ? { code } : { recoveryCode: code.recoveryCode };
     await post("/api/auth/verify-2fa", { ephemeralToken, ...proof }, fallback);
   },
 
