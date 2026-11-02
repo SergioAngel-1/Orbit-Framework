@@ -382,7 +382,11 @@ Pasos que quedan a mano (este script no los automatiza):
   3. .gitignore: quita la línea de mu-plugins/instance/* y descomenta las de
      plugins/hwe-instance-* si versionas aquí el código de la instancia (§7).
   4. CI: variable de repositorio HWE_INSTANCE = true (docs/CREATE_INSTANCE.md, «CI de la instancia»).
-  5. Código propio: frontend/src/instance/ y backend/wp-content/mu-plugins/instance/ (§7).
+  5. Código propio: frontend/src/instance/, frontend/src/app/api/instance/ (rutas BFF) y
+     backend/wp-content/mu-plugins/instance/ (§7). Rutas tuyas fuera de esas carpetas
+     (scripts de operación, otra config): decláralas en tools/boundaries.local.json.
+  6. Tipos de tus campos del Control Center: wp hwe contract instance-types
+     > frontend/src/instance/config.generated.d.ts (contract/README.md).
 EOF
 
 if [ "$UP" = 1 ] && [ "$DOCTOR_RC" -ne 0 ]; then
