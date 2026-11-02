@@ -31,7 +31,7 @@ repo y es clave no confundirlas:
 | Capa | Qué incluye | ¿Quién la mantiene? |
 |---|---|---|
 | **Núcleo del framework** | WordPress headless + WooCommerce (`backend/`, salvo las rutas de instancia), el **BFF**: `frontend/src/app/api/*` y `frontend/src/lib/*` (auth, seguridad, proxy a WooCommerce, pagos, config del HWE Control Center), `frontend/src/proxy.ts`, `frontend/src/components/ui/*` (primitivas sin negocio: Button, Input, Modal…) y los **11 módulos** (`backend/wp-content/plugins/hwe-*`) | El framework. Se actualiza, se documenta, se versiona como una unidad reutilizable entre instancias (`docs/UPGRADE.md`). |
-| **Responsabilidad de cada proyecto/instancia** | **Rutas reservadas** que el framework nunca toca: `backend/wp-content/mu-plugins/instance/`, los plugins `hwe-instance-*`, `frontend/src/instance/*` y `frontend/tests/e2e/instance/` (E2E de la instancia). Más `frontend/src/components/**` (excepto `ui/`) y **todas las vistas** bajo `frontend/src/app/[locale]/*` (layout visual, home, listados, fichas, marketing, footer…), que se heredan **una vez** al clonar como starter neutro | **La instancia.** Cámbialo, bórralo, reescríbelo — es 100% tuyo desde el clone. |
+| **Responsabilidad de cada proyecto/instancia** | **Rutas reservadas** que el framework nunca toca: `backend/wp-content/mu-plugins/instance/`, los plugins `hwe-instance-*`, `frontend/src/instance/*`, `frontend/src/app/api/instance/*` (rutas BFF propias, con `instanceRoute`; `docs/FRONTEND_CONNECT.md` §A.2) y `frontend/tests/e2e/instance/` (E2E de la instancia). La lista exacta está en `tools/boundaries.json`. Más `frontend/src/components/**` (excepto `ui/`) y **todas las vistas** bajo `frontend/src/app/[locale]/*` (layout visual, home, listados, fichas, marketing, footer…), que se heredan **una vez** al clonar como starter neutro | **La instancia.** Cámbialo, bórralo, reescríbelo — es 100% tuyo desde el clone. |
 
 **El contrato de instancia** (cómo enchufa su código sin tocar el núcleo; detalle en
 `docs/PLUGIN_DEVELOPMENT.md §0` y los `README.md` de las tres carpetas `instance/`):
@@ -70,7 +70,9 @@ prometer nada sobre esa capa.
 uno construido desde cero): el esquema de WPGraphQL/WooGraphQL, los endpoints REST del BFF
 bajo `app/api/*`, el endpoint público `/wp-json/hwe/v1/config` (marca/diseño/flags), y el
 contrato de auth (cookies httpOnly + CSRF). Ese contrato está documentado en
-**`docs/FRONTEND_CONNECT.md`** — es la referencia que sobrevive aunque reescribas toda la UI.
+**`docs/FRONTEND_CONNECT.md`** — es la referencia que sobrevive aunque reescribas toda la UI —, y
+en formato que lee una máquina en **`contract/`** (JSON Schema de `/config`, OpenAPI del BFF;
+generados desde el código y fijados por tests, ver `contract/README.md`).
 
 **El CI también es núcleo.** `.github/**` no se edita en una instancia (ni siquiera para
 adaptarlo a su repositorio): se declara la **variable de repositorio `HWE_INSTANCE=true`** y el
@@ -112,6 +114,8 @@ Navegador  ──HTTPS──►  Next.js (BFF / Route Handlers)  ──red inter
 ├── Caddyfile  caddy/           # reverse proxy prod (TLS, HTTP/3); /graphql público restringido; sitios opcionales
 ├── .env.example / .env.prod.example  # TODAS las variables. Copiar a .env / .env.prod
 ├── README.md  AGENTS.md  CHANGELOG.md  LICENSE  EULA.md
+├── contract/                    # ⭐ contrato legible por máquina (generado): config.schema.json, bff.openapi.json
+├── tools/                       # boundaries.json (frontera núcleo/instancia), upgrade-check, contract/
 ├── docs/                        # documentación de cliente y operaciones
 │   ├── INSTALL.md  CONFIGURATION.md  CUSTOMIZATION.md  DEPLOYMENT.md
 │   ├── CREATE_INSTANCE.md       # ⭐ crear una instancia nueva (clonar + `wp hwe setup`)

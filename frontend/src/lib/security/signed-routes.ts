@@ -35,7 +35,33 @@ const SIGNED_PATHS: ReadonlySet<string> = new Set([
 /** Webhook de pago: `/api/payments/webhook/<proveedor>`, un único segmento. */
 const PAYMENT_WEBHOOK = /^\/api\/payments\/webhook\/[a-z0-9_-]+$/;
 
+/**
+ * Webhook de la instancia: `/api/instance/webhooks/<nombre>`, un único segmento.
+ * La carpeta es de la instancia (`tools/boundaries.json`), así que el núcleo no
+ * puede enumerar sus rutas; el patrón es igual de cerrado que el de pagos y el
+ * mismo test exige a cada `route.ts` que cuelgue de él verificar su firma.
+ */
+const INSTANCE_WEBHOOK = /^\/api\/instance\/webhooks\/[a-z0-9_-]+$/;
+
+/**
+ * Ruta pública de máquina de la instancia: `/api/instance/public/<nombre>`, un segmento
+ * (p. ej. un servidor MCP de catálogo). La llaman agentes y servidores ajenos, que no
+ * mandan Origin y no pueden firmar. Queda fuera de la barrera de Origin a cambio de no
+ * actuar nunca en nombre del visitante: `tests/unit/signed-routes.test.ts` prohíbe que
+ * esas rutas lean la sesión o las cookies, que es lo que el Origin protege.
+ */
+const INSTANCE_PUBLIC = /^\/api\/instance\/public\/[a-z0-9_-]+$/;
+
+/** ¿Es una ruta pública de máquina de la instancia (sin sesión, sin barrera de Origin)? */
+export function isPublicMachineRoute(pathname: string): boolean {
+  return INSTANCE_PUBLIC.test(pathname);
+}
+
 /** ¿Se autentica esta ruta por firma, y por tanto queda fuera de la barrera de Origin? */
 export function isSignedRoute(pathname: string): boolean {
-  return SIGNED_PATHS.has(pathname) || PAYMENT_WEBHOOK.test(pathname);
+  return (
+    SIGNED_PATHS.has(pathname) ||
+    PAYMENT_WEBHOOK.test(pathname) ||
+    INSTANCE_WEBHOOK.test(pathname)
+  );
 }

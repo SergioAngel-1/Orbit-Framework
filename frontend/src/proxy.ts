@@ -13,7 +13,7 @@ import {
   getOrCreateRequestId,
   REQUEST_ID_HEADER,
 } from "@/lib/observability/request-id";
-import { isSignedRoute } from "@/lib/security/signed-routes";
+import { isPublicMachineRoute, isSignedRoute } from "@/lib/security/signed-routes";
 import { internalSecretHeaders } from "@/lib/security/internal-secret";
 import { toInternalPath, toPublicPath } from "@/lib/instance/public-paths";
 import { compileRedirects, matchRedirect } from "@/lib/instance/redirects";
@@ -134,6 +134,8 @@ function originBlocked(request: NextRequest): boolean {
   // Webhooks y revalidación: los llama otro servidor (no traen Origin) y se
   // autentican por firma. Lista cerrada; ver lib/security/signed-routes.ts.
   if (isSignedRoute(pathname)) return false;
+  // Rutas públicas de máquina de la instancia: sin sesión por contrato (test).
+  if (isPublicMachineRoute(pathname)) return false;
 
   const allowed = process.env.ALLOWED_ORIGIN;
   if (!allowed) return false;

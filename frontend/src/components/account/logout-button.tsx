@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { csrfFetch } from "@/lib/client/csrf";
+import { authApi } from "@/lib/client/auth";
 
 export function LogoutButton() {
   const router = useRouter();
@@ -12,7 +12,7 @@ export function LogoutButton() {
   async function onClick() {
     setPending(true);
     try {
-      await csrfFetch("/api/auth/logout", { method: "POST" });
+      await authApi.logout();
       router.push("/");
       router.refresh();
     } finally {

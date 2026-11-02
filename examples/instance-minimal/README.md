@@ -26,6 +26,7 @@ un tag ISR propio, una vista que lee el campo y un beneficio de membresía propi
 | `frontend/src/instance/example-landing.test.ts` | `frontend/src/instance/` | La única se inserta tras `s1`, absorbe la FAQ y tiene pieza |
 | `frontend/src/instance/config.d.ts` | `frontend/src/instance/config.d.ts` | *Module augmentation* de `InstanceConfig` |
 | `frontend/src/app/[locale]/example/page.tsx` | (ruta nueva) | Vista que lee `config.instance.example.greeting` |
+| `frontend/src/app/api/instance/example/route.ts` (+ test) | (ruta nueva) | Ruta BFF propia con `instanceRoute`: `GET /api/instance/example` |
 
 ### Beneficio de membresía de instancia
 

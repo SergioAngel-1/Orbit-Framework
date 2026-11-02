@@ -16,6 +16,11 @@ Este documento tiene dos partes con garantías muy distintas:
   escribió esto — no hay promesa de que el framework la actualice. Trátalo como el punto de
   partida de TU proyecto, no como una librería externa.
 
+> **Contrato legible por máquina:** `contract/` trae el JSON Schema de `/config` y el inventario
+> OpenAPI del BFF, generados desde el código y fijados por tests; el esquema GraphQL se vuelca de
+> cada pila con `tools/contract/graphql-introspection.mjs` (`contract/README.md`). Un agente que
+> conecta un frontend puede empezar por ahí y venir a este documento para el detalle de cada flujo.
+
 > **Smoke test del contrato:** `examples/minimal-consumer/` (script Node sin dependencias)
 > ejercita la Parte A de punta a punta contra una pila levantada — útil para verificar una
 > integración nueva o una actualización del framework.
@@ -131,6 +136,54 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
    para los webhooks firmados (`lib/api/body.ts`). Al superarlo se responde **413**
    `{ error }` sin leer el resto; un frontend que necesite más debe trocear la operación, no
    ampliar el tope.
+
+### Capa de datos del cliente (`lib/client/*`)
+
+Para un frontend que sigue la base del framework (Next.js del repo), la conversación con el BFF
+desde el navegador ya está escrita y versionada en el núcleo: **una vista nueva usa estos
+clientes y hooks, y solo pinta**. Todos llevan CSRF, el idioma de la página y el parseo de
+errores; ninguno tiene UI.
+
+| Módulo | Qué da | Lo que resuelve por ti |
+|---|---|---|
+| `lib/client/cart.tsx` | `<CartStoreProvider onItemAdded>` y `useCartStore()`: `cart`, `count`, `loading`, `error`, `addItem`, `updateItem`, `removeItem`, `clear`, `refresh`, cupones, tarifa, destino y `run(acción)` para mutaciones propias que devuelven el carrito | Mutaciones superpuestas que llegan fuera de orden (gana la última disparada); carga inicial sin parpadeo; un cuerpo que no es un carrito no rompe la vista |
+| `lib/client/auth.ts` | `authApi.login` (→ `signed-in` o `two-factor` con su token), `verifyTwoFactor`, `register`, `logout`, `forgotPassword`, `resetPassword` | La forma de cada petición y la lectura del 2FA |
+| `lib/client/checkout.ts` | `usePlaceOrder()` y `checkoutApi.placeOrder` / `startPayment` | Un envío a la vez y la misma `Idempotency-Key` en los reintentos (nueva tras un pedido creado); el cobro nunca lanza (`none` → la vista de «gracias» ofrece reintentar) |
+| `lib/client/bff-error.ts` | `BffError` (`message`, `status`, `details`, `field(nombre)`) y `readBff` | Colocar cada error del 422 bajo su campo |
+| `lib/client/store-api.ts`, `loyalty.ts`, `wishlist.ts`, `csrf.ts` | Clientes de carrito, reseñas, fidelización, deseos y `csrfFetch` para lo demás | — |
+
+`usePlaceOrder().pending` cubre solo la petición: si tu flujo sigue (redirección al cobro),
+mantén el botón bloqueado hasta navegar, como hace `components/checkout/checkout-form.tsx`. Lo
+visual (un cajón que se abre al añadir, la analítica) va en la vista: el starter lo hace en
+`components/cart/cart-context.tsx`, una capa de 60 líneas sobre `useCartStore`.
+
+### Rutas BFF de la instancia (`app/api/instance/**`)
+
+Lo que una instancia necesita escribir o leer en privado y el núcleo no trae (devoluciones,
+exportación de datos, un webhook de mensajería…) va en `frontend/src/app/api/instance/**`: carpeta
+**de la instancia** (`tools/boundaries.json`) que cuelga de `/api`, así que hereda del proxy la
+barrera de Origin, el refresco del JWT, la ausencia de prefijo de idioma y el `Disallow` de
+`robots.txt`. No las pongas bajo `app/[locale]/`: ahí next-intl las reescribe y el proxy no las
+trata como API.
+
+- **Rutas normales:** cada método se exporta con `instanceRoute(options, handler)`
+  (`lib/api/instance-route.ts`). Opciones: `module` y `flag` (apagados → 404), `guard` (opciones de
+  `guardMutation`, que se aplica siempre a `POST`/`PUT`/`PATCH`/`DELETE`) y `session`
+  (`"required"` → 401 sin sesión; `"optional"` → `session` puede ser `null`). El handler recibe
+  `{ request, config, session, params }`; la respuesta sale con `Cache-Control: no-store` salvo que
+  fije otro, y una excepción sale por `handleApiError` con el evento `instance_route.error`.
+- **Rutas públicas de máquina:** `/api/instance/public/<nombre>` (un segmento), para lo que llaman
+  agentes o servidores ajenos sin Origin ni firma (p. ej. un servidor MCP de catálogo de solo
+  lectura). El proxy las exime de la barrera de Origin; a cambio no pueden leer la sesión ni las
+  cookies (lo exige `tests/unit/signed-routes.test.ts`). Con `instanceRoute({ public: true, guard:
+  { rateLimit } })` llevan tope de cuerpo y límite por IP en vez de `guardMutation`.
+- **Webhooks:** `/api/instance/webhooks/<nombre>` (un segmento). El proxy los exime de la barrera
+  de Origin; a cambio deben verificar su firma antes de actuar (`verifyHmacSignature`), y
+  `tests/unit/signed-routes.test.ts` lo exige a cada `route.ts` que cuelgue de ahí.
+- El cliente las llama como al resto del BFF: `credentials: "include"` y `X-CSRF-Token` en
+  escrituras (`csrfFetch` de `lib/client/csrf.ts`).
+
+Ejemplo vivo: `examples/instance-minimal/frontend/src/app/api/instance/example/route.ts`.
 
 ### Pagos: medios, pasarela y confirmación
 

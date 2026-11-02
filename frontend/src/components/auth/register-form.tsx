@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { csrfFetch } from "@/lib/client/csrf";
+import { authApi } from "@/lib/client/auth";
+import { BffError } from "@/lib/client/bff-error";
 import { normalizePhoneE164 } from "@/lib/auth/phone";
 import { PasswordField } from "./password-field";
 import { withReturn } from "@/lib/navigation/safe-return";
@@ -69,29 +70,28 @@ export function RegisterForm({
       return;
     }
     try {
-      const res = await csrfFetch("/api/auth/register", {
-        method: "POST",
-        body: {
-          username: String(form.get("username") ?? ""),
-          email: String(form.get("email") ?? ""),
-          password,
-          ...(phone ? { phone } : {}),
-          ...(identity && documentTypes.length > 0
-            ? { identity: { documentType, documentNumber } }
-            : {}),
-          ...(identity ? { terms_accepted: termsAccepted } : {}),
-          locale,
-        },
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          details?: { identity?: string[]; terms_accepted?: string[] };
-        };
+      try {
+        await authApi.register(
+          {
+            username: String(form.get("username") ?? ""),
+            email: String(form.get("email") ?? ""),
+            password,
+            ...(phone ? { phone } : {}),
+            ...(identity && documentTypes.length > 0
+              ? { identity: { documentType, documentNumber } }
+              : {}),
+            ...(identity ? { terms_accepted: termsAccepted } : {}),
+            locale,
+          },
+          tRegister("error"),
+        );
+      } catch (err) {
         // Un documento de otra cuenta o inválido: el error va bajo su campo.
-        setIdentityError(data.details?.identity?.[0] ?? null);
-        setTermsError(data.details?.terms_accepted ? tForm("termsRequired") : null);
-        throw new Error(data.error || tRegister("error"));
+        if (err instanceof BffError) {
+          setIdentityError(err.field("identity"));
+          setTermsError(err.field("terms_accepted") ? tForm("termsRequired") : null);
+        }
+        throw err;
       }
       router.push(returnTo);
       router.refresh();

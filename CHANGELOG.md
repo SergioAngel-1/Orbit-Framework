@@ -6,6 +6,50 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **Frontera núcleo/instancia en un solo manifiesto (`tools/boundaries.json`).** Lo leen la regla de
+  ESLint y la nueva comprobación de actualización; un test exige que todo fichero versionado tenga
+  dueño y que `docs/UPGRADE.md` §1 no diverja. Una instancia declara sus rutas propias en
+  `tools/boundaries.local.json`.
+- **`node tools/upgrade-check.mjs vX.Y.Z`.** Prueba el merge de una release en una rama temporal sin
+  tocar el árbol, avisa de los archivos del núcleo editados en la instancia y clasifica cada
+  conflicto (instancia, zona gris, núcleo). Sustituye a los scripts que cada instancia escribía por su
+  cuenta, que no conocían `components/**` y fallaban con cambios del starter.
+- **Contrato legible por máquina en `contract/`.** `config.schema.json` (JSON Schema de `/config`,
+  generado desde `Schema.php` con los grupos de `loyalty`, `memberships` y `shipping`) y
+  `bff.openapi.json` (OpenAPI 3.1 de las rutas del BFF con las guardas de cada método), fijados por
+  `ContractTest.php`, `contract-config.test.ts` y `contract-bff.test.ts`. `wp hwe contract
+  config-schema` da el de una pila concreta, `wp hwe contract instance-types` genera los tipos de
+  `SiteConfig.instance` (ya no se escriben a mano) y `tools/contract/graphql-introspection.mjs` vuelca
+  el esquema GraphQL.
+- **Capa de datos del cliente en el núcleo (`lib/client/*`).** `useCartStore` / `CartStoreProvider`
+  (el estado del carrito con el orden de las mutaciones resuelto y `run` para mutaciones propias),
+  `authApi` (login con 2FA, registro, recuperación, salida), `usePlaceOrder` / `checkoutApi` (un
+  envío a la vez e `Idempotency-Key` estable en los reintentos) y `BffError` con los errores por
+  campo. Las vistas del starter (`cart-context`, formularios de auth, checkout) pasan a usarlos y se
+  quedan solo con lo visual; su API no cambia.
+- **Rutas BFF de la instancia en `app/api/instance/**` con `instanceRoute`.** Carpeta reservada que
+  hereda del proxy el trato de `/api` (Origin, JWT, sin idioma, fuera de robots) y un envoltorio con
+  las guardas del núcleo en su orden (módulo, flag, `guardMutation`, sesión, `no-store`, errores).
+  Los webhooks de la instancia van en `/api/instance/webhooks/<nombre>`, exentos de Origin y
+  obligados a verificar su firma, y las rutas públicas de máquina (un servidor MCP, por ejemplo) en
+  `/api/instance/public/<nombre>`, exentas de Origin y sin acceso a la sesión. Antes, las instancias colgaban sus rutas de `app/[locale]/`, donde
+  next-intl las reescribía y el proxy no les aplicaba la barrera de Origin.
+- **`tools/create-instance.sh`: alta de una instancia con un comando.** Automatiza las secciones 2–7 de
+  `docs/CREATE_INSTANCE.md` (entorno y puertos, secretos, `instance.config.json`, plugin `hwe-instance-<slug>`
+  y override de Docker con `--plugin`; pila y comprobación con `--up`). Idempotente, con `--dry-run`. Prueba:
+  `tools/tests/create-instance.test.sh`.
+- **`tools/doctor.mjs`: comprobación de integración contra una pila levantada.** Siete checks: origen de
+  `brand.url` frente al frontend, salud del BFF, token CSRF, recuperación de contraseña (un 5xx indica el
+  origen mal configurado), robots y sitemap (404 y redirecciones), JSON-LD de la primera ficha de producto y
+  404 real frente a «soft 404». Sin dependencias; sale con 1 si hay algún fallo. Prueba:
+  `frontend/tests/unit/doctor.test.ts`.
+
+### Fixed
+- **`generate-secrets.sh` escribe `HWE_REVALIDATION_SECRET` también en `frontend/.env.local`.** Solo lo
+  ponía en la raíz y, en modo híbrido, el BFF se quedaba con el placeholder: WordPress (`hwe-bff-only`)
+  respondía 404 a todo. Si la raíz ya tiene uno propio, se reutiliza sin rotarlo.
+
 ## [2.4.0] — 2026-10-30
 
 La versión salta a 2.4.0 para coincidir con `HWE_CORE_CONTRACT_VERSION`; no hubo una 2.3.0. Cada sitio

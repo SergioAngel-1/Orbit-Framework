@@ -1,159 +1,62 @@
 "use client";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import { cartApi, type ShippingDestination } from "@/lib/client/store-api";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { CartStoreProvider, useCartStore, type CartStore } from "@/lib/client/cart";
 import { trackEvent } from "@/components/analytics/track-event";
 import { addToCartParams } from "@/lib/analytics/ecommerce";
-import type { ItemExtensions, StoreCart } from "@/types/woocommerce";
+import type { StoreCart } from "@/types/woocommerce";
 
 // ============================================================================
-//  Estado global del carrito (cliente). El carrito real vive en el servidor
-//  (Store API vía BFF); aquí mantenemos una copia para la UI.
-//  También gestiona el estado del CartDrawer (mini-cart deslizante).
+//  Carrito de la vista heredada: el estado y las mutaciones son del núcleo
+//  (`lib/client/cart`, `useCartStore`); aquí solo se añade lo visual: el
+//  CartDrawer (mini-cart deslizante) y el evento de analítica al añadir.
 // ============================================================================
 
-interface CartState {
-  cart: StoreCart | null;
-  count: number;
-  loading: boolean;
-  error: string | null;
+interface CartState extends Omit<CartStore, "run"> {
   drawerOpen: boolean;
   openDrawer: () => void;
   closeDrawer: () => void;
   toggleDrawer: () => void;
-  /** `extensions`: detalles de la línea declarados por la instancia (`order-item-details`). */
-  addItem: (
-    id: number,
-    quantity?: number,
-    extensions?: ItemExtensions,
-  ) => Promise<void>;
-  updateItem: (key: string, quantity: number) => Promise<void>;
-  removeItem: (key: string) => Promise<void>;
-  clear: () => Promise<void>;
-  refresh: () => Promise<void>;
-  applyCoupon: (code: string) => Promise<void>;
-  removeCoupon: (code: string) => Promise<void>;
-  selectShippingRate: (packageId: number, rateId: string) => Promise<void>;
-  /** Módulo `shipping`: fija la ciudad de destino y recalcula las tarifas. */
-  setShippingDestination: (destination: ShippingDestination) => Promise<void>;
 }
 
-const CartContext = createContext<CartState | null>(null);
+const DrawerContext = createContext<{
+  open: boolean;
+  setOpen: (update: (open: boolean) => boolean) => void;
+} | null>(null);
 
 export function useCart(): CartState {
-  const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart debe usarse dentro de <CartProvider>.");
-  return ctx;
+  const store = useCartStore();
+  const drawer = useContext(DrawerContext);
+  if (!drawer) throw new Error("useCart debe usarse dentro de <CartProvider>.");
+  return {
+    ...store,
+    drawerOpen: drawer.open,
+    openDrawer: () => drawer.setOpen(() => true),
+    closeDrawer: () => drawer.setOpen(() => false),
+    toggleDrawer: () => drawer.setOpen((open) => !open),
+    // Abrir el cajón al añadir, también si falló: enseña el error del carrito.
+    addItem: (id, quantity, extensions) =>
+      store.addItem(id, quantity, extensions).then(() => drawer.setOpen(() => true)),
+  };
+}
+
+/** Evento de analítica con LO AÑADIDO (no-op sin consentimiento/proveedor). */
+function trackAdded(cart: StoreCart, productId: number, quantity: number) {
+  const params = addToCartParams(cart, productId, quantity);
+  if (params) trackEvent("add_to_cart", params);
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [cart, setCart] = useState<StoreCart | null>(null);
-  // Arranca en carga: el carrito real todavía no se ha leído del servidor. Así
-  // el efecto de montaje no tiene que encender el flag de forma síncrona.
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  // Mutaciones superpuestas (doble clic en «+», cambiar de cantidad dos veces)
-  // pueden RESOLVERSE fuera de orden. Gana siempre la que se DISPARÓ última: la
-  // respuesta de una anterior que llega tarde se descarta, o el cajón enseñaba
-  // un carrito que ya no es el del servidor.
-  const requestIdRef = useRef(0);
-
-  const refresh = useCallback(async () => {
-    const requestId = ++requestIdRef.current;
-    const isLatest = () => requestId === requestIdRef.current;
-    setLoading(true);
-    try {
-      const result = await cartApi.get();
-      if (isLatest()) setCart(result);
-    } catch {
-      /* carrito no disponible: se reintenta en la próxima acción */
-    } finally {
-      if (isLatest()) setLoading(false);
-    }
-  }, []);
-
-  // Carga inicial del carrito. Equivale a `refresh()` pero sin llamar a una
-  // función que hace `setState` en el cuerpo síncrono del efecto: la respuesta
-  // se aplica en el `.then` (asíncrono) y `active` descarta el resultado si el
-  // provider se desmontó. El mismo guard de orden que las mutaciones evita que
-  // una respuesta vieja pise a otra más reciente.
-  useEffect(() => {
-    let active = true;
-    const requestId = ++requestIdRef.current;
-    const isLatest = () => active && requestId === requestIdRef.current;
-    void cartApi
-      .get()
-      .then((result) => {
-        if (isLatest()) setCart(result);
-      })
-      .catch(() => {
-        /* carrito no disponible: se reintenta en la próxima acción */
-      })
-      .finally(() => {
-        if (isLatest()) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const run = useCallback(async (action: () => Promise<StoreCart>) => {
-    const requestId = ++requestIdRef.current;
-    const isLatest = () => requestId === requestIdRef.current;
-    setError(null);
-    setLoading(true);
-    try {
-      const result = await action();
-      if (isLatest()) setCart(result);
-    } catch (e) {
-      if (isLatest()) {
-        setError(e instanceof Error ? e.message : "Error en el carrito.");
-      }
-    } finally {
-      if (isLatest()) setLoading(false);
-    }
-  }, []);
-
-  const value: CartState = {
-    cart,
-    count: cart?.items_count ?? 0,
-    loading,
-    error,
-    drawerOpen,
-    openDrawer: () => setDrawerOpen(true),
-    closeDrawer: () => setDrawerOpen(false),
-    toggleDrawer: () => setDrawerOpen((o) => !o),
-    addItem: (id, quantity = 1, extensions) =>
-      run(async () => {
-        const updated = await cartApi.addItem(id, quantity, extensions);
-        // Evento de analítica con LO AÑADIDO, leído del carrito que devolvió el
-        // servidor (no-op sin consentimiento/proveedor). Solo si la petición salió bien.
-        const params = addToCartParams(updated, id, quantity);
-        if (params) trackEvent("add_to_cart", params);
-        return updated;
-      }).then(() => {
-        // Abrir el drawer automáticamente al añadir al carrito
-        setDrawerOpen(true);
-      }),
-    updateItem: (key, quantity) => run(() => cartApi.updateItem(key, quantity)),
-    removeItem: (key) => run(() => cartApi.removeItem(key)),
-    clear: () => run(() => cartApi.clear()),
-    refresh,
-    applyCoupon: (code) => run(() => cartApi.applyCoupon(code)),
-    removeCoupon: (code) => run(() => cartApi.removeCoupon(code)),
-    selectShippingRate: (pkg, rate) => run(() => cartApi.selectShippingRate(pkg, rate)),
-    setShippingDestination: (destination) =>
-      run(() => cartApi.setShippingDestination(destination)),
-  };
-
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  const [open, setOpenState] = useState(false);
+  const drawer = useMemo(
+    () => ({
+      open,
+      setOpen: (update: (open: boolean) => boolean) => setOpenState(update),
+    }),
+    [open],
+  );
+  return (
+    <CartStoreProvider onItemAdded={trackAdded}>
+      <DrawerContext.Provider value={drawer}>{children}</DrawerContext.Provider>
+    </CartStoreProvider>
+  );
 }

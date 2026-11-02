@@ -1,0 +1,1068 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Orbit BFF",
+    "version": "2.4.0",
+    "description": "Inventario de las rutas del BFF (Next.js Route Handlers) generado desde el código por tools/contract/bff-openapi.mjs; no se edita a mano. Sesión en cookies httpOnly; toda escritura con x-hwe-csrf exige el token de GET /api/csrf en X-CSRF-Token y un Origin permitido. Las x-hwe-* describen lo que cada método consulta antes de su negocio: x-hwe-module (apagado → 404), x-hwe-flag (flags que lee; casi siempre apagado → 404, ver la fuente), x-hwe-session (required → 401 sin sesión; read → la lee y decide) y x-hwe-auth: signature (webhook firmado, sin CSRF)."
+  },
+  "paths": {
+    "/api/auth/2fa/activate": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/2fa/activate/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/2fa/disable": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/2fa/disable/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/2fa/qr": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/auth/2fa/qr/route.ts",
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/2fa/setup": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/2fa/setup/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/2fa/status": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/auth/2fa/status/route.ts",
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/change-password/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/forgot-password": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/forgot-password/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/login/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/logout/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/logout-all": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/logout-all/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/auth/me/route.ts",
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/refresh/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/register/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/resend-verification": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/resend-verification/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/reset-password": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/reset-password/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/verify-2fa": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/verify-2fa/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/auth/verify-email": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/auth/verify-email/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/blog/posts": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/blog/posts/route.ts",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/consent": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/consent/route.ts",
+        "x-hwe-module": [
+          "consent-log"
+        ],
+        "x-hwe-csrf": false,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/consent-stats": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/consent-stats/route.ts",
+        "x-hwe-module": [
+          "consent-log"
+        ],
+        "x-hwe-csrf": false,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/consent-stats/route.ts",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/contact": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/contact/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/coupons/used-up": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/coupons/used-up/route.ts",
+        "x-hwe-module": [
+          "coupon-rules"
+        ],
+        "x-hwe-flag": [
+          "coupons_enabled"
+        ],
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/csrf": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/csrf/route.ts",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/health/live": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/health/live/route.ts",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/health/route.ts",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/icon": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/icon/route.tsx",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/loyalty/referral-link": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/loyalty/referral-link/route.ts",
+        "x-hwe-module": [
+          "loyalty"
+        ],
+        "x-hwe-loyalty-feature": [
+          "referrals"
+        ],
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/loyalty/referrals": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/loyalty/referrals/route.ts",
+        "x-hwe-module": [
+          "loyalty"
+        ],
+        "x-hwe-loyalty-feature": [
+          "referrals"
+        ],
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/loyalty/summary": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/loyalty/summary/route.ts",
+        "x-hwe-module": [
+          "loyalty"
+        ],
+        "x-hwe-loyalty-feature": [
+          "points"
+        ],
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/loyalty/transactions": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/loyalty/transactions/route.ts",
+        "x-hwe-module": [
+          "loyalty"
+        ],
+        "x-hwe-loyalty-feature": [
+          "points"
+        ],
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/loyalty/transfer": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/loyalty/transfer/route.ts",
+        "x-hwe-module": [
+          "loyalty"
+        ],
+        "x-hwe-loyalty-feature": [
+          "transfers"
+        ],
+        "x-hwe-csrf": true,
+        "x-hwe-session": "read",
+        "x-hwe-idempotency-key": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/loyalty/validate-code": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/loyalty/validate-code/route.ts",
+        "x-hwe-module": [
+          "loyalty"
+        ],
+        "x-hwe-loyalty-feature": [
+          "referrals"
+        ],
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/memberships/card": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/memberships/card/route.ts",
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/memberships/history": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/memberships/history/route.ts",
+        "x-hwe-module": [
+          "memberships"
+        ],
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/memberships/levels": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/memberships/levels/route.ts",
+        "x-hwe-module": [
+          "memberships"
+        ],
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/memberships/me": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/memberships/me/route.ts",
+        "x-hwe-module": [
+          "memberships"
+        ],
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/memberships/prices": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/memberships/prices/route.ts",
+        "x-hwe-module": [
+          "memberships"
+        ],
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/memberships/products/{slug}": {
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/memberships/products/[slug]/route.ts",
+        "x-hwe-module": [
+          "memberships"
+        ],
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/memberships/verify/{token}": {
+      "parameters": [
+        {
+          "name": "token",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/memberships/verify/[token]/route.ts",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/og": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/og/route.tsx",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/payments/create": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/payments/create/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/payments/return": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/payments/return/route.ts",
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/payments/webhook/{provider}": {
+      "parameters": [
+        {
+          "name": "provider",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/payments/webhook/[provider]/route.ts",
+        "x-hwe-auth": "signature",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/revalidate": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/revalidate/route.ts",
+        "x-hwe-auth": "signature",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/shipping/geocode": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/shipping/geocode/route.ts",
+        "x-hwe-module": [
+          "shipping"
+        ],
+        "x-hwe-csrf": true,
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/shipping/reverse-geocode": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/shipping/reverse-geocode/route.ts",
+        "x-hwe-module": [
+          "shipping"
+        ],
+        "x-hwe-csrf": true,
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/addresses": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/store/addresses/route.ts",
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/store/addresses/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "put": {
+        "x-hwe-source": "frontend/src/app/api/store/addresses/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "delete": {
+        "x-hwe-source": "frontend/src/app/api/store/addresses/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/cart/free-delivery": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/store/cart/free-delivery/route.ts",
+        "x-hwe-module": [
+          "memberships"
+        ],
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "delete": {
+        "x-hwe-source": "frontend/src/app/api/store/cart/free-delivery/route.ts",
+        "x-hwe-module": [
+          "memberships"
+        ],
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/cart/items": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/store/cart/items/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "patch": {
+        "x-hwe-source": "frontend/src/app/api/store/cart/items/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "delete": {
+        "x-hwe-source": "frontend/src/app/api/store/cart/items/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/cart/points": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/store/cart/points/route.ts",
+        "x-hwe-module": [
+          "loyalty"
+        ],
+        "x-hwe-loyalty-feature": [
+          "points"
+        ],
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "delete": {
+        "x-hwe-source": "frontend/src/app/api/store/cart/points/route.ts",
+        "x-hwe-module": [
+          "loyalty"
+        ],
+        "x-hwe-loyalty-feature": [
+          "points"
+        ],
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/cart": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/store/cart/route.ts",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "delete": {
+        "x-hwe-source": "frontend/src/app/api/store/cart/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/checkout": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/store/checkout/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "read",
+        "x-hwe-idempotency-key": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/coupons": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/store/coupons/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "delete": {
+        "x-hwe-source": "frontend/src/app/api/store/coupons/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/customer": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/store/customer/route.ts",
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "put": {
+        "x-hwe-source": "frontend/src/app/api/store/customer/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/free-shipping/scope": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/store/free-shipping/scope/route.ts",
+        "x-hwe-module": [
+          "shipping"
+        ],
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/orders/{id}/received": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/store/orders/[id]/received/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/orders/{id}/reorder": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/store/orders/[id]/reorder/route.ts",
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/orders/{id}/review": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/store/orders/[id]/review/route.ts",
+        "x-hwe-module": [
+          "site-reviews"
+        ],
+        "x-hwe-csrf": true,
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/orders/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/store/orders/[id]/route.ts",
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/products": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/store/products/route.ts",
+        "x-hwe-flag": [
+          "wishlist_enabled",
+          "search_enabled"
+        ],
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/reviews/{productId}": {
+      "parameters": [
+        {
+          "name": "productId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/store/reviews/[productId]/route.ts",
+        "x-hwe-flag": [
+          "reviews_enabled"
+        ],
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/store/reviews/[productId]/route.ts",
+        "x-hwe-flag": [
+          "reviews_enabled"
+        ],
+        "x-hwe-csrf": true,
+        "x-hwe-session": "read",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/shipping/destination": {
+      "put": {
+        "x-hwe-source": "frontend/src/app/api/store/shipping/destination/route.ts",
+        "x-hwe-module": [
+          "shipping"
+        ],
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/shipping": {
+      "put": {
+        "x-hwe-source": "frontend/src/app/api/store/shipping/route.ts",
+        "x-hwe-csrf": true,
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/store/wishlist": {
+      "get": {
+        "x-hwe-source": "frontend/src/app/api/store/wishlist/route.ts",
+        "x-hwe-flag": [
+          "wishlist_enabled"
+        ],
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/store/wishlist/route.ts",
+        "x-hwe-flag": [
+          "wishlist_enabled"
+        ],
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      },
+      "delete": {
+        "x-hwe-source": "frontend/src/app/api/store/wishlist/route.ts",
+        "x-hwe-flag": [
+          "wishlist_enabled"
+        ],
+        "x-hwe-csrf": true,
+        "x-hwe-session": "required",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/webhooks/woocommerce/order-created": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/webhooks/woocommerce/order-created/route.ts",
+        "x-hwe-auth": "signature",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    },
+    "/api/webhooks/woocommerce/order-updated": {
+      "post": {
+        "x-hwe-source": "frontend/src/app/api/webhooks/woocommerce/order-updated/route.ts",
+        "x-hwe-auth": "signature",
+        "responses": {
+          "default": {
+            "description": "Ver x-hwe-source y docs/FRONTEND_CONNECT.md §A.2."
+          }
+        }
+      }
+    }
+  }
+}

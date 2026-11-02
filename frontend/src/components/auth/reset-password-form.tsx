@@ -3,7 +3,7 @@ import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useState } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { csrfFetch } from "@/lib/client/csrf";
+import { authApi } from "@/lib/client/auth";
 import { PasswordField } from "./password-field";
 
 interface Props {
@@ -37,14 +37,7 @@ export function ResetPasswordForm({ resetKey, login }: Props) {
     }
 
     try {
-      const res = await csrfFetch("/api/auth/reset-password", {
-        method: "POST",
-        body: { key: resetKey, login, password },
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error || t("error"));
-      }
+      await authApi.resetPassword({ key: resetKey, login, password }, t("error"));
       router.push("/login");
       router.refresh();
     } catch (err) {

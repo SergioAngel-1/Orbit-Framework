@@ -91,4 +91,5 @@ add_action(
 // ---------------------------------------------------------------------------
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
 	WP_CLI::add_command( 'hwe setup', [ HWE\ControlCenter\Cli::class, 'setup' ] );
+	WP_CLI::add_command( 'hwe contract', [ HWE\ControlCenter\Cli::class, 'contract' ] );
 }

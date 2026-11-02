@@ -250,6 +250,11 @@ oscuro.
 | `QuantityCounter` | Selector de cantidad (carrito, ficha de producto) |
 | `DarkModeToggle` | Ya integrado en `SiteHeader`, que lo omite con un `design.color_scheme` fijo; solo lo tocas si rediseñas el header |
 
+La **capa de datos** también es del núcleo y es obligatoria: el carrito (`useCartStore`), la
+sesión (`authApi`) y el checkout (`usePlaceOrder`, `checkoutApi`) de `lib/client/*`
+(`docs/FRONTEND_CONNECT.md`, «Capa de datos del cliente»). Una vista nueva los usa y solo pinta;
+no vuelvas a escribir `fetch` contra el BFF para esto.
+
 Junto con estos componentes, son igual de obligatorios los **patrones** de
 `docs/FRONTEND_CONNECT.md` Parte A: `getSiteConfig()` como única fuente de marca, el gating por
 `config.ecommerce.*_enabled`, y `Link`/`redirect` de `@/i18n/navigation` en vez de `next/*`.

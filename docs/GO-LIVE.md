@@ -148,3 +148,7 @@ frontend, wp-cron y backup. Queda pendiente, y conviene probarlo en staging:
       una pasarela de sandbox real.
 - [ ] Recorrido manual: registro → (2FA opcional) → carrito → checkout → pago → pedido visible en cuenta.
 - [ ] Cabeceras de seguridad presentes (CSP, HSTS en prod) y `/wp-admin` accesible solo por HTTPS.
+- [ ] `node tools/doctor.mjs --frontend https://<dominio> --wordpress <url-de-WordPress>` sin ningún
+      `fail`. Ejecútalo desde un host que alcance WordPress (en producción no está publicado): el
+      check 1 necesita `HWE_REVALIDATION_SECRET` (del entorno o de `.env`) y `brand.url` debe ser el
+      mismo origen HTTPS del frontend.
