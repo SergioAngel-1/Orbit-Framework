@@ -67,8 +67,8 @@ describe("CartProvider", () => {
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise);
 
-    let a!: Promise<void>;
-    let b!: Promise<void>;
+    let a!: Promise<boolean>;
+    let b!: Promise<boolean>;
     await act(async () => {
       a = current.updateItem("k", 2);
       b = current.updateItem("k", 5);
@@ -92,7 +92,7 @@ describe("CartProvider", () => {
       .mockReturnValueOnce(first.promise)
       .mockRejectedValueOnce(new Error("sin stock"));
 
-    let a!: Promise<void>;
+    let a!: Promise<boolean>;
     await act(async () => {
       a = current.updateItem("k", 2);
       await current.updateItem("k", 99);
@@ -114,7 +114,7 @@ describe("CartProvider", () => {
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise);
 
-    let b!: Promise<void>;
+    let b!: Promise<boolean>;
     await act(async () => {
       void current.updateItem("k", 2);
       b = current.updateItem("k", 5);

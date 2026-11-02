@@ -20,6 +20,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   mutación (un `BffError` con estado, código y cuerpo en las de serie, o el fallo propio de una
   acción de `run`) y `readError` el fallo de la última lectura del carrito, que antes se tragaba.
   `error` sigue siendo el texto. `cartApi` lanza `BffError` con el mismo mensaje que antes.
+- **`useCartStore()`: las mutaciones devuelven `Promise<boolean>`, `afterAdd` y `run(…, { silent })`.**
+  `addItem`, `updateItem`, `removeItem`, `clear`, cupones, tarifa y destino resuelven `true` si el
+  servidor las aceptó (antes `void`). `<CartStoreProvider afterAdd>` ajusta el carrito dentro del
+  alta, antes de darla por buena y de `onItemAdded` (si falla, el alta vale y su error queda en
+  `failure`). `run(acción, { silent: true })` deja un fallo propio solo en `failure`, sin `error`.
 - **`authApi.verifyTwoFactor` admite el código de recuperación** (`{ recoveryCode }` en lugar del
   TOTP), que `/api/auth/verify-2fa` ya aceptaba.
 - **`authApi.logout()` devuelve `true` si cerró la sesión.** Antes ignoraba la respuesta: un 403 o
