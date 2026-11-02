@@ -12,7 +12,7 @@
 El framework es **backend + arquitectura**; la UI y el dominio de cada tienda son de la
 instancia (`AGENTS.md §1.1`). El código de una instancia vive en rutas RESERVADAS que el
 framework nunca toca, y se engancha al núcleo por hooks estables, versionados por
-`HWE_CORE_CONTRACT_VERSION` (hoy `2.5.0`):
+`HWE_CORE_CONTRACT_VERSION` (hoy `2.6.0`):
 
 | Lado | Ruta de instancia | Qué va ahí |
 |---|---|---|
@@ -39,6 +39,7 @@ de terceros del volumen `wordpress_content`. En producción el compose monta
 |---|---|---|
 | `hwe_control_center_schema` | filtro | Añadir campos, solo dentro del grupo `instance`. Una clave raíz nueva se descarta y un grupo del núcleo eliminado se restaura (ambos se registran). |
 | `hwe_control_center_field_types` | filtro | Registrar tipos de campo propios (desde la tarea 26). |
+| `hwe_contract_field_schema` | filtro | Declarar el JSON Schema del valor de un tipo de campo propio (`($schema, $type, $node)` → `['type' => …]`, `enum`, `items`, `properties`), que usan `wp hwe contract config-schema` e `instance-types`. Solo se consulta para tipos sin traducción del núcleo; sin declararlo, el tipo sale `unknown`. |
 | `hwe_control_center_saved` | acción | Reaccionar al guardado: `($publicData, $rawPost)`. Sustituye a las acciones con nombre de instancia; `AdminPage` ya no lee claves del POST fuera del schema. |
 | `hwe_revalidation_tags` | filtro | Declarar tags ISR propios (el frontend debe declararlos también en `registry.ts`). |
 | `hwe_geo_packs` | filtro | Añadir o sustituir paquetes por país (divisiones, ciudades, documentos, prefijo); ver `docs/FRONTEND_CONNECT.md` «Paquetes por país». |

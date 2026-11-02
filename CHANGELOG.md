@@ -6,6 +6,83 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.6.0] — 2026-11-02
+
+Cierra los huecos que encontró la primera instancia al integrar la 2.5.0. Las imágenes que el BFF lee
+por wc/v3 vuelven a cargar en un sitio `http` (y el doctor lo comprueba), la capa de datos del cliente
+expone los fallos que antes se perdían, el contrato de máquina describe bien los tipos propios, las
+rutas públicas y los límites, y los tests y E2E del núcleo dejan de marcar como deriva la redacción y
+los rediseños de la instancia. Sin cambios incompatibles de contrato; lo observable está en
+`docs/UPGRADE.md` §3.9. `HWE_CORE_CONTRACT_VERSION` pasa a `2.6.0` (filtro nuevo
+`hwe_contract_field_schema`).
+
+### Added
+- **`tools/doctor.mjs` comprueba las imágenes del BFF (check 8).** Pide `/api/store/products` (WPGraphQL)
+  y su forma `?include=` (wc/v3) y pasa cada `image.sourceUrl` por el `/_next/image` del propio
+  frontend: un 400 es una URL que no casa con `remotePatterns` (`WORDPRESS_PUBLIC_URL`). Habría
+  detectado el esquema `https` de la medioteca en un sitio `http`.
+
+- **`BffError.body`: el cuerpo entero del error del BFF.** `readBff` (y con él `authApi` y
+  `usePlaceOrder`) conserva los campos propios de la ruta (`reason`, el estado de un pedido…) que
+  antes se perdían; un checkout que explica el fallo ya no tiene que releer la respuesta. Nuevo
+  parámetro opcional al final del constructor: la firma anterior sigue valiendo.
+- **`useCartStore()` expone el fallo, no solo su texto.** `failure` es lo que lanzó la última
+  mutación (un `BffError` con estado, código y cuerpo en las de serie, o el fallo propio de una
+  acción de `run`) y `readError` el fallo de la última lectura del carrito, que antes se tragaba.
+  `error` sigue siendo el texto. `cartApi` lanza `BffError` con el mismo mensaje que antes.
+- **`useCartStore()`: las mutaciones devuelven `Promise<boolean>`, `afterAdd` y `run(…, { silent })`.**
+  `addItem`, `updateItem`, `removeItem`, `clear`, cupones, tarifa y destino resuelven `true` si el
+  servidor las aceptó (antes `void`). `<CartStoreProvider afterAdd>` ajusta el carrito dentro del
+  alta, antes de darla por buena y de `onItemAdded` (si falla, el alta vale y su error queda en
+  `failure`). `run(acción, { silent: true })` deja un fallo propio solo en `failure`, sin `error`.
+- **`authApi.verifyTwoFactor` admite el código de recuperación** (`{ recoveryCode }` en lugar del
+  TOTP), que `/api/auth/verify-2fa` ya aceptaba.
+- **`authApi.logout()` devuelve `true` si cerró la sesión.** Antes ignoraba la respuesta: un 403 o
+  un 429 dejaban las cookies puestas y la vista no podía saberlo.
+- **Filtro `hwe_contract_field_schema`: el tipo JSON de un tipo de campo propio.** `wp hwe contract
+  instance-types` sacaba `unknown` para cualquier tipo de la instancia; ahora la instancia declara su
+  JSON Schema (escalares, uniones, `enum`, `array`, `object`) y sale tipado en TypeScript y en
+  `config-schema`. Solo se consulta para tipos sin traducción del núcleo. Los tipos del núcleo
+  `image`, `file`, `pairs` y `product_multiselect`, que se publican como texto, salen ya como
+  `string` (`contract/config.schema.json` regenerado).
+
+### Fixed
+- **Las imágenes que el BFF lee por wc/v3 vuelven a cargar en un sitio `http`.** `wcFetch` manda
+  `X-Forwarded-Proto: https` para que WooCommerce acepte las credenciales ck/cs por la red interna, y
+  WordPress pasaba entonces las URL de la medioteca a `https://`: `next/image` las rechazaba («hostname
+  … is not configured») en todo lo que sale de `/api/store/products?include=` (búsqueda, colecciones,
+  recientes, lista de deseos). El nuevo mu-plugin `hwe-media-scheme.php` devuelve al esquema de
+  `siteurl`/`home` las URL de adjuntos, `srcset` y el placeholder de WooCommerce, solo en peticiones
+  con el secreto interno y solo cuando el sitio está declarado `http`. En producción no cambia nada.
+- **`signed-routes.test.ts` analiza el AST, no el texto.** Una ruta de webhook que NO verificaba la
+  firma pasaba si un comentario citaba `verifyHmacSignature(…)`, y una correcta fallaba si un
+  comentario citaba `revalidateTag(…)` o si verificaba con un envoltorio propio de la instancia.
+  Ahora cuentan las llamadas reales, también a envoltorios locales o importados que llaman a un
+  verificador del núcleo (`tests/helpers/route-signature.ts`).
+- **`bff-openapi.mjs --include-instance` describe bien las rutas de la instancia.** Una ruta
+  `instanceRoute({ public: true })` salía con `x-hwe-csrf: true` (no aplica `guardMutation`): ahora
+  `x-hwe-csrf: false` y `x-hwe-public: true`. Lista `OPTIONS` y anota `x-hwe-rate-limit` (nombre,
+  límite, ventana y `strict`, con las constantes del módulo resueltas) en todas las rutas, también
+  en `contract/bff.openapi.json`. Lee también los límites en constantes del módulo (con `as const`, `...spread` y
+  aritmética como `15 * 60`) y las llamadas directas `rateLimit(clave, límite, ventana)`.
+- **Los tests del núcleo ya no fijan la redacción de la instancia.** `messages/**` es de la instancia,
+  pero `lib/memberships/{describe,format,server}`, `lib/loyalty/describe`, `lib/analytics/services`,
+  `api/memberships/history` y `app/_llms/build` comparaban con las frases del starter: cambiar una
+  frase obligaba a editar un test del núcleo (deriva en `upgrade-check`). Con `HWE_INSTANCE=true`
+  esas aserciones se omiten (`tests/helpers/starter-copy.ts`) y se sigue comprobando la forma; en el
+  framework se ejecutan igual que antes.
+- **Los E2E del starter (`frontend/tests/e2e/*.spec.ts`) pasan a zona gris.** Recorren vistas de
+  la instancia y su CI no los ejecuta, pero `upgrade-check` marcaba como deriva del núcleo un spec
+  adaptado a un rediseño (`blog.spec.ts`). Siguen llegando con cada release; un choque se decide a
+  mano (`docs/UPGRADE.md` §1).
+- **`upgrade-check` juzga con la frontera de la release que entra.** Usaba el `boundaries.json` que ya
+  tenía la instancia: cuando una release reclasificaba una ruta (como los E2E de arriba), la primera
+  actualización seguía avisando de una deriva que ya no lo era. Ahora lee el manifiesto de la ref
+  (más el `boundaries.local.json` de la instancia).
+- **La suite PHP del núcleo pasa con `HWE_INSTANCE=true` exportado.** `CheckAntiInstanceTest`
+  heredaba el entorno, y una instancia que exporta el interruptor (Vitest lo necesita) apagaba la
+  puerta que el test comprueba: 9 fallos. El test fija ahora el interruptor por caso.
+
 ## [2.5.0] — 2026-11-02
 
 Conectar una instancia deja de exigir leer toda la documentación y escribir herramientas propias. El
@@ -1120,7 +1197,8 @@ están corregidos arriba.
 - Fase 6 — SEO + i18n (next-intl, sitemap, hreflang, JSON-LD).
 - Fase 7 — Pagos: capa de pasarelas agnóstica (provider-agnostic) + proveedor `noop`.
 
-[Sin publicar]: https://example.com/compare/v2.5.0...HEAD
+[Sin publicar]: https://example.com/compare/v2.6.0...HEAD
+[2.6.0]: https://example.com/compare/v2.5.0...v2.6.0
 [2.5.0]: https://example.com/compare/v2.4.0...v2.5.0
 [2.4.0]: https://example.com/compare/v2.2.0...v2.4.0
 [2.2.0]: https://example.com/compare/v2.1.0...v2.2.0

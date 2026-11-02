@@ -21,8 +21,9 @@
 // ============================================================================
 
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { classify, loadBoundaries } from "./boundaries.mjs";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { classify, compileRules, loadBoundaries } from "./boundaries.mjs";
 
 /** @param {string[]} args */
 function git(args, { allowFail = false } = {}) {
@@ -68,7 +69,24 @@ if (
   );
 }
 
-const rules = loadBoundaries(root);
+/**
+ * La frontera con la que se juzga la release: la de su `tools/boundaries.json` (si una
+ * release reclasifica una ruta, la instancia no debe ver como deriva lo que ya no es
+ * núcleo) más el `boundaries.local.json` de la instancia, que se evalúa antes. Una ref sin
+ * manifiesto usa el del árbol.
+ */
+function releaseBoundaries() {
+  const shown = git(["show", `${ref}:tools/boundaries.json`], { allowFail: true });
+  if (shown.status !== 0) return loadBoundaries(root);
+  const core = compileRules(JSON.parse(shown.stdout).rules, `${ref}:tools/boundaries.json`);
+  const localFile = join(root, "tools/boundaries.local.json");
+  const local = existsSync(localFile)
+    ? compileRules(JSON.parse(readFileSync(localFile, "utf8")).rules, "tools/boundaries.local.json")
+    : [];
+  return [...local, ...core];
+}
+
+const rules = releaseBoundaries();
 
 // ── 1) Deriva respecto de la base común ──────────────────────────────────────
 const base = git(["merge-base", "HEAD", ref], {

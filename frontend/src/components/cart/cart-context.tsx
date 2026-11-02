@@ -35,7 +35,10 @@ export function useCart(): CartState {
     toggleDrawer: () => drawer.setOpen((open) => !open),
     // Abrir el cajón al añadir, también si falló: enseña el error del carrito.
     addItem: (id, quantity, extensions) =>
-      store.addItem(id, quantity, extensions).then(() => drawer.setOpen(() => true)),
+      store.addItem(id, quantity, extensions).then((ok) => {
+        drawer.setOpen(() => true);
+        return ok;
+      }),
   };
 }
 

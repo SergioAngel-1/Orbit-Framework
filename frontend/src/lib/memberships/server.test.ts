@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { starterCopy } from "../../../tests/helpers/starter-copy";
 import { logReadFailure } from "@/lib/observability/read-failure";
 import { wpFetch } from "@/lib/wordpress/internal-fetch";
 import { storeFetch } from "@/lib/woocommerce/store-client";
@@ -125,12 +126,12 @@ describe("getMembershipLevels", () => {
           {
             key: "member_discount",
             data: { key: "member_discount", percent: 10, scope: "all", categories: [] },
-            text: "10% de descuento en todo el catálogo",
+            text: starterCopy("10% de descuento en todo el catálogo"),
           },
         ],
         products: [
-          { id: 501, price: "100.00", days: 30, duration: "30 días" },
-          { id: 502, price: "50.00", days: null, duration: "Indefinida" },
+          { id: 501, price: "100.00", days: 30, duration: starterCopy("30 días") },
+          { id: 502, price: "50.00", days: null, duration: starterCopy("Indefinida") },
         ],
       },
     ]);
@@ -194,12 +195,12 @@ describe("getMembershipState", () => {
       NO_STORE,
     );
     expect(state.member_number).toBe("SOC-000123");
-    expect(state.queue[0]!.duration).toBe("30 días");
+    expect(state.queue[0]!.duration).toEqual(starterCopy("30 días"));
     expect(state.benefits[0]).toEqual({
       key: "referral_gift",
       data: { key: "referral_gift", level: 3, days: 30, max_per_period: 2 },
       state: { active: true, frozen: false, level_id: 102, gifts_remaining: 2 },
-      text: "Regala hasta 2 membresías de 30 días",
+      text: starterCopy("Regala hasta 2 membresías de 30 días"),
     });
     expect(state.purchasable[0]!.reason).toBe("membership_already_indefinite");
     expect(state.gifts).toEqual({ max: 2, used: 0, remaining: 2 });

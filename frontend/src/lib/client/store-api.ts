@@ -1,5 +1,6 @@
 "use client";
 import { csrfFetch } from "./csrf";
+import { readBff } from "./bff-error";
 import { pageLocaleHeaders } from "./page-locale";
 import type { ItemExtensions, StoreCart } from "@/types/woocommerce";
 import type { ReorderSummary } from "@/lib/account/reorder";
@@ -27,10 +28,8 @@ function isStoreCart(value: unknown): value is StoreCart {
 }
 
 async function parseCart(res: Response): Promise<StoreCart> {
-  if (!res.ok) {
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(data.error || `Error ${res.status}`);
-  }
+  // Un error sale como `BffError` (estado, código y cuerpo), con el mensaje de siempre.
+  if (!res.ok) await readBff(res, `Error ${res.status}`);
   // No se fía de la forma: un 200 con un cuerpo que no es un carrito dejaba
   // `cart = {…}` en el contexto y el cajón reventaba al leer `totals.total_price`
   // (pantalla de error 500 de toda la página). Se trata como "carrito no

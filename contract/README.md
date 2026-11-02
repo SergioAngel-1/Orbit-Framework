@@ -7,7 +7,7 @@ mano**; un test falla si el código cambia y el fichero no.
 | Fichero | Qué describe | Se genera con | Lo fija |
 |---|---|---|---|
 | `config.schema.json` | JSON Schema (2020-12) de `GET /wp-json/hwe/v1/config`: cada campo público con tipo, `default`, `description` y `x-hwe-type` (tipo del Control Center). Incluye los grupos que pueblan `loyalty`, `memberships` y `shipping`. | `wp hwe contract config-schema`, o en local `HWE_UPDATE_CONTRACT=1 composer test -- --filter ContractTest` (desde `backend/`) | `backend/tests/Unit/ControlCenter/ContractTest.php` y, del lado TS, `frontend/tests/unit/contract-config.test.ts` (todo campo publicado tiene default en `CONFIG_DEFAULTS`) |
-| `bff.openapi.json` | OpenAPI 3.1 del BFF (`app/api/**`, sin las rutas de la instancia): rutas, métodos y guardas de cada método (`x-hwe-module`, `x-hwe-flag`, `x-hwe-csrf`, `x-hwe-session`, `x-hwe-auth`), con `x-hwe-source` apuntando al `route.ts`. Los cuerpos viven en el schema zod de cada ruta. | `node tools/contract/bff-openapi.mjs`, o `HWE_UPDATE_CONTRACT=1 npx vitest run tests/unit/contract-bff.test.ts` (desde `frontend/`) | `frontend/tests/unit/contract-bff.test.ts` |
+| `bff.openapi.json` | OpenAPI 3.1 del BFF (`app/api/**`, sin las rutas de la instancia): rutas, métodos y guardas de cada método (`x-hwe-module`, `x-hwe-flag`, `x-hwe-csrf`, `x-hwe-session`, `x-hwe-auth`, `x-hwe-public`, `x-hwe-rate-limit`), con `x-hwe-source` apuntando al `route.ts`. Los cuerpos viven en el schema zod de cada ruta. | `node tools/contract/bff-openapi.mjs`, o `HWE_UPDATE_CONTRACT=1 npx vitest run tests/unit/contract-bff.test.ts` (desde `frontend/`) | `frontend/tests/unit/contract-bff.test.ts` |
 
 ## Lo que se genera en cada pila (no se versiona aquí)
 
@@ -26,5 +26,11 @@ mano**; un test falla si el código cambia y el fichero no.
   Sustituye a tipar esos campos a mano en `config.d.ts` (no declares el mismo campo en los dos:
   TypeScript exige tipos idénticos al fusionar interfaces). Los `number` salen como
   `string | number`: el Control Center los guarda como texto y un campo nunca guardado sale con su
-  `default`.
+  `default`. Un tipo de campo propio sale `unknown` hasta que la instancia declara su valor con el
+  filtro `hwe_contract_field_schema` (`docs/PLUGIN_DEVELOPMENT.md` §0):
+
+  ```php
+  add_filter('hwe_contract_field_schema', static fn (array $schema, string $type): array =>
+      $type === 'mi_tipo' ? ['type' => 'array', 'items' => ['type' => 'string']] : $schema, 10, 2);
+  ```
 - **Rutas BFF de la instancia:** `node tools/contract/bff-openapi.mjs --include-instance`.

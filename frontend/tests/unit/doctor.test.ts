@@ -19,6 +19,9 @@ import {
   findProductUrl,
   forgotPasswordVerdict,
   formatJson,
+  imageOptimizerVerdict,
+  productIds,
+  productImageUrls,
   formatTable,
   isProductPath,
   parseEnvFile,
@@ -161,6 +164,32 @@ function frontendHandler(mode: Mode, origin: () => string) {
         `<?xml version="1.0"?><urlset><url><loc>${o}/products/vela-aromatica</loc></url></urlset>`,
         { "Content-Type": "application/xml" },
       );
+    }
+    if (req.method === "GET" && pathname === "/api/store/products") {
+      // `?include=` lee por wc/v3: la pila rota reproduce el `X-Forwarded-Proto: https` que
+      // subía las URL de la medioteca a https en un sitio http.
+      const include = new URL(req.url ?? "/", "http://fake.invalid").searchParams.get(
+        "include",
+      );
+      const base = include && mode === "broken" ? o.replace(/^http:/, "https:") : o;
+      return sendJson(res, 200, {
+        products: [
+          {
+            databaseId: 7,
+            image: { sourceUrl: `${base}/wp-content/uploads/vela.jpg` },
+          },
+          { databaseId: 8, image: null },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      });
+    }
+    if (req.method === "GET" && pathname === "/_next/image") {
+      // Como el optimizador real: solo el origen de `remotePatterns` (WORDPRESS_PUBLIC_URL).
+      const src =
+        new URL(req.url ?? "/", "http://fake.invalid").searchParams.get("url") ?? "";
+      return src.startsWith(`${o}/wp-content/uploads/`)
+        ? send(res, 200, "img", { "Content-Type": "image/jpeg" })
+        : send(res, 400, `"url" parameter is not allowed`);
     }
     if (req.method === "GET" && pathname === "/")
       return sendHtml(res, 200, "<!doctype html><html><body>Inicio</body></html>");
@@ -355,6 +384,33 @@ describe("doctor: lógica pura (checks.mjs)", () => {
     expect(softNotFoundVerdict(308, "/es/").status).toBe("warn");
   });
 
+  it("extrae ids e imágenes de una respuesta de /api/store/products", () => {
+    const body = {
+      products: [
+        {
+          databaseId: 7,
+          image: { sourceUrl: "http://wp.test/wp-content/uploads/a.jpg" },
+        },
+        { databaseId: 8, image: null },
+        { databaseId: "x", image: { sourceUrl: "" } },
+      ],
+    };
+    expect(productIds(body)).toEqual([7, 8]);
+    expect(productImageUrls(body)).toEqual(["http://wp.test/wp-content/uploads/a.jpg"]);
+    expect(productIds(null)).toEqual([]);
+    expect(productImageUrls({ products: "no" })).toEqual([]);
+  });
+
+  it("una imagen que next/image rechaza (400) es fail con la pista de remotePatterns", () => {
+    const url = "https://localhost:8080/wp-content/uploads/a.jpg";
+    expect(imageOptimizerVerdict(url, 200).status).toBe("ok");
+    const rejected = imageOptimizerVerdict(url, 400);
+    expect(rejected.status).toBe("fail");
+    expect(rejected.message).toContain(url);
+    expect(rejected.hint).toContain("WORDPRESS_PUBLIC_URL");
+    expect(imageOptimizerVerdict(url, 502).status).toBe("warn");
+  });
+
   it("un 5xx de recuperación de contraseña lleva la pista de origen", () => {
     const v = forgotPasswordVerdict(502);
     expect(v.status).toBe("fail");
@@ -486,6 +542,24 @@ describe("doctor: integración con una pila falsa", () => {
     });
     const image = results.find((r) => r.check === 6 && r.status === "fail");
     expect(image?.message).toContain("image es un array vacío");
+  });
+
+  it("una imagen del BFF que next/image no admite da fail en el check 8", async () => {
+    const results = await runDoctor({
+      frontend: broken.frontend,
+      wordpress: broken.wordpress,
+      secret: SECRET,
+    });
+    const image = results.find((r) => r.check === 8 && r.status === "fail");
+    expect(image?.message).toContain("https://127.0.0.1:");
+    expect(image?.message).toContain("/wp-content/uploads/vela.jpg");
+
+    const sane = await runDoctor({
+      frontend: healthy.frontend,
+      wordpress: healthy.wordpress,
+      secret: SECRET,
+    });
+    expect(sane.find((r) => r.check === 8)?.status).toBe("ok");
   });
 
   it("una pila rota con soft 404 da fail en el check 7", async () => {

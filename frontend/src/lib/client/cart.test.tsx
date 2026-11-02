@@ -4,7 +4,7 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { cartApi } from "@/lib/client/store-api";
 import type { StoreCart } from "@/types/woocommerce";
 import type { ReactNode } from "react";
-import { CartStoreProvider, useCartStore } from "./cart";
+import { CartStoreProvider, useCartStore, type CartStoreProviderProps } from "./cart";
 
 // ============================================================================
 //  Estado del carrito del núcleo (`useCartStore`), sin UI. Las mutaciones
@@ -38,9 +38,12 @@ function deferred<T>() {
 
 let hook: ReturnType<typeof mountHook>;
 const onItemAdded = vi.fn();
+let afterAdd: CartStoreProviderProps["afterAdd"];
 function mountHook() {
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <CartStoreProvider onItemAdded={onItemAdded}>{children}</CartStoreProvider>
+    <CartStoreProvider onItemAdded={onItemAdded} afterAdd={afterAdd}>
+      {children}
+    </CartStoreProvider>
   );
   return renderHook(() => useCartStore(), { wrapper });
 }
@@ -52,6 +55,7 @@ const current = new Proxy({} as ReturnType<typeof useCartStore>, {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  afterAdd = undefined;
   vi.mocked(cartApi.get).mockResolvedValue(cartWith(0));
 });
 afterEach(cleanup);
@@ -71,8 +75,8 @@ describe("CartStoreProvider", () => {
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise);
 
-    let a!: Promise<void>;
-    let b!: Promise<void>;
+    let a!: Promise<boolean>;
+    let b!: Promise<boolean>;
     await act(async () => {
       a = current.updateItem("k", 2);
       b = current.updateItem("k", 5);
@@ -96,7 +100,7 @@ describe("CartStoreProvider", () => {
       .mockReturnValueOnce(first.promise)
       .mockRejectedValueOnce(new Error("sin stock"));
 
-    let a!: Promise<void>;
+    let a!: Promise<boolean>;
     await act(async () => {
       a = current.updateItem("k", 2);
       await current.updateItem("k", 99);
@@ -118,7 +122,7 @@ describe("CartStoreProvider", () => {
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise);
 
-    let b!: Promise<void>;
+    let b!: Promise<boolean>;
     await act(async () => {
       void current.updateItem("k", 2);
       b = current.updateItem("k", 5);
@@ -169,6 +173,118 @@ describe("CartStoreProvider: ganchos de la vista", () => {
     });
     expect(ok).toBe(false);
     expect(current.error).toBe("Canje no válido.");
+  });
+
+  it("run conserva lo que lanzó la acción en `failure`, no solo su texto", async () => {
+    await mount();
+    // Un fallo estructurado de la instancia (no tiene por qué ser un Error).
+    const failure = { kind: "coins", missing: 120 };
+    await act(async () => {
+      await current.run(async () => {
+        throw failure;
+      });
+    });
+    expect(current.failure).toBe(failure);
+    expect(current.error).toBe("Error en el carrito.");
+
+    await act(async () => {
+      await current.run(async () => cartWith(1));
+    });
+    expect(current.failure).toBeNull();
+    expect(current.error).toBeNull();
+  });
+
+  it("un fallo al leer el carrito se expone en `readError` y se limpia al leer bien", async () => {
+    vi.mocked(cartApi.get).mockRejectedValueOnce(new Error("Error 503"));
+    await mount();
+    expect(current.loading).toBe(false);
+    expect(current.cart).toBeNull();
+    expect(current.readError?.message).toBe("Error 503");
+
+    vi.mocked(cartApi.get).mockRejectedValueOnce(new Error("Error 502"));
+    await act(async () => {
+      await current.refresh();
+    });
+    expect(current.readError?.message).toBe("Error 502");
+
+    await act(async () => {
+      await current.refresh();
+    });
+    expect(current.readError).toBeNull();
+    expect(current.count).toBe(0);
+  });
+
+  it("cada mutación dice si el servidor la aceptó", async () => {
+    await mount();
+    vi.mocked(cartApi.addItem).mockResolvedValueOnce(cartWith(1));
+    vi.mocked(cartApi.updateItem).mockRejectedValueOnce(new Error("sin stock"));
+    vi.mocked(cartApi.applyCoupon).mockResolvedValueOnce(cartWith(1));
+    vi.mocked(cartApi.removeItem).mockRejectedValueOnce(new Error("no"));
+
+    const results: boolean[] = [];
+    await act(async () => {
+      results.push(await current.addItem(3));
+      results.push(await current.updateItem("k", 9));
+      results.push(await current.applyCoupon("X"));
+      results.push(await current.removeItem("k"));
+    });
+    expect(results).toEqual([true, false, true, false]);
+  });
+
+  it("afterAdd ajusta el carrito dentro del mismo alta, antes de onItemAdded", async () => {
+    afterAdd = vi.fn(async (cart: StoreCart) => ({ ...cart, items_count: 7 }));
+    await mount();
+    vi.mocked(cartApi.addItem).mockResolvedValueOnce(cartWith(1));
+
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await current.addItem(3, 1);
+    });
+
+    expect(ok).toBe(true);
+    expect(afterAdd).toHaveBeenCalledWith(cartWith(1), 3, 1);
+    expect(current.count).toBe(7);
+    expect(onItemAdded).toHaveBeenCalledWith(
+      expect.objectContaining({ items_count: 7 }),
+      3,
+      1,
+    );
+  });
+
+  it("si afterAdd falla, el alta vale con el carrito sin tocar", async () => {
+    afterAdd = vi.fn(async () => {
+      throw new Error("destino no disponible");
+    });
+    await mount();
+    vi.mocked(cartApi.addItem).mockResolvedValueOnce(cartWith(2));
+
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await current.addItem(3, 2);
+    });
+
+    expect(ok).toBe(true);
+    expect(current.count).toBe(2);
+    expect(current.error).toBeNull();
+    expect((current.failure as Error).message).toBe("destino no disponible");
+    expect(onItemAdded).toHaveBeenCalledWith(cartWith(2), 3, 2);
+  });
+
+  it("run con { silent: true } deja el fallo en failure sin pintar error", async () => {
+    await mount();
+    const failure = new Error("Coins insuficientes");
+    let ok: boolean | undefined;
+    await act(async () => {
+      ok = await current.run(
+        async () => {
+          throw failure;
+        },
+        { silent: true },
+      );
+    });
+    expect(ok).toBe(false);
+    expect(current.failure).toBe(failure);
+    expect(current.error).toBeNull();
   });
 
   it("fuera del proveedor avisa con un error claro", () => {

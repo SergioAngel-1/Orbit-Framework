@@ -51,20 +51,31 @@ export const authApi = {
       : { status: "signed-in" };
   },
 
+  /**
+   * `code`: los 6 dígitos del TOTP, o `{ recoveryCode }` si el usuario perdió el dispositivo
+   * (cada código de recuperación vale una sola vez).
+   */
   async verifyTwoFactor(
     ephemeralToken: string,
-    code: string,
+    code: string | { recoveryCode: string },
     fallback = DEFAULT_ERROR,
   ): Promise<void> {
-    await post("/api/auth/verify-2fa", { ephemeralToken, code }, fallback);
+    const proof =
+      typeof code === "string" ? { code } : { recoveryCode: code.recoveryCode };
+    await post("/api/auth/verify-2fa", { ephemeralToken, ...proof }, fallback);
   },
 
   async register(input: RegisterInput, fallback = DEFAULT_ERROR): Promise<void> {
     await post("/api/auth/register", input, fallback);
   },
 
-  async logout(): Promise<void> {
-    await csrfFetch("/api/auth/logout", { method: "POST" });
+  /**
+   * `true` si el BFF cerró la sesión. Con `false` (Origin/CSRF rechazados, límite) las cookies
+   * siguen puestas: la vista puede avisar en vez de dar la sesión por cerrada. Un fallo de red
+   * lanza, como antes.
+   */
+  async logout(): Promise<boolean> {
+    return (await csrfFetch("/api/auth/logout", { method: "POST" })).ok;
   },
 
   /** Responde igual exista o no la cuenta (no revela correos registrados). */

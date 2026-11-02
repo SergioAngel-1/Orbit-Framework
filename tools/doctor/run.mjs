@@ -23,11 +23,14 @@ import {
   findProductUrl,
   forgotPasswordVerdict,
   healthVerdict,
+  imageOptimizerVerdict,
   isSuccess,
   originOf,
   parseEnvFile,
   parseSitemap,
   productFindings,
+  productIds,
+  productImageUrls,
   respondsText,
   robotsVerdict,
   sitemapUrlVerdict,
@@ -40,6 +43,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 const SECRET_HEADER = "X-HWE-Internal-Secret";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_SITEMAP_CHILDREN = 20;
+const MAX_PRODUCT_IMAGES = 8;
 
 /**
  * Lee HWE_REVALIDATION_SECRET: primero del entorno, luego de .env y de
@@ -98,7 +102,7 @@ function secretHeaders(secret) {
 }
 
 /**
- * Ejecuta los siete checks contra una pila levantada y devuelve la lista de resultados
+ * Ejecuta los ocho checks contra una pila levantada y devuelve la lista de resultados
  * { check, status, message, hint? }. No lanza por un fallo del sistema probado: lo
  * convierte en un fail.
  */
@@ -271,6 +275,51 @@ export async function runDoctor({
   // 7. Una ruta inexistente debe responder 404 (no «soft 404») -------------
   const missing = await get(`${front}/doctor-404-${Date.now()}`);
   push(7, softNotFoundVerdict(missing.status, missing.headers.get("location") ?? ""));
+
+  // 8. Las imágenes que devuelve el BFF las acepta next/image ----------------
+  // El listado sale de WPGraphQL y `?include=` de wc/v3 (otro cliente, otras cabeceras): se
+  // piden las dos formas y cada URL al optimizador del propio frontend, que es quien la rechaza.
+  const parseJson = (text) => {
+    try {
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  };
+  const listing = await probe(`${front}/api/store/products?first=${MAX_PRODUCT_IMAGES}`, { readBody: true, timeoutMs });
+  const listingBody = parseJson(listing.text);
+  if (!isSuccess(listing.status) || !listingBody) {
+    push(8, verdict(STATUS.WARN, `/api/store/products ${respondsText(listing.status, listing.error)}: no se comprueban las imágenes`));
+  } else {
+    const images = productImageUrls(listingBody);
+    const ids = productIds(listingBody);
+    if (ids.length > 0) {
+      const byIds = await probe(`${front}/api/store/products?include=${ids.join(",")}`, { readBody: true, timeoutMs });
+      if (isSuccess(byIds.status)) images.push(...productImageUrls(parseJson(byIds.text)));
+      else if (byIds.status !== 404) {
+        // 404: la lista de deseos está apagada y esa forma de la ruta no existe.
+        push(8, verdict(STATUS.WARN, `/api/store/products?include= ${respondsText(byIds.status, byIds.error)}`));
+      }
+    }
+    const unique = [...new Set(images)].slice(0, MAX_PRODUCT_IMAGES);
+    if (unique.length === 0) {
+      push(8, verdict(STATUS.SKIP, "ningún producto del BFF trae imagen"));
+    } else {
+      let rejected = 0;
+      for (const url of unique) {
+        const r = await get(`${front}/_next/image?url=${encodeURIComponent(url)}&w=64&q=75`);
+        const v = imageOptimizerVerdict(url, r.status, r.error);
+        if (v.status !== STATUS.OK) {
+          rejected += 1;
+          push(8, v);
+        }
+      }
+      if (rejected === 0) {
+        const what = unique.length === 1 ? "la imagen" : `las ${unique.length} imágenes`;
+        push(8, verdict(STATUS.OK, `next/image acepta ${what} de producto que devuelve el BFF`));
+      }
+    }
+  }
 
   return results;
 }

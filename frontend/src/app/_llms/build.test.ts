@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { STARTER_COPY, itStarterCopy } from "../../../tests/helpers/starter-copy";
 import { CONFIG_DEFAULTS } from "@/lib/config/defaults";
 import type { SiteConfig } from "@/lib/config/types";
 import es from "@/i18n/messages/es.json";
@@ -61,22 +62,25 @@ beforeEach(() => {
 });
 
 describe("buildLlmsTxt", () => {
-  it("lista páginas y categorías con URLs absolutas del idioma", async () => {
-    const body = (await buildLlmsTxt("es"))!;
-    expect(body).toContain("# Mi Tienda");
-    expect(body).toContain(
-      "- [Inicio](https://mitienda.example/): Página principal de Mi Tienda.",
-    );
-    expect(body).toContain("(https://mitienda.example/products)");
-    expect(body).toContain(
-      "- [Camisetas](https://mitienda.example/categories/camisetas): Algodón.",
-    );
-    expect(body).toContain("Productos de la categoría Gorras.");
-    expect(body).toContain("https://mitienda.example/sitemap.xml");
-  });
+  itStarterCopy(
+    "lista páginas y categorías con URLs absolutas del idioma",
+    async () => {
+      const body = (await buildLlmsTxt("es"))!;
+      expect(body).toContain("# Mi Tienda");
+      expect(body).toContain(
+        "- [Inicio](https://mitienda.example/): Página principal de Mi Tienda.",
+      );
+      expect(body).toContain("(https://mitienda.example/products)");
+      expect(body).toContain(
+        "- [Camisetas](https://mitienda.example/categories/camisetas): Algodón.",
+      );
+      expect(body).toContain("Productos de la categoría Gorras.");
+      expect(body).toContain("https://mitienda.example/sitemap.xml");
+    },
+  );
 
   // Sin catálogo propio para `en` (instancia monolingüe) no hay copy inglés que comprobar.
-  it.skipIf(!hasOwnCatalog("en"))(
+  it.skipIf(!hasOwnCatalog("en") || !STARTER_COPY)(
     "en inglés usa el copy y las URLs del idioma",
     async () => {
       const body = (await buildLlmsTxt("en"))!;
@@ -104,15 +108,18 @@ describe("buildLlmsTxt", () => {
     expect(body).not.toContain("Razón social");
   });
 
-  it("datos clave solo con lo que el panel trae; el cargo del responsable no va", async () => {
-    currentConfig.legal.company = "Mi Tienda SL";
-    currentConfig.seo.founder_name = "Ana Ruiz";
-    currentConfig.seo.founder_role = "Fundadora";
-    const body = (await buildLlmsTxt("es"))!;
-    expect(body).toContain("- Razón social: Mi Tienda SL");
-    expect(body).toContain("- Responsable: Ana Ruiz");
-    expect(body).not.toContain("Fundadora");
-  });
+  itStarterCopy(
+    "datos clave solo con lo que el panel trae; el cargo del responsable no va",
+    async () => {
+      currentConfig.legal.company = "Mi Tienda SL";
+      currentConfig.seo.founder_name = "Ana Ruiz";
+      currentConfig.seo.founder_role = "Fundadora";
+      const body = (await buildLlmsTxt("es"))!;
+      expect(body).toContain("- Razón social: Mi Tienda SL");
+      expect(body).toContain("- Responsable: Ana Ruiz");
+      expect(body).not.toContain("Fundadora");
+    },
+  );
 
   describe("exclusiones del registro de la instancia", () => {
     it("una exclusión exacta retira el documento legal", async () => {

@@ -50,6 +50,7 @@ paquete multi-clase.
 | `hwe-svg-uploads.php` | mu-plugin | Subida de SVG a la medioteca con saneado (lista de permitidos para enlaces, sin scripts, manejadores ni animaciones que reescriban enlaces). |
 | `hwe-space-hygiene.php` | mu-plugin | Al guardar, cambia los espacios duros entre palabras por normales (títulos, cuerpo de entradas y metas del filtro `hwe_hygiene_meta_keys`). |
 | `hwe-link-hygiene.php` | mu-plugin | Al guardar, quita `utm_source=chatgpt.com` (lista ampliable con `hwe_link_hygiene_utm_sources`) de los enlaces. |
+| `hwe-media-scheme.php` | mu-plugin | En las peticiones del BFF (secreto interno), las URL de la medioteca conservan el esquema `http` de `siteurl`/`home` aunque `wcFetch` declare `X-Forwarded-Proto: https` para las credenciales ck/cs. En producción (`https`) no actúa. |
 | `hwe-media-reference.php` | mu-plugin | Casilla «Imagen de referencia» en la medioteca → `MediaItem.isReferenceImage`. |
 | `hwe-admin-product-image.php` | mu-plugin | Lista de productos: filtro «Sin imagen / Con imagen» y columna de imagen ordenable. |
 | `hwe-guest-order-badge.php` | mu-plugin | Marca «Invitado» en los pedidos sin cuenta (listado y ficha). |

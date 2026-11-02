@@ -12,8 +12,9 @@ namespace HWE\ControlCenter;
  *     de modo que una instancia no tipa sus campos a mano.
  *
  * Solo entra lo que publica `PublicConfigWalker` (campos `public`, nunca `secret`) más las
- * claves que `RestApi::handleGet` añade fuera del esquema. Los tipos de campo propios de
- * una instancia sin traducción conocida salen sin restricción de tipo, con `x-hwe-type`.
+ * claves que `RestApi::handleGet` añade fuera del esquema. Un tipo de campo propio de una
+ * instancia declara su tipo JSON con el filtro `hwe_contract_field_schema`; sin declararlo
+ * sale sin restricción de tipo (`unknown` en TypeScript), con `x-hwe-type`.
  *
  * Lo exponen `wp hwe contract config-schema` y `wp hwe contract instance-types` (`Cli`).
  */
@@ -34,12 +35,20 @@ final class Contract {
         'select'   => 'string',
         'slug'     => 'string',
         'lines'    => 'string',
+        // URL de la medioteca, filas «clave | valor» y slugs unidos con « | »: todo texto.
+        'image'    => 'string',
+        'file'     => 'string',
+        'pairs'    => 'string',
+        'product_multiselect' => 'string',
     ];
 
-    /** Tipo JSON → tipo TypeScript. */
+    /** Tipo JSON escalar → tipo TypeScript. */
     private const TS_TYPES = [
         'boolean' => 'boolean',
         'string'  => 'string',
+        'integer' => 'number',
+        'number'  => 'number',
+        'null'    => 'null',
     ];
 
     /**
@@ -155,6 +164,8 @@ final class Contract {
         $schema = [];
         if (isset(self::JSON_TYPES[$type])) {
             $schema['type'] = self::JSON_TYPES[$type];
+        } else {
+            $schema = self::declaredSchema($type, $node);
         }
         $schema['x-hwe-type'] = $type;
         if (!empty($node['label'])) {
@@ -171,6 +182,24 @@ final class Contract {
             }
         }
         return $schema;
+    }
+
+    /**
+     * Lo que la instancia declara del valor de un tipo propio con `hwe_contract_field_schema`
+     * (`['type' => 'array', 'items' => ['type' => 'string']]`, `['enum' => […]]`…). Solo se
+     * pregunta por los tipos sin traducción del núcleo: el contrato del núcleo no se reescribe
+     * desde una instancia. Una respuesta que no es un array se descarta y se registra.
+     *
+     * @return array<string,mixed>
+     */
+    private static function declaredSchema(string $type, array $node): array {
+        $declared = apply_filters('hwe_contract_field_schema', [], $type, $node);
+        if (!is_array($declared)) {
+            error_log(sprintf('[hwe] control-center: hwe_contract_field_schema debe devolver un array para «%s»; se ignora.', $type));
+            return [];
+        }
+        unset($declared['x-hwe-type']);
+        return $declared;
     }
 
     /**
@@ -192,15 +221,65 @@ final class Contract {
                 $out .= "{$indent}/** " . str_replace('*/', '* /', (string) $prop['description']) . " */\n";
             }
             $name = preg_match('/^[A-Za-z_$][A-Za-z0-9_$]*$/', (string) $key) ? $key : json_encode((string) $key);
-            if (($prop['type'] ?? null) === 'object') {
+            // Un grupo del esquema (sin `x-hwe-type`) se abre en varias líneas.
+            if (($prop['type'] ?? null) === 'object' && !isset($prop['x-hwe-type'])) {
                 $out .= "{$indent}{$name}?: {\n" . self::tsMembers($prop['properties'] ?? [], $depth + 1) . "{$indent}};\n";
                 continue;
             }
-            $ts = ($prop['x-hwe-type'] ?? null) === 'number'
-                ? 'string | number' // entero como texto, o el `default` entero si nunca se guardó
-                : (self::TS_TYPES[is_string($prop['type'] ?? null) ? $prop['type'] : ''] ?? 'unknown');
-            $out .= "{$indent}{$name}?: {$ts};\n";
+            // `number`: entero como texto, o el `default` entero si nunca se guardó.
+            $out .= "{$indent}{$name}?: " . self::tsType($prop) . ";\n";
         }
         return $out;
+    }
+
+    /**
+     * Tipo TypeScript de un JSON Schema de campo: escalares, uniones, `enum`, `array` con
+     * `items` y `object` con `properties`. Lo que no reconoce es `unknown`.
+     *
+     * @param array<string,mixed> $schema
+     */
+    private static function tsType(array $schema): string {
+        if (isset($schema['enum']) && is_array($schema['enum']) && $schema['enum'] !== []) {
+            $literals = [];
+            foreach ($schema['enum'] as $value) {
+                $literals[] = is_scalar($value) || $value === null
+                    ? json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                    : 'unknown';
+            }
+            return implode(' | ', array_unique($literals));
+        }
+        $types = $schema['type'] ?? null;
+        if (!is_array($types)) {
+            $types = is_string($types) ? [$types] : [];
+        }
+        $out = [];
+        foreach ($types as $type) {
+            if ($type === 'array') {
+                $item  = is_array($schema['items'] ?? null) ? self::tsType($schema['items']) : 'unknown';
+                $out[] = str_contains($item, ' ') ? "({$item})[]" : "{$item}[]";
+            } elseif ($type === 'object') {
+                $out[] = self::tsObject($schema);
+            } elseif (is_string($type) && isset(self::TS_TYPES[$type])) {
+                $out[] = self::TS_TYPES[$type];
+            } else {
+                return 'unknown';
+            }
+        }
+        $out = array_values(array_unique($out));
+        return $out === [] ? 'unknown' : implode(' | ', $out);
+    }
+
+    /** @param array<string,mixed> $schema */
+    private static function tsObject(array $schema): string {
+        $props = is_array($schema['properties'] ?? null) ? $schema['properties'] : [];
+        if ($props === []) {
+            return 'Record<string, unknown>';
+        }
+        $members = [];
+        foreach ($props as $key => $prop) {
+            $name      = preg_match('/^[A-Za-z_$][A-Za-z0-9_$]*$/', (string) $key) ? $key : json_encode((string) $key);
+            $members[] = "{$name}?: " . (is_array($prop) ? self::tsType($prop) : 'unknown');
+        }
+        return '{ ' . implode('; ', $members) . ' }';
     }
 }
