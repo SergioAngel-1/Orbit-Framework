@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { itStarterCopy } from "../../../tests/helpers/starter-copy";
 import { hasOwnCatalog } from "@/i18n/messages/catalogs";
 import type { LoyaltyEntryType } from "./types";
 import { describeEntry } from "./describe";
@@ -110,7 +111,7 @@ describe("describeEntry", () => {
     expect(withoutNote).not.toContain(":");
   });
 
-  it("un tipo desconocido da un texto neutro en vez de fallar", () => {
+  itStarterCopy("un tipo desconocido da un texto neutro en vez de fallar", () => {
     expect(
       describeEntry(
         { ...base, type: "tipo_del_futuro", data: { anything: true } },

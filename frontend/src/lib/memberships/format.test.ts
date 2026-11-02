@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { itStarterCopy } from "../../../tests/helpers/starter-copy";
 import { hasOwnCatalog } from "@/i18n/messages/catalogs";
 import {
   buildVerifyUrl,
@@ -18,7 +19,7 @@ import {
 const hasEnglish = hasOwnCatalog("en");
 
 describe("formatMembershipDuration", () => {
-  it("compone la duración en días en es y en", () => {
+  itStarterCopy("compone la duración en días en es y en", () => {
     expect(formatMembershipDuration(30, "es")).toBe("30 días");
     expect(formatMembershipDuration(1, "es")).toBe("1 día");
     if (hasEnglish) {
@@ -27,12 +28,12 @@ describe("formatMembershipDuration", () => {
     }
   });
 
-  it("`null` es una membresía indefinida", () => {
+  itStarterCopy("`null` es una membresía indefinida", () => {
     expect(formatMembershipDuration(null, "es")).toBe("Indefinida");
     if (hasEnglish) expect(formatMembershipDuration(null, "en")).toBe("Unlimited");
   });
 
-  it("los estados de la cola mandan sobre los días", () => {
+  itStarterCopy("los estados de la cola mandan sobre los días", () => {
     expect(formatMembershipDuration(30, "es", { infinite: true })).toBe("Indefinida");
     expect(formatMembershipDuration(30, "es", { undated: true })).toBe("Sin fecha");
     if (hasEnglish) {

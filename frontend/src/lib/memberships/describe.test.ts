@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { itStarterCopy } from "../../../tests/helpers/starter-copy";
 import { hasOwnCatalog } from "@/i18n/messages/catalogs";
 import {
   describeBenefit,
@@ -23,7 +24,7 @@ import {
 const hasEnglish = hasOwnCatalog("en");
 
 describe("describeBenefit", () => {
-  it("describe el descuento de socio en todo el catálogo", () => {
+  itStarterCopy("describe el descuento de socio en todo el catálogo", () => {
     expect(
       describeBenefit(
         { key: "member_discount", data: { percent: 10, scope: "all" } },
@@ -40,22 +41,25 @@ describe("describeBenefit", () => {
     }
   });
 
-  it("describe el descuento acotado a categorías sin inventar sus nombres", () => {
-    expect(
-      describeBenefit(
-        { key: "member_discount", data: { percent: 15, scope: "categories" } },
-        "es",
-      ),
-    ).toBe("15% de descuento en las categorías participantes");
-  });
+  itStarterCopy(
+    "describe el descuento acotado a categorías sin inventar sus nombres",
+    () => {
+      expect(
+        describeBenefit(
+          { key: "member_discount", data: { percent: 15, scope: "categories" } },
+          "es",
+        ),
+      ).toBe("15% de descuento en las categorías participantes");
+    },
+  );
 
-  it("sin porcentaje válido usa el texto neutro del tipo", () => {
+  itStarterCopy("sin porcentaje válido usa el texto neutro del tipo", () => {
     expect(
       describeBenefit({ key: "member_discount", data: { percent: 0 } }, "es"),
     ).toBe("Descuento de socio");
   });
 
-  it("describe el acceso anticipado y los puntos de activación", () => {
+  itStarterCopy("describe el acceso anticipado y los puntos de activación", () => {
     if (hasEnglish) {
       expect(describeBenefit({ key: "early_access", data: {} }, "en")).toBe(
         "Early access to new releases",
@@ -69,7 +73,7 @@ describe("describeBenefit", () => {
     );
   });
 
-  it("describe la comisión extra y los regalos por referido", () => {
+  itStarterCopy("describe la comisión extra y los regalos por referido", () => {
     expect(describeBenefit({ key: "referral_bonus", data: { percent: 5 } }, "es")).toBe(
       "Comisión extra por referidos: 5%",
     );
@@ -84,7 +88,7 @@ describe("describeBenefit", () => {
     );
   });
 
-  it("describe los envíos gratis con su cupo", () => {
+  itStarterCopy("describe los envíos gratis con su cupo", () => {
     expect(describeBenefit({ key: "free_deliveries", data: { count: 2 } }, "es")).toBe(
       "Envíos gratis incluidos: 2",
     );
@@ -120,7 +124,7 @@ describe("describeBenefit", () => {
     ).toBe("Acceso al club");
   });
 
-  it("una clave desconocida (tipo de instancia) da un texto neutro", () => {
+  itStarterCopy("una clave desconocida (tipo de instancia) da un texto neutro", () => {
     expect(describeBenefit({ key: "custom_perk", data: { x: 1 } }, "es")).toBe(
       "Ventaja de membresía",
     );
@@ -143,7 +147,7 @@ describe("localizedText", () => {
 });
 
 describe("describeHistoryEntry", () => {
-  it("compone el tipo y añade la duración cuando la trae", () => {
+  itStarterCopy("compone el tipo y añade la duración cuando la trae", () => {
     expect(describeHistoryEntry({ type: "activated", data: { days: 30 } }, "es")).toBe(
       "Membresía activada durante 30 días",
     );
@@ -157,7 +161,7 @@ describe("describeHistoryEntry", () => {
     }
   });
 
-  it("describe los avisos y los finales del ciclo", () => {
+  itStarterCopy("describe los avisos y los finales del ciclo", () => {
     if (hasEnglish) {
       expect(describeHistoryEntry({ type: "expiring", data: { days: 7 } }, "en")).toBe(
         "Your membership expires in 7 days",
@@ -179,7 +183,7 @@ describe("describeHistoryEntry", () => {
     );
   });
 
-  it("describe las concesiones, revocaciones y avisos de puntos", () => {
+  itStarterCopy("describe las concesiones, revocaciones y avisos de puntos", () => {
     expect(
       describeHistoryEntry({ type: "granted_by_admin", data: { days: 90 } }, "es"),
     ).toBe("Membresía concedida por la tienda durante 90 días");
@@ -202,7 +206,7 @@ describe("describeHistoryEntry", () => {
     }
   });
 
-  it("un tipo desconocido da un texto neutro, nunca lanza", () => {
+  itStarterCopy("un tipo desconocido da un texto neutro, nunca lanza", () => {
     expect(describeHistoryEntry({ type: "future_event", data: { x: 1 } }, "es")).toBe(
       "Movimiento de membresía",
     );
@@ -215,7 +219,7 @@ describe("describeHistoryEntry", () => {
 });
 
 describe("describePurchaseReason", () => {
-  it("traduce los motivos estables de compra", () => {
+  itStarterCopy("traduce los motivos estables de compra", () => {
     expect(describePurchaseReason("membership_already_indefinite", {}, "es")).toBe(
       "Ya tienes una membresía indefinida que cubre este nivel.",
     );
@@ -233,7 +237,7 @@ describe("describePurchaseReason", () => {
     expect(describePurchaseReason("", {}, "es")).toBe("");
   });
 
-  it("un motivo desconocido da un texto neutro", () => {
+  itStarterCopy("un motivo desconocido da un texto neutro", () => {
     expect(describePurchaseReason("membership_future", {}, "es")).toBe(
       "No puedes comprar este nivel ahora mismo.",
     );

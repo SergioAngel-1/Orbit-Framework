@@ -49,6 +49,12 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `x-hwe-csrf: false` y `x-hwe-public: true`. Lista `OPTIONS` y anota `x-hwe-rate-limit` (nombre,
   límite, ventana y `strict`, con las constantes del módulo resueltas) en todas las rutas, también
   en `contract/bff.openapi.json`.
+- **Los tests del núcleo ya no fijan la redacción de la instancia.** `messages/**` es de la instancia,
+  pero `lib/memberships/{describe,format,server}`, `lib/loyalty/describe`, `lib/analytics/services`,
+  `api/memberships/history` y `app/_llms/build` comparaban con las frases del starter: cambiar una
+  frase obligaba a editar un test del núcleo (deriva en `upgrade-check`). Con `HWE_INSTANCE=true`
+  esas aserciones se omiten (`tests/helpers/starter-copy.ts`) y se sigue comprobando la forma; en el
+  framework se ejecutan igual que antes.
 
 ## [2.5.0] — 2026-11-02
 

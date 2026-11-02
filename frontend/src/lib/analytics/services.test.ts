@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { STARTER_COPY, itStarterCopy } from "../../../tests/helpers/starter-copy";
 import { createTranslator } from "next-intl";
 import es from "@/i18n/messages/es.json";
 import { catalogFor, hasOwnCatalog } from "@/i18n/messages/catalogs";
@@ -80,7 +81,7 @@ describe("trackingServiceNames / servicesFromNames", () => {
 describe("consent.message", () => {
   const services = resolveTrackingServices({ ...EMPTY, meta_pixel_id: "123" });
 
-  it("en español nombra a Meta y enlaza la política", () => {
+  itStarterCopy("en español nombra a Meta y enlaza la política", () => {
     const t = createTranslator({ locale: "es", messages: es, namespace: "consent" });
     expect(
       t.markup("message", { ...consentMessageArgs(services), link: (c) => c }),
@@ -90,7 +91,7 @@ describe("consent.message", () => {
   });
 
   // Sin catálogo propio para `en` (instancia monolingüe) no hay traducción que comprobar.
-  it.skipIf(!hasOwnCatalog("en"))("en inglés también", () => {
+  it.skipIf(!hasOwnCatalog("en") || !STARTER_COPY)("en inglés también", () => {
     const t = createTranslator({
       locale: "en",
       messages: catalogFor("en"),

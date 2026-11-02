@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { STARTER_COPY } from "../../../../../tests/helpers/starter-copy";
 import { getSession } from "@/lib/auth/session";
 import { hasOwnCatalog } from "@/i18n/messages/catalogs";
 import { getMembershipHistory } from "@/lib/memberships/server";
@@ -59,20 +60,22 @@ describe("GET /api/memberships/history", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.items[0]).toMatchObject({
-      id: 9,
-      type: "activated",
-      description: "Membresía activada durante 30 días",
-    });
+    expect(json.items[0]).toMatchObject({ id: 9, type: "activated" });
+    if (STARTER_COPY) {
+      expect(json.items[0].description).toBe("Membresía activada durante 30 días");
+    }
     expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
 
-  it.skipIf(!hasOwnCatalog("en"))("en inglés compone el texto en inglés", async () => {
-    const res = await GET(request("", "en"));
-    const json = await res.json();
+  it.skipIf(!hasOwnCatalog("en") || !STARTER_COPY)(
+    "en inglés compone el texto en inglés",
+    async () => {
+      const res = await GET(request("", "en"));
+      const json = await res.json();
 
-    expect(json.items[0].description).toBe("Membership activated for 30 days");
-  });
+      expect(json.items[0].description).toBe("Membership activated for 30 days");
+    },
+  );
 
   it("recorta la paginación antes de llegar a WordPress", async () => {
     await GET(request("?page=3&per_page=500"));
