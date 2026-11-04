@@ -118,10 +118,10 @@ class AdminPage {
         foreach ($tabs as $key => $tab) {
             self::renderPanel((string) $key, $tab, $key === $initial);
         }
+        self::renderSaveBar();
+
         echo '</div>'; // .hwe-main
         echo '</div>'; // .hwe-layout
-
-        self::renderSaveBar();
 
         echo '</form>';
 

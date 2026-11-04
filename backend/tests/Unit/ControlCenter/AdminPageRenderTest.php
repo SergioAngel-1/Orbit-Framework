@@ -125,6 +125,18 @@ final class AdminPageRenderTest extends TestCase
         $this->assertStringContainsString('data-clean=', $html, 'La barra de guardado lleva sus textos para admin.js.');
     }
 
+    public function testTheSaveBarIsTheLastChildOfTheMainColumnSoCssCanPlaceItBesideOrAboveTheFields(): void
+    {
+        $html = $this->page();
+
+        $main = strpos($html, '<div class="hwe-main">');
+        $bar = strpos($html, '<div class="hwe-savebar">');
+        $layoutEnd = strpos($html, '</form>', $bar);
+        $this->assertNotFalse($main);
+        $this->assertGreaterThan($main, $bar, 'La barra va dentro de .hwe-main...');
+        $this->assertSame(0, preg_match('/<section class="hwe-panel"/', substr($html, $bar, $layoutEnd - $bar)), '...tras todos los paneles (el CSS la sube con `order`).');
+    }
+
     public function testActionFormsLiveOutsideTheMainFormAndNeverNest(): void
     {
         $html = $this->page();
