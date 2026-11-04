@@ -6,6 +6,34 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Changed
+- **El Control Center se pliega y se traduce desde el propio panel.** Cada sección de pestaña y cada
+  subgrupo anidado (sedes, credenciales de pasarela, cada landing, sus secciones y preguntas…) es un
+  `<details>` nativo: las secciones de primer nivel abren de serie y los subgrupos arrancan plegados. Bajo
+  «Guardar configuración» hay un botón «Abrir todo» / «Colapsar todo» que actúa sobre la pestaña activa y
+  cuya etiqueta sigue el estado real; el estado de cada pestaña se recuerda en el navegador, lo que tiene el
+  foco o un control inválido se abre solo, y un cambio sin guardar dentro de un bloque cerrado lo marca con
+  un punto (en la cabecera del bloque y en la pestaña). Sin animación de apertura. Cada pestaña con campos
+  traducibles ofrece un conmutador «ES | EN» con los idiomas reales (`brand.locale` e `i18n.locales`): en el
+  idioma por defecto se ven los campos base; en uno secundario, solo la variante `<clave>_<idioma>` de cada
+  texto, con el original encima como referencia, y lo que no se traduce se esconde. Todos los campos siguen
+  en el formulario y en el mismo orden del DOM, y sin JavaScript se ve todo. Una tienda monolingüe no ve el
+  conmutador. **No cambia ningún dato:** rutas del esquema, `name` de los inputs, guardado,
+  `/wp-json/hwe/v1/config` y `contract/` quedan idénticos. Atributos de presentación nuevos, solo admin y
+  documentados en `Schema.php`: `locale` y `variant_of` (los pone el esquema en cada variante traducible), y
+  en un grupo `slots.keys`, `summary`, `master`, `blocks` y `switcher`, y en un campo `show_if`.
+- **Landings: una landing a la vez y el molde en orden de página.** La pestaña muestra el «Registro de
+  landings» y un selector «Editando» (la elegida va en la URL, `#landings/<id>`, y sobrevive al guardado; las
+  demás siguen en el formulario). Cada landing se pinta como bloques plegables en el orden de la página —ajustes
+  de la landing, hero, entradilla, secciones, cita, preguntas frecuentes, productos y cierre— cuyas cabeceras
+  resumen su estado sin abrirlos («Visible · Imagen a la izquierda · «Título»», «Oculta»). Solo se ve lo que
+  aplica: un bloque con «Mostrar» apagado enseña únicamente el interruptor, la imagen de una sección solo con
+  una disposición que la pinta (la segunda, solo con «Pareja en espejo») y, en Productos, la categoría solo
+  con «Por categoría» y la selección manual solo con «Selección manual». Las secciones (hasta 5) y las
+  preguntas (hasta 6) son huecos: se esconden los vacíos y «Añadir sección» / «Añadir pregunta» los va
+  mostrando. El esquema conserva el orden de claves de siempre (el del dato y el de `/config`): el orden de
+  página es solo de presentación.
+
 ## [2.7.0] — 2026-11-04
 
 El panel de WordPress pasa a ser de la tienda. El Control Center se reorganiza por tareas en tres capas

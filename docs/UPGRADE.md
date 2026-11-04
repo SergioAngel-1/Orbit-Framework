@@ -510,6 +510,29 @@ WordPress de cada instancia:
   valen `edit_post`/`read_post`/`delete_post` (meta capacidades del core) y hay que comprobarlas con el ID del
   nivel.
 
+## 3.11 Próxima versión, sin publicar (nota de actualización)
+
+Sin cambios incompatibles ni de contrato (`contract/`, `/wp-json/hwe/v1/config`, `name` de los inputs y
+guardado quedan igual). Lo observable en el panel de cada instancia:
+
+- **El Control Center se pliega.** Las secciones y los subgrupos son `<details>`; hay un botón «Abrir todo» /
+  «Colapsar todo» bajo «Guardar configuración» y las cabeceras de los bloques cerrados resumen su estado. Si tu
+  instancia sobrescribe `assets/admin.css` o `admin.js`, o ajusta el marcado de `AdminFormWalker` (el título de un
+  subgrupo pasó de `<div class="hwe-subgroup">` + `<h4>` a `<details class="hwe-subgroup">` con el `<h4>` dentro de su
+  `<summary>`; la cabecera de una sección, de `<header>` a `<summary class="hwe-section__head">`), revísalo.
+- **Conmutador de idioma.** Con idiomas secundarios en `i18n.locales`, cada pestaña con textos traducibles ofrece
+  «ES | EN»; en un idioma secundario se ven solo esos textos (con el original como referencia) y los demás ajustes
+  se esconden hasta volver al idioma por defecto. Los campos de la instancia con `'translatable' => true` lo
+  usan sin cambios. Una variante declarada a mano (`<campo>_en`) también se reconoce. Sin segundo idioma no hay
+  conmutador.
+- **Landings.** Una landing a la vez con selector, bloques plegables en orden de página, controles que se
+  esconden según la disposición, el interruptor «Mostrar» y la fuente de los productos, y secciones y preguntas
+  como huecos con «Añadir». Los valores ya guardados no se tocan: lo que se esconde sigue en el formulario y se
+  guarda igual.
+- **Atributos de presentación para módulos e instancias** (solo admin, sin efecto en la API; ver el docblock de
+  `Schema.php`): en un campo, `show_if`; en un grupo, `summary`, `master`, `blocks`, `switcher` y `slots.keys`.
+  Son opcionales: un esquema sin ellos se pinta como antes (plegable y en el mismo orden).
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.
