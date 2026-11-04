@@ -40,6 +40,24 @@ class AdminFormWalker extends Walker {
     /** @var array<string,string> pestaña destino → pestaña de origen (respaldo si no existe). */
     private array $relocatedFrom = [];
 
+    /**
+     * Fragmento de cada nodo visitado, por ruta con puntos (`legal.locations.location_1`).
+     * `PanelLayout` los coloca en las secciones del panel: el walker pinta, el mapa decide dónde.
+     *
+     * @var array<string,array{html:string,bare:string,group:bool}>
+     */
+    private array $fragments = [];
+
+    /**
+     * Fragmentos del último `walk()`. Un campo es su fila; un grupo, su bloque con título
+     * (`html`) y su contenido sin el título (`bare`), que se usa cuando la sección ya lo lleva.
+     *
+     * @return array<string,array{html:string,bare:string,group:bool}>
+     */
+    public function fragments(): array {
+        return $this->fragments;
+    }
+
     // -------------------------------------------------------------------------
     // Walker implementations
     // -------------------------------------------------------------------------
@@ -63,6 +81,8 @@ class AdminFormWalker extends Walker {
     </div>
 </div>
 HTML;
+
+        $this->fragments[implode('.', $path)] = ['html' => $html, 'bare' => $html, 'group' => false];
 
         $tab = (string) ($field['panel']['tab'] ?? '');
         if ($tab !== '' && $tab !== $path[0]) {
@@ -120,7 +140,13 @@ HTML;
             $providerAttr = ' data-provider="' . esc_attr($key) . '"';
         }
 
-        return $this->renderSubgroup($label, $content, $this->subgroupIcon($key), $providerAttr);
+        $html = $this->renderSubgroup($label, $content, $this->subgroupIcon($key), $providerAttr);
+        $this->fragments[implode('.', $path)] = [
+            'html'  => $html,
+            'bare'  => !empty($group['slots']) ? $content : $html,
+            'group' => true,
+        ];
+        return $html;
     }
 
     // -------------------------------------------------------------------------
