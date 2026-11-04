@@ -147,17 +147,45 @@ function hwe_admin_branding_readable( string $preferred, string $background, flo
 		: '#ffffff';
 }
 
-/** URL absoluta del logo (`brand.logo`); la medioteca guarda rutas relativas a uploads. */
+/**
+ * URL del logo (`brand.logo`). Una absoluta se deja tal cual; una ruta relativa de la
+ * medioteca (`/wp-content/uploads/…`) se construye sobre la URL de uploads, y otra relativa
+ * sobre `home_url()`.
+ */
 function hwe_admin_branding_logo_url(): string {
 	$url = hwe_admin_branding_saved( array( 'brand', 'logo' ) );
-	if ( '' === $url ) {
-		return '';
+	if ( '' === $url || preg_match( '#^(?:[a-z][a-z0-9+.-]*:)?//#i', $url ) ) {
+		return $url;
 	}
-	$pos = strpos( $url, 'wp-content/uploads/' );
-	if ( false !== $pos ) {
-		return home_url( '/' . substr( $url, $pos ) );
+	$path = '/' . ltrim( $url, '/' );
+	if ( str_starts_with( $path, '/wp-content/uploads/' ) ) {
+		$uploads = wp_get_upload_dir();
+		return rtrim( (string) $uploads['baseurl'], '/' ) . substr( $path, strlen( '/wp-content/uploads' ) );
 	}
-	return $url;
+	return home_url( $path );
+}
+
+/**
+ * Color del anillo de foco: el primero de `$candidates` que llegue a 3:1 contra la página y
+ * contra el formulario (WCAG 1.4.11). Si ninguno llega, el de reserva (tinta, blanco o gris
+ * medio) con más contraste mínimo contra los dos fondos.
+ *
+ * @param list<string> $candidates
+ */
+function hwe_admin_branding_focus_ring( array $candidates, string $page, string $card ): string {
+	$floor = static fn ( string $c ): float => min( hwe_admin_branding_contrast( $c, $page ), hwe_admin_branding_contrast( $c, $card ) );
+	foreach ( $candidates as $candidate ) {
+		if ( $floor( $candidate ) >= 3 ) {
+			return $candidate;
+		}
+	}
+	$best = '#111111';
+	foreach ( array( '#ffffff', '#767676' ) as $fallback ) {
+		if ( $floor( $fallback ) > $floor( $best ) ) {
+			$best = $fallback;
+		}
+	}
+	return $best;
 }
 
 /**
@@ -183,7 +211,7 @@ function hwe_admin_branding_instance_brand(): ?array {
 
 /** CSS de la pantalla de login con la marca de Orbit. */
 function hwe_admin_branding_login_css(): string {
-	$logo = esc_url( hwe_admin_branding_asset_url( 'orbit-symbol.svg' ) );
+	$logo = esc_url_raw( hwe_admin_branding_asset_url( 'orbit-symbol.svg' ) );
 	return <<<CSS
 body.login { background: #f2c200; }
 .login h1 a {
@@ -214,9 +242,10 @@ CSS;
 
 /**
  * CSS del login con la marca de la instancia: fondo `surface`, formulario en `background`,
- * botón en `brand` y anillo de foco en `brand` (o en `secondary`, o en el texto, el primero
- * que llegue a 3:1 sobre el formulario). Cada texto se comprueba contra su fondo (AA, 4,5:1)
- * y cae a tinta o blanco si no llega.
+ * botón en `brand` y anillo de foco en `brand`, `secondary` o el texto (el primero que llegue a
+ * 3:1 sobre el formulario y la página; `hwe_admin_branding_focus_ring`). Cada texto se comprueba
+ * contra su fondo (AA, 4,5:1) y cae a tinta o blanco si no llega. Los avisos del login toman el
+ * fondo del formulario y conservan el rojo y el verde de error y éxito del core.
  *
  * @param array{name:string,logo:string} $brand
  */
@@ -229,17 +258,12 @@ function hwe_admin_branding_instance_login_css( array $brand ): string {
 	$hover  = hwe_admin_branding_color( 'brand_dark', $button );
 	$label  = hwe_admin_branding_readable( '#ffffff', $button );
 	$hlabel = hwe_admin_branding_readable( '#ffffff', $hover );
-	$ring   = $text;
-	foreach ( array( $button, hwe_admin_branding_color( 'secondary', '#2a3fd6' ) ) as $candidate ) {
-		if ( hwe_admin_branding_contrast( $candidate, $card ) >= 3 && hwe_admin_branding_contrast( $candidate, $page ) >= 3 ) {
-			$ring = $candidate;
-			break;
-		}
-	}
-	$credit = esc_url( hwe_admin_branding_asset_url( 'orbit-symbol.svg' ) );
+	$ring   = hwe_admin_branding_focus_ring( array( $button, hwe_admin_branding_color( 'secondary', '#2a3fd6' ), $text ), $page, $card );
+	$credit = esc_url_raw( hwe_admin_branding_asset_url( 'orbit-symbol.svg' ) );
 
 	if ( '' !== $brand['logo'] ) {
-		$logo = esc_url( $brand['logo'] );
+		// `esc_url_raw`: dentro de una hoja de estilos, `&#038;` rompería una URL con query.
+		$logo = esc_url_raw( $brand['logo'] );
 		$head = <<<CSS
 .login h1 a {
 	background-image: url("{$logo}");
@@ -294,7 +318,9 @@ body.login { background: {$page}; color: {$text}; }
 .login input[type="password"]:focus,
 .login input[type="email"]:focus { border-color: {$ring}; }
 .login .button.wp-hide-pw .dashicons { color: {$text}; }
-.login .message, .login .notice, .login .success { border-left-color: {$button}; }
+.login .message, .login .notice, .login .success { background: {$card}; color: {$text}; border-left-color: {$button}; }
+.login .notice-error { border-left-color: #cc1818; }
+.login .success { border-left-color: #4ab866; }
 .hwe-login-credit {
 	display: flex;
 	align-items: center;
@@ -345,6 +371,6 @@ function hwe_admin_branding_login_header_text( $text ) {
 		return $text;
 	}
 	$brand = hwe_admin_branding_instance_brand();
-	return null !== $brand ? esc_html( $brand['name'] ) : get_bloginfo( 'name' );
+	return esc_html( null !== $brand ? $brand['name'] : (string) get_bloginfo( 'name' ) );
 }
 add_filter( 'login_headertext', 'hwe_admin_branding_login_header_text' );
