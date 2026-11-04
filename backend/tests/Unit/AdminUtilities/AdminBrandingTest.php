@@ -204,6 +204,8 @@ final class AdminBrandingTest extends TestCase
 
         $this->assertStringContainsString('body.login { background: #0b1220; color: #e5e7eb; }', $css);
         $this->assertStringContainsString('.login .message, .login .notice, .login .success { background: #111827; color: #e5e7eb;', $css, 'Los avisos no quedan con texto claro sobre el blanco del core.');
+        // Los enlaces de un aviso («¿Perdiste tu contraseña?») no conservan el azul del core sobre el formulario oscuro.
+        $this->assertStringContainsString('.login .message a, .login .notice a, .login .success a { color: #e5e7eb;', $css);
         $this->assertStringContainsString('outline: 2px solid #e5e7eb;', $css, 'Ni la marca ni el secundario llegan a 3:1 en oscuro: el foco va en el texto.');
         $this->assertGreaterThan(
             strpos($css, 'border-left-color: #1e293b;'),

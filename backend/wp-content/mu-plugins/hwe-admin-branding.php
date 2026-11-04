@@ -319,6 +319,7 @@ body.login { background: {$page}; color: {$text}; }
 .login input[type="email"]:focus { border-color: {$ring}; }
 .login .button.wp-hide-pw .dashicons { color: {$text}; }
 .login .message, .login .notice, .login .success { background: {$card}; color: {$text}; border-left-color: {$button}; }
+.login .message a, .login .notice a, .login .success a { color: {$text}; text-decoration: underline; }
 .login .notice-error { border-left-color: #cc1818; }
 .login .success { border-left-color: #4ab866; }
 .hwe-login-credit {

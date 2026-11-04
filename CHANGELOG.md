@@ -12,9 +12,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `background`, botón en `brand`— y deja Orbit como un «Con HWE Orbit» pequeño al pie. Cada texto se
   comprueba contra su fondo (WCAG AA, 4,5:1) y el anillo de foco (contorno de 2 px) contra el
   formulario y la página (3:1); si un color no llega, cae a tinta, blanco o gris medio. Los avisos
-  del login toman el fondo del formulario y conservan el rojo y el verde de error y éxito del core. Sin logo y con el nombre
-  de serie del esquema (`HWE-Orbit`), el login sigue siendo el de Orbit. Funciona igual bajo
-  `HWE_LOGIN_SLUG`.
+  del login (y sus enlaces) toman el fondo y el texto del formulario y conservan el rojo y el verde
+  de error y éxito del core. Sin logo y con el nombre de serie del esquema (`HWE-Orbit`), el login
+  sigue siendo el de Orbit. Funciona igual bajo `HWE_LOGIN_SLUG`.
 
 ### Fixed
 - **El registro nativo de WordPress queda cerrado; el del BFF sigue igual.** `setup.sh` activa
