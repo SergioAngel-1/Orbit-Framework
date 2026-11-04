@@ -18,6 +18,12 @@ use HWE\ControlCenter\Storage;
  * se pinta, así que reordenar no huérfana nada. Todos los campos son `public` (alimentan el
  * frontend por `/wp-json/hwe/v1/config`) y los de texto llevan `translatable`: el esquema del
  * núcleo les añade un hermano `<campo>_<idioma>` por cada idioma secundario del sitio.
+ *
+ * PRESENTACIÓN (solo admin, documentada en el docblock de `Schema`): el orden de las claves es el
+ * del dato y de `/config`; el panel pinta cada landing en ORDEN DE PÁGINA con `blocks`, la elige con
+ * un selector (`switcher`), resume cada bloque cerrado (`summary`), apaga los controles de un bloque
+ * con «Mostrar» desmarcado (`master`), esconde lo que la disposición no usa (`show_if`) y trata las
+ * secciones y preguntas como huecos opcionales (`slots`). Nada de eso cambia un valor guardado.
  */
 final class ContentSchema {
 
@@ -45,6 +51,22 @@ final class ContentSchema {
 		's5'    => 'La sección 5',
 		'quote' => 'La cita',
 		'faq'   => 'Las preguntas frecuentes',
+	);
+
+	/**
+	 * Qué disposiciones pintan la imagen (el frontend: `landing-editorial-view.tsx`). «Solo texto»,
+	 * «Bloques con subtítulos» y «Separador» no la usan: el panel esconde sus controles (sin borrar lo
+	 * guardado, por si se vuelve a una disposición con imagen).
+	 */
+	private const WITH_IMAGE = array(
+		'field' => 'layout',
+		'in'    => array( 'image-left', 'image-right', 'full', 'mirror-pair' ),
+	);
+
+	/** La segunda imagen solo la pinta «Pareja en espejo». */
+	private const WITH_SECOND_IMAGE = array(
+		'field' => 'layout',
+		'in'    => array( 'mirror-pair' ),
 	);
 
 	private const SECTION_IMAGE_SIZES = 'Medida recomendada según la disposición: «Imagen a la izquierda» 1500×1200 px (5:4) · «Imagen a la derecha» 1200×1600 px (3:4) · «Ancho completo» 2400×1030 px (21:9, que en móvil se recorta a 3:2: deja el sujeto centrado). «Solo texto» y «Bloques con subtítulos» no pintan imagen. No hace falta una versión aparte para móvil.';
@@ -83,6 +105,7 @@ final class ContentSchema {
 			$children[ $id ] = array(
 				'type'     => 'group',
 				'label'    => $meta['label'] . ( $meta['dynamic'] ? '' : ' (diseño propio)' ),
+				'blocks'   => self::blocks( (bool) $meta['dynamic'] ),
 				'children' => self::landing( (string) $id, $meta, $landings, $categories, $products ),
 			);
 		}
@@ -90,10 +113,87 @@ final class ContentSchema {
 		$schema['landings']['children']['editorial'] = array(
 			'type'     => 'group',
 			'label'    => 'Contenido de las landings',
+			'switcher' => array( 'label' => 'Editando' ),
 			'children' => $children,
 		);
 
 		return $schema;
+	}
+
+	/**
+	 * El molde en ORDEN DE PÁGINA, para el panel: ajustes de la landing, hero, entradilla, secciones,
+	 * cita, preguntas, productos y cierre. El esquema sigue en su orden de siempre (el del dato y de
+	 * `/config`); esto solo dice cómo se agrupa y se ordena lo que se pinta.
+	 *
+	 * @return list<array<string,mixed>>
+	 */
+	private static function blocks( bool $dynamic ): array {
+		$settings = array( 'published' );
+		if ( $dynamic ) {
+			$settings[] = 'jsonld_type';
+		}
+		array_push( $settings, 'url', 'seo', 'product', 'product_cta_label', 'accent' );
+
+		return array(
+			array(
+				'label'   => 'Ajustes de la landing',
+				'keys'    => $settings,
+				'summary' => array(
+					'toggle' => 'published',
+					'on'     => 'Publicada',
+					'off'    => 'Borrador',
+					'parts'  => $dynamic
+						? array( array( 'field' => 'jsonld_type', 'as' => 'select' ), array( 'field' => 'product', 'as' => 'select' ) )
+						: array( array( 'field' => 'product', 'as' => 'select' ) ),
+				),
+			),
+			array(
+				'label'   => 'Hero',
+				'keys'    => array( 'hero_note' ),
+				'summary' => array( 'empty' => 'Se edita en Banners' ),
+			),
+			array(
+				'label'   => 'Entradilla',
+				'keys'    => array( 'lead_enabled', 'lead_body' ),
+				'master'  => 'lead_enabled',
+				'summary' => self::summary( 'lead_enabled', 'Oculta', array( array( 'field' => 'lead_body', 'as' => 'text', 'quote' => true ) ) ),
+			),
+			array(
+				'label' => 'Secciones de contenido',
+				'keys'  => array( 'sections' ),
+			),
+			array(
+				'label' => 'Cita destacada',
+				'keys'  => array( 'quote' ),
+			),
+			array(
+				'label' => 'Preguntas frecuentes',
+				'keys'  => array( 'faq' ),
+			),
+			array(
+				'label' => 'Productos',
+				'keys'  => array( 'products' ),
+			),
+			array(
+				'label' => 'Cierre',
+				'keys'  => array( 'closing' ),
+			),
+		);
+	}
+
+	/**
+	 * Resumen de un bloque con interruptor «Mostrar»: «Visible · …partes» o, apagado, solo `$off`.
+	 *
+	 * @param list<array<string,mixed>> $parts
+	 * @return array<string,mixed>
+	 */
+	private static function summary( string $toggle, string $off, array $parts ): array {
+		return array(
+			'toggle' => $toggle,
+			'on'     => 'Visible',
+			'off'    => $off,
+			'parts'  => $parts,
+		);
 	}
 
 	/**
@@ -176,6 +276,12 @@ final class ContentSchema {
 		$fields['sections']     = array(
 			'type'     => 'group',
 			'label'    => 'Secciones de contenido (hasta ' . self::SECTION_COUNT . ')',
+			'slots'    => array(
+				'add_label'    => 'Añadir sección',
+				'remove_label' => 'Quitar sección',
+				'empty'        => 'Aún no hay secciones. Añade la primera con el botón de abajo (hasta ' . self::SECTION_COUNT . ').',
+			),
+			'summary'  => array( 'parts' => array( array( 'as' => 'slots', 'unit' => 'secciones' ) ), 'empty' => 'Sin secciones' ),
 			'children' => self::sections(),
 		);
 		$fields['quote']        = self::quote();
@@ -288,6 +394,15 @@ final class ContentSchema {
 			$slots[ "s$i" ] = array(
 				'type'     => 'group',
 				'label'    => "Sección $i",
+				'master'   => 'enabled',
+				'summary'  => self::summary(
+					'enabled',
+					'Oculta',
+					array(
+						array( 'field' => 'layout', 'as' => 'select' ),
+						array( 'field' => 'title', 'as' => 'text', 'quote' => true ),
+					)
+				),
 				'children' => array(
 					'enabled'      => array( 'type' => 'boolean', 'label' => 'Mostrar', 'public' => true ),
 					'order'        => array(
@@ -310,10 +425,10 @@ final class ContentSchema {
 					'kicker'       => array( 'type' => 'text', 'label' => 'Antetítulo', 'public' => true, 'translatable' => true ),
 					'title'        => array( 'type' => 'text', 'label' => 'Título', 'public' => true, 'translatable' => true ),
 					'body'         => array( 'type' => 'richtext', 'label' => 'Cuerpo', 'default' => '', 'public' => true, 'translatable' => true ),
-					'image'        => array( 'type' => 'image', 'label' => 'Imagen', 'public' => true, 'description' => self::SECTION_IMAGE_SIZES ),
-					'image_alt'    => array( 'type' => 'text', 'label' => 'Texto alternativo de la imagen', 'public' => true, 'translatable' => true, 'description' => 'Qué se ve, en una frase, para quien no puede verla. No repitas el título. Vacío = imagen decorativa.' ),
-					'image_2'      => array( 'type' => 'image', 'label' => 'Segunda imagen', 'public' => true, 'description' => 'Solo la usa la disposición «Pareja en espejo».' ),
-					'image_2_alt'  => array( 'type' => 'text', 'label' => 'Texto alternativo de la segunda imagen', 'public' => true, 'translatable' => true ),
+					'image'        => array( 'type' => 'image', 'label' => 'Imagen', 'public' => true, 'show_if' => self::WITH_IMAGE, 'description' => self::SECTION_IMAGE_SIZES ),
+					'image_alt'    => array( 'type' => 'text', 'label' => 'Texto alternativo de la imagen', 'public' => true, 'translatable' => true, 'show_if' => self::WITH_IMAGE, 'description' => 'Qué se ve, en una frase, para quien no puede verla. No repitas el título. Vacío = imagen decorativa.' ),
+					'image_2'      => array( 'type' => 'image', 'label' => 'Segunda imagen', 'public' => true, 'show_if' => self::WITH_SECOND_IMAGE, 'description' => 'Solo la usa la disposición «Pareja en espejo».' ),
+					'image_2_alt'  => array( 'type' => 'text', 'label' => 'Texto alternativo de la segunda imagen', 'public' => true, 'translatable' => true, 'show_if' => self::WITH_SECOND_IMAGE ),
 				),
 			);
 		}
@@ -325,6 +440,15 @@ final class ContentSchema {
 		return array(
 			'type'     => 'group',
 			'label'    => 'Cita destacada',
+			'master'   => 'enabled',
+			'summary'  => self::summary(
+				'enabled',
+				'Oculta',
+				array(
+					array( 'field' => 'text', 'as' => 'text', 'quote' => true ),
+					array( 'field' => 'author', 'as' => 'text' ),
+				)
+			),
 			'children' => array(
 				'enabled'          => array( 'type' => 'boolean', 'label' => 'Mostrar', 'public' => true ),
 				'text'             => array( 'type' => 'textarea', 'label' => 'Cita', 'public' => true, 'translatable' => true ),
@@ -356,6 +480,14 @@ final class ContentSchema {
 		return array(
 			'type'     => 'group',
 			'label'    => 'Preguntas frecuentes (hasta ' . self::FAQ_COUNT . ')',
+			'master'   => 'enabled',
+			'summary'  => self::summary( 'enabled', 'Ocultas', array( array( 'as' => 'slots', 'unit' => 'preguntas' ) ) ),
+			'slots'    => array(
+				'add_label'    => 'Añadir pregunta',
+				'remove_label' => 'Quitar pregunta',
+				'empty'        => 'Aún no hay preguntas. Añade la primera con el botón de abajo (hasta ' . self::FAQ_COUNT . ').',
+				'keys'         => array_map( static fn ( int $i ): string => "q$i", range( 1, self::FAQ_COUNT ) ),
+			),
 			'children' => $children,
 		);
 	}
@@ -375,6 +507,15 @@ final class ContentSchema {
 		return array(
 			'type'     => 'group',
 			'label'    => 'Productos',
+			'master'   => 'enabled',
+			'summary'  => self::summary(
+				'enabled',
+				'Ocultos',
+				array(
+					array( 'field' => 'mode', 'as' => 'select' ),
+					array( 'field' => 'title', 'as' => 'text', 'quote' => true ),
+				)
+			),
 			'children' => array(
 				'enabled'  => array( 'type' => 'boolean', 'label' => 'Mostrar', 'public' => true ),
 				'title'    => array( 'type' => 'text', 'label' => 'Título', 'public' => true, 'translatable' => true ),
@@ -397,6 +538,7 @@ final class ContentSchema {
 					'label'       => 'Categoría',
 					'default'     => '',
 					'public'      => true,
+					'show_if'     => array( 'field' => 'mode', 'in' => array( 'category' ) ),
 					'options'     => array( '' => '— Sin categoría —' ) + self::withStored( $categories, array( $category ) ),
 					'description' => 'Al cambiarla, GUARDA para refrescar la lista de la selección manual.',
 				),
@@ -405,6 +547,7 @@ final class ContentSchema {
 					'label'       => 'Productos',
 					'default'     => '',
 					'public'      => true,
+					'show_if'     => array( 'field' => 'mode', 'in' => array( 'manual' ) ),
 					'options'     => Options::products( $category, $selected ),
 					'description' => 'Con «Selección manual», los productos de la categoría de arriba (o todos si no hay ninguna).',
 				),
@@ -417,6 +560,8 @@ final class ContentSchema {
 		return array(
 			'type'     => 'group',
 			'label'    => 'Cierre',
+			'master'   => 'enabled',
+			'summary'  => self::summary( 'enabled', 'Oculto', array( array( 'field' => 'title', 'as' => 'text', 'quote' => true ) ) ),
 			'children' => array(
 				'enabled'          => array( 'type' => 'boolean', 'label' => 'Mostrar', 'public' => true ),
 				'title'            => array( 'type' => 'text', 'label' => 'Título', 'public' => true, 'translatable' => true ),

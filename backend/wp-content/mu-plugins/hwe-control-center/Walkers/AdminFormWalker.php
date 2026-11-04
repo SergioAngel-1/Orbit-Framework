@@ -3,6 +3,7 @@
 namespace HWE\ControlCenter\Walkers;
 
 use HWE\ControlCenter\FieldTypes\Registry;
+use HWE\ControlCenter\Schema;
 use HWE\ControlCenter\Walker;
 
 /**
@@ -19,6 +20,11 @@ use HWE\ControlCenter\Walker;
  * Un grupo con `slots` envuelve cada hijo como hueco opcional (`assets/admin.js` oculta los
  * vacíos y gestiona «añadir»/«quitar»). Su fragmento `bare` es solo el contenedor de huecos: la
  * sección que lo coloca ya lleva el título.
+ *
+ * Atributos de presentación solo-admin (documentados en el docblock de `Schema`; no tocan el dato
+ * ni la API): `show_if` en un campo, y `summary`, `master`, `blocks`, `switcher` y `slots.keys` en un
+ * grupo. Pintarlos solo añade marcado (`data-hwe-*`): quien los interpreta es `assets/admin.js`, y
+ * con el JS apagado todo se ve.
  *
  * Uso:
  *   $walker = new AdminFormWalker($secretsExist);
@@ -40,6 +46,17 @@ class AdminFormWalker extends Walker {
      * @var array<string,array{html:string,bare:string,group:bool}>
      */
     private array $fragments = [];
+
+    /**
+     * Contenido de cada grupo anidado SIN su `<details>`, y los atributos de su cabecera, por ruta con
+     * puntos: lo reutilizan los bloques con otro título y el selector de grupos.
+     *
+     * @var array<string,string>
+     */
+    private array $inner = [];
+
+    /** @var array<string,string> */
+    private array $groupAttrs = [];
 
     /**
      * Fragmentos del último `walk()`. Un campo es su fila; un grupo, su bloque con título
@@ -67,7 +84,7 @@ class AdminFormWalker extends Walker {
         // El interruptor ya lleva su texto al lado: la etiqueta de la fila solo queda para lectores de pantalla.
         $modifier = ($field['type'] ?? 'text') === 'boolean' ? ' hwe-field--toggle' : '';
 
-        $attrs = $this->languageAttrs($field, $path);
+        $attrs = $this->languageAttrs($field, $path) . $this->showIfAttr($field, $path);
 
         $html = <<<HTML
 <div class="hwe-field{$modifier}"{$attrs}>
@@ -88,13 +105,23 @@ HTML;
         $label   = esc_html($group['label'] ?? $key);
         $content = implode("\n", array_values($children));
         $depth   = count($path);
+        $dotted  = implode('.', $path);
 
         // Las raíces las reparte PanelLayout entre pestañas; aquí solo importa el contenido.
         if ($depth === 1) {
             return $content;
         }
 
-        if (!empty($group['slots']) && is_array($group['slots'])) {
+        // Selector de grupos (una landing a la vez): sin cabecera plegable, el selector es la cabecera.
+        if (!empty($group['switcher']) && is_array($group['switcher'])) {
+            $html = $this->renderSwitcher($group, $path);
+            $this->fragments[$dotted] = ['html' => $html, 'bare' => $html, 'group' => true];
+            return $html;
+        }
+
+        if (!empty($group['blocks']) && is_array($group['blocks'])) {
+            $content = $this->renderBlocks($group, $children, $path);
+        } elseif (!empty($group['slots']) && is_array($group['slots'])) {
             $content = $this->renderSlots($group['slots'], $children);
         }
 
@@ -103,9 +130,13 @@ HTML;
         if ($path[0] === 'payments' && $key !== 'provider') {
             $providerAttr = ' data-provider="' . esc_attr($key) . '"';
         }
+        $attrs = $providerAttr . $this->foldAttrs($group, $path);
 
-        $html = $this->renderSubgroup($label, $content, $providerAttr);
-        $this->fragments[implode('.', $path)] = [
+        $this->inner[$dotted]      = $content;
+        $this->groupAttrs[$dotted] = $attrs;
+
+        $html = $this->renderSubgroup($label, $content, $attrs);
+        $this->fragments[$dotted] = [
             'html'  => $html,
             'bare'  => !empty($group['slots']) ? $content : $html,
             'group' => true,
@@ -144,6 +175,204 @@ HTML;
     }
 
     /**
+     * Condición de visibilidad de un campo según el valor de un HERMANO: `show_if => ['field' => 'layout',
+     * 'in' => [...]]` (o `'not_in'`). `admin.js` esconde la fila cuando no se cumple; el control sigue en
+     * el formulario y su valor no se toca.
+     *
+     * @param array<string,mixed> $field
+     * @param list<string>        $path
+     */
+    private function showIfAttr(array $field, array $path): string {
+        $cond = $field['show_if'] ?? null;
+        if (!is_array($cond) || (string) ($cond['field'] ?? '') === '') {
+            return '';
+        }
+        $sibling = $path;
+        array_pop($sibling);
+        $sibling[] = (string) $cond['field'];
+
+        $data = ['f' => $this->fieldId($sibling)];
+        if (isset($cond['in']) && is_array($cond['in'])) {
+            $data['in'] = array_values(array_map('strval', $cond['in']));
+        } elseif (isset($cond['not_in']) && is_array($cond['not_in'])) {
+            $data['not_in'] = array_values(array_map('strval', $cond['not_in']));
+        } else {
+            return '';
+        }
+        return ' data-hwe-show-if="' . esc_attr((string) json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) . '"';
+    }
+
+    /**
+     * Atributos de la cabecera plegable de un grupo o bloque: resumen de su estado
+     * (`data-hwe-summary`) y campo maestro (`data-hwe-master`: apagado, el bloque solo enseña ese campo).
+     *
+     * @param array<string,mixed> $spec Grupo o bloque con `summary` y/o `master`.
+     * @param list<string>        $path Ruta del grupo al que se refieren las claves del resumen.
+     */
+    private function foldAttrs(array $spec, array $path): string {
+        $out = '';
+        if (!empty($spec['summary']) && is_array($spec['summary'])) {
+            $out .= ' data-hwe-summary="' . esc_attr($this->summaryJson($spec['summary'], $path)) . '"';
+        }
+        if (!empty($spec['master'])) {
+            $out .= ' data-hwe-master="' . esc_attr($this->fieldId([...$path, (string) $spec['master']])) . '"';
+        }
+        return $out;
+    }
+
+    /**
+     * Resumen de un bloque, en la forma que lee `admin.js`: `t` (id del interruptor) con sus textos
+     * `on`/`off`, `p` (partes: `as` = select | text | slots, `f` = id del campo, `q` = entre comillas,
+     * `unit` = «secciones»…) y `empty` (texto si no hay nada que decir).
+     *
+     * @param array<string,mixed> $summary
+     * @param list<string>        $path
+     */
+    private function summaryJson(array $summary, array $path): string {
+        $data = [];
+        if (!empty($summary['toggle'])) {
+            $data['t']   = $this->fieldId([...$path, (string) $summary['toggle']]);
+            $data['on']  = (string) ($summary['on'] ?? __('Visible', 'hwe'));
+            $data['off'] = (string) ($summary['off'] ?? __('Oculto', 'hwe'));
+        }
+        $parts = [];
+        foreach ((array) ($summary['parts'] ?? []) as $part) {
+            if (!is_array($part)) {
+                continue;
+            }
+            $item = ['as' => (string) ($part['as'] ?? 'text')];
+            if (!empty($part['field'])) {
+                $item['f'] = $this->fieldId([...$path, (string) $part['field']]);
+            }
+            if (!empty($part['quote'])) {
+                $item['q'] = 1;
+            }
+            if (!empty($part['unit'])) {
+                $item['unit'] = (string) $part['unit'];
+            }
+            $parts[] = $item;
+        }
+        if ($parts !== []) {
+            $data['p'] = $parts;
+        }
+        if (!empty($summary['empty'])) {
+            $data['empty'] = (string) $summary['empty'];
+        }
+        return (string) json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * Hijos en el orden de `blocks`, cada bloque como un `<details>` con su resumen. Un bloque es:
+     *   · una clave de un hijo (grupo: sale con su propia cabecera);
+     *   · `['label' => …, 'keys' => [...], 'summary' => …, 'master' => …]`: varios hijos bajo una
+     *     cabecera nueva (o `'keys' => ['grupo']` con otro título). Sin `label` salen sueltos.
+     * Las variantes traducibles van pegadas a su campo y lo que ningún bloque nombra se añade al
+     * final tal cual: reordenar la vista nunca pierde un campo ni toca el orden del dato.
+     *
+     * @param array<string,mixed>  $group
+     * @param array<string,string> $children
+     * @param list<string>         $path
+     */
+    private function renderBlocks(array $group, array $children, array $path): string {
+        $defs = (array) ($group['children'] ?? []);
+        $used = [];
+        $out  = [];
+
+        foreach ($group['blocks'] as $block) {
+            $block = is_string($block) ? ['keys' => [$block]] : (array) $block;
+            $keys  = [];
+            foreach ((array) ($block['keys'] ?? []) as $key) {
+                $key = (string) $key;
+                if (!isset($children[$key]) || in_array($key, $used, true)) {
+                    continue;
+                }
+                $keys[] = $key;
+                $used[] = $key;
+                foreach (Schema::secondaryLocales() as $suffix) {
+                    $variant = $key . '_' . $suffix;
+                    if (isset($children[$variant]) && !in_array($variant, $used, true)) {
+                        $keys[] = $variant;
+                        $used[] = $variant;
+                    }
+                }
+            }
+            if ($keys === []) {
+                continue;
+            }
+
+            $label  = (string) ($block['label'] ?? '');
+            $isGroup = count($keys) === 1 && ($defs[$keys[0]]['type'] ?? null) === 'group';
+            if ($isGroup && $label !== '') {
+                $dotted = implode('.', [...$path, $keys[0]]);
+                $out[]  = $this->renderSubgroup(esc_html($label), $this->inner[$dotted] ?? $children[$keys[0]], $this->groupAttrs[$dotted] ?? '');
+                continue;
+            }
+            if ($label === '') {
+                foreach ($keys as $key) {
+                    $out[] = $children[$key];
+                }
+                continue;
+            }
+            $out[] = $this->renderSubgroup(
+                esc_html($label),
+                implode("\n", array_map(static fn (string $key): string => $children[$key], $keys)),
+                $this->foldAttrs($block, $path)
+            );
+        }
+
+        foreach ($children as $key => $html) {
+            if (!in_array((string) $key, $used, true)) {
+                $out[] = $html;
+            }
+        }
+        return implode("\n", $out);
+    }
+
+    /**
+     * Selector de hijos de un grupo: «Editando: <hijo> ▾» y solo el elegido a la vista (el resto sigue
+     * en el formulario y se guarda). Sin JS se ven todos, cada uno con su título; con JS el título lo
+     * da el selector y, con un solo hijo, no hay selector.
+     *
+     * @param array<string,mixed> $group
+     * @param list<string>        $path
+     */
+    private function renderSwitcher(array $group, array $path): string {
+        $children = (array) ($group['children'] ?? []);
+        if ($children === []) {
+            return '';
+        }
+        $meta     = (array) $group['switcher'];
+        $label    = esc_html((string) ($meta['label'] ?? __('Editando', 'hwe')));
+        $selectId = esc_attr($this->fieldId($path) . '__switch');
+
+        $options = '';
+        $items   = '';
+        foreach ($children as $key => $def) {
+            $dotted  = implode('.', [...$path, (string) $key]);
+            $content = $this->inner[$dotted] ?? ($this->fragments[$dotted]['html'] ?? '');
+            $name    = esc_html((string) ($def['label'] ?? $key));
+            $value   = esc_attr((string) $key);
+            $options .= "<option value=\"{$value}\">{$name}</option>";
+            $items   .= <<<HTML
+<div class="hwe-switch-item" data-hwe-switch-item="{$value}">
+    <h4 class="hwe-switch-title">{$name}</h4>
+    {$content}
+</div>
+HTML;
+        }
+
+        return <<<HTML
+<div class="hwe-switcher" data-hwe-switcher>
+    <div class="hwe-switcher__bar" data-hwe-switcher-bar hidden>
+        <label for="{$selectId}">{$label}</label>
+        <select id="{$selectId}" data-hwe-switcher-select>{$options}</select>
+    </div>
+    {$items}
+</div>
+HTML;
+    }
+
+    /**
      * Bloque anidado (sede, pasarela, grupo de un módulo): un `<details>` plegado de serie. Se
      * pliega sin JS; `admin.js` lo abre si algo dentro tiene el foco o un error, marca con un punto
      * el que guarda cambios sin guardar y escribe en `data-hwe-summary-out` el resumen de su estado.
@@ -166,18 +395,25 @@ HTML;
     }
 
     /**
-     * Cada hijo como hueco opcional. Sin JS se ven todos y el botón «añadir» sigue oculto.
+     * Cada hijo como hueco opcional (o solo los de `keys`, si se indica: los demás salen antes, tal
+     * cual). Sin JS se ven todos y el botón «añadir» sigue oculto.
      *
-     * @param array<string,string> $meta     `add_label`, `remove_label`, `empty`.
+     * @param array<string,mixed>  $meta     `add_label`, `remove_label`, `empty`, `keys`.
      * @param array<string,string> $children HTML de cada hijo.
      */
     private function renderSlots(array $meta, array $children): string {
         $add    = esc_html((string) ($meta['add_label'] ?? __('Añadir', 'hwe')));
         $remove = esc_html((string) ($meta['remove_label'] ?? __('Quitar', 'hwe')));
         $empty  = esc_html((string) ($meta['empty'] ?? ''));
+        $only   = isset($meta['keys']) && is_array($meta['keys']) ? array_map('strval', $meta['keys']) : null;
 
+        $plain = '';
         $slots = '';
-        foreach ($children as $html) {
+        foreach ($children as $key => $html) {
+            if ($only !== null && !in_array((string) $key, $only, true)) {
+                $plain .= $html . "\n";
+                continue;
+            }
             $slots .= <<<HTML
 <div class="hwe-slot" data-hwe-slot>
     {$html}
@@ -188,7 +424,7 @@ HTML;
 HTML;
         }
 
-        return <<<HTML
+        return $plain . <<<HTML
 <div class="hwe-slots" data-hwe-slots>
     <p class="description hwe-slots-empty" data-hwe-slots-empty hidden>{$empty}</p>
     {$slots}

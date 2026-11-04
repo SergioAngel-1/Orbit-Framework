@@ -15,15 +15,43 @@
 
     var viewHooks = [];
 
-    function onView(fn) { viewHooks.push(fn); }
+    // `rank` ordena las funciones: primero las condiciones, luego los resúmenes, el idioma y,
+    // al final, lo que mira el resultado (la etiqueta de «abrir todo»).
+    function onView(fn, rank) {
+        viewHooks.push({ fn: fn, rank: rank || 50 });
+        viewHooks.sort(function (a, b) { return a.rank - b.rank; });
+    }
 
-    function refreshView() { viewHooks.forEach(function (fn) { fn(); }); }
+    function refreshView() { viewHooks.forEach(function (hook) { hook.fn(); }); }
 
     function activePanel() { return document.querySelector('[data-hwe-panel]:not([hidden])'); }
 
     // =========================================================================
     // Navegación lateral: un enlace por pestaña, un panel por enlace.
     // =========================================================================
+
+    // La ruta del panel vive en la URL: `#pestaña` o `#pestaña/elegido` (p. ej. `#landings/guia`, la
+    // landing que se está editando). Va también en la acción del formulario, así sobrevive al guardado.
+    var route = { tab: '', subs: {}, form: null, base: '' };
+
+    function readRoute(hash) {
+        var parts = String(hash || '').replace(/^#/, '').split('/');
+        return { tab: parts[0] || '', sub: parts.slice(1).join('/') };
+    }
+
+    function writeRoute() {
+        if (!route.tab) return;
+        var sub = route.subs[route.tab];
+        var hash = '#' + route.tab + (sub ? '/' + sub : '');
+        try { history.replaceState(null, '', hash); } catch (e) {}
+        if (route.form) route.form.setAttribute('action', route.base + hash);
+    }
+
+    // Recuerda lo elegido dentro de una pestaña (p. ej. la landing) y lo pone en la URL.
+    function chooseSub(tab, sub) {
+        route.subs[tab] = sub;
+        if (route.tab === tab) writeRoute();
+    }
 
     function initTabs() {
         var nav = document.querySelector('.hwe-nav');
@@ -35,16 +63,11 @@
         var current = nav.querySelector('[data-hwe-nav-current]');
         var wrap = document.querySelector('.hwe-wrap');
         var form = document.querySelector('[data-hwe-form]');
-        var baseAction = form ? form.getAttribute('action').split('#')[0] : '';
+        route.form = form;
+        route.base = form ? form.getAttribute('action').split('#')[0] : '';
 
         function exists(tab) {
             return !!tab && Array.prototype.some.call(panels, function (p) { return p.dataset.hwePanel === tab; });
-        }
-
-        // La pestaña va en la URL (#tab) y en la acción del formulario: sobrevive al guardado.
-        function remember(tab) {
-            try { history.replaceState(null, '', '#' + tab); } catch (e) {}
-            if (form) form.setAttribute('action', baseAction + '#' + tab);
         }
 
         function show(tab) {
@@ -55,6 +78,7 @@
             });
             panels.forEach(function (p) { p.hidden = p.dataset.hwePanel !== tab; });
             if (current && link) current.textContent = link.querySelector('.hwe-nav__label').textContent;
+            route.tab = tab;
             refreshView();
         }
 
@@ -67,7 +91,7 @@
             link.addEventListener('click', function (e) {
                 e.preventDefault();
                 show(link.dataset.hweTab);
-                remember(link.dataset.hweTab);
+                writeRoute();
                 setOpen(false);
             });
         });
@@ -79,19 +103,21 @@
 
         // Atrás/adelante o un #tab pegado a mano.
         window.addEventListener('hashchange', function () {
-            var tab = window.location.hash.slice(1);
-            if (exists(tab)) {
-                show(tab);
-                if (form) form.setAttribute('action', baseAction + '#' + tab);
-            }
+            var next = readRoute(window.location.hash);
+            if (!exists(next.tab)) return;
+            if (next.sub) route.subs[next.tab] = next.sub;
+            show(next.tab);
+            if (route.form) route.form.setAttribute('action', route.base + '#' + next.tab + (route.subs[next.tab] ? '/' + route.subs[next.tab] : ''));
+            document.dispatchEvent(new CustomEvent('hwe:route', { detail: { tab: next.tab, sub: route.subs[next.tab] || '' } }));
         });
 
         // Al cargar manda la URL; si no trae pestaña, la que eligió el servidor (p. ej. tras una prueba de correo).
-        var fromUrl = window.location.hash.slice(1);
-        var start = exists(fromUrl) ? fromUrl : (wrap && wrap.dataset.hweInitialTab) || '';
+        var fromUrl = readRoute(window.location.hash);
+        if (exists(fromUrl.tab) && fromUrl.sub) route.subs[fromUrl.tab] = fromUrl.sub;
+        var start = exists(fromUrl.tab) ? fromUrl.tab : (wrap && wrap.dataset.hweInitialTab) || '';
         if (exists(start)) {
             show(start);
-            if (form) form.setAttribute('action', baseAction + '#' + start);
+            if (form) form.setAttribute('action', route.base + '#' + start + (route.subs[start] ? '/' + route.subs[start] : ''));
         }
     }
 
@@ -289,14 +315,31 @@
     // y el frontend lo ignora. Sin JS se ven todos, como cualquier grupo.
     // =========================================================================
 
+    // Los controles con los que se rellena un hueco. Un desplegable no cuenta: siempre tiene valor
+    // (la disposición, el orden…) y haría «ocupados» los huecos que nadie ha tocado.
     function slotFields(slot) {
-        return slot.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="button"]), textarea, select');
+        return slot.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]), textarea');
     }
 
+    // Ocupado = algún texto con contenido o alguna casilla marcada (p. ej. «Mostrar»).
     function slotHasData(slot) {
-        return Array.prototype.some.call(slotFields(slot), function (field) {
+        var text = Array.prototype.some.call(slotFields(slot), function (field) {
             return field.value.trim() !== '';
         });
+        return text || !!slot.querySelector('input[type="checkbox"]:checked');
+    }
+
+    function clearSlot(slot) {
+        slotFields(slot).forEach(function (field) {
+            if (field.value === '') return;
+            field.value = '';
+            announce(field);
+        });
+        slot.querySelectorAll('input[type="checkbox"]:checked').forEach(function (box) {
+            box.checked = false;
+            announce(box);
+        });
+        slot.querySelectorAll('.hwe-media-preview').forEach(function (preview) { preview.replaceChildren(); });
     }
 
     function initSlots() {
@@ -311,6 +354,7 @@
                 addBtn.hidden = false;
                 addBtn.disabled = free.length === 0;
                 if (empty) empty.hidden = free.length !== slots.length;
+                refreshView();
             }
 
             slots.forEach(function (slot) {
@@ -319,7 +363,7 @@
                 if (!remove) return;
                 remove.hidden = false;
                 remove.addEventListener('click', function () {
-                    slotFields(slot).forEach(function (field) { field.value = ''; announce(field); });
+                    clearSlot(slot);
                     slot.hidden = true;
                     sync();
                     addBtn.focus();
@@ -330,6 +374,13 @@
                 var next = slots.filter(function (slot) { return slot.hidden; })[0];
                 if (!next) return;
                 next.hidden = false;
+                // Quien añade un bloque quiere verlo: abierto y, si tiene «Mostrar», encendido.
+                var block = next.querySelector('details[data-hwe-fold]');
+                if (block) {
+                    block.open = true;
+                    var master = block.dataset.hweMaster ? byId(block.dataset.hweMaster) : null;
+                    if (master && !master.checked) { master.checked = true; announce(master); }
+                }
                 sync();
                 var first = slotFields(next)[0];
                 if (first) first.focus();
@@ -617,7 +668,7 @@
             if (row) row.classList.add('is-forced');
         }, true);
 
-        onView(label);
+        onView(label, 90);
     }
 
     // =========================================================================
@@ -743,7 +794,7 @@
                 refreshView();
             });
         });
-        onView(applyLang);
+        onView(applyLang, 30);
     }
 
     // Un control inválido escondido por el idioma no puede avisar: se vuelve al idioma por defecto.
@@ -752,6 +803,147 @@
             lang = defaultLang();
             refreshView();
         }
+    }
+
+    // =========================================================================
+    // Solo lo que aplica: condiciones sobre el valor actual de otros campos.
+    //
+    //   · `data-hwe-show-if` (una fila): se ve solo mientras su hermano tenga ciertos valores.
+    //   · `data-hwe-master` (un bloque): con su interruptor apagado el bloque solo enseña ese
+    //     interruptor. Al traducir no se aplica: un bloque oculto también se puede traducir de antemano.
+    // Esconder no borra: los controles siguen en el formulario con su valor, y sin JS se ve todo.
+    // =========================================================================
+
+    var jsonCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+    function readJson(el, attr) {
+        if (jsonCache && jsonCache.has(el)) return jsonCache.get(el);
+        var spec = null;
+        try { spec = JSON.parse(el.getAttribute(attr) || 'null'); } catch (e) {}
+        if (jsonCache) jsonCache.set(el, spec);
+        return spec;
+    }
+
+    function translating(panel) {
+        return !!panel.querySelector('[data-hwe-lang-switch]') && lang !== defaultLang();
+    }
+
+    function applyConditions() {
+        var panel = activePanel();
+        if (!panel) return;
+        var secondary = translating(panel);
+
+        Array.prototype.forEach.call(panel.querySelectorAll('[data-hwe-show-if]'), function (row) {
+            var spec = readJson(row, 'data-hwe-show-if');
+            var control = spec && byId(spec.f);
+            if (!control) return;
+            var value = control.type === 'checkbox' ? (control.checked ? '1' : '0') : control.value;
+            var show = spec.in ? spec.in.indexOf(value) !== -1 : spec.not_in ? spec.not_in.indexOf(value) === -1 : true;
+            row.classList.toggle('is-off-cond', !show);
+        });
+
+        Array.prototype.forEach.call(panel.querySelectorAll('[data-hwe-master]'), function (block) {
+            var control = byId(block.dataset.hweMaster);
+            if (!control) return;
+            var row = control.closest('.hwe-field');
+            if (row) row.classList.add('is-master');
+            block.classList.toggle('is-off', !control.checked && !secondary);
+        });
+    }
+
+    // =========================================================================
+    // Resumen de un bloque cerrado: «Visible · Imagen a la derecha · «Título»».
+    // La cabecera cuenta el estado sin abrirlo; el servidor describe qué campos lo componen
+    // (`data-hwe-summary`) y aquí se lee su valor actual.
+    // =========================================================================
+
+    function clip(text, max) {
+        text = String(text).replace(/\s+/g, ' ').trim();
+        return text.length > max ? text.slice(0, max - 1).trim() + '…' : text;
+    }
+
+    function summaryOf(block, spec) {
+        var bits = [];
+        if (spec.t) {
+            var toggle = byId(spec.t);
+            if (toggle) {
+                if (!toggle.checked) return spec.off || '';
+                bits.push(spec.on || '');
+            }
+        }
+        (spec.p || []).forEach(function (part) {
+            var value = '';
+            if (part.as === 'slots') {
+                var all = block.querySelectorAll('[data-hwe-slot]');
+                var used = Array.prototype.filter.call(all, function (slot) { return !slot.hidden; });
+                if (used.length) value = used.length + ' de ' + all.length + (part.unit ? ' ' + part.unit : '');
+            } else {
+                var control = byId(part.f);
+                if (!control) return;
+                if (part.as === 'select') {
+                    var option = control.options && control.options[control.selectedIndex];
+                    value = control.value !== '' && option ? option.text : '';
+                } else {
+                    value = clip(plainText(control.value), 48);
+                    if (value && part.q) value = '«' + value + '»';
+                }
+            }
+            if (value) bits.push(value);
+        });
+        return bits.length ? bits.join(' · ') : (spec.empty || '');
+    }
+
+    function applySummaries() {
+        var panel = activePanel();
+        if (!panel) return;
+        Array.prototype.forEach.call(panel.querySelectorAll('details[data-hwe-summary]'), function (block) {
+            var spec = readJson(block, 'data-hwe-summary');
+            var out = spec && block.firstElementChild && block.firstElementChild.querySelector('[data-hwe-summary-out]');
+            if (out) out.textContent = summaryOf(block, spec);
+        });
+    }
+
+    // =========================================================================
+    // Selector de elementos (`data-hwe-switcher`): una landing a la vez.
+    //
+    // Los demás elementos siguen en el DOM (ocultos) y se guardan con el resto. La elegida va en la
+    // URL (`#landings/guia`) y sobrevive al guardado. Con uno solo no hay selector.
+    // =========================================================================
+
+    function initSwitchers() {
+        Array.prototype.forEach.call(document.querySelectorAll('[data-hwe-switcher]'), function (box) {
+            var items = Array.prototype.filter.call(box.children, function (child) { return child.hasAttribute('data-hwe-switch-item'); });
+            var bar = box.querySelector('[data-hwe-switcher-bar]');
+            var select = box.querySelector('[data-hwe-switcher-select]');
+            var panel = box.closest('[data-hwe-panel]');
+            var tab = panel ? panel.dataset.hwePanel : '';
+            if (!items.length || !bar || !select) return;
+
+            box.classList.add('is-enhanced');
+            if (items.length < 2) return;
+            bar.hidden = false;
+
+            function choose(id, write) {
+                var known = items.some(function (item) { return item.dataset.hweSwitchItem === id; });
+                var current = known ? id : items[0].dataset.hweSwitchItem;
+                items.forEach(function (item) { item.hidden = item.dataset.hweSwitchItem !== current; });
+                select.value = current;
+                if (write) chooseSub(tab, current); else route.subs[tab] = current;
+                refreshView();
+            }
+
+            select.addEventListener('change', function () { choose(select.value, true); });
+            document.addEventListener('hwe:route', function (e) {
+                if (e.detail.tab === tab && e.detail.sub) choose(e.detail.sub, false);
+            });
+            // Un control inválido de un elemento oculto no puede avisar: se pasa a ese elemento.
+            box.addEventListener('invalid', function (e) {
+                var item = e.target.closest('[data-hwe-switch-item]');
+                if (item && item.hidden) choose(item.dataset.hweSwitchItem, true);
+            }, true);
+
+            choose(route.subs[tab] || items[0].dataset.hweSwitchItem, true);
+        });
     }
 
     // Cualquier cambio de un campo puede mover resúmenes, referencias o la etiqueta de «abrir todo».
@@ -875,6 +1067,9 @@
         initFold();
         initLanguage();
         initProviderToggle();
+        onView(applyConditions, 10);
+        onView(applySummaries, 20);
+        initSwitchers();
         initSlots();
         initNotices();
         initEmailPreview();

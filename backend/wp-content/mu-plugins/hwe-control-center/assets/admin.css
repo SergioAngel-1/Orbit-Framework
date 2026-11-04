@@ -485,6 +485,70 @@
     display: block;
 }
 
+/* Un bloque dentro de otro (la SEO de una landing, cada sección del bloque de secciones) no es otra
+   tarjeta: es una fila con filete, para no apilar cajas. */
+.hwe-subgroup .hwe-subgroup {
+    margin: 0;
+    border-width: 1px 0 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.hwe-subgroup .hwe-subgroup:last-child {
+    margin-bottom: 8px;
+}
+
+.hwe-subgroup .hwe-subgroup > .hwe-subgroup__head {
+    padding-left: 0;
+}
+
+.hwe-subgroup .hwe-subgroup > .hwe-fields {
+    padding-left: 28px;
+    padding-right: 0;
+}
+
+/* Con «Mostrar» apagado el bloque solo enseña ese interruptor (`admin.js` pone `is-master` e `is-off`). */
+.hwe-wrap details.is-off > .hwe-fields > :not(.is-master) {
+    display: none;
+}
+
+/* ==========================================================================
+   Selector de elementos (una landing a la vez)
+   ========================================================================== */
+
+.hwe-switcher__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 4px 0 20px;
+    padding: 10px 0;
+    border-top: 1px solid var(--hwe-line);
+    border-bottom: 1px solid var(--hwe-line);
+}
+
+.hwe-switcher__bar label {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.hwe-switcher__bar select {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 14px;
+}
+
+/* Con JS el título de cada elemento lo da el selector; sin JS se ven todos, cada uno con el suyo. */
+.hwe-switcher.is-enhanced .hwe-switch-title {
+    display: none;
+}
+
+.hwe-switch-title {
+    margin: 24px 0 12px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
 /* ==========================================================================
    Idioma de edición («ES | EN») y texto original de referencia
    ========================================================================== */
@@ -573,6 +637,11 @@
     line-height: 1.5;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
+}
+
+/* Traducir no es estructurar: desde «EN» no se añaden ni se quitan secciones, sedes o preguntas. */
+.hwe-panel.is-translating :is(.hwe-slot-remove, .hwe-slots-add, .hwe-slots-empty) {
+    display: none;
 }
 
 .hwe-ref__text.is-empty {
@@ -1363,5 +1432,22 @@ body.hwe-email-preview-open {
 
     .hwe-wrap .dashicons.spin {
         animation: none;
+    }
+}
+
+/* ==========================================================================
+   Bloques plegables en pantallas estrechas: sin sangría, cada píxel cuenta
+   ========================================================================== */
+
+@media (max-width: 782px) {
+    .hwe-section > .hwe-fields,
+    .hwe-section__intro {
+        margin-left: 0;
+    }
+
+    .hwe-subgroup > .hwe-fields,
+    .hwe-subgroup .hwe-subgroup > .hwe-fields {
+        padding-right: 12px;
+        padding-left: 12px;
     }
 }
