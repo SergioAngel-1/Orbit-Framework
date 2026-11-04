@@ -6,6 +6,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Changed
+- **El login del panel lleva la marca de la instancia.** `hwe-admin-branding` pinta el login con
+  `brand.name` (o `brand.logo`) y `design.colors` del Control Center —fondo `surface`, formulario en
+  `background`, botón en `brand`— y deja Orbit como un «Con HWE Orbit» pequeño al pie. Cada texto se
+  comprueba contra su fondo (WCAG AA, 4,5:1) y el anillo de foco (contorno de 2 px) contra el
+  formulario y la página (3:1); si un color no llega, cae a tinta o blanco. Sin logo y con el nombre
+  de serie del esquema (`HWE-Orbit`), el login sigue siendo el de Orbit. Funciona igual bajo
+  `HWE_LOGIN_SLUG`.
+
 ### Fixed
 - **El registro nativo de WordPress queda cerrado; el del BFF sigue igual.** `setup.sh` activa
   `users_can_register` porque `registerUser` de WPGraphQL lo exige, y eso también abría el
