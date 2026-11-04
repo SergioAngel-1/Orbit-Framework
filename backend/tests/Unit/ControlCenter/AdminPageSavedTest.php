@@ -7,7 +7,6 @@ namespace HWE\Tests\Unit\ControlCenter;
 use Brain\Monkey\Actions;
 use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
-use HWE\ControlCenter\AdminPage;
 use HWE\ControlCenter\AdminSave;
 use HWE\ControlCenter\BackupConfig;
 use HWE\ControlCenter\Revalidation;
@@ -232,56 +231,5 @@ final class AdminPageSavedTest extends TestCase
         // saneado no menciona se conserva; setAll() lo borraría de wp_options.
         $this->assertSame('Nueva', $this->options['hwe_config']['brand']['name']);
         $this->assertSame(['a' => 'b'], $this->options['hwe_config']['legado']);
-    }
-
-    // ── La pestaña «Instancia» ───────────────────────────────────────────────
-
-    public function testTheInstanceTabIsHiddenWhileItHasNoFields(): void
-    {
-        $tabs = AdminPage::buildTabs(
-            ['brand' => ['label' => 'Marca', 'children' => ['x' => []]], 'instance' => ['label' => 'Instancia', 'children' => []]],
-            ['brand' => '<p>marca</p>', 'instance' => '']
-        );
-
-        $this->assertSame(['brand'], array_keys($tabs));
-    }
-
-    public function testTheInstanceTabAppearsAsSoonAsTheInstanceAddsFields(): void
-    {
-        $tabs = AdminPage::buildTabs(
-            [
-                'brand' => ['label' => 'Marca', 'children' => ['x' => []]],
-                'instance' => ['label' => 'Instancia', 'children' => ['example' => ['type' => 'group']]],
-            ],
-            ['brand' => '<p>marca</p>', 'instance' => '<p>mía</p>']
-        );
-
-        $this->assertSame(['brand', 'instance'], array_keys($tabs));
-        $this->assertSame('Instancia', $tabs['instance']['label']);
-        $this->assertSame('<p>mía</p>', $tabs['instance']['content']);
-        $this->assertNotSame('', $tabs['instance']['icon']);
-    }
-
-    // ── La pestaña «Envío» (reservada al módulo `shipping`) ──────────────────
-
-    public function testTheShippingTabIsHiddenWhileTheModuleHasNotAddedFields(): void
-    {
-        $tabs = AdminPage::buildTabs(
-            ['brand' => ['label' => 'Marca', 'children' => ['x' => []]], 'shipping' => ['label' => 'Envío', 'children' => []]],
-            ['brand' => '<p>marca</p>', 'shipping' => '']
-        );
-
-        $this->assertSame(['brand'], array_keys($tabs));
-    }
-
-    public function testTheShippingTabAppearsWhenAModuleAddsFields(): void
-    {
-        $tabs = AdminPage::buildTabs(
-            ['shipping' => ['label' => 'Envío', 'children' => ['zone' => ['type' => 'text']]]],
-            ['shipping' => '<p>envío</p>']
-        );
-
-        $this->assertSame(['shipping'], array_keys($tabs));
-        $this->assertSame('dashicons-store', $tabs['shipping']['icon']);
     }
 }

@@ -1,50 +1,53 @@
 /**
  * HWE Control Center — Admin JS
  *
- * Tab navigation, color picker sync, media pickers, rows editors, optional slots,
- * payment provider toggle, save spinner, and notice auto-dismiss.
+ * Navegación por pestañas, color picker, selectores de medios, editores de filas, huecos
+ * opcionales, pasarela activa, estado del guardado y vista previa del correo.
  */
 (function () {
     'use strict';
 
     // =========================================================================
-    // Tab Navigation
+    // Navegación lateral: un enlace por pestaña, un panel por enlace.
     // =========================================================================
 
     function initTabs() {
-        var tabBtns = document.querySelectorAll('.hwe-tab-btn');
-        var tabPanels = document.querySelectorAll('.hwe-tab-panel');
-        if (!tabBtns.length || !tabPanels.length) return;
+        var nav = document.querySelector('.hwe-nav');
+        var links = document.querySelectorAll('[data-hwe-tab]');
+        var panels = document.querySelectorAll('[data-hwe-panel]');
+        if (!nav || !links.length || !panels.length) return;
 
-        tabBtns.forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var tabId = this.dataset.tab;
+        var toggle = nav.querySelector('.hwe-nav__toggle');
+        var current = nav.querySelector('[data-hwe-nav-current]');
 
-                tabBtns.forEach(function (b) { b.classList.remove('active'); });
-                tabPanels.forEach(function (p) { p.classList.remove('active'); });
+        function show(tab) {
+            var link = null;
+            links.forEach(function (l) {
+                var on = l.dataset.hweTab === tab;
+                if (on) { l.setAttribute('aria-current', 'true'); link = l; } else { l.removeAttribute('aria-current'); }
+            });
+            panels.forEach(function (p) { p.hidden = p.dataset.hwePanel !== tab; });
+            if (current && link) current.textContent = link.querySelector('.hwe-nav__label').textContent;
+            document.dispatchEvent(new CustomEvent('hwe:tabchange', { detail: { tab: tab } }));
+        }
 
-                this.classList.add('active');
-                var panel = document.querySelector('[data-panel="' + tabId + '"]');
-                if (panel) panel.classList.add('active');
+        function setOpen(open) {
+            nav.classList.toggle('is-open', open);
+            if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
 
-                try { localStorage.setItem('hwe_active_tab', tabId); } catch (e) {}
+        links.forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                show(link.dataset.hweTab);
+                setOpen(false);
             });
         });
-
-        // Restore saved tab.
-        try {
-            var saved = localStorage.getItem('hwe_active_tab');
-            if (saved) {
-                var btn = document.querySelector('[data-tab="' + saved + '"]');
-                var panel = document.querySelector('[data-panel="' + saved + '"]');
-                if (btn && panel) {
-                    tabBtns.forEach(function (b) { b.classList.remove('active'); });
-                    tabPanels.forEach(function (p) { p.classList.remove('active'); });
-                    btn.classList.add('active');
-                    panel.classList.add('active');
-                }
-            }
-        } catch (e) {}
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                setOpen(!nav.classList.contains('is-open'));
+            });
+        }
     }
 
     // =========================================================================
@@ -84,17 +87,19 @@
     }
 
     // =========================================================================
-    // Save Spinner
+    // Guardado: al enviar, el botón avisa de que está trabajando.
     // =========================================================================
 
     function initSaveSpinner() {
-        var form = document.querySelector('.hwe-form');
-        var saveBtn = document.querySelector('.hwe-save-btn');
+        var form = document.querySelector('[data-hwe-form]');
+        var saveBtn = document.querySelector('.hwe-savebar__btn');
+        var status = document.querySelector('[data-hwe-status]');
         if (!form || !saveBtn) return;
 
         form.addEventListener('submit', function () {
-            saveBtn.classList.add('saving');
+            saveBtn.classList.add('is-busy');
             saveBtn.disabled = true;
+            if (status) status.textContent = status.dataset.saving || '';
         });
     }
 
@@ -112,11 +117,13 @@
         var gateway = document.querySelector('#hwe_config_payments_gateway_enabled');
         var providerRow = providerSelect.closest('.hwe-field');
         var groups = document.querySelectorAll('.hwe-subgroup[data-provider]');
+        var credentials = document.querySelector('.hwe-section--provider');
 
         function toggleGroups() {
             var online = !gateway || gateway.checked;
             var selected = providerSelect.value;
             if (providerRow) providerRow.hidden = !online;
+            if (credentials) credentials.hidden = !online;
             groups.forEach(function (group) {
                 group.classList.toggle('is-active', online && group.dataset.provider === selected);
             });
@@ -186,17 +193,12 @@
     }
 
     // =========================================================================
-    // Auto-dismiss notices
+    // Los avisos de éxito se retiran solos; los de error y advertencia se quedan hasta leerlos.
     // =========================================================================
 
     function initNotices() {
-        document.querySelectorAll('.notice.is-dismissible').forEach(function (notice) {
-            setTimeout(function () {
-                notice.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                notice.style.opacity = '0';
-                notice.style.transform = 'translateY(-8px)';
-                setTimeout(function () { notice.remove(); }, 300);
-            }, 5000);
+        document.querySelectorAll('.hwe-wrap .notice-success.is-dismissible').forEach(function (notice) {
+            setTimeout(function () { notice.remove(); }, 6000);
         });
     }
 

@@ -13,9 +13,6 @@ namespace HWE\ControlCenter\SchemaGroups;
  */
 trait Seo {
 
-    /** Dónde se editan las señales de entidad en el panel (ver `panel` en Schema). */
-    private const ENTITY_PANEL = ['tab' => 'geo', 'section' => 'Entidad de marca (Organization / Person)'];
-
     /**
      * @return array<string,array>
      */
@@ -146,49 +143,42 @@ trait Seo {
                     ],
                     'organization_logo'         => [
                         'type'        => 'image',
-                        'panel'       => self::ENTITY_PANEL,
                         'label'       => 'Logo de la organización (JSON-LD)',
                         'public'      => true,
                         'description' => 'Logo usado en el schema Organization (reconocimiento de entidad por buscadores/IA). Selecciónalo desde la medioteca. Vacío = se usa el icono generado dinámicamente desde la marca.',
                     ],
                     'founding_date'             => [
                         'type'        => 'text',
-                        'panel'       => self::ENTITY_PANEL,
                         'label'       => 'Fecha de fundación (ISO 8601)',
                         'public'      => true,
                         'description' => 'Ej.: 2020-01-15. Se añade al schema Organization (foundingDate).',
                     ],
                     'knows_about'               => [
                         'type'        => 'textarea',
-                        'panel'       => self::ENTITY_PANEL,
                         'label'       => 'Áreas de conocimiento (knowsAbout)',
                         'public'      => true,
                         'description' => 'Temas en los que la marca es experta, uno por línea o separados por comas. Señal fuerte de entidad para la IA.',
                     ],
                     'alternate_names'           => [
                         'type'        => 'textarea',
-                        'panel'       => self::ENTITY_PANEL,
                         'label'       => 'Otros nombres de la marca',
                         'public'      => true,
                         'description' => 'Nombres anteriores o alternativos por los que se conoce a la marca, uno por línea o separados por comas. Se declaran en el schema Organization (alternateName).',
                     ],
                     'founder_name'              => [
                         'type'        => 'text',
-                        'panel'       => self::ENTITY_PANEL,
                         'label'       => 'Responsable / fundador (nombre)',
                         'public'      => true,
                         'description' => 'Se muestra en la página "Sobre nosotros" y genera un schema Person (E-E-A-T). Vacío = no se publica.',
                     ],
                     'founder_role'              => [
                         'type'        => 'text',
-                        'panel'       => self::ENTITY_PANEL,
                         'label'       => 'Responsable / fundador (cargo)',
                         'public'      => true,
                         'description' => 'Ej.: Fundador y CEO. Se usa como jobTitle del schema Person.',
                     ],
                     'founder_url'               => [
                         'type'        => 'url',
-                        'panel'       => self::ENTITY_PANEL,
                         'label'       => 'Responsable / fundador (perfil)',
                         'public'      => true,
                         'description' => 'URL de perfil (LinkedIn, web personal…). Se usa como url/sameAs del schema Person.',

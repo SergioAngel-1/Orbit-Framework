@@ -1,919 +1,675 @@
-/*
- * HWE Control Center — Admin UI
- * Modern, card-based settings interface for wp-admin.
+/**
+ * HWE Control Center — estilos del panel «HWE Config».
+ *
+ * Modo Operate: neutros, tipografía y controles de wp-admin. La marca de la tienda hace UN trabajo
+ * (estado activo y acción: pestaña activa, botón Guardar, foco, interruptor encendido) y llega por
+ * las variables `--hwe-accent*` / `--hwe-ring`, que `AdminSkin` sobrescribe en línea con colores ya
+ * comprobados contra su fondo (WCAG AA). Los valores de aquí son el respaldo: el acento de wp-admin.
+ *
+ * Sin degradados, brillos, cristal, sombras de adorno, `transition: all` ni animación de entrada.
  */
 
-/* ==========================================================================
-   Layout & Container
-   ========================================================================== */
-
 .hwe-wrap {
-    max-width: 1200px;
-    margin: 20px auto;
-    animation: hwe-fadeIn 0.3s ease-out;
+    --hwe-accent: var(--wp-admin-theme-color, #2271b1);
+    --hwe-on-accent: #ffffff;
+    --hwe-accent-hover: var(--wp-admin-theme-color-darker-10, #135e96);
+    --hwe-on-accent-hover: #ffffff;
+    --hwe-accent-ink: var(--wp-admin-theme-color, #2271b1);
+    --hwe-ring: var(--wp-admin-theme-color, #2271b1);
+
+    --hwe-ink: #1d2327;
+    --hwe-muted: #50575e;
+    --hwe-line: #dcdcde;
+    --hwe-control: #8c8f94;
+    --hwe-paper: #ffffff;
+    --hwe-wash: #f6f7f7;
+
+    /* Estados: los colores de aviso de wp-admin, nunca la marca. */
+    --hwe-ok: #007017;
+    --hwe-ok-wash: #edfaef;
+    --hwe-warn: #996800;
+    --hwe-warn-wash: #fcf9e8;
+
+    --hwe-ease: cubic-bezier(0.23, 1, 0.32, 1);
+
+    max-width: 1180px;
+    color: var(--hwe-ink);
 }
 
-@keyframes hwe-fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
+.hwe-wrap [hidden] {
+    display: none !important;
+}
+
+.hwe-wrap :is(a, button, input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--hwe-ring);
+    outline-offset: 2px;
+    box-shadow: none;
 }
 
 /* ==========================================================================
-   Header
+   Cabecera
    ========================================================================== */
 
 .hwe-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-    color: #fff;
-    padding: 28px 36px;
-    border-radius: 16px;
-    margin-bottom: 28px;
-    box-shadow:
-        0 4px 6px -1px rgba(0, 0, 0, 0.15),
-        0 2px 4px -2px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    position: relative;
-    overflow: hidden;
+    gap: 16px;
+    padding: 8px 0 16px;
 }
 
-.hwe-header::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 200px;
-    height: 200px;
-    background: radial-gradient(circle, rgba(96, 165, 250, 0.12) 0%, transparent 70%);
-    pointer-events: none;
-}
-
-.hwe-header-left {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    position: relative;
-    z-index: 1;
-}
-
-.hwe-logo {
-    width: 60px;
-    height: 60px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(8px);
-}
-
-.hwe-logo .dashicons {
-    font-size: 32px;
-    width: 32px;
-    height: 32px;
-    color: #60a5fa;
-}
-
-.hwe-header-text h1 {
-    margin: 0;
-    font-size: 26px;
-    font-weight: 700;
-    color: #fff;
-    letter-spacing: -0.02em;
-}
-
-.hwe-subtitle {
-    margin: 6px 0 0;
-    font-size: 14px;
-    color: #94a3b8;
-    font-weight: 400;
-}
-
-.hwe-header-actions {
-    position: relative;
-    z-index: 1;
-}
-
-.hwe-header-actions .button {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    color: #fff;
-    border-radius: 10px;
-    padding: 10px 20px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.2s ease-out;
-    font-weight: 500;
-    text-decoration: none;
-    backdrop-filter: blur(4px);
-}
-
-.hwe-header-actions .button:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
-    color: #fff;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.hwe-header-actions .dashicons {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-}
-
-/* ==========================================================================
-   Tabs — Sidebar Navigation
-   ========================================================================== */
-
-.hwe-tabs {
-    display: flex;
-    gap: 0;
-    background: #fff;
-    border-radius: 16px;
-    box-shadow:
-        0 1px 3px rgba(0, 0, 0, 0.08),
-        0 1px 2px rgba(0, 0, 0, 0.04);
-    border: 1px solid #e5e7eb;
-    overflow: hidden;
-    min-height: 600px;
-}
-
-.hwe-tab-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 220px;
-    background: #f9fafb;
-    border-right: 1px solid #e5e7eb;
-    padding: 12px 8px;
-}
-
-.hwe-tab-btn {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border: none;
-    background: transparent;
-    color: #64748b;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    border-radius: 10px;
-    transition: all 0.2s ease-out;
-    text-align: left;
-    width: 100%;
-    position: relative;
-}
-
-.hwe-tab-btn:hover {
-    background: #e2e8f0;
-    color: #1e293b;
-}
-
-.hwe-tab-btn.active {
-    background: #eff6ff;
-    color: #2a3fd6;
-    font-weight: 600;
-    box-shadow: inset 3px 0 0 #2a3fd6;
-}
-
-.hwe-tab-btn .dashicons {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-    flex-shrink: 0;
-}
-
-.hwe-tab-btn.active .dashicons {
-    opacity: 1;
-    color: #2a3fd6;
-}
-
-.hwe-tab-label {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* ==========================================================================
-   Tab Content Panels
-   ========================================================================== */
-
-.hwe-tab-content {
-    flex: 1;
-    min-width: 0;
-    padding: 32px;
-    overflow-y: auto;
-    max-height: 700px;
-}
-
-.hwe-tab-panel {
-    display: none;
-    animation: hwe-panelIn 0.25s ease-out;
-}
-
-.hwe-tab-panel.active {
-    display: block;
-}
-
-@keyframes hwe-panelIn {
-    from { opacity: 0; transform: translateX(8px); }
-    to   { opacity: 1; transform: translateX(0); }
-}
-
-.hwe-panel-header {
+.hwe-header__brand {
     display: flex;
     align-items: center;
     gap: 14px;
-    margin-bottom: 28px;
-    padding-bottom: 20px;
-    border-bottom: 2px solid #f1f5f9;
+    min-width: 0;
 }
 
-.hwe-panel-header .dashicons {
-    font-size: 28px;
-    width: 28px;
-    height: 28px;
-    color: #2a3fd6;
+.hwe-header__logo {
+    flex: none;
+    width: auto;
+    height: 40px;
+    max-width: 160px;
+    object-fit: contain;
 }
 
-.hwe-panel-header h2 {
+.hwe-header__text {
+    min-width: 0;
+}
+
+.hwe-header__name {
     margin: 0;
-    font-size: 22px;
-    font-weight: 700;
-    color: #0f172a;
-    letter-spacing: -0.01em;
+    padding: 0;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
 }
 
-.hwe-panel-body {
-    padding: 0;
+.hwe-header__sub {
+    margin: 2px 0 0;
+    color: var(--hwe-muted);
+    font-size: 13px;
+}
+
+.hwe-header__api {
+    flex: none;
 }
 
 /* ==========================================================================
-   Fields — Card Layout (replaces form-table)
+   Estructura: navegación lateral + panel
    ========================================================================== */
 
-.hwe-fields {
+.hwe-layout {
+    display: grid;
+    grid-template-columns: 224px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.hwe-nav {
+    position: sticky;
+    top: 48px;
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
+    padding: 4px 8px 12px;
+    background: var(--hwe-paper);
+    border: 1px solid var(--hwe-line);
+    border-radius: 4px;
+}
+
+.hwe-nav__toggle {
+    display: none;
+}
+
+.hwe-nav__layer {
+    margin: 16px 8px 4px;
+    padding: 12px 0 0;
+    border-top: 1px solid var(--hwe-line);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--hwe-muted);
+}
+
+.hwe-nav__layer:first-child {
+    margin-top: 8px;
+    padding-top: 0;
+    border-top: 0;
+}
+
+.hwe-nav__sub {
+    margin: 8px 8px 2px;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.3;
+    color: var(--hwe-muted);
+}
+
+.hwe-nav__items {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.hwe-nav__link {
     display: flex;
-    flex-direction: column;
-    gap: 0;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 6px 8px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--hwe-ink);
+    text-decoration: none;
+    transition: background-color 120ms ease;
+}
+
+.hwe-nav__link .dashicons {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    color: var(--hwe-muted);
+}
+
+.hwe-nav__label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .hwe-nav__link:hover {
+        background: var(--hwe-wash);
+        color: var(--hwe-ink);
+    }
+}
+
+.hwe-nav__link[aria-current] {
+    background: var(--hwe-accent);
+    border-color: var(--hwe-accent-ink);
+    color: var(--hwe-on-accent);
+    font-weight: 600;
+}
+
+.hwe-nav__link[aria-current] .dashicons {
+    color: inherit;
+}
+
+.hwe-nav__link[aria-current]:focus-visible {
+    outline-color: var(--hwe-on-accent);
+    outline-offset: -4px;
+}
+
+.hwe-nav__dirty {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin-left: auto;
+    border-radius: 50%;
+    background: var(--hwe-warn);
+}
+
+.hwe-nav__link[aria-current] .hwe-nav__dirty {
+    background: currentColor;
+}
+
+.hwe-main {
+    min-width: 0;
+}
+
+.hwe-panel {
+    padding: 0 0 8px;
+}
+
+.hwe-panel__head h2 {
+    margin: 0;
+    padding: 0;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.hwe-panel__head p {
+    max-width: 65ch;
+    margin: 4px 0 0;
+    color: var(--hwe-muted);
+    font-size: 14px;
+}
+
+/* ==========================================================================
+   Secciones y campos
+   ========================================================================== */
+
+.hwe-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--hwe-line);
+}
+
+.hwe-panel__head + .hwe-section {
+    margin-top: 20px;
+}
+
+.hwe-section__head {
+    margin: 0 0 20px;
+}
+
+.hwe-section__head h3 {
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.hwe-section__head p {
+    max-width: 65ch;
+    margin: 4px 0 0;
+    color: var(--hwe-muted);
+    font-size: 13px;
+}
+
+.hwe-fields {
+    max-width: 680px;
 }
 
 .hwe-field {
     display: grid;
-    grid-template-columns: 220px 1fr;
-    gap: 16px;
-    align-items: flex-start;
-    padding: 18px 0;
-    border-bottom: 1px solid #f1f5f9;
-}
-
-.hwe-field:last-child {
-    border-bottom: none;
+    gap: 6px;
+    margin: 0 0 20px;
 }
 
 .hwe-field > label {
+    font-size: 13px;
     font-weight: 600;
-    color: #1e293b;
-    font-size: 14px;
-    padding-top: 10px;
     line-height: 1.4;
 }
 
+.hwe-field--toggle > label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
 .hwe-field-control {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    min-width: 0;
 }
 
 .hwe-field .description {
-    color: #6b7280;
+    max-width: 65ch;
+    margin: 6px 0 0;
+    color: var(--hwe-muted);
     font-size: 13px;
-    margin: 4px 0 0;
     line-height: 1.5;
 }
 
-/* ==========================================================================
-   Form Inputs — Modern Styling
-   ========================================================================== */
-
-.hwe-field-control input[type="text"],
-.hwe-field-control input[type="url"],
-.hwe-field-control input[type="email"],
-.hwe-field-control input[type="password"],
-.hwe-field-control textarea,
-.hwe-field-control select {
-    border: 1.5px solid #d1d5db;
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 14px;
-    transition: all 0.2s ease-out;
-    background: #fff;
+.hwe-field-control :is(input[type="text"], input[type="url"], input[type="email"], input[type="password"], input[type="number"], select, textarea) {
     width: 100%;
-    max-width: 480px;
-    color: #1e293b;
-}
-
-.hwe-field-control input[type="text"]:hover,
-.hwe-field-control input[type="url"]:hover,
-.hwe-field-control input[type="email"]:hover,
-.hwe-field-control input[type="password"]:hover,
-.hwe-field-control textarea:hover,
-.hwe-field-control select:hover {
-    border-color: #9ca3af;
-}
-
-.hwe-field-control input[type="text"]:focus,
-.hwe-field-control input[type="url"]:focus,
-.hwe-field-control input[type="email"]:focus,
-.hwe-field-control input[type="password"]:focus,
-.hwe-field-control textarea:focus,
-.hwe-field-control select:focus {
-    border-color: #2a3fd6;
-    box-shadow: 0 0 0 3px rgba(42, 63, 214, 0.12);
-    outline: none;
+    max-width: 520px;
+    min-height: 36px;
+    margin: 0;
+    padding: 4px 10px;
+    border: 1px solid var(--hwe-control);
+    border-radius: 4px;
+    background: var(--hwe-paper);
+    color: var(--hwe-ink);
+    font-size: 14px;
+    box-shadow: none;
 }
 
 .hwe-field-control textarea {
-    min-height: 80px;
-    resize: vertical;
+    max-width: 640px;
+    min-height: 96px;
+    padding: 8px 10px;
+    line-height: 1.5;
 }
 
 .hwe-field-control select {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8.825L1.175 4 2.238 2.938 6 6.7 9.763 2.937 10.825 4z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 36px;
-    cursor: pointer;
+    padding-right: 28px;
 }
 
-.hwe-field-control input[type="password"] {
-    font-family: monospace;
-    letter-spacing: 2px;
+.hwe-field-control :is(input, select, textarea):focus {
+    border-color: var(--hwe-accent-ink);
+    outline: 2px solid var(--hwe-ring);
+    outline-offset: 0;
+    box-shadow: none;
+}
+
+.hwe-field-control :is(input, select, textarea)::placeholder {
+    color: var(--hwe-muted);
+}
+
+.hwe-field-control :is(input, select, textarea):disabled {
+    background: var(--hwe-wash);
+    color: var(--hwe-muted);
+}
+
+.hwe-check {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.hwe-field-row {
+    margin: 0 0 12px;
+}
+
+/* Bloque anidado dentro de una sección: sede, pasarela o grupo de un módulo. */
+.hwe-subgroup {
+    margin: 0 0 16px;
+    padding: 16px 16px 0;
+    border: 1px solid var(--hwe-line);
+    border-radius: 4px;
+    background: var(--hwe-wash);
+}
+
+.hwe-subgroup-title {
+    margin: 0 0 14px;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.hwe-subgroup .hwe-fields {
+    max-width: none;
+}
+
+/* Solo se ve la pasarela activa; `admin.js` marca `is-active`. */
+.hwe-subgroup[data-provider] {
+    display: none;
+}
+
+.hwe-subgroup[data-provider].is-active {
+    display: block;
 }
 
 /* ==========================================================================
-   Toggle Switch (boolean fields)
+   Interruptor
    ========================================================================== */
 
 .hwe-toggle {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
+    min-height: 36px;
     cursor: pointer;
-    padding: 10px 0;
     user-select: none;
 }
 
 .hwe-toggle input[type="checkbox"] {
     position: absolute;
+    top: 50%;
+    left: 0;
+    width: 40px;
+    height: 22px;
+    margin: -11px 0 0;
     opacity: 0;
-    width: 0;
-    height: 0;
+    cursor: pointer;
 }
 
 .hwe-toggle-track {
     position: relative;
-    width: 48px;
-    height: 26px;
-    background: #d1d5db;
-    border-radius: 13px;
-    transition: background 0.25s ease-out;
-    flex-shrink: 0;
+    flex: none;
+    width: 40px;
+    height: 22px;
+    border: 1px solid var(--hwe-control);
+    border-radius: 11px;
+    background: var(--hwe-control);
+    transition: background-color 150ms ease, border-color 150ms ease;
 }
 
 .hwe-toggle-thumb {
     position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 20px;
-    height: 20px;
-    background: #fff;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #ffffff;
+    transition: transform 150ms var(--hwe-ease), background-color 150ms ease;
 }
 
 .hwe-toggle input:checked + .hwe-toggle-track {
-    background: #2a3fd6;
+    border-color: var(--hwe-accent-ink);
+    background: var(--hwe-accent);
 }
 
 .hwe-toggle input:checked + .hwe-toggle-track .hwe-toggle-thumb {
-    transform: translateX(22px);
+    background: var(--hwe-on-accent);
+    transform: translateX(18px);
 }
 
 .hwe-toggle input:focus-visible + .hwe-toggle-track {
-    box-shadow: 0 0 0 3px rgba(42, 63, 214, 0.3);
+    outline: 2px solid var(--hwe-ring);
+    outline-offset: 2px;
+}
+
+.hwe-toggle input:disabled + .hwe-toggle-track {
+    opacity: 0.5;
 }
 
 .hwe-toggle-label {
     font-size: 14px;
-    font-weight: 500;
-    color: #374151;
+    line-height: 1.4;
 }
 
 /* ==========================================================================
-   Color Picker
+   Selector de color
    ========================================================================== */
 
 .hwe-color-picker {
     display: inline-flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
 }
 
 .hwe-color-preview {
+    flex: none;
     width: 36px;
     height: 36px;
-    border-radius: 10px;
-    border: 2px solid #e5e7eb;
-    flex-shrink: 0;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
-.hwe-color-preview:hover {
-    border-color: #9ca3af;
-}
-
-.hwe-color-picker input[type="color"] {
-    width: 44px;
-    height: 36px;
-    padding: 2px;
-    border: 1.5px solid #d1d5db;
-    border-radius: 8px;
-    cursor: pointer;
-    background: none;
-}
-
-.hwe-color-picker input[type="color"]::-webkit-color-swatch-wrapper {
-    padding: 2px;
-}
-
-.hwe-color-picker input[type="color"]::-webkit-color-swatch {
-    border: none;
+    border: 1px solid var(--hwe-control);
     border-radius: 4px;
 }
 
-.hwe-color-picker .small-text {
-    width: 100px;
-    font-family: 'SF Mono', SFMono-Regular, ui-monospace, monospace;
-    font-size: 13px;
+.hwe-color-picker input[type="color"] {
+    flex: none;
+    width: 40px;
+    height: 36px;
+    padding: 2px;
+    border: 1px solid var(--hwe-control);
+    border-radius: 4px;
+    background: var(--hwe-paper);
+    cursor: pointer;
+}
+
+.hwe-field-control .hwe-color-picker .small-text {
+    width: 9ch;
+    max-width: none;
+    font-variant-numeric: tabular-nums;
 }
 
 /* ==========================================================================
-   Subgroups (nested sections)
+   Huecos opcionales (sedes)
    ========================================================================== */
 
-.hwe-subgroup {
-    background: #e9e9e6;
-    border: 1px solid #e2e8f0;
-    border-left: 3px solid #2a3fd6;
-    border-radius: 10px;
-    padding: 20px 24px;
-    margin: 16px 0;
-}
-
-.hwe-subgroup-title {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0 0 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #e2e8f0;
-    font-size: 14px;
-    font-weight: 700;
-    color: #1e293b;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.hwe-subgroup-title .dashicons {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    color: #2a3fd6;
-}
-
-.hwe-subgroup .hwe-fields {
-    gap: 0;
-}
-
-.hwe-subgroup .hwe-field {
-    border-bottom-color: #e2e8f0;
-}
-
-/* Payment provider groups — hidden until selected */
-.hwe-subgroup[data-provider] {
-    display: none !important;
-    animation: hwe-panelIn 0.25s ease-out;
-}
-
-.hwe-subgroup[data-provider].is-active {
-    display: block !important;
-}
-
-/* Huecos opcionales (grupos con `slots`, p. ej. Legal → Sedes) */
-.hwe-field[hidden],
-.hwe-slot[hidden],
-.hwe-slots [hidden] {
-    display: none !important;
-}
-
 .hwe-slot {
-    display: flex;
-    flex-direction: column;
+    margin: 0 0 4px;
 }
 
-/* Bajo su card, alineado a la derecha. */
+.hwe-slot .hwe-subgroup {
+    margin-bottom: 8px;
+}
+
 .hwe-slot-remove {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    align-self: flex-end;
-    margin: -8px 0 8px;
+    margin: 0 0 16px;
 }
 
 .hwe-slot-remove .dashicons,
 .hwe-slots-add .dashicons {
-    font-size: 16px;
     width: 16px;
     height: 16px;
-}
-
-.hwe-slots-add {
-    display: inline-flex !important;
-    align-items: center;
-    gap: 4px;
-    margin-top: 8px !important;
+    margin-top: 3px;
+    font-size: 16px;
+    vertical-align: top;
 }
 
 .hwe-slots-empty {
-    margin: 0 0 8px;
+    margin: 0 0 12px;
+    color: var(--hwe-muted);
 }
 
 /* ==========================================================================
-   Save Bar (sticky bottom)
+   Estado, acciones y botones
    ========================================================================== */
 
-.hwe-save-bar {
-    position: sticky;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-top: 1px solid #e5e7eb;
-    padding: 18px 32px;
-    margin: 28px -32px -32px;
-    border-radius: 0 0 16px 16px;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
-    z-index: 100;
-}
-
-.hwe-save-bar-inner {
+.hwe-status {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    max-width: 680px;
+    margin: 0 0 16px;
+    padding: 10px 12px;
+    border: 1px solid var(--hwe-line);
+    border-radius: 4px;
+    background: var(--hwe-paper);
 }
 
-.hwe-save-info {
+.hwe-status p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.hwe-status .dashicons {
+    flex: none;
+    margin-top: 1px;
+    color: var(--hwe-muted);
+}
+
+.hwe-status--ok {
+    border-color: var(--hwe-ok);
+    background: var(--hwe-ok-wash);
+}
+
+.hwe-status--ok .dashicons {
+    color: var(--hwe-ok);
+}
+
+.hwe-status--warn {
+    border-color: var(--hwe-warn);
+    background: var(--hwe-warn-wash);
+}
+
+.hwe-status--warn .dashicons {
+    color: var(--hwe-warn);
+}
+
+.hwe-actions {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #6b7280;
-    font-size: 13px;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 16px;
 }
 
-.hwe-save-info .dashicons {
-    color: #2a3fd6;
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
+.hwe-wrap .button .dashicons {
+    width: 16px;
+    height: 16px;
+    margin-top: 3px;
+    font-size: 16px;
+    vertical-align: top;
 }
 
-.hwe-save-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 28px;
-    font-size: 15px;
-    font-weight: 600;
-    border-radius: 10px;
-    background: #2a3fd6;
-    border-color: #1d4ed8;
-    color: #fff;
-    transition: all 0.2s ease-out;
-    box-shadow: 0 2px 4px rgba(42, 63, 214, 0.25);
+.hwe-wrap .button {
+    transition: background-color 150ms ease, border-color 150ms ease, transform 160ms var(--hwe-ease);
 }
 
-.hwe-save-btn:hover {
-    background: #1d4ed8;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(42, 63, 214, 0.35);
+.hwe-wrap .button:active {
+    transform: scale(0.97);
 }
 
-.hwe-save-btn:active {
-    transform: translateY(0);
+.hwe-wrap .button-primary {
+    border-color: var(--hwe-accent-ink);
+    background: var(--hwe-accent);
+    color: var(--hwe-on-accent);
 }
 
-.hwe-save-btn .dashicons {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
+.hwe-wrap .button-primary:hover,
+.hwe-wrap .button-primary:focus {
+    border-color: var(--hwe-accent-ink);
+    background: var(--hwe-accent-hover);
+    color: var(--hwe-on-accent-hover);
 }
 
-/* Save button — saving state */
-.hwe-save-btn.saving {
-    background: #93c5fd;
-    border-color: #93c5fd;
-    pointer-events: none;
+.hwe-wrap .button-primary:focus-visible {
+    outline: 2px solid var(--hwe-ring);
+    outline-offset: 2px;
     box-shadow: none;
 }
 
-.hwe-save-btn.saving .dashicons {
-    animation: hwe-spin 0.8s linear infinite;
+.hwe-wrap .button-primary[disabled],
+.hwe-wrap .button-primary.is-busy {
+    border-color: var(--hwe-accent-ink);
+    background: var(--hwe-accent);
+    color: var(--hwe-on-accent);
+    opacity: 0.65;
+    cursor: default;
 }
 
-.hwe-save-btn.saving .hwe-save-btn-text::after {
-    content: '...';
+.hwe-wrap .dashicons.spin {
+    animation: hwe-spin 1s linear infinite;
 }
 
 @keyframes hwe-spin {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-}
-
-/* Save success flash */
-.hwe-save-bar.success {
-    border-top-color: #22c55e;
-}
-
-.hwe-save-bar.success .hwe-save-info {
-    color: #16a34a;
-}
-
-.hwe-save-bar.success .hwe-save-info .dashicons {
-    color: #22c55e;
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ==========================================================================
-   SMTP Test Section
+   Barra de guardado
    ========================================================================== */
 
-.hwe-smtp-test {
-    background: #e9e9e6;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 24px;
+.hwe-savebar {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     margin-top: 24px;
+    padding: 12px 16px;
+    border: 1px solid var(--hwe-line);
+    border-radius: 4px;
+    background: var(--hwe-paper);
 }
 
-.hwe-smtp-test .hwe-panel-header {
-    margin-bottom: 16px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.hwe-smtp-test .hwe-panel-header h2 {
-    font-size: 16px;
-}
-
-.hwe-smtp-status {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 18px;
-    background: #fff;
-    border-radius: 10px;
-    border: 1px solid #e5e7eb;
-    margin-bottom: 20px;
-}
-
-.hwe-smtp-status .dashicons {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-}
-
-.hwe-smtp-status .dashicons-yes-alt {
-    color: #22c55e;
-}
-
-.hwe-smtp-status .dashicons-warning {
-    color: #f59e0b;
-}
-
-.hwe-smtp-status p {
+.hwe-savebar__status {
     margin: 0;
-    color: #475569;
-    font-size: 14px;
+    color: var(--hwe-muted);
+    font-size: 13px;
+    line-height: 1.5;
 }
 
-.hwe-smtp-form .hwe-field-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 16px;
-}
-
-.hwe-smtp-form label {
+.hwe-savebar.is-dirty .hwe-savebar__status {
+    color: var(--hwe-ink);
     font-weight: 600;
-    color: #374151;
-    font-size: 14px;
-    white-space: nowrap;
 }
 
-.hwe-smtp-form .button {
-    border-radius: 8px;
-    padding: 8px 20px;
-    font-weight: 500;
-}
-
-/* ==========================================================================
-   Postbox (legacy wrapper, still used inside panels)
-   ========================================================================== */
-
-.postbox.hwe-section {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    margin-bottom: 0;
-}
-
-.postbox.hwe-section .postbox-header {
-    background: #f9fafb;
-    border-radius: 12px 12px 0 0;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.postbox.hwe-section .inside {
-    padding: 0 24px 24px;
-    margin: 0;
-}
-
-/* ==========================================================================
-   Notices
-   ========================================================================== */
-
-.hwe-wrap .notice {
-    border-radius: 10px;
-    margin-bottom: 20px;
-    border-width: 1px;
-    animation: hwe-noticeIn 0.3s ease-out;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-@keyframes hwe-noticeIn {
-    from { opacity: 0; transform: translateY(-8px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
-
-.hwe-wrap .notice-success {
-    border-left: 4px solid #22c55e;
-}
-
-.hwe-wrap .notice-error {
-    border-left: 4px solid #dc2626;
-}
-
-/* ==========================================================================
-   Responsive
-   ========================================================================== */
-
-@media (max-width: 960px) {
-    .hwe-tabs {
-        flex-direction: column;
-        min-height: auto;
-    }
-
-    .hwe-tab-nav {
-        flex-direction: row;
-        flex-wrap: wrap;
-        border-right: none;
-        border-bottom: 1px solid #e5e7eb;
-        padding: 8px;
-        min-width: auto;
-        gap: 4px;
-        background: #fff;
-    }
-
-    .hwe-tab-btn {
-        width: auto;
-        padding: 10px 14px;
-        gap: 6px;
-    }
-
-    .hwe-tab-label {
-        display: none;
-    }
-
-    .hwe-tab-btn .dashicons {
-        font-size: 22px;
-        width: 22px;
-        height: 22px;
-    }
-
-    .hwe-tab-content {
-        max-height: none;
-        padding: 20px;
-    }
-
-    .hwe-field {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-
-    .hwe-field > label {
-        padding-top: 0;
-    }
-
-    .hwe-field-control input[type="text"],
-    .hwe-field-control input[type="url"],
-    .hwe-field-control input[type="email"],
-    .hwe-field-control input[type="password"],
-    .hwe-field-control textarea,
-    .hwe-field-control select {
-        max-width: 100%;
-    }
-
-    .hwe-save-bar-inner {
-        flex-direction: column;
-        gap: 14px;
-        text-align: center;
-    }
-
-    .hwe-save-info {
-        justify-content: center;
-    }
-
-    .hwe-header {
-        flex-direction: column;
-        gap: 16px;
-        text-align: center;
-        padding: 24px 20px;
-    }
-
-    .hwe-header-left {
-        flex-direction: column;
-    }
-
-    .hwe-subgroup {
-        padding: 16px;
-    }
-}
-
-@media (max-width: 600px) {
-    .hwe-wrap {
-        margin: 10px;
-    }
-
-    .hwe-header-text h1 {
-        font-size: 20px;
-    }
-
-    .hwe-panel-header h2 {
-        font-size: 18px;
-    }
-
-    .hwe-save-bar {
-        margin: 16px -10px -10px;
-        padding: 14px 16px;
-    }
-}
-
-/* ==========================================================================
-   Scrollbar (webkit)
-   ========================================================================== */
-
-.hwe-tab-content::-webkit-scrollbar {
-    width: 6px;
-}
-
-.hwe-tab-content::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.hwe-tab-content::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-
-.hwe-tab-content::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+.hwe-savebar__btn {
+    flex: none;
 }
 
 /* ==========================================================================
@@ -921,17 +677,13 @@
    ========================================================================== */
 
 .hwe-rows-editor-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     margin: 0 0 8px;
     padding: 0;
     list-style: none;
     counter-reset: hwe-row;
-}
-
-.hwe-rows-editor[data-kind="lines"] .hwe-rows-editor-rows,
-.hwe-rows-editor[data-kind="pairs"] .hwe-rows-editor-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
 }
 
 .hwe-rows-editor-row {
@@ -945,9 +697,9 @@
 .hwe-rows-editor[data-kind="lines"] .hwe-rows-editor-row::before {
     content: counter(hwe-row);
     min-width: 20px;
+    color: var(--hwe-muted);
     font-size: 12px;
-    font-weight: 700;
-    color: #64748b;
+    font-variant-numeric: tabular-nums;
     text-align: right;
 }
 
@@ -955,6 +707,7 @@
     display: flex;
     flex: 1;
     gap: 6px;
+    min-width: 0;
 }
 
 .hwe-rows-editor[data-kind="pairs"] .hwe-rows-editor-input:first-child {
@@ -963,27 +716,29 @@
 
 .hwe-field-control input.hwe-rows-editor-input[type="text"] {
     flex: 1;
+    min-width: 0;
     max-width: none;
-    padding: 7px 10px;
-    font-size: 13px;
 }
 
 .hwe-rows-editor-actions {
     display: flex;
+    flex: none;
     gap: 2px;
 }
 
 .hwe-rows-editor-actions .button-link {
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    color: #94a3b8;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    color: var(--hwe-muted);
     text-decoration: none;
 }
 
-.hwe-rows-editor-actions .button-link:hover {
-    background: #dbeafe;
-    color: #1e293b;
+@media (hover: hover) and (pointer: fine) {
+    .hwe-rows-editor-actions .button-link:hover {
+        background: var(--hwe-wash);
+        color: var(--hwe-ink);
+    }
 }
 
 .hwe-rows-editor-row:first-child .hwe-rows-editor-up,
@@ -1002,7 +757,7 @@
 }
 
 /* ==========================================================================
-   Media picker (tipos `image` / `file`)
+   Selector de medios (tipos `image` / `file`)
    ========================================================================== */
 
 .hwe-media {
@@ -1022,24 +777,18 @@
 .hwe-media-row .hwe-media-url {
     flex: 1 1 220px;
     min-width: 0;
-    max-width: none !important;
-    font-size: 13px;
-}
-
-.hwe-media-preview {
-    display: block;
 }
 
 .hwe-media-preview img {
     display: block;
-    max-width: 220px;
-    max-height: 140px;
     width: auto;
     height: auto;
-    object-fit: cover;
-    border-radius: 6px;
-    border: 1px solid #e2e8f0;
-    background: #f1f5f9;
+    max-width: 220px;
+    max-height: 140px;
+    object-fit: contain;
+    border: 1px solid var(--hwe-line);
+    border-radius: 4px;
+    background: var(--hwe-wash);
 }
 
 /* ==========================================================================
@@ -1050,13 +799,13 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    max-height: 280px;
-    overflow-y: auto;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 6px;
-    background: #e9e9e6;
     max-width: 420px;
+    max-height: 280px;
+    padding: 6px;
+    overflow-y: auto;
+    border: 1px solid var(--hwe-control);
+    border-radius: 4px;
+    background: var(--hwe-paper);
 }
 
 .hwe-checkbox-list .hwe-checkbox-item {
@@ -1067,16 +816,17 @@
     border-radius: 4px;
     cursor: pointer;
     font-size: 13px;
-    color: #1e293b;
 }
 
-.hwe-checkbox-list .hwe-checkbox-item:hover {
-    background: #dbeafe;
+@media (hover: hover) and (pointer: fine) {
+    .hwe-checkbox-list .hwe-checkbox-item:hover {
+        background: var(--hwe-wash);
+    }
 }
 
 .hwe-checkbox-list input[type="checkbox"] {
     flex: none;
-    accent-color: #2a3fd6;
+    accent-color: var(--hwe-accent-ink);
 }
 
 /* La lista de edición ocupa todo el ancho de la columna del campo. */
@@ -1085,7 +835,7 @@
 }
 
 .hwe-product-fields-list .hwe-product-item {
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--hwe-line);
 }
 
 .hwe-product-fields-list .hwe-product-item:last-child {
@@ -1094,13 +844,13 @@
 
 .hwe-product-item-label {
     margin: 8px 0 4px;
-    font-weight: 600;
     font-size: 13px;
+    font-weight: 600;
 }
 
 .hwe-product-item-link {
-    font-weight: 400;
     margin-left: 6px;
+    font-weight: 400;
 }
 
 .hwe-item-fields {
@@ -1117,28 +867,19 @@
 }
 
 .hwe-item-field > label {
-    font-size: 11px;
+    color: var(--hwe-muted);
+    font-size: 12px;
     font-weight: 600;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
 }
 
-.hwe-product-fields-list .hwe-item-field input[type="text"],
-.hwe-product-fields-list .hwe-item-field textarea {
+.hwe-product-fields-list .hwe-item-field :is(input[type="text"], textarea) {
     max-width: none;
 }
 
 /* ==========================================================================
-   Prueba de email: acciones y vista previa (modal con iframe sandbox)
-   El modal se mueve a <body> (fuera de .hwe-wrap) para quedar por encima de todo.
+   Vista previa del correo (modal con iframe sandbox)
+   El modal se mueve a <body> (fuera de .hwe-wrap): lleva sus propios valores.
    ========================================================================== */
-
-.hwe-smtp-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
 
 body.hwe-email-preview-open {
     overflow: hidden;
@@ -1158,13 +899,13 @@ body.hwe-email-preview-open {
     align-items: center;
     justify-content: center;
     padding: 32px;
-    color: #0f172a;
+    color: #1d2327;
 }
 
 .hwe-email-preview__backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(29, 35, 39, 0.65);
 }
 
 .hwe-email-preview__dialog {
@@ -1173,10 +914,10 @@ body.hwe-email-preview-open {
     flex-direction: column;
     width: min(1040px, 100%);
     height: min(92vh, 1100px);
-    background: #fff;
-    border-radius: 16px;
-    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.35);
     overflow: hidden;
+    border: 1px solid #8c8f94;
+    border-radius: 4px;
+    background: #ffffff;
 }
 
 .hwe-email-preview__head {
@@ -1184,9 +925,9 @@ body.hwe-email-preview-open {
     align-items: flex-start;
     justify-content: space-between;
     gap: 20px;
-    padding: 18px 22px 16px;
-    background: #e9e9e6;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 16px 20px;
+    border-bottom: 1px solid #dcdcde;
+    background: #f6f7f7;
 }
 
 .hwe-email-preview__meta {
@@ -1194,7 +935,7 @@ body.hwe-email-preview-open {
 }
 
 .hwe-email-preview__meta h2 {
-    margin: 0 0 10px;
+    margin: 0 0 8px;
     font-size: 15px;
     font-weight: 600;
 }
@@ -1208,8 +949,7 @@ body.hwe-email-preview-open {
 }
 
 .hwe-email-preview__meta dt {
-    color: #64748b;
-    font-weight: 500;
+    color: #50575e;
 }
 
 .hwe-email-preview__meta dd {
@@ -1219,26 +959,26 @@ body.hwe-email-preview-open {
 
 .hwe-email-preview__tools {
     display: flex;
+    flex: none;
     align-items: center;
     gap: 12px;
-    flex-shrink: 0;
 }
 
 .hwe-email-preview__devices .button[aria-pressed="true"] {
-    background: #0f172a;
-    border-color: #0f172a;
-    color: #fff;
+    border-color: #1d2327;
+    background: #1d2327;
+    color: #ffffff;
 }
 
 .hwe-email-preview__stage {
     position: relative;
-    flex: 1;
     display: flex;
-    justify-content: center;
+    flex: 1;
     align-items: stretch;
+    justify-content: center;
     padding: 24px;
-    background: #e2e8f0;
     overflow: hidden;
+    background: #dcdcde;
 }
 
 .hwe-email-preview__frame {
@@ -1247,20 +987,138 @@ body.hwe-email-preview-open {
     max-width: 720px;
     height: 100%;
     border: 0;
-    border-radius: 8px;
-    background: #fff;
-    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.14);
+    background: #ffffff;
 }
 
 .hwe-email-preview[data-device="mobile"] .hwe-email-preview__frame {
     max-width: 391px; /* 375 + 2 × 8 de marco */
-    border: 8px solid #0f172a;
-    border-radius: 28px;
+    border: 8px solid #1d2327;
+    border-radius: 24px;
 }
 
 .hwe-email-preview__status {
     align-self: center;
     margin: 0;
-    color: #475569;
+    color: #50575e;
     font-size: 14px;
+}
+
+/* ==========================================================================
+   wp-admin se pliega a 782px: navegación como desplegable, controles de 40px
+   ========================================================================== */
+
+@media (max-width: 782px) {
+    .hwe-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+    }
+
+    .hwe-nav {
+        position: static;
+        max-height: none;
+        padding: 0;
+        overflow: visible;
+    }
+
+    .hwe-nav__toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        width: 100%;
+        min-height: 44px;
+        padding: 8px 12px;
+        border: 0;
+        background: transparent;
+        color: var(--hwe-ink);
+        font-size: 14px;
+        font-weight: 600;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .hwe-nav__toggle[aria-expanded="true"] .dashicons {
+        transform: rotate(180deg);
+    }
+
+    .hwe-nav__list {
+        display: none;
+        padding: 0 8px 12px;
+        border-top: 1px solid var(--hwe-line);
+    }
+
+    .hwe-nav.is-open .hwe-nav__list {
+        display: block;
+    }
+
+    .hwe-nav__link {
+        min-height: 44px;
+    }
+
+    .hwe-field-control :is(input[type="text"], input[type="url"], input[type="email"], input[type="password"], input[type="number"], select, textarea) {
+        max-width: none;
+        min-height: 40px;
+        font-size: 16px; /* por debajo, iOS amplía la página al enfocar */
+    }
+
+    .hwe-header {
+        padding-top: 0;
+    }
+
+    .hwe-header__logo {
+        height: 32px;
+        max-width: 96px;
+    }
+
+    .hwe-rows-editor[data-kind="pairs"] .hwe-rows-editor-inputs {
+        flex-direction: column;
+    }
+
+    .hwe-rows-editor[data-kind="pairs"] .hwe-rows-editor-input:first-child {
+        flex: 1 1 auto;
+    }
+
+    .hwe-savebar {
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        padding: 10px 12px;
+    }
+
+    .hwe-savebar__status {
+        flex: 1 1 12rem;
+    }
+
+    .hwe-savebar__btn {
+        min-height: 40px;
+    }
+
+    .hwe-email-preview {
+        padding: 0;
+    }
+
+    .hwe-email-preview__dialog {
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+    }
+
+    .hwe-email-preview__head {
+        flex-direction: column;
+    }
+
+    .hwe-email-preview__stage {
+        padding: 12px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hwe-wrap *,
+    .hwe-wrap *::before,
+    .hwe-wrap *::after {
+        transition-duration: 0.01ms !important;
+    }
+
+    .hwe-wrap .dashicons.spin {
+        animation: none;
+    }
 }

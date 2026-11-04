@@ -161,16 +161,20 @@ final class BackupBridgeTest extends TestCase
         $this->assertFalse(BackupConfig::isValidArtifactName(''));
     }
 
-    // ── BackupActions::render ───────────────────────────────────────────────
+    // ── BackupActions::sections ──────────────────────────────────────────────
 
     public function testRenderShowsTheManualButtonAndRecentBackups(): void {
         file_put_contents($this->bridgeFile('db-20260101-030000.sql.gz'), 'x');
 
-        $html = BackupActions::render();
+        $html = implode("\n", array_column(BackupActions::sections(), 'html'));
 
         $this->assertStringContainsString('Backup ahora', $html);
         $this->assertStringContainsString('db-20260101-030000.sql.gz', $html);
         $this->assertStringContainsString('Exportar configuraci', $html);
+        $this->assertSame(
+            ['Estado y copia manual', 'Copias recientes', 'Configuración del panel'],
+            array_column(BackupActions::sections(), 'title')
+        );
     }
 
     public function testRenderBlocksTheButtonWhileRunning(): void {
@@ -179,7 +183,7 @@ final class BackupBridgeTest extends TestCase
             json_encode(['started_at' => date('c'), 'trigger' => 'manual'])
         );
 
-        $html = BackupActions::render();
+        $html = implode("\n", array_column(BackupActions::sections(), 'html'));
 
         $this->assertStringContainsString('disabled', $html);
         $this->assertStringContainsString('en curso', $html);

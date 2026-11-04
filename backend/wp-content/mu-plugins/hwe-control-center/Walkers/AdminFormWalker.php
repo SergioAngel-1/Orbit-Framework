@@ -3,28 +3,27 @@
 namespace HWE\ControlCenter\Walkers;
 
 use HWE\ControlCenter\FieldTypes\Registry;
-use HWE\ControlCenter\Log;
 use HWE\ControlCenter\Walker;
 
 /**
- * Genera el HTML del formulario de wp-admin recorriendo el esquema.
+ * Genera el HTML de cada campo del formulario de wp-admin recorriendo el esquema.
  *
- * Salida por nivel de profundidad:
- *   Profundidad 1 → contenedor <div class="hwe-fields"> con campos hijos.
- *   Profundidad 2+ → subgrupo <div class="hwe-subgroup"> con header + campos.
- *   Campos leaf  → fila <div class="hwe-field"> con label + control.
+ * El walker PINTA; `PanelLayout` decide dónde va cada cosa (pestaña y sección) según `PanelMap`.
+ * Tras `walk()`, `fragments()` da el HTML de cada nodo por su ruta con puntos:
+ *   Campo (hoja) → fila `<div class="hwe-field">` con label + control.
+ *   Grupo (profundidad 2+) → bloque `<div class="hwe-subgroup">` con título + campos.
  *
  * Los secretos renderizan un <input type="password"> vacío con placeholder;
  * el handler de guardado conserva el valor existente si se deja en blanco.
  *
- * Un campo con `panel` (ver Schema) no sale en su sección: se guarda aparte y
- * `withRelocated()` lo añade al final de su pestaña destino. Un grupo con `slots` envuelve cada hijo como hueco opcional
- * (`assets/admin.js` oculta los vacíos y gestiona «añadir»/«quitar»).
+ * Un grupo con `slots` envuelve cada hijo como hueco opcional (`assets/admin.js` oculta los
+ * vacíos y gestiona «añadir»/«quitar»). Su fragmento `bare` es solo el contenedor de huecos: la
+ * sección que lo coloca ya lleva el título.
  *
  * Uso:
- *   $walker   = new AdminFormWalker($secretsExist);
- *   $sections = $walker->walk(Schema::get(), $merged);
- *   // $sections se usa en tab panels del AdminPage.
+ *   $walker = new AdminFormWalker($secretsExist);
+ *   $walker->walk(Schema::get(), $merged);
+ *   $tabs = PanelLayout::compose($schema, $walker->fragments());
  */
 class AdminFormWalker extends Walker {
 
@@ -33,12 +32,6 @@ class AdminFormWalker extends Walker {
      *                       cada ruta (true = ya hay valor almacenado).
      */
     public function __construct(private readonly array $secrets = []) {}
-
-    /** @var array<string,array<string,list<string>>> pestaña → sección → filas HTML. */
-    private array $relocated = [];
-
-    /** @var array<string,string> pestaña destino → pestaña de origen (respaldo si no existe). */
-    private array $relocatedFrom = [];
 
     /**
      * Fragmento de cada nodo visitado, por ruta con puntos (`legal.locations.location_1`).
@@ -71,9 +64,11 @@ class AdminFormWalker extends Walker {
             : '';
 
         $input = $this->renderInput($field, $id, $name, $value, $path);
+        // El interruptor ya lleva su texto al lado: la etiqueta de la fila solo queda para lectores de pantalla.
+        $modifier = ($field['type'] ?? 'text') === 'boolean' ? ' hwe-field--toggle' : '';
 
         $html = <<<HTML
-<div class="hwe-field">
+<div class="hwe-field{$modifier}">
     <label for="{$id}">{$label}</label>
     <div class="hwe-field-control">
         {$input}
@@ -84,40 +79,7 @@ HTML;
 
         $this->fragments[implode('.', $path)] = ['html' => $html, 'bare' => $html, 'group' => false];
 
-        $tab = (string) ($field['panel']['tab'] ?? '');
-        if ($tab !== '' && $tab !== $path[0]) {
-            $section = (string) ($field['panel']['section'] ?? '');
-            $this->relocated[$tab][$section][] = $html;
-            $this->relocatedFrom[$tab] ??= $path[0];
-            return '';
-        }
         return $html;
-    }
-
-    /**
-     * Añade a `$sections` (la salida de `walk()`) los campos reubicados con `panel`, envueltos
-     * en un bloque por sección al final de su pestaña destino. Si esa pestaña no existe, se
-     * quedan en la de origen y se registra: un campo nunca desaparece del formulario.
-     *
-     * @param array<string,string> $sections HTML por clave raíz.
-     * @return array<string,string>
-     */
-    public function withRelocated(array $sections): array {
-        foreach ($this->relocated as $tab => $groups) {
-            $target = $tab;
-            if (!isset($sections[$tab])) {
-                $target = $this->relocatedFrom[$tab];
-                Log::once(
-                    'admin:panel:' . $tab,
-                    sprintf('«panel» apunta a la pestaña «%s», que no existe; los campos se quedan en «%s».', $tab, $target)
-                );
-            }
-            foreach ($groups as $section => $rows) {
-                $sections[$target] = ($sections[$target] ?? '')
-                    . $this->renderSubgroup(esc_html($section), implode("\n", $rows), 'dashicons-id', '');
-            }
-        }
-        return $sections;
     }
 
     protected function visitGroup(array $group, string $key, array $path, array $children): mixed {
@@ -125,22 +87,22 @@ HTML;
         $content = implode("\n", array_values($children));
         $depth   = count($path);
 
-        // Depth 1 groups are rendered as tab panels by AdminPage.
+        // Las raíces las reparte PanelLayout entre pestañas; aquí solo importa el contenido.
         if ($depth === 1) {
-            return $this->renderFormGroup($key, $label, $content);
+            return $content;
         }
 
         if (!empty($group['slots']) && is_array($group['slots'])) {
             $content = $this->renderSlots($group['slots'], $children);
         }
 
-        // Payment provider subgroups get a data attribute for conditional display.
+        // Los grupos de pasarela llevan un atributo para mostrar solo el de la pasarela activa.
         $providerAttr = '';
         if ($path[0] === 'payments' && $key !== 'provider') {
             $providerAttr = ' data-provider="' . esc_attr($key) . '"';
         }
 
-        $html = $this->renderSubgroup($label, $content, $this->subgroupIcon($key), $providerAttr);
+        $html = $this->renderSubgroup($label, $content, $providerAttr);
         $this->fragments[implode('.', $path)] = [
             'html'  => $html,
             'bare'  => !empty($group['slots']) ? $content : $html,
@@ -153,14 +115,11 @@ HTML;
     // Helpers de renderizado
     // -------------------------------------------------------------------------
 
-    /** Subgrupo anidado: card con borde izquierdo azul. `$label` ya va escapado. */
-    private function renderSubgroup(string $label, string $content, string $icon, string $attrs): string {
+    /** Bloque anidado (sede, pasarela, grupo de un módulo). `$label` ya va escapado. */
+    private function renderSubgroup(string $label, string $content, string $attrs): string {
         return <<<HTML
 <div class="hwe-subgroup"{$attrs}>
-    <h3 class="hwe-subgroup-title">
-        <span class="dashicons {$icon}"></span>
-        {$label}
-    </h3>
+    <h4 class="hwe-subgroup-title">{$label}</h4>
     <div class="hwe-fields">
         {$content}
     </div>
@@ -185,7 +144,7 @@ HTML;
 <div class="hwe-slot" data-hwe-slot>
     {$html}
     <button type="button" class="button-link button-link-delete hwe-slot-remove" data-hwe-slot-remove hidden>
-        <span class="dashicons dashicons-trash"></span> {$remove}
+        <span class="dashicons dashicons-trash" aria-hidden="true"></span> {$remove}
     </button>
 </div>
 HTML;
@@ -196,16 +155,8 @@ HTML;
     <p class="description hwe-slots-empty" data-hwe-slots-empty hidden>{$empty}</p>
     {$slots}
     <button type="button" class="button hwe-slots-add" data-hwe-slots-add hidden>
-        <span class="dashicons dashicons-plus-alt2"></span> {$add}
+        <span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span> {$add}
     </button>
-</div>
-HTML;
-    }
-
-    private function renderFormGroup(string $key, string $label, string $tableBody): string {
-        return <<<HTML
-<div class="hwe-fields">
-{$tableBody}
 </div>
 HTML;
     }
@@ -236,19 +187,5 @@ HTML;
         $first = array_shift($path);
         $rest  = implode('', array_map(fn($s) => "[{$s}]", $path));
         return "hwe_config[{$first}]{$rest}";
-    }
-
-    /**
-     * Mapa de iconos para subgrupos conocidos.
-     */
-    private function subgroupIcon(string $key): string {
-        return match ($key) {
-            'colors'       => 'dashicons-art',
-            'typography'   => 'dashicons-editor-paste-text',
-            'wompi'        => 'dashicons-awards',
-            'payu'         => 'dashicons-money-alt',
-            'bold'         => 'dashicons-admin-generic',
-            default        => 'dashicons-admin-generic',
-        };
     }
 }
