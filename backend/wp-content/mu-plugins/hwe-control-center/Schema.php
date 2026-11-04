@@ -32,15 +32,39 @@ namespace HWE\ControlCenter;
  *                    un hermano `<clave>_<locale>` por cada idioma secundario de
  *                    `i18n.locales` (vacío = se usa el texto del idioma por defecto).
  *                    El frontend lo resuelve con `pickLocalized(entity, campo, locale)`.
+ *   'show_if'     → ['field' => <clave de un hermano>, 'in' => [valores]] o 'not_in' (solo admin): la fila
+ *                    solo se ve mientras ese hermano tenga uno de esos valores (p. ej. la imagen de una
+ *                    sección solo con una disposición que la pinta). Es presentación: el control sigue
+ *                    en el formulario con su valor, así que guardar no borra nada. Sin JS se ve siempre.
+ *   'locale'      → (la pone el esquema, no se declara) en cada variante `<clave>_<idioma>`: el sufijo
+ *   'variant_of'  → de su idioma y la clave del campo base. Solo admin: el conmutador de idioma del
+ *                    panel muestra la variante del idioma elegido y deja el original como referencia.
  *   'panel'       → ['tab' => <clave de pestaña o clave raíz>, 'section' => 'Título'] (solo admin):
  *                    pinta el campo en otra pestaña, dentro de una sección con ese título. Lo usan
  *                    módulos e instancia; el núcleo se reparte con `PanelMap`. La ruta del dato, el
  *                    `name` del input y la API no cambian.
  *
- * Atributos de grupo:
- *   'slots'       → ['add_label', 'remove_label', 'empty'] (solo admin): cada hijo es un
+ * Atributos de grupo (todos de presentación, solo admin: no cambian el dato ni la API):
+ *   'slots'       → ['add_label', 'remove_label', 'empty', 'keys'?] (solo admin): cada hijo es un
  *                    hueco opcional (p. ej. las sedes). El panel oculta los huecos vacíos y
- *                    ofrece «añadir» hasta agotarlos; «quitar» vacía el hueco al guardar.
+ *                    ofrece «añadir» hasta agotarlos; «quitar» vacía el hueco al guardar. Con
+ *                    `keys` solo son huecos esos hijos (los demás, p. ej. un interruptor y un
+ *                    título, salen antes, como campos normales). Un hueco cuenta como ocupado si
+ *                    algún texto tiene contenido o alguna casilla está marcada; un desplegable
+ *                    (que siempre tiene valor) no cuenta.
+ *   'summary'     → ['toggle' => <hijo booleano>, 'on', 'off', 'parts' => [['field' => <hijo>,
+ *                    'as' => 'select'|'text', 'quote'?], ['as' => 'slots', 'unit' => 'secciones']],
+ *                    'empty'?]: lo que dice la cabecera del bloque cerrado («Visible · Imagen a la
+ *                    izquierda · «Título»»). Con el interruptor apagado dice solo `off`.
+ *   'master'      → clave de un hijo booleano: con él apagado el bloque solo enseña ese interruptor
+ *                    (los demás controles siguen en el formulario, escondidos).
+ *   'blocks'      → lista de bloques con la que el panel ORDENA y plega los hijos del grupo sin tocar
+ *                    el orden del dato: una clave (hijo suelto), o `['label', 'keys' => [...],
+ *                    'summary'?, 'master'?]` (varios hijos bajo una cabecera; un hijo grupo con otro
+ *                    título). Lo no nombrado se añade al final.
+ *   'switcher'    → ['label' => 'Editando'] (solo admin): los hijos (grupos) se editan de uno en uno
+ *                    con un selector; los demás siguen en el formulario y se guardan. La elegida va en
+ *                    la URL del panel (`#pestaña/<hijo>`).
  *
  * CONTRATO CON LA INSTANCIA
  * -------------------------
@@ -150,6 +174,8 @@ class Schema {
      */
     private static function expandTranslatable(array $nodes, array $locales): array {
         $result = [];
+        /** @var array<string,array{locale:string,variant_of:string}> $manual variantes declaradas a mano */
+        $manual = [];
         foreach ($nodes as $key => $node) {
             if (self::isGroup($node)) {
                 $node['children'] = self::expandTranslatable($node['children'], $locales);
@@ -171,6 +197,7 @@ class Schema {
             foreach ($locales as $suffix) {
                 $variant = $key . '_' . $suffix;
                 if (array_key_exists($variant, $nodes)) {
+                    $manual[$variant] = ['locale' => $suffix, 'variant_of' => (string) $key];
                     continue;
                 }
                 $copy = $node;
@@ -179,7 +206,15 @@ class Schema {
                     'label'       => sprintf('%s (%s)', (string) ($node['label'] ?? $key), strtoupper(str_replace('_', '-', $suffix))),
                     'default'     => '',
                     'description' => 'Vacío = se usa el texto del idioma por defecto.',
+                    'locale'      => $suffix,
+                    'variant_of'  => (string) $key,
                 ] + $copy;
+            }
+        }
+        // Una variante escrita a mano manda sobre la generada, pero el panel también la reconoce.
+        foreach ($manual as $variant => $marks) {
+            if (is_array($result[$variant] ?? null) && !self::isGroup($result[$variant])) {
+                $result[$variant] += $marks;
             }
         }
         return $result;

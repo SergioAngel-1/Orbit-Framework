@@ -44,6 +44,14 @@
     display: none !important;
 }
 
+/*
+ * Lo que `admin.js` esconde según el estado de los campos. Los controles siguen en el formulario:
+ * solo dejan de verse. `is-forced` lo usa un control inválido para poder avisar.
+ */
+.hwe-wrap :is(.is-off-lang, .is-off-cond, .is-lang-empty):not(.is-forced) {
+    display: none !important;
+}
+
 .hwe-wrap :is(a, button, input, select, textarea, summary):focus-visible {
     outline: 2px solid var(--hwe-ring);
     outline-offset: 2px;
@@ -269,8 +277,39 @@
     margin-top: 20px;
 }
 
+/* Cabecera pulsable de una sección o un bloque: título, resumen de su estado y punto de cambios. */
+.hwe-section__head,
+.hwe-subgroup__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    cursor: pointer;
+    list-style: none;
+}
+
+.hwe-section__head::-webkit-details-marker,
+.hwe-subgroup__head::-webkit-details-marker {
+    display: none;
+}
+
+/* Flecha de wp-admin (dashicons): derecha = plegado, abajo = abierto. Sin giro animado. */
+.hwe-section__head::before,
+.hwe-subgroup__head::before {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    font: normal 20px/1 dashicons;
+    color: var(--hwe-muted);
+    content: "\f345";
+}
+
+:is(.hwe-section, .hwe-subgroup)[open] > :is(.hwe-section__head, .hwe-subgroup__head)::before {
+    content: "\f347";
+}
+
 .hwe-section__head {
-    margin: 0 0 20px;
+    margin: 0 0 6px;
 }
 
 .hwe-section__head h3 {
@@ -281,11 +320,40 @@
     line-height: 1.3;
 }
 
-.hwe-section__head p {
+.hwe-section__intro {
     max-width: 65ch;
-    margin: 4px 0 0;
+    margin: 0 0 20px 28px;
     color: var(--hwe-muted);
     font-size: 13px;
+}
+
+/* Lo que hay dentro se alinea con el título, no con la flecha. */
+.hwe-section > .hwe-fields {
+    margin-left: 28px;
+}
+
+/* Resumen del estado de un bloque cerrado («Visible · Imagen a la derecha · «Título»»). */
+.hwe-fold__summary {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--hwe-muted);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hwe-fold__summary:empty {
+    display: none;
+}
+
+/* El mismo punto que marca la pestaña: hay algo cambiado dentro, aunque esté cerrado. */
+.hwe-fold__dirty {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin-left: auto;
+    border-radius: 50%;
+    background: var(--hwe-warn);
 }
 
 .hwe-fields {
@@ -379,24 +447,33 @@
     margin: 0 0 12px;
 }
 
-/* Bloque anidado dentro de una sección: sede, pasarela o grupo de un módulo. */
+/* Bloque anidado dentro de una sección: sede, pasarela o grupo de un módulo. Plegado de serie. */
 .hwe-subgroup {
-    margin: 0 0 16px;
-    padding: 16px 16px 0;
+    margin: 0 0 12px;
     border: 1px solid var(--hwe-line);
     border-radius: 4px;
     background: var(--hwe-wash);
 }
 
-.hwe-subgroup-title {
-    margin: 0 0 14px;
-    padding: 0;
-    font-size: 14px;
-    font-weight: 600;
+.hwe-subgroup__head {
+    padding: 10px 16px 10px 10px;
 }
 
-.hwe-subgroup .hwe-fields {
+.hwe-subgroup-title {
+    flex: none;
+    max-width: 60%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hwe-subgroup > .hwe-fields {
     max-width: none;
+    padding: 4px 16px 0 38px;
 }
 
 /* Solo se ve la pasarela activa; `admin.js` marca `is-active`. */
@@ -406,6 +483,169 @@
 
 .hwe-subgroup[data-provider].is-active {
     display: block;
+}
+
+/* Un bloque dentro de otro (la SEO de una landing, cada sección del bloque de secciones) no es otra
+   tarjeta: es una fila con filete, para no apilar cajas. */
+.hwe-subgroup .hwe-subgroup {
+    margin: 0;
+    border-width: 1px 0 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.hwe-subgroup .hwe-subgroup:last-child {
+    margin-bottom: 8px;
+}
+
+.hwe-subgroup .hwe-subgroup > .hwe-subgroup__head {
+    padding-left: 0;
+}
+
+.hwe-subgroup .hwe-subgroup > .hwe-fields {
+    padding-left: 28px;
+    padding-right: 0;
+}
+
+/* Con «Mostrar» apagado el bloque solo enseña ese interruptor (`admin.js` pone `is-master` e `is-off`). */
+.hwe-wrap details.is-off > .hwe-fields > :not(.is-master) {
+    display: none;
+}
+
+/* ==========================================================================
+   Selector de elementos (una landing a la vez)
+   ========================================================================== */
+
+.hwe-switcher__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 4px 0 20px;
+    padding: 10px 0;
+    border-top: 1px solid var(--hwe-line);
+    border-bottom: 1px solid var(--hwe-line);
+}
+
+.hwe-switcher__bar label {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.hwe-switcher__bar select {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 14px;
+}
+
+/* Con JS el título de cada elemento lo da el selector; sin JS se ven todos, cada uno con el suyo. */
+.hwe-switcher.is-enhanced .hwe-switch-title {
+    display: none;
+}
+
+.hwe-switch-title {
+    margin: 24px 0 12px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   Idioma de edición («ES | EN») y texto original de referencia
+   ========================================================================== */
+
+.hwe-lang {
+    margin: 14px 0 0;
+}
+
+.hwe-lang__group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+}
+
+.hwe-lang__label {
+    margin-right: 10px;
+    color: var(--hwe-muted);
+    font-size: 13px;
+}
+
+/* Control segmentado: un solo trazo compartido, el idioma elegido lleva la marca de la tienda. */
+.hwe-lang__btn {
+    min-width: 44px;
+    min-height: 32px;
+    margin: 0 0 0 -1px;
+    padding: 0 12px;
+    border: 1px solid var(--hwe-control);
+    background: var(--hwe-paper);
+    color: var(--hwe-ink);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.hwe-lang__btn:nth-of-type(1) {
+    margin-left: 0;
+    border-radius: 4px 0 0 4px;
+}
+
+.hwe-lang__btn:last-of-type {
+    border-radius: 0 4px 4px 0;
+}
+
+.hwe-lang__btn:only-of-type {
+    border-radius: 4px;
+}
+
+.hwe-lang__btn[aria-pressed="true"] {
+    position: relative;
+    border-color: var(--hwe-accent-ink);
+    background: var(--hwe-accent);
+    color: var(--hwe-on-accent);
+}
+
+.hwe-lang__hint {
+    max-width: 65ch;
+    margin: 8px 0 0;
+    color: var(--hwe-muted);
+    font-size: 13px;
+}
+
+/* El original, sobre el campo que se está traduciendo: legible, pero claramente no editable. */
+.hwe-ref {
+    max-width: 65ch;
+    margin: 0 0 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--hwe-line);
+    border-radius: 4px;
+    background: var(--hwe-wash);
+}
+
+.hwe-ref__label {
+    display: block;
+    margin: 0 0 2px;
+    color: var(--hwe-muted);
+    font-size: 12px;
+}
+
+.hwe-ref__text {
+    max-height: 9em;
+    overflow-y: auto;
+    color: var(--hwe-ink);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+/* Traducir no es estructurar: desde «EN» no se añaden ni se quitan secciones, sedes o preguntas. */
+.hwe-panel.is-translating :is(.hwe-slot-remove, .hwe-slots-add, .hwe-slots-empty) {
+    display: none;
+}
+
+.hwe-ref__text.is-empty {
+    color: var(--hwe-muted);
 }
 
 /* ==========================================================================
@@ -688,7 +928,8 @@
     font-weight: 600;
 }
 
-.hwe-savebar__btn {
+.hwe-savebar__btn,
+.hwe-savebar__fold {
     flex: none;
 }
 
@@ -716,7 +957,8 @@
         padding: 16px;
     }
 
-    .hwe-savebar__btn {
+    .hwe-savebar__btn,
+    .hwe-savebar__fold {
         width: 100%;
         justify-content: center;
         text-align: center;
@@ -1157,7 +1399,8 @@ body.hwe-email-preview-open {
         flex: 1 1 12rem;
     }
 
-    .hwe-savebar__btn {
+    .hwe-savebar__btn,
+    .hwe-savebar__fold {
         min-height: 40px;
     }
 
@@ -1189,5 +1432,22 @@ body.hwe-email-preview-open {
 
     .hwe-wrap .dashicons.spin {
         animation: none;
+    }
+}
+
+/* ==========================================================================
+   Bloques plegables en pantallas estrechas: sin sangría, cada píxel cuenta
+   ========================================================================== */
+
+@media (max-width: 782px) {
+    .hwe-section > .hwe-fields,
+    .hwe-section__intro {
+        margin-left: 0;
+    }
+
+    .hwe-subgroup > .hwe-fields,
+    .hwe-subgroup .hwe-subgroup > .hwe-fields {
+        padding-right: 12px;
+        padding-left: 12px;
     }
 }

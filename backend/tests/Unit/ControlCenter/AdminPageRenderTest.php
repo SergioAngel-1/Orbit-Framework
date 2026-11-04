@@ -137,6 +137,87 @@ final class AdminPageRenderTest extends TestCase
         $this->assertSame(0, preg_match('/<section class="hwe-panel"/', substr($html, $bar, $layoutEnd - $bar)), '...tras todos los paneles (el CSS la sube con `order`).');
     }
 
+    public function testEveryTitledSectionFoldsAndStartsOpenWhileNestedBlocksStartClosed(): void
+    {
+        $html = $this->page();
+
+        preg_match_all('/<details class="(hwe-section[^"]*)" data-hwe-fold( open)?>/', $html, $sections, PREG_SET_ORDER);
+        $this->assertGreaterThan(15, count($sections), 'Cada sección con título es un <details>.');
+        foreach ($sections as $section) {
+            $this->assertSame(' open', $section[2], 'Las secciones de primer nivel arrancan abiertas.');
+        }
+        $this->assertSame(
+            count($sections),
+            preg_match_all('/<summary class="hwe-section__head"><h3 id="hwe-panel-[a-z]+-s\d+">/', $html),
+            'Su cabecera pulsable es el <summary> con el título.'
+        );
+
+        preg_match_all('/<details class="hwe-subgroup" data-hwe-fold([^>]*)>/', $html, $groups);
+        $this->assertGreaterThan(8, count($groups[0]), 'Sedes y credenciales de pasarela son bloques anidados.');
+        foreach ($groups[1] as $attrs) {
+            $this->assertStringNotContainsString(' open', $attrs, 'Los subgrupos arrancan plegados.');
+        }
+        $this->assertStringNotContainsString('<h4 class="hwe-subgroup-title">', preg_replace('/<summary.*?<\/summary>/s', '', $html), 'El título de un bloque anidado vive en su <summary>.');
+    }
+
+    public function testFoldAllButtonSitsUnderSaveAndStartsHiddenUntilTheScriptRuns(): void
+    {
+        $html = $this->page();
+
+        $save = strpos($html, 'class="button button-primary hwe-savebar__btn"');
+        $fold = strpos($html, 'data-hwe-fold-all');
+        $this->assertNotFalse($fold);
+        $this->assertGreaterThan($save, $fold, 'Va debajo de «Guardar configuración».');
+        $this->assertSame(1, preg_match_all('/data-hwe-fold-all/', $html), 'Uno solo para todo el panel: actúa sobre la pestaña activa.');
+        $this->assertStringContainsString('data-open="Abrir todo" data-close="Colapsar todo" hidden>Abrir todo</button>', $html);
+        $this->assertSame(1, preg_match_all('/button-primary/', $html), 'Sigue habiendo un único botón primario.');
+    }
+
+    public function testTabsWithTranslatableFieldsGetALanguageSwitchOfTheRealLanguages(): void
+    {
+        $html = $this->page();
+
+        $this->assertStringContainsString('data-hwe-default-lang="es"', $html);
+        $brand = $this->panel($html, 'brand');
+        $this->assertStringContainsString('data-hwe-lang-switch', $brand);
+        $this->assertStringContainsString('data-hwe-lang="es" aria-pressed="true">ES</button>', $brand);
+        $this->assertStringContainsString('data-hwe-lang="en" aria-pressed="false">EN</button>', $brand);
+        $this->assertStringContainsString('data-ref-label="Original en ES"', $brand);
+        $this->assertStringContainsString('data-hwe-lang-switch', $this->panel($html, 'support'), 'Las preguntas frecuentes se traducen.');
+        $this->assertStringNotContainsString('data-hwe-lang-switch', $this->panel($html, 'payments'), 'Sin textos traducibles no hay conmutador.');
+        $this->assertStringNotContainsString('data-hwe-lang-switch', $this->panel($html, 'email'));
+        // Sin JS el conmutador no se ve y las variantes siguen ahí, pegadas a su campo.
+        $this->assertMatchesRegularExpression('/data-hwe-lang-switch[^>]* hidden>/', $brand);
+        $this->assertStringContainsString('name="hwe_config[brand][tagline_en]"', $brand);
+    }
+
+    public function testTheSwitchFollowsTheConfiguredLanguagesAndANormalisedSuffix(): void
+    {
+        Functions\when('get_option')->alias(static fn (string $key, mixed $default = false): mixed => $key === 'hwe_config'
+            ? ['brand' => ['locale' => 'es-CO'], 'i18n' => ['locales' => 'en, pt-BR']]
+            : $default);
+
+        $brand = $this->panel($this->page(), 'brand');
+
+        $this->assertStringContainsString('data-hwe-lang="es_co" aria-pressed="true">ES-CO</button>', $brand);
+        $this->assertStringContainsString('data-hwe-lang="en" aria-pressed="false">EN</button>', $brand);
+        $this->assertStringContainsString('data-hwe-lang="pt_br" aria-pressed="false">PT-BR</button>', $brand);
+        $this->assertStringContainsString('name="hwe_config[brand][tagline_pt_br]"', $brand);
+    }
+
+    public function testAMonolingualStoreHasNoSwitchAndNoVariants(): void
+    {
+        Functions\when('get_option')->alias(static fn (string $key, mixed $default = false): mixed => $key === 'hwe_config'
+            ? ['i18n' => ['locales' => '']]
+            : $default);
+
+        $html = $this->page();
+
+        $this->assertStringNotContainsString('data-hwe-lang-switch', $html);
+        $this->assertStringNotContainsString('data-hwe-locale=', $html);
+        $this->assertStringContainsString('hwe_config[brand][tagline]', $html);
+    }
+
     public function testActionFormsLiveOutsideTheMainFormAndNeverNest(): void
     {
         $html = $this->page();

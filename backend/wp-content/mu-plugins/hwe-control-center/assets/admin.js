@@ -1,15 +1,57 @@
 /**
  * HWE Control Center — Admin JS
  *
- * Navegación por pestañas, color picker, selectores de medios, editores de filas, huecos
- * opcionales, pasarela activa, estado del guardado y vista previa del correo.
+ * Navegación por pestañas, bloques plegables, color picker, selectores de medios, editores de
+ * filas, huecos opcionales, pasarela activa, estado del guardado y vista previa del correo.
  */
 (function () {
     'use strict';
 
     // =========================================================================
+    // Vista: lo que depende del estado de los campos (resúmenes, etiqueta de «abrir todo»…).
+    // Cada módulo registra su función con `onView`; `refreshView` las ejecuta tras cualquier
+    // cambio (un campo, otra pestaña, un hueco).
+    // =========================================================================
+
+    var viewHooks = [];
+
+    // `rank` ordena las funciones: primero las condiciones, luego los resúmenes, el idioma y,
+    // al final, lo que mira el resultado (la etiqueta de «abrir todo»).
+    function onView(fn, rank) {
+        viewHooks.push({ fn: fn, rank: rank || 50 });
+        viewHooks.sort(function (a, b) { return a.rank - b.rank; });
+    }
+
+    function refreshView() { viewHooks.forEach(function (hook) { hook.fn(); }); }
+
+    function activePanel() { return document.querySelector('[data-hwe-panel]:not([hidden])'); }
+
+    // =========================================================================
     // Navegación lateral: un enlace por pestaña, un panel por enlace.
     // =========================================================================
+
+    // La ruta del panel vive en la URL: `#pestaña` o `#pestaña/elegido` (p. ej. `#landings/guia`, la
+    // landing que se está editando). Va también en la acción del formulario, así sobrevive al guardado.
+    var route = { tab: '', subs: {}, form: null, base: '' };
+
+    function readRoute(hash) {
+        var parts = String(hash || '').replace(/^#/, '').split('/');
+        return { tab: parts[0] || '', sub: parts.slice(1).join('/') };
+    }
+
+    function writeRoute() {
+        if (!route.tab) return;
+        var sub = route.subs[route.tab];
+        var hash = '#' + route.tab + (sub ? '/' + sub : '');
+        try { history.replaceState(null, '', hash); } catch (e) {}
+        if (route.form) route.form.setAttribute('action', route.base + hash);
+    }
+
+    // Recuerda lo elegido dentro de una pestaña (p. ej. la landing) y lo pone en la URL.
+    function chooseSub(tab, sub) {
+        route.subs[tab] = sub;
+        if (route.tab === tab) writeRoute();
+    }
 
     function initTabs() {
         var nav = document.querySelector('.hwe-nav');
@@ -21,16 +63,11 @@
         var current = nav.querySelector('[data-hwe-nav-current]');
         var wrap = document.querySelector('.hwe-wrap');
         var form = document.querySelector('[data-hwe-form]');
-        var baseAction = form ? form.getAttribute('action').split('#')[0] : '';
+        route.form = form;
+        route.base = form ? form.getAttribute('action').split('#')[0] : '';
 
         function exists(tab) {
             return !!tab && Array.prototype.some.call(panels, function (p) { return p.dataset.hwePanel === tab; });
-        }
-
-        // La pestaña va en la URL (#tab) y en la acción del formulario: sobrevive al guardado.
-        function remember(tab) {
-            try { history.replaceState(null, '', '#' + tab); } catch (e) {}
-            if (form) form.setAttribute('action', baseAction + '#' + tab);
         }
 
         function show(tab) {
@@ -41,6 +78,8 @@
             });
             panels.forEach(function (p) { p.hidden = p.dataset.hwePanel !== tab; });
             if (current && link) current.textContent = link.querySelector('.hwe-nav__label').textContent;
+            route.tab = tab;
+            refreshView();
         }
 
         function setOpen(open) {
@@ -52,7 +91,7 @@
             link.addEventListener('click', function (e) {
                 e.preventDefault();
                 show(link.dataset.hweTab);
-                remember(link.dataset.hweTab);
+                writeRoute();
                 setOpen(false);
             });
         });
@@ -64,19 +103,21 @@
 
         // Atrás/adelante o un #tab pegado a mano.
         window.addEventListener('hashchange', function () {
-            var tab = window.location.hash.slice(1);
-            if (exists(tab)) {
-                show(tab);
-                if (form) form.setAttribute('action', baseAction + '#' + tab);
-            }
+            var next = readRoute(window.location.hash);
+            if (!exists(next.tab)) return;
+            if (next.sub) route.subs[next.tab] = next.sub;
+            show(next.tab);
+            if (route.form) route.form.setAttribute('action', route.base + '#' + next.tab + (route.subs[next.tab] ? '/' + route.subs[next.tab] : ''));
+            document.dispatchEvent(new CustomEvent('hwe:route', { detail: { tab: next.tab, sub: route.subs[next.tab] || '' } }));
         });
 
         // Al cargar manda la URL; si no trae pestaña, la que eligió el servidor (p. ej. tras una prueba de correo).
-        var fromUrl = window.location.hash.slice(1);
-        var start = exists(fromUrl) ? fromUrl : (wrap && wrap.dataset.hweInitialTab) || '';
+        var fromUrl = readRoute(window.location.hash);
+        if (exists(fromUrl.tab) && fromUrl.sub) route.subs[fromUrl.tab] = fromUrl.sub;
+        var start = exists(fromUrl.tab) ? fromUrl.tab : (wrap && wrap.dataset.hweInitialTab) || '';
         if (exists(start)) {
             show(start);
-            if (form) form.setAttribute('action', baseAction + '#' + start);
+            if (form) form.setAttribute('action', route.base + '#' + start + (route.subs[start] ? '/' + route.subs[start] : ''));
         }
     }
 
@@ -158,20 +199,42 @@
         var initial = new Map();
         tracked().forEach(function (el) { initial.set(el, signature(el)); });
 
-        function dirtyTabs() {
+        // Pestañas y bloques plegables con algún control cambiado: un bloque cerrado sigue delatando lo que guarda dentro.
+        var folds = [];
+
+        function dirty() {
             var tabs = [];
+            var blocks = [];
             tracked().forEach(function (el) {
                 if (initial.has(el) && initial.get(el) === signature(el)) return;
                 var panel = el.closest('[data-hwe-panel]');
                 var tab = panel ? panel.dataset.hwePanel : '';
                 if (tab && tabs.indexOf(tab) === -1) tabs.push(tab);
+                for (var d = el.closest('details[data-hwe-fold]'); d; d = d.parentElement && d.parentElement.closest('details[data-hwe-fold]')) {
+                    if (blocks.indexOf(d) === -1) blocks.push(d);
+                }
             });
-            return tabs;
+            return { tabs: tabs, blocks: blocks };
+        }
+
+        function markFolds(blocks) {
+            folds.forEach(function (d) {
+                if (blocks.indexOf(d) !== -1) return;
+                var mark = d.firstElementChild && d.firstElementChild.querySelector('[data-hwe-fold-dirty]');
+                if (mark) mark.hidden = true;
+            });
+            blocks.forEach(function (d) {
+                var mark = d.firstElementChild && d.firstElementChild.querySelector('[data-hwe-fold-dirty]');
+                if (mark) mark.hidden = false;
+            });
+            folds = blocks;
         }
 
         function refresh() {
             if (submitting) return;
-            var tabs = dirtyTabs();
+            var changes = dirty();
+            var tabs = changes.tabs;
+            markFolds(changes.blocks);
             var labels = [];
             document.querySelectorAll('[data-hwe-tab]').forEach(function (link) {
                 var on = tabs.indexOf(link.dataset.hweTab) !== -1;
@@ -252,14 +315,31 @@
     // y el frontend lo ignora. Sin JS se ven todos, como cualquier grupo.
     // =========================================================================
 
+    // Los controles con los que se rellena un hueco. Un desplegable no cuenta: siempre tiene valor
+    // (la disposición, el orden…) y haría «ocupados» los huecos que nadie ha tocado.
     function slotFields(slot) {
-        return slot.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="button"]), textarea, select');
+        return slot.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]), textarea');
     }
 
+    // Ocupado = algún texto con contenido o alguna casilla marcada (p. ej. «Mostrar»).
     function slotHasData(slot) {
-        return Array.prototype.some.call(slotFields(slot), function (field) {
+        var text = Array.prototype.some.call(slotFields(slot), function (field) {
             return field.value.trim() !== '';
         });
+        return text || !!slot.querySelector('input[type="checkbox"]:checked');
+    }
+
+    function clearSlot(slot) {
+        slotFields(slot).forEach(function (field) {
+            if (field.value === '') return;
+            field.value = '';
+            announce(field);
+        });
+        slot.querySelectorAll('input[type="checkbox"]:checked').forEach(function (box) {
+            box.checked = false;
+            announce(box);
+        });
+        slot.querySelectorAll('.hwe-media-preview').forEach(function (preview) { preview.replaceChildren(); });
     }
 
     function initSlots() {
@@ -274,6 +354,7 @@
                 addBtn.hidden = false;
                 addBtn.disabled = free.length === 0;
                 if (empty) empty.hidden = free.length !== slots.length;
+                refreshView();
             }
 
             slots.forEach(function (slot) {
@@ -282,7 +363,7 @@
                 if (!remove) return;
                 remove.hidden = false;
                 remove.addEventListener('click', function () {
-                    slotFields(slot).forEach(function (field) { field.value = ''; announce(field); });
+                    clearSlot(slot);
                     slot.hidden = true;
                     sync();
                     addBtn.focus();
@@ -293,6 +374,13 @@
                 var next = slots.filter(function (slot) { return slot.hidden; })[0];
                 if (!next) return;
                 next.hidden = false;
+                // Quien añade un bloque quiere verlo: abierto y, si tiene «Mostrar», encendido.
+                var block = next.querySelector('details[data-hwe-fold]');
+                if (block) {
+                    block.open = true;
+                    var master = block.dataset.hweMaster ? byId(block.dataset.hweMaster) : null;
+                    if (master && !master.checked) { master.checked = true; announce(master); }
+                }
                 sync();
                 var first = slotFields(next)[0];
                 if (first) first.focus();
@@ -480,6 +568,393 @@
     }
 
     // =========================================================================
+    // Bloques plegables (`<details data-hwe-fold>`): secciones de cada pestaña y subgrupos.
+    //
+    // Sin JS el navegador ya los pliega. Aquí: un botón que abre o cierra todos los de la pestaña
+    // activa (su etiqueta dice lo que hará), el estado de cada pestaña recordado en este
+    // navegador, y la regla de que lo que tiene el foco o un error de validación nunca queda
+    // escondido. Sin animación: es una superficie de uso diario.
+    // =========================================================================
+
+    var FOLD_STORE = 'hwe-cc-fold:';
+
+    // Un bloque que no se ve (otro idioma, apagado, hueco vacío…) no cuenta para «abrir todo».
+    function foldShown(d) {
+        if (d.closest('[hidden], .is-off-lang, .is-off-cond, .is-lang-empty')) return false;
+        return !(d.parentElement && d.parentElement.closest('details.is-off'));
+    }
+
+    function foldsOf(panel) {
+        return Array.prototype.filter.call(panel.querySelectorAll('details[data-hwe-fold]'), foldShown);
+    }
+
+    // `reveal`: además de abrir, enseña lo que un bloque apagado esconde (solo para un control inválido).
+    function openAncestors(el, reveal) {
+        for (var d = el.closest('details[data-hwe-fold]'); d; d = d.parentElement && d.parentElement.closest('details[data-hwe-fold]')) {
+            d.open = true;
+            if (reveal) d.classList.remove('is-off');
+        }
+    }
+
+    function initFold() {
+        var form = document.querySelector('[data-hwe-form]');
+        var btn = document.querySelector('[data-hwe-fold-all]');
+        if (!form) return;
+
+        function allOpen(folds) {
+            return folds.length > 0 && folds.every(function (d) { return d.open; });
+        }
+
+        function label() {
+            var panel = activePanel();
+            if (!btn || !panel) return;
+            var folds = foldsOf(panel);
+            var everyOpen = allOpen(folds);
+            btn.hidden = folds.length === 0;
+            btn.textContent = everyOpen ? (btn.dataset.close || 'Colapsar todo') : (btn.dataset.open || 'Abrir todo');
+            btn.dataset.state = everyOpen ? 'open' : 'closed';
+        }
+
+        // Estado por pestaña: una cadena 0/1 con el orden del DOM (si el panel cambia de forma, se descarta).
+        function store(panel) {
+            try {
+                var folds = panel.querySelectorAll('details[data-hwe-fold]');
+                var bits = Array.prototype.map.call(folds, function (d) { return d.open ? '1' : '0'; }).join('');
+                window.localStorage.setItem(FOLD_STORE + panel.dataset.hwePanel, bits);
+            } catch (e) {}
+        }
+
+        function restore(panel) {
+            var bits = '';
+            try { bits = window.localStorage.getItem(FOLD_STORE + panel.dataset.hwePanel) || ''; } catch (e) {}
+            var folds = panel.querySelectorAll('details[data-hwe-fold]');
+            if (bits.length !== folds.length) return;
+            Array.prototype.forEach.call(folds, function (d, i) { d.open = bits.charAt(i) === '1'; });
+        }
+
+        document.querySelectorAll('[data-hwe-panel]').forEach(restore);
+
+        if (btn) {
+            btn.addEventListener('click', function () {
+                var panel = activePanel();
+                if (!panel) return;
+                // El estado real al pulsar, no el de la última etiqueta: `toggle` llega con retraso.
+                var folds = foldsOf(panel);
+                var open = !allOpen(folds);
+                folds.forEach(function (d) { d.open = open; });
+                store(panel);
+                label();
+            });
+        }
+
+        // `toggle` no burbujea: se escucha en captura.
+        form.addEventListener('toggle', function (e) {
+            if (!e.target.matches || !e.target.matches('details[data-hwe-fold]')) return;
+            var panel = e.target.closest('[data-hwe-panel]');
+            if (panel) store(panel);
+            label();
+        }, true);
+
+        // Lo que recibe el foco no se queda escondido; un control inválido tampoco (el navegador
+        // no puede enseñar el aviso de uno dentro de un bloque cerrado y el envío se quedaría mudo).
+        form.addEventListener('focusin', function (e) {
+            // Pulsar una cabecera la enfoca: abrirla de nuevo impediría cerrarla.
+            if (!e.target.matches('summary')) openAncestors(e.target);
+        });
+        form.addEventListener('invalid', function (e) {
+            revealInvalid(e.target);
+            openAncestors(e.target, true);
+            var row = e.target.closest('.hwe-field');
+            if (row) row.classList.add('is-forced');
+        }, true);
+
+        onView(label, 90);
+    }
+
+    // =========================================================================
+    // Idioma de edición («ES | EN»), en toda pestaña con campos traducibles.
+    //
+    // El formulario lleva siempre todos los campos: aquí solo se decide cuáles se ven.
+    //   · Idioma por defecto: los campos base; las variantes `<clave>_<idioma>` se esconden.
+    //   · Idioma secundario: solo su variante de cada texto traducible, con el original como
+    //     referencia encima. Los ajustes que no se traducen (colores, interruptores, imágenes,
+    //     selectores) se ESCONDEN, no se atenúan: editarlos desde «EN» sugiere que valen solo
+    //     para ese idioma y no es así, y esconderlos deja la pantalla en lo único que hay que
+    //     hacer ahí, traducir. Una sección o bloque que se queda sin nada que enseñar desaparece.
+    // Las pestañas sin textos traducibles no tienen conmutador y siempre muestran todo.
+    // =========================================================================
+
+    var LANG_STORE = 'hwe-cc-lang';
+    var lang = '';
+
+    function defaultLang() {
+        var wrap = document.querySelector('.hwe-wrap');
+        return (wrap && wrap.dataset.hweDefaultLang) || '';
+    }
+
+    function byId(id) {
+        return id ? (document.getElementById(id) || document.getElementById(id.toLowerCase())) : null;
+    }
+
+    // El original de una variante, en texto plano (los textos enriquecidos llevan HTML).
+    function plainText(value) {
+        return String(value || '')
+            .replace(/<\/(p|li|h[1-6])>|<br\s*\/?>/gi, '\n')
+            .replace(/<[^>]*>/g, '')
+            .replace(/[ \t]+/g, ' ')
+            .replace(/\n\s*\n+/g, '\n')
+            .trim();
+    }
+
+    function fieldHidden(field) {
+        return field.classList.contains('is-off-lang') || field.classList.contains('is-off-cond');
+    }
+
+    // ¿Queda algún campo a la vista dentro de `box`? Un hueco vacío o un bloque ya vacío no cuentan.
+    function hasVisibleField(box) {
+        var fields = box.querySelectorAll('.hwe-field');
+        for (var i = 0; i < fields.length; i++) {
+            var field = fields[i];
+            if (fieldHidden(field)) continue;
+            var blocker = field.parentElement.closest('[hidden], .is-lang-empty');
+            if (blocker && blocker !== box && box.contains(blocker)) continue;
+            return true;
+        }
+        return false;
+    }
+
+    function showReference(row, sw) {
+        var control = row.querySelector('.hwe-field-control');
+        if (!control) return;
+        var ref = control.querySelector('.hwe-ref');
+        if (!ref) {
+            ref = document.createElement('div');
+            ref.className = 'hwe-ref';
+            var label = document.createElement('span');
+            label.className = 'hwe-ref__label';
+            label.textContent = sw.dataset.refLabel || '';
+            var body = document.createElement('div');
+            body.className = 'hwe-ref__text';
+            ref.appendChild(label);
+            ref.appendChild(body);
+            control.insertBefore(ref, control.firstChild);
+        }
+        var base = byId(row.dataset.hweBase);
+        var text = plainText(base ? base.value : '');
+        var body2 = ref.querySelector('.hwe-ref__text');
+        body2.textContent = text || sw.dataset.refEmpty || '';
+        body2.classList.toggle('is-empty', text === '');
+    }
+
+    function applyLang() {
+        var def = defaultLang();
+        var buttons = document.querySelectorAll('button[data-hwe-lang]');
+        Array.prototype.forEach.call(buttons, function (b) {
+            b.setAttribute('aria-pressed', b.dataset.hweLang === lang ? 'true' : 'false');
+        });
+
+        var panel = activePanel();
+        var sw = panel && panel.querySelector('[data-hwe-lang-switch]');
+        if (!panel || !sw) return;
+
+        var secondary = lang !== def;
+        var hint = sw.querySelector('[data-hwe-lang-hint]');
+        if (hint) hint.hidden = !secondary;
+        panel.classList.toggle('is-translating', secondary);
+
+        Array.prototype.forEach.call(panel.querySelectorAll('.hwe-field'), function (row) {
+            var locale = row.dataset.hweLocale;
+            var off = secondary ? locale !== lang : !!locale;
+            row.classList.toggle('is-off-lang', off);
+            if (secondary && !off) showReference(row, sw);
+        });
+
+        var boxes = panel.querySelectorAll('.hwe-section, details.hwe-subgroup, .hwe-slot, [data-hwe-switch-item]');
+        for (var i = boxes.length - 1; i >= 0; i--) {
+            boxes[i].classList.toggle('is-lang-empty', secondary && !hasVisibleField(boxes[i]));
+        }
+    }
+
+    function initLanguage() {
+        var switches = document.querySelectorAll('[data-hwe-lang-switch]');
+        if (!switches.length) return;
+        var def = defaultLang();
+        var saved = '';
+        try { saved = window.localStorage.getItem(LANG_STORE) || ''; } catch (e) {}
+        var known = Array.prototype.map.call(document.querySelectorAll('button[data-hwe-lang]'), function (b) { return b.dataset.hweLang; });
+        lang = known.indexOf(saved) !== -1 ? saved : def;
+
+        Array.prototype.forEach.call(switches, function (sw) {
+            sw.hidden = false;
+            sw.addEventListener('click', function (e) {
+                var button = e.target.closest('button[data-hwe-lang]');
+                if (!button) return;
+                lang = button.dataset.hweLang;
+                try { window.localStorage.setItem(LANG_STORE, lang); } catch (err) {}
+                refreshView();
+            });
+        });
+        onView(applyLang, 30);
+    }
+
+    // Un control inválido escondido por el idioma no puede avisar: se vuelve al idioma por defecto.
+    function revealInvalid(el) {
+        if (el.closest('.is-off-lang') && lang !== defaultLang()) {
+            lang = defaultLang();
+            refreshView();
+        }
+    }
+
+    // =========================================================================
+    // Solo lo que aplica: condiciones sobre el valor actual de otros campos.
+    //
+    //   · `data-hwe-show-if` (una fila): se ve solo mientras su hermano tenga ciertos valores.
+    //   · `data-hwe-master` (un bloque): con su interruptor apagado el bloque solo enseña ese
+    //     interruptor. Al traducir no se aplica: un bloque oculto también se puede traducir de antemano.
+    // Esconder no borra: los controles siguen en el formulario con su valor, y sin JS se ve todo.
+    // =========================================================================
+
+    var jsonCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+    function readJson(el, attr) {
+        if (jsonCache && jsonCache.has(el)) return jsonCache.get(el);
+        var spec = null;
+        try { spec = JSON.parse(el.getAttribute(attr) || 'null'); } catch (e) {}
+        if (jsonCache) jsonCache.set(el, spec);
+        return spec;
+    }
+
+    function translating(panel) {
+        return !!panel.querySelector('[data-hwe-lang-switch]') && lang !== defaultLang();
+    }
+
+    function applyConditions() {
+        var panel = activePanel();
+        if (!panel) return;
+        var secondary = translating(panel);
+
+        Array.prototype.forEach.call(panel.querySelectorAll('[data-hwe-show-if]'), function (row) {
+            var spec = readJson(row, 'data-hwe-show-if');
+            var control = spec && byId(spec.f);
+            if (!control) return;
+            var value = control.type === 'checkbox' ? (control.checked ? '1' : '0') : control.value;
+            var show = spec.in ? spec.in.indexOf(value) !== -1 : spec.not_in ? spec.not_in.indexOf(value) === -1 : true;
+            row.classList.toggle('is-off-cond', !show);
+        });
+
+        Array.prototype.forEach.call(panel.querySelectorAll('[data-hwe-master]'), function (block) {
+            var control = byId(block.dataset.hweMaster);
+            if (!control) return;
+            var row = control.closest('.hwe-field');
+            if (row) row.classList.add('is-master');
+            block.classList.toggle('is-off', !control.checked && !secondary);
+        });
+    }
+
+    // =========================================================================
+    // Resumen de un bloque cerrado: «Visible · Imagen a la derecha · «Título»».
+    // La cabecera cuenta el estado sin abrirlo; el servidor describe qué campos lo componen
+    // (`data-hwe-summary`) y aquí se lee su valor actual.
+    // =========================================================================
+
+    function clip(text, max) {
+        text = String(text).replace(/\s+/g, ' ').trim();
+        return text.length > max ? text.slice(0, max - 1).trim() + '…' : text;
+    }
+
+    function summaryOf(block, spec) {
+        var bits = [];
+        if (spec.t) {
+            var toggle = byId(spec.t);
+            if (toggle) {
+                if (!toggle.checked) return spec.off || '';
+                bits.push(spec.on || '');
+            }
+        }
+        (spec.p || []).forEach(function (part) {
+            var value = '';
+            if (part.as === 'slots') {
+                var all = block.querySelectorAll('[data-hwe-slot]');
+                var used = Array.prototype.filter.call(all, function (slot) { return !slot.hidden; });
+                if (used.length) value = used.length + ' de ' + all.length + (part.unit ? ' ' + part.unit : '');
+            } else {
+                var control = byId(part.f);
+                if (!control) return;
+                if (part.as === 'select') {
+                    var option = control.options && control.options[control.selectedIndex];
+                    value = control.value !== '' && option ? option.text : '';
+                } else {
+                    value = clip(plainText(control.value), 48);
+                    if (value && part.q) value = '«' + value + '»';
+                }
+            }
+            if (value) bits.push(value);
+        });
+        return bits.length ? bits.join(' · ') : (spec.empty || '');
+    }
+
+    function applySummaries() {
+        var panel = activePanel();
+        if (!panel) return;
+        Array.prototype.forEach.call(panel.querySelectorAll('details[data-hwe-summary]'), function (block) {
+            var spec = readJson(block, 'data-hwe-summary');
+            var out = spec && block.firstElementChild && block.firstElementChild.querySelector('[data-hwe-summary-out]');
+            if (out) out.textContent = summaryOf(block, spec);
+        });
+    }
+
+    // =========================================================================
+    // Selector de elementos (`data-hwe-switcher`): una landing a la vez.
+    //
+    // Los demás elementos siguen en el DOM (ocultos) y se guardan con el resto. La elegida va en la
+    // URL (`#landings/guia`) y sobrevive al guardado. Con uno solo no hay selector.
+    // =========================================================================
+
+    function initSwitchers() {
+        Array.prototype.forEach.call(document.querySelectorAll('[data-hwe-switcher]'), function (box) {
+            var items = Array.prototype.filter.call(box.children, function (child) { return child.hasAttribute('data-hwe-switch-item'); });
+            var bar = box.querySelector('[data-hwe-switcher-bar]');
+            var select = box.querySelector('[data-hwe-switcher-select]');
+            var panel = box.closest('[data-hwe-panel]');
+            var tab = panel ? panel.dataset.hwePanel : '';
+            if (!items.length || !bar || !select) return;
+
+            box.classList.add('is-enhanced');
+            if (items.length < 2) return;
+            bar.hidden = false;
+
+            function choose(id, write) {
+                var known = items.some(function (item) { return item.dataset.hweSwitchItem === id; });
+                var current = known ? id : items[0].dataset.hweSwitchItem;
+                items.forEach(function (item) { item.hidden = item.dataset.hweSwitchItem !== current; });
+                select.value = current;
+                if (write) chooseSub(tab, current); else route.subs[tab] = current;
+                refreshView();
+            }
+
+            select.addEventListener('change', function () { choose(select.value, true); });
+            document.addEventListener('hwe:route', function (e) {
+                if (e.detail.tab === tab && e.detail.sub) choose(e.detail.sub, false);
+            });
+            // Un control inválido de un elemento oculto no puede avisar: se pasa a ese elemento.
+            box.addEventListener('invalid', function (e) {
+                var item = e.target.closest('[data-hwe-switch-item]');
+                if (item && item.hidden) choose(item.dataset.hweSwitchItem, true);
+            }, true);
+
+            choose(route.subs[tab] || items[0].dataset.hweSwitchItem, true);
+        });
+    }
+
+    // Cualquier cambio de un campo puede mover resúmenes, referencias o la etiqueta de «abrir todo».
+    function initView() {
+        var form = document.querySelector('[data-hwe-form]');
+        if (!form) return;
+        form.addEventListener('input', refreshView);
+        form.addEventListener('change', refreshView);
+    }
+
+    // =========================================================================
     // Init on DOMContentLoaded
     // =========================================================================
 
@@ -589,9 +1064,16 @@
         initMediaPickers();
         initRowsEditors();
         initSaveBar();
+        initFold();
+        initLanguage();
         initProviderToggle();
+        onView(applyConditions, 10);
+        onView(applySummaries, 20);
+        initSwitchers();
         initSlots();
         initNotices();
         initEmailPreview();
+        initView();
+        refreshView();
     }
 })();

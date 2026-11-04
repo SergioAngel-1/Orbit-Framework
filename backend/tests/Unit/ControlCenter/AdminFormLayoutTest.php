@@ -59,6 +59,51 @@ final class AdminFormLayoutTest extends TestCase
         $this->assertStringContainsString('hwe_config[seo][og][image]', $fragments['seo.og']['bare']);
     }
 
+    public function testANestedGroupIsAClosedDetailsWithItsTitleInTheSummary(): void {
+        $walker = new AdminFormWalker();
+        $walker->walk([
+            'seo' => [
+                'type' => 'group',
+                'label' => 'SEO',
+                'children' => [
+                    'og' => ['type' => 'group', 'label' => 'Compartir', 'children' => ['image' => ['type' => 'text', 'label' => 'Imagen']]],
+                ],
+            ],
+        ], []);
+
+        $html = $walker->fragments()['seo.og']['html'];
+        $this->assertStringStartsWith('<details class="hwe-subgroup" data-hwe-fold>', $html, 'Plegado de serie: sin `open`.');
+        $this->assertMatchesRegularExpression('#<summary class="hwe-subgroup__head">\s*<h4 class="hwe-subgroup-title">Compartir</h4>#', $html);
+        $this->assertStringContainsString('data-hwe-fold-dirty hidden', $html, 'Lleva su punto de «cambios sin guardar», oculto de serie.');
+        $this->assertStringContainsString('hwe_config[seo][og][image]', $html, 'Los campos siguen dentro, plegados pero en el formulario.');
+    }
+
+    public function testTranslatableRowsAndTheirVariantsCarryTheLanguageAttributes(): void {
+        $schema = [
+            'brand' => [
+                'type' => 'group',
+                'label' => 'Marca',
+                'children' => [
+                    'tagline' => ['type' => 'text', 'label' => 'Lema', 'translatable' => true],
+                    'tagline_en' => ['type' => 'text', 'label' => 'Lema (EN)', 'locale' => 'en', 'variant_of' => 'tagline'],
+                    'name' => ['type' => 'text', 'label' => 'Nombre'],
+                ],
+            ],
+        ];
+        $walker = new AdminFormWalker();
+        $walker->walk($schema, []);
+        $fragments = $walker->fragments();
+
+        $this->assertStringContainsString('<div class="hwe-field" data-hwe-translatable>', $fragments['brand.tagline']['html']);
+        $this->assertStringContainsString(
+            '<div class="hwe-field" data-hwe-locale="en" data-hwe-base="hwe_config_brand_tagline">',
+            $fragments['brand.tagline_en']['html'],
+            'La variante apunta al id del campo original, de donde el panel saca la referencia.'
+        );
+        $this->assertStringContainsString('<div class="hwe-field">', $fragments['brand.name']['html'], 'Un campo que no se traduce no lleva marcas.');
+        $this->assertStringContainsString('name="hwe_config[brand][tagline_en]"', $fragments['brand.tagline_en']['html'], 'La variante sigue siendo un campo del formulario.');
+    }
+
     public function testAToggleRowKeepsItsLabelOnlyForScreenReaders(): void {
         $walker = new AdminFormWalker();
         $walker->walk(['x' => ['type' => 'group', 'label' => 'X', 'children' => ['on' => ['type' => 'boolean', 'label' => 'Activar']]]], []);

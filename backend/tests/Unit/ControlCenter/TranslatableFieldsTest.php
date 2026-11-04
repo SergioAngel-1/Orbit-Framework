@@ -47,6 +47,38 @@ final class TranslatableFieldsTest extends TestCase
         $this->assertArrayHasKey('faq_payments_en', Schema::get()['geo']['children']);
     }
 
+    public function testEachVariantSaysWhichLanguageAndFieldItTranslatesForThePanel(): void {
+        $this->options['hwe_config'] = ['i18n' => ['locales' => 'en, pt-BR']];
+
+        $brand = Schema::get()['brand']['children'];
+
+        $this->assertSame('en', $brand['tagline_en']['locale']);
+        $this->assertSame('tagline', $brand['tagline_en']['variant_of']);
+        $this->assertSame('pt_br', $brand['tagline_pt_br']['locale']);
+        $this->assertArrayNotHasKey('locale', $brand['tagline'], 'El campo base no es una variante.');
+        $this->assertTrue($brand['tagline']['translatable']);
+    }
+
+    public function testAVariantDeclaredByHandIsAlsoRecognisedAsOne(): void {
+        Filters\expectApplied('hwe_control_center_schema')->andReturnUsing(static function (array $schema): array {
+            $schema['instance']['children']['promo'] = [
+                'type' => 'group',
+                'label' => 'Promo',
+                'children' => [
+                    'headline' => ['type' => 'text', 'label' => 'Titular', 'translatable' => true],
+                    'headline_en' => ['type' => 'text', 'label' => 'Titular (inglés, a mano)'],
+                ],
+            ];
+            return $schema;
+        });
+
+        $promo = Schema::get()['instance']['children']['promo']['children'];
+
+        $this->assertSame('Titular (inglés, a mano)', $promo['headline_en']['label'], 'La declarada a mano manda sobre la generada.');
+        $this->assertSame('en', $promo['headline_en']['locale']);
+        $this->assertSame('headline', $promo['headline_en']['variant_of']);
+    }
+
     public function testEachConfiguredSecondaryLocaleGetsItsVariant(): void {
         $this->options['hwe_config'] = ['i18n' => ['locales' => 'en, fr, pt-BR, es']];
 
