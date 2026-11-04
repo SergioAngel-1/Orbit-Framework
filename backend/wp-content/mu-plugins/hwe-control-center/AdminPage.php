@@ -162,7 +162,7 @@ class AdminPage {
             echo '<img class="hwe-header__logo" src="' . esc_url($identity['logo']) . '" alt="">';
         }
         echo '<div class="hwe-header__text">';
-        echo '<h1 class="hwe-header__name">' . esc_html($identity['name']) . '</h1>';
+        echo '<h1 class="hwe-header__name" title="' . esc_attr($identity['name']) . '">' . esc_html($identity['name']) . '</h1>';
         echo '<p class="hwe-header__sub">Control Center</p>';
         echo '</div>';
         echo '</div>';
@@ -265,7 +265,8 @@ class AdminPage {
         echo '<p class="hwe-savebar__status" role="status" aria-live="polite" data-hwe-status'
             . ' data-clean="' . esc_attr__('Sin cambios por guardar. Lo que guardes se aplica a la tienda de inmediato.', 'hwe') . '"'
             . ' data-dirty="' . esc_attr__('Cambios sin guardar en: %s.', 'hwe') . '"'
-            . ' data-saving="' . esc_attr__('Guardando…', 'hwe') . '">';
+            . ' data-saving="' . esc_attr__('Guardando…', 'hwe') . '"'
+            . ' data-more="' . esc_attr__('%s y %d más', 'hwe') . '">';
         echo esc_html__('Sin cambios por guardar. Lo que guardes se aplica a la tienda de inmediato.', 'hwe');
         echo '</p>';
         echo '<button type="submit" name="submit" id="submit" class="button button-primary hwe-savebar__btn">' . esc_html__('Guardar configuración', 'hwe') . '</button>';

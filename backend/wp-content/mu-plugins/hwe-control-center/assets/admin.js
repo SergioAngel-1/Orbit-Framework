@@ -81,6 +81,17 @@
     }
 
     // =========================================================================
+    // Un logo que no carga no deja un hueco roto en la cabecera.
+    // =========================================================================
+
+    function initHeaderLogo() {
+        var logo = document.querySelector('.hwe-header__logo');
+        if (!logo) return;
+        logo.addEventListener('error', function () { logo.hidden = true; });
+        if (logo.complete && logo.naturalWidth === 0) logo.hidden = true;
+    }
+
+    // =========================================================================
     // Color Picker — sync color input, text input, and preview swatch
     // =========================================================================
 
@@ -168,9 +179,13 @@
                 if (mark) mark.hidden = !on;
                 if (on) labels.push(link.querySelector('.hwe-nav__label').textContent);
             });
+            // Con muchas pestañas tocadas la barra no crece: se nombran tres y se cuenta el resto.
+            var shown = labels.length > 3
+                ? (status.dataset.more || '%s y %d más').replace('%s', labels.slice(0, 3).join(', ')).replace('%d', String(labels.length - 3))
+                : labels.join(', ');
             bar.classList.toggle('is-dirty', tabs.length > 0);
             status.textContent = tabs.length
-                ? (status.dataset.dirty || '').replace('%s', labels.join(', '))
+                ? (status.dataset.dirty || '').replace('%s', shown)
                 : (status.dataset.clean || '');
         }
 
@@ -569,6 +584,7 @@
 
     function boot() {
         initTabs();
+        initHeaderLogo();
         initColorPickers();
         initMediaPickers();
         initRowsEditors();

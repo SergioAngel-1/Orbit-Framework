@@ -1037,6 +1037,15 @@ body.hwe-email-preview-open {
         cursor: pointer;
     }
 
+    .hwe-nav__current {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .hwe-nav__toggle .dashicons {
+        flex: none;
+    }
+
     .hwe-nav__toggle[aria-expanded="true"] .dashicons {
         transform: rotate(180deg);
     }
