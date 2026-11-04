@@ -23,7 +23,7 @@ const SCRIPT = readFileSync(
 
 function mount(panels: string, wrapAttrs = ""): void {
   document.body.innerHTML = `
-    <div class="wrap hwe-wrap" data-hwe-initial-tab="one" ${wrapAttrs}>
+    <div class="wrap hwe-wrap" data-hwe-initial-tab="one" data-hwe-default-lang="es" ${wrapAttrs}>
       <form method="post" action="https://t.example/wp-admin/admin.php?page=hwe-config" class="hwe-form" data-hwe-form>
         <nav class="hwe-nav">
           <button type="button" class="hwe-nav__toggle"><span data-hwe-nav-current></span></button>
@@ -223,5 +223,175 @@ describe("cambios sin guardar dentro de un bloque cerrado", () => {
         }, 5);
       }, 5),
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+//  Conmutador de idioma
+// ---------------------------------------------------------------------------
+
+const langSwitch = (extra = ["en"]) => `
+  <div class="hwe-lang" data-hwe-lang-switch data-ref-label="Original en ES" data-ref-empty="Sin texto en ES." hidden>
+    <div role="group">
+      ${["es", ...extra]
+        .map((l, i) => `<button type="button" data-hwe-lang="${l}" aria-pressed="${i === 0}">${l.toUpperCase()}</button>`)
+        .join("")}
+    </div>
+    <p data-hwe-lang-hint hidden>Solo se ven los textos traducibles.</p>
+  </div>`;
+
+const translatable = (id: string, value = "", locales = ["en"]) =>
+  `<div class="hwe-field" data-hwe-translatable><label for="${id}">${id}</label><div class="hwe-field-control"><input type="text" id="${id}" name="${id}" value="${value}"></div></div>` +
+  locales
+    .map(
+      (l) =>
+        `<div class="hwe-field" data-hwe-locale="${l}" data-hwe-base="${id}"><label for="${id}_${l}">${id} (${l})</label><div class="hwe-field-control"><input type="text" id="${id}_${l}" name="${id}_${l}" value=""></div></div>`,
+    )
+    .join("");
+
+const toggle = (id: string, checked = false) =>
+  `<div class="hwe-field hwe-field--toggle"><label for="${id}">${id}</label><div class="hwe-field-control"><input type="hidden" name="${id}" value="0"><input type="checkbox" id="${id}" name="${id}" value="1" ${checked ? "checked" : ""}></div></div>`;
+
+const row = (id: string) => document.getElementById(id)!.closest<HTMLElement>(".hwe-field")!;
+const hiddenByLang = (id: string) => row(id).classList.contains("is-off-lang");
+const pick = (lang: string) =>
+  document.querySelector<HTMLButtonElement>(`button[data-hwe-lang="${lang}"]`)!.click();
+
+describe("idioma de edición", () => {
+  const brand = () =>
+    panel(
+      "one",
+      langSwitch() +
+        section(
+          "Identidad",
+          translatable("tagline", "Hola mundo") + text("name", "Tienda") + toggle("flag", true),
+        ) +
+        section("Colores", text("color", "#000")),
+    ) + panel("two", section("Pagos", text("pay")), true);
+
+  it("muestra el conmutador (oculto de serie) y arranca en el idioma por defecto, sin las variantes", () => {
+    mount(brand());
+    expect(document.querySelector<HTMLElement>("[data-hwe-lang-switch]")!.hidden).toBe(false);
+    expect(hiddenByLang("tagline_en")).toBe(true);
+    expect(hiddenByLang("tagline")).toBe(false);
+    expect(hiddenByLang("name")).toBe(false);
+  });
+
+  it("en un idioma secundario deja solo las variantes y esconde lo que no se traduce", () => {
+    mount(brand());
+    pick("en");
+    expect(hiddenByLang("tagline_en")).toBe(false);
+    expect(hiddenByLang("tagline")).toBe(true);
+    expect(hiddenByLang("name")).toBe(true);
+    expect(hiddenByLang("flag")).toBe(true);
+    expect(document.querySelector<HTMLElement>("[data-hwe-lang-hint]")!.hidden).toBe(false);
+    expect(document.querySelector('button[data-hwe-lang="en"]')!.getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelector('button[data-hwe-lang="es"]')!.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("los campos escondidos siguen en el formulario y se envían", () => {
+    mount(brand());
+    pick("en");
+    const form = document.querySelector("form")!;
+    const names = Array.from(new FormData(form).keys());
+    expect(names).toEqual(expect.arrayContaining(["tagline", "tagline_en", "name", "flag", "color"]));
+    expect(document.getElementById("name")!.closest("form")).toBe(form);
+  });
+
+  it("el original aparece como referencia sobre la variante y se actualiza al editarlo", () => {
+    mount(brand());
+    pick("en");
+    const ref = () => row("tagline_en").querySelector(".hwe-ref__text")!;
+    expect(row("tagline_en").querySelector(".hwe-ref__label")!.textContent).toBe("Original en ES");
+    expect(ref().textContent).toBe("Hola mundo");
+
+    const base = document.getElementById("tagline") as HTMLInputElement;
+    base.value = "Otro";
+    base.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(ref().textContent).toBe("Otro");
+
+    base.value = "";
+    base.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(ref().textContent).toBe("Sin texto en ES.");
+  });
+
+  it("la referencia de un texto enriquecido sale sin etiquetas HTML", () => {
+    mount(
+      panel(
+        "one",
+        langSwitch() +
+          section(
+            "FAQ",
+            `<div class="hwe-field" data-hwe-translatable><div class="hwe-field-control"><textarea id="answer" name="answer"><p>Uno <strong>dos</strong></p><p>Tres</p></textarea></div></div>
+             <div class="hwe-field" data-hwe-locale="en" data-hwe-base="answer"><div class="hwe-field-control"><textarea id="answer_en" name="answer_en"></textarea></div></div>`,
+          ),
+      ),
+    );
+    pick("en");
+    expect(row("answer_en").querySelector(".hwe-ref__text")!.textContent).toBe("Uno dos\nTres");
+  });
+
+  it("una sección sin nada que traducir desaparece en el idioma secundario y vuelve con el original", () => {
+    mount(brand());
+    const [identity, colors] = folds("one");
+    pick("en");
+    expect(identity.classList.contains("is-lang-empty")).toBe(false);
+    expect(colors.classList.contains("is-lang-empty")).toBe(true);
+    pick("es");
+    expect(colors.classList.contains("is-lang-empty")).toBe(false);
+  });
+
+  it("«abrir todo» no cuenta los bloques que el idioma esconde", () => {
+    mount(brand());
+    pick("en");
+    folds("one").forEach((d) => (d.open = false));
+    btn().click();
+    const [identity, colors] = folds("one");
+    expect(identity.open).toBe(true);
+    expect(colors.open).toBe(false);
+  });
+
+  it("una pestaña sin conmutador siempre muestra todo, aunque el idioma elegido sea otro", () => {
+    mount(brand());
+    pick("en");
+    document.querySelector<HTMLElement>('[data-hwe-tab="two"]')!.click();
+    expect(hiddenByLang("pay")).toBe(false);
+    expect(document.querySelector('[data-hwe-panel="two"] .is-lang-empty')).toBeNull();
+  });
+
+  it("varios idiomas secundarios: cada uno enseña solo su variante", () => {
+    mount(
+      panel("one", langSwitch(["en", "pt_br"]) + section("Identidad", translatable("tagline", "Hola", ["en", "pt_br"]))),
+    );
+    pick("pt_br");
+    expect(hiddenByLang("tagline_pt_br")).toBe(false);
+    expect(hiddenByLang("tagline_en")).toBe(true);
+    pick("en");
+    expect(hiddenByLang("tagline_en")).toBe(false);
+    expect(hiddenByLang("tagline_pt_br")).toBe(true);
+  });
+
+  it("recuerda el idioma elegido; un idioma que ya no existe vuelve al de la tienda", () => {
+    mount(brand());
+    pick("en");
+    expect(window.localStorage.getItem("hwe-cc-lang")).toBe("en");
+    mount(brand(), 'data-hwe-default-lang="es"');
+    expect(hiddenByLang("tagline_en")).toBe(false);
+
+    window.localStorage.setItem("hwe-cc-lang", "fr");
+    mount(brand(), 'data-hwe-default-lang="es"');
+    expect(hiddenByLang("tagline_en")).toBe(true);
+  });
+
+  it("un control inválido escondido por el idioma devuelve el panel al idioma por defecto", () => {
+    mount(brand(), 'data-hwe-default-lang="es"');
+    pick("en");
+    document.getElementById("name")!.dispatchEvent(new Event("invalid"));
+    expect(hiddenByLang("name")).toBe(false);
+  });
+
+  it("sin conmutador (tienda monolingüe) no se esconde nada", () => {
+    mount(panel("one", section("Identidad", text("tagline") + text("name"))), 'data-hwe-default-lang="es"');
+    expect(document.querySelector(".is-off-lang, .is-lang-empty")).toBeNull();
   });
 });

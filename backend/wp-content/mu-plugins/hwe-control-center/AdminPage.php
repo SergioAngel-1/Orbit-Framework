@@ -95,11 +95,12 @@ class AdminPage {
         ]);
         $tabs = $layout['tabs'];
 
-        $identity = AdminSkin::identity();
-        $initial  = self::initialTab($tabs);
-        $formUrl  = esc_url(admin_url('admin.php?page=' . self::MENU_SLUG));
+        $identity  = AdminSkin::identity();
+        $initial   = self::initialTab($tabs);
+        $formUrl   = esc_url(admin_url('admin.php?page=' . self::MENU_SLUG));
+        $languages = self::languages();
 
-        echo '<div class="wrap hwe-wrap" data-hwe-initial-tab="' . esc_attr($initial) . '">';
+        echo '<div class="wrap hwe-wrap" data-hwe-initial-tab="' . esc_attr($initial) . '" data-hwe-default-lang="' . esc_attr($languages['default']) . '">';
 
         self::renderHeader($identity);
         echo '<hr class="wp-header-end">';
@@ -116,7 +117,7 @@ class AdminPage {
 
         echo '<div class="hwe-main">';
         foreach ($tabs as $key => $tab) {
-            self::renderPanel((string) $key, $tab, $key === $initial);
+            self::renderPanel((string) $key, $tab, $key === $initial, $languages);
         }
         self::renderSaveBar();
 
@@ -230,14 +231,63 @@ class AdminPage {
         echo '</nav>';
     }
 
-    /** @param array<string,mixed> $tab */
-    private static function renderPanel(string $key, array $tab, bool $active): void {
+    /**
+     * Idioma por defecto (`brand.locale`) y secundarios (`i18n.locales`), en la forma de clave del
+     * esquema (`pt_br`). Sin secundarios no hay conmutador.
+     *
+     * @return array{default:string,secondary:list<string>}
+     */
+    private static function languages(): array {
+        return [
+            'default'   => Schema::localeSuffix((string) Storage::get(['brand', 'locale'], 'es')),
+            'secondary' => Schema::secondaryLocales(),
+        ];
+    }
+
+    /** `pt_br` → `PT-BR`: cómo se nombra un idioma en el conmutador. */
+    private static function languageLabel(string $suffix): string {
+        return strtoupper(str_replace('_', '-', $suffix));
+    }
+
+    /**
+     * Conmutador de idioma de un panel: «ES | EN». Va oculto hasta que `admin.js` lo activa (sin JS
+     * se ven todas las variantes, como siempre). Solo existe si el panel tiene campos traducibles.
+     *
+     * @param array{default:string,secondary:list<string>} $languages
+     */
+    private static function renderLanguageSwitch(array $languages): void {
+        $default = self::languageLabel($languages['default']);
+        echo '<div class="hwe-lang" data-hwe-lang-switch'
+            /* translators: %s: idioma por defecto de la tienda, en mayúsculas (ES) */
+            . ' data-ref-label="' . esc_attr(sprintf(__('Original en %s', 'hwe'), $default)) . '"'
+            . ' data-ref-empty="' . esc_attr(sprintf(__('Sin texto en %s.', 'hwe'), $default)) . '" hidden>';
+        echo '<div class="hwe-lang__group" role="group" aria-label="' . esc_attr__('Idioma que estás editando', 'hwe') . '">';
+        echo '<span class="hwe-lang__label">' . esc_html__('Idioma', 'hwe') . '</span>';
+        foreach (array_merge([$languages['default']], $languages['secondary']) as $i => $suffix) {
+            echo '<button type="button" class="hwe-lang__btn" data-hwe-lang="' . esc_attr($suffix) . '" aria-pressed="' . ($i === 0 ? 'true' : 'false') . '">'
+                . esc_html(self::languageLabel($suffix)) . '</button>';
+        }
+        echo '</div>';
+        /* translators: %s: idioma por defecto de la tienda, en mayúsculas (ES) */
+        $hint = sprintf(__('Solo se ven los textos traducibles; sobre cada uno, el original en %1$s. El resto de ajustes se editan en %1$s.', 'hwe'), $default);
+        echo '<p class="hwe-lang__hint" data-hwe-lang-hint hidden>' . esc_html($hint) . '</p>';
+        echo '</div>';
+    }
+
+    /**
+     * @param array<string,mixed>                          $tab
+     * @param array{default:string,secondary:list<string>} $languages
+     */
+    private static function renderPanel(string $key, array $tab, bool $active, array $languages): void {
         $id = 'hwe-panel-' . $key;
         echo '<section class="hwe-panel" id="' . esc_attr($id) . '" data-hwe-panel="' . esc_attr($key) . '" aria-labelledby="' . esc_attr($id) . '-title"' . ($active ? '' : ' hidden') . '>';
         echo '<header class="hwe-panel__head">';
         echo '<h2 id="' . esc_attr($id) . '-title">' . esc_html((string) $tab['label']) . '</h2>';
         if ((string) ($tab['intro'] ?? '') !== '') {
             echo '<p>' . esc_html((string) $tab['intro']) . '</p>';
+        }
+        if ($languages['secondary'] !== [] && self::hasTranslatable($tab)) {
+            self::renderLanguageSwitch($languages);
         }
         echo '</header>';
 
@@ -267,6 +317,16 @@ class AdminPage {
             echo '</details>';
         }
         echo '</section>';
+    }
+
+    /** ¿Tiene la pestaña algún campo traducible (o su variante)? */
+    private static function hasTranslatable(array $tab): bool {
+        foreach ($tab['sections'] as $section) {
+            if (str_contains((string) $section['html'], 'data-hwe-translatable')) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

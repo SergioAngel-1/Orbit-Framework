@@ -44,6 +44,14 @@
     display: none !important;
 }
 
+/*
+ * Lo que `admin.js` esconde según el estado de los campos. Los controles siguen en el formulario:
+ * solo dejan de verse. `is-forced` lo usa un control inválido para poder avisar.
+ */
+.hwe-wrap :is(.is-off-lang, .is-off-cond, .is-lang-empty):not(.is-forced) {
+    display: none !important;
+}
+
 .hwe-wrap :is(a, button, input, select, textarea, summary):focus-visible {
     outline: 2px solid var(--hwe-ring);
     outline-offset: 2px;
@@ -475,6 +483,100 @@
 
 .hwe-subgroup[data-provider].is-active {
     display: block;
+}
+
+/* ==========================================================================
+   Idioma de edición («ES | EN») y texto original de referencia
+   ========================================================================== */
+
+.hwe-lang {
+    margin: 14px 0 0;
+}
+
+.hwe-lang__group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+}
+
+.hwe-lang__label {
+    margin-right: 10px;
+    color: var(--hwe-muted);
+    font-size: 13px;
+}
+
+/* Control segmentado: un solo trazo compartido, el idioma elegido lleva la marca de la tienda. */
+.hwe-lang__btn {
+    min-width: 44px;
+    min-height: 32px;
+    margin: 0 0 0 -1px;
+    padding: 0 12px;
+    border: 1px solid var(--hwe-control);
+    background: var(--hwe-paper);
+    color: var(--hwe-ink);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.hwe-lang__btn:nth-of-type(1) {
+    margin-left: 0;
+    border-radius: 4px 0 0 4px;
+}
+
+.hwe-lang__btn:last-of-type {
+    border-radius: 0 4px 4px 0;
+}
+
+.hwe-lang__btn:only-of-type {
+    border-radius: 4px;
+}
+
+.hwe-lang__btn[aria-pressed="true"] {
+    position: relative;
+    border-color: var(--hwe-accent-ink);
+    background: var(--hwe-accent);
+    color: var(--hwe-on-accent);
+}
+
+.hwe-lang__hint {
+    max-width: 65ch;
+    margin: 8px 0 0;
+    color: var(--hwe-muted);
+    font-size: 13px;
+}
+
+/* El original, sobre el campo que se está traduciendo: legible, pero claramente no editable. */
+.hwe-ref {
+    max-width: 65ch;
+    margin: 0 0 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--hwe-line);
+    border-radius: 4px;
+    background: var(--hwe-wash);
+}
+
+.hwe-ref__label {
+    display: block;
+    margin: 0 0 2px;
+    color: var(--hwe-muted);
+    font-size: 12px;
+}
+
+.hwe-ref__text {
+    max-height: 9em;
+    overflow-y: auto;
+    color: var(--hwe-ink);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.hwe-ref__text.is-empty {
+    color: var(--hwe-muted);
 }
 
 /* ==========================================================================

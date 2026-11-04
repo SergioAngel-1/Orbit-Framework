@@ -611,12 +611,155 @@
             if (!e.target.matches('summary')) openAncestors(e.target);
         });
         form.addEventListener('invalid', function (e) {
+            revealInvalid(e.target);
             openAncestors(e.target, true);
             var row = e.target.closest('.hwe-field');
             if (row) row.classList.add('is-forced');
         }, true);
 
         onView(label);
+    }
+
+    // =========================================================================
+    // Idioma de edición («ES | EN»), en toda pestaña con campos traducibles.
+    //
+    // El formulario lleva siempre todos los campos: aquí solo se decide cuáles se ven.
+    //   · Idioma por defecto: los campos base; las variantes `<clave>_<idioma>` se esconden.
+    //   · Idioma secundario: solo su variante de cada texto traducible, con el original como
+    //     referencia encima. Los ajustes que no se traducen (colores, interruptores, imágenes,
+    //     selectores) se ESCONDEN, no se atenúan: editarlos desde «EN» sugiere que valen solo
+    //     para ese idioma y no es así, y esconderlos deja la pantalla en lo único que hay que
+    //     hacer ahí, traducir. Una sección o bloque que se queda sin nada que enseñar desaparece.
+    // Las pestañas sin textos traducibles no tienen conmutador y siempre muestran todo.
+    // =========================================================================
+
+    var LANG_STORE = 'hwe-cc-lang';
+    var lang = '';
+
+    function defaultLang() {
+        var wrap = document.querySelector('.hwe-wrap');
+        return (wrap && wrap.dataset.hweDefaultLang) || '';
+    }
+
+    function byId(id) {
+        return id ? (document.getElementById(id) || document.getElementById(id.toLowerCase())) : null;
+    }
+
+    // El original de una variante, en texto plano (los textos enriquecidos llevan HTML).
+    function plainText(value) {
+        return String(value || '')
+            .replace(/<\/(p|li|h[1-6])>|<br\s*\/?>/gi, '\n')
+            .replace(/<[^>]*>/g, '')
+            .replace(/[ \t]+/g, ' ')
+            .replace(/\n\s*\n+/g, '\n')
+            .trim();
+    }
+
+    function fieldHidden(field) {
+        return field.classList.contains('is-off-lang') || field.classList.contains('is-off-cond');
+    }
+
+    // ¿Queda algún campo a la vista dentro de `box`? Un hueco vacío o un bloque ya vacío no cuentan.
+    function hasVisibleField(box) {
+        var fields = box.querySelectorAll('.hwe-field');
+        for (var i = 0; i < fields.length; i++) {
+            var field = fields[i];
+            if (fieldHidden(field)) continue;
+            var blocker = field.parentElement.closest('[hidden], .is-lang-empty');
+            if (blocker && blocker !== box && box.contains(blocker)) continue;
+            return true;
+        }
+        return false;
+    }
+
+    function showReference(row, sw) {
+        var control = row.querySelector('.hwe-field-control');
+        if (!control) return;
+        var ref = control.querySelector('.hwe-ref');
+        if (!ref) {
+            ref = document.createElement('div');
+            ref.className = 'hwe-ref';
+            var label = document.createElement('span');
+            label.className = 'hwe-ref__label';
+            label.textContent = sw.dataset.refLabel || '';
+            var body = document.createElement('div');
+            body.className = 'hwe-ref__text';
+            ref.appendChild(label);
+            ref.appendChild(body);
+            control.insertBefore(ref, control.firstChild);
+        }
+        var base = byId(row.dataset.hweBase);
+        var text = plainText(base ? base.value : '');
+        var body2 = ref.querySelector('.hwe-ref__text');
+        body2.textContent = text || sw.dataset.refEmpty || '';
+        body2.classList.toggle('is-empty', text === '');
+    }
+
+    function applyLang() {
+        var def = defaultLang();
+        var buttons = document.querySelectorAll('button[data-hwe-lang]');
+        Array.prototype.forEach.call(buttons, function (b) {
+            b.setAttribute('aria-pressed', b.dataset.hweLang === lang ? 'true' : 'false');
+        });
+
+        var panel = activePanel();
+        var sw = panel && panel.querySelector('[data-hwe-lang-switch]');
+        if (!panel || !sw) return;
+
+        var secondary = lang !== def;
+        var hint = sw.querySelector('[data-hwe-lang-hint]');
+        if (hint) hint.hidden = !secondary;
+        panel.classList.toggle('is-translating', secondary);
+
+        Array.prototype.forEach.call(panel.querySelectorAll('.hwe-field'), function (row) {
+            var locale = row.dataset.hweLocale;
+            var off = secondary ? locale !== lang : !!locale;
+            row.classList.toggle('is-off-lang', off);
+            if (secondary && !off) showReference(row, sw);
+        });
+
+        var boxes = panel.querySelectorAll('.hwe-section, details.hwe-subgroup, .hwe-slot, [data-hwe-switch-item]');
+        for (var i = boxes.length - 1; i >= 0; i--) {
+            boxes[i].classList.toggle('is-lang-empty', secondary && !hasVisibleField(boxes[i]));
+        }
+    }
+
+    function initLanguage() {
+        var switches = document.querySelectorAll('[data-hwe-lang-switch]');
+        if (!switches.length) return;
+        var def = defaultLang();
+        var saved = '';
+        try { saved = window.localStorage.getItem(LANG_STORE) || ''; } catch (e) {}
+        var known = Array.prototype.map.call(document.querySelectorAll('button[data-hwe-lang]'), function (b) { return b.dataset.hweLang; });
+        lang = known.indexOf(saved) !== -1 ? saved : def;
+
+        Array.prototype.forEach.call(switches, function (sw) {
+            sw.hidden = false;
+            sw.addEventListener('click', function (e) {
+                var button = e.target.closest('button[data-hwe-lang]');
+                if (!button) return;
+                lang = button.dataset.hweLang;
+                try { window.localStorage.setItem(LANG_STORE, lang); } catch (err) {}
+                refreshView();
+            });
+        });
+        onView(applyLang);
+    }
+
+    // Un control inválido escondido por el idioma no puede avisar: se vuelve al idioma por defecto.
+    function revealInvalid(el) {
+        if (el.closest('.is-off-lang') && lang !== defaultLang()) {
+            lang = defaultLang();
+            refreshView();
+        }
+    }
+
+    // Cualquier cambio de un campo puede mover resúmenes, referencias o la etiqueta de «abrir todo».
+    function initView() {
+        var form = document.querySelector('[data-hwe-form]');
+        if (!form) return;
+        form.addEventListener('input', refreshView);
+        form.addEventListener('change', refreshView);
     }
 
     // =========================================================================
@@ -730,10 +873,12 @@
         initRowsEditors();
         initSaveBar();
         initFold();
+        initLanguage();
         initProviderToggle();
         initSlots();
         initNotices();
         initEmailPreview();
+        initView();
         refreshView();
     }
 })();

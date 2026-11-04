@@ -56,7 +56,7 @@ class AdminFormWalker extends Walker {
     // -------------------------------------------------------------------------
 
     protected function visitField(array $field, string $key, array $path, mixed $value): mixed {
-        $id    = 'hwe_config_' . implode('_', $path);
+        $id    = $this->fieldId($path);
         $name  = $this->fieldName($path);
         $label = esc_html($field['label'] ?? $key);
         $desc  = isset($field['description'])
@@ -67,8 +67,10 @@ class AdminFormWalker extends Walker {
         // El interruptor ya lleva su texto al lado: la etiqueta de la fila solo queda para lectores de pantalla.
         $modifier = ($field['type'] ?? 'text') === 'boolean' ? ' hwe-field--toggle' : '';
 
+        $attrs = $this->languageAttrs($field, $path);
+
         $html = <<<HTML
-<div class="hwe-field{$modifier}">
+<div class="hwe-field{$modifier}"{$attrs}>
     <label for="{$id}">{$label}</label>
     <div class="hwe-field-control">
         {$input}
@@ -114,6 +116,32 @@ HTML;
     // -------------------------------------------------------------------------
     // Helpers de renderizado
     // -------------------------------------------------------------------------
+
+    /** Id HTML del campo de una ruta (el mismo que `visitField` pone al control). */
+    private function fieldId(array $path): string {
+        return 'hwe_config_' . implode('_', $path);
+    }
+
+    /**
+     * Atributos de idioma de la fila de un campo, para el conmutador de `admin.js`:
+     *   · un campo traducible lleva `data-hwe-translatable` (en el idioma por defecto se ve; en uno
+     *     secundario queda como referencia);
+     *   · su variante `<clave>_<idioma>` lleva `data-hwe-locale` y el id del campo original
+     *     (`data-hwe-base`), de donde el panel saca el texto de referencia.
+     * Sin idiomas secundarios no hay variantes: las filas salen sin atributos.
+     *
+     * @param array<string,mixed> $field
+     * @param list<string>        $path
+     */
+    private function languageAttrs(array $field, array $path): string {
+        if (!empty($field['locale']) && !empty($field['variant_of'])) {
+            $base = $path;
+            array_pop($base);
+            $base[] = (string) $field['variant_of'];
+            return ' data-hwe-locale="' . esc_attr((string) $field['locale']) . '" data-hwe-base="' . esc_attr($this->fieldId($base)) . '"';
+        }
+        return !empty($field['translatable']) ? ' data-hwe-translatable' : '';
+    }
 
     /**
      * Bloque anidado (sede, pasarela, grupo de un módulo): un `<details>` plegado de serie. Se

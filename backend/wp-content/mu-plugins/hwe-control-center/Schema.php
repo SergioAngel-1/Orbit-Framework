@@ -32,6 +32,9 @@ namespace HWE\ControlCenter;
  *                    un hermano `<clave>_<locale>` por cada idioma secundario de
  *                    `i18n.locales` (vacío = se usa el texto del idioma por defecto).
  *                    El frontend lo resuelve con `pickLocalized(entity, campo, locale)`.
+ *   'locale'      → (la pone el esquema, no se declara) en cada variante `<clave>_<idioma>`: el sufijo
+ *   'variant_of'  → de su idioma y la clave del campo base. Solo admin: el conmutador de idioma del
+ *                    panel muestra la variante del idioma elegido y deja el original como referencia.
  *   'panel'       → ['tab' => <clave de pestaña o clave raíz>, 'section' => 'Título'] (solo admin):
  *                    pinta el campo en otra pestaña, dentro de una sección con ese título. Lo usan
  *                    módulos e instancia; el núcleo se reparte con `PanelMap`. La ruta del dato, el
@@ -150,6 +153,8 @@ class Schema {
      */
     private static function expandTranslatable(array $nodes, array $locales): array {
         $result = [];
+        /** @var array<string,array{locale:string,variant_of:string}> $manual variantes declaradas a mano */
+        $manual = [];
         foreach ($nodes as $key => $node) {
             if (self::isGroup($node)) {
                 $node['children'] = self::expandTranslatable($node['children'], $locales);
@@ -171,6 +176,7 @@ class Schema {
             foreach ($locales as $suffix) {
                 $variant = $key . '_' . $suffix;
                 if (array_key_exists($variant, $nodes)) {
+                    $manual[$variant] = ['locale' => $suffix, 'variant_of' => (string) $key];
                     continue;
                 }
                 $copy = $node;
@@ -179,7 +185,15 @@ class Schema {
                     'label'       => sprintf('%s (%s)', (string) ($node['label'] ?? $key), strtoupper(str_replace('_', '-', $suffix))),
                     'default'     => '',
                     'description' => 'Vacío = se usa el texto del idioma por defecto.',
+                    'locale'      => $suffix,
+                    'variant_of'  => (string) $key,
                 ] + $copy;
+            }
+        }
+        // Una variante escrita a mano manda sobre la generada, pero el panel también la reconoce.
+        foreach ($manual as $variant => $marks) {
+            if (is_array($result[$variant] ?? null) && !self::isGroup($result[$variant])) {
+                $result[$variant] += $marks;
             }
         }
         return $result;
