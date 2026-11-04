@@ -471,9 +471,11 @@ fusionar. Desde la 2.6.0 el script usa la frontera de la release que entra.
 
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.6.0`.
 
-## 3.10 Próxima versión, sin publicar (nota de actualización)
+## 3.10 Contrato `2.7.0` (nota de actualización)
 
-Sin cambios de contrato. Lo que cambia en el panel de WordPress de cada instancia:
+Sin cambios incompatibles. `HWE_CORE_CONTRACT_VERSION` pasa a `2.7.0` por el filtro nuevo
+`hwe_native_registration` y porque `panel` acepta claves de pestaña. Lo que cambia en el panel de
+WordPress de cada instancia:
 
 - **El registro nativo de WordPress queda cerrado** (`mu-plugins/hwe-native-registration.php`): el
   login del panel deja de ofrecer «Registrarse», `?action=register` vuelve al login con
