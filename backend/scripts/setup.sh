@@ -122,6 +122,8 @@ $WP rewrite flush --hard
 
 # ----------------------------------------------------------------------------
 # 2b) Habilitar el registro de usuarios (necesario para registerUser de GraphQL)
+#     El formulario nativo de wp-login.php queda cerrado igualmente:
+#     mu-plugins/hwe-native-registration.php.
 # ----------------------------------------------------------------------------
 echo "==> Habilitando el registro de usuarios (rol por defecto: subscriber)..."
 $WP option update users_can_register 1

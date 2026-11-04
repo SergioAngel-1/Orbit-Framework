@@ -47,6 +47,7 @@ paquete multi-clase.
 | `hwe-admin-branding/` | carpeta | `colors.scss` (fuente e instrucciones para regenerar), `colors.css` (compilado) y `orbit-symbol.svg`. |
 | `hwe-featured-post.php` | mu-plugin | Selector manual de post destacado (`RootQuery.hweFeaturedPost`). |
 | `hwe-login-slug.php` | mu-plugin | Con `HWE_LOGIN_SLUG`, el login del panel pasa a `/<slug>` y `/wp-login.php` (y `/wp-admin` sin sesión) responde 404. Sin la constante, no actúa. |
+| `hwe-native-registration.php` | mu-plugin | Cierra el registro nativo de WordPress (enlace «Registrarse», `?action=register` del login y `register_new_user()` fuera de GraphQL) y deja `users_can_register` activo para `registerUser`, la vía del BFF. Se reabre con el filtro `hwe_native_registration`. |
 | `hwe-svg-uploads.php` | mu-plugin | Subida de SVG a la medioteca con saneado (lista de permitidos para enlaces, sin scripts, manejadores ni animaciones que reescriban enlaces). |
 | `hwe-space-hygiene.php` | mu-plugin | Al guardar, cambia los espacios duros entre palabras por normales (títulos, cuerpo de entradas y metas del filtro `hwe_hygiene_meta_keys`). |
 | `hwe-link-hygiene.php` | mu-plugin | Al guardar, quita `utm_source=chatgpt.com` (lista ampliable con `hwe_link_hygiene_utm_sources`) de los enlaces. |

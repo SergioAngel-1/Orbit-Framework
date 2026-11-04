@@ -29,6 +29,7 @@ seguridad se toma ahí, **fallando cerrado** cuando falta una pieza.
 | Webhook falso | HMAC-SHA256 con secreto compartido, un único verificador, falla cerrado con secreto vacío | `lib/security/webhook.ts` |
 | IDOR (otro usuario ve mis datos) | Autorización por propietario en handlers; el pedido de invitado solo con su cookie `order_key` | `lib/woocommerce/client.ts`, `lib/checkout/` |
 | Redirecciones abiertas | `returnUrl` de pagos solo del propio sitio; `?return=` con `safeInternalPath` | `lib/navigation/safe-return.ts` |
+| Altas que se saltan el BFF | `users_can_register` sigue activo (lo exige `registerUser` de WPGraphQL), pero el formulario nativo de `wp-login.php` (enlace y `?action=register`) vuelve al login y `register_new_user()` solo prospera dentro de una petición GraphQL. Una instancia lo reabre con el filtro `hwe_native_registration` | `mu-plugins/hwe-native-registration.php` |
 | Enumeración de usuarios WP | `/wp-json/wp/v2/users` bloqueado + `?author=N`, errores de login genéricos | `mu-plugins/security.php` |
 | Integrador externo con demasiado poder | Módulo `external-integration`: IP exacta de una lista, contraseña de aplicación solo en GraphQL, rol mínimo, política **cerrada** de operaciones y campos (suelos que ningún filtro rebaja) | `plugins/hwe-external-integration/` |
 | Consentimiento no demostrable (RGPD) | Registro del consentimiento con comprobante (módulo `consent-log`), IP truncada, retención configurable | `plugins/hwe-consent-log/` |
