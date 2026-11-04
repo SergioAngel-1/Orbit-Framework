@@ -471,9 +471,11 @@ fusionar. Desde la 2.6.0 el script usa la frontera de la release que entra.
 
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.6.0`.
 
-## 3.10 Próxima versión, sin publicar (nota de actualización)
+## 3.10 Contrato `2.7.0` (nota de actualización)
 
-Sin cambios de contrato. Lo que cambia en el panel de WordPress de cada instancia:
+Sin cambios incompatibles. `HWE_CORE_CONTRACT_VERSION` pasa a `2.7.0` por el filtro nuevo
+`hwe_native_registration` y porque `panel` acepta claves de pestaña. Lo que cambia en el panel de
+WordPress de cada instancia:
 
 - **El registro nativo de WordPress queda cerrado** (`mu-plugins/hwe-native-registration.php`): el
   login del panel deja de ofrecer «Registrarse», `?action=register` vuelve al login con
@@ -487,6 +489,20 @@ Sin cambios de contrato. Lo que cambia en el panel de WordPress de cada instanci
   serie (`HWE-Orbit`), sigue el login de Orbit. Para el login de WordPress sin marca, apágalo con
   `add_filter( 'hwe_admin_branding', '__return_false' );` (también quita el esquema de color «HWE
   Orbit»).
+- **El Control Center se reorganiza por tareas** (`PanelMap` / `PanelLayout` en
+  `mu-plugins/hwe-control-center/`): una navegación lateral en tres capas (Negocio, Marca y
+  visibilidad, Puesta en marcha) sustituye a las pestañas por clave del esquema. **No cambia ningún
+  dato:** rutas, `name` de los inputs, `/wp-json/hwe/v1/config` y `contract/` quedan igual. Los campos
+  que tu instancia añada con `hwe_control_center_schema` salen en la pestaña «Instancia»; los de un
+  módulo, en la de su módulo; cualquier campo que el mapa no nombre cae en «Otros ajustes» de la
+  pestaña de su clave raíz. El atributo `panel` de un campo sigue funcionando, pero `tab` ahora es una
+  clave de pestaña (`store`, `payments`, `shipping`, `support`, `brand`, `search`, `site`, `email`,
+  `marketing`, `services`, `backups`…) o una clave raíz del esquema (se resuelve a su pestaña por
+  defecto: `geo` → «Buscadores e IA»). El panel toma el color de marca y el logo de la instancia
+  (`design.colors.brand`, `brand.logo`, `brand.name`); sin marca propia usa la reserva de Orbit, y
+  `hwe_admin_branding` a `false` lo devuelve al acento de wp-admin. Si tu instancia sobrescribía
+  `assets/admin.css` o dependía de sus clases (`hwe-tab-btn`, `hwe-panel-header`…), revísalo: el
+  marcado cambió.
 - **Membresías:** el CPT de niveles deja de declarar `edit_post`/`read_post`/`delete_post` con
   `hwe_memberships_manage`/`hwe_memberships_view`. Desaparecen los avisos de `map_meta_cap` y el
   administrador vuelve a pasar `current_user_can( 'hwe_memberships_manage' )`. Sin acción salvo que tu

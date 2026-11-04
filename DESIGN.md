@@ -10,6 +10,8 @@ description: Identidad programática del framework de e-commerce headless HWE Or
 > Alcance: es la identidad de **HWE Orbit, el producto** (logo, docs, web del framework,
 > material de venta). **No** es el diseño de las tiendas que se construyen con él: el starter de
 > `frontend/` solo hereda la paleta como valor por defecto y cada instancia trae su propia marca.
+> Excepción acotada: el panel **HWE Control Center** de wp-admin, al final de este documento,
+> donde el framework pone la estructura y la instancia pone la marca.
 
 ## Overview
 
@@ -116,3 +118,42 @@ Plano absoluto. Sin sombras, sin glow, sin vidrio, sin 3D. La profundidad se exp
 - Llevar el símbolo o el wordmark de HWE Orbit al starter de las tiendas. El starter solo
   hereda la paleta como valor por defecto (`CONFIG_DEFAULTS` y el Control Center) y cada
   instancia la reemplaza.
+
+## Superficie de administración: HWE Control Center
+
+Modo **Operate**: la tarea manda sobre la expresión. El framework posee la **estructura** del
+panel (navegación, componentes, estados, ritmo); la **marca** es la de la instancia. Orbit
+solo aparece si la tienda no tiene marca propia, como ya hace el login (`hwe-admin-branding`).
+
+### Marca de la instancia
+
+- Color de marca = `design.colors.brand` del propio Control Center; logo = `brand.logo`;
+  nombre = `brand.name`. Sin marca configurada (logo vacío y nombre de serie): reserva Orbit,
+  tinta `#111111` con cadmio `#F2C200` como marca.
+- Todo color de la instancia pasa la comprobación de contraste WCAG AA contra su fondo y cae
+  a tinta o blanco si no llega (`hwe_admin_branding_readable` / `_contrast`; misma regla que
+  el login). Un comerciante que elige un amarillo pálido no puede dejar ilegible su panel.
+- El color de marca tiene **un solo trabajo**: estado activo y acción (pestaña activa,
+  botón Guardar, foco, interruptor encendido). Nunca rellena cabeceras ni fondos de sección.
+- Neutros, tipografía y controles: los de wp-admin (esquema de color del usuario, fuente del
+  sistema). El panel se siente parte de WordPress, no una app incrustada.
+
+### Estructura
+
+- **Navegación lateral en tres capas**, con encabezado por capa: *Negocio* (uso diario del
+  comerciante), *Marca y visibilidad*, *Puesta en marcha* (lo que la agencia configura una
+  vez). La capa se lee en la propia nav; no hay modos ni permisos distintos.
+- Cada pestaña se divide en **secciones con título** y una frase de para qué sirve; los
+  campos van en una columna de lectura (etiqueta encima, ayuda debajo), no en tablas anchas.
+- Cabecera sobria: logo y nombre de la tienda, «Control Center» como subtítulo y la acción
+  «Ver API». Sin degradado, sin brillo, sin icono decorativo en cuadro de cristal.
+- Barra de guardado fija al pie: indica si hay cambios sin guardar (y en qué pestañas) y es
+  el único sitio con botón primario.
+- Los estados (SMTP activo, módulo inactivo, secreto guardado) usan los avisos y colores de
+  estado de wp-admin, nunca el color de marca.
+
+### Prohibido en el panel
+
+Degradados, glow, `backdrop-filter`, sombras de adorno, `transition: all`, animación de
+entrada de página, tarjeta dentro de tarjeta, iconos que no sean dashicons, y cualquier color
+fuera de la marca de la instancia y los de estado de wp-admin.

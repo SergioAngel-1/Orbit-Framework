@@ -837,7 +837,7 @@ responden **404** y el banner no encola ni guarda comprobante.
   comprobante en el pedido (`_hwe_consent_receipt`) para que la Conversions API consulte la
   decisión **vigente** antes de enviar la compra.
 - La purga (años desde la última decisión de cada comprobante) se configura en Control Center →
-  Integraciones → «Conservar el registro de consentimientos».
+  Servicios y privacidad → «Conservar el registro de consentimientos».
 - Una instancia con su propio banner debe llamar a estas rutas con la misma forma; el hueco de
   hidratación y la cola los resuelve `lib/analytics/consent-sync.ts`.
 

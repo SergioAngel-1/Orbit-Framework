@@ -32,8 +32,9 @@ namespace HWE\ControlCenter;
  *                    un hermano `<clave>_<locale>` por cada idioma secundario de
  *                    `i18n.locales` (vacío = se usa el texto del idioma por defecto).
  *                    El frontend lo resuelve con `pickLocalized(entity, campo, locale)`.
- *   'panel'       → ['tab' => <clave raíz>, 'section' => 'Título'] (solo admin): pinta el campo
- *                    en otra pestaña, dentro de un bloque con ese título. La ruta del dato, el
+ *   'panel'       → ['tab' => <clave de pestaña o clave raíz>, 'section' => 'Título'] (solo admin):
+ *                    pinta el campo en otra pestaña, dentro de una sección con ese título. Lo usan
+ *                    módulos e instancia; el núcleo se reparte con `PanelMap`. La ruta del dato, el
  *                    `name` del input y la API no cambian.
  *
  * Atributos de grupo:

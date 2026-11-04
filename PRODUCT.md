@@ -15,6 +15,16 @@ contamine la base. Secundario (no prioritario): equipos técnicos in-house con l
 
 Son lectores técnicos: evalúan el producto leyendo README, docs y código, no folletos.
 
+Usuario del panel (`/wp-admin`, **HWE Control Center**), en dos capas sobre la misma pantalla:
+
+- **Quien instala** (la agencia): lo configura una vez por tienda y vuelve poco. Pasarela y sus
+  credenciales, correo SMTP, analítica y píxeles, mapas, idiomas, URL del frontend, backups.
+- **El comerciante** (el cliente de la agencia, no técnico): entra a menudo para tareas de
+  negocio. Tienda y checkout, métodos de pago, envíos, datos de contacto y sedes, FAQ, y los
+  módulos activos (fidelización, membresías, landings, banners).
+
+El panel no es de HWE Orbit sino de la tienda: el comerciante debe reconocer **su** marca.
+
 ## Product Purpose
 
 HWE Orbit es un framework comercial de e-commerce headless: WordPress + WooCommerce como
@@ -37,9 +47,15 @@ de un centro estable; eso es lo que un tema o starter de WooCommerce no puede af
 - Se evalúa y usa desde el repositorio: README, `docs/`, `AGENTS.md`, `CHANGELOG.md`,
   `examples/instance-minimal/`.
 - Gestión diaria en `/wp-admin` con el mu-plugin **HWE Control Center** como fuente de la
-  configuración de negocio.
+  configuración de negocio (menú «HWE Config»). Es la prioridad dentro de wp-admin; el resto
+  del panel de WordPress (WooCommerce, entradas, menús de los módulos) es secundario y conserva
+  sus pantallas nativas.
+- El Control Center se genera desde un esquema (`Schema.php` + `SchemaGroups/`, ampliado por
+  módulos e instancia con `hwe_control_center_schema`): ~150 campos del núcleo más los de cada
+  módulo activo. Las rutas del dato, los `name` de los inputs y `/wp-json/hwe/v1/config` son
+  contrato (`contract/`); su **organización visual** no lo es y puede cambiar.
 - Despliegue con Docker Compose (Caddy TLS) o modo híbrido en desarrollo.
-- Versionado SemVer; v2.6.0 publicada el 2026-11-02 (v2.5.0, el 2026-11-02; v2.4.0, el 2026-10-30; v2.2.0, el 2026-10-25; v2.1.0, el 2026-10-24; v2.0.0, el 2026-10-14).
+- Versionado SemVer; v2.7.0 publicada el 2026-11-04 (v2.6.0, el 2026-11-02; v2.5.0, el 2026-11-02; v2.4.0, el 2026-10-30; v2.2.0, el 2026-10-25; v2.1.0, el 2026-10-24; v2.0.0, el 2026-10-14).
 
 ## Capabilities and Constraints
 
@@ -65,7 +81,7 @@ de un centro estable; eso es lo que un tema o starter de WooCommerce no puede af
 
 ## Evidence on Hand
 
-- Código y docs reales del framework; CHANGELOG con v2.6.0.
+- Código y docs reales del framework; CHANGELOG con v2.7.0.
 - No hay clientes, testimonios, métricas, precios publicados ni casos de estudio en el repo:
   no se deben inventar.
 

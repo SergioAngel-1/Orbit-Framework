@@ -1,50 +1,94 @@
 /**
  * HWE Control Center — Admin JS
  *
- * Tab navigation, color picker sync, media pickers, rows editors, optional slots,
- * payment provider toggle, save spinner, and notice auto-dismiss.
+ * Navegación por pestañas, color picker, selectores de medios, editores de filas, huecos
+ * opcionales, pasarela activa, estado del guardado y vista previa del correo.
  */
 (function () {
     'use strict';
 
     // =========================================================================
-    // Tab Navigation
+    // Navegación lateral: un enlace por pestaña, un panel por enlace.
     // =========================================================================
 
     function initTabs() {
-        var tabBtns = document.querySelectorAll('.hwe-tab-btn');
-        var tabPanels = document.querySelectorAll('.hwe-tab-panel');
-        if (!tabBtns.length || !tabPanels.length) return;
+        var nav = document.querySelector('.hwe-nav');
+        var links = document.querySelectorAll('[data-hwe-tab]');
+        var panels = document.querySelectorAll('[data-hwe-panel]');
+        if (!nav || !links.length || !panels.length) return;
 
-        tabBtns.forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var tabId = this.dataset.tab;
+        var toggle = nav.querySelector('.hwe-nav__toggle');
+        var current = nav.querySelector('[data-hwe-nav-current]');
+        var wrap = document.querySelector('.hwe-wrap');
+        var form = document.querySelector('[data-hwe-form]');
+        var baseAction = form ? form.getAttribute('action').split('#')[0] : '';
 
-                tabBtns.forEach(function (b) { b.classList.remove('active'); });
-                tabPanels.forEach(function (p) { p.classList.remove('active'); });
+        function exists(tab) {
+            return !!tab && Array.prototype.some.call(panels, function (p) { return p.dataset.hwePanel === tab; });
+        }
 
-                this.classList.add('active');
-                var panel = document.querySelector('[data-panel="' + tabId + '"]');
-                if (panel) panel.classList.add('active');
+        // La pestaña va en la URL (#tab) y en la acción del formulario: sobrevive al guardado.
+        function remember(tab) {
+            try { history.replaceState(null, '', '#' + tab); } catch (e) {}
+            if (form) form.setAttribute('action', baseAction + '#' + tab);
+        }
 
-                try { localStorage.setItem('hwe_active_tab', tabId); } catch (e) {}
+        function show(tab) {
+            var link = null;
+            links.forEach(function (l) {
+                var on = l.dataset.hweTab === tab;
+                if (on) { l.setAttribute('aria-current', 'true'); link = l; } else { l.removeAttribute('aria-current'); }
+            });
+            panels.forEach(function (p) { p.hidden = p.dataset.hwePanel !== tab; });
+            if (current && link) current.textContent = link.querySelector('.hwe-nav__label').textContent;
+        }
+
+        function setOpen(open) {
+            nav.classList.toggle('is-open', open);
+            if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        links.forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                show(link.dataset.hweTab);
+                remember(link.dataset.hweTab);
+                setOpen(false);
             });
         });
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                setOpen(!nav.classList.contains('is-open'));
+            });
+        }
 
-        // Restore saved tab.
-        try {
-            var saved = localStorage.getItem('hwe_active_tab');
-            if (saved) {
-                var btn = document.querySelector('[data-tab="' + saved + '"]');
-                var panel = document.querySelector('[data-panel="' + saved + '"]');
-                if (btn && panel) {
-                    tabBtns.forEach(function (b) { b.classList.remove('active'); });
-                    tabPanels.forEach(function (p) { p.classList.remove('active'); });
-                    btn.classList.add('active');
-                    panel.classList.add('active');
-                }
+        // Atrás/adelante o un #tab pegado a mano.
+        window.addEventListener('hashchange', function () {
+            var tab = window.location.hash.slice(1);
+            if (exists(tab)) {
+                show(tab);
+                if (form) form.setAttribute('action', baseAction + '#' + tab);
             }
-        } catch (e) {}
+        });
+
+        // Al cargar manda la URL; si no trae pestaña, la que eligió el servidor (p. ej. tras una prueba de correo).
+        var fromUrl = window.location.hash.slice(1);
+        var start = exists(fromUrl) ? fromUrl : (wrap && wrap.dataset.hweInitialTab) || '';
+        if (exists(start)) {
+            show(start);
+            if (form) form.setAttribute('action', baseAction + '#' + start);
+        }
+    }
+
+    // =========================================================================
+    // Un logo que no carga no deja un hueco roto en la cabecera.
+    // =========================================================================
+
+    function initHeaderLogo() {
+        var logo = document.querySelector('.hwe-header__logo');
+        if (!logo) return;
+        logo.addEventListener('error', function () { logo.hidden = true; });
+        if (logo.complete && logo.naturalWidth === 0) logo.hidden = true;
     }
 
     // =========================================================================
@@ -84,18 +128,89 @@
     }
 
     // =========================================================================
-    // Save Spinner
+    // Cambios sin guardar: la barra de guardado dice en qué pestañas hay, la nav las marca
+    // con un punto y salir de la página con cambios pide confirmación.
+    //
+    // Cada control del formulario principal se compara con su valor al cargar (volver al
+    // valor original limpia la marca). Los controles de otros formularios (`form="…"`: prueba
+    // de correo, copias) no cuentan: no se guardan con este botón.
     // =========================================================================
 
-    function initSaveSpinner() {
-        var form = document.querySelector('.hwe-form');
-        var saveBtn = document.querySelector('.hwe-save-btn');
-        if (!form || !saveBtn) return;
+    var submitting = false;
+
+    function initSaveBar() {
+        var form = document.querySelector('[data-hwe-form]');
+        var saveBtn = document.querySelector('.hwe-savebar__btn');
+        var bar = document.querySelector('.hwe-savebar');
+        var status = document.querySelector('[data-hwe-status]');
+        if (!form || !saveBtn || !bar || !status) return;
+
+        function signature(el) {
+            return el.type === 'checkbox' || el.type === 'radio' ? (el.checked ? '1' : '0') : el.value;
+        }
+
+        function tracked() {
+            return Array.prototype.filter.call(form.elements, function (el) {
+                return el.name && el.form === form && el.type !== 'submit' && el.type !== 'button' && el.type !== 'file';
+            });
+        }
+
+        var initial = new Map();
+        tracked().forEach(function (el) { initial.set(el, signature(el)); });
+
+        function dirtyTabs() {
+            var tabs = [];
+            tracked().forEach(function (el) {
+                if (initial.has(el) && initial.get(el) === signature(el)) return;
+                var panel = el.closest('[data-hwe-panel]');
+                var tab = panel ? panel.dataset.hwePanel : '';
+                if (tab && tabs.indexOf(tab) === -1) tabs.push(tab);
+            });
+            return tabs;
+        }
+
+        function refresh() {
+            if (submitting) return;
+            var tabs = dirtyTabs();
+            var labels = [];
+            document.querySelectorAll('[data-hwe-tab]').forEach(function (link) {
+                var on = tabs.indexOf(link.dataset.hweTab) !== -1;
+                var mark = link.querySelector('[data-hwe-dirty-mark]');
+                if (mark) mark.hidden = !on;
+                if (on) labels.push(link.querySelector('.hwe-nav__label').textContent);
+            });
+            // Con muchas pestañas tocadas la barra no crece: se nombran tres y se cuenta el resto.
+            var shown = labels.length > 3
+                ? (status.dataset.more || '%s y %d más').replace('%s', labels.slice(0, 3).join(', ')).replace('%d', String(labels.length - 3))
+                : labels.join(', ');
+            bar.classList.toggle('is-dirty', tabs.length > 0);
+            status.textContent = tabs.length
+                ? (status.dataset.dirty || '').replace('%s', shown)
+                : (status.dataset.clean || '');
+        }
+
+        // Tras el evento: los manejadores de cada tipo de campo (filas, colores, huecos) ya han actualizado su valor.
+        function schedule() { setTimeout(refresh, 0); }
+        form.addEventListener('input', schedule);
+        form.addEventListener('change', schedule);
 
         form.addEventListener('submit', function () {
-            saveBtn.classList.add('saving');
+            submitting = true;
+            saveBtn.classList.add('is-busy');
             saveBtn.disabled = true;
+            status.textContent = status.dataset.saving || '';
         });
+
+        window.addEventListener('beforeunload', function (e) {
+            if (submitting || !bar.classList.contains('is-dirty')) return;
+            e.preventDefault();
+            e.returnValue = '';
+        });
+    }
+
+    // Avisa al formulario de un cambio hecho por código (medioteca, huecos).
+    function announce(field) {
+        field.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     // =========================================================================
@@ -112,11 +227,13 @@
         var gateway = document.querySelector('#hwe_config_payments_gateway_enabled');
         var providerRow = providerSelect.closest('.hwe-field');
         var groups = document.querySelectorAll('.hwe-subgroup[data-provider]');
+        var credentials = document.querySelector('.hwe-section--provider');
 
         function toggleGroups() {
             var online = !gateway || gateway.checked;
             var selected = providerSelect.value;
             if (providerRow) providerRow.hidden = !online;
+            if (credentials) credentials.hidden = !online;
             groups.forEach(function (group) {
                 group.classList.toggle('is-active', online && group.dataset.provider === selected);
             });
@@ -165,7 +282,7 @@
                 if (!remove) return;
                 remove.hidden = false;
                 remove.addEventListener('click', function () {
-                    slotFields(slot).forEach(function (field) { field.value = ''; });
+                    slotFields(slot).forEach(function (field) { field.value = ''; announce(field); });
                     slot.hidden = true;
                     sync();
                     addBtn.focus();
@@ -186,17 +303,12 @@
     }
 
     // =========================================================================
-    // Auto-dismiss notices
+    // Los avisos de éxito se retiran solos; los de error y advertencia se quedan hasta leerlos.
     // =========================================================================
 
     function initNotices() {
-        document.querySelectorAll('.notice.is-dismissible').forEach(function (notice) {
-            setTimeout(function () {
-                notice.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                notice.style.opacity = '0';
-                notice.style.transform = 'translateY(-8px)';
-                setTimeout(function () { notice.remove(); }, 300);
-            }, 5000);
+        document.querySelectorAll('.hwe-wrap .notice-success.is-dismissible').forEach(function (notice) {
+            setTimeout(function () { notice.remove(); }, 6000);
         });
     }
 
@@ -248,6 +360,7 @@
                         url = '/' + url.slice(idx);
                     }
                     input.value = url;
+                    announce(input);
                     if (preview) {
                         preview.replaceChildren();
                         if (url) {
@@ -273,6 +386,7 @@
                 clear.addEventListener('click', function (e) {
                     e.preventDefault();
                     input.value = '';
+                    announce(input);
                     if (preview) preview.replaceChildren();
                 });
             }
@@ -470,10 +584,11 @@
 
     function boot() {
         initTabs();
+        initHeaderLogo();
         initColorPickers();
         initMediaPickers();
         initRowsEditors();
-        initSaveSpinner();
+        initSaveBar();
         initProviderToggle();
         initSlots();
         initNotices();

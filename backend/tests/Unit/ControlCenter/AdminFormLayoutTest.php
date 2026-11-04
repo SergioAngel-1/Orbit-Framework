@@ -10,9 +10,9 @@ use HWE\ControlCenter\Walkers\AdminFormWalker;
 use HWE\Tests\TestCase;
 
 /**
- * Atributos de maquetación del panel que no tocan el dato: `panel` (pintar un campo en otra
- * pestaña) y `slots` (huecos opcionales, como las sedes). Más su uso en el esquema del núcleo:
- * sedes opcionales hasta 5, pagos que solo enseñan la pasarela activa y lo de GEO en su pestaña.
+ * El HTML de los campos y los atributos de maquetación que no tocan el dato: `slots` (huecos
+ * opcionales, como las sedes). Más su uso en el esquema del núcleo: sedes opcionales hasta 5 y
+ * pagos que solo enseñan la pasarela activa. Dónde cae cada campo lo prueba `PanelLayoutTest`.
  */
 final class AdminFormLayoutTest extends TestCase
 {
@@ -36,44 +36,34 @@ final class AdminFormLayoutTest extends TestCase
         });
     }
 
-    /** @return array<string,array> */
-    private function schema(string $target): array {
-        return [
+    public function testEveryNodeGetsAFragmentKeyedByItsDottedPath(): void {
+        $walker = new AdminFormWalker();
+        $walker->walk([
             'seo' => [
                 'type' => 'group',
                 'label' => 'SEO',
                 'children' => [
-                    'title' => ['type' => 'text', 'label' => 'Título'],
-                    'knows' => ['type' => 'text', 'label' => 'Temas', 'panel' => ['tab' => $target, 'section' => 'Entidad']],
+                    'knows' => ['type' => 'text', 'label' => 'Temas'],
+                    'og' => ['type' => 'group', 'label' => 'Compartir', 'children' => ['image' => ['type' => 'text', 'label' => 'Imagen']]],
                 ],
             ],
-            'geo' => [
-                'type' => 'group',
-                'label' => 'GEO',
-                'children' => ['faq' => ['type' => 'textarea', 'label' => 'FAQ']],
-            ],
-        ];
+        ], ['seo' => ['knows' => 'café']]);
+
+        $fragments = $walker->fragments();
+        $this->assertSame(['seo.knows', 'seo.og.image', 'seo.og'], array_keys($fragments));
+        $this->assertStringContainsString('name="hwe_config[seo][knows]"', $fragments['seo.knows']['html']);
+        $this->assertStringContainsString('value="café"', $fragments['seo.knows']['html']);
+        $this->assertFalse($fragments['seo.knows']['group']);
+        $this->assertTrue($fragments['seo.og']['group']);
+        $this->assertStringContainsString('Compartir', $fragments['seo.og']['html']);
+        $this->assertStringContainsString('hwe_config[seo][og][image]', $fragments['seo.og']['bare']);
     }
 
-    public function testAPanelFieldMovesToItsTabWithTheSameName(): void {
-        $walker   = new AdminFormWalker();
-        $sections = $walker->withRelocated($walker->walk($this->schema('geo'), ['seo' => ['knows' => 'café']]));
+    public function testAToggleRowKeepsItsLabelOnlyForScreenReaders(): void {
+        $walker = new AdminFormWalker();
+        $walker->walk(['x' => ['type' => 'group', 'label' => 'X', 'children' => ['on' => ['type' => 'boolean', 'label' => 'Activar']]]], []);
 
-        $this->assertStringNotContainsString('hwe_config[seo][knows]', $sections['seo']);
-        $this->assertStringContainsString('hwe_config[seo][knows]', $sections['geo'], 'El input conserva su ruta.');
-        $this->assertStringContainsString('value="café"', $sections['geo']);
-        $this->assertStringContainsString('Entidad', $sections['geo']);
-        $this->assertSame([], $this->logged);
-    }
-
-    public function testAPanelPointingNowhereStaysHomeAndLogs(): void {
-        $walker   = new AdminFormWalker();
-        $sections = $walker->withRelocated($walker->walk($this->schema('nope'), []));
-
-        $this->assertStringContainsString('hwe_config[seo][knows]', $sections['seo']);
-        $this->assertArrayNotHasKey('nope', $sections);
-        $this->assertCount(1, $this->logged);
-        $this->assertStringContainsString('«nope»', $this->logged[0]);
+        $this->assertStringContainsString('class="hwe-field hwe-field--toggle"', $walker->fragments()['x.on']['html']);
     }
 
     public function testSlotsWrapEachChildAndOfferAddAndRemove(): void {
@@ -119,7 +109,7 @@ final class AdminFormLayoutTest extends TestCase
 
         $this->assertSame('SEO', $core['seo']['label']);
         foreach (['organization_logo', 'founding_date', 'knows_about', 'alternate_names', 'founder_name', 'founder_role', 'founder_url'] as $key) {
-            $this->assertSame('geo', $core['seo']['children'][$key]['panel']['tab'] ?? null, "seo.{$key} se edita en GEO.");
+            $this->assertArrayNotHasKey('panel', $core['seo']['children'][$key], "seo.{$key} se coloca desde PanelMap, no desde el esquema.");
         }
 
         $js = (string) file_get_contents(HWE_WP_CONTENT_DIR . '/mu-plugins/hwe-control-center/assets/admin.js');
