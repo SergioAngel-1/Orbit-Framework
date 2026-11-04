@@ -19,6 +19,19 @@
 
         var toggle = nav.querySelector('.hwe-nav__toggle');
         var current = nav.querySelector('[data-hwe-nav-current]');
+        var wrap = document.querySelector('.hwe-wrap');
+        var form = document.querySelector('[data-hwe-form]');
+        var baseAction = form ? form.getAttribute('action').split('#')[0] : '';
+
+        function exists(tab) {
+            return !!tab && Array.prototype.some.call(panels, function (p) { return p.dataset.hwePanel === tab; });
+        }
+
+        // La pestaña va en la URL (#tab) y en la acción del formulario: sobrevive al guardado.
+        function remember(tab) {
+            try { history.replaceState(null, '', '#' + tab); } catch (e) {}
+            if (form) form.setAttribute('action', baseAction + '#' + tab);
+        }
 
         function show(tab) {
             var link = null;
@@ -28,7 +41,6 @@
             });
             panels.forEach(function (p) { p.hidden = p.dataset.hwePanel !== tab; });
             if (current && link) current.textContent = link.querySelector('.hwe-nav__label').textContent;
-            document.dispatchEvent(new CustomEvent('hwe:tabchange', { detail: { tab: tab } }));
         }
 
         function setOpen(open) {
@@ -40,6 +52,7 @@
             link.addEventListener('click', function (e) {
                 e.preventDefault();
                 show(link.dataset.hweTab);
+                remember(link.dataset.hweTab);
                 setOpen(false);
             });
         });
@@ -47,6 +60,23 @@
             toggle.addEventListener('click', function () {
                 setOpen(!nav.classList.contains('is-open'));
             });
+        }
+
+        // Atrás/adelante o un #tab pegado a mano.
+        window.addEventListener('hashchange', function () {
+            var tab = window.location.hash.slice(1);
+            if (exists(tab)) {
+                show(tab);
+                if (form) form.setAttribute('action', baseAction + '#' + tab);
+            }
+        });
+
+        // Al cargar manda la URL; si no trae pestaña, la que eligió el servidor (p. ej. tras una prueba de correo).
+        var fromUrl = window.location.hash.slice(1);
+        var start = exists(fromUrl) ? fromUrl : (wrap && wrap.dataset.hweInitialTab) || '';
+        if (exists(start)) {
+            show(start);
+            if (form) form.setAttribute('action', baseAction + '#' + start);
         }
     }
 
@@ -87,20 +117,85 @@
     }
 
     // =========================================================================
-    // Guardado: al enviar, el botón avisa de que está trabajando.
+    // Cambios sin guardar: la barra de guardado dice en qué pestañas hay, la nav las marca
+    // con un punto y salir de la página con cambios pide confirmación.
+    //
+    // Cada control del formulario principal se compara con su valor al cargar (volver al
+    // valor original limpia la marca). Los controles de otros formularios (`form="…"`: prueba
+    // de correo, copias) no cuentan: no se guardan con este botón.
     // =========================================================================
 
-    function initSaveSpinner() {
+    var submitting = false;
+
+    function initSaveBar() {
         var form = document.querySelector('[data-hwe-form]');
         var saveBtn = document.querySelector('.hwe-savebar__btn');
+        var bar = document.querySelector('.hwe-savebar');
         var status = document.querySelector('[data-hwe-status]');
-        if (!form || !saveBtn) return;
+        if (!form || !saveBtn || !bar || !status) return;
+
+        function signature(el) {
+            return el.type === 'checkbox' || el.type === 'radio' ? (el.checked ? '1' : '0') : el.value;
+        }
+
+        function tracked() {
+            return Array.prototype.filter.call(form.elements, function (el) {
+                return el.name && el.form === form && el.type !== 'submit' && el.type !== 'button' && el.type !== 'file';
+            });
+        }
+
+        var initial = new Map();
+        tracked().forEach(function (el) { initial.set(el, signature(el)); });
+
+        function dirtyTabs() {
+            var tabs = [];
+            tracked().forEach(function (el) {
+                if (initial.has(el) && initial.get(el) === signature(el)) return;
+                var panel = el.closest('[data-hwe-panel]');
+                var tab = panel ? panel.dataset.hwePanel : '';
+                if (tab && tabs.indexOf(tab) === -1) tabs.push(tab);
+            });
+            return tabs;
+        }
+
+        function refresh() {
+            if (submitting) return;
+            var tabs = dirtyTabs();
+            var labels = [];
+            document.querySelectorAll('[data-hwe-tab]').forEach(function (link) {
+                var on = tabs.indexOf(link.dataset.hweTab) !== -1;
+                var mark = link.querySelector('[data-hwe-dirty-mark]');
+                if (mark) mark.hidden = !on;
+                if (on) labels.push(link.querySelector('.hwe-nav__label').textContent);
+            });
+            bar.classList.toggle('is-dirty', tabs.length > 0);
+            status.textContent = tabs.length
+                ? (status.dataset.dirty || '').replace('%s', labels.join(', '))
+                : (status.dataset.clean || '');
+        }
+
+        // Tras el evento: los manejadores de cada tipo de campo (filas, colores, huecos) ya han actualizado su valor.
+        function schedule() { setTimeout(refresh, 0); }
+        form.addEventListener('input', schedule);
+        form.addEventListener('change', schedule);
 
         form.addEventListener('submit', function () {
+            submitting = true;
             saveBtn.classList.add('is-busy');
             saveBtn.disabled = true;
-            if (status) status.textContent = status.dataset.saving || '';
+            status.textContent = status.dataset.saving || '';
         });
+
+        window.addEventListener('beforeunload', function (e) {
+            if (submitting || !bar.classList.contains('is-dirty')) return;
+            e.preventDefault();
+            e.returnValue = '';
+        });
+    }
+
+    // Avisa al formulario de un cambio hecho por código (medioteca, huecos).
+    function announce(field) {
+        field.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     // =========================================================================
@@ -172,7 +267,7 @@
                 if (!remove) return;
                 remove.hidden = false;
                 remove.addEventListener('click', function () {
-                    slotFields(slot).forEach(function (field) { field.value = ''; });
+                    slotFields(slot).forEach(function (field) { field.value = ''; announce(field); });
                     slot.hidden = true;
                     sync();
                     addBtn.focus();
@@ -250,6 +345,7 @@
                         url = '/' + url.slice(idx);
                     }
                     input.value = url;
+                    announce(input);
                     if (preview) {
                         preview.replaceChildren();
                         if (url) {
@@ -275,6 +371,7 @@
                 clear.addEventListener('click', function (e) {
                     e.preventDefault();
                     input.value = '';
+                    announce(input);
                     if (preview) preview.replaceChildren();
                 });
             }
@@ -475,7 +572,7 @@
         initColorPickers();
         initMediaPickers();
         initRowsEditors();
-        initSaveSpinner();
+        initSaveBar();
         initProviderToggle();
         initSlots();
         initNotices();
