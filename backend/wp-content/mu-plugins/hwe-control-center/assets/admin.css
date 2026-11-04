@@ -269,8 +269,39 @@
     margin-top: 20px;
 }
 
+/* Cabecera pulsable de una sección o un bloque: título, resumen de su estado y punto de cambios. */
+.hwe-section__head,
+.hwe-subgroup__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    cursor: pointer;
+    list-style: none;
+}
+
+.hwe-section__head::-webkit-details-marker,
+.hwe-subgroup__head::-webkit-details-marker {
+    display: none;
+}
+
+/* Flecha de wp-admin (dashicons): derecha = plegado, abajo = abierto. Sin giro animado. */
+.hwe-section__head::before,
+.hwe-subgroup__head::before {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    font: normal 20px/1 dashicons;
+    color: var(--hwe-muted);
+    content: "\f345";
+}
+
+:is(.hwe-section, .hwe-subgroup)[open] > :is(.hwe-section__head, .hwe-subgroup__head)::before {
+    content: "\f347";
+}
+
 .hwe-section__head {
-    margin: 0 0 20px;
+    margin: 0 0 6px;
 }
 
 .hwe-section__head h3 {
@@ -281,11 +312,40 @@
     line-height: 1.3;
 }
 
-.hwe-section__head p {
+.hwe-section__intro {
     max-width: 65ch;
-    margin: 4px 0 0;
+    margin: 0 0 20px 28px;
     color: var(--hwe-muted);
     font-size: 13px;
+}
+
+/* Lo que hay dentro se alinea con el título, no con la flecha. */
+.hwe-section > .hwe-fields {
+    margin-left: 28px;
+}
+
+/* Resumen del estado de un bloque cerrado («Visible · Imagen a la derecha · «Título»»). */
+.hwe-fold__summary {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--hwe-muted);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hwe-fold__summary:empty {
+    display: none;
+}
+
+/* El mismo punto que marca la pestaña: hay algo cambiado dentro, aunque esté cerrado. */
+.hwe-fold__dirty {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin-left: auto;
+    border-radius: 50%;
+    background: var(--hwe-warn);
 }
 
 .hwe-fields {
@@ -379,24 +439,33 @@
     margin: 0 0 12px;
 }
 
-/* Bloque anidado dentro de una sección: sede, pasarela o grupo de un módulo. */
+/* Bloque anidado dentro de una sección: sede, pasarela o grupo de un módulo. Plegado de serie. */
 .hwe-subgroup {
-    margin: 0 0 16px;
-    padding: 16px 16px 0;
+    margin: 0 0 12px;
     border: 1px solid var(--hwe-line);
     border-radius: 4px;
     background: var(--hwe-wash);
 }
 
-.hwe-subgroup-title {
-    margin: 0 0 14px;
-    padding: 0;
-    font-size: 14px;
-    font-weight: 600;
+.hwe-subgroup__head {
+    padding: 10px 16px 10px 10px;
 }
 
-.hwe-subgroup .hwe-fields {
+.hwe-subgroup-title {
+    flex: none;
+    max-width: 60%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hwe-subgroup > .hwe-fields {
     max-width: none;
+    padding: 4px 16px 0 38px;
 }
 
 /* Solo se ve la pasarela activa; `admin.js` marca `is-active`. */
@@ -688,7 +757,8 @@
     font-weight: 600;
 }
 
-.hwe-savebar__btn {
+.hwe-savebar__btn,
+.hwe-savebar__fold {
     flex: none;
 }
 
@@ -716,7 +786,8 @@
         padding: 16px;
     }
 
-    .hwe-savebar__btn {
+    .hwe-savebar__btn,
+    .hwe-savebar__fold {
         width: 100%;
         justify-content: center;
         text-align: center;
@@ -1157,7 +1228,8 @@ body.hwe-email-preview-open {
         flex: 1 1 12rem;
     }
 
-    .hwe-savebar__btn {
+    .hwe-savebar__btn,
+    .hwe-savebar__fold {
         min-height: 40px;
     }
 

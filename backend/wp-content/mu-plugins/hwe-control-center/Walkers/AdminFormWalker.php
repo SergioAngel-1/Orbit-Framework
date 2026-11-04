@@ -11,7 +11,7 @@ use HWE\ControlCenter\Walker;
  * El walker PINTA; `PanelLayout` decide dónde va cada cosa (pestaña y sección) según `PanelMap`.
  * Tras `walk()`, `fragments()` da el HTML de cada nodo por su ruta con puntos:
  *   Campo (hoja) → fila `<div class="hwe-field">` con label + control.
- *   Grupo (profundidad 2+) → bloque `<div class="hwe-subgroup">` con título + campos.
+ *   Grupo (profundidad 2+) → bloque `<details class="hwe-subgroup">` plegado, con título + campos.
  *
  * Los secretos renderizan un <input type="password"> vacío con placeholder;
  * el handler de guardado conserva el valor existente si se deja en blanco.
@@ -115,15 +115,25 @@ HTML;
     // Helpers de renderizado
     // -------------------------------------------------------------------------
 
-    /** Bloque anidado (sede, pasarela, grupo de un módulo). `$label` ya va escapado. */
+    /**
+     * Bloque anidado (sede, pasarela, grupo de un módulo): un `<details>` plegado de serie. Se
+     * pliega sin JS; `admin.js` lo abre si algo dentro tiene el foco o un error, marca con un punto
+     * el que guarda cambios sin guardar y escribe en `data-hwe-summary-out` el resumen de su estado.
+     * `$label` ya va escapado.
+     */
     private function renderSubgroup(string $label, string $content, string $attrs): string {
+        $dirty = esc_html(__('con cambios sin guardar', 'hwe'));
         return <<<HTML
-<div class="hwe-subgroup"{$attrs}>
-    <h4 class="hwe-subgroup-title">{$label}</h4>
+<details class="hwe-subgroup" data-hwe-fold{$attrs}>
+    <summary class="hwe-subgroup__head">
+        <h4 class="hwe-subgroup-title">{$label}</h4>
+        <span class="hwe-fold__summary" data-hwe-summary-out></span>
+        <span class="hwe-fold__dirty" data-hwe-fold-dirty hidden><span class="screen-reader-text">{$dirty}</span></span>
+    </summary>
     <div class="hwe-fields">
         {$content}
     </div>
-</div>
+</details>
 HTML;
     }
 

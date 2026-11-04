@@ -244,22 +244,35 @@ class AdminPage {
         foreach ($tab['sections'] as $i => $section) {
             $titleId = $id . '-s' . $i;
             $class   = trim('hwe-section ' . (string) ($section['class'] ?? ''));
-            echo '<section class="' . esc_attr($class) . '"' . ($section['title'] !== '' ? ' aria-labelledby="' . esc_attr($titleId) . '"' : '') . '>';
-            if ($section['title'] !== '') {
-                echo '<header class="hwe-section__head">';
-                echo '<h3 id="' . esc_attr($titleId) . '">' . esc_html($section['title']) . '</h3>';
-                if ($section['intro'] !== '') {
-                    echo '<p>' . esc_html($section['intro']) . '</p>';
-                }
-                echo '</header>';
+
+            // Sin título (pestañas que son solo de un módulo) no hay cabecera que pulsar: sección plana.
+            if ($section['title'] === '') {
+                echo '<section class="' . esc_attr($class) . '">';
+                echo '<div class="hwe-fields">' . $section['html'] . '</div>';
+                echo '</section>';
+                continue;
+            }
+
+            // Cada sección es un <details> abierto de serie: se pliega sin JS y `admin.js` lo recuerda.
+            echo '<details class="' . esc_attr($class) . '" data-hwe-fold open>';
+            echo '<summary class="hwe-section__head">';
+            echo '<h3 id="' . esc_attr($titleId) . '">' . esc_html($section['title']) . '</h3>';
+            echo '<span class="hwe-fold__summary" data-hwe-summary-out></span>';
+            echo '<span class="hwe-fold__dirty" data-hwe-fold-dirty hidden><span class="screen-reader-text">' . esc_html__('con cambios sin guardar', 'hwe') . '</span></span>';
+            echo '</summary>';
+            if ($section['intro'] !== '') {
+                echo '<p class="hwe-section__intro">' . esc_html($section['intro']) . '</p>';
             }
             echo '<div class="hwe-fields">' . $section['html'] . '</div>';
-            echo '</section>';
+            echo '</details>';
         }
         echo '</section>';
     }
 
-    /** Barra de guardado: único sitio con botón primario. `admin.js` la mantiene al día. */
+    /**
+     * Barra de guardado: único sitio con botón primario, y bajo él el de abrir/cerrar todo.
+     * `admin.js` la mantiene al día.
+     */
     private static function renderSaveBar(): void {
         echo '<div class="hwe-savebar">';
         echo '<p class="hwe-savebar__status" role="status" aria-live="polite" data-hwe-status'
@@ -270,6 +283,10 @@ class AdminPage {
         echo esc_html__('Sin cambios por guardar. Lo que guardes se aplica a la tienda de inmediato.', 'hwe');
         echo '</p>';
         echo '<button type="submit" name="submit" id="submit" class="button button-primary hwe-savebar__btn">' . esc_html__('Guardar configuración', 'hwe') . '</button>';
+        // Abre o cierra todos los bloques plegables de la pestaña activa; `admin.js` pone la etiqueta según el estado real.
+        echo '<button type="button" class="button hwe-savebar__fold" data-hwe-fold-all'
+            . ' data-open="' . esc_attr__('Abrir todo', 'hwe') . '"'
+            . ' data-close="' . esc_attr__('Colapsar todo', 'hwe') . '" hidden>' . esc_html__('Abrir todo', 'hwe') . '</button>';
         echo '</div>';
     }
 

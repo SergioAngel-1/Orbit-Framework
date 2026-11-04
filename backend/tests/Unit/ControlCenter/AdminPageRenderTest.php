@@ -137,6 +137,42 @@ final class AdminPageRenderTest extends TestCase
         $this->assertSame(0, preg_match('/<section class="hwe-panel"/', substr($html, $bar, $layoutEnd - $bar)), '...tras todos los paneles (el CSS la sube con `order`).');
     }
 
+    public function testEveryTitledSectionFoldsAndStartsOpenWhileNestedBlocksStartClosed(): void
+    {
+        $html = $this->page();
+
+        preg_match_all('/<details class="(hwe-section[^"]*)" data-hwe-fold( open)?>/', $html, $sections, PREG_SET_ORDER);
+        $this->assertGreaterThan(15, count($sections), 'Cada sección con título es un <details>.');
+        foreach ($sections as $section) {
+            $this->assertSame(' open', $section[2], 'Las secciones de primer nivel arrancan abiertas.');
+        }
+        $this->assertSame(
+            count($sections),
+            preg_match_all('/<summary class="hwe-section__head"><h3 id="hwe-panel-[a-z]+-s\d+">/', $html),
+            'Su cabecera pulsable es el <summary> con el título.'
+        );
+
+        preg_match_all('/<details class="hwe-subgroup" data-hwe-fold([^>]*)>/', $html, $groups);
+        $this->assertGreaterThan(8, count($groups[0]), 'Sedes y credenciales de pasarela son bloques anidados.');
+        foreach ($groups[1] as $attrs) {
+            $this->assertStringNotContainsString(' open', $attrs, 'Los subgrupos arrancan plegados.');
+        }
+        $this->assertStringNotContainsString('<h4 class="hwe-subgroup-title">', preg_replace('/<summary.*?<\/summary>/s', '', $html), 'El título de un bloque anidado vive en su <summary>.');
+    }
+
+    public function testFoldAllButtonSitsUnderSaveAndStartsHiddenUntilTheScriptRuns(): void
+    {
+        $html = $this->page();
+
+        $save = strpos($html, 'class="button button-primary hwe-savebar__btn"');
+        $fold = strpos($html, 'data-hwe-fold-all');
+        $this->assertNotFalse($fold);
+        $this->assertGreaterThan($save, $fold, 'Va debajo de «Guardar configuración».');
+        $this->assertSame(1, preg_match_all('/data-hwe-fold-all/', $html), 'Uno solo para todo el panel: actúa sobre la pestaña activa.');
+        $this->assertStringContainsString('data-open="Abrir todo" data-close="Colapsar todo" hidden>Abrir todo</button>', $html);
+        $this->assertSame(1, preg_match_all('/button-primary/', $html), 'Sigue habiendo un único botón primario.');
+    }
+
     public function testActionFormsLiveOutsideTheMainFormAndNeverNest(): void
     {
         $html = $this->page();

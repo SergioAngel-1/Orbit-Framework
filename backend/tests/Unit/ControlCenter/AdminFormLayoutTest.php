@@ -59,6 +59,25 @@ final class AdminFormLayoutTest extends TestCase
         $this->assertStringContainsString('hwe_config[seo][og][image]', $fragments['seo.og']['bare']);
     }
 
+    public function testANestedGroupIsAClosedDetailsWithItsTitleInTheSummary(): void {
+        $walker = new AdminFormWalker();
+        $walker->walk([
+            'seo' => [
+                'type' => 'group',
+                'label' => 'SEO',
+                'children' => [
+                    'og' => ['type' => 'group', 'label' => 'Compartir', 'children' => ['image' => ['type' => 'text', 'label' => 'Imagen']]],
+                ],
+            ],
+        ], []);
+
+        $html = $walker->fragments()['seo.og']['html'];
+        $this->assertStringStartsWith('<details class="hwe-subgroup" data-hwe-fold>', $html, 'Plegado de serie: sin `open`.');
+        $this->assertMatchesRegularExpression('#<summary class="hwe-subgroup__head">\s*<h4 class="hwe-subgroup-title">Compartir</h4>#', $html);
+        $this->assertStringContainsString('data-hwe-fold-dirty hidden', $html, 'Lleva su punto de «cambios sin guardar», oculto de serie.');
+        $this->assertStringContainsString('hwe_config[seo][og][image]', $html, 'Los campos siguen dentro, plegados pero en el formulario.');
+    }
+
     public function testAToggleRowKeepsItsLabelOnlyForScreenReaders(): void {
         $walker = new AdminFormWalker();
         $walker->walk(['x' => ['type' => 'group', 'label' => 'X', 'children' => ['on' => ['type' => 'boolean', 'label' => 'Activar']]]], []);

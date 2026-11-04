@@ -1,11 +1,25 @@
 /**
  * HWE Control Center — Admin JS
  *
- * Navegación por pestañas, color picker, selectores de medios, editores de filas, huecos
- * opcionales, pasarela activa, estado del guardado y vista previa del correo.
+ * Navegación por pestañas, bloques plegables, color picker, selectores de medios, editores de
+ * filas, huecos opcionales, pasarela activa, estado del guardado y vista previa del correo.
  */
 (function () {
     'use strict';
+
+    // =========================================================================
+    // Vista: lo que depende del estado de los campos (resúmenes, etiqueta de «abrir todo»…).
+    // Cada módulo registra su función con `onView`; `refreshView` las ejecuta tras cualquier
+    // cambio (un campo, otra pestaña, un hueco).
+    // =========================================================================
+
+    var viewHooks = [];
+
+    function onView(fn) { viewHooks.push(fn); }
+
+    function refreshView() { viewHooks.forEach(function (fn) { fn(); }); }
+
+    function activePanel() { return document.querySelector('[data-hwe-panel]:not([hidden])'); }
 
     // =========================================================================
     // Navegación lateral: un enlace por pestaña, un panel por enlace.
@@ -41,6 +55,7 @@
             });
             panels.forEach(function (p) { p.hidden = p.dataset.hwePanel !== tab; });
             if (current && link) current.textContent = link.querySelector('.hwe-nav__label').textContent;
+            refreshView();
         }
 
         function setOpen(open) {
@@ -158,20 +173,42 @@
         var initial = new Map();
         tracked().forEach(function (el) { initial.set(el, signature(el)); });
 
-        function dirtyTabs() {
+        // Pestañas y bloques plegables con algún control cambiado: un bloque cerrado sigue delatando lo que guarda dentro.
+        var folds = [];
+
+        function dirty() {
             var tabs = [];
+            var blocks = [];
             tracked().forEach(function (el) {
                 if (initial.has(el) && initial.get(el) === signature(el)) return;
                 var panel = el.closest('[data-hwe-panel]');
                 var tab = panel ? panel.dataset.hwePanel : '';
                 if (tab && tabs.indexOf(tab) === -1) tabs.push(tab);
+                for (var d = el.closest('details[data-hwe-fold]'); d; d = d.parentElement && d.parentElement.closest('details[data-hwe-fold]')) {
+                    if (blocks.indexOf(d) === -1) blocks.push(d);
+                }
             });
-            return tabs;
+            return { tabs: tabs, blocks: blocks };
+        }
+
+        function markFolds(blocks) {
+            folds.forEach(function (d) {
+                if (blocks.indexOf(d) !== -1) return;
+                var mark = d.firstElementChild && d.firstElementChild.querySelector('[data-hwe-fold-dirty]');
+                if (mark) mark.hidden = true;
+            });
+            blocks.forEach(function (d) {
+                var mark = d.firstElementChild && d.firstElementChild.querySelector('[data-hwe-fold-dirty]');
+                if (mark) mark.hidden = false;
+            });
+            folds = blocks;
         }
 
         function refresh() {
             if (submitting) return;
-            var tabs = dirtyTabs();
+            var changes = dirty();
+            var tabs = changes.tabs;
+            markFolds(changes.blocks);
             var labels = [];
             document.querySelectorAll('[data-hwe-tab]').forEach(function (link) {
                 var on = tabs.indexOf(link.dataset.hweTab) !== -1;
@@ -480,6 +517,109 @@
     }
 
     // =========================================================================
+    // Bloques plegables (`<details data-hwe-fold>`): secciones de cada pestaña y subgrupos.
+    //
+    // Sin JS el navegador ya los pliega. Aquí: un botón que abre o cierra todos los de la pestaña
+    // activa (su etiqueta dice lo que hará), el estado de cada pestaña recordado en este
+    // navegador, y la regla de que lo que tiene el foco o un error de validación nunca queda
+    // escondido. Sin animación: es una superficie de uso diario.
+    // =========================================================================
+
+    var FOLD_STORE = 'hwe-cc-fold:';
+
+    // Un bloque que no se ve (otro idioma, apagado, hueco vacío…) no cuenta para «abrir todo».
+    function foldShown(d) {
+        if (d.closest('[hidden], .is-off-lang, .is-off-cond, .is-lang-empty')) return false;
+        return !(d.parentElement && d.parentElement.closest('details.is-off'));
+    }
+
+    function foldsOf(panel) {
+        return Array.prototype.filter.call(panel.querySelectorAll('details[data-hwe-fold]'), foldShown);
+    }
+
+    // `reveal`: además de abrir, enseña lo que un bloque apagado esconde (solo para un control inválido).
+    function openAncestors(el, reveal) {
+        for (var d = el.closest('details[data-hwe-fold]'); d; d = d.parentElement && d.parentElement.closest('details[data-hwe-fold]')) {
+            d.open = true;
+            if (reveal) d.classList.remove('is-off');
+        }
+    }
+
+    function initFold() {
+        var form = document.querySelector('[data-hwe-form]');
+        var btn = document.querySelector('[data-hwe-fold-all]');
+        if (!form) return;
+
+        function allOpen(folds) {
+            return folds.length > 0 && folds.every(function (d) { return d.open; });
+        }
+
+        function label() {
+            var panel = activePanel();
+            if (!btn || !panel) return;
+            var folds = foldsOf(panel);
+            var everyOpen = allOpen(folds);
+            btn.hidden = folds.length === 0;
+            btn.textContent = everyOpen ? (btn.dataset.close || 'Colapsar todo') : (btn.dataset.open || 'Abrir todo');
+            btn.dataset.state = everyOpen ? 'open' : 'closed';
+        }
+
+        // Estado por pestaña: una cadena 0/1 con el orden del DOM (si el panel cambia de forma, se descarta).
+        function store(panel) {
+            try {
+                var folds = panel.querySelectorAll('details[data-hwe-fold]');
+                var bits = Array.prototype.map.call(folds, function (d) { return d.open ? '1' : '0'; }).join('');
+                window.localStorage.setItem(FOLD_STORE + panel.dataset.hwePanel, bits);
+            } catch (e) {}
+        }
+
+        function restore(panel) {
+            var bits = '';
+            try { bits = window.localStorage.getItem(FOLD_STORE + panel.dataset.hwePanel) || ''; } catch (e) {}
+            var folds = panel.querySelectorAll('details[data-hwe-fold]');
+            if (bits.length !== folds.length) return;
+            Array.prototype.forEach.call(folds, function (d, i) { d.open = bits.charAt(i) === '1'; });
+        }
+
+        document.querySelectorAll('[data-hwe-panel]').forEach(restore);
+
+        if (btn) {
+            btn.addEventListener('click', function () {
+                var panel = activePanel();
+                if (!panel) return;
+                // El estado real al pulsar, no el de la última etiqueta: `toggle` llega con retraso.
+                var folds = foldsOf(panel);
+                var open = !allOpen(folds);
+                folds.forEach(function (d) { d.open = open; });
+                store(panel);
+                label();
+            });
+        }
+
+        // `toggle` no burbujea: se escucha en captura.
+        form.addEventListener('toggle', function (e) {
+            if (!e.target.matches || !e.target.matches('details[data-hwe-fold]')) return;
+            var panel = e.target.closest('[data-hwe-panel]');
+            if (panel) store(panel);
+            label();
+        }, true);
+
+        // Lo que recibe el foco no se queda escondido; un control inválido tampoco (el navegador
+        // no puede enseñar el aviso de uno dentro de un bloque cerrado y el envío se quedaría mudo).
+        form.addEventListener('focusin', function (e) {
+            // Pulsar una cabecera la enfoca: abrirla de nuevo impediría cerrarla.
+            if (!e.target.matches('summary')) openAncestors(e.target);
+        });
+        form.addEventListener('invalid', function (e) {
+            openAncestors(e.target, true);
+            var row = e.target.closest('.hwe-field');
+            if (row) row.classList.add('is-forced');
+        }, true);
+
+        onView(label);
+    }
+
+    // =========================================================================
     // Init on DOMContentLoaded
     // =========================================================================
 
@@ -589,9 +729,11 @@
         initMediaPickers();
         initRowsEditors();
         initSaveBar();
+        initFold();
         initProviderToggle();
         initSlots();
         initNotices();
         initEmailPreview();
+        refreshView();
     }
 })();
