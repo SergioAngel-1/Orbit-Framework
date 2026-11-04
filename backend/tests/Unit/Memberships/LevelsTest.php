@@ -605,6 +605,33 @@ final class LevelsTest extends TestCase
         $this->assertSame('hwe_memberships_manage', $args['capabilities']['edit_posts']);
         $this->assertSame('hwe_memberships_view', $args['capabilities']['read']);
     }
+
+    /**
+     * WordPress registra el valor de `edit_post`/`read_post`/`delete_post` como alias de esa meta
+     * capacidad (`_post_type_meta_capabilities`). Si es una capacidad primitiva del módulo,
+     * `current_user_can( 'hwe_memberships_manage' )` sin ID acaba en `map_meta_cap( 'delete_post' )`:
+     * aviso `_doing_it_wrong` en cada pantalla y `do_not_allow` incluso para el administrador.
+     */
+    public function testTheModuleCapabilitiesAreNotUsedAsMetaCapabilities(): void
+    {
+        \HWE_Memberships_Levels::registerPostType();
+        [, $args] = $this->registeredType;
+        $caps = $args['capabilities'];
+
+        foreach (['edit_post', 'read_post', 'delete_post'] as $meta) {
+            $this->assertNotContains(
+                $caps[$meta] ?? $meta,
+                ['hwe_memberships_manage', 'hwe_memberships_view'],
+                "{$meta} no puede apuntar a una capacidad primitiva del módulo."
+            );
+        }
+        $this->assertTrue($args['map_meta_cap'], 'Las meta capacidades se traducen a las primitivas de abajo.');
+        foreach (['edit_others_posts', 'edit_published_posts', 'edit_private_posts', 'publish_posts', 'delete_posts',
+            'delete_others_posts', 'delete_published_posts', 'delete_private_posts', 'create_posts'] as $primitive) {
+            $this->assertSame('hwe_memberships_manage', $caps[$primitive], $primitive);
+        }
+        $this->assertSame('hwe_memberships_view', $caps['read_private_posts']);
+    }
 }
 
 /** Doble mínimo de `$wpdb` para la comprobación de socios. */

@@ -6,6 +6,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed
+- **Membresías: el CPT de niveles ya no registra las capacidades del módulo como meta capacidades.**
+  `edit_post`/`read_post`/`delete_post` apuntaban a `hwe_memberships_manage`/`hwe_memberships_view`, y
+  WordPress las guarda como alias de esas meta capacidades: cada `current_user_can()` sin ID de entrada
+  (menú, guardas del panel) acababa en `map_meta_cap( 'delete_post' | 'read_post' )`, con el aviso
+  `_doing_it_wrong` en cada pantalla del panel (que con `display_errors` rompe las redirecciones) y
+  `do_not_allow` incluso para el administrador. Ahora solo se declaran las primitivas; los permisos por
+  nivel no cambian.
+
 ## [2.6.0] — 2026-11-02
 
 Cierra los huecos que encontró la primera instancia al integrar la 2.5.0. Las imágenes que el BFF lee
