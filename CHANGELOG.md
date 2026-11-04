@@ -7,6 +7,22 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Changed
+- **El Control Center se reorganiza por tareas y lleva la marca de la tienda.** La pantalla «HWE Config»
+  pasa de hasta 18 pestañas en el orden del esquema a una navegación lateral en tres capas —*Negocio*
+  (Tienda, Pagos, Envíos, Atención al cliente y, bajo «Módulos», Fidelización, Membresías, Landings y
+  Banners), *Marca y visibilidad* (Marca, Buscadores e IA) y *Puesta en marcha* (Sitio e idiomas, Correo,
+  Analítica y marketing, Servicios y privacidad, Copias de seguridad, Instancia)— con secciones que dicen
+  para qué sirven. La prueba de correo y su vista previa pasan a «Correo». **No cambia ningún dato:** rutas
+  del esquema, `name` de los inputs, guardado, `/wp-json/hwe/v1/config` y `contract/` quedan idénticos.
+  El reparto es un dato del núcleo (`PanelMap`, aplicado por `PanelLayout`): un campo que el mapa no
+  nombra —nuevo, de un módulo o de la instancia— cae en «Otros ajustes» de la pestaña de su clave raíz,
+  con sus variantes traducibles pegadas, y el atributo `panel` del esquema sigue funcionando (ahora con una
+  clave de pestaña o de raíz); los campos de entidad de marca del núcleo ya no lo usan. La barra de guardado
+  marca las pestañas con cambios y avisa al salir sin guardar; la pestaña activa vive en la URL (`#pestaña`)
+  y sobrevive al guardado. La piel sigue `DESIGN.md`: neutros y controles de wp-admin, y la marca de la
+  instancia (`design.colors.brand`, `brand.logo`, `brand.name`) solo para estado activo, acción y foco, con
+  caída a tinta o blanco si un color no llega a AA y reserva Orbit sin marca. `admin.css` pierde degradados,
+  brillos, cristal, sombras de adorno y animaciones de entrada; el panel se usa a 782 px y 390 px.
 - **El login del panel lleva la marca de la instancia.** `hwe-admin-branding` pinta el login con
   `brand.name` (o `brand.logo`) y `design.colors` del Control Center —fondo `surface`, formulario en
   `background`, botón en `brand`— y deja Orbit como un «Con HWE Orbit» pequeño al pie. Cada texto se

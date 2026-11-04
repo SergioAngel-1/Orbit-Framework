@@ -176,6 +176,13 @@ La fuente única de los campos es `backend/wp-content/mu-plugins/hwe-control-cen
 (los grupos del núcleo, por tema, en `hwe-control-center/SchemaGroups/`). Los campos `public` salen
 por `GET /wp-json/hwe/v1/config`; los `secret` se cifran en reposo y no salen nunca.
 
+**Cómo se organiza el panel.** «HWE Config» agrupa las pestañas en tres capas: *Negocio* (Tienda,
+Pagos, Envíos, Atención al cliente y los módulos activos), *Marca y visibilidad* (Marca, Buscadores e
+IA) y *Puesta en marcha* (Sitio e idiomas, Correo, Analítica y marketing, Servicios y privacidad,
+Copias de seguridad e Instancia). Qué campo va en qué sección lo declara `PanelMap.php`; lo que no
+nombra cae en «Otros ajustes» de la pestaña de su clave raíz. Es solo presentación: la tabla de abajo
+sigue las rutas del dato.
+
 Los valores de una instancia se siembran con `wp hwe setup instance.config.json`
 (`docs/CREATE_INSTANCE.md`; plantilla: `backend/scripts/instance.config.example.json`).
 
@@ -189,7 +196,7 @@ Los valores de una instancia se siembran con `wp hwe setup instance.config.json`
 | Integraciones | ids de analítica, Mapas (`maps_provider`, `maps_api_key`), `consent_retention_years`, SMTP (+ `meta_capi_*` por canal interno) | Cada id activa su proveedor; vacío = desactivado. La clave de mapas se guarda cifrada y solo la usa el servidor. |
 | Legal → Sedes | opcionales, hasta 5 (`location_1…location_5`) | Alimentan el JSON-LD `LocalBusiness` y la página de contacto. El panel solo enseña las que tienen datos y un botón «Añadir sede»; «Quitar sede» vacía el hueco al guardar. |
 | Acceso (`auth`) | `phone_login_enabled`, `phone_default_dial_code` | Login y registro con el teléfono (E.164, único). Apagado por defecto. |
-| SEO / GEO | `seo.*`, `geo.*` | Dos pestañas: «SEO» y «GEO (IA)». Las señales de entidad (`seo.organization_logo`, `founding_date`, `knows_about`, `alternate_names`, `founder_*`) se editan en GEO aunque su ruta siga en `seo.*`. `faq` y `faq_payments` son traducibles (formato «pregunta \| respuesta»). |
+| SEO / GEO | `seo.*`, `geo.*` | Una pestaña, «Buscadores e IA»; las FAQ (`geo.faq`, `geo.faq_payments`) se editan en «Atención al cliente». La ruta del dato no cambia. `faq` y `faq_payments` son traducibles (formato «pregunta \| respuesta»). |
 | Backups | frecuencia, retención, `keep_only_latest`, `exclude_thumbnails`, `include_config_export`, `notify_email` | Ver `RUNBOOK.md`: el panel escribe `hwe-backup-config.json` y el contenedor `backup` lo lee. |
 | `instance` | lo que declare la instancia | Pestaña «Instancia»; los campos `public` salen en `instance.<grupo>.<campo>`. Ver `docs/PLUGIN_DEVELOPMENT.md`. |
 | `shipping`, `landings`, `loyalty` | los puebla el módulo | Grupos raíz reservados: solo los rellena el plugin del módulo. |
@@ -223,7 +230,7 @@ navegador.
 
 ### Envío → Distancia
 
-*Control Center → Envío* (grupo `shipping`, del módulo `shipping`). Estos campos solo afectan a las ciudades
+*Control Center → Envíos* (grupo `shipping`, del módulo `shipping`). Estos campos solo afectan a las ciudades
 con envío **por distancia**; las ciudades fijas no los usan. El proveedor y su clave están en *Integraciones →
 Mapas* (arriba). Ninguno de estos campos sale por `/wp-json/hwe/v1/config`, salvo `shipping.distance_enabled`
 (calculado: hay al menos una ciudad por distancia).
