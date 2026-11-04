@@ -13,7 +13,7 @@
  * cierran las vías nativas:
  *
  *   - El enlace «Registrarse» del login, de recuperar contraseña y de `wp_register()`
- *     (filtro `register`).
+ *     (filtro `register`), con su separador « | » (`login_link_separator`).
  *   - `?action=register` del login (formulario y envío): vuelve al login con
  *     `registration=disabled`, el aviso nativo de «registro no permitido». Con
  *     `hwe-login-slug` la URL sale ya por el slug.
@@ -48,6 +48,19 @@ function hwe_native_registration_link( $link ) {
 	return hwe_native_registration_allowed() ? $link : '';
 }
 add_filter( 'register', 'hwe_native_registration_link' );
+
+/**
+ * Sin enlace, el « | » que wp-login.php pinta delante (o detrás) de él quedaría huérfano en el
+ * login, recuperar contraseña y restablecerla: `users_can_register` sigue activo. El único otro
+ * uso del separador está en el formulario de registro, que ya no se sirve.
+ *
+ * @param mixed $separator
+ * @return mixed
+ */
+function hwe_native_registration_link_separator( $separator ) {
+	return hwe_native_registration_allowed() ? $separator : '';
+}
+add_filter( 'login_link_separator', 'hwe_native_registration_link_separator' );
 
 /** Login con el aviso nativo de registro cerrado. */
 function hwe_native_registration_disabled_url(): string {

@@ -16,9 +16,11 @@
  *   qr        la CSP vuelve a permitir api.qrserver.com
  *   powered   el frontend manda X-Powered-By
  *   wp-headers  las rutas de WordPress no llevan cabeceras de seguridad
+ *   register  `?action=register` del login sirve el formulario de registro nativo
  *
  * Otras variables: STACK_SECRET (secreto interno), STACK_WC_SECRET (webhooks de Woo),
- * STACK_BROKEN=1 (WordPress rechaza TODO, incluso con el secreto: una pila rota).
+ * STACK_BROKEN=1 (WordPress rechaza TODO, incluso con el secreto: una pila rota),
+ * STACK_LOGIN_SLUG (el login se sirve en /<slug> y /wp-login.php da 404, como `hwe-login-slug`).
  */
 
 declare(strict_types=1);
@@ -72,7 +74,16 @@ if (str_starts_with($path, '/wp-json/hwe/v1/auth/')) {
 if ($path === '/wp-json/hwe/v1/config') {
     reply(['brand' => ['name' => 'Pila de pega']]);
 }
-if ($path === '/wp-login.php') {
+$loginSlug = (string) getenv('STACK_LOGIN_SLUG');
+if ($loginSlug !== '' && $path === '/wp-login.php') {
+    http_response_code(404);
+    exit;
+}
+if ($path === '/wp-login.php' || ($loginSlug !== '' && $path === '/' . $loginSlug)) {
+    if (($query['action'] ?? '') === 'register' && !$leak('register')) {
+        header('Location: ' . $path . '?registration=disabled', true, 302);
+        exit;
+    }
     http_response_code(200);
     if (!$leak('wp-headers')) {
         header('X-Frame-Options: SAMEORIGIN');

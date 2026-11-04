@@ -40,7 +40,7 @@ final class VerifySecurityTest extends ShellScriptTestCase
     }
 
     /** Arranca la pila de pega en un puerto libre y devuelve su URL base. */
-    private function startStack(string $leaks = '', bool $broken = false): string
+    private function startStack(string $leaks = '', bool $broken = false, string $loginSlug = ''): string
     {
         $probe = stream_socket_server('tcp://127.0.0.1:0');
         $this->assertNotFalse($probe);
@@ -60,6 +60,7 @@ final class VerifySecurityTest extends ShellScriptTestCase
                 'STACK_WC_SECRET' => self::WC_SECRET,
                 'STACK_LEAK' => $leaks,
                 'STACK_BROKEN' => $broken ? '1' : '0',
+                'STACK_LOGIN_SLUG' => $loginSlug,
             ]
         );
         $this->assertIsResource($this->server);
@@ -138,6 +139,7 @@ final class VerifySecurityTest extends ShellScriptTestCase
         yield 'CSP que vuelve a permitir qrserver' => ['qr', 'qrserver'];
         yield 'X-Powered-By expuesto' => ['powered', 'X-Powered-By'];
         yield 'WordPress sin cabeceras de seguridad' => ['wp-headers', 'WordPress'];
+        yield 'registro nativo abierto' => ['register', 'Registro nativo'];
     }
 
     #[DataProvider('leaks')]
@@ -152,6 +154,17 @@ final class VerifySecurityTest extends ShellScriptTestCase
         $failed = array_values(array_filter(explode("\n", $out), static fn (string $l) => str_contains($l, '✗')));
         $this->assertNotEmpty($failed);
         $this->assertStringContainsStringIgnoringCase($expected, implode("\n", $failed), "El fallo no nombra «{$expected}»:\n{$out}");
+    }
+
+    public function testTheRegistrationCheckFollowsTheLoginSlug(): void
+    {
+        $base = $this->startStack('', false, 'acceso-de-prueba');
+
+        $without = $this->verify($base);
+        $this->assertStringContainsString('pasa HWE_LOGIN_SLUG', $without['stdout'], 'Sin el slug, el 404 se omite, no aprueba.');
+
+        $with = $this->verify($base, ['HWE_LOGIN_SLUG' => 'acceso-de-prueba']);
+        $this->assertStringContainsString('/acceso-de-prueba?action=register → 302 con registration=disabled', $with['stdout']);
     }
 
     // ── Un 404 de una pila rota no es un falso verde ──────────────────────────

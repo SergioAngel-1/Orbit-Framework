@@ -20,9 +20,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `users_can_register` porque `registerUser` de WPGraphQL lo exige, y eso también abría el
   «Registrarse» del login del panel (también con `HWE_LOGIN_SLUG`) y `?action=register`, que creaban
   cuentas sin las validaciones, el rate-limit ni el consentimiento del BFF. El mu-plugin nuevo
-  `hwe-native-registration.php` quita el enlace, devuelve `?action=register` al login con el aviso
-  nativo y rechaza `register_new_user()` fuera de una petición GraphQL. Filtro nuevo
-  `hwe_native_registration` para reabrirlo.
+  `hwe-native-registration.php` quita el enlace (y su separador « | »), devuelve `?action=register` al
+  login con el aviso nativo y rechaza `register_new_user()` fuera de una petición GraphQL. Filtro nuevo
+  `hwe_native_registration` para reabrirlo. `verify-security.sh` lo comprueba en vivo (sección 5, con
+  `HWE_LOGIN_SLUG` si el login está en un slug).
 - **Membresías: el CPT de niveles ya no registra las capacidades del módulo como meta capacidades.**
   `edit_post`/`read_post`/`delete_post` apuntaban a `hwe_memberships_manage`/`hwe_memberships_view`, y
   WordPress las guarda como alias de esas meta capacidades: cada `current_user_can()` sin ID de entrada

@@ -35,6 +35,7 @@ final class NativeRegistrationTest extends TestCase
     public function testHooksIntoTheLoginLinkTheRegisterActionAndRegisterNewUser(): void
     {
         Filters\expectAdded('register')->once()->with('hwe_native_registration_link');
+        Filters\expectAdded('login_link_separator')->once()->with('hwe_native_registration_link_separator');
         Actions\expectAdded('login_form_register')->once()->with('hwe_native_registration_block_form');
         Filters\expectAdded('registration_errors')->once()->with('hwe_native_registration_errors');
 
@@ -46,6 +47,7 @@ final class NativeRegistrationTest extends TestCase
         $this->loadOwnFile('mu-plugins/hwe-native-registration.php');
 
         $this->assertSame('', hwe_native_registration_link('<a class="wp-login-register" href="#">Registrarse</a>'));
+        $this->assertSame('', hwe_native_registration_link_separator(' | '), 'Sin el enlace, el separador quedaría huérfano.');
     }
 
     public function testTheRegisterActionGoesBackToTheLoginWithTheNativeNotice(): void
@@ -64,6 +66,16 @@ final class NativeRegistrationTest extends TestCase
     {
         $this->loadOwnFile('mu-plugins/hwe-native-registration.php');
         Functions\when('is_graphql_request')->justReturn(false);
+
+        $errors = hwe_native_registration_errors(new \WP_Error());
+
+        $this->assertSame(['hwe_registration_disabled'], $errors->get_error_codes());
+    }
+
+    public function testWithoutWpgraphqlNativeRegistrationStaysClosed(): void
+    {
+        $this->loadOwnFile('mu-plugins/hwe-native-registration.php');
+        $this->assertFalse(function_exists('is_graphql_request'), 'Sin WPGraphQL no existe la función.');
 
         $errors = hwe_native_registration_errors(new \WP_Error());
 
@@ -90,6 +102,7 @@ final class NativeRegistrationTest extends TestCase
 
         hwe_native_registration_block_form();
         $this->assertSame('<a>Registrarse</a>', hwe_native_registration_link('<a>Registrarse</a>'));
+        $this->assertSame(' | ', hwe_native_registration_link_separator(' | '));
         $this->assertSame([], hwe_native_registration_errors(new \WP_Error())->get_error_codes());
     }
 }
