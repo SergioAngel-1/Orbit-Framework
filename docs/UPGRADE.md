@@ -471,6 +471,29 @@ fusionar. Desde la 2.6.0 el script usa la frontera de la release que entra.
 
 `HWE_CORE_CONTRACT_VERSION` pasa a `2.6.0`.
 
+## 3.10 Próxima versión, sin publicar (nota de actualización)
+
+Sin cambios de contrato. Lo que cambia en el panel de WordPress de cada instancia:
+
+- **El registro nativo de WordPress queda cerrado** (`mu-plugins/hwe-native-registration.php`): el
+  login del panel deja de ofrecer «Registrarse», `?action=register` vuelve al login con
+  `registration=disabled` y `register_new_user()` solo prospera dentro de una petición GraphQL.
+  `users_can_register` no cambia y el alta por el BFF (`/api/auth/register` → `registerUser`) sigue
+  igual. Si tu instancia usa el formulario nativo a propósito, ábrelo con
+  `add_filter( 'hwe_native_registration', '__return_true' );` en `mu-plugins/instance/`.
+  `verify-security.sh` lo comprueba (sección 5; pásale `HWE_LOGIN_SLUG` si usas el slug).
+- **El login del panel lleva tu marca** (`hwe-admin-branding`): `brand.name` o `brand.logo` y
+  `design.colors` del Control Center, con «Con HWE Orbit» pequeño al pie. Sin logo y con el nombre de
+  serie (`HWE-Orbit`), sigue el login de Orbit. Para el login de WordPress sin marca, apágalo con
+  `add_filter( 'hwe_admin_branding', '__return_false' );` (también quita el esquema de color «HWE
+  Orbit»).
+- **Membresías:** el CPT de niveles deja de declarar `edit_post`/`read_post`/`delete_post` con
+  `hwe_memberships_manage`/`hwe_memberships_view`. Desaparecen los avisos de `map_meta_cap` y el
+  administrador vuelve a pasar `current_user_can( 'hwe_memberships_manage' )`. Sin acción salvo que tu
+  código lea `get_post_type_object( 'hwe_membership_level' )->cap->edit_post`, `->read_post` o `->delete_post`: ahora
+  valen `edit_post`/`read_post`/`delete_post` (meta capacidades del core) y hay que comprobarlas con el ID del
+  nivel.
+
 ## 4. Reglas para el framework (para que esto siga funcionando)
 
 - Todo cambio de núcleo se publica como release taggeada + entrada de CHANGELOG.

@@ -116,6 +116,10 @@ final class HWE_Memberships_Levels {
 			'not_found_in_trash' => __( 'No hay niveles en la papelera', 'hwe' ),
 		);
 
+		// Solo primitivas. `edit_post`/`read_post`/`delete_post` se dejan a WordPress: el valor
+		// que se les dé queda registrado como alias de esa meta capacidad, y con una primitiva
+		// del módulo `current_user_can( CAP_MANAGE )` sin ID acabaría en `map_meta_cap( 'delete_post' )`
+		// (aviso `_doing_it_wrong` y `do_not_allow`). Con `map_meta_cap` se traducen a estas.
 		$capabilities = array(
 			'read'                   => self::CAP_VIEW,
 			'edit_posts'             => self::CAP_MANAGE,
@@ -129,9 +133,6 @@ final class HWE_Memberships_Levels {
 			'delete_published_posts' => self::CAP_MANAGE,
 			'delete_private_posts'   => self::CAP_MANAGE,
 			'create_posts'           => self::CAP_MANAGE,
-			'edit_post'              => self::CAP_MANAGE,
-			'read_post'              => self::CAP_VIEW,
-			'delete_post'            => self::CAP_MANAGE,
 		);
 
 		register_post_type(

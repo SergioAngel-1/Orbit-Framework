@@ -21,6 +21,8 @@
 #    4. Cabeceras de seguridad del frontend (CSP sin generadores de QR externos, nosniff,
 #       X-Frame-Options, Referrer-Policy, Permissions-Policy, sin X-Powered-By) y, con
 #       PUBLIC_URL, las de las rutas que Caddy sirve directo desde WordPress.
+#    5. El registro nativo de WordPress está cerrado (`hwe-native-registration`):
+#       `?action=register` del login redirige con `registration=disabled`.
 #
 #  Uso:
 #    WP_URL=http://localhost:8080 BFF_URL=http://localhost:3000 \
@@ -38,6 +40,8 @@
 #    WC_WEBHOOK_SECRET         firma de los webhooks de WooCommerce
 #    VERIFY_2FA_USERNAME / VERIFY_2FA_PASSWORD   usuario CON 2FA activo (se crea con
 #                    /account/security: no se puede automatizar sin TOTP)
+#    HWE_LOGIN_SLUG  (opcional) slug del login del panel (`hwe-login-slug`); sin él se usa
+#                    /wp-login.php, que con el slug activo responde 404
 #
 #  Lo que falta un secreto/usuario se OMITE y se dice; con --strict, omitir cuenta como
 #  fallo (úsalo en la aceptación). Salida: 0 todo bien · 1 algún fallo · 2 la pila no
@@ -74,6 +78,7 @@ SECRET="${HWE_REVALIDATION_SECRET:-}"
 WC_SECRET="${WC_WEBHOOK_SECRET:-}"
 USER_2FA="${VERIFY_2FA_USERNAME:-}"
 PASS_2FA="${VERIFY_2FA_PASSWORD:-}"
+LOGIN_SLUG="${HWE_LOGIN_SLUG:-}"
 
 umask 077
 TMP="$(mktemp -d)"
@@ -339,6 +344,29 @@ if [ -n "$PUBLIC_URL" ]; then
 else
 	skip "Cabeceras de las rutas de WordPress (sin PUBLIC_URL: dominio público tras Caddy)"
 fi
+
+# ── 5. Registro nativo ───────────────────────────────────────────────────────
+section "5. El registro nativo de WordPress está cerrado (hwe-native-registration)"
+LOGIN_PATH="/wp-login.php"
+[ -n "$LOGIN_SLUG" ] && LOGIN_PATH="/$LOGIN_SLUG"
+http GET "$WP_URL$LOGIN_PATH?action=register"
+LOCATION="$(header_of Location)"
+case "$HTTP_CODE" in
+	301 | 302 | 303 | 307)
+		case "$LOCATION" in
+			*registration=disabled*) ok "$LOGIN_PATH?action=register → $HTTP_CODE con registration=disabled" ;;
+			*) bad "$LOGIN_PATH?action=register → $HTTP_CODE hacia «$LOCATION» (debería llevar registration=disabled)" ;;
+		esac
+		;;
+	404)
+		if [ -z "$LOGIN_SLUG" ]; then
+			skip "Registro nativo: /wp-login.php → 404 (con hwe-login-slug activo, pasa HWE_LOGIN_SLUG)"
+		else
+			bad "Registro nativo: $LOGIN_PATH → 404: el slug no sirve el login"
+		fi
+		;;
+	*) bad "Registro nativo abierto: $LOGIN_PATH?action=register → HTTP $HTTP_CODE (debería redirigir con registration=disabled)" ;;
+esac
 
 # ── Resumen ──────────────────────────────────────────────────────────────────
 echo ""

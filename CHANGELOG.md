@@ -6,6 +6,33 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Changed
+- **El login del panel lleva la marca de la instancia.** `hwe-admin-branding` pinta el login con
+  `brand.name` (o `brand.logo`) y `design.colors` del Control Center —fondo `surface`, formulario en
+  `background`, botón en `brand`— y deja Orbit como un «Con HWE Orbit» pequeño al pie. Cada texto se
+  comprueba contra su fondo (WCAG AA, 4,5:1) y el anillo de foco (contorno de 2 px) contra el
+  formulario y la página (3:1); si un color no llega, cae a tinta, blanco o gris medio. Los avisos
+  del login (y sus enlaces) toman el fondo y el texto del formulario y conservan el rojo y el verde
+  de error y éxito del core. Sin logo y con el nombre de serie del esquema (`HWE-Orbit`), el login
+  sigue siendo el de Orbit. Funciona igual bajo `HWE_LOGIN_SLUG`.
+
+### Fixed
+- **El registro nativo de WordPress queda cerrado; el del BFF sigue igual.** `setup.sh` activa
+  `users_can_register` porque `registerUser` de WPGraphQL lo exige, y eso también abría el
+  «Registrarse» del login del panel (también con `HWE_LOGIN_SLUG`) y `?action=register`, que creaban
+  cuentas sin las validaciones, el rate-limit ni el consentimiento del BFF. El mu-plugin nuevo
+  `hwe-native-registration.php` quita el enlace (y su separador « | »), devuelve `?action=register` al
+  login con el aviso nativo y rechaza `register_new_user()` fuera de una petición GraphQL. Filtro nuevo
+  `hwe_native_registration` para reabrirlo. `verify-security.sh` lo comprueba en vivo (sección 5, con
+  `HWE_LOGIN_SLUG` si el login está en un slug).
+- **Membresías: el CPT de niveles ya no registra las capacidades del módulo como meta capacidades.**
+  `edit_post`/`read_post`/`delete_post` apuntaban a `hwe_memberships_manage`/`hwe_memberships_view`, y
+  WordPress las guarda como alias de esas meta capacidades: cada `current_user_can()` sin ID de entrada
+  (menú, guardas del panel) acababa en `map_meta_cap( 'delete_post' | 'read_post' )`, con el aviso
+  `_doing_it_wrong` en cada pantalla del panel (que con `display_errors` rompe las redirecciones) y
+  `do_not_allow` incluso para el administrador. Ahora solo se declaran las primitivas; los permisos por
+  nivel no cambian.
+
 ## [2.6.0] — 2026-11-02
 
 Cierra los huecos que encontró la primera instancia al integrar la 2.5.0. Las imágenes que el BFF lee
