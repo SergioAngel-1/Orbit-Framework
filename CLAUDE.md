@@ -44,6 +44,13 @@ dos capas que **no debes confundir** (ver `AGENTS.md §1.1`):
   puerta anti-instancia de CI (`.github/scripts/check-anti-instance.sh`) falla con cualquier
   resto (nombres, slugs, dominios, y también palabras comunes que contengan un token prohibido).
   El ejemplo vivo es `examples/instance-minimal/` (job «contrato» de CI).
+- **La frontera es un dato, no una convención:** `tools/boundaries.json` asigna a cada ruta
+  `owner: core | instance | gray` (gana la primera regla que casa; una instancia antepone las suyas
+  en `tools/boundaries.local.json`). Lo leen la regla de ESLint de arriba, `tools/upgrade-check.mjs`
+  y los tests de frontera: si mueves o creas una ruta de instancia, actualiza ese fichero.
+- `DESIGN.md` y `PRODUCT.md` describen la identidad de **HWE Orbit, el producto** (son
+  `owner: instance` para que cada tienda los sustituya), no el diseño de las tiendas. La versión
+  del framework está en `FRAMEWORK_VERSION`.
 
 El contrato estable entre backend/BFF y cualquier frontend está en `docs/FRONTEND_CONNECT.md`, y en
 formato que lee una máquina en `contract/` (JSON Schema de `/config`, OpenAPI del BFF; generados y
@@ -70,6 +77,12 @@ npx next build         # ⭐ la verificación definitiva antes de dar por termin
 
 Desde `backend/`: `composer test` (PHPUnit 12 + Brain Monkey). Contra la pila levantada:
 `sh backend/scripts/verify-security.sh`, `verify-modules.sh` y `verify-integration.sh`.
+
+Desde la raíz (`tools/`, Node ≥ 20 sin dependencias): `node tools/doctor.mjs [--frontend URL]
+[--wordpress URL]` revisa la integración contra una pila levantada (orígenes de marca/correo,
+sitemap, JSON-LD, imágenes del BFF); `node tools/upgrade-check.mjs vX.Y.Z` comprueba el merge de
+una release sobre una instancia con la frontera de `boundaries.json`; `bash tools/create-instance.sh
+<slug> [--dry-run]` automatiza el alta de una instancia (`docs/CREATE_INSTANCE.md` §2–7).
 
 - **Los tests unitarios viven colocados** junto al código (`src/**/*.test.ts(x)`; los de
   componentes en `jsdom`) y en `frontend/tests/unit/` (infraestructura y despliegue). `server-only`
