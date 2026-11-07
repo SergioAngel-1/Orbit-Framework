@@ -68,7 +68,7 @@ describe("buildLlmsTxt", () => {
       const body = (await buildLlmsTxt("es"))!;
       expect(body).toContain("# Mi Tienda");
       expect(body).toContain(
-        "- [Inicio](https://mitienda.example/): Página principal de Mi Tienda.",
+        "- [Inicio](https://mitienda.example): Página principal de Mi Tienda.",
       );
       expect(body).toContain("(https://mitienda.example/products)");
       expect(body).toContain(

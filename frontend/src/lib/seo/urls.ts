@@ -108,8 +108,19 @@ export function entityPaths(
   );
 }
 
+/**
+ * Une una URL base y una ruta localizada (`localizedPath`). La home NO lleva barra final
+ * (`https://tienda.example`, `https://tienda.example/en`): es la forma que Next emite en
+ * `<link rel="canonical">`, `og:url` y `hreflang` (los reduce a `origin` cuando la ruta es
+ * `/`), y sitemap, JSON-LD y `llms.txt` tienen que coincidir con ella para que una misma
+ * URL no salga en dos formas. Es la única función que compone URLs absolutas del sitio.
+ */
+export function absoluteSiteUrl(base: string, localized: string): string {
+  const clean = (base || "").replace(/\/$/, "");
+  return `${clean}${localized === "/" ? "" : localized}`;
+}
+
 /** URL absoluta y localizada (para JSON-LD, que exige URLs completas). */
 export function absoluteLocalized(base: string, path: string, locale: string): string {
-  const clean = (base || "").replace(/\/$/, "");
-  return `${clean}${localizedPath(path, locale)}`;
+  return absoluteSiteUrl(base, localizedPath(path, locale));
 }

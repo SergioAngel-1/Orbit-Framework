@@ -7,6 +7,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **SEO · la home tiene una sola forma de URL, sin barra final.** Next emite la canónica, `og:url` y
+  `hreflang` de la home como `https://tienda.example` (reduce `/` a `origin`), mientras sitemap, miga de
+  pan y `llms.txt` la daban como `https://tienda.example/`. Todo el núcleo compone ahora las URLs absolutas
+  con `absoluteSiteUrl` / `absoluteLocalized` (`lib/seo/urls.ts`), que quitan la barra de la home; la de un
+  idioma con prefijo ya era `/en`. Una instancia que fije la URL de su home a mano debe usar esa forma.
 - **SEO · `robots.txt` con la guarda `HWE_NOINDEX`.** Antes servía `Disallow: /` a todos y los
   rastreadores de vista previa de enlaces (facebookexternalhit/Facebot, Twitterbot, LinkedInBot,
   Slackbot, WhatsApp, TelegramBot, Discordbot, Pinterestbot…) no podían leer la página ni su `og:image`:

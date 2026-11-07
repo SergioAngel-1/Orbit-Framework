@@ -99,6 +99,13 @@ describe("absoluteLocalized", () => {
   });
 });
 
+describe("absoluteLocalized: la home no lleva barra final", () => {
+  it("coincide con la forma que Next emite en canonical, og:url y hreflang", () => {
+    expect(absoluteLocalized("https://x.example/", "/", "es")).toBe("https://x.example");
+    expect(absoluteLocalized("https://x.example", "/", "en")).toBe("https://x.example/en");
+  });
+});
+
 describe("entityPaths", () => {
   it("antepone el prefijo al tramo de cada idioma y lo escapa", () => {
     expect(entityPaths("/products", { es: "camiseta", en: "t shirt" })).toEqual({
