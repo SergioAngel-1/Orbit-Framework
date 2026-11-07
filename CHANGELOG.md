@@ -7,6 +7,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **SEO · `llms.txt` sin enlaces relativos.** El núcleo ya compone sus enlaces con URL completa, pero el
+  copy de `llms.txt` vive en i18n (`llms.pages.*.text`) y una instancia puede añadir líneas con enlaces
+  propios (`[Garantía](/garantia)`): un agente que lee el fichero fuera del sitio no sabe resolverlos.
+  `buildLlmsTxt` pasa ahora el resultado por `absolutizeLinks`, que antepone `brand.url` a los enlaces
+  markdown de ruta raíz (`//host` y las URLs absolutas no se tocan).
 - **`www` → apex en un solo salto.** `http://www.<dominio>` iba primero a `https://www` (redirección
   automática de Caddy) y de ahí al apex. El bloque de `www` del `Caddyfile` declara ahora las dos
   direcciones (`http://` y `https://`), así que redirige directo con un 301. Comprobado contra
