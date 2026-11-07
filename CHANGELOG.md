@@ -6,6 +6,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed
+- **SEO · `robots.txt` con la guarda `HWE_NOINDEX`.** Antes servía `Disallow: /` a todos y los
+  rastreadores de vista previa de enlaces (facebookexternalhit/Facebot, Twitterbot, LinkedInBot,
+  Slackbot, WhatsApp, TelegramBot, Discordbot, Pinterestbot…) no podían leer la página ni su `og:image`:
+  las tarjetas al compartir un sitio en prelanzamiento salían sin imagen. Ahora esos agentes
+  (`LINK_PREVIEW_AGENTS`, única lista, en `app/_robots/build.ts`) pueden leer las páginas públicas, con las
+  vistas privadas vetadas; el grupo `*` (buscadores y bots de IA) sigue en `Disallow: /`, y `noindex` por
+  meta y `X-Robots-Tag` no cambia. En desarrollo sigue todo vetado.
+
 ### Changed
 - **El Control Center se pliega y se traduce desde el propio panel.** Cada sección de pestaña y cada
   subgrupo anidado (sedes, credenciales de pasarela, cada landing, sus secciones y preguntas…) es un
