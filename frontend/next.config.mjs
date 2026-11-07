@@ -261,6 +261,13 @@ const nextConfig = withNextIntl({
     // lista responde 400. 75 es el defecto de `next/image`; 90 para donde la
     // compresión se VE (degradados amplios, ilustración plana).
     qualities: [75, 90],
+    // AVIF si el navegador lo acepta (`Accept: image/avif`), WebP si no. Con sharp y la
+    // calidad 75 por defecto (Next la baja a ~47 en AVIF), 18 casos reales (6 fotos del
+    // catálogo × 640/828/1080 px): -27 a -41 % de bytes (mediana -33 %, p. ej. 21,9 → 16,1 KB
+    // a 1080 px) con menos distorsión SSIM que el WebP. El coste es de CPU, una vez por
+    // variante: ~3x el de WebP (130-435 ms frente a 46-135 ms con la concurrencia de Next
+    // en 4 vCPU) y después la caché (`minimumCacheTTL`) la sirve sin tocar sharp.
+    formats: ["image/avif", "image/webp"],
     // Next 16+ bloquea por defecto el fetch a IPs privadas (defensa SSRF). El
     // origen interno (`http://wordpress`) y `localhost` en desarrollo resuelven a
     // una IP privada: sin esto, `_next/image` responde 400. `remotePatterns`

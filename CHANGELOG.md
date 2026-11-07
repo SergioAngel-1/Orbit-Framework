@@ -37,6 +37,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   meta y `X-Robots-Tag` no cambia. En desarrollo sigue todo vetado.
 
 ### Changed
+- **Imágenes · `next/image` sirve AVIF si el navegador lo acepta** (`images.formats: ["image/avif",
+  "image/webp"]`), WebP si no. Medido con 18 casos reales: -27 a -41 % de bytes (mediana -33 %) con menos
+  distorsión que el WebP. El coste es CPU del servidor, una vez por variante (~3x el de WebP) y luego
+  `minimumCacheTTL` la sirve sin tocar sharp: en un VPS pequeño, el primer barrido del catálogo es más
+  lento. Para volver a solo WebP, quita `image/avif` de la lista. Recogido de la instancia Doohi.
 - **El Control Center se pliega y se traduce desde el propio panel.** Cada sección de pestaña y cada
   subgrupo anidado (sedes, credenciales de pasarela, cada landing, sus secciones y preguntas…) es un
   `<details>` nativo: las secciones de primer nivel abren de serie y los subgrupos arrancan plegados. Bajo
