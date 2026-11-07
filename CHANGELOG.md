@@ -6,6 +6,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **`/.well-known/security.txt` (RFC 9116).** Ruta nueva (`app/.well-known/security.txt/route.ts`, builder
+  puro en `lib/seo/security-txt.ts`) con `Contact: mailto:` del correo legal del Control Center (Legal →
+  Correo), `Expires` renovado solo (180 días, truncado al día), `Preferred-Languages` con los idiomas del
+  sitio y `Canonical`. Sin correo válido o con la config degradada responde 404. Una instancia que quiera
+  otro contacto (o publicar otro descriptor en `/.well-known/`, p. ej. el de su servidor MCP) añade su
+  propia ruta bajo `app/.well-known/<nombre>/` y la declara `owner: instance` en
+  `tools/boundaries.local.json`; el núcleo no necesita un punto de extensión para eso.
+
 ### Fixed
 - **SEO · el nodo `WebSite` del JSON-LD ya no declara `SearchAction`.** Google retiró el cuadro de búsqueda
   de los sitelinks en noviembre de 2024: la marca no tenía efecto y apuntaba a un `?search=` que el
