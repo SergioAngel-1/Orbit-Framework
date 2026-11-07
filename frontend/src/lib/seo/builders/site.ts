@@ -1,8 +1,6 @@
 import type { SiteConfig } from "@/lib/config/types";
 import { brandDescription } from "@/lib/config/brand";
 import { collectSocialSameAs } from "@/lib/config/social";
-import { routing } from "@/i18n/routing";
-import { localizedPath } from "../urls";
 import { cleanBase, parseList, postalAddress } from "./shared";
 
 // ============================================================================
@@ -58,7 +56,10 @@ function organizationNode(config: SiteConfig, locale: string): Record<string, un
   return org;
 }
 
-/** Nodo `WebSite` (sin @context) con `SearchAction` si la búsqueda está activa. */
+/**
+ * Nodo `WebSite` (sin @context). Sin `SearchAction`: Google retiró el cuadro de búsqueda
+ * de los sitelinks en noviembre de 2024 y la marca ya no tiene efecto en los resultados.
+ */
 function websiteNode(config: SiteConfig, locale: string): Record<string, unknown> {
   const base = cleanBase(config.brand.url);
   const site: Record<string, unknown> = {
@@ -71,18 +72,6 @@ function websiteNode(config: SiteConfig, locale: string): Record<string, unknown
   };
   const description = brandDescription(config, locale);
   if (description) site.description = description;
-  if (config.ecommerce.search_enabled && base) {
-    // URL pública del catálogo en el locale canónico.
-    const storePath = localizedPath("/products", routing.defaultLocale);
-    site.potentialAction = {
-      "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${base}${storePath}?search={search_term_string}`,
-      },
-      "query-input": "required name=search_term_string",
-    };
-  }
   return site;
 }
 

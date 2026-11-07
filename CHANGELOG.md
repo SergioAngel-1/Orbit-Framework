@@ -7,6 +7,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **SEO · el nodo `WebSite` del JSON-LD ya no declara `SearchAction`.** Google retiró el cuadro de búsqueda
+  de los sitelinks en noviembre de 2024: la marca no tenía efecto y apuntaba a un `?search=` que el
+  catálogo no necesita anunciar. `ecommerce.search_enabled` sigue gobernando la búsqueda de la tienda.
 - **BFF · `/api/csrf` y `GET`/`DELETE /api/store/cart` responden `Cache-Control: private, no-store`.** Son por
   navegador y llevan `Set-Cookie` (`hwe_csrf`, `hwe_cart`); Next no pone `Cache-Control` a un Route Handler
   dinámico, así que un CDN o proxy sin reglas propias podía guardar el token o el carrito de una persona y
