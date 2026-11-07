@@ -7,6 +7,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **Seguridad · la cookie `NEXT_LOCALE` lleva `Secure` en producción.** next-intl la fija desde el proxy y
+  desde el navegador sin ese atributo. `routing.ts` declara ahora `localeCookie` con `secure` calculado en
+  `i18n/locale-cookie.ts`: activo en producción salvo que `NEXT_PUBLIC_SITE_URL` sea `http://` (pila de
+  pruebas, `next start` en local). Mismo `name` y `sameSite` de siempre. Una instancia que haya tocado
+  `routing.ts` debe conservar esa línea.
 - **`/favicon.ico` ya no da 404.** Navegadores, lectores de feeds y el rastreador de favicons de Google lo
   piden aunque el `<head>` declare el icono. Nueva ruta `app/favicon.ico/route.ts` que sirve el mismo icono
   de marca que `icon.tsx` (el del sitio de WordPress o el generado), en PNG. Una instancia con un

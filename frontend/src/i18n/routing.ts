@@ -1,4 +1,5 @@
 import { defineRouting } from "next-intl/routing";
+import { localeCookieSecure } from "./locale-cookie";
 import { instanceRegistry } from "@/instance/registry";
 import { validatePublicPaths } from "@/lib/instance/public-paths";
 import { CORE_ROOT_SEGMENTS } from "@/lib/landings/core-segments";
@@ -8,6 +9,8 @@ export const routing = defineRouting({
   locales: ["es", "en"],
   defaultLocale: "es",
   localePrefix: "as-needed",
+  // `NEXT_LOCALE` con `Secure` en producción HTTPS (ver `locale-cookie.ts`).
+  localeCookie: { name: "NEXT_LOCALE", sameSite: "lax", secure: localeCookieSecure() },
 });
 
 // Las rutas públicas que declare la instancia (`InstanceRegistry.publicPaths`) se validan
