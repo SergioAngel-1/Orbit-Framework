@@ -13,5 +13,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const csrfToken = await issueCsrfToken();
   logger.info({ event: "csrf.token_issued" }, "Token CSRF generado");
-  return NextResponse.json({ csrfToken });
+  // El token es por navegador y la respuesta fija una cookie: no debe cachearse.
+  return NextResponse.json(
+    { csrfToken },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }
