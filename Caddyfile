@@ -237,8 +237,20 @@
         respond "{http.error.status_code} {http.error.status_text}" {http.error.status_code}
     }
 
-    # Compresión de respuestas
-    encode zstd gzip
+    # Compresión de respuestas. Next va con `compress: false` (next.config.mjs): la
+    # codificación es de Caddy, que elige zstd si el cliente lo acepta y gzip si no.
+    # `level better` del zstd: el nivel por defecto de Caddy (con ventana de 128 KB)
+    # deja el HTML de la portada en 106 KB frente a 87 KB con `better`, con un coste
+    # de CPU igual (~7 ms por 865 KB); `best` baja a 82 KB pero tarda ~18 ms.
+    # `gzip 7` para quien no acepta zstd (Safari): el nivel por defecto dejaba esa misma
+    # portada en 154 KB, peor que los 147 KB del gzip de Next; con 7 queda en 149 KB por
+    # ~4 ms más de CPU por respuesta (9 da 146 KB, pero cuesta ~12 ms).
+    encode {
+        zstd {
+            level better
+        }
+        gzip 7
+    }
 
     # Logging estructurado (JSON) hacia stdout → capturado por Docker logs
     log {
@@ -254,6 +266,11 @@
 import /etc/caddy/conf.d/*.caddy
 
 # ─── Redirección www → sin www ───────────────────────────────────────────────
-www.{$PUBLIC_DOMAIN:localhost} {
-    redir https://{$PUBLIC_DOMAIN}{uri} permanent
+# Una sola redirección, también desde HTTP: con solo `www.<dominio>` Caddy añade antes su
+# redirección automática http→https y la petición daba dos saltos (http://www → https://www →
+# https://apex). Declarar la dirección `http://` explícita la desactiva para ese host y este
+# bloque contesta a las dos. El certificado de `https://www` se pide igual (hace falta para
+# que el navegador llegue a ver la redirección).
+http://www.{$PUBLIC_DOMAIN:localhost}, https://www.{$PUBLIC_DOMAIN:localhost} {
+    redir https://{$PUBLIC_DOMAIN:localhost}{uri} permanent
 }

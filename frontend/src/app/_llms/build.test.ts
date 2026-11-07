@@ -50,7 +50,7 @@ vi.mock("next-intl/server", () => ({
   },
 }));
 
-import { buildLlmsTxt } from "./build";
+import { absolutizeLinks, buildLlmsTxt } from "./build";
 
 beforeEach(() => {
   degraded = false;
@@ -61,6 +61,41 @@ beforeEach(() => {
   currentConfig.geo.llms_txt_enabled = true;
 });
 
+describe("absolutizeLinks", () => {
+  it("vuelve absolutos los enlaces de ruta raíz y deja en paz el resto", () => {
+    const base = "https://mitienda.example";
+    expect(
+      absolutizeLinks(
+        [
+          "- [Garantía](/garantia): Qué cubre.",
+          "- [Inicio](/): Portada.",
+          "- [Ya absoluto](https://otro.example/x)",
+          "- [Protocolo relativo](//cdn.example/x)",
+          "- [Ancla](#seccion)",
+        ].join("\n"),
+        base,
+      ),
+    ).toBe(
+      [
+        "- [Garantía](https://mitienda.example/garantia): Qué cubre.",
+        "- [Inicio](https://mitienda.example): Portada.",
+        "- [Ya absoluto](https://otro.example/x)",
+        "- [Protocolo relativo](//cdn.example/x)",
+        "- [Ancla](#seccion)",
+      ].join("\n"),
+    );
+  });
+
+  it("buildLlmsTxt no deja ningún enlace relativo aunque el copy de la instancia lo traiga", async () => {
+    currentConfig.brand.description =
+      "Lee la [garantía](/garantia) y el [índice](/productos/a-z).";
+    const body = (await buildLlmsTxt("es"))!;
+    expect(body).toContain("[garantía](https://mitienda.example/garantia)");
+    expect(body).toContain("[índice](https://mitienda.example/productos/a-z)");
+    expect(body).not.toMatch(/\]\(\/(?!\/)/);
+  });
+});
+
 describe("buildLlmsTxt", () => {
   itStarterCopy(
     "lista páginas y categorías con URLs absolutas del idioma",
@@ -68,7 +103,7 @@ describe("buildLlmsTxt", () => {
       const body = (await buildLlmsTxt("es"))!;
       expect(body).toContain("# Mi Tienda");
       expect(body).toContain(
-        "- [Inicio](https://mitienda.example/): Página principal de Mi Tienda.",
+        "- [Inicio](https://mitienda.example): Página principal de Mi Tienda.",
       );
       expect(body).toContain("(https://mitienda.example/products)");
       expect(body).toContain(

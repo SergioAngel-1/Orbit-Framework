@@ -45,6 +45,32 @@ const AI_TRAINING_AGENTS = [
   "FacebookBot",
 ];
 
+/**
+ * Rastreadores de VISTA PREVIA de enlaces: leen una sola página (y su `og:image`)
+ * cuando alguien pega la URL en una red o un chat. No indexan nada ni entrenan
+ * modelos. Con la guarda `HWE_NOINDEX` (prelanzamiento, staging con acceso
+ * abierto) se les deja pasar a las páginas públicas; si no, las tarjetas al
+ * compartir salen sin imagen. Buscadores y bots de IA quedan vetados por el
+ * grupo `*`. Única lista del núcleo: añadir aquí un agente nuevo basta.
+ *
+ * Fuera a propósito: `Applebot` (indexa para Siri/Spotlight) y los de IA.
+ */
+export const LINK_PREVIEW_AGENTS = [
+  "facebookexternalhit",
+  "Facebot",
+  "Twitterbot",
+  "LinkedInBot",
+  "Slackbot",
+  "Slack-ImgProxy",
+  "WhatsApp",
+  "TelegramBot",
+  "Discordbot",
+  "Pinterestbot",
+  "redditbot",
+  "SkypeUriPreview",
+  "Embedly",
+];
+
 function localizedDisallow(): string[] {
   const paths = new Set<string>(["/api/"]);
   for (const path of PRIVATE_PATHS) {
@@ -78,10 +104,22 @@ export function contentSignal(policy: string): string {
 
 /** Respuesta completa de `/robots.txt`. */
 export async function robotsResponse(): Promise<Response> {
-  // Desarrollo y entornos con la guarda `HWE_NOINDEX` (staging): todo vetado y sin
-  // caché, para que un CDN no sirva esta versión cuando se quite la guarda.
-  if (process.env.NODE_ENV === "development" || indexingBlockedByEnv()) {
+  // Desarrollo: todo vetado y sin caché.
+  if (process.env.NODE_ENV === "development") {
     return text("User-agent: *\nDisallow: /\n", { cacheable: false });
+  }
+  // Guarda `HWE_NOINDEX` (prelanzamiento o staging): buscadores y bots de IA vetados
+  // (grupo `*`), pero los rastreadores de vista previa (`LINK_PREVIEW_AGENTS`) leen
+  // las páginas públicas y las imágenes OG para que las tarjetas al compartir
+  // funcionen. La indexación la sigue impidiendo `noindex` (meta y `X-Robots-Tag`).
+  // Sin caché, para que un CDN no sirva esta versión cuando se quite la guarda.
+  if (indexingBlockedByEnv()) {
+    const lines: string[] = [];
+    for (const agent of LINK_PREVIEW_AGENTS) lines.push(`User-agent: ${agent}`);
+    lines.push("Allow: /", "Allow: /api/og", "Allow: /api/icon");
+    for (const path of localizedDisallow()) lines.push(`Disallow: ${path}`);
+    lines.push("", "User-agent: *", "Disallow: /", "");
+    return text(lines.join("\n"), { cacheable: false });
   }
 
   const config = await getSiteConfig();

@@ -294,14 +294,12 @@ describe("buildSiteGraph", () => {
     buildSiteGraph(c, locale, opts)["@graph"] as JsonNode[];
   const node = (g: JsonNode[], type: string) => g.find((n) => n["@type"] === type);
 
-  it("Organization + WebSite, con buscador solo si la búsqueda está activa", () => {
+  it("WebSite sin SearchAction, aunque la búsqueda esté activa (Google retiró el cuadro de sitelinks)", () => {
     const c = config();
     c.ecommerce.search_enabled = true;
-    expect(node(graph(c), "WebSite")!.potentialAction.target.urlTemplate).toBe(
-      "https://mitienda.example/products?search={search_term_string}",
-    );
-    c.ecommerce.search_enabled = false;
-    expect(node(graph(c), "WebSite")).not.toHaveProperty("potentialAction");
+    const website = node(graph(c), "WebSite")!;
+    expect(website.url).toBe("https://mitienda.example");
+    expect(website).not.toHaveProperty("potentialAction");
   });
 
   it("sin datos legales ni redes, la Organization no publica identidad ajena", () => {

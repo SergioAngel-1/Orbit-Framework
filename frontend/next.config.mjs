@@ -207,6 +207,14 @@ const nextConfig = withNextIntl({
   reactStrictMode: true,
   poweredByHeader: false, // No revelar "X-Powered-By: Next.js".
 
+  // La compresión la hace Caddy (`encode` en el Caddyfile), no Next. Con la de Next
+  // activa, Next gzipea ANTES de llegar al proxy y Caddy no recomprime una respuesta
+  // ya codificada: ningún navegador recibía zstd, que en el HTML de la portada de una
+  // tienda (866 KB sin comprimir) pesa 87 KB frente a 147 KB del gzip de Next. Caddy
+  // negocia zstd o gzip según el cliente y añade `Vary: Accept-Encoding`. Sin proxy
+  // delante (p. ej. `next start` a pelo) las respuestas salen sin comprimir.
+  compress: false,
+
   // Salida autocontenida para la imagen de producción (Dockerfile target `prod`):
   // copia solo el server.js + node_modules mínimos trazados. Inocuo en dev.
   output: "standalone",
@@ -253,6 +261,13 @@ const nextConfig = withNextIntl({
     // lista responde 400. 75 es el defecto de `next/image`; 90 para donde la
     // compresión se VE (degradados amplios, ilustración plana).
     qualities: [75, 90],
+    // AVIF si el navegador lo acepta (`Accept: image/avif`), WebP si no. Con sharp y la
+    // calidad 75 por defecto (Next la baja a ~47 en AVIF), 18 casos reales (6 fotos del
+    // catálogo × 640/828/1080 px): -27 a -41 % de bytes (mediana -33 %, p. ej. 21,9 → 16,1 KB
+    // a 1080 px) con menos distorsión SSIM que el WebP. El coste es de CPU, una vez por
+    // variante: ~3x el de WebP (130-435 ms frente a 46-135 ms con la concurrencia de Next
+    // en 4 vCPU) y después la caché (`minimumCacheTTL`) la sirve sin tocar sharp.
+    formats: ["image/avif", "image/webp"],
     // Next 16+ bloquea por defecto el fetch a IPs privadas (defensa SSRF). El
     // origen interno (`http://wordpress`) y `localhost` en desarrollo resuelven a
     // una IP privada: sin esto, `_next/image` responde 400. `remotePatterns`

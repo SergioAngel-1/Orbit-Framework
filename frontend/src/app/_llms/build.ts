@@ -144,7 +144,21 @@ export async function buildLlmsTxt(locale: string): Promise<string | null> {
     `- [${t("sitemap")}](${base}/sitemap.xml)`,
   );
   lines.push("");
-  return lines.join("\n");
+  return absolutizeLinks(lines.join("\n"), base);
+}
+
+/**
+ * Vuelve absolutos los enlaces markdown de ruta raíz (`](/garantia)`). El núcleo ya
+ * compone sus enlaces con URL completa, pero el copy de `llms.txt` vive en i18n y una
+ * instancia puede añadir líneas con enlaces propios; un `llms.txt` se lee fuera del
+ * sitio (el agente no tiene dónde resolver una ruta relativa). `//host` y las URLs ya
+ * absolutas no se tocan.
+ */
+export function absolutizeLinks(markdown: string, base: string): string {
+  return markdown.replace(
+    /\]\((\/(?!\/)[^)\s]*)\)/g,
+    (_match, path: string) => `](${base}${path === "/" ? "" : path})`,
+  );
 }
 
 /** Respuesta de texto plano con la misma política de caché que el sitemap. */

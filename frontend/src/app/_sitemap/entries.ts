@@ -11,7 +11,12 @@ import {
 } from "@/lib/landings/product-bound-landings";
 import { productLearnPaths } from "@/lib/landings/product-learn-href";
 import { editorialSitemapEntries } from "@/lib/landings/editorial-list";
-import { entityPaths, hreflangLanguages, localizedPath } from "@/lib/seo/urls";
+import {
+  absoluteSiteUrl,
+  entityPaths,
+  hreflangLanguages,
+  localizedPath,
+} from "@/lib/seo/urls";
 import { isEntityAnnounced } from "@/lib/seo/entity-index";
 import { isSitemapPathExcluded, resolveInstanceSitemap } from "@/lib/instance/sitemap";
 import type { SitemapSegment } from "@/lib/seo/sitemap-segments";
@@ -65,7 +70,7 @@ function expand(baseUrl: string, entry: SitemapPath): MetadataRoute.Sitemap {
   const languages = Object.fromEntries(
     Object.entries(hreflangLanguages(entry.path, options)).map(([lang, path]) => [
       lang,
-      `${baseUrl}${path}`,
+      absoluteSiteUrl(baseUrl, path),
     ]),
   );
   const locales = routing.locales.filter(
@@ -75,7 +80,10 @@ function expand(baseUrl: string, entry: SitemapPath): MetadataRoute.Sitemap {
       entry.locales.includes(locale),
   );
   return locales.map((locale) => ({
-    url: `${baseUrl}${localizedPath(entry.paths?.[locale] ?? entry.path, locale)}`,
+    url: absoluteSiteUrl(
+      baseUrl,
+      localizedPath(entry.paths?.[locale] ?? entry.path, locale),
+    ),
     // Sin fecha REAL no se emite `lastmod`. Es opcional en el protocolo, y un
     // `new Date()` en todas las filas decía «todo el sitio cambió ahora» en
     // cada petición — el patrón exacto por el que Google deja de fiarse del

@@ -146,6 +146,18 @@ describe("buildSitemapEntries", () => {
     expect(entries.map((e) => e.url)).toContain("https://mitienda.example/en");
   });
 
+  it("la home sale sin barra final, igual que la canónica que emite Next", async () => {
+    const entries = await buildSitemapEntries("paginas");
+    const home = entries.find((e) => e.url === "https://mitienda.example");
+    expect(home).toBeDefined();
+    expect(home!.alternates!.languages).toEqual({
+      es: "https://mitienda.example",
+      en: "https://mitienda.example/en",
+      "x-default": "https://mitienda.example",
+    });
+    expect(entries.map((e) => e.url)).not.toContain("https://mitienda.example/");
+  });
+
   it("el catálogo lista fichas y categorías, con lastmod solo si es real", async () => {
     const entries = await buildSitemapEntries("catalogo");
     const urls = entries.map((e) => e.url);

@@ -106,6 +106,9 @@ Todo el SEO técnico ya viene hecho (metadatos, canónicas, hreflang, JSON-LD, s
       Search Console) y el mismo sitemap. Bing alimenta también a DuckDuckGo, Yahoo y ChatGPT Search.
 - [ ] `INDEXNOW_KEY` en el `.env` (`openssl rand -hex 16`) y `curl https://<dominio>/indexnow.txt`
       devuelve la clave: cada cambio de producto se anuncia al momento a Bing y Yandex.
+- [ ] `curl https://<dominio>/.well-known/security.txt` (RFC 9116): sale con `Contact: mailto:` del correo
+      de Control Center → Legal y con `Expires` futuro; sin correo responde 404. Si el contacto de
+      seguridad no es el de atención al cliente, la instancia sirve su propio fichero (ver el CHANGELOG).
 - [ ] **Prueba de resultados enriquecidos** (search.google.com/test/rich-results) sobre una ficha
       con oferta, una con variaciones, una categoría y una entrada del blog: `Product` sin errores
       y con `offers` (precio igual al de la página), `BreadcrumbList`, `CollectionPage`, `Article`.

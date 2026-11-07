@@ -6,7 +6,67 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **`/.well-known/security.txt` (RFC 9116).** Ruta nueva (`app/.well-known/security.txt/route.ts`, builder
+  puro en `lib/seo/security-txt.ts`) con `Contact: mailto:` del correo legal del Control Center (Legal →
+  Correo), `Expires` renovado solo (180 días, truncado al día), `Preferred-Languages` con los idiomas del
+  sitio y `Canonical`. Sin correo válido o con la config degradada responde 404. Una instancia que quiera
+  otro contacto (o publicar otro descriptor en `/.well-known/`, p. ej. el de su servidor MCP) añade su
+  propia ruta bajo `app/.well-known/<nombre>/` y la declara `owner: instance` en
+  `tools/boundaries.local.json`; el núcleo no necesita un punto de extensión para eso.
+
+### Fixed
+- **SEO · el nodo `WebSite` del JSON-LD ya no declara `SearchAction`.** Google retiró el cuadro de búsqueda
+  de los sitelinks en noviembre de 2024: la marca no tenía efecto y apuntaba a un `?search=` que el
+  catálogo no necesita anunciar. `ecommerce.search_enabled` sigue gobernando la búsqueda de la tienda.
+- **BFF · `/api/csrf` y `GET`/`DELETE /api/store/cart` responden `Cache-Control: private, no-store`.** Son por
+  navegador y llevan `Set-Cookie` (`hwe_csrf`, `hwe_cart`); Next no pone `Cache-Control` a un Route Handler
+  dinámico, así que un CDN o proxy sin reglas propias podía guardar el token o el carrito de una persona y
+  servírselo a otra. Recogido de la instancia Doohi.
+- **SEO · `llms.txt` sin enlaces relativos.** El núcleo ya compone sus enlaces con URL completa, pero el
+  copy de `llms.txt` vive en i18n (`llms.pages.*.text`) y una instancia puede añadir líneas con enlaces
+  propios (`[Garantía](/garantia)`): un agente que lee el fichero fuera del sitio no sabe resolverlos.
+  `buildLlmsTxt` pasa ahora el resultado por `absolutizeLinks`, que antepone `brand.url` a los enlaces
+  markdown de ruta raíz (`//host` y las URLs absolutas no se tocan).
+- **`www` → apex en un solo salto.** `http://www.<dominio>` iba primero a `https://www` (redirección
+  automática de Caddy) y de ahí al apex. El bloque de `www` del `Caddyfile` declara ahora las dos
+  direcciones (`http://` y `https://`), así que redirige directo con un 301. Comprobado contra
+  `caddy:2.11`. Si la instancia cambia el apex a `www`, invierte los dos bloques.
+- **Rendimiento · la compresión pasa a Caddy (zstd).** Con la de Next activa, Next gzipeaba antes de llegar
+  al proxy y Caddy no recomprime una respuesta ya codificada: ningún navegador recibía zstd, que en el HTML
+  de una portada de 866 KB pesa 87 KB frente a 147 KB del gzip de Next. `next.config.mjs` fija
+  `compress: false` y el `Caddyfile` codifica con `zstd { level better }` y `gzip 7` (medido: el nivel por
+  defecto de Caddy deja esa portada en 106 KB con el mismo coste de CPU). Quien sirva el frontend SIN el
+  Caddy del framework (`next start` a pelo) recibe las respuestas sin comprimir y debe comprimir en su
+  proxy. Recogido de la instancia Doohi.
+- **Seguridad · la cookie `NEXT_LOCALE` lleva `Secure` en producción.** next-intl la fija desde el proxy y
+  desde el navegador sin ese atributo. `routing.ts` declara ahora `localeCookie` con `secure` calculado en
+  `i18n/locale-cookie.ts`: activo en producción salvo que `NEXT_PUBLIC_SITE_URL` sea `http://` (pila de
+  pruebas, `next start` en local). Mismo `name` y `sameSite` de siempre. Una instancia que haya tocado
+  `routing.ts` debe conservar esa línea.
+- **`/favicon.ico` ya no da 404.** Navegadores, lectores de feeds y el rastreador de favicons de Google lo
+  piden aunque el `<head>` declare el icono. Nueva ruta `app/favicon.ico/route.ts` que sirve el mismo icono
+  de marca que `icon.tsx` (el del sitio de WordPress o el generado), en PNG. Una instancia con un
+  `favicon.ico` estático propio borra la ruta (no pueden coexistir).
+- **SEO · la home tiene una sola forma de URL, sin barra final.** Next emite la canónica, `og:url` y
+  `hreflang` de la home como `https://tienda.example` (reduce `/` a `origin`), mientras sitemap, miga de
+  pan y `llms.txt` la daban como `https://tienda.example/`. Todo el núcleo compone ahora las URLs absolutas
+  con `absoluteSiteUrl` / `absoluteLocalized` (`lib/seo/urls.ts`), que quitan la barra de la home; la de un
+  idioma con prefijo ya era `/en`. Una instancia que fije la URL de su home a mano debe usar esa forma.
+- **SEO · `robots.txt` con la guarda `HWE_NOINDEX`.** Antes servía `Disallow: /` a todos y los
+  rastreadores de vista previa de enlaces (facebookexternalhit/Facebot, Twitterbot, LinkedInBot,
+  Slackbot, WhatsApp, TelegramBot, Discordbot, Pinterestbot…) no podían leer la página ni su `og:image`:
+  las tarjetas al compartir un sitio en prelanzamiento salían sin imagen. Ahora esos agentes
+  (`LINK_PREVIEW_AGENTS`, única lista, en `app/_robots/build.ts`) pueden leer las páginas públicas, con las
+  vistas privadas vetadas; el grupo `*` (buscadores y bots de IA) sigue en `Disallow: /`, y `noindex` por
+  meta y `X-Robots-Tag` no cambia. En desarrollo sigue todo vetado.
+
 ### Changed
+- **Imágenes · `next/image` sirve AVIF si el navegador lo acepta** (`images.formats: ["image/avif",
+  "image/webp"]`), WebP si no. Medido con 18 casos reales: -27 a -41 % de bytes (mediana -33 %) con menos
+  distorsión que el WebP. El coste es CPU del servidor, una vez por variante (~3x el de WebP) y luego
+  `minimumCacheTTL` la sirve sin tocar sharp: en un VPS pequeño, el primer barrido del catálogo es más
+  lento. Para volver a solo WebP, quita `image/avif` de la lista. Recogido de la instancia Doohi.
 - **El Control Center se pliega y se traduce desde el propio panel.** Cada sección de pestaña y cada
   subgrupo anidado (sedes, credenciales de pasarela, cada landing, sus secciones y preguntas…) es un
   `<details>` nativo: las secciones de primer nivel abren de serie y los subgrupos arrancan plegados. Bajo

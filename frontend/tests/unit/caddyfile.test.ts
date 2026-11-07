@@ -256,3 +256,30 @@ describe("Caddyfile: tope de cuerpo estricto para /api/*", () => {
     expect(code).toMatch(/max_size 130MB/);
   });
 });
+
+// La compresión es de Caddy: con la de Next activa, Next gzipea antes de llegar al proxy y
+// Caddy no recomprime una respuesta ya codificada (ningún navegador recibía zstd).
+describe("Caddyfile: compresión", () => {
+  it("codifica con zstd (level better) y gzip, y Next no comprime por su cuenta", () => {
+    expect(code).toMatch(
+      /encode \{[\s\S]*?zstd \{\s*level better\s*\}[\s\S]*?gzip 7[\s\S]*?\}/,
+    );
+    const nextConfig = readFileSync(
+      fileURLToPath(new URL("../../next.config.mjs", import.meta.url)),
+      "utf8",
+    );
+    expect(nextConfig).toMatch(/^\s*compress: false,/m);
+  });
+});
+
+// `http://www.<dominio>` debe ir al apex en UN salto: con solo `www.<dominio>` Caddy
+// redirige antes a https://www y de ahí al apex (dos saltos).
+describe("Caddyfile: www → apex", () => {
+  it("el bloque de www responde en HTTP y HTTPS y redirige directo al apex", () => {
+    const block = code.slice(code.indexOf("http://www."));
+    expect(block).toMatch(
+      /^http:\/\/www\.\{\$PUBLIC_DOMAIN:localhost\}, https:\/\/www\.\{\$PUBLIC_DOMAIN:localhost\} \{/,
+    );
+    expect(block).toContain("redir https://{$PUBLIC_DOMAIN:localhost}{uri} permanent");
+  });
+});

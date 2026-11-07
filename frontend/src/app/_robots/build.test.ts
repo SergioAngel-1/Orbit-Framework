@@ -17,7 +17,12 @@ vi.mock("@/lib/config", () => ({
   isFallbackSiteConfig: () => degraded,
 }));
 
-import { PRIVATE_PATHS, contentSignal, robotsResponse } from "./build";
+import {
+  LINK_PREVIEW_AGENTS,
+  PRIVATE_PATHS,
+  contentSignal,
+  robotsResponse,
+} from "./build";
 
 function config(patch: Partial<SiteConfig["geo"]> = {}): SiteConfig {
   const c = structuredClone(CONFIG_DEFAULTS);
@@ -117,12 +122,28 @@ describe("robots.txt", () => {
     expect(route).not.toMatch(/export const revalidate/);
   });
 
-  it("con HWE_NOINDEX (staging) veta todo y no se cachea", async () => {
+  it("con HWE_NOINDEX veta a buscadores y no se cachea, pero deja pasar a los de vista previa", async () => {
     vi.stubEnv("HWE_NOINDEX", "true");
     vi.stubEnv("NODE_ENV", "production");
     const res = await robotsResponse();
-    expect(await res.text()).toBe("User-agent: *\nDisallow: /\n");
+    const body = await res.text();
     expect(res.headers.get("Cache-Control")).toBe("no-store");
+    // El grupo comodín sigue vetándolo todo (Googlebot, Bing, bots de IA…).
+    expect(body).toContain("User-agent: *\nDisallow: /\n");
+    expect(body).not.toContain("Sitemap:");
+    // Cada agente de vista previa abre el mismo grupo, con Allow: / y las vistas privadas vetadas.
+    const previewGroup = body.split("\n\n")[0] ?? "";
+    for (const agent of LINK_PREVIEW_AGENTS) {
+      expect(previewGroup).toContain(`User-agent: ${agent}\n`);
+    }
+    expect(previewGroup).toContain("Allow: /\n");
+    expect(previewGroup).toContain("Allow: /api/og");
+    expect(previewGroup).toContain("Disallow: /checkout");
+    expect(previewGroup).not.toMatch(/^Disallow: \/$/m);
+    // Ningún buscador ni bot de IA entra por esta puerta.
+    for (const agent of ["Googlebot", "bingbot", "GPTBot", "ClaudeBot", "Applebot"]) {
+      expect(previewGroup).not.toContain(agent);
+    }
   });
 
   it("noindex en el panel sin la guarda de entorno deja un aviso en el log", async () => {
