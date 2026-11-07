@@ -87,7 +87,8 @@ describe("absolutizeLinks", () => {
   });
 
   it("buildLlmsTxt no deja ningún enlace relativo aunque el copy de la instancia lo traiga", async () => {
-    currentConfig.brand.description = "Lee la [garantía](/garantia) y el [índice](/productos/a-z).";
+    currentConfig.brand.description =
+      "Lee la [garantía](/garantia) y el [índice](/productos/a-z).";
     const body = (await buildLlmsTxt("es"))!;
     expect(body).toContain("[garantía](https://mitienda.example/garantia)");
     expect(body).toContain("[índice](https://mitienda.example/productos/a-z)");

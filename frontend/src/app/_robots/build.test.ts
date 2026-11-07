@@ -17,7 +17,12 @@ vi.mock("@/lib/config", () => ({
   isFallbackSiteConfig: () => degraded,
 }));
 
-import { LINK_PREVIEW_AGENTS, PRIVATE_PATHS, contentSignal, robotsResponse } from "./build";
+import {
+  LINK_PREVIEW_AGENTS,
+  PRIVATE_PATHS,
+  contentSignal,
+  robotsResponse,
+} from "./build";
 
 function config(patch: Partial<SiteConfig["geo"]> = {}): SiteConfig {
   const c = structuredClone(CONFIG_DEFAULTS);

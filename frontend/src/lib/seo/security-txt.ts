@@ -22,7 +22,10 @@ function contactFor(email: string): string | null {
 }
 
 /** Cuerpo de `security.txt`, o `null` si la config no da un contacto publicable. */
-export function buildSecurityTxt(config: SiteConfig, now: Date = new Date()): string | null {
+export function buildSecurityTxt(
+  config: SiteConfig,
+  now: Date = new Date(),
+): string | null {
   const contact = contactFor(config.legal.email);
   const base = (config.brand.url || "").replace(/\/$/, "");
   if (!contact || !base) return null;

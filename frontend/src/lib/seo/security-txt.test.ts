@@ -16,7 +16,9 @@ describe("buildSecurityTxt (RFC 9116)", () => {
   it("lleva Contact, Expires futuro y Canonical con el dominio real", () => {
     const body = buildSecurityTxt(config("seguridad@mitienda.example"), NOW)!;
     expect(body).toContain("Contact: mailto:seguridad@mitienda.example\n");
-    expect(body).toContain("Canonical: https://mitienda.example/.well-known/security.txt\n");
+    expect(body).toContain(
+      "Canonical: https://mitienda.example/.well-known/security.txt\n",
+    );
     const expires = /^Expires: (.+)$/m.exec(body)![1]!;
     expect(expires).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
     const days = (Date.parse(expires) - NOW.getTime()) / 86_400_000;
@@ -34,6 +36,8 @@ describe("buildSecurityTxt (RFC 9116)", () => {
   });
 
   it("no puede inyectar campos con saltos de línea en el correo", () => {
-    expect(buildSecurityTxt(config("a@b.co\nPolicy: https://evil.example"), NOW)).toBeNull();
+    expect(
+      buildSecurityTxt(config("a@b.co\nPolicy: https://evil.example"), NOW),
+    ).toBeNull();
   });
 });
