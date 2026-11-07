@@ -266,6 +266,11 @@
 import /etc/caddy/conf.d/*.caddy
 
 # ─── Redirección www → sin www ───────────────────────────────────────────────
-www.{$PUBLIC_DOMAIN:localhost} {
-    redir https://{$PUBLIC_DOMAIN}{uri} permanent
+# Una sola redirección, también desde HTTP: con solo `www.<dominio>` Caddy añade antes su
+# redirección automática http→https y la petición daba dos saltos (http://www → https://www →
+# https://apex). Declarar la dirección `http://` explícita la desactiva para ese host y este
+# bloque contesta a las dos. El certificado de `https://www` se pide igual (hace falta para
+# que el navegador llegue a ver la redirección).
+http://www.{$PUBLIC_DOMAIN:localhost}, https://www.{$PUBLIC_DOMAIN:localhost} {
+    redir https://{$PUBLIC_DOMAIN:localhost}{uri} permanent
 }

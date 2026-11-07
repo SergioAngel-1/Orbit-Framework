@@ -269,3 +269,15 @@ describe("Caddyfile: compresión", () => {
     expect(nextConfig).toMatch(/^\s*compress: false,/m);
   });
 });
+
+// `http://www.<dominio>` debe ir al apex en UN salto: con solo `www.<dominio>` Caddy
+// redirige antes a https://www y de ahí al apex (dos saltos).
+describe("Caddyfile: www → apex", () => {
+  it("el bloque de www responde en HTTP y HTTPS y redirige directo al apex", () => {
+    const block = code.slice(code.indexOf("http://www."));
+    expect(block).toMatch(
+      /^http:\/\/www\.\{\$PUBLIC_DOMAIN:localhost\}, https:\/\/www\.\{\$PUBLIC_DOMAIN:localhost\} \{/,
+    );
+    expect(block).toContain("redir https://{$PUBLIC_DOMAIN:localhost}{uri} permanent");
+  });
+});

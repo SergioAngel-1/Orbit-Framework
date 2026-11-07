@@ -7,6 +7,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **`www` → apex en un solo salto.** `http://www.<dominio>` iba primero a `https://www` (redirección
+  automática de Caddy) y de ahí al apex. El bloque de `www` del `Caddyfile` declara ahora las dos
+  direcciones (`http://` y `https://`), así que redirige directo con un 301. Comprobado contra
+  `caddy:2.11`. Si la instancia cambia el apex a `www`, invierte los dos bloques.
 - **Rendimiento · la compresión pasa a Caddy (zstd).** Con la de Next activa, Next gzipeaba antes de llegar
   al proxy y Caddy no recomprime una respuesta ya codificada: ningún navegador recibía zstd, que en el HTML
   de una portada de 866 KB pesa 87 KB frente a 147 KB del gzip de Next. `next.config.mjs` fija
