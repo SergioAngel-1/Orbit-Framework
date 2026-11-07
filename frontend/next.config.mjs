@@ -207,6 +207,14 @@ const nextConfig = withNextIntl({
   reactStrictMode: true,
   poweredByHeader: false, // No revelar "X-Powered-By: Next.js".
 
+  // La compresión la hace Caddy (`encode` en el Caddyfile), no Next. Con la de Next
+  // activa, Next gzipea ANTES de llegar al proxy y Caddy no recomprime una respuesta
+  // ya codificada: ningún navegador recibía zstd, que en el HTML de la portada de una
+  // tienda (866 KB sin comprimir) pesa 87 KB frente a 147 KB del gzip de Next. Caddy
+  // negocia zstd o gzip según el cliente y añade `Vary: Accept-Encoding`. Sin proxy
+  // delante (p. ej. `next start` a pelo) las respuestas salen sin comprimir.
+  compress: false,
+
   // Salida autocontenida para la imagen de producción (Dockerfile target `prod`):
   // copia solo el server.js + node_modules mínimos trazados. Inocuo en dev.
   output: "standalone",

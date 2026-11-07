@@ -7,6 +7,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **Rendimiento · la compresión pasa a Caddy (zstd).** Con la de Next activa, Next gzipeaba antes de llegar
+  al proxy y Caddy no recomprime una respuesta ya codificada: ningún navegador recibía zstd, que en el HTML
+  de una portada de 866 KB pesa 87 KB frente a 147 KB del gzip de Next. `next.config.mjs` fija
+  `compress: false` y el `Caddyfile` codifica con `zstd { level better }` y `gzip 7` (medido: el nivel por
+  defecto de Caddy deja esa portada en 106 KB con el mismo coste de CPU). Quien sirva el frontend SIN el
+  Caddy del framework (`next start` a pelo) recibe las respuestas sin comprimir y debe comprimir en su
+  proxy. Recogido de la instancia Doohi.
 - **Seguridad · la cookie `NEXT_LOCALE` lleva `Secure` en producción.** next-intl la fija desde el proxy y
   desde el navegador sin ese atributo. `routing.ts` declara ahora `localeCookie` con `secure` calculado en
   `i18n/locale-cookie.ts`: activo en producción salvo que `NEXT_PUBLIC_SITE_URL` sea `http://` (pila de
