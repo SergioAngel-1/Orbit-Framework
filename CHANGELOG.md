@@ -7,6 +7,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **`/favicon.ico` ya no da 404.** Navegadores, lectores de feeds y el rastreador de favicons de Google lo
+  piden aunque el `<head>` declare el icono. Nueva ruta `app/favicon.ico/route.ts` que sirve el mismo icono
+  de marca que `icon.tsx` (el del sitio de WordPress o el generado), en PNG. Una instancia con un
+  `favicon.ico` estático propio borra la ruta (no pueden coexistir).
 - **SEO · la home tiene una sola forma de URL, sin barra final.** Next emite la canónica, `og:url` y
   `hreflang` de la home como `https://tienda.example` (reduce `/` a `origin`), mientras sitemap, miga de
   pan y `llms.txt` la daban como `https://tienda.example/`. Todo el núcleo compone ahora las URLs absolutas
