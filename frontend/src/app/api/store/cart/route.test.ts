@@ -60,6 +60,12 @@ describe("GET /api/store/cart", () => {
     expect(writeCartToken).toHaveBeenCalledWith("nuevo");
   });
 
+  it("la respuesta es privada y no se guarda en ninguna caché", async () => {
+    const res = await GET(request());
+
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+
   it("superar el límite da 429 con Retry-After ANTES de tocar WordPress", async () => {
     vi.mocked(rateLimit).mockResolvedValue({ ...OK, success: false, retryAfter: 17 });
 
@@ -173,6 +179,7 @@ describe("DELETE /api/store/cart", () => {
       expect.objectContaining({ cartToken: "token-vaciado" }),
     );
     expect(writeCartToken).toHaveBeenCalledWith("token-releido");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
   });
 
   it("si el vaciado ya devuelve un carrito, no hace una segunda lectura", async () => {

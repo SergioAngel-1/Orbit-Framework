@@ -20,6 +20,13 @@ import type { StoreCart } from "@/types/woocommerce";
 export const dynamic = "force-dynamic";
 
 /**
+ * El carrito es de una sola persona (viaja con su cookie `hwe_cart`) y la respuesta
+ * lleva `Set-Cookie`: ninguna caché, compartida o del navegador, debe guardarla.
+ * Next no pone `Cache-Control` a un Route Handler dinámico.
+ */
+const PRIVATE_NO_STORE = { "Cache-Control": "private, no-store" } as const;
+
+/**
  * Lecturas del carrito por ventana, por IP y carrito. Una persona lo pide una vez
  * por carga de página (el `CartProvider` vive en el layout y no se remonta al
  * navegar), así que 30 por minuto solo lo alcanza un cliente en bucle.
@@ -95,6 +102,7 @@ export async function GET(request: Request) {
     );
     return NextResponse.json(
       await completeStoreCart(reconciled.cart, requestLocale(request.headers)),
+      { headers: PRIVATE_NO_STORE },
     );
   } catch (error) {
     logger.error(
@@ -155,6 +163,7 @@ export async function DELETE(request: Request) {
     logger.info({ event: "cart.clear" }, "Carrito vaciado");
     return NextResponse.json(
       await completeStoreCart(cart, requestLocale(request.headers)),
+      { headers: PRIVATE_NO_STORE },
     );
   } catch (error) {
     logger.error(

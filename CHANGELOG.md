@@ -7,6 +7,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Fixed
+- **BFF · `/api/csrf` y `GET`/`DELETE /api/store/cart` responden `Cache-Control: private, no-store`.** Son por
+  navegador y llevan `Set-Cookie` (`hwe_csrf`, `hwe_cart`); Next no pone `Cache-Control` a un Route Handler
+  dinámico, así que un CDN o proxy sin reglas propias podía guardar el token o el carrito de una persona y
+  servírselo a otra. Recogido de la instancia Doohi.
 - **SEO · `llms.txt` sin enlaces relativos.** El núcleo ya compone sus enlaces con URL completa, pero el
   copy de `llms.txt` vive en i18n (`llms.pages.*.text`) y una instancia puede añadir líneas con enlaces
   propios (`[Garantía](/garantia)`): un agente que lee el fichero fuera del sitio no sabe resolverlos.
