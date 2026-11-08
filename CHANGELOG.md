@@ -16,6 +16,17 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `tools/boundaries.local.json`; el núcleo no necesita un punto de extensión para eso.
 
 ### Fixed
+- **Despliegue · Redis de `docker-compose.prod.yml` no podía guardar su instantánea.** Síntoma: el log del
+  contenedor `redis` repetía cada ~6 s `Failed opening the temp RDB file temp-<pid>.rdb ... Permission denied` y
+  `Background saving error`, `INFO persistence` daba `rdb_last_bgsave_status:err` y `rdb_changes_since_last_save`
+  no dejaba de crecer; el sitio seguía funcionando (`--stop-writes-on-bgsave-error no`) pero cada reinicio
+  perdía la caché (ISR, rate-limit, object cache). Causa: con `cap_drop: [ALL]` el entrypoint de la imagen no
+  puede soltar privilegios (necesita `SETUID`/`SETGID`), así que Redis corría como root **sin**
+  `CAP_DAC_OVERRIDE` y no escribía en `/data`, propiedad de `redis`. Arreglo: el servicio corre con
+  `user: redis`; el propietario del proceso coincide con el del volumen y no se devuelve ninguna capacidad
+  (se descartó `cap_add`). Un test de `deploy-config` fija `user`, `cap_drop: ALL` y `read_only`. Migración: un
+  `docker compose up -d redis` basta (los volúmenes existentes son de `redis`); un `dump.rdb` de root con modo
+  `600` impide arrancar y se corrige con `chown` o se borra (`docs/DEPLOYMENT.md`, «Persistencia de Redis»).
 - **SEO · el nodo `WebSite` del JSON-LD ya no declara `SearchAction`.** Google retiró el cuadro de búsqueda
   de los sitelinks en noviembre de 2024: la marca no tenía efecto y apuntaba a un `?search=` que el
   catálogo no necesita anunciar. `ecommerce.search_enabled` sigue gobernando la búsqueda de la tienda.

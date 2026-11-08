@@ -210,6 +210,25 @@ define( 'WP_CACHE', true );
 Estas constantes se inyectan via `WORDPRESS_CONFIG_EXTRA` en ambos composes. El panel de WP
 admin muestra el estado en **Ajustes → Redis**.
 
+### Persistencia de Redis en producción
+
+El servicio `redis` de `docker-compose.prod.yml` corre como el usuario `redis` de la imagen
+(`user: redis`) con `cap_drop: [ALL]`, `read_only: true` y `/data` en el volumen `redis_data`,
+y guarda una instantánea (`dump.rdb`) cada 15 min si hubo cambios. Sin `user:`, el entrypoint no
+puede soltar privilegios sin `SETUID`/`SETGID`, el proceso quedaba como root sin permiso para
+escribir en `/data` y cada `bgsave` fallaba con `Permission denied` (la caché se perdía en cada
+reinicio). Comprobación tras desplegar:
+
+```bash
+docker exec <prefijo>_redis redis-cli INFO persistence | grep rdb_last_bgsave_status   # → ok
+```
+
+Un volumen existente no necesita migración (se creó con propietario `redis`). Solo si arrancaba
+en bucle con `can't open the RDB file dump.rdb for reading: Permission denied` —un `dump.rdb`
+heredado de otra configuración, propiedad de root y con modo `600`— corrígelo una vez con
+`docker run --rm --user root -v <volumen_redis_data>:/data redis:8.10-alpine chown redis:redis /data/dump.rdb`
+(o bórralo: es caché reconstruible).
+
 ---
 
 ## Backups

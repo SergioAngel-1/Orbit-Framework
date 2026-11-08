@@ -16,6 +16,8 @@
 #    - `cap_drop: [ALL]` APLICADO a redis/frontend/caddy/backup (caddy con
 #      cap_add NET_BIND_SERVICE). db y wordpress se dejan SIN cap_drop porque
 #      su init/Apache necesita capacidades; endurécelos tras probar en staging.
+#      redis corre con `user: redis`: con `cap_drop: ALL` el entrypoint de la
+#      imagen no puede soltar privilegios ni escribir en `/data` siendo root.
 #    - `read_only: true` + `tmpfs` APLICADO a redis. No se aplica a frontend
 #      (caché ISR) ni a WordPress (escribe en disco) por defecto.
 #    - Redes: `data` es INTERNA (sin salida a Internet) y solo la comparten
@@ -390,6 +392,15 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # Corre ya como `redis` (el usuario de la imagen), no como root. El entrypoint
+    # oficial solo suelta privilegios si conserva SETUID/SETGID; con `cap_drop: ALL`
+    # no puede, así que el proceso se quedaba como root SIN CAP_DAC_OVERRIDE y no
+    # escribía en `/data` (propiedad de `redis`): `Failed opening the temp RDB file
+    # ... Permission denied`, `rdb_last_bgsave_status:err` y cada reinicio vaciaba
+    # la caché. Con `user:` el propietario del proceso coincide con el del volumen
+    # y no se devuelve ninguna capability (descartado `cap_add: [SETUID, SETGID,
+    # CHOWN, ...]`: aflojaría el endurecimiento para parchear algo que no hace falta).
+    user: redis
     read_only: true
     tmpfs:
       - /tmp

@@ -196,6 +196,19 @@ describe("docker-compose.prod.yml", () => {
   it("Redis sigue escribiendo si falla el bgsave (aquí los datos son caché)", () => {
     expect(service(prod, "redis")).toContain('"--stop-writes-on-bgsave-error", "no"');
   });
+
+  // Con `cap_drop: ALL` el entrypoint de la imagen no puede soltar privilegios
+  // (necesita SETUID/SETGID) y Redis se quedaba como root sin CAP_DAC_OVERRIDE:
+  // no escribía en `/data` (propiedad de `redis`), el bgsave fallaba cada ~6 s con
+  // «Permission denied» y nada se persistía. Corre como `redis`, sin devolver capacidades.
+  it("Redis corre como `redis` y mantiene cap_drop ALL, read_only y sin cap_add", () => {
+    const redis = service(prod, "redis");
+    expect(redis).toMatch(/^ {4}user: redis$/m);
+    expect(redis).toMatch(/^ {4}cap_drop:\n {6}- ALL$/m);
+    expect(redis).toMatch(/^ {4}read_only: true$/m);
+    expect(redis).not.toContain("cap_add");
+    expect(redis).toContain("- redis_data:/data");
+  });
 });
 
 describe("docker-compose.prod.yml: segmentación de red", () => {
