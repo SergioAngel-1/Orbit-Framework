@@ -41,7 +41,7 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 - **BFF · `/api/csrf` y `GET`/`DELETE /api/store/cart` responden `Cache-Control: private, no-store`.** Son por
   navegador y llevan `Set-Cookie` (`hwe_csrf`, `hwe_cart`); Next no pone `Cache-Control` a un Route Handler
   dinámico, así que un CDN o proxy sin reglas propias podía guardar el token o el carrito de una persona y
-  servírselo a otra. Recogido de la instancia Doohi.
+  servírselo a otra. Recogido de una instancia en producción.
 - **SEO · `llms.txt` sin enlaces relativos.** El núcleo ya compone sus enlaces con URL completa, pero el
   copy de `llms.txt` vive en i18n (`llms.pages.*.text`) y una instancia puede añadir líneas con enlaces
   propios (`[Garantía](/garantia)`): un agente que lee el fichero fuera del sitio no sabe resolverlos.
@@ -57,7 +57,7 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `compress: false` y el `Caddyfile` codifica con `zstd { level better }` y `gzip 7` (medido: el nivel por
   defecto de Caddy deja esa portada en 106 KB con el mismo coste de CPU). Quien sirva el frontend SIN el
   Caddy del framework (`next start` a pelo) recibe las respuestas sin comprimir y debe comprimir en su
-  proxy. Recogido de la instancia Doohi.
+  proxy. Recogido de una instancia en producción.
 - **Seguridad · la cookie `NEXT_LOCALE` lleva `Secure` en producción.** next-intl la fija desde el proxy y
   desde el navegador sin ese atributo. `routing.ts` declara ahora `localeCookie` con `secure` calculado en
   `i18n/locale-cookie.ts`: activo en producción salvo que `NEXT_PUBLIC_SITE_URL` sea `http://` (pila de
@@ -85,7 +85,7 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   "image/webp"]`), WebP si no. Medido con 18 casos reales: -27 a -41 % de bytes (mediana -33 %) con menos
   distorsión que el WebP. El coste es CPU del servidor, una vez por variante (~3x el de WebP) y luego
   `minimumCacheTTL` la sirve sin tocar sharp: en un VPS pequeño, el primer barrido del catálogo es más
-  lento. Para volver a solo WebP, quita `image/avif` de la lista. Recogido de la instancia Doohi.
+  lento. Para volver a solo WebP, quita `image/avif` de la lista. Recogido de una instancia en producción.
 - **El Control Center se pliega y se traduce desde el propio panel.** Cada sección de pestaña y cada
   subgrupo anidado (sedes, credenciales de pasarela, cada landing, sus secciones y preguntas…) es un
   `<details>` nativo: las secciones de primer nivel abren de serie y los subgrupos arrancan plegados. Bajo
