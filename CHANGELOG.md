@@ -6,6 +6,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.8.0] — 2026-11-08
+
+Primera release con lo aprendido de poner una tienda real en producción: la pila de producción deja de
+perder la caché de Redis y de acumular imágenes, el BFF no deja que un proxy guarde el token CSRF ni el
+carrito de nadie, el sitio publica `security.txt` y el Control Center se pliega y se traduce desde el propio
+panel. Sin cambios de contrato con las instancias: se actualiza con un merge del tag.
+
 ### Added
 - **`/.well-known/security.txt` (RFC 9116).** Ruta nueva (`app/.well-known/security.txt/route.ts`, builder
   puro en `lib/seo/security-txt.ts`) con `Contact: mailto:` del correo legal del Control Center (Legal →
