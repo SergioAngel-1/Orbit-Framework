@@ -6,6 +6,16 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Security
+- **Dependencias · `glob` ≥ 14.0.2 bajo `@sentry/bundler-plugins` (GHSA-3g3m-2fjr-6pw4).** La versión 13.0.6 que
+  arrastra `@sentry/nextjs@10.76.2` permitía saltarse la cancelación por `AbortSignal` y seguir recorriendo el
+  sistema de ficheros tras el tiempo límite (aviso moderado, solo en la fase de build que sube los source maps). En
+  vez de subir `@sentry/nextjs` a la 11 (cambio de mayor y publicada hace días), `frontend/package.json` fija con
+  `overrides` `glob` 14.0.3 y, debajo, `minimatch` 11.0.3 y `@isaacs/nonrecursive-glob-match` 1.0.3: la
+  llamada que hace el plugin (`glob.glob(patrones, { absolute, nodir })`) es la misma. Se eligieron las versiones
+  más recientes con al menos 10 días de antigüedad y del mantenedor original (`minimatch` 11.0.5 y `nonrecursive-glob-match`
+  1.1.0 llevaban dos días). Cuando `@sentry/nextjs` publique una 10.x con `glob` parcheado, el `override` se puede quitar.
+
 ## [2.8.0] — 2026-11-08
 
 Primera release con lo aprendido de poner una tienda real en producción: la pila de producción deja de
