@@ -717,6 +717,13 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    # Los ficheros de `images/` son del usuario del frontend (`nextjs`, uid 1001; ver
+    # frontend/Dockerfile). Como root y sin `CAP_DAC_OVERRIDE` (`cap_drop: ALL`) el
+    # `find -delete` no podía borrar nada: `Permission denied`, y como el estado de
+    # salida de un `find` con errores no cortaba el bucle, la caché de imágenes no
+    # se purgaba nunca sin que nada lo avisara. Con el mismo uid puede borrarlos sin
+    # devolver ninguna capability.
+    user: "1001:1001"
     volumes:
       # Lectura-escritura: este servicio BORRA dentro de `images/`.
       - next_cache:/cache
@@ -727,7 +734,7 @@ services:
       - |
         trap 'exit 0' TERM INT
         while true; do
-          find /cache/images -type f -mtime +"$${CACHE_IMAGES_MAX_AGE_DAYS}" -print -delete 2>/dev/null | sed 's/^/[cache-prune] borrada /'
+          find /cache/images -type f -mtime +"$${CACHE_IMAGES_MAX_AGE_DAYS}" -print -delete 2>&1 | sed -e 's#^find:#[cache-prune] ERROR find:#' -e 's#^/cache#[cache-prune] borrada /cache#'
           sleep 86400
         done
     # No necesita red de ningún tipo.

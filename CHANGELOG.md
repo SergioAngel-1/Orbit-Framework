@@ -27,6 +27,14 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   (se descartó `cap_add`). Un test de `deploy-config` fija `user`, `cap_drop: ALL` y `read_only`. Migración: un
   `docker compose up -d redis` basta (los volúmenes existentes son de `redis`); un `dump.rdb` de root con modo
   `600` impide arrancar y se corrige con `chown` o se borra (`docs/DEPLOYMENT.md`, «Persistencia de Redis»).
+- **Despliegue · `cache-prune` no purgaba nunca la caché de imágenes.** Corría como root con `cap_drop: [ALL]`
+  sobre `next_cache`, cuyos ficheros son del usuario del frontend (uid 1001): sin `CAP_DAC_OVERRIDE`, el
+  `find -delete` daba `Permission denied`, y como `2>/dev/null` descartaba el error y el bucle seguía, nada
+  avisaba de que `/app/.next/cache/images` crecía sin límite. Arreglo: el servicio corre con `user: "1001:1001"`
+  (el `nextjs` del Dockerfile; sin devolver ninguna capacidad) y los errores de `find` salen al log del
+  contenedor como `[cache-prune] ERROR find: ...`. Un test de `deploy-config` fija el uid, `cap_drop: ALL`, la
+  ausencia de `cap_add` y que el uid coincida con el del Dockerfile. No requiere migración: `docker compose up -d
+  cache-prune`.
 - **SEO · el nodo `WebSite` del JSON-LD ya no declara `SearchAction`.** Google retiró el cuadro de búsqueda
   de los sitelinks en noviembre de 2024: la marca no tenía efecto y apuntaba a un `?search=` que el
   catálogo no necesita anunciar. `ecommerce.search_enabled` sigue gobernando la búsqueda de la tienda.

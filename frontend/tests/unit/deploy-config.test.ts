@@ -168,6 +168,21 @@ describe("docker-compose.prod.yml", () => {
     expect(prune).toContain('-mtime +"$${CACHE_IMAGES_MAX_AGE_DAYS}"');
   });
 
+  // Como root y con `cap_drop: ALL` el `find -delete` no podía borrar los ficheros del
+  // usuario del frontend (uid 1001): `Permission denied` y la purga no hacía nada. Corre
+  // con ese uid, sin devolver capacidades, y los errores de `find` ya no se descartan.
+  it("la purga corre con el uid del frontend y no oculta los errores de find", () => {
+    const prune = service(prod, "cache-prune");
+
+    expect(prune).toMatch(/^ {4}user: "1001:1001"$/m);
+    expect(prune).toMatch(/^ {4}cap_drop:\n {6}- ALL$/m);
+    expect(prune).not.toContain("cap_add");
+    expect(prune).not.toContain("2>/dev/null");
+    expect(prune).toContain("ERROR find:");
+    // El uid debe ser el del usuario `nextjs` que crea el Dockerfile.
+    expect(dockerfile).toContain("adduser --system --uid 1001 nextjs");
+  });
+
   it("MariaDB lleva el buffer pool dimensionado al límite de memoria", () => {
     const db = service(prod, "db");
     expect(db).toContain("--innodb-buffer-pool-size=");
