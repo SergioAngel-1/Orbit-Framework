@@ -102,12 +102,38 @@ function hwe_email_open( string $title, string $lang ): string {
 		. '<tr><td class="hwe-email-body" style="padding:34px 32px 8px;font-family:' . esc_attr( hwe_email_font_stack( 'body' ) ) . ';color:' . esc_attr( hwe_email_color( 'foreground' ) ) . ';">';
 }
 
+/**
+ * Titular y dirección que el pie de los correos muestra bajo la marca, sacados de `legal.*`.
+ *
+ * Filtro `hwe_email_footer_identity`: una instancia puede quitarlos (devolver cadenas vacías)
+ * cuando el titular es una persona natural y su identidad solo debe publicarse donde la ley la
+ * pide (términos, datos personales), no en cada correo. Lo que no sea texto se descarta.
+ *
+ * @return array{company:string,address:string}
+ */
+function hwe_email_footer_identity(): array {
+	$identity = array(
+		'company' => hwe_email_legal( 'company' ),
+		'address' => hwe_email_legal( 'address' ),
+	);
+	$filtered = apply_filters( 'hwe_email_footer_identity', $identity );
+	if ( ! is_array( $filtered ) ) {
+		return $identity;
+	}
+	foreach ( array_keys( $identity ) as $field ) {
+		$value              = $filtered[ $field ] ?? '';
+		$identity[ $field ] = is_string( $value ) ? trim( $value ) : '';
+	}
+	return $identity;
+}
+
 /** Cierre del cuerpo, pie de marca y cierre del documento. */
 function hwe_email_close( ?string $locale = null ): string {
 	$muted   = 'color:#6b7280;';
-	$company = hwe_email_legal( 'company' );
-	$address = hwe_email_legal( 'address' );
-	$contact = hwe_email_legal( 'email' );
+	$identity = hwe_email_footer_identity();
+	$company  = $identity['company'];
+	$address  = $identity['address'];
+	$contact  = hwe_email_legal( 'email' );
 	if ( '' === $contact ) {
 		$contact = (string) get_option( 'admin_email', '' );
 	}

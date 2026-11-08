@@ -145,6 +145,36 @@ final class EmailChromeTest extends TestCase
         $this->assertStringNotContainsString('Georgia', hwe_email_font_stack('heading'));
     }
 
+    // ── pie: identidad legal ───────────────────────────────────────────────
+
+    public function testTheFooterShowsTheLegalIdentityByDefault(): void {
+        $this->config(['brand' => ['name' => 'Tienda'], 'legal' => ['company' => 'Ana Pérez', 'address' => 'Calle 1 # 2-3', 'email' => 'hola@tienda.test']]);
+
+        $footer = hwe_email_close('es');
+
+        $this->assertStringContainsString('Ana Pérez', html_entity_decode($footer));
+        $this->assertStringContainsString('Calle 1 # 2-3', $footer);
+        $this->assertStringContainsString('hola@tienda.test', $footer);
+    }
+
+    public function testAnInstanceCanHideTheLegalIdentityFromTheFooter(): void {
+        $this->config(['brand' => ['name' => 'Tienda'], 'legal' => ['company' => 'Ana Pérez', 'address' => 'Calle 1 # 2-3', 'email' => 'hola@tienda.test']]);
+        Filters\expectApplied('hwe_email_footer_identity')->andReturn(['company' => '', 'address' => '']);
+
+        $footer = hwe_email_close('es');
+
+        $this->assertStringNotContainsString('Ana P', $footer);
+        $this->assertStringNotContainsString('Calle 1', $footer);
+        $this->assertStringContainsString('hola@tienda.test', $footer);
+    }
+
+    public function testAMalformedIdentityFilterCannotInjectNonText(): void {
+        $this->config(['legal' => ['company' => 'Ana Pérez', 'address' => 'Calle 1 # 2-3']]);
+        Filters\expectApplied('hwe_email_footer_identity')->andReturn(['company' => ['x'], 'address' => 42]);
+
+        $this->assertSame(['company' => '', 'address' => ''], hwe_email_footer_identity());
+    }
+
     public function testAnInstanceCanChooseTheHeadingFallback(): void {
         $this->config(['design' => ['typography' => ['font_heading' => 'Unbounded']]]);
         Filters\expectApplied('hwe_email_heading_font_fallback')
