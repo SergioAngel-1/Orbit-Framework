@@ -685,3 +685,47 @@ describe("varias pilas en la misma máquina", () => {
     expect(env).toMatch(/COMPOSE_PROJECT_NAME/);
   });
 });
+
+// ============================================================================
+//  Variables de BUILD de `next.config.mjs`
+//
+//  En la imagen `standalone` Next hornea la config al construir: `server.js` lleva el objeto
+//  resuelto como literal y `next.config.mjs` no se vuelve a evaluar al arrancar. Una variable
+//  que la config lee de `process.env` solo surte efecto en Docker si llega al BUILD (`ARG` en el
+//  Dockerfile y `build.args` en el compose); como `environment` del contenedor no hace nada, y
+//  ni siquiera llega si el compose no la declara. `NEXT_IMAGE_MIN_CACHE_TTL` estuvo así: la
+//  documentación la presentaba como variable normal y no tenía ningún efecto.
+// ============================================================================
+describe("next.config.mjs: sus variables llegan al build de la imagen", () => {
+  /** Sin comentarios de línea: los comentarios nombran las mismas variables. */
+  const configCode = root("frontend/next.config.mjs")
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("//"))
+    .join("\n");
+
+  // `CI` y `NODE_ENV` los fija el propio build; `NEXT_PUBLIC_…` se trata aparte (prefijo).
+  const exempt = new Set(["CI", "NODE_ENV"]);
+  const read = [...configCode.matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)]
+    .map((m) => m[1])
+    .filter((name) => !exempt.has(name) && !name.endsWith("_"));
+
+  it("la config lee alguna variable (el test no pasa en vacío)", () => {
+    expect(read).toContain("NEXT_IMAGE_MIN_CACHE_TTL");
+  });
+
+  it.each([...new Set(read)])(
+    "%s es un ARG del Dockerfile y un build arg del compose",
+    (name) => {
+      expect(dockerfile, `ARG ${name} en frontend/Dockerfile`).toMatch(
+        new RegExp(`^ARG ${name}$`, "m"),
+      );
+      expect(dockerfile, `ENV ${name}=$${name} en frontend/Dockerfile`).toContain(
+        `${name}=$${name}`,
+      );
+      expect(
+        service(prod, "frontend"),
+        `build.args ${name} en docker-compose.prod.yml`,
+      ).toMatch(new RegExp(`^\\s+${name}:\\s+"`, "m"));
+    },
+  );
+});

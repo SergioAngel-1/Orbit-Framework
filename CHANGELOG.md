@@ -23,6 +23,14 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   en paralelo con 7 s terminaron todas) y no tiene relación con ese 504.
 
 ### Fixed
+- **Imágenes · `NEXT_IMAGE_MIN_CACHE_TTL` no tenía ningún efecto en Docker.** La config la lee en `next.config.mjs`,
+  pero la imagen `standalone` hornea esa config al construir (`server.js` lleva el objeto resuelto como literal y
+  no vuelve a evaluar `process.env`), y la variable no estaba ni como `ARG` del `Dockerfile` ni en los `build.args`
+  del compose: ni siquiera llegaba al contenedor. Un valor en el `.env` se ignoraba en silencio (el defecto de 30
+  días coincidía con lo que se esperaba, así que no se notaba). Ahora se pasa como build arg, igual que
+  `NEXT_IMAGE_FORMATS`; vacía conserva el defecto. Un test nuevo en `deploy-config.test.ts` exige que **toda**
+  variable de `process.env` que lea `next.config.mjs` (salvo `CI` y `NODE_ENV`) sea `ARG` del Dockerfile y
+  build arg del compose, para que no vuelva a pasar con la siguiente.
 - **Redis · la primera petición tras arrancar ya no se salta el rate-limit (ni el anti-replay, la revocación…).**
   Síntoma: una sola vez por arranque, con Redis sano, el log del frontend traía `rate_limit.redis_error`
   (`op: count`, «Stream isn't writeable and enableOfflineQueue options is false») y esa petición pasaba sin

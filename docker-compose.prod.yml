@@ -487,6 +487,8 @@ services:
         PRERENDER_LONG_TAIL:         "${PRERENDER_LONG_TAIL:-}"
         # Formatos de /_next/image (webp = sin AVIF, para poca CPU). Vacío = avif,webp.
         NEXT_IMAGE_FORMATS:          "${NEXT_IMAGE_FORMATS:-}"
+        # Segundos que vive una imagen ya optimizada. Vacío = 2592000 (30 días).
+        NEXT_IMAGE_MIN_CACHE_TTL:    "${NEXT_IMAGE_MIN_CACHE_TTL:-}"
     container_name: ${HWE_CONTAINER_PREFIX:-hwe}_frontend
     logging: *default-logging
     restart: unless-stopped
