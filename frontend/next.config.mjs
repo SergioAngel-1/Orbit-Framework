@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { analyticsCspHosts } from "./csp-analytics.mjs";
 import createNextIntlPlugin from "next-intl/plugin";
+import { imageFormats } from "./scripts/image-formats.mjs";
 import {
   staticGenerationOptions,
   staticPageGenerationTimeout,
@@ -265,9 +266,15 @@ const nextConfig = withNextIntl({
     // calidad 75 por defecto (Next la baja a ~47 en AVIF), 18 casos reales (6 fotos del
     // catálogo × 640/828/1080 px): -27 a -41 % de bytes (mediana -33 %, p. ej. 21,9 → 16,1 KB
     // a 1080 px) con menos distorsión SSIM que el WebP. El coste es de CPU, una vez por
-    // variante: ~3x el de WebP (130-435 ms frente a 46-135 ms con la concurrencia de Next
-    // en 4 vCPU) y después la caché (`minimumCacheTTL`) la sirve sin tocar sharp.
-    formats: ["image/avif", "image/webp"],
+    // variante, y después la caché (`minimumCacheTTL`) la sirve sin tocar sharp. Cuánto
+    // cuesta depende de los núcleos: ~3x el de WebP con 4 vCPU (130-435 ms frente a
+    // 46-135 ms) pero ≈5x con 2 (0,3-1,1 s frente a 66-235 ms; 6 variantes a la vez: 3,3 s
+    // frente a 0,6 s). Mientras sharp ocupa los hilos de libuv, el resto de la E/S del
+    // proceso (DNS de la descarga del origen incluido) espera en la misma cola, y la
+    // descarga del origen tiene un plazo fijo de 7 s (no configurable en Next 16): una
+    // ráfaga de AVIF en frío puede acabar en 504. Un despliegue pequeño que lo note fija
+    // `NEXT_IMAGE_FORMATS=webp` (ver `scripts/image-formats.mjs`; se lee al construir).
+    formats: imageFormats(process.env),
     // Next 16+ bloquea por defecto el fetch a IPs privadas (defensa SSRF). El
     // origen interno (`http://wordpress`) y `localhost` en desarrollo resuelven a
     // una IP privada: sin esto, `_next/image` responde 400. `remotePatterns`

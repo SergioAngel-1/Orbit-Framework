@@ -485,6 +485,8 @@ services:
         NEXT_STATIC_GENERATION_MAX_CONCURRENCY: "${BUILD_STATIC_MAX_CONCURRENCY:-}"
         NEXT_STATIC_GENERATION_MIN_PAGES_PER_WORKER: "${BUILD_STATIC_MIN_PAGES_PER_WORKER:-}"
         PRERENDER_LONG_TAIL:         "${PRERENDER_LONG_TAIL:-}"
+        # Formatos de /_next/image (webp = sin AVIF, para poca CPU). Vacío = avif,webp.
+        NEXT_IMAGE_FORMATS:          "${NEXT_IMAGE_FORMATS:-}"
     container_name: ${HWE_CONTAINER_PREFIX:-hwe}_frontend
     logging: *default-logging
     restart: unless-stopped

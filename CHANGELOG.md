@@ -6,6 +6,22 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **Imágenes · `NEXT_IMAGE_FORMATS` elige los formatos de `/_next/image`.** `images.formats` estaba fijo en
+  `["image/avif", "image/webp"]` y un despliegue con poca CPU no podía quitar AVIF. Medido con sharp 0.35 (el de
+  Next), una imagen de catálogo WebP de ~100 KB, 2 núcleos (`taskset -c 0,1`), calidad 75 y anchos 640/1080/1920:
+  AVIF tarda 0,34/0,63/1,1 s por variante frente a 66/123/235 ms de WebP (≈5x, no ≈3x como decía el comentario del
+  config, medido con 4 vCPU), y 6 variantes a la vez, 3,3 s frente a 0,6 s; el AVIF ahorra un 34-37 % de bytes. Mientras
+  sharp ocupa los hilos de libuv, el DNS de la descarga del origen espera en la misma cola (con 24 AVIF en curso, una
+  resolución tardó 13 s; con 24 WebP, 2 s), y esa descarga tiene un plazo fijo de 7 s que Next 16 no expone:
+  esa es la causa más probable del `504` «upstream response timed out» (mecanismo medido en aislamiento; no reproducido en un contenedor real). La variable admite una lista separada por comas (`webp`,
+  `avif` o sus tipos MIME; el orden es el de preferencia); los valores no válidos se ignoran con un aviso y, si no
+  queda ninguno, se usa el defecto. **Sin la variable, nada cambia** (AVIF + WebP). Es una variable de **build**
+  (la imagen `standalone` hornea la config): `docker-compose.prod.yml` y el `Dockerfile` la pasan como build arg.
+  Lógica en `frontend/scripts/image-formats.mjs`; test en `tests/unit/image-formats.test.ts`. No se expone
+  `experimental.imgOptTimeoutInSeconds`: es el plazo de sharp *por codificación* (no cuenta la espera en cola; 24 AVIF
+  en paralelo con 7 s terminaron todas) y no tiene relación con ese 504.
+
 ### Fixed
 - **Redis · la primera petición tras arrancar ya no se salta el rate-limit (ni el anti-replay, la revocación…).**
   Síntoma: una sola vez por arranque, con Redis sano, el log del frontend traía `rate_limit.redis_error`

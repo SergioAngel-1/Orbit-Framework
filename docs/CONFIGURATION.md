@@ -146,6 +146,7 @@ configuran en el panel (*Integraciones*); aquí solo quedan dos variables de **d
 | `PRERENDER_LONG_TAIL` | `all` | Cola larga del prerender (fichas y entradas): `all` las hornea en el build; `none` las deja para ISR bajo demanda (recomendado con un catálogo grande o una máquina justa). |
 | `NEXT_STATIC_GENERATION_MAX_CONCURRENCY` / `…_MIN_PAGES_PER_WORKER` / `NEXT_STATIC_PAGE_GENERATION_TIMEOUT` | 2 / 400 / 180 | Ritmo del build en un servidor que comparte CPU con WordPress. Sus equivalentes `BUILD_STATIC_*` aplican solo al build de la imagen. |
 | `NEXT_IMAGE_MIN_CACHE_TTL` | 2592000 | Segundos que vive una imagen ya optimizada (los uploads de WordPress son inmutables). |
+| `NEXT_IMAGE_FORMATS` | `avif,webp` | Formatos que `/_next/image` puede servir, por orden de preferencia (`avif`, `webp`; admite también `image/avif`). AVIF pesa ~⅓ menos pero cuesta unas 5 veces la CPU de WebP en frío (medido con sharp y 2 núcleos): en un despliegue pequeño que comparte CPU con WordPress, `webp` evita que una ráfaga de variantes nuevas deje lenta (o en 504) la web. Los valores no válidos se ignoran con un aviso en el build. **Variable de build**: en Docker va como `build.args` (ya cableada en `docker-compose.prod.yml`), no como `environment` del contenedor. |
 
 ### Operación y observabilidad
 
