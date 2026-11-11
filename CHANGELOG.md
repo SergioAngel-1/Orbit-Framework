@@ -6,6 +6,14 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.9.0] — 2026-11-10
+
+Correcciones de lo que apareció al revisar los logs de una tienda real tres días después de abrirla: la
+primera petición tras arrancar ya no toma un Redis sano por caído, `NEXT_IMAGE_MIN_CACHE_TTL` deja de ser una
+variable sin efecto en Docker y un despliegue con poca CPU puede quitar AVIF con `NEXT_IMAGE_FORMATS`. Sin
+cambios de contrato con las instancias: se actualiza con un merge del tag. Para usar las dos variables de
+imagen hay que reconstruir la imagen del frontend (son de build).
+
 ### Added
 - **Imágenes · `NEXT_IMAGE_FORMATS` elige los formatos de `/_next/image`.** `images.formats` estaba fijo en
   `["image/avif", "image/webp"]` y un despliegue con poca CPU no podía quitar AVIF. Medido con sharp 0.35 (el de

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Orbit BFF",
-    "version": "2.8.0",
+    "version": "2.9.0",
     "description": "Inventario de las rutas del BFF (Next.js Route Handlers) generado desde el código por tools/contract/bff-openapi.mjs; no se edita a mano. Sesión en cookies httpOnly; toda escritura con x-hwe-csrf exige el token de GET /api/csrf en X-CSRF-Token y un Origin permitido. Las x-hwe-* describen lo que cada método consulta antes de su negocio: x-hwe-module (apagado → 404), x-hwe-flag (flags que lee; casi siempre apagado → 404, ver la fuente), x-hwe-session (required → 401 sin sesión; read → la lee y decide), x-hwe-auth: signature (webhook firmado, sin CSRF), x-hwe-public (ruta de máquina de la instancia, sin Origin ni CSRF) y x-hwe-rate-limit (límites por IP declarados en las opciones de la guarda; su ausencia no significa que no haya límite: ver la fuente)."
   },
   "paths": {
