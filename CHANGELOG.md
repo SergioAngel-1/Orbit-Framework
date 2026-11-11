@@ -6,6 +6,21 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed
+- **Redis · la primera petición tras arrancar ya no se salta el rate-limit (ni el anti-replay, la revocación…).**
+  Síntoma: una sola vez por arranque, con Redis sano, el log del frontend traía `rate_limit.redis_error`
+  (`op: count`, «Stream isn't writeable and enableOfflineQueue options is false») y esa petición pasaba sin
+  límite. Causa: `getRedis()` crea el cliente en el primer uso y, con `enableOfflineQueue: false`, ioredis rechaza
+  todo comando hasta que el socket llega a `ready` (unos milisegundos); el consumidor lo tomaba por una caída y
+  degradaba. Lo compartían todos los consumidores (rate-limit, idempotencia, anti-replay de webhooks de pago,
+  revocación de tokens, 2FA pendiente, locks…), y `/api/health` informaba `redis: "down"` en la primera sonda.
+  Arreglo en un solo sitio, `lib/redis/client.ts`: el cliente retiene los comandos que llegan durante la primera
+  conexión hasta `ready`, hasta el primer fallo de conexión o hasta `REDIS_STARTUP_GRACE_MS` (1,5 s), lo que ocurra
+  antes. El plazo es único por cliente, no por comando: con Redis caído de verdad (conexión rechazada o cortada)
+  los comandos siguen fallando al instante y la política de degradación no cambia (rate-limit fail-open, memoria en
+  modo `strict`). Test: `tests/unit/redis-startup.test.ts`, con el ioredis real contra un servidor RESP en proceso
+  (sin Redis ni Docker).
+
 ### Security
 - **Dependencias · `glob` ≥ 14.0.2 bajo `@sentry/bundler-plugins` (GHSA-3g3m-2fjr-6pw4).** La versión 13.0.6 que
   arrastra `@sentry/nextjs@10.76.2` permitía saltarse la cancelación por `AbortSignal` y seguir recorriendo el
