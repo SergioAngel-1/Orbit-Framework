@@ -6,6 +6,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.9.1] — 2026-11-15
+
+Corrección de las imágenes del CMS que renderiza un componente de cliente (la URL que precargaba el navegador
+no era la que se pintaba) y de una cabecera `Permissions-Policy` que Chrome ya no reconoce. Sin variables nuevas
+ni cambios de configuración: se actualiza con un merge del tag. Hay una ruta nueva, `GET /api/media/[...path]`
+(`contract/bff.openapi.json`), y hay que reconstruir la imagen del frontend.
+
 ### Fixed
 - **Imágenes · `CmsImage` daba una URL distinta en el servidor y en el cliente.** Reescribía la URL de la
   medioteca con `wpMediaInternalUrl`, que lee `WORDPRESS_INTERNAL_API_URL` (variable de servidor). En SSR el
