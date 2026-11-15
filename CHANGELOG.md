@@ -24,7 +24,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   lo declara o el cuerpo lo supera; sin límite por IP, porque el optimizador pide las imágenes de una página desde
   la misma dirección y daría falsos 429), una redirección de WordPress responde 404 sin seguirse, el
   `Content-Length` es el del cuerpo enviado y no el de WordPress (con `content-encoding` no coincide) y
-  `Cache-Control: public, max-age=2592000` (30 días, igual que `minimumCacheTTL`). Sin cambios de variables ni de
+  `Cache-Control: public, max-age=2592000` (30 días, igual que `minimumCacheTTL`). `cmsMediaSrc` conserva el
+  `?ver=` de la URL de origen (la clave de caché del optimizador es la URL entera: un archivo reemplazado con el mismo
+  nombre cambia de versión y se rehace); la ruta lo ignora. Sin cambios de variables ni de
   configuración; `wpMediaInternalUrl` se mantiene para los fetch del propio servidor (p. ej. el icono de marca). Una
   URL con la ruta `/wp-content/uploads/` de un host ajeno ya no se pasa tal cual: se trata como un medio propio
   (antes `next/image` la rechazaba con 400 salvo que su host estuviera en `remotePatterns`). Un SVG

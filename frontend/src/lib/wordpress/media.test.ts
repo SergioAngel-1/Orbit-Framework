@@ -132,12 +132,23 @@ describe("cmsMediaSrc", () => {
     for (const input of [
       "https://tienda.example/wp-content/uploads/2026/07/foto.png",
       "http://wordpress/wp-content/uploads/2026/07/foto.png",
-      "http://localhost:8080/wp-content/uploads/2026/07/foto.png?ver=2#x",
+      "http://localhost:8080/wp-content/uploads/2026/07/foto.png#x",
       "/wp-content/uploads/2026/07/foto.png",
       "wp-content/uploads/2026/07/foto.png",
     ]) {
       expect(cmsMediaSrc(input)).toBe("/api/media/2026/07/foto.png");
     }
+  });
+
+  it("conserva la cadena de consulta (?ver=) y descarta el fragmento", () => {
+    for (const input of [
+      "https://tienda.example/wp-content/uploads/a.png?ver=2#x",
+      "/wp-content/uploads/a.png?ver=2#x",
+      "wp-content/uploads/a.png?ver=2",
+    ]) {
+      expect(cmsMediaSrc(input)).toBe("/api/media/a.png?ver=2");
+    }
+    expect(cmsMediaSrc("/wp-content/uploads/a.png?")).toBe("/api/media/a.png");
   });
 
   it("no lee el entorno: el servidor y el cliente dan la misma ruta", () => {

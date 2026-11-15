@@ -140,24 +140,33 @@ const UPLOADS_MARKER = "/wp-content/uploads/";
  *
  * Solo importa la ruta bajo `/wp-content/uploads/`; el host de la URL de entrada
  * se descarta (la entrada de un CMS puede traer cualquier host y aquí no decide a
- * dónde se conecta nadie). La cadena de consulta y el fragmento también.
+ * dónde se conecta nadie), igual que el fragmento. La cadena de consulta SE
+ * CONSERVA (`?ver=…`): la clave de caché del optimizador es la URL entera, y si un
+ * archivo se reemplaza con el mismo nombre su versión cambia y el optimizador
+ * rehace la imagen. La ruta `/api/media` la ignora.
  */
 export function cmsMediaSrc(url: string): string | null {
   const trimmed = url.trim();
   if (!trimmed || trimmed.startsWith("data:")) return null;
   let pathname: string;
+  let search = "";
   if (/^https?:\/\//i.test(trimmed)) {
     try {
-      pathname = new URL(trimmed).pathname;
+      const parsed = new URL(trimmed);
+      pathname = parsed.pathname;
+      search = parsed.search;
     } catch {
       return null;
     }
   } else {
-    pathname = trimmed.split(/[?#]/)[0] ?? "";
+    const [withoutHash = ""] = trimmed.split("#");
+    const q = withoutHash.indexOf("?");
+    pathname = q === -1 ? withoutHash : withoutHash.slice(0, q);
+    search = q === -1 ? "" : withoutHash.slice(q);
     if (!pathname.startsWith("/")) pathname = `/${pathname}`;
   }
   const at = pathname.indexOf(UPLOADS_MARKER);
   if (at === -1) return null;
   const rest = pathname.slice(at + UPLOADS_MARKER.length);
-  return rest ? `${CMS_MEDIA_ROUTE}/${rest}` : null;
+  return rest ? `${CMS_MEDIA_ROUTE}/${rest}${search === "?" ? "" : search}` : null;
 }

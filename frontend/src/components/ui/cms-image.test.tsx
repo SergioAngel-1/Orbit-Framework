@@ -94,6 +94,15 @@ describe("CmsImage: mismo resultado en el servidor y en el cliente", () => {
     expect(server).not.toContain("wordpress");
   });
 
+  it("conserva ?ver= en la URL que pide al optimizador", () => {
+    const { container } = render(
+      <CmsImage src={`${SRC}?ver=3`} alt="x" width={400} height={300} />,
+    );
+    expect(container.querySelector("img")!.getAttribute("src")).toContain(
+      encodeURIComponent("/api/media/2026/07/foto.webp?ver=3"),
+    );
+  });
+
   it("una URL que no es de la medioteca no se toca", () => {
     const { container } = render(
       <CmsImage src="/img/a.webp" alt="x" width={10} height={10} />,

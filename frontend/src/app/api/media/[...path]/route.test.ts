@@ -140,4 +140,15 @@ describe("GET /api/media", () => {
     expect(res.headers.get("content-encoding")).toBeNull();
     expect((await res.arrayBuffer()).byteLength).toBe(6);
   });
+
+  it("ignora la cadena de consulta (?ver= solo cambia la clave de caché del optimizador)", async () => {
+    fetchMock.mockResolvedValueOnce(image());
+    const res = await GET(new Request("http://localhost/api/media/a.png?ver=7"), {
+      params: Promise.resolve({ path: ["a.png"] }),
+    });
+    expect(res.status).toBe(200);
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      "http://wordpress:80/wp-content/uploads/a.png",
+    );
+  });
 });
