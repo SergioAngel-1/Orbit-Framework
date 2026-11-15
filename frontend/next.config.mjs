@@ -251,6 +251,10 @@ const nextConfig = withNextIntl({
   // descarga el original por el origen interno. Los `remotePatterns` de abajo cubren las
   // URLs absolutas de WordPress que otro componente pase a `next/image` tal cual.
   images: {
+    // Next 16 solo deja a `next/image` pedir imágenes locales SIN cadena de consulta. `/api/media`
+    // lleva la `?ver=` del medio (`cmsMediaSrc`: cambia la clave de caché si el archivo se
+    // reemplaza), así que la ruta la admite; el resto de rutas locales conserva el defecto.
+    localPatterns: [{ pathname: "/api/media/**" }, { pathname: "**", search: "" }],
     remotePatterns: [
       {
         protocol: "http",

@@ -26,7 +26,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `Content-Length` es el del cuerpo enviado y no el de WordPress (con `content-encoding` no coincide) y
   `Cache-Control: public, max-age=2592000` (30 días, igual que `minimumCacheTTL`). `cmsMediaSrc` conserva el
   `?ver=` de la URL de origen (la clave de caché del optimizador es la URL entera: un archivo reemplazado con el mismo
-  nombre cambia de versión y se rehace); la ruta lo ignora. Sin cambios de variables ni de
+  nombre cambia de versión y se rehace); la ruta lo ignora. Como Next 16 solo admite imágenes locales sin cadena
+  de consulta, `images.localPatterns` autoriza `/api/media/**` con `?ver=` y conserva el defecto (`**` sin consulta)
+  para el resto; sin ello `/_next/image` respondía 400. Sin cambios de variables ni de
   configuración; `wpMediaInternalUrl` se mantiene para los fetch del propio servidor (p. ej. el icono de marca). Una
   URL con la ruta `/wp-content/uploads/` de un host ajeno ya no se pasa tal cual: se trata como un medio propio
   (antes `next/image` la rechazaba con 400 salvo que su host estuviera en `remotePatterns`). Un SVG
