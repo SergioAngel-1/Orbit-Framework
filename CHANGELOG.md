@@ -23,7 +23,9 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   separadores y vacíos, y solo devuelve imágenes raster: ni SVG ni otros archivos. Sin cambios de variables ni de
   configuración; `wpMediaInternalUrl` se mantiene para los fetch del propio servidor (p. ej. el icono de marca). Una
   URL con la ruta `/wp-content/uploads/` de un host ajeno ya no se pasa tal cual: se trata como un medio propio
-  (antes `next/image` la rechazaba con 400 salvo que su host estuviera en `remotePatterns`).
+  (antes `next/image` la rechazaba con 400 salvo que su host estuviera en `remotePatterns`). Un SVG
+  no pasa por la ruta ni por el optimizador: `CmsImage` conserva su URL tal cual, como `next/image` ya lo servía
+  sin optimizar.
 - **Seguridad · `Permissions-Policy` sin `browsing-topics=()`.** Google retiró la API de Topics y el resto de
   Privacy Sandbox, y Chrome respondía «Unrecognized feature» en consola a cada carga sin que la directiva hiciera
   nada. Los avisos de `attribution-reporting`, `private-aggregation`, `join-ad-interest-group` y `run-ad-auction`

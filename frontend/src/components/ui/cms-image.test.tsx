@@ -102,4 +102,35 @@ describe("CmsImage: mismo resultado en el servidor y en el cliente", () => {
       encodeURIComponent("/img/a.webp"),
     );
   });
+
+  it("un SVG conserva su URL: no pasa por /api/media ni por el optimizador", () => {
+    const url = "https://tienda.example/wp-content/uploads/2026/07/logo.svg";
+    const { container } = render(<CmsImage src={url} alt="x" width={40} height={40} />);
+    const img = container.querySelector("img")!;
+    expect(img.getAttribute("src")).toBe(url);
+    expect(img.getAttribute("srcset")).toBeNull();
+    expect(container.innerHTML).not.toContain("api/media");
+  });
+
+  it("un SVG relativo, solo o como variante móvil, se deja tal cual", () => {
+    const solo = render(
+      <CmsImage src="/wp-content/uploads/a.svg" alt="x" width={40} height={40} />,
+    );
+    expect(solo.container.querySelector("img")!.getAttribute("src")).toBe(
+      "/wp-content/uploads/a.svg",
+    );
+    cleanup();
+
+    const art = render(
+      <CmsImage
+        src="/wp-content/uploads/a.svg"
+        mobileSrc="/wp-content/uploads/b.svg"
+        alt="x"
+        width={40}
+        height={40}
+      />,
+    );
+    expect(art.container.innerHTML).toContain("/wp-content/uploads/b.svg");
+    expect(art.container.innerHTML).not.toContain("api/media");
+  });
 });

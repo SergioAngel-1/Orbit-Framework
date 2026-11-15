@@ -1,7 +1,7 @@
 import Image, { getImageProps } from "next/image";
 import { preload } from "react-dom";
 import { cn } from "@/lib/utils";
-import { cmsMediaSrc } from "@/lib/wordpress/media";
+import { cmsMediaSrc, isSvgAsset } from "@/lib/wordpress/media";
 
 /**
  * Imagen CMS / medioteca WP vía next/image.
@@ -130,12 +130,13 @@ export function CmsImage({
   // relativa que NO depende de ninguna variable de servidor, así que este
   // componente da el mismo `src`, `srcSet` y precarga al renderizarse en el
   // servidor y en el cliente. El optimizador la baja del origen interno de WP.
-  // Cualquier otra URL (otro host, una ruta propia) pasa tal cual.
-  const resolved = cmsMediaSrc(trimmed) ?? trimmed;
+  // Un SVG no pasa por el optimizador (`next/image` lo sirve tal cual con
+  // `unoptimized`): va con su URL, que el navegador pide directamente. Cualquier
+  // otra URL (otro host, una ruta propia) tampoco se toca.
+  const resolve = (url: string) => (isSvgAsset(url) ? url : (cmsMediaSrc(url) ?? url));
+  const resolved = resolve(trimmed);
   const trimmedMobile = mobileSrc?.trim();
-  const resolvedMobile = trimmedMobile
-    ? (cmsMediaSrc(trimmedMobile) ?? trimmedMobile)
-    : undefined;
+  const resolvedMobile = trimmedMobile ? resolve(trimmedMobile) : undefined;
 
   const computedSizes = sizes ?? (fill ? "100vw" : undefined);
 
