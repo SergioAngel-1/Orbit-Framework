@@ -117,7 +117,7 @@ WooCommerce, secreto JWT, secretos de webhook) en el servidor.
 | Fidelización | `GET /api/loyalty/{summary,transactions,referrals,referral-link,validate-code}`, `POST /api/loyalty/transfer`, `POST/DELETE /api/store/cart/points` | Módulo `loyalty`: monedero y referidos. Ver «Fidelización» más abajo. |
 | Pagos | `POST /api/payments/create`, `POST /api/payments/webhook/[provider]`, `GET /api/payments/return` | Capa agnóstica de pasarela (`lib/payments/`). **La prueba de pago es el webhook verificado, nunca el `return`.** El `returnUrl` opcional de `create` debe ser del propio sitio (origen = `ALLOWED_ORIGIN`; si no, 422). |
 | Webhooks de Woo | `POST /api/webhooks/woocommerce/{order-created,order-updated}` | Firma HMAC verificada, dispara efectos (`lib/woocommerce/order-events.ts`). |
-| Utilidad | `GET /api/csrf`, `GET /api/health` (+`/live`), `POST /api/contact`, `GET /api/og`, `GET /api/icon`, `POST /api/revalidate` | Token CSRF, sondas de salud, formulario de contacto (se entrega por email desde WordPress; con sesión, la identidad sale de la cuenta), imágenes OG/icon dinámicas, revalidación on-demand. |
+| Utilidad | `GET /api/csrf`, `GET /api/health` (+`/live`), `POST /api/contact`, `GET /api/og`, `GET /api/icon`, `GET /api/media/[...path]`, `POST /api/revalidate` | Token CSRF, sondas de salud, formulario de contacto (se entrega por email desde WordPress; con sesión, la identidad sale de la cuenta), imágenes OG/icon dinámicas, medios de WordPress para el optimizador de `next/image`, revalidación on-demand. |
 
 **Contrato de auth/CSRF** (aplica a cualquier frontend que consuma este BFF):
 1. Sesión en **cookies httpOnly** (nunca `localStorage` ni body) — el frontend no maneja el
@@ -877,7 +877,14 @@ responden **404** y el banner no encola ni guarda comprobante.
   fail-soft del CMS (banners) usa `fetchWithRetry`. Variables: `GRAPHQL_TIMEOUT_MS`,
   `CONFIG_TIMEOUT_MS`.
 - **Imágenes del CMS**: `CmsImage` + `lib/wordpress/media` (`wpUploadsUrl`, `resolveCmsAssetUrl`,
-  `wpMediaInternalUrl`, `isSvgAsset`). Un SVG no pasa por el optimizador (`<img>` tal cual).
+  `cmsMediaSrc`, `isSvgAsset`). Un SVG no pasa por el optimizador (`<img>` tal cual).
+  `CmsImage` no da a `next/image` la URL de WordPress sino la ruta `/api/media/<ruta bajo uploads>`
+  (`cmsMediaSrc`, pura: sin variables de entorno, así que el servidor y el cliente generan el mismo
+  `src`, `srcSet` y precarga). El optimizador la pide a Next y `GET /api/media/[...path]` descarga el
+  original por la red interna (`WORDPRESS_INTERNAL_API_URL`); el host interno no llega al HTML. Esa
+  ruta solo devuelve imágenes raster de `wp-content/uploads` (ni SVG ni otros archivos). Un componente
+  que se renderice también en el cliente no debe decidir un `src` con `wpMediaInternalUrl` (lee una
+  variable solo de servidor): ese helper queda para fetches del propio servidor.
 - **Prerender**: `PRERENDER_LONG_TAIL=all|none`; `NEXT_STATIC_GENERATION_MAX_CONCURRENCY`,
   `NEXT_STATIC_GENERATION_MIN_PAGES_PER_WORKER`, `NEXT_STATIC_PAGE_GENERATION_TIMEOUT`.
 - **`?return=`**: `safeInternalPath` valida la ruta de vuelta tras el login; `loginHref(ruta)` /

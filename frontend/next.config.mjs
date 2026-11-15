@@ -116,9 +116,15 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  // Solo features que Chrome reconoce hoy. `browsing-topics=()` se quitó: Google retiró la
+  // API de Topics y el resto de Privacy Sandbox (anuncio de oct. de 2025), y un navegador
+  // actual responde «Unrecognized feature» en consola a cada carga sin que el header haga
+  // nada. Los avisos de `attribution-reporting`, `private-aggregation`,
+  // `join-ad-interest-group` y `run-ad-auction` NO salen de aquí ni del Caddyfile: los
+  // emiten los iframes de terceros (Google Ads, Meta) con su propio `allow`.
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+    value: "camera=(), microphone=(), geolocation=()",
   },
   { key: "X-DNS-Prefetch-Control", value: "off" },
   { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
@@ -240,8 +246,15 @@ const nextConfig = withNextIntl({
     ];
   },
 
-  // Permite servir imágenes alojadas en WordPress (medios de wp-content/uploads).
+  // Imágenes de WordPress (medios de wp-content/uploads). `CmsImage` no pide al optimizador
+  // la URL de WP sino la ruta `/api/media/…` (una imagen LOCAL, sin `remotePatterns`), que
+  // descarga el original por el origen interno. Los `remotePatterns` de abajo cubren las
+  // URLs absolutas de WordPress que otro componente pase a `next/image` tal cual.
   images: {
+    // Next 16 solo deja a `next/image` pedir imágenes locales SIN cadena de consulta. `/api/media`
+    // lleva la `?ver=` del medio (`cmsMediaSrc`: cambia la clave de caché si el archivo se
+    // reemplaza), así que la ruta la admite; el resto de rutas locales conserva el defecto.
+    localPatterns: [{ pathname: "/api/media/**" }, { pathname: "**", search: "" }],
     remotePatterns: [
       {
         protocol: "http",
@@ -275,16 +288,18 @@ const nextConfig = withNextIntl({
     // ráfaga de AVIF en frío puede acabar en 504. Un despliegue pequeño que lo note fija
     // `NEXT_IMAGE_FORMATS=webp` (ver `scripts/image-formats.mjs`; se lee al construir).
     formats: imageFormats(process.env),
-    // Next 16+ bloquea por defecto el fetch a IPs privadas (defensa SSRF). El
-    // origen interno (`http://wordpress`) y `localhost` en desarrollo resuelven a
-    // una IP privada: sin esto, `_next/image` responde 400. `remotePatterns`
-    // sigue siendo la allowlist de hosts y rutas.
+    // Next 16+ bloquea por defecto el fetch a IPs privadas (defensa SSRF). Ya no lo necesita
+    // `CmsImage` (su descarga la hace `/api/media`, que no pasa por esta comprobación), pero
+    // sí una URL absoluta a `http://wordpress` o a `localhost` en desarrollo, que resuelven a
+    // una IP privada: sin esto, `_next/image` responde 400. `remotePatterns` sigue siendo la
+    // allowlist de hosts y rutas.
     dangerouslyAllowLocalIP: !isProd || Boolean(process.env.WORDPRESS_INTERNAL_API_URL),
     // Cuánto vive una imagen YA optimizada antes de que sharp la rehaga. Los
     // uploads de WordPress son inmutables (al resubir con el mismo nombre WP
-    // versiona el archivo), así que un valor largo es correcto; el origen interno
-    // no manda `Cache-Control` y Next aplicaría su defecto de 4 h, reoptimizando
-    // cada variante del catálogo seis veces al día.
+    // versiona el archivo y `cmsMediaSrc` conserva su `?ver=` en la clave de caché), así que
+    // un valor largo es correcto. Es el suelo: `/api/media` manda `max-age=2592000` (el mismo
+    // valor), pero una fuente que no mande `Cache-Control` aplicaría el defecto de Next de
+    // 4 h y reoptimizaría cada variante del catálogo seis veces al día.
     minimumCacheTTL: Number(process.env.NEXT_IMAGE_MIN_CACHE_TTL) || 2592000,
   },
 });

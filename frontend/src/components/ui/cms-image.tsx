@@ -1,7 +1,7 @@
 import Image, { getImageProps } from "next/image";
 import { preload } from "react-dom";
 import { cn } from "@/lib/utils";
-import { wpMediaInternalUrl } from "@/lib/wordpress/media";
+import { cmsMediaSrc, isSvgAsset } from "@/lib/wordpress/media";
 
 /**
  * Imagen CMS / medioteca WP vía next/image.
@@ -126,11 +126,17 @@ export function CmsImage({
   const trimmed = src.trim();
   if (!trimmed) return null;
 
-  // El optimizador de next/image hace el fetch server-side: usar el ORIGEN
-  // INTERNO de WP (resoluble por el servidor/Docker), no la URL pública del
-  // navegador. En modo híbrido interno === público → no-op.
-  const resolved = wpMediaInternalUrl(trimmed);
-  const resolvedMobile = mobileSrc ? wpMediaInternalUrl(mobileSrc) : undefined;
+  // Un medio de la medioteca va por `/api/media/…` (ver `cmsMediaSrc`): una ruta
+  // relativa que NO depende de ninguna variable de servidor, así que este
+  // componente da el mismo `src`, `srcSet` y precarga al renderizarse en el
+  // servidor y en el cliente. El optimizador la baja del origen interno de WP.
+  // Un SVG no pasa por el optimizador (`next/image` lo sirve tal cual con
+  // `unoptimized`): va con su URL, que el navegador pide directamente. Cualquier
+  // otra URL (otro host, una ruta propia) tampoco se toca.
+  const resolve = (url: string) => (isSvgAsset(url) ? url : (cmsMediaSrc(url) ?? url));
+  const resolved = resolve(trimmed);
+  const trimmedMobile = mobileSrc?.trim();
+  const resolvedMobile = trimmedMobile ? resolve(trimmedMobile) : undefined;
 
   const computedSizes = sizes ?? (fill ? "100vw" : undefined);
 

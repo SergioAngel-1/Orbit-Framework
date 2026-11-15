@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  cmsMediaSrc,
   getWordPressInternalOrigin,
   isSvgAsset,
   resolveCmsAssetUrl,
@@ -123,5 +124,51 @@ describe("isSvgAsset", () => {
   it("reconoce un SVG con query o fragmento", () => {
     expect(isSvgAsset("https://x.test/a.SVG?v=2")).toBe(true);
     expect(isSvgAsset("/a.png")).toBe(false);
+  });
+});
+
+describe("cmsMediaSrc", () => {
+  it("da la ruta del BFF desde una URL pública, interna o relativa", () => {
+    for (const input of [
+      "https://tienda.example/wp-content/uploads/2026/07/foto.png",
+      "http://wordpress/wp-content/uploads/2026/07/foto.png",
+      "http://localhost:8080/wp-content/uploads/2026/07/foto.png#x",
+      "/wp-content/uploads/2026/07/foto.png",
+      "wp-content/uploads/2026/07/foto.png",
+    ]) {
+      expect(cmsMediaSrc(input)).toBe("/api/media/2026/07/foto.png");
+    }
+  });
+
+  it("conserva la cadena de consulta (?ver=) y descarta el fragmento", () => {
+    for (const input of [
+      "https://tienda.example/wp-content/uploads/a.png?ver=2#x",
+      "/wp-content/uploads/a.png?ver=2#x",
+      "wp-content/uploads/a.png?ver=2",
+    ]) {
+      expect(cmsMediaSrc(input)).toBe("/api/media/a.png?ver=2");
+    }
+    expect(cmsMediaSrc("/wp-content/uploads/a.png?")).toBe("/api/media/a.png");
+  });
+
+  it("no lee el entorno: el servidor y el cliente dan la misma ruta", () => {
+    const url = "https://tienda.example/wp-content/uploads/a/b.webp";
+    env({
+      WORDPRESS_PUBLIC_URL: "https://tienda.example",
+      WORDPRESS_INTERNAL_API_URL: "http://wordpress:80/graphql",
+    });
+    const server = cmsMediaSrc(url);
+    env({});
+    const client = cmsMediaSrc(url);
+    expect(server).toBe(client);
+    expect(server).not.toContain("wordpress");
+  });
+
+  it("deja fuera lo que no es de la medioteca", () => {
+    expect(cmsMediaSrc("https://cdn.example/img/a.png")).toBeNull();
+    expect(cmsMediaSrc("/img/logo.png")).toBeNull();
+    expect(cmsMediaSrc("data:image/png;base64,AA==")).toBeNull();
+    expect(cmsMediaSrc("")).toBeNull();
+    expect(cmsMediaSrc("https://tienda.example/wp-content/uploads/")).toBeNull();
   });
 });

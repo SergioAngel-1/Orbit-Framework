@@ -10,10 +10,13 @@
 //     en el SERVIDOR) llega a WordPress: dentro de un contenedor, `localhost`
 //     es el propio contenedor.
 //
-//  Se leen variables de servidor (sin `NEXT_PUBLIC_`): estos helpers no tienen
-//  efecto en un componente de cliente (el origen interno no llega al bundle),
-//  donde devuelven la URL tal cual. Úsalos desde Server Components o pasa al
-//  cliente la URL ya resuelta.
+//  Se leen variables de servidor (sin `NEXT_PUBLIC_`): los helpers que dependen
+//  de ellas no tienen efecto en un componente de cliente (el origen interno no
+//  llega al bundle), donde devuelven la URL tal cual. NO los uses para decidir
+//  el `src` de una imagen en un componente que también se renderiza en el
+//  cliente: el servidor y el navegador calcularían URLs distintas (precarga
+//  inútil y discrepancia de hidratación). Para eso, `cmsMediaSrc`, que no lee
+//  ninguna variable y da el mismo resultado en ambos lados.
 // ============================================================================
 
 /** Origen público de WordPress (medios), de `WORDPRESS_PUBLIC_URL`. */
@@ -42,9 +45,10 @@ export function wpUploadsUrl(path: string): string {
  * Origen interno de WordPress (hostname del servicio en la red Docker), o null
  * si no hay uno configurado.
  *
- * El host interno NO es un secreto, pero acaba visible en el `url` de
- * `/_next/image` que el navegador envía al optimizador: es lo que se acepta a
- * cambio de que las imágenes carguen dentro de Docker.
+ * Para los fetch del propio servidor (p. ej. el icono de marca). Las imágenes de
+ * `CmsImage` NO usan esto: van por `/api/media` (`cmsMediaSrc`), así el host
+ * interno no llega al HTML ni al navegador. Solo existe en el servidor: un
+ * componente que también se renderice en el cliente no debe decidir nada con él.
  */
 export function getWordPressInternalOrigin(): string | null {
   const raw = process.env.WORDPRESS_INTERNAL_API_URL;
@@ -115,4 +119,55 @@ export function wpMediaInternalUrl(url: string): string {
   const internal = getWordPressInternalOrigin();
   if (!internal || parsed.origin === internal) return trimmed;
   return new URL(parsed.pathname + parsed.search, internal).toString();
+}
+
+/** Prefijo de la ruta del BFF que sirve los medios de WordPress al optimizador. */
+export const CMS_MEDIA_ROUTE = "/api/media";
+
+const UPLOADS_MARKER = "/wp-content/uploads/";
+
+/**
+ * Ruta del BFF desde la que `next/image` obtiene un medio de la medioteca
+ * (`/api/media/2026/07/foto.png`), o null si la URL no es de `wp-content/uploads`.
+ *
+ * ES PURA: no lee ninguna variable de entorno, así que el servidor y el navegador
+ * calculan exactamente el mismo `src`, `srcSet` y precarga. Es lo que se le da a
+ * `next/image` en lugar de la URL de WordPress, pública (que el navegador vería y
+ * precargaría) o interna (`http://wordpress/…`, que solo existe en el servidor y
+ * acabaría en el HTML público). El optimizador pide esa ruta relativa a Next, y
+ * `app/api/media` la sirve desde el origen interno (`WORDPRESS_INTERNAL_API_URL`):
+ * el único sitio donde se decide el origen, siempre en el servidor y sin tomar
+ * nunca un host de la entrada.
+ *
+ * Solo importa la ruta bajo `/wp-content/uploads/`; el host de la URL de entrada
+ * se descarta (la entrada de un CMS puede traer cualquier host y aquí no decide a
+ * dónde se conecta nadie), igual que el fragmento. La cadena de consulta SE
+ * CONSERVA (`?ver=…`): la clave de caché del optimizador es la URL entera, y si un
+ * archivo se reemplaza con el mismo nombre su versión cambia y el optimizador
+ * rehace la imagen. La ruta `/api/media` la ignora.
+ */
+export function cmsMediaSrc(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.startsWith("data:")) return null;
+  let pathname: string;
+  let search = "";
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      pathname = parsed.pathname;
+      search = parsed.search;
+    } catch {
+      return null;
+    }
+  } else {
+    const [withoutHash = ""] = trimmed.split("#");
+    const q = withoutHash.indexOf("?");
+    pathname = q === -1 ? withoutHash : withoutHash.slice(0, q);
+    search = q === -1 ? "" : withoutHash.slice(q);
+    if (!pathname.startsWith("/")) pathname = `/${pathname}`;
+  }
+  const at = pathname.indexOf(UPLOADS_MARKER);
+  if (at === -1) return null;
+  const rest = pathname.slice(at + UPLOADS_MARKER.length);
+  return rest ? `${CMS_MEDIA_ROUTE}/${rest}${search === "?" ? "" : search}` : null;
 }

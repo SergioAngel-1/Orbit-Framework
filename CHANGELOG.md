@@ -6,6 +6,40 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Fixed
+- **Imágenes · `CmsImage` daba una URL distinta en el servidor y en el cliente.** Reescribía la URL de la
+  medioteca con `wpMediaInternalUrl`, que lee `WORDPRESS_INTERNAL_API_URL` (variable de servidor). En SSR el
+  `<img>` y su `<link rel=preload>` salían como `/_next/image?url=http%3A%2F%2Fwordpress%2F…`; cuando el mismo
+  componente se renderizaba en el cliente (tarjetas dentro de un Client Component) la variable no existía y la URL
+  quedaba pública, así que `priority` precargaba una URL que la imagen pintada no usaba («preloaded but not used
+  within a few seconds»), se descargaban dos veces las imágenes prioritarias, había discrepancia de atributos entre
+  servidor y cliente y el HTML público exponía el host interno. Ahora `CmsImage` da a `next/image` la ruta relativa
+  `/api/media/<ruta bajo uploads>` (`cmsMediaSrc`, pura: no lee el entorno, mismo resultado en ambos lados) y la
+  nueva ruta `GET /api/media/[...path]` descarga el original del origen interno cuando el optimizador la pide.
+  Se descartaron `rewrites()` (se evalúan al construir y `WORDPRESS_INTERNAL_API_URL` llega vacío al build por
+  defecto), un `loader` con la URL pública (el optimizador de Next 16 no permite traducir el host al descargar) y
+  pasar la URL resuelta desde cada Server Component (no cubre un cliente que se hidrata). La ruta no toma nunca un
+  host de la petición (destino = origen interno + `/wp-content/uploads/` + segmentos validados), rechaza `..`,
+  separadores y vacíos, y solo devuelve imágenes raster: ni SVG ni otros archivos. Tope de 25 MB (413 si WordPress
+  lo declara o el cuerpo lo supera; sin límite por IP, porque el optimizador pide las imágenes de una página desde
+  la misma dirección y daría falsos 429), una redirección de WordPress responde 404 sin seguirse, el
+  `Content-Length` es el del cuerpo enviado y no el de WordPress (con `content-encoding` no coincide) y
+  `Cache-Control: public, max-age=2592000` (30 días, igual que `minimumCacheTTL`). `cmsMediaSrc` conserva el
+  `?ver=` de la URL de origen (la clave de caché del optimizador es la URL entera: un archivo reemplazado con el mismo
+  nombre cambia de versión y se rehace); la ruta lo ignora. Como Next 16 solo admite imágenes locales sin cadena
+  de consulta, `images.localPatterns` autoriza `/api/media/**` con `?ver=` y conserva el defecto (`**` sin consulta)
+  para el resto; sin ello `/_next/image` respondía 400. Sin cambios de variables ni de
+  configuración; `wpMediaInternalUrl` se mantiene para los fetch del propio servidor (p. ej. el icono de marca). Una
+  URL con la ruta `/wp-content/uploads/` de un host ajeno ya no se pasa tal cual: se trata como un medio propio
+  (antes `next/image` la rechazaba con 400 salvo que su host estuviera en `remotePatterns`). Un SVG
+  no pasa por la ruta ni por el optimizador: `CmsImage` conserva su URL tal cual, como `next/image` ya lo servía
+  sin optimizar.
+- **Seguridad · `Permissions-Policy` sin `browsing-topics=()`.** Google retiró la API de Topics y el resto de
+  Privacy Sandbox, y Chrome respondía «Unrecognized feature» en consola a cada carga sin que la directiva hiciera
+  nada. Los avisos de `attribution-reporting`, `private-aggregation`, `join-ad-interest-group` y `run-ad-auction`
+  no salen de las cabeceras del framework (ni de `next.config.mjs` ni del Caddyfile): los emiten iframes de
+  terceros (Google Ads, Meta) con su propio atributo `allow`.
+
 ## [2.9.0] — 2026-11-10
 
 Correcciones de lo que apareció al revisar los logs de una tienda real tres días después de abrirla: la
