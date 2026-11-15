@@ -18,20 +18,32 @@ export const dynamic = "force-dynamic";
 //     sale SOLO de la configuración, nunca de la petición (sin SSRF);
 //   · se rechaza cualquier segmento vacío, `.`/`..` o con separador;
 //   · solo se devuelven imágenes raster: ni SVG (script en nuestro origen si se
-//     abre directo) ni otro tipo de archivo; `nosniff` es global.
+//     abre directo) ni otro tipo de archivo; `nosniff` es global;
+//   · tope de 25 MB (`MAX_BYTES`): se lee con cuenta y, si WordPress declara más
+//     o el cuerpo lo supera, 413 sin servir nada. Es el único límite de carga
+//     de la ruta: un límite por IP daría falsos 429, porque el optimizador pide
+//     las decenas de imágenes de una página desde la misma dirección.
 // ============================================================================
 
 const UPLOADS_PATH = "/wp-content/uploads/";
 const UPSTREAM_TIMEOUT_MS = 10_000;
-/** Igual que el `Cache-Control` que Caddy pone a `/wp-content/uploads/*`. */
-const CACHE_CONTROL = "public, max-age=31536000, stale-while-revalidate=86400";
+/** Tamaño máximo de un original. Más es un fallo del contenido, no una foto de catálogo. */
+const MAX_BYTES = 25 * 1024 * 1024;
+/**
+ * 30 días, igual que `images.minimumCacheTTL` de `next.config.mjs`: lo que
+ * una caché intermedia ve de esta ruta no vive más que lo que el optimizador
+ * guarda de ella. Un archivo resubido con el mismo nombre cambia la URL por su
+ * `?ver=` (`cmsMediaSrc`), no por caducidad.
+ */
+const CACHE_CONTROL = "public, max-age=2592000";
 
-function notFound(): Response {
-  return new Response("Not found", {
-    status: 404,
-    headers: { "Cache-Control": "no-store" },
-  });
+function plain(status: number, text: string): Response {
+  return new Response(text, { status, headers: { "Cache-Control": "no-store" } });
 }
+
+const notFound = () => plain(404, "Not found");
+const tooLarge = () => plain(413, "Payload too large");
+const badGateway = () => plain(502, "Bad gateway");
 
 /** Segmentos válidos o null: nada que escape de `uploads` ni que cambie de host. */
 function safeSegments(path: string[] | undefined): string[] | null {
@@ -42,6 +54,35 @@ function safeSegments(path: string[] | undefined): string[] | null {
     }
   }
   return path;
+}
+
+/**
+ * Lee el cuerpo contando bytes (ya descomprimidos: `fetch` deshace `content-encoding`,
+ * así que ni `content-length` ni la cuenta de la red valen). null si supera `MAX_BYTES`.
+ */
+async function readCapped(
+  body: ReadableStream<Uint8Array>,
+): Promise<Uint8Array | null> {
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
 }
 
 export async function GET(
@@ -57,40 +98,57 @@ export async function GET(
       `${UPLOADS_PATH}${segments.map(encodeURIComponent).join("/")}`,
       {
         signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-        redirect: "error",
+        // Nunca se sigue una redirección (podría sacar la petición del origen
+        // interno): un medio que redirige no existe como tal → 404.
+        redirect: "manual",
         cache: "no-store",
       },
     );
   } catch {
-    return new Response("Bad gateway", {
-      status: 502,
-      headers: { "Cache-Control": "no-store" },
-    });
+    return badGateway();
   }
 
-  if (upstream.status === 404 || upstream.status === 403) return notFound();
+  const discard = () => upstream.body?.cancel().catch(() => undefined);
+  if (upstream.status >= 300 && upstream.status < 400) {
+    await discard();
+    return notFound();
+  }
+  if (upstream.status === 404 || upstream.status === 403) {
+    await discard();
+    return notFound();
+  }
+  if (!upstream.ok) {
+    await discard();
+    return badGateway();
+  }
   const type =
     upstream.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ?? "";
-  if (
-    !upstream.ok ||
-    !upstream.body ||
-    !type.startsWith("image/") ||
-    type.includes("svg")
-  ) {
-    await upstream.body?.cancel().catch(() => undefined);
-    return upstream.ok
-      ? notFound()
-      : new Response("Bad gateway", {
-          status: 502,
-          headers: { "Cache-Control": "no-store" },
-        });
+  if (!upstream.body || !type.startsWith("image/") || type.includes("svg")) {
+    await discard();
+    return notFound();
+  }
+  const declared = Number(upstream.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_BYTES) {
+    await discard();
+    return tooLarge();
   }
 
-  const headers = new Headers({
-    "Content-Type": type,
-    "Cache-Control": CACHE_CONTROL,
+  let bytes: Uint8Array | null;
+  try {
+    bytes = await readCapped(upstream.body);
+  } catch {
+    return badGateway();
+  }
+  if (!bytes) return tooLarge();
+
+  // `Content-Length` es el del cuerpo que se envía (el ya descomprimido), nunca el
+  // de WordPress: con `content-encoding` no coincide y cortaría la respuesta.
+  return new Response(bytes as BodyInit, {
+    status: 200,
+    headers: {
+      "Content-Type": type,
+      "Content-Length": String(bytes.byteLength),
+      "Cache-Control": CACHE_CONTROL,
+    },
   });
-  const length = upstream.headers.get("content-length");
-  if (length) headers.set("Content-Length", length);
-  return new Response(upstream.body, { status: 200, headers });
 }

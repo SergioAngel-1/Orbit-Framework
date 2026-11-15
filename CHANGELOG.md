@@ -20,7 +20,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   defecto), un `loader` con la URL pública (el optimizador de Next 16 no permite traducir el host al descargar) y
   pasar la URL resuelta desde cada Server Component (no cubre un cliente que se hidrata). La ruta no toma nunca un
   host de la petición (destino = origen interno + `/wp-content/uploads/` + segmentos validados), rechaza `..`,
-  separadores y vacíos, y solo devuelve imágenes raster: ni SVG ni otros archivos. Sin cambios de variables ni de
+  separadores y vacíos, y solo devuelve imágenes raster: ni SVG ni otros archivos. Tope de 25 MB (413 si WordPress
+  lo declara o el cuerpo lo supera; sin límite por IP, porque el optimizador pide las imágenes de una página desde
+  la misma dirección y daría falsos 429), una redirección de WordPress responde 404 sin seguirse, el
+  `Content-Length` es el del cuerpo enviado y no el de WordPress (con `content-encoding` no coincide) y
+  `Cache-Control: public, max-age=2592000` (30 días, igual que `minimumCacheTTL`). Sin cambios de variables ni de
   configuración; `wpMediaInternalUrl` se mantiene para los fetch del propio servidor (p. ej. el icono de marca). Una
   URL con la ruta `/wp-content/uploads/` de un host ajeno ya no se pasa tal cual: se trata como un medio propio
   (antes `next/image` la rechazaba con 400 salvo que su host estuviera en `remotePatterns`). Un SVG

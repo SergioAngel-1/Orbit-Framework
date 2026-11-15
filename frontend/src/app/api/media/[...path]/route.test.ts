@@ -36,7 +36,8 @@ describe("GET /api/media", () => {
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/webp");
-    expect(res.headers.get("cache-control")).toContain("max-age=31536000");
+    expect(res.headers.get("cache-control")).toBe("public, max-age=2592000");
+    expect(res.headers.get("content-length")).toBe("3");
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
   });
 
@@ -78,5 +79,65 @@ describe("GET /api/media", () => {
     expect((await call(["a.png"])).status).toBe(502);
     fetchMock.mockRejectedValueOnce(new Error("ECONNREFUSED"));
     expect((await call(["a.png"])).status).toBe(502);
+  });
+
+  it("una redirección de WordPress es un 404 y no se sigue", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response("", { status: 302, headers: { location: "http://interno/otra" } }),
+    );
+    const res = await call(["a.png"]);
+    expect(res.status).toBe(404);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(fetchMock.mock.calls[0]![1]).toMatchObject({ redirect: "manual" });
+  });
+
+  it("413 si WordPress declara más de 25 MB, sin leer el cuerpo", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(new Uint8Array(4), {
+        status: 200,
+        headers: {
+          "content-type": "image/png",
+          "content-length": String(26 * 1024 * 1024),
+        },
+      }),
+    );
+    const res = await call(["grande.png"]);
+    expect(res.status).toBe(413);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("413 si el cuerpo supera 25 MB aunque no declare tamaño", async () => {
+    const chunk = new Uint8Array(10 * 1024 * 1024);
+    let sent = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (sent++ < 3) controller.enqueue(chunk);
+        else controller.close();
+      },
+    });
+    fetchMock.mockResolvedValueOnce(
+      new Response(body, { status: 200, headers: { "content-type": "image/png" } }),
+    );
+    const res = await call(["sin-tamano.png"]);
+    expect(res.status).toBe(413);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("no copia el content-length de WordPress: con content-encoding no es el del cuerpo", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(new Uint8Array([1, 2, 3, 4, 5, 6]), {
+        status: 200,
+        headers: {
+          "content-type": "image/webp",
+          "content-encoding": "gzip",
+          "content-length": "2",
+        },
+      }),
+    );
+    const res = await call(["a.webp"]);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-length")).toBe("6");
+    expect(res.headers.get("content-encoding")).toBeNull();
+    expect((await res.arrayBuffer()).byteLength).toBe(6);
   });
 });
