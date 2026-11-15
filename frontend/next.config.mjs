@@ -116,9 +116,15 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  // Solo features que Chrome reconoce hoy. `browsing-topics=()` se quitó: Google retiró la
+  // API de Topics y el resto de Privacy Sandbox (anuncio de oct. de 2025), y un navegador
+  // actual responde «Unrecognized feature» en consola a cada carga sin que el header haga
+  // nada. Los avisos de `attribution-reporting`, `private-aggregation`,
+  // `join-ad-interest-group` y `run-ad-auction` NO salen de aquí ni del Caddyfile: los
+  // emiten los iframes de terceros (Google Ads, Meta) con su propio `allow`.
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+    value: "camera=(), microphone=(), geolocation=()",
   },
   { key: "X-DNS-Prefetch-Control", value: "off" },
   { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
