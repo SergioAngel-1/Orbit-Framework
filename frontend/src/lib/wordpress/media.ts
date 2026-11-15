@@ -10,10 +10,13 @@
 //     en el SERVIDOR) llega a WordPress: dentro de un contenedor, `localhost`
 //     es el propio contenedor.
 //
-//  Se leen variables de servidor (sin `NEXT_PUBLIC_`): estos helpers no tienen
-//  efecto en un componente de cliente (el origen interno no llega al bundle),
-//  donde devuelven la URL tal cual. Úsalos desde Server Components o pasa al
-//  cliente la URL ya resuelta.
+//  Se leen variables de servidor (sin `NEXT_PUBLIC_`): los helpers que dependen
+//  de ellas no tienen efecto en un componente de cliente (el origen interno no
+//  llega al bundle), donde devuelven la URL tal cual. NO los uses para decidir
+//  el `src` de una imagen en un componente que también se renderiza en el
+//  cliente: el servidor y el navegador calcularían URLs distintas (precarga
+//  inútil y discrepancia de hidratación). Para eso, `cmsMediaSrc`, que no lee
+//  ninguna variable y da el mismo resultado en ambos lados.
 // ============================================================================
 
 /** Origen público de WordPress (medios), de `WORDPRESS_PUBLIC_URL`. */
@@ -115,4 +118,46 @@ export function wpMediaInternalUrl(url: string): string {
   const internal = getWordPressInternalOrigin();
   if (!internal || parsed.origin === internal) return trimmed;
   return new URL(parsed.pathname + parsed.search, internal).toString();
+}
+
+/** Prefijo de la ruta del BFF que sirve los medios de WordPress al optimizador. */
+export const CMS_MEDIA_ROUTE = "/api/media";
+
+const UPLOADS_MARKER = "/wp-content/uploads/";
+
+/**
+ * Ruta del BFF desde la que `next/image` obtiene un medio de la medioteca
+ * (`/api/media/2026/07/foto.png`), o null si la URL no es de `wp-content/uploads`.
+ *
+ * ES PURA: no lee ninguna variable de entorno, así que el servidor y el navegador
+ * calculan exactamente el mismo `src`, `srcSet` y precarga. Es lo que se le da a
+ * `next/image` en lugar de la URL de WordPress, pública (que el navegador vería y
+ * precargaría) o interna (`http://wordpress/…`, que solo existe en el servidor y
+ * acabaría en el HTML público). El optimizador pide esa ruta relativa a Next, y
+ * `app/api/media` la sirve desde el origen interno (`WORDPRESS_INTERNAL_API_URL`):
+ * el único sitio donde se decide el origen, siempre en el servidor y sin tomar
+ * nunca un host de la entrada.
+ *
+ * Solo importa la ruta bajo `/wp-content/uploads/`; el host de la URL de entrada
+ * se descarta (la entrada de un CMS puede traer cualquier host y aquí no decide a
+ * dónde se conecta nadie). La cadena de consulta y el fragmento también.
+ */
+export function cmsMediaSrc(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.startsWith("data:")) return null;
+  let pathname: string;
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      pathname = new URL(trimmed).pathname;
+    } catch {
+      return null;
+    }
+  } else {
+    pathname = trimmed.split(/[?#]/)[0] ?? "";
+    if (!pathname.startsWith("/")) pathname = `/${pathname}`;
+  }
+  const at = pathname.indexOf(UPLOADS_MARKER);
+  if (at === -1) return null;
+  const rest = pathname.slice(at + UPLOADS_MARKER.length);
+  return rest ? `${CMS_MEDIA_ROUTE}/${rest}` : null;
 }
