@@ -45,9 +45,10 @@ export function wpUploadsUrl(path: string): string {
  * Origen interno de WordPress (hostname del servicio en la red Docker), o null
  * si no hay uno configurado.
  *
- * El host interno NO es un secreto, pero acaba visible en el `url` de
- * `/_next/image` que el navegador envía al optimizador: es lo que se acepta a
- * cambio de que las imágenes carguen dentro de Docker.
+ * Para los fetch del propio servidor (p. ej. el icono de marca). Las imágenes de
+ * `CmsImage` NO usan esto: van por `/api/media` (`cmsMediaSrc`), así el host
+ * interno no llega al HTML ni al navegador. Solo existe en el servidor: un
+ * componente que también se renderice en el cliente no debe decidir nada con él.
  */
 export function getWordPressInternalOrigin(): string | null {
   const raw = process.env.WORDPRESS_INTERNAL_API_URL;
