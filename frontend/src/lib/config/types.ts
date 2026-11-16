@@ -38,6 +38,7 @@ export interface SiteConfig {
   social: {
     twitter: string;
     instagram: string;
+    tiktok: string;
     facebook: string;
     linkedin: string;
     youtube: string;

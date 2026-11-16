@@ -125,6 +125,11 @@
                     "x-hwe-type": "text",
                     "description": "Instagram"
                 },
+                "tiktok": {
+                    "type": "string",
+                    "x-hwe-type": "text",
+                    "description": "TikTok"
+                },
                 "facebook": {
                     "type": "string",
                     "x-hwe-type": "text",

@@ -65,6 +65,7 @@ export default async function ContactPage({
         socials={{
           facebook: config.social.facebook || undefined,
           instagram: config.social.instagram || undefined,
+          tiktok: config.social.tiktok || undefined,
           youtube: config.social.youtube || undefined,
         }}
       />

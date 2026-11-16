@@ -6,6 +6,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **Redes · `social.tiktok` en el Control Center, de punta a punta.** El panel no tenía TikTok y una tienda que
+  vende por vídeo corto no podía declararlo: ahora el campo `social.tiktok` (solo usuario, sin URL ni `@`; varias
+  cuentas separadas con « | ») se declara en `Schema.php` y llega por `/wp-json/hwe/v1/config` al `sameAs` del
+  JSON-LD de la organización (`collectSocialSameAs`) y a los iconos del pie y de `/contact`. `normalizeUser`
+  acepta también la URL pegada por error (`https://www.tiktok.com/@usuario`, con o sin `/video/<id>` detrás) y
+  `buildUrl` arma `https://www.tiktok.com/@usuario`. Vacío por defecto: una tienda que no rellena el campo no
+  publica ninguna cuenta. `contract/config.schema.json` regenerado.
+
 ## [2.9.1] — 2026-11-15
 
 Corrección de las imágenes del CMS que renderiza un componente de cliente (la URL que precargaba el navegador

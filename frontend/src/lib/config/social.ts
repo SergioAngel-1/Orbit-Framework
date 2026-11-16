@@ -2,7 +2,7 @@ import type { SiteConfig } from "./types";
 
 /** Redes con icono en UI (no wikipedia/wikidata: solo sameAs). */
 export type SocialPlatform =
-  "facebook" | "instagram" | "youtube" | "twitter" | "linkedin" | "whatsapp";
+  "facebook" | "instagram" | "tiktok" | "youtube" | "twitter" | "linkedin" | "whatsapp";
 
 export interface SocialLinkEntry {
   platform: SocialPlatform;
@@ -19,6 +19,7 @@ export interface SocialLinkEntry {
 const UI_PLATFORMS: Exclude<SocialPlatform, "whatsapp">[] = [
   "facebook",
   "instagram",
+  "tiktok",
   "youtube",
   "twitter",
   "linkedin",
@@ -60,6 +61,12 @@ function normalizeUser(raw: string, kind: SocialKind): string | null {
         const channelIdx = parts.indexOf("channel");
         if (channelIdx >= 0 && parts[channelIdx + 1]) return parts[channelIdx + 1];
       }
+      // TikTok: `https://www.tiktok.com/@usuario` (o con `/video/<id>` detrás); el
+      // handle es siempre el segmento que empieza por `@`.
+      if (kind === "tiktok") {
+        const at = parts.find((p) => p.startsWith("@"));
+        if (at) return at.replace(/^@/, "");
+      }
       if (kind === "wikipedia" || kind === "wikidata") {
         const wikiIdx = parts.indexOf("wiki");
         if (wikiIdx >= 0 && parts[wikiIdx + 1]) {
@@ -83,6 +90,8 @@ function buildUrl(user: string, kind: Exclude<SocialKind, "whatsapp">): string |
       return `https://twitter.com/${user}`;
     case "instagram":
       return `https://instagram.com/${user}`;
+    case "tiktok":
+      return `https://www.tiktok.com/@${user}`;
     case "facebook":
       return `https://facebook.com/${user}`;
     case "youtube":
@@ -185,6 +194,7 @@ export function collectSocialSameAs(social: SiteConfig["social"]): string[] {
   const kinds: SocialKind[] = [
     "twitter",
     "instagram",
+    "tiktok",
     "facebook",
     "youtube",
     "linkedin",

@@ -26,6 +26,7 @@ export const CONFIG_DEFAULTS: SiteConfig = {
   social: {
     twitter: "",
     instagram: "",
+    tiktok: "",
     facebook: "",
     linkedin: "",
     youtube: "",
