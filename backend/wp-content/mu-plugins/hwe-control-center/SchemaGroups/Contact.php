@@ -36,6 +36,12 @@ trait Contact {
                         'public'      => true,
                         'description' => 'Solo usuario(s), sin URL. Varias cuentas: sepáralas con « | ». El frontend arma https://instagram.com/{usuario}.',
                     ],
+                    'tiktok'    => [
+                        'type'        => 'text',
+                        'label'       => 'TikTok',
+                        'public'      => true,
+                        'description' => 'Solo usuario(s), sin URL ni @. Varias cuentas: sepáralas con « | ». El frontend arma https://www.tiktok.com/@{usuario}.',
+                    ],
                     'facebook'  => [
                         'type'        => 'text',
                         'label'       => 'Facebook',

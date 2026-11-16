@@ -100,7 +100,7 @@ Preguntas:
   vacía)?
 
 **Determina**:
-- `legal.email`/`legal.address`, `social.facebook`/`instagram`/`youtube`/`twitter`/`linkedin`
+- `legal.email`/`legal.address`, `social.facebook`/`instagram`/`tiktok`/`youtube`/`twitter`/`linkedin`
   en `instance.config.json` → alimentan `/contact` automáticamente (`ContactForm` ya lee
   `config.legal.email` y `config.social.*`).
 - Si hay sedes físicas: hasta **5** en `legal.locations` (nombre, dirección, ciudad, teléfono,

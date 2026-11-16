@@ -39,6 +39,28 @@ describe("resolveSocialUrls", () => {
     ]);
     expect(resolveSocialUrls("no-es-q", "wikidata")).toEqual([]);
   });
+
+  it("TikTok: handle puro y varias cuentas con |", () => {
+    expect(resolveSocialUrls("mitienda", "tiktok")).toEqual([
+      { user: "mitienda", href: "https://www.tiktok.com/@mitienda" },
+    ]);
+    expect(resolveSocialUrls("mitienda | otra", "tiktok")).toEqual([
+      { user: "mitienda", href: "https://www.tiktok.com/@mitienda" },
+      { user: "otra", href: "https://www.tiktok.com/@otra" },
+    ]);
+  });
+
+  it("TikTok: acepta la URL con @ y la de un video", () => {
+    expect(resolveSocialUrls("https://www.tiktok.com/@mitienda", "tiktok")).toEqual([
+      { user: "mitienda", href: "https://www.tiktok.com/@mitienda" },
+    ]);
+    expect(
+      resolveSocialUrls(
+        "https://www.tiktok.com/@mitienda/video/7290000000000",
+        "tiktok",
+      ),
+    ).toEqual([{ user: "mitienda", href: "https://www.tiktok.com/@mitienda" }]);
+  });
 });
 
 describe("whatsappHref", () => {
@@ -98,6 +120,7 @@ describe("collectSocialSameAs", () => {
     const social = {
       ...CONFIG_DEFAULTS.social,
       instagram: "marca",
+      tiktok: "mitienda",
       whatsapp: "34 600 123 456",
       wikipedia: "Mi_Marca",
       wikidata: "Q123",
@@ -105,6 +128,7 @@ describe("collectSocialSameAs", () => {
     const sameAs = collectSocialSameAs(social);
 
     expect(sameAs).toContain("https://instagram.com/marca");
+    expect(sameAs).toContain("https://www.tiktok.com/@mitienda");
     expect(sameAs).toContain("https://wa.me/34600123456");
     expect(sameAs).toContain("https://es.wikipedia.org/wiki/Mi_Marca");
     expect(sameAs).toContain("https://www.wikidata.org/wiki/Q123");

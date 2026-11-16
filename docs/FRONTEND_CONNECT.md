@@ -923,7 +923,7 @@ y `frontend/src/lib/config/types.ts` para el tipo TypeScript equivalente):
 
 ```
 brand:  { name, tagline, description, url, logo, locale, og_image }
-social: { twitter, instagram, facebook, linkedin, youtube, wikipedia, wikidata }
+social: { twitter, instagram, tiktok, facebook, linkedin, youtube, wikipedia, wikidata }
 legal:  { company, nif, email, phone, mobile, address, city, region, postal_code,
           locations: { location_1…location_5: { label, address, city, region, postal_code,
                        maps, phone, hours, latitude, longitude } } }   // hasta 5 sedes, todas opcionales
