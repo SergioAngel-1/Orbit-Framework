@@ -41,10 +41,19 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe("el secreto TOTP no sale a un tercero", () => {
-  it("la CSP de next.config.mjs no autoriza ningún generador de QR externo", () => {
-    const config = readFileSync(join(FRONTEND, "next.config.mjs"), "utf8");
-
-    expect(config).not.toMatch(THIRD_PARTY_QR);
+  it("la CSP no autoriza ningún generador de QR externo", () => {
+    // La CSP se reparte entre el builder (`csp-policy.mjs`), los hosts de
+    // analítica y los extra del despliegue: se miran los tres.
+    for (const file of [
+      "next.config.mjs",
+      "csp-policy.mjs",
+      "csp-analytics.mjs",
+      "csp-extra-hosts.mjs",
+    ]) {
+      expect(readFileSync(join(FRONTEND, file), "utf8"), file).not.toMatch(
+        THIRD_PARTY_QR,
+      );
+    }
   });
 
   it("ningún archivo de src/ llama a un generador de QR externo", () => {

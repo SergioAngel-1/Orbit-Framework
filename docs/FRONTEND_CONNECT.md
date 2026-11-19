@@ -390,7 +390,9 @@ frontend nunca calcula ni firma un importe; solo muestra lo que devuelve la Stor
     o volver a marcar.
   - **Teselas, librería y clave de navegador a elección de la instancia.** El framework no fija proveedor de
     teselas ni librería. La CSP de `next.config.mjs` limita `img-src` (y `connect-src`/`script-src` según la
-    librería): la instancia debe autorizar los hosts que use, igual que hace `csp-analytics.mjs` con la analítica.
+    librería): la instancia autoriza los hosts que use con `CSP_EXTRA_IMG_SRC`/`CSP_EXTRA_CONNECT_SRC`/
+    `CSP_EXTRA_SCRIPT_SRC` (variables de build, ver `docs/CONFIGURATION.md`), igual que `csp-analytics.mjs`
+    fija los de la analítica.
     Si el mapa usa un servicio de Google en el navegador, necesita **su propia clave de navegador**: la de
     Integraciones → Mapas es de servidor y nunca se envía al cliente.
   - El mapa debe ser operable con teclado: el buscador y los campos de latitud y longitud son la alternativa al puntero.

@@ -1,6 +1,8 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { analyticsCspHosts } from "./csp-analytics.mjs";
+import { cspExtraHosts } from "./csp-extra-hosts.mjs";
+import { buildContentSecurityPolicy } from "./csp-policy.mjs";
 import createNextIntlPlugin from "next-intl/plugin";
 import { imageFormats } from "./scripts/image-formats.mjs";
 import {
@@ -42,6 +44,13 @@ const WP_ORIGIN = getWordPressOrigin();
 const ANALYTICS = analyticsCspHosts();
 
 /**
+ * Orígenes que el despliegue AÑADE a la CSP (ver `csp-extra-hosts.mjs`): los de
+ * audiencias de Google Ads, una pasarela de Conversions API o una CDN propia.
+ * Aditivos y validados; sin variables, no cambian la cabecera ni un byte.
+ */
+const EXTRA_CSP = cspExtraHosts(process.env);
+
+/**
  * Construye un `remotePattern` de next/image a partir del origen del CMS,
  * para permitir imágenes alojadas en el dominio de producción sin hardcodearlo.
  */
@@ -75,44 +84,21 @@ function wordpressImagePattern() {
 }
 
 /**
- * Content Security Policy.
- *
- * Nota sobre `'unsafe-inline'` en script-src: Next.js inyecta scripts inline
- * para la hidratación. Una CSP basada en *nonce* eliminaría esta directiva,
- * pero obliga a renderizado dinámico (rompe SSG/ISR), que es un pilar de esta
- * plantilla. Mantenemos `'unsafe-inline'` para scripts y bloqueamos con firmeza
- * el resto de vectores (connect/img/frame/object/base/form). Endurecer a nonce
- * es una mejora opcional documentada en la Fase 7 del plan.
- */
-function buildContentSecurityPolicy() {
-  const directives = [
-    "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}${ANALYTICS.script.length ? " " + ANALYTICS.script.join(" ") : ""}`,
-    "style-src 'self' 'unsafe-inline'",
-    // Sin generadores de QR externos: el QR del alta de 2FA lo sirve nuestro BFF
-    // (/api/auth/2fa/qr) y el secreto TOTP no debe salir del dominio.
-    `img-src 'self' data: blob: ${WP_ORIGIN}${ANALYTICS.img.length ? " " + ANALYTICS.img.join(" ") : ""}`,
-    "font-src 'self' data:",
-    // Sin el CMS: el navegador solo llama al BFF (mismo origen).
-    `connect-src 'self'${ANALYTICS.connect.length ? " " + ANALYTICS.connect.join(" ") : ""}${isProd ? "" : " ws: wss:"}`,
-    "frame-ancestors 'none'",
-    "frame-src 'none'",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "manifest-src 'self'",
-    "worker-src 'self' blob:",
-    ...(isProd ? ["upgrade-insecure-requests"] : []),
-  ];
-  return directives.join("; ");
-}
-
-/**
  * Cabeceras de seguridad aplicadas a todas las rutas.
  * HSTS solo se emite en producción (en local rompería el acceso por http).
  */
 const securityHeaders = [
-  { key: "Content-Security-Policy", value: buildContentSecurityPolicy() },
+  {
+    // La arma `csp-policy.mjs` (función pura, con pruebas): hosts de analítica
+    // (estrechables) + los que añade el despliegue con `CSP_EXTRA_*_SRC`.
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({
+      isProd,
+      wordpressOrigin: WP_ORIGIN,
+      analytics: ANALYTICS,
+      extra: EXTRA_CSP,
+    }),
+  },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

@@ -68,7 +68,7 @@ El Licenciatario es responsable de:
 - [ ] Rate-limit con Redis activo y umbrales ajustados
 - [ ] Tope de cuerpo del BFF activo (413 por encima de 64 KiB JSON / 256 KiB webhooks) y `/api/*` limitado a 1 MB en Caddy
 - [ ] Cookies `Secure` + `SameSite` en producción
-- [ ] CSP revisada (`img-src` incluye `WORDPRESS_PUBLIC_URL`; `connect-src` solo `'self'`: el navegador no habla con WordPress; `CSP_ANALYTICS_PROVIDERS` si no usas todos los proveedores)
+- [ ] CSP revisada (`img-src` incluye `WORDPRESS_PUBLIC_URL`; `connect-src` solo `'self'`: el navegador no habla con WordPress; `CSP_ANALYTICS_PROVIDERS` si no usas todos los proveedores; `CSP_EXTRA_SCRIPT_SRC`/`CSP_EXTRA_CONNECT_SRC`/`CSP_EXTRA_IMG_SRC` solo con los orígenes que de verdad necesites —solo `https://`, con comodín de subdominio y sin rutas—, nunca `*` ni `http:`, y rehaciendo la imagen al cambiarlas)
 - [ ] `HWE_REVALIDATION_SECRET` idéntico en WordPress y frontend (secreto interno de `hwe-bff-only`)
 - [ ] `WP_ENVIRONMENT_TYPE=production` (apaga la introspección de GraphQL) y `WP_ADMIN_PASSWORD` propia
 - [ ] Login movido (`HWE_LOGIN_SLUG`) o `wp-admin` tras IP allowlist / WAF

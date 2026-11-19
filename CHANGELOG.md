@@ -7,6 +7,23 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **CSP ampliable por despliegue (`CSP_EXTRA_SCRIPT_SRC`, `CSP_EXTRA_CONNECT_SRC`,
+  `CSP_EXTRA_IMG_SRC`).** Los hosts autorizados por la CSP eran una lista fija del núcleo (o, con
+  `CSP_ANALYTICS_PROVIDERS`, solo estrechable): una instancia que necesitaba un origen que el
+  framework no conoce —audiencias de Google Ads, la pasarela de una Conversions API, una CDN
+  propia— tenía que editar `csp-analytics.mjs`/`next.config.mjs` y arrastrar ese cambio en cada
+  actualización. Ahora tres variables de **build** añaden orígenes a `script-src`, `connect-src`
+  e `img-src` con validación estricta (`frontend/csp-extra-hosts.mjs`): solo `https://`, con
+  comodín de subdominio (`https://*.ejemplo.com`) y puerto opcional; se descarta con aviso en el
+  build cualquier otro valor (`*`, `http:`, palabras clave entre comillas, espacios, `;` —que
+  colaría directivas enteras—, rutas o consultas) y el resto de la lista sí entra. **Sin las
+  variables la cabecera es idéntica byte a byte**: no se amplía ningún host por defecto. La CSP
+  pasa a construirse en una función pura (`frontend/csp-policy.mjs`) con pruebas de la cabecera
+  exacta. Cableadas en `frontend/Dockerfile` (ARG antes de `COPY . .`),
+  `docker-compose.prod.yml`, `.github/workflows/cd.yml` y `.env.prod.example`; documentadas en
+  `docs/CONFIGURATION.md` y `docs/SECURITY.md`.
+
+
 - **Redes · `social.tiktok` en el Control Center, de punta a punta.** El panel no tenía TikTok y una tienda que
   vende por vídeo corto no podía declararlo: ahora el campo `social.tiktok` (solo usuario, sin URL ni `@`; varias
   cuentas separadas con « | ») se declara en `Schema.php` y llega por `/wp-json/hwe/v1/config` al `sameAs` del

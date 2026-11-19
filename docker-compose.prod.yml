@@ -474,6 +474,12 @@ services:
         WORDPRESS_INTERNAL_API_URL:  "${BUILD_WORDPRESS_INTERNAL_API_URL:-}"
         NEXT_PUBLIC_SITE_URL:        "https://${PUBLIC_DOMAIN}"
         CSP_ANALYTICS_PROVIDERS:     "${CSP_ANALYTICS_PROVIDERS:-}"
+        # Orígenes EXTRA de la CSP (aditivos): audiencias de Google Ads, una
+        # pasarela de Conversions API, una CDN propia. Solo https, separados por
+        # comas; sin ellas la cabecera es idéntica. También se leen al construir.
+        CSP_EXTRA_SCRIPT_SRC:        "${CSP_EXTRA_SCRIPT_SRC:-}"
+        CSP_EXTRA_CONNECT_SRC:       "${CSP_EXTRA_CONNECT_SRC:-}"
+        CSP_EXTRA_IMG_SRC:           "${CSP_EXTRA_IMG_SRC:-}"
         SENTRY_DSN:                  "${SENTRY_DSN:-}"
         NEXT_PUBLIC_SENTRY_DSN:      "${NEXT_PUBLIC_SENTRY_DSN:-}"
         NEXT_PUBLIC_SENTRY_REPLAY:   "${NEXT_PUBLIC_SENTRY_REPLAY:-}"
