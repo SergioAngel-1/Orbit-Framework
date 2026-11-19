@@ -14,6 +14,7 @@ import {
   MembershipsReadError,
   verifyMembershipCard,
 } from "./server";
+import { resetPublicPriceCache } from "./public-prices-cache";
 
 // ============================================================================
 //  Lectores de servidor del módulo `memberships`.
@@ -98,6 +99,9 @@ beforeEach(() => {
   vi.mocked(wpFetch).mockReset();
   vi.mocked(storeFetch).mockReset();
   vi.mocked(logReadFailure).mockReset();
+  // La caché de precios públicos vive en memoria del módulo: sin esto, un test
+  // heredaría los precios del anterior.
+  resetPublicPriceCache();
 });
 
 describe("getMembershipLevels", () => {
@@ -391,6 +395,108 @@ describe("getPublicMembershipPrices", () => {
       expect.anything(),
       expect.objectContaining({ level: "error" }),
     );
+  });
+
+  it("N peticiones simultáneas con los mismos ids hacen UNA lectura del catálogo", async () => {
+    const catalog = [
+      {
+        id: 601,
+        prices: { price: "2000", regular_price: "2500", currency_minor_unit: 2 },
+      },
+      {
+        id: 602,
+        prices: { price: "1500", regular_price: "2000", currency_minor_unit: 2 },
+      },
+    ];
+    vi.mocked(storeFetch).mockImplementation(async () => {
+      // Un poco de latencia: es el escenario real (WordPress tarda) y el que
+      // hacía que cada petición simultánea pidiera el catálogo por su cuenta.
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return { data: catalog, cartToken: null };
+    });
+
+    const answers = await Promise.all(
+      Array.from({ length: 8 }, () => getPublicMembershipPrices([601, 602])),
+    );
+
+    expect(storeFetch).toHaveBeenCalledTimes(1);
+    for (const answer of answers) {
+      expect(answer.map((price) => price.id)).toEqual([601, 602]);
+      expect(answer[0]?.member_price).toBe("20.00");
+    }
+  });
+
+  it("la siguiente petición sale de la caché y solo se piden los ids que faltan", async () => {
+    vi.mocked(storeFetch).mockImplementation(async (path: string) => {
+      const ids = decodeURIComponent(/include=([^&]+)/.exec(path)?.[1] ?? "").split(
+        ",",
+      );
+      return {
+        data: ids.map((id) => ({
+          id: Number(id),
+          prices: { price: "1000", regular_price: "1000", currency_minor_unit: 2 },
+        })),
+        cartToken: null,
+      };
+    });
+
+    await getPublicMembershipPrices([601, 602]);
+    await getPublicMembershipPrices([601, 602]);
+    expect(storeFetch).toHaveBeenCalledTimes(1);
+
+    await getPublicMembershipPrices([602, 603]);
+    expect(storeFetch).toHaveBeenCalledTimes(2);
+    // El id cacheado no se vuelve a pedir: la lectura lleva solo el nuevo.
+    expect(storeFetch).toHaveBeenLastCalledWith("/products?include=603&per_page=1");
+  });
+
+  it("un id que no está en el catálogo también se cachea (no se reintenta)", async () => {
+    vi.mocked(storeFetch).mockResolvedValue({
+      data: [{ id: 601, prices: { price: "1000", regular_price: "1000" } }],
+      cartToken: null,
+    });
+
+    await expect(getPublicMembershipPrices([601, 999])).resolves.toHaveLength(1);
+    await expect(getPublicMembershipPrices([601, 999])).resolves.toHaveLength(1);
+
+    expect(storeFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("la entrada caduca a los 30 s y vuelve a leer el catálogo", async () => {
+    const now = vi.spyOn(Date, "now");
+    vi.mocked(storeFetch).mockResolvedValue({
+      data: [{ id: 601, prices: { price: "1000", regular_price: "1000" } }],
+      cartToken: null,
+    });
+
+    try {
+      now.mockReturnValue(1_700_000_000_000);
+      await getPublicMembershipPrices([601]);
+      now.mockReturnValue(1_700_000_000_000 + 29_000);
+      await getPublicMembershipPrices([601]);
+      expect(storeFetch).toHaveBeenCalledTimes(1);
+
+      now.mockReturnValue(1_700_000_000_000 + 31_000);
+      await getPublicMembershipPrices([601]);
+      expect(storeFetch).toHaveBeenCalledTimes(2);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("un fallo NO se cachea: el intento siguiente vuelve a leer el catálogo", async () => {
+    vi.mocked(storeFetch).mockRejectedValueOnce(new Error("sin red"));
+    vi.mocked(storeFetch).mockResolvedValue({
+      data: [{ id: 601, prices: { price: "1000", regular_price: "1000" } }],
+      cartToken: null,
+    });
+
+    await expect(getPublicMembershipPrices([601])).rejects.toMatchObject({
+      code: "unavailable",
+    });
+    await expect(getPublicMembershipPrices([601])).resolves.toHaveLength(1);
+
+    expect(storeFetch).toHaveBeenCalledTimes(2);
   });
 });
 

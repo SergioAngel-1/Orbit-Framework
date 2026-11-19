@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getSession } from "@/lib/auth/session";
+import { logger } from "@/lib/observability/logger";
 import {
   getMembershipPrices,
   getPublicMembershipPrices,
 } from "@/lib/memberships/server";
 import { MembershipsReadError } from "@/lib/memberships/types";
+import { rateLimit } from "@/lib/security/rate-limit";
 import { GET } from "./route";
 
 // ============================================================================
@@ -12,7 +14,8 @@ import { GET } from "./route";
 //
 //  «Precio para ti» de una lista acotada de productos. Con sesión pregunta a la
 //  misma función que el carrito; sin sesión devuelve los precios públicos. El
-//  tope de 50 ids se valida también aquí (antes de tocar WordPress).
+//  tope de 50 ids se valida también aquí (antes de tocar WordPress) y la ruta,
+//  que es anónima, va acotada por IP.
 // ============================================================================
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
@@ -20,6 +23,7 @@ vi.mock("@/lib/memberships/server", () => ({
   getMembershipPrices: vi.fn(),
   getPublicMembershipPrices: vi.fn(),
 }));
+vi.mock("@/lib/security/rate-limit", () => ({ rateLimit: vi.fn() }));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
@@ -47,8 +51,10 @@ const PUBLIC_QUOTE = {
   percent: 0,
 };
 
-const request = (query = "") =>
-  new Request(`https://tienda.example/api/memberships/prices${query}`);
+const request = (query = "", ip = "203.0.113.9") =>
+  new Request(`https://tienda.example/api/memberships/prices${query}`, {
+    headers: { "x-forwarded-for": ip },
+  });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -56,6 +62,12 @@ beforeEach(() => {
   vi.mocked(getSession).mockResolvedValue(null);
   vi.mocked(getMembershipPrices).mockResolvedValue([MEMBER_QUOTE]);
   vi.mocked(getPublicMembershipPrices).mockResolvedValue([PUBLIC_QUOTE]);
+  vi.mocked(rateLimit).mockResolvedValue({
+    success: true,
+    remaining: 119,
+    retryAfter: 0,
+    limit: 120,
+  });
 });
 
 describe("GET /api/memberships/prices", () => {
@@ -109,6 +121,51 @@ describe("GET /api/memberships/prices", () => {
 
     expect((await GET(request("?ids=601"))).status).toBe(404);
     expect(getPublicMembershipPrices).not.toHaveBeenCalled();
+    expect(rateLimit).not.toHaveBeenCalled();
+  });
+
+  it("aplica un rate-limit no estricto por IP antes de leer precios", async () => {
+    await GET(request("?ids=601", "198.51.100.4"));
+
+    expect(rateLimit).toHaveBeenCalledWith("memberships-prices:198.51.100.4", 120, 60);
+    // No estricto: sin Redis la ruta degrada a servir, no a bloquear.
+    expect(vi.mocked(rateLimit).mock.calls[0]?.[3]).toBeUndefined();
+  });
+
+  it("con el presupuesto agotado responde 429 con Retry-After y sin tocar WordPress", async () => {
+    vi.mocked(rateLimit).mockResolvedValue({
+      success: false,
+      remaining: 0,
+      retryAfter: 42,
+      limit: 120,
+    });
+
+    const res = await GET(request("?ids=601"));
+    const json = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("42");
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(json.code).toBeUndefined();
+    expect(getPublicMembershipPrices).not.toHaveBeenCalled();
+    expect(getMembershipPrices).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "memberships.prices_rate_limited" }),
+      expect.any(String),
+    );
+  });
+
+  it("el rate-limit también se aplica a la rama con sesión", async () => {
+    vi.mocked(getSession).mockResolvedValue({ userId: "7", token: "JWT" });
+    vi.mocked(rateLimit).mockResolvedValue({
+      success: false,
+      remaining: 0,
+      retryAfter: 10,
+      limit: 120,
+    });
+
+    expect((await GET(request("?ids=601"))).status).toBe(429);
+    expect(getMembershipPrices).not.toHaveBeenCalled();
   });
 
   it("un fallo de WordPress es un 5xx tipado", async () => {
