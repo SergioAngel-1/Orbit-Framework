@@ -6,6 +6,16 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.10.0] — 2026-11-19
+
+Menos carga en WordPress y menos superficie en el panel. Un visitante sin carrito ni sesión ya no abre una sesión de
+WooCommerce en cada carga; los precios públicos de membresías van por caché y el refresco del JWT se deduplica. El
+login oculto deja de filtrarse por `wp-signup.php`/`wp-activate.php` (también con PATH_INFO) y Caddy corta los ficheros
+raíz de WordPress que el núcleo no usa. La CSP admite orígenes extra por despliegue (`CSP_EXTRA_*_SRC`, variables de
+build nuevas y opcionales), `public/brand/*` se cachea un día, zod sale del JS del checkout y Next.js pasa a 16.4.6
+(avisos GHSA-mfr8-8qww-v76h y GHSA-vc7v-qv4w-wrv8). Se actualiza con un merge del tag; hay que reconstruir la imagen
+del frontend y recargar Caddy. Sin cambios de contrato salvo `x-hwe-rate-limit` en `GET /api/memberships/prices`.
+
 ### Added
 - **CSP ampliable por despliegue (`CSP_EXTRA_SCRIPT_SRC`, `CSP_EXTRA_CONNECT_SRC`,
   `CSP_EXTRA_IMG_SRC`).** Los hosts autorizados por la CSP eran una lista fija del núcleo (o, con
