@@ -15,6 +15,25 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `buildUrl` arma `https://www.tiktok.com/@usuario`. Vacío por defecto: una tienda que no rellena el campo no
   publica ninguna cuenta. `contract/config.schema.json` regenerado.
 
+### Changed
+- **Membresías · `GET /api/memberships/prices` deja de amplificar la carga de WordPress.** La ruta es anónima y
+  la llama cada listado o ficha con el módulo encendido: sin caché, cada petición era una lectura del catálogo
+  (`/products?include=…` de la Store API) y con WordPress como cuello de botella se convertía en un amplificador.
+  La rama sin sesión sirve ahora los precios por una caché corta **por id** (30 s) en dos niveles —memoria del
+  isolate y Redis compartido, ambas fail-open y con el fallo registrado—, pide a la Store API solo los ids que
+  faltan y comparte la lectura en vuelo entre peticiones simultáneas; la rama con sesión (la misma función que el
+  carrito) no cambia. Además la ruta va acotada por IP con un rate-limit **no estricto** (120/60 s vía
+  `rateLimit`, como el resto del módulo: sin Redis se sigue sirviendo) y responde 429 con `Retry-After`. Se
+  mantienen la forma de respuesta, el `Cache-Control: no-store`, el 400 de más de 50 ids y el `{items:[]}`.
+  `contract/bff.openapi.json` regenerado con el límite de la ruta.
+- **Sesión · el refresco transparente del JWT en `proxy.ts` se deduplica por refresh token.** Una página con
+  varias peticiones simultáneas (documento, RSC, prefetch) enviaba N veces el mismo JWT caducado y cada una
+  canjeaba el refresh token contra WPGraphQL: N llamadas para el mismo resultado, en el edge y en el camino de
+  toda petición de página. Ahora el proxy comparte una promesa en vuelo por refresh token y la borra al
+  resolverse —también si falla o expira—, así que un fallo no envenena el siguiente intento; las peticiones con
+  tokens distintos siguen refrescando por separado, el timeout de 3 s se mantiene y el token no se registra en
+  ningún log.
+
 ### Fixed
 - **Carrito · un visitante sin carrito ya no abre una sesión de WooCommerce en cada carga.**
   `GET /api/store/cart` lo pide el `CartProvider` a todo el que abre la web, también a los

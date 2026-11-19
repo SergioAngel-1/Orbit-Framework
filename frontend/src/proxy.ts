@@ -84,6 +84,31 @@ function maxAgeFromToken(token: string): number {
 const REFRESH_TIMEOUT_MS = 3_000;
 
 /**
+ * Refresh en vuelo, por refresh token. El mapa vive por isolate (el proxy corre
+ * en edge): basta para que varias peticiones simultáneas del mismo navegador
+ * —varias tarjetas, un prefetch, el RSC y el documento— compartan UNA llamada a
+ * WPGraphQL en vez de una cada una. El token es la clave y no se registra nunca:
+ * ni en logs ni en eventos; el mapa se borra al resolverse la promesa, también
+ * cuando falla o expira.
+ */
+const refreshInFlight = new Map<string, Promise<string | null>>();
+
+function refreshAuthTokenOnce(refreshToken: string): Promise<string | null> {
+  const pending = refreshInFlight.get(refreshToken);
+  if (pending) return pending;
+
+  const tracked = refreshAuthToken(refreshToken).finally(() => {
+    // Solo se borra si sigue siendo esta misma promesa: si ya se sustituyó (no
+    // debería, pero el borrado nunca debe pisar un refresh más nuevo), se deja.
+    if (refreshInFlight.get(refreshToken) === tracked) {
+      refreshInFlight.delete(refreshToken);
+    }
+  });
+  refreshInFlight.set(refreshToken, tracked);
+  return tracked;
+}
+
+/**
  * Evento estructurado desde el edge. Aquí no hay pino (es de Node), pero un fallo
  * que se traga debe dejar rastro: una línea JSON por stdout, con la misma forma
  * (`event`, `service`) que el resto de logs.
@@ -247,7 +272,7 @@ export async function proxy(request: NextRequest) {
       res.headers.set(REQUEST_ID_HEADER, requestId);
       return res;
     }
-    const newToken = await refreshAuthToken(refreshToken!);
+    const newToken = await refreshAuthTokenOnce(refreshToken!);
     if (!newToken) {
       const res = NextResponse.next({ request: { headers: fwd } });
       if (authToken) res.cookies.delete(AUTH_COOKIE);
@@ -290,7 +315,7 @@ export async function proxy(request: NextRequest) {
   let clearAuth = false;
 
   if (needsRefresh) {
-    newToken = await refreshAuthToken(refreshToken!);
+    newToken = await refreshAuthTokenOnce(refreshToken!);
     if (newToken) {
       const headers = new Headers(request.headers);
       headers.set("cookie", cookieHeaderWithAuth(request, newToken));

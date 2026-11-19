@@ -6,6 +6,7 @@ import { wpFetch, type WpFetchInit } from "@/lib/wordpress/internal-fetch";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { describeBenefit } from "./describe";
 import { formatMemberNumber, formatMembershipDuration, fromMinorUnits } from "./format";
+import { cachedPublicPrices, type PublicPriceMap } from "./public-prices-cache";
 import { normalizeMembershipRequirement } from "./requirements";
 import {
   MembershipsReadError,
@@ -510,9 +511,57 @@ function minorUnitOf(value: number | string): number {
 }
 
 /**
+ * Una lectura del catálogo para los ids que falten. Devuelve solo los productos
+ * que existen; el que no está, simplemente no aparece en el mapa.
+ */
+async function loadPublicPrices(ids: readonly number[]): Promise<PublicPriceMap> {
+  let payload: unknown;
+  try {
+    const result = await storeFetch<unknown>(
+      `/products?include=${encodeURIComponent(ids.join(","))}&per_page=${ids.length}`,
+    );
+    payload = result.data;
+  } catch (error) {
+    logReadFailure("memberships.public_prices_failed", error, {
+      level: "error",
+      message: "No se pudo leer el catálogo para los precios públicos",
+      context: { count: ids.length },
+    });
+    throw new MembershipsReadError("unavailable");
+  }
+
+  const parsed = parseRead(z.array(storeProductSchema), payload, "public_prices", {
+    count: ids.length,
+  });
+
+  const prices: PublicPriceMap = new Map();
+  for (const product of parsed) {
+    const minorUnit = minorUnitOf(product.prices.currency_minor_unit);
+    const price = fromMinorUnits(product.prices.price, minorUnit);
+    prices.set(product.id, {
+      id: product.id,
+      regular: fromMinorUnits(
+        product.prices.regular_price || product.prices.price,
+        minorUnit,
+      ),
+      price,
+      member_price: price,
+      percent: 0,
+    });
+  }
+  return prices;
+}
+
+/**
  * Precios públicos (sin sesión) de una lista de productos, leídos del catálogo
  * de la Store API. No hay «precio para ti» que calcular: el socio no está
  * identificado, así que `member_price` coincide con `price` y `percent` es 0.
+ *
+ * La lectura pasa por una caché corta POR ID (`cachedPublicPrices`): esta ruta
+ * es anónima y una página con muchas tarjetas la repite, así que sin caché cada
+ * petición era una lectura del catálogo en WordPress. Solo se piden a la Store
+ * API los ids que no estén cacheados, y las peticiones simultáneas comparten la
+ * misma lectura.
  */
 export async function getPublicMembershipPrices(
   ids: readonly number[],
@@ -523,43 +572,11 @@ export async function getPublicMembershipPrices(
   }
   if (normalized.length === 0) return [];
 
-  let payload: unknown;
-  try {
-    const result = await storeFetch<unknown>(
-      `/products?include=${encodeURIComponent(normalized.join(","))}&per_page=${normalized.length}`,
-    );
-    payload = result.data;
-  } catch (error) {
-    logReadFailure("memberships.public_prices_failed", error, {
-      level: "error",
-      message: "No se pudo leer el catálogo para los precios públicos",
-      context: { count: normalized.length },
-    });
-    throw new MembershipsReadError("unavailable");
-  }
-
-  const parsed = parseRead(z.array(storeProductSchema), payload, "public_prices", {
-    count: normalized.length,
-  });
-  const byId = new Map(parsed.map((product) => [product.id, product]));
+  const byId = await cachedPublicPrices(normalized, loadPublicPrices);
 
   return normalized.flatMap((id) => {
-    const product = byId.get(id);
-    if (!product) return [];
-    const minorUnit = minorUnitOf(product.prices.currency_minor_unit);
-    const price = fromMinorUnits(product.prices.price, minorUnit);
-    return [
-      {
-        id,
-        regular: fromMinorUnits(
-          product.prices.regular_price || product.prices.price,
-          minorUnit,
-        ),
-        price,
-        member_price: price,
-        percent: 0,
-      },
-    ];
+    const price = byId.get(id);
+    return price ? [price] : [];
   });
 }
 

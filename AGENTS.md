@@ -348,7 +348,9 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   `getAuthToken`). Los datos del usuario pasan por el BFF (`wc/v3` con comprobación de
   propietario), no por GraphQL como «viewer».
 - **Refresh transparente**: lo hace `proxy.ts` (renueva el token caducado y lo propaga
-  al request actual). Operaciones GraphQL de auth en `lib/auth/mutations.ts`.
+  al request actual). Una promesa en vuelo por refresh token: las peticiones simultáneas
+  del mismo navegador comparten un único canje y el mapa se borra al resolverse (también
+  si falla o expira). Operaciones GraphQL de auth en `lib/auth/mutations.ts`.
 - **Endpoints WP propios** (mu-plugin `backend/.../hwe-auth.php`, namespace `hwe/v1`):
   recuperación/reseteo de contraseña, verificación de email y 2FA. El BFF se autentica
   ante ellos con `Authorization: Bearer <authToken>`.
