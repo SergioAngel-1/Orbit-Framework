@@ -21,17 +21,22 @@ export const dynamic = "force-dynamic";
 //  del catálogo, sin inventar un descuento. El tope de 50 ids se valida aquí
 //  antes de tocar WordPress.
 //
-//  La ruta es anónima y la llama cada listado con el módulo encendido, así que
-//  se acota por IP (no estricto: si Redis cae, se sigue sirviendo) y la rama
-//  anónima lee los precios por una caché corta por id (`lib/memberships/
-//  public-prices-cache.ts`). Sin ese freno, N peticiones con los mismos ids eran
-//  N lecturas del catálogo con WordPress como cuello de botella.
+//  La rama anónima la llama cada listado con el módulo encendido, así que se
+//  acota por IP (no estricto: si Redis cae, se sigue sirviendo) y lee los precios
+//  por una caché corta por id (`lib/memberships/public-prices-cache.ts`). Sin ese
+//  freno, N peticiones con los mismos ids eran N lecturas del catálogo con
+//  WordPress como cuello de botella. El límite NO se aplica a la rama con
+//  sesión: un listado que pide un id por tarjeta, o varios compradores tras
+//  CGNAT, agotaban el presupuesto compartido y recibían 429 sin haber abusado.
 // ============================================================================
 
 const MAX_PRICE_IDS = 50;
 
-/** Presupuesto por IP: un listado puede pedir precios varias veces al navegar. */
-const RATE_LIMIT = 120;
+/**
+ * Presupuesto por IP de la rama anónima: un listado puede pedir precios varias
+ * veces al navegar (una por tarjeta), así que el umbral es holgado.
+ */
+const RATE_LIMIT = 600;
 const RATE_WINDOW_SECONDS = 60;
 
 /**
@@ -57,28 +62,34 @@ export async function GET(request: Request) {
   const moduleOff = requireModule(config, "memberships");
   if (moduleOff) return moduleOff;
 
-  const limit = await rateLimit(
-    `memberships-prices:${getClientIp(request)}`,
-    RATE_LIMIT,
-    RATE_WINDOW_SECONDS,
-  );
-  if (!limit.success) {
-    logger.warn(
-      { event: "memberships.prices_rate_limited" },
-      "Rate-limit al consultar precios públicos de membresía",
+  const session = await getSession();
+
+  // Solo la rama anónima: con sesión la ruta ya va identificada por usuario y el
+  // carrito/checkout no deben caer en un 429 por el presupuesto de los listados.
+  if (!session) {
+    const limit = await rateLimit(
+      `memberships-prices:${getClientIp(request)}`,
+      RATE_LIMIT,
+      RATE_WINDOW_SECONDS,
     );
-    return NextResponse.json(
-      { error: "Demasiadas peticiones. Inténtalo más tarde." },
-      {
-        status: 429,
-        headers: {
-          ...NO_STORE,
-          "Retry-After": String(limit.retryAfter),
-          "X-RateLimit-Limit": String(limit.limit),
-          "X-RateLimit-Remaining": String(limit.remaining),
+    if (!limit.success) {
+      logger.warn(
+        { event: "memberships.prices_rate_limited" },
+        "Rate-limit al consultar precios públicos de membresía",
+      );
+      return NextResponse.json(
+        { error: "Demasiadas peticiones. Inténtalo más tarde." },
+        {
+          status: 429,
+          headers: {
+            ...NO_STORE,
+            "Retry-After": String(limit.retryAfter),
+            "X-RateLimit-Limit": String(limit.limit),
+            "X-RateLimit-Remaining": String(limit.remaining),
+          },
         },
-      },
-    );
+      );
+    }
   }
 
   const ids = parseIds(new URL(request.url).searchParams);
@@ -91,8 +102,6 @@ export async function GET(request: Request) {
   if (ids.length === 0) {
     return NextResponse.json({ items: [] }, { headers: NO_STORE });
   }
-
-  const session = await getSession();
 
   try {
     const items = session

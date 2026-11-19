@@ -149,8 +149,9 @@ API, una CDN propia de fuentes o imágenes— los **añade** sin editar el núcl
 | `CSP_EXTRA_IMG_SRC` | `img-src` | Orígenes de imágenes adicionales. |
 
 - Lista separada por **comas**; cada valor es un **origen**: `https://host` o
-  `https://*.host` (comodín de subdominio), con puerto opcional. Sin ruta, sin consulta, sin
-  credenciales.
+  `https://*.host` (comodín de subdominio, con al menos tres etiquetas y nunca justo sobre un
+  sufijo público como `*.com.co`; ver `docs/SECURITY.md`), con puerto opcional. Sin ruta, sin
+  consulta, sin credenciales.
 - Solo `https://`. Se descarta —con un aviso en el build— `*`, `http:`, una palabra clave entre
   comillas (`'unsafe-inline'`), espacios, `;`, rutas y cualquier cosa que no sea un origen: los
   valores se concatenan en una cabecera, y un `;` colaría directivas enteras.

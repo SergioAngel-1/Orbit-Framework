@@ -144,7 +144,9 @@ final class AdminUtilitiesTest extends TestCase
      * `wp-signup.php` y `wp-activate.php` solo existen en multisite; en sitio único
      * redirigen a `wp_registration_url()`, que el filtro `site_url` ya reescribe al
      * slug. El `Location` delataba el login oculto con una simple petición GET (así
-     * lo encontró un escáner real), así que deben cortar antes con un 404.
+     * lo encontró un escáner real), así que deben cortar antes con un 404. Apache
+     * ejecuta además los ficheros raíz por PATH_INFO (`/wp-login.php/x`,
+     * `/wp-signup.php/x`): la comparación tiene que casar el fichero como segmento.
      */
     public function testTheMultisiteRootFilesDoNotRevealTheHiddenLogin(): void
     {
@@ -171,13 +173,21 @@ final class AdminUtilitiesTest extends TestCase
             throw new TerminatedException();
         });
 
-        foreach (['/wp-signup.php', '/wp-activate.php'] as $file) {
+        $files = [
+            '/wp-signup.php',
+            '/wp-signup.php/x',
+            '/wp-activate.php',
+            '/wp-activate.php/x',
+            '/wp-login.php',
+            '/wp-login.php/x',
+        ];
+        foreach ($files as $file) {
             $status = 0;
             $_SERVER['REQUEST_URI'] = $file;
             ob_start();
             try {
                 \HWE_Login_Slug::route();
-                $this->fail("$file siguió su curso: WordPress lo redirigiría al login oculto.");
+                $this->fail("$file siguió su curso: el fichero raíz queda expuesto.");
             } catch (TerminatedException) {
                 // Esperado: la petición se corta con el 404.
             } finally {
@@ -185,8 +195,21 @@ final class AdminUtilitiesTest extends TestCase
             }
 
             $this->assertSame(404, $status, "$file debe terminar en 404.");
-            $this->assertSame('Not Found', $body, "$file no debe servir HTML del registro.");
+            $this->assertSame('Not Found', $body, "$file no debe servir el formulario.");
         }
+
+        $this->assertTrue(\HWE_Login_Slug::isMultisiteOnlyFile('/wp-signup.php/x'));
+        $this->assertTrue(\HWE_Login_Slug::isMultisiteOnlyFile('/wp-activate.php/x/y'));
+        $this->assertFalse(\HWE_Login_Slug::isMultisiteOnlyFile('/wp-login.php/x'));
+
+        // El login real (`/<slug>`) sigue sirviéndose: route() lo detecta y NO 404.
+        $status = 0;
+        $_SERVER['REQUEST_URI'] = '/panel-acceso';
+        \HWE_Login_Slug::route();
+
+        $this->assertSame(0, $status, '/<slug> no debe cortarse.');
+        $this->assertSame('wp-login.php', $GLOBALS['pagenow'] ?? null);
+        $this->assertTrue(\HWE_Login_Slug::isLoginRequest());
     }
 
     public function testInMultisiteTheSignupFormStillWorks(): void

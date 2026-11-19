@@ -23,8 +23,9 @@
 #       PUBLIC_URL, las de las rutas que Caddy sirve directo desde WordPress.
 #    5. Los ficheros raíz que WordPress usa en multisite (`wp-signup.php` y
 #       `wp-activate.php`) no delatan el login oculto: con HWE_LOGIN_SLUG responden 404
-#       y sin `Location`; y el registro nativo sigue cerrado (`?action=register` del
-#       login redirige con `registration=disabled`).
+#       y sin `Location`, también por PATH_INFO (`/wp-signup.php/x`); `/wp-login.php` y
+#       `/wp-login.php/x` responden 404; y el registro nativo sigue cerrado
+#       (`?action=register` del login redirige con `registration=disabled`).
 #
 #  Uso:
 #    WP_URL=http://localhost:8080 BFF_URL=http://localhost:3000 \
@@ -359,13 +360,15 @@ section "5. Registro nativo y ficheros raíz que delatan el login"
 # de `hwe-login-slug`: el `Location` salía con `/<slug>?action=register` y un escáner
 # podía leer el login oculto con un GET, sin probar credenciales. Con el slug activo
 # deben cortar en 404 sin `Location` (el mu-plugin; en producción, antes aún, Caddy).
+# Apache ejecuta además estos ficheros por PATH_INFO (`/wp-login.php/x`), así que se
+# comprueban las dos formas: la exacta y la que sigue con `/…`.
 # Un `Location` que llevara el slug no se imprime: el slug no se publica ni en un log.
 if [ -n "$LOGIN_SLUG" ]; then
-	for file in wp-signup.php wp-activate.php; do
+	for file in wp-login.php wp-login.php/x wp-signup.php wp-signup.php/x wp-activate.php wp-activate.php/x; do
 		http GET "$WP_URL/$file"
 		LOCATION="$(header_of Location)"
 		if [ "$HTTP_CODE" != "404" ]; then
-			bad "/$file → HTTP $HTTP_CODE (debería ser 404): redirige al login y el Location delata el slug"
+			bad "/$file → HTTP $HTTP_CODE (debería ser 404): la ruta del login oculto queda expuesta"
 		elif [ -n "$LOCATION" ]; then
 			bad "/$file → 404 con Location: un 404 no debe redirigir"
 		else

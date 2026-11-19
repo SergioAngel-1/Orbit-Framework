@@ -35,11 +35,28 @@
     # `wp_registration_url()`, que es el login —con el slug oculto— en el
     # `Location`. `hwe-login-slug.php` ya da 404 a los dos primeros; este bloque lo
     # cierra antes de Apache para todos (XML-RPC, blogroll, trackbacks, comentarios
-    # nativos y publicación por correo). Mismo bloque que en el Caddyfile público.
+    # nativos y publicación por correo). Cada ruta va también con `/*` porque Apache
+    # ejecuta el fichero por PATH_INFO (`/wp-signup.php/x`). `wp-signup.php` y
+    # `wp-activate.php` responden 404 SIEMPRE: el framework es de sitio único y un
+    # multisite detrás de este Caddy perdería el alta. Mismo bloque que en el
+    # Caddyfile público.
     @unused_root_files {
-        path /xmlrpc.php /wp-signup.php /wp-activate.php /wp-links-opml.php /wp-trackback.php /wp-mail.php /wp-comments-post.php
+        path /xmlrpc.php /xmlrpc.php/* /wp-signup.php /wp-signup.php/* /wp-activate.php /wp-activate.php/* /wp-links-opml.php /wp-links-opml.php/* /wp-trackback.php /wp-trackback.php/* /wp-mail.php /wp-mail.php/* /wp-comments-post.php /wp-comments-post.php/*
     }
     handle @unused_root_files {
+        respond "Not Found" 404
+    }
+
+    # Con el login oculto activo (`HWE_LOGIN_SLUG`), el formulario real vive en
+    # `/<slug>`: en este host `/wp-login.php` y su variante PATH_INFO se cortan antes
+    # de Apache. Sin slug, el login ES `/wp-login.php` y el matcher no aplica (la
+    # expresión exige la variable no vacía; `{$HWE_LOGIN_SLUG:}` sin defecto evita
+    # que un valor vacío se convierta en `/`).
+    @hidden_login {
+        expression `"{$HWE_LOGIN_SLUG:}" != ""`
+        path /wp-login.php /wp-login.php/*
+    }
+    handle @hidden_login {
         respond "Not Found" 404
     }
 

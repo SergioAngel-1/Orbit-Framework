@@ -14,8 +14,8 @@ import { GET } from "./route";
 //
 //  «Precio para ti» de una lista acotada de productos. Con sesión pregunta a la
 //  misma función que el carrito; sin sesión devuelve los precios públicos. El
-//  tope de 50 ids se valida también aquí (antes de tocar WordPress) y la ruta,
-//  que es anónima, va acotada por IP.
+//  tope de 50 ids se valida también aquí (antes de tocar WordPress) y SOLO la
+//  rama anónima va acotada por IP.
 // ============================================================================
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
@@ -64,9 +64,9 @@ beforeEach(() => {
   vi.mocked(getPublicMembershipPrices).mockResolvedValue([PUBLIC_QUOTE]);
   vi.mocked(rateLimit).mockResolvedValue({
     success: true,
-    remaining: 119,
+    remaining: 599,
     retryAfter: 0,
-    limit: 120,
+    limit: 600,
   });
 });
 
@@ -124,10 +124,10 @@ describe("GET /api/memberships/prices", () => {
     expect(rateLimit).not.toHaveBeenCalled();
   });
 
-  it("aplica un rate-limit no estricto por IP antes de leer precios", async () => {
+  it("aplica un rate-limit no estricto por IP antes de leer precios anónimos", async () => {
     await GET(request("?ids=601", "198.51.100.4"));
 
-    expect(rateLimit).toHaveBeenCalledWith("memberships-prices:198.51.100.4", 120, 60);
+    expect(rateLimit).toHaveBeenCalledWith("memberships-prices:198.51.100.4", 600, 60);
     // No estricto: sin Redis la ruta degrada a servir, no a bloquear.
     expect(vi.mocked(rateLimit).mock.calls[0]?.[3]).toBeUndefined();
   });
@@ -137,7 +137,7 @@ describe("GET /api/memberships/prices", () => {
       success: false,
       remaining: 0,
       retryAfter: 42,
-      limit: 120,
+      limit: 600,
     });
 
     const res = await GET(request("?ids=601"));
@@ -155,17 +155,20 @@ describe("GET /api/memberships/prices", () => {
     );
   });
 
-  it("el rate-limit también se aplica a la rama con sesión", async () => {
+  it("la rama con sesión no gasta el rate-limit anónimo (ni recibe su 429)", async () => {
     vi.mocked(getSession).mockResolvedValue({ userId: "7", token: "JWT" });
     vi.mocked(rateLimit).mockResolvedValue({
       success: false,
       remaining: 0,
       retryAfter: 10,
-      limit: 120,
+      limit: 600,
     });
 
-    expect((await GET(request("?ids=601"))).status).toBe(429);
-    expect(getMembershipPrices).not.toHaveBeenCalled();
+    const res = await GET(request("?ids=601"));
+
+    expect(res.status).toBe(200);
+    expect(rateLimit).not.toHaveBeenCalled();
+    expect(getMembershipPrices).toHaveBeenCalledWith(7, [601]);
   });
 
   it("un fallo de WordPress es un 5xx tipado", async () => {

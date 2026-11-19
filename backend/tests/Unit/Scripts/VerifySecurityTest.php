@@ -167,8 +167,16 @@ final class VerifySecurityTest extends ShellScriptTestCase
 
         $with = $this->verify($base, ['HWE_LOGIN_SLUG' => 'acceso-de-prueba']);
         $this->assertStringContainsString('/acceso-de-prueba?action=register → 302 con registration=disabled', $with['stdout']);
-        $this->assertStringContainsString('/wp-signup.php → 404 sin Location', $with['stdout']);
-        $this->assertStringContainsString('/wp-activate.php → 404 sin Location', $with['stdout']);
+        foreach ([
+            '/wp-login.php → 404 sin Location',
+            '/wp-login.php/x → 404 sin Location',
+            '/wp-signup.php → 404 sin Location',
+            '/wp-signup.php/x → 404 sin Location',
+            '/wp-activate.php → 404 sin Location',
+            '/wp-activate.php/x → 404 sin Location',
+        ] as $check) {
+            $this->assertStringContainsString($check, $with['stdout']);
+        }
     }
 
     /**
@@ -186,7 +194,25 @@ final class VerifySecurityTest extends ShellScriptTestCase
 
         $this->assertSame(1, $result['code'], $out);
         $this->assertStringContainsString('/wp-signup.php → HTTP 302', $out);
+        $this->assertStringContainsString('/wp-signup.php/x → HTTP 302', $out);
         $this->assertStringContainsString('/wp-activate.php → HTTP 302', $out);
+        $this->assertStringContainsString('/wp-activate.php/x → HTTP 302', $out);
+    }
+
+    /**
+     * Apache ejecuta `/wp-login.php/x` como el fichero por PATH_INFO: el 404 exacto
+     * no bastaba y el formulario de login seguía saliendo con el slug activo. La
+     * comprobación con `/x` tiene que detectarlo.
+     */
+    public function testTheLoginPathInfoVariantIsDetected(): void
+    {
+        $base = $this->startStack('login-path', false, 'acceso-de-prueba');
+
+        $result = $this->verify($base, ['HWE_LOGIN_SLUG' => 'acceso-de-prueba']);
+        $out = $result['stdout'] . $result['stderr'];
+
+        $this->assertSame(1, $result['code'], $out);
+        $this->assertStringContainsString('/wp-login.php/x → HTTP 200', $out);
     }
 
     // ── Un 404 de una pila rota no es un falso verde ──────────────────────────

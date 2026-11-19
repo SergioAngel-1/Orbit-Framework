@@ -2,10 +2,10 @@
 /**
  * Plugin Name: HWE Login Slug
  * Description: Mueve el login del panel de /wp-login.php a /<HWE_LOGIN_SLUG>.
- *              /wp-login.php, /wp-admin sin sesión y los ficheros raíz de
- *              multisite (que redirigen al login) responden 404.
+ *              /wp-login.php (también con PATH_INFO), /wp-admin sin sesión y los
+ *              ficheros raíz de multisite (que redirigen al login) responden 404.
  * Author:      Sergio Jauregui
- * Version:     1.1.0
+ * Version:     1.2.0
  *
  * Práctica de seguridad, no una barrera: quita del camino a los bots que
  * prueban credenciales contra /wp-login.php a ciegas —la inmensa mayoría del
@@ -17,7 +17,9 @@
  *     `$pagenow` valga ya 'wp-login.php' durante el arranque, como si se
  *     hubiera pedido el archivo) y se carga en `wp_loaded`, con WordPress ya
  *     arrancado del todo: cargarlo antes lo ejecutaría con el `init` a medias.
- *   - `/wp-login.php` directo → 404 (cualquier camino: Caddy, red interna, local).
+ *   - `/wp-login.php` directo → 404 (cualquier camino: Caddy, red interna, local),
+ *     también cuando Apache lo ejecuta por PATH_INFO (`/wp-login.php/x`): el
+ *     fichero se busca como SEGMENTO de la ruta, no como final exacto.
  *   - `/wp-admin` sin sesión → 404 en vez de la redirección al login, que
  *     delataría el slug. `admin-ajax.php` y `admin-post.php` quedan fuera:
  *     tienen sus propias comprobaciones y algún plugin los usa sin sesión.
@@ -102,7 +104,7 @@ final class HWE_Login_Slug {
 		}
 
 		$path = self::requestPath();
-		if ( str_ends_with( $path, '/wp-login.php' ) ) {
+		if ( self::isRootFile( $path, 'wp-login.php' ) ) {
 			self::notFound();
 		}
 
@@ -120,10 +122,21 @@ final class HWE_Login_Slug {
 		}
 	}
 
+	/**
+	 * ¿La ruta es la de un fichero raíz, o cuelga de él por PATH_INFO? Apache
+	 * ejecuta `/wp-login.php/x` y `/wp-signup.php/x` como el propio fichero (con
+	 * `/x` en `PATH_INFO`), así que comparar solo el final exacto dejaba esas
+	 * variantes fuera: el formulario de login se servía en `/wp-login.php/x` y el
+	 * registro redirigía con el slug.
+	 */
+	private static function isRootFile( string $path, string $file ): bool {
+		return 1 === preg_match( '#/' . preg_quote( $file, '#' ) . '(?:/|$)#', $path );
+	}
+
 	/** ¿La petición es de un fichero raíz que solo existe en multisite? */
 	public static function isMultisiteOnlyFile( string $path ): bool {
 		foreach ( self::MULTISITE_ONLY_FILES as $file ) {
-			if ( str_ends_with( $path, '/' . $file ) ) {
+			if ( self::isRootFile( $path, $file ) ) {
 				return true;
 			}
 		}

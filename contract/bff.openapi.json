@@ -660,7 +660,7 @@
         "x-hwe-rate-limit": [
           {
             "name": "memberships-prices",
-            "limit": 120,
+            "limit": 600,
             "windowSeconds": 60
           }
         ],

@@ -6,7 +6,9 @@ import { getAnonymousEmptyCart, resetAnonymousCartCache } from "./anonymous-cart
 
 // Carrito vacío de un visitante sin cookie ni sesión: se lee UNA vez de la Store
 // API (sin token), se cachea en memoria con TTL y single-flight, y nunca se
-// guarda el token que devuelve esa lectura.
+// guarda el token que devuelve esa lectura. Con la copia caducada se sirve al
+// instante y se refresca en segundo plano; un fallo con copia aplaza el
+// siguiente intento (backoff) para no encolar timeouts con WordPress caído.
 
 vi.mock("@/lib/woocommerce/store-client", () => ({ storeFetch: vi.fn() }));
 vi.mock("@/lib/observability/logger", () => ({
@@ -20,6 +22,15 @@ const EMPTY = {
   shipping_rates: [],
   totals: { total_price: "0" },
 } as never;
+
+const T0 = new Date("2026-01-01T00:00:00Z").getTime();
+const TTL_MS = 5 * 60_000;
+const BACKOFF_MS = 30_000;
+
+/** Deja correr las microtareas del refresco en segundo plano. */
+async function settle(): Promise<void> {
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -53,15 +64,16 @@ describe("getAnonymousEmptyCart", () => {
 
   it("al caducar el TTL vuelve a leer una sola vez", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    vi.setSystemTime(T0);
     await getAnonymousEmptyCart();
 
-    vi.setSystemTime(new Date("2026-01-01T00:04:59Z"));
+    vi.setSystemTime(T0 + TTL_MS - 1000);
     await getAnonymousEmptyCart();
     expect(storeFetch).toHaveBeenCalledTimes(1);
 
-    vi.setSystemTime(new Date("2026-01-01T00:05:01Z"));
+    vi.setSystemTime(T0 + TTL_MS + 1000);
     await getAnonymousEmptyCart();
+    await settle();
     expect(storeFetch).toHaveBeenCalledTimes(2);
   });
 
@@ -84,22 +96,85 @@ describe("getAnonymousEmptyCart", () => {
     expect(storeFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("si WordPress falla y hay copia, sirve la copia", async () => {
+  it("con la copia caducada la sirve al instante y refresca en segundo plano", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    vi.setSystemTime(T0);
     await getAnonymousEmptyCart();
 
-    vi.setSystemTime(new Date("2026-01-01T00:06:00Z"));
+    // WordPress no responde (la lectura queda en vuelo): aun así la petición no
+    // espera su timeout, devuelve la copia.
+    let resolveRead!: (value: { data: unknown; cartToken: string }) => void;
+    vi.mocked(storeFetch).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRead = resolve;
+      }) as never,
+    );
+    vi.setSystemTime(T0 + TTL_MS + 1000);
+
+    const cart = await getAnonymousEmptyCart();
+
+    expect(cart).toBe(EMPTY);
+    expect(storeFetch).toHaveBeenCalledTimes(2);
+
+    resolveRead({ data: EMPTY, cartToken: "token-de-sesion" });
+    await settle();
+  });
+
+  it("si WordPress falla y hay copia, sirve la copia", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(T0);
+    await getAnonymousEmptyCart();
+
+    vi.setSystemTime(T0 + TTL_MS + 1000);
     vi.mocked(storeFetch).mockRejectedValueOnce(
       new WooCommerceError("Store API caída", 503, "wc_store_network"),
     );
 
     await expect(getAnonymousEmptyCart()).resolves.toBe(EMPTY);
+    await settle();
+
     expect(storeFetch).toHaveBeenCalledTimes(2);
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ event: "cart.empty.stale" }),
+      expect.objectContaining({
+        event: "cart.empty.stale",
+        backoffMs: BACKOFF_MS,
+      }),
       expect.any(String),
     );
+  });
+
+  it("con WP caído, N peticiones con la copia caducada no encolan lecturas: una por ventana de backoff", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(T0);
+    await getAnonymousEmptyCart();
+
+    vi.setSystemTime(T0 + TTL_MS + 1000);
+    vi.mocked(storeFetch).mockRejectedValueOnce(
+      new WooCommerceError("Store API caída", 503, "wc_store_network"),
+    );
+    await getAnonymousEmptyCart();
+    await settle();
+    expect(storeFetch).toHaveBeenCalledTimes(2);
+
+    // Diez visitantes más en el mismo instante: todos reciben la copia y ninguno
+    // dispara otra lectura.
+    for (let i = 0; i < 10; i += 1) {
+      await expect(getAnonymousEmptyCart()).resolves.toBe(EMPTY);
+    }
+    await settle();
+    expect(storeFetch).toHaveBeenCalledTimes(2);
+
+    // Dentro de la ventana de backoff tampoco.
+    vi.setSystemTime(T0 + TTL_MS + 1000 + BACKOFF_MS - 1000);
+    await getAnonymousEmptyCart();
+    await settle();
+    expect(storeFetch).toHaveBeenCalledTimes(2);
+
+    // Pasada la ventana, un solo reintento (que aquí vuelve a ir bien).
+    vi.setSystemTime(T0 + TTL_MS + 1000 + BACKOFF_MS + 1000);
+    await expect(getAnonymousEmptyCart()).resolves.toBe(EMPTY);
+    await settle();
+    expect(storeFetch).toHaveBeenCalledTimes(3);
   });
 
   it("sin copia, propaga el error actual (no inventa un carrito)", async () => {

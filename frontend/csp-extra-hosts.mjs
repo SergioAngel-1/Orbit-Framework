@@ -21,6 +21,12 @@
 //  aviso en el build y el resto sí entra (mismo criterio que
 //  `scripts/image-formats.mjs`). Sin variables, el resultado es vacío y la CSP
 //  queda idéntica byte a byte.
+//
+//  El comodín exige al menos tres etiquetas (`*.ejemplo.com`) y no vale justo
+//  sobre un sufijo público de dos etiquetas (`*.com.co`, `*.co.uk`): si no, se
+//  autorizaría a TODOS los registros de un ccTLD entero. La lista de segundas
+//  etiquetas es corta y no es la Public Suffix List: un sufijo público que no
+//  esté en ella seguiría pasando (ver docs/SECURITY.md).
 // ============================================================================
 
 /** Directiva de la CSP → variable de entorno que la amplía. */
@@ -41,14 +47,43 @@ const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const ORIGIN = /^https:\/\/([a-z0-9.*-]+)(?::(\d{1,5}))?$/i;
 
 /**
+ * Segundas etiquetas que, bajo un ccTLD de dos letras, forman un sufijo público
+ * de dos etiquetas (`co.uk`, `com.co`, `com.br`…). Lista corta y deliberada: no
+ * es la Public Suffix List, solo los casos frecuentes.
+ */
+const PUBLIC_SECOND_LEVEL_LABELS = new Set([
+  "ac",
+  "co",
+  "com",
+  "edu",
+  "gob",
+  "gov",
+  "mil",
+  "net",
+  "nom",
+  "org",
+  "sch",
+]);
+
+/**
  * Host con al menos un punto (dominio + TLD). El comodín solo vale como primera
- * etiqueta y con un dominio detrás (`*.ejemplo.com`, no `*` ni `*.com`).
+ * etiqueta y con un dominio detrás (`*.ejemplo.com`, no `*` ni `*.com`), nunca
+ * justo sobre un sufijo público de dos etiquetas (`*.com.co`, `*.co.uk`).
  */
 function isValidHost(host) {
   if (host.length > 253) return false;
   const labels = host.split(".");
-  if (labels[0] === "*") labels.shift();
-  return labels.length >= 2 && labels.every((label) => LABEL.test(label));
+  const wildcard = labels[0] === "*";
+  if (wildcard) labels.shift();
+  if (labels.length < 2 || !labels.every((label) => LABEL.test(label))) return false;
+  if (!wildcard) return true;
+  // Tres etiquetas como mínimo con el comodín; y si solo hay dos detrás
+  // (`*.x.y`), `x` no puede ser la segunda etiqueta de un sufijo público bajo un
+  // ccTLD de dos letras.
+  if (labels.length === 2 && labels[1].length === 2) {
+    if (PUBLIC_SECOND_LEVEL_LABELS.has(labels[0])) return false;
+  }
+  return true;
 }
 
 /**
@@ -99,7 +134,8 @@ export function cspExtraHosts(env = {}, warn = console.warn) {
       warn(
         `${variable}: se ignoran los valores no válidos (${ignored.join(", ")}); ` +
           "solo se admiten orígenes https, con comodín de subdominio " +
-          "(https://*.ejemplo.com) y sin ruta, consulta ni palabra clave.",
+          "(https://*.ejemplo.com, nunca sobre un sufijo público como *.com.co) " +
+          "y sin ruta, consulta ni palabra clave.",
       );
     }
   }

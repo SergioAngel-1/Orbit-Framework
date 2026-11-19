@@ -56,6 +56,14 @@ describe("cspExtraHosts: validación", () => {
     ).toEqual(["https://*.cdn.ejemplo.com", "https://cdn.ejemplo.com:8443"]);
   });
 
+  it("el comodín vale sobre un dominio real, no sobre un sufijo público de dos etiquetas", () => {
+    expect(
+      cspExtraHosts({
+        CSP_EXTRA_IMG_SRC: "https://*.ejemplo.com,https://*.example.io",
+      }).img,
+    ).toEqual(["https://*.ejemplo.com", "https://*.example.io"]);
+  });
+
   it("quita duplicados conservando el orden", () => {
     expect(
       cspExtraHosts({
@@ -76,6 +84,8 @@ describe("cspExtraHosts: validación", () => {
     ["https://cdn.example#x", "fragmento"],
     ["https://user:pass@cdn.example", "credenciales"],
     ["https://*.com", "comodín sobre un TLD"],
+    ["https://*.com.co", "comodín sobre un sufijo público"],
+    ["https://*.co.uk", "comodín sobre un sufijo público"],
     ["https://localhost", "host de una etiqueta"],
     ["https://cdn.example:99999", "puerto fuera de rango"],
     ["https://cdn.example/a b", "espacio interno"],

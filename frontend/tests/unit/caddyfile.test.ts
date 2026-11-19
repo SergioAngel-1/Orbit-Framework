@@ -305,13 +305,41 @@ describe.each([
     expect(block).not.toContain("reverse_proxy");
 
     const matcher = body.slice(body.indexOf("@unused_root_files {"), start);
-    for (const file of unusedRootFiles) expect(matcher).toContain(file);
+    for (const file of unusedRootFiles) {
+      expect(matcher).toContain(file);
+      // Apache ejecuta el fichero por PATH_INFO (`/wp-signup.php/x`): la regla
+      // tiene que cubrir también lo que cuelga de la ruta.
+      expect(matcher).toContain(`${file}/*`);
+    }
     expect(matcher).not.toContain("/wp-cron.php");
   });
 
   it("va antes de los estáticos y del catch-all (en Caddy gana el primero)", () => {
     expect(start).toBeGreaterThanOrEqual(0);
     expect(start).toBeLessThan(body.indexOf(before));
+  });
+});
+
+describe("caddy/admin.caddy.example: login oculto por PATH_INFO", () => {
+  const body = withoutComments(adminCaddy);
+  const block = body.slice(
+    body.indexOf("@hidden_login {"),
+    body.indexOf("}", body.indexOf("handle @hidden_login {")),
+  );
+
+  it("solo con HWE_LOGIN_SLUG corta /wp-login.php y su variante /x", () => {
+    expect(body).toContain("@hidden_login {");
+    expect(block).toContain('"{$HWE_LOGIN_SLUG:}" != ""');
+    expect(block).toContain("/wp-login.php");
+    expect(block).toContain("/wp-login.php/*");
+    expect(block).toContain('respond "Not Found" 404');
+    expect(block).not.toContain("reverse_proxy");
+  });
+
+  it("va antes del catch-all del host del panel", () => {
+    const start = body.indexOf("@hidden_login {");
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(start).toBeLessThan(body.lastIndexOf("handle {"));
   });
 });
 

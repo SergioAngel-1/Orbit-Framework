@@ -79,6 +79,13 @@ El Licenciatario es responsable de:
 - [ ] Backups programados, copiados fuera del servidor y probados
 - [ ] `lint`, `type-check`, `test`, `build` y `phpunit` verdes en CI
 
+> **Comodines en la CSP (`CSP_EXTRA_*_SRC`).** Un comodín exige al menos tres etiquetas
+> (`https://*.ejemplo.com` vale) y se rechaza cuando cae justo sobre un sufijo público de dos
+> etiquetas conocidas (`*.com.co`, `*.co.uk`). La lista de esas segundas etiquetas es corta y
+> **no es la Public Suffix List**: el comodín no protege de un sufijo público de más de dos
+> etiquetas (una variante regional que no esté en la lista seguiría pasando). Antes de usar un
+> comodín, comprueba que el dominio no sea un sufijo público; si lo es, no lo uses.
+
 ## Verificar la pila con `verify-security.sh`
 
 Los tests unitarios simulan `fetch` y `$_SERVER`: no pueden decir si la pila **real** está cerrada.

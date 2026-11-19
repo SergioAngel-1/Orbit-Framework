@@ -68,11 +68,15 @@
     # `wp-links-opml.php` (publica el blogroll), `wp-trackback.php`,
     # `wp-comments-post.php` (comentarios nativos: el frontend no los usa) y
     # `wp-mail.php` (publicación por correo). Ninguno lo necesita el panel ni el
-    # BFF, así que responden 404 sin llegar a Apache. La copia del host del panel
-    # (caddy/admin.caddy.example) lleva el mismo bloque: el dominio público manda
-    # esto al frontend, y sin este bloque la petición acabaría en Next.
+    # BFF, así que responden 404 sin llegar a Apache. Cada ruta va también con `/*`:
+    # Apache ejecuta el fichero por PATH_INFO (`/wp-signup.php/x`) y sin esa variante
+    # la regla no casaba. `wp-signup.php` y `wp-activate.php` responden 404 SIEMPRE
+    # (el framework es de sitio único; un multisite detrás de este Caddy perdería el
+    # alta). La copia del host del panel (caddy/admin.caddy.example) lleva el mismo
+    # bloque: el dominio público manda esto al frontend, y sin este bloque la
+    # petición acabaría en Next.
     @unused_root_files {
-        path /xmlrpc.php /wp-signup.php /wp-activate.php /wp-links-opml.php /wp-trackback.php /wp-mail.php /wp-comments-post.php
+        path /xmlrpc.php /xmlrpc.php/* /wp-signup.php /wp-signup.php/* /wp-activate.php /wp-activate.php/* /wp-links-opml.php /wp-links-opml.php/* /wp-trackback.php /wp-trackback.php/* /wp-mail.php /wp-mail.php/* /wp-comments-post.php /wp-comments-post.php/*
     }
     handle @unused_root_files {
         respond "Not Found" 404
