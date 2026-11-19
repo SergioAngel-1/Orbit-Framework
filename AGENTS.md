@@ -357,7 +357,8 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
 
 #### 6.4.1 Verificación de email (opcional, no bloqueante)
 - Política **opcional**: se dispara el email tras el registro (`register/route.ts` →
-  WP `send-verification`, best-effort) pero **no** bloquea compra ni login.
+  WP `send-verification`, best-effort y en `after()`: sale después de responder el alta)
+  pero **no** bloquea compra ni login.
 - Token con **expiración (24 h)** y timestamp en WP. UI: `app/[locale]/verify-email`,
   reenvío en `resend-verification`. Estado expuesto en `me` (`email_verified`).
 - Para hacerla obligatoria en el futuro: bloquear checkout/zona privada si `!email_verified`.

@@ -14,8 +14,22 @@ import { POST } from "./route";
 //  solo registraba un fallo de red, y WordPress contestaba 200 aunque `wp_mail()`
 //  fallara. Ahora WordPress contesta 502 si el correo no sale; el registro NO se
 //  rompe (la verificación es opcional y no bloquea la cuenta), pero queda
-//  registrado para que un SMTP roto no pase desapercibido.
+//  registrado para que un SMTP roto no pase desapercibido. Se envía en
+//  `after()`: el alta responde sin esperar a WordPress ni al SMTP.
 // ============================================================================
+
+// `after()` solo existe dentro de una petición de Next: las tareas se guardan y
+// el test las corre cuando le toca (el correo sale DESPUÉS de responder).
+const afterTasks: Array<() => unknown> = [];
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: vi.fn((task: () => unknown) => {
+    afterTasks.push(task);
+  }),
+}));
+async function runAfterTasks() {
+  for (const task of afterTasks.splice(0)) await task();
+}
 
 const cookieSet = vi.fn();
 vi.mock("next/headers", () => ({ cookies: async () => ({ set: cookieSet }) }));
@@ -69,6 +83,7 @@ const failedEvents = () =>
     .filter((fields) => fields.event === "auth.register.send_verification_failed");
 
 beforeEach(() => {
+  afterTasks.length = 0;
   vi.clearAllMocks();
   vi.unstubAllGlobals();
   vi.mocked(fetchGraphQL).mockImplementation((async (query: string) =>
@@ -93,6 +108,25 @@ describe("sesión recién creada", () => {
     expect(claimGuestOrder).toHaveBeenCalledWith(7);
     expect(linkConsentReceipt).toHaveBeenCalledWith(expect.any(Request), 7);
   });
+
+  it("carrito y pedido de invitado van a la vez, y la respuesta espera a los dos", async () => {
+    stubSendVerification(Response.json({ ok: true }));
+    let releaseCart!: () => void;
+    vi.mocked(syncAuthenticatedCart).mockImplementationOnce(
+      () => new Promise<void>((resolve) => (releaseCart = resolve)),
+    );
+
+    let done = false;
+    const pending = POST(request()).then((res) => {
+      done = true;
+      return res;
+    });
+    await vi.waitFor(() => expect(claimGuestOrder).toHaveBeenCalledWith(7));
+    expect(done).toBe(false);
+    releaseCart();
+
+    expect((await pending).status).toBe(201);
+  });
 });
 
 describe("correo de verificación tras el registro", () => {
@@ -100,6 +134,7 @@ describe("correo de verificación tras el registro", () => {
     stubSendVerification(Response.json({ ok: true }));
 
     const res = await POST(request());
+    await runAfterTasks();
 
     expect(res.status).toBe(201);
     expect(failedEvents()).toHaveLength(0);
@@ -111,6 +146,7 @@ describe("correo de verificación tras el registro", () => {
     );
 
     const res = await POST(request());
+    await runAfterTasks();
 
     expect(res.status).toBe(201);
     expect(cookieSet).toHaveBeenCalled(); // sesión iniciada igualmente
@@ -126,6 +162,7 @@ describe("correo de verificación tras el registro", () => {
     stubSendVerification(new TypeError("fetch failed"));
 
     const res = await POST(request());
+    await runAfterTasks();
 
     expect(res.status).toBe(201);
     expect(failedEvents()).toHaveLength(1);
@@ -135,9 +172,21 @@ describe("correo de verificación tras el registro", () => {
     const fetchMock = stubSendVerification(Response.json({ ok: true }));
 
     await POST(request());
+    await runAfterTasks();
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain("/wp-json/hwe/v1/auth/send-verification");
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer AUTH");
+  });
+
+  it("no hace esperar al alta: se encola en after() y no sale antes de responder", async () => {
+    const fetchMock = stubSendVerification(Response.json({ ok: true }));
+
+    const res = await POST(request());
+
+    expect(res.status).toBe(201);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await runAfterTasks();
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

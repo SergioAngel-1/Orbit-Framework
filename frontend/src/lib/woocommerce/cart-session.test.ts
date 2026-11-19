@@ -5,7 +5,10 @@ import {
   writeCartToken,
   clearCartToken,
 } from "@/lib/woocommerce/cart-cookie";
-import { syncCartDestination } from "@/lib/woocommerce/cart-destination";
+import {
+  pushCartDestination,
+  readDestinationAddresses,
+} from "@/lib/woocommerce/cart-destination";
 import { syncAuthenticatedCart } from "./cart-session";
 
 // Tras abrir sesión el carrito de la cuenta prevalece y, con el id de la cuenta y el módulo
@@ -19,13 +22,15 @@ vi.mock("@/lib/woocommerce/cart-cookie", () => ({
   clearCartToken: vi.fn(async () => undefined),
 }));
 vi.mock("@/lib/woocommerce/cart-destination", () => ({
-  syncCartDestination: vi.fn(async () => null),
+  readDestinationAddresses: vi.fn(async () => null),
+  pushCartDestination: vi.fn(async () => null),
 }));
 vi.mock("@/lib/observability/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const CART = { items: [], items_count: 0, totals: {} };
+const ADDRESSES = [{ id: "a1", city: "Bogotá", is_default: true }];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -47,26 +52,59 @@ describe("syncAuthenticatedCart", () => {
   it("sin id de la cuenta (registro) no toca el destino", async () => {
     await syncAuthenticatedCart("jwt");
 
-    expect(syncCartDestination).not.toHaveBeenCalled();
+    expect(readDestinationAddresses).not.toHaveBeenCalled();
+    expect(pushCartDestination).not.toHaveBeenCalled();
   });
 
   it("con el id de la cuenta le fija el destino y se queda con la cookie del carrito resultante", async () => {
-    vi.mocked(syncCartDestination).mockResolvedValue({
+    vi.mocked(readDestinationAddresses).mockResolvedValue(ADDRESSES as never);
+    vi.mocked(pushCartDestination).mockResolvedValue({
       data: CART,
       cartToken: "con-destino",
     } as never);
 
     await syncAuthenticatedCart("jwt", 7);
 
-    expect(syncCartDestination).toHaveBeenCalledWith(7, {
+    expect(readDestinationAddresses).toHaveBeenCalledWith(7);
+    expect(pushCartDestination).toHaveBeenCalledWith(7, ADDRESSES, {
       cartToken: "de-la-cuenta",
       authToken: "jwt",
     });
     expect(writeCartToken).toHaveBeenCalledWith("con-destino");
   });
 
+  it("lee la libreta a la vez que el carrito, no después", async () => {
+    let releaseCart!: () => void;
+    vi.mocked(storeFetch).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseCart = () =>
+            resolve({ data: CART, cartToken: "de-la-cuenta" } as never);
+        }),
+    );
+    vi.mocked(readDestinationAddresses).mockResolvedValue(ADDRESSES as never);
+
+    const sync = syncAuthenticatedCart("jwt", 7);
+    // El carrito sigue sin responder y la libreta ya se pidió.
+    await vi.waitFor(() => expect(readDestinationAddresses).toHaveBeenCalledWith(7));
+    releaseCart();
+    await sync;
+
+    expect(pushCartDestination).toHaveBeenCalledOnce();
+  });
+
+  it("sin libreta (módulo apagado o WordPress sin responder) no fija destino", async () => {
+    vi.mocked(readDestinationAddresses).mockResolvedValue(null);
+
+    await syncAuthenticatedCart("jwt", 7);
+
+    expect(pushCartDestination).not.toHaveBeenCalled();
+    expect(writeCartToken).toHaveBeenCalledWith("de-la-cuenta");
+  });
+
   it("si el destino no se pudo fijar, conserva la cookie del carrito de la cuenta", async () => {
-    vi.mocked(syncCartDestination).mockResolvedValue(null);
+    vi.mocked(readDestinationAddresses).mockResolvedValue(ADDRESSES as never);
+    vi.mocked(pushCartDestination).mockResolvedValue(null);
 
     await syncAuthenticatedCart("jwt", 7);
 

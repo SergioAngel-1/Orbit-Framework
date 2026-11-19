@@ -19,6 +19,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   refresca detrás. Con WordPress caído se sigue con la última lectura buena, reintentando como mucho cada 10 s en
   vez de en cada petición. De paso se cierra una carrera: una lectura que iba en vuelo cuando `/api/revalidate`
   vaciaba la caché (al guardar el Control Center) volvía a llenarla con los datos de antes del guardado.
+- **Login, 2FA y registro · menos vueltas a WordPress en serie.** Tras abrir sesión, el carrito de la cuenta y el
+  pedido de invitado (`syncAuthenticatedCart`, `claimGuestOrder`) se esperaban uno detrás de otro; ahora van a la
+  vez en `login`, `verify-2fa` y `register` (cookies y recursos de WordPress distintos; la respuesta sigue
+  esperando a los dos). Dentro de `syncAuthenticatedCart`, la libreta de la cuenta (wc/v3) se lee a la vez que el
+  carrito en vez de después (nuevo `readDestinationAddresses` en `cart-destination.ts`, que `syncCartDestination`
+  reutiliza). En `register`, la unicidad del documento y la del teléfono se consultan a la vez (las respuestas se
+  evalúan en el mismo orden: el 409 del documento sigue ganando), la atribución del referido corre en paralelo
+  con el auto-login, teléfono e identidad se guardan a la vez, y el correo de verificación sale en `after()`, ya
+  respondida el alta. Ningún cambio de contrato ni de respuestas.
 
 ### Fixed
 - **Sesión · un refresh token que WordPress rechaza se borra del navegador.** El proxy solo retiraba la cookie de

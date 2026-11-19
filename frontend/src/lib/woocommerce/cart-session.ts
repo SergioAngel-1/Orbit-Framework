@@ -7,7 +7,10 @@ import {
   clearCartToken,
 } from "@/lib/woocommerce/cart-cookie";
 import { planCartStockAdjustments } from "@/lib/woocommerce/cart-stock";
-import { syncCartDestination } from "@/lib/woocommerce/cart-destination";
+import {
+  pushCartDestination,
+  readDestinationAddresses,
+} from "@/lib/woocommerce/cart-destination";
 import { logger } from "@/lib/observability/logger";
 import type { StoreCart, StoreCartItem } from "@/types/woocommerce";
 
@@ -108,7 +111,9 @@ export async function applyCartStockAdjustments(
  * Con `userId`, fija además el destino de envío del carrito con la dirección
  * predeterminada de la cuenta (módulo `shipping`): sin eso Woo no conoce la ciudad
  * del cliente y el cajón le enseña tarifa y envío gratis como a un anónimo. Una
- * cuenta recién creada no tiene libreta: el registro no lo pasa.
+ * cuenta recién creada no tiene libreta: el registro no lo pasa. La libreta se lee
+ * a la vez que el carrito (no depende de él): una vuelta a WordPress menos en serie
+ * dentro del login.
  */
 export async function syncAuthenticatedCart(
   authToken: string,
@@ -119,9 +124,12 @@ export async function syncAuthenticatedCart(
 
     // Sin Cart-Token guest: Woo no mergea el carrito del navegador sobre el del
     // customer. El carrito autenticado (otros dispositivos / sesión previa) gana.
-    const { data, cartToken } = await storeFetch<StoreCart>("/cart", {
-      authToken,
-    });
+    // `readDestinationAddresses` nunca lanza: si el carrito falla, no queda
+    // ninguna promesa rechazada sin atender.
+    const [{ data, cartToken }, addresses] = await Promise.all([
+      storeFetch<StoreCart>("/cart", { authToken }),
+      userId != null ? readDestinationAddresses(userId) : null,
+    ]);
 
     const reconciled = await applyCartStockAdjustments(data, {
       cartToken,
@@ -129,8 +137,8 @@ export async function syncAuthenticatedCart(
     });
 
     const destination =
-      userId != null
-        ? await syncCartDestination(userId, {
+      userId != null && addresses
+        ? await pushCartDestination(userId, addresses, {
             cartToken: reconciled.cartToken,
             authToken,
           })

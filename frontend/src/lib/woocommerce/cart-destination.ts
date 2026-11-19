@@ -115,16 +115,18 @@ export async function pushCartDestination(
   }
 }
 
-/** Como `pushCartDestination`, leyendo antes la libreta de la cuenta (wc/v3). */
-export async function syncCartDestination(
+/**
+ * Libreta de la cuenta (wc/v3) para fijar el destino, o `null` si el módulo
+ * `shipping` está apagado o WordPress no respondió (se registra). Nunca lanza:
+ * se puede lanzar en paralelo con la lectura del carrito, que no la necesita.
+ */
+export async function readDestinationAddresses(
   userId: string | number,
-  auth: CartAuth,
-): Promise<StoreApiResult<StoreCart> | null> {
+): Promise<SavedAddress[] | null> {
   if (!(await shippingEnabled())) return null;
-  let addresses: SavedAddress[];
   try {
     const customer = await wcFetch<WooCustomer>(`/customers/${Number(userId)}`);
-    addresses = parseSavedAddresses(customer.meta_data);
+    return parseSavedAddresses(customer.meta_data);
   } catch (error) {
     logger.warn(
       {
@@ -136,6 +138,15 @@ export async function syncCartDestination(
     );
     return null;
   }
+}
+
+/** Como `pushCartDestination`, leyendo antes la libreta de la cuenta (wc/v3). */
+export async function syncCartDestination(
+  userId: string | number,
+  auth: CartAuth,
+): Promise<StoreApiResult<StoreCart> | null> {
+  const addresses = await readDestinationAddresses(userId);
+  if (!addresses) return null;
   return pushCartDestination(userId, addresses, auth);
 }
 

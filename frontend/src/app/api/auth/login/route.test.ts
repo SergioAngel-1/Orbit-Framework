@@ -177,6 +177,26 @@ describe("login sin 2FA", () => {
     expect(claimGuestOrder).toHaveBeenCalledWith(7);
   });
 
+  it("carrito y pedido de invitado van a la vez, y la respuesta espera a los dos", async () => {
+    stubTwoFactorStatus(false);
+    let releaseCart!: () => void;
+    vi.mocked(syncAuthenticatedCart).mockImplementationOnce(
+      () => new Promise<void>((resolve) => (releaseCart = resolve)),
+    );
+
+    let done = false;
+    const pending = POST(loginRequest()).then((res) => {
+      done = true;
+      return res;
+    });
+    // El carrito no ha respondido y el pedido de invitado ya se pidió.
+    await vi.waitFor(() => expect(claimGuestOrder).toHaveBeenCalledWith(7));
+    expect(done).toBe(false);
+    releaseCart();
+
+    expect((await pending).status).toBe(200);
+  });
+
   it("liga el comprobante de consentimiento del dispositivo a la cuenta, y solo con sesión abierta", async () => {
     stubTwoFactorStatus(false);
     await POST(loginRequest());

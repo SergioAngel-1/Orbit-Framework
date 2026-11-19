@@ -9,6 +9,12 @@ import { POST } from "./route";
 //  POST /api/auth/register con teléfono (`auth.phone_login_enabled`).
 // ============================================================================
 
+// `after()` solo existe dentro de una petición de Next: aquí se descarta la tarea
+// (el correo de verificación, que se prueba en route.test.ts).
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: vi.fn(),
+}));
 vi.mock("@/lib/analytics/consent-ledger", () => ({
   linkConsentReceipt: vi.fn(async () => undefined),
 }));

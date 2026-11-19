@@ -200,9 +200,12 @@ export async function POST(request: Request) {
       refreshCookieOptions(REFRESH_TOKEN_MAX_AGE),
     );
 
-    // Ver `login`: carrito de la cuenta y pedido de invitado, antes de responder.
-    await syncAuthenticatedCart(session.authToken, ephemeral.userId);
-    await claimGuestOrder(ephemeral.userId);
+    // Ver `login`: carrito de la cuenta y pedido de invitado, a la vez y antes de
+    // responder.
+    await Promise.all([
+      syncAuthenticatedCart(session.authToken, ephemeral.userId),
+      claimGuestOrder(ephemeral.userId),
+    ]);
     // Liga el comprobante de consentimiento de este dispositivo a la cuenta
     // (módulo `consent-log`; en `after()`, no retrasa la respuesta).
     await linkConsentReceipt(request, ephemeral.userId);

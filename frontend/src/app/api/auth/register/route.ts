@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { BodyTooLarge, bodyTooLarge, readJsonBody } from "@/lib/api/body";
 import { cookies } from "next/headers";
 import { fetchGraphQL } from "@/lib/graphql-client";
@@ -40,7 +40,8 @@ export const dynamic = "force-dynamic";
  * Dispara el email de verificación tras el registro (best-effort). La política
  * es OPCIONAL: NO bloquea el uso de la cuenta; solo inicia el flujo para que el
  * usuario pueda verificar cuando quiera (UI en /verify-email + reenvío). Un
- * fallo de envío no rompe el registro.
+ * fallo de envío no rompe el registro. El registro la lanza en `after()`: es un
+ * arranque de WordPress más el envío SMTP, y el alta no necesita esperarlo.
  */
 async function sendVerificationEmail(authToken: string, locale: string): Promise<void> {
   try {
@@ -217,35 +218,42 @@ export async function POST(request: Request) {
     if (Object.keys(details).length > 0) {
       return NextResponse.json({ error: "Datos inválidos.", details }, { status: 422 });
     }
-    if (identity) {
-      const free = await isDocumentAvailable(
-        identity.documentType,
-        identity.documentNumber,
+  }
+
+  // 0) Unicidad del documento y del teléfono: dos consultas a WordPress
+  //    independientes, lanzadas a la vez ANTES de crear la cuenta. Las respuestas
+  //    se evalúan en el mismo orden de siempre (documento, luego teléfono). El
+  //    teléfono (opcional) solo se consulta con `auth.phone_login_enabled`; tras
+  //    crear la cuenta, WordPress lo vuelve a comprobar al guardarlo.
+  const phone = parsed.data.phone || "";
+  const documentCheck =
+    policy.enabled && identity
+      ? isDocumentAvailable(identity.documentType, identity.documentNumber)
+      : null;
+  const phoneCheck =
+    phone !== "" && config.auth.phone_login_enabled ? isPhoneAvailable(phone) : null;
+  const [documentFree, phoneAvailable] = await Promise.all([documentCheck, phoneCheck]);
+
+  if (documentCheck) {
+    if (documentFree === null) {
+      logger.error(
+        { event: "auth.register.document_check_failed" },
+        "No se pudo comprobar la unicidad del documento",
       );
-      if (free === null) {
-        logger.error(
-          { event: "auth.register.document_check_failed" },
-          "No se pudo comprobar la unicidad del documento",
-        );
-        return NextResponse.json(
-          { error: "Servicio de autenticación temporalmente no disponible." },
-          { status: 503 },
-        );
-      }
-      if (!free) {
-        const message = "Este documento ya está registrado.";
-        return NextResponse.json(
-          { error: message, details: { identity: [message] } },
-          { status: 409 },
-        );
-      }
+      return NextResponse.json(
+        { error: "Servicio de autenticación temporalmente no disponible." },
+        { status: 503 },
+      );
+    }
+    if (!documentFree) {
+      const message = "Este documento ya está registrado.";
+      return NextResponse.json(
+        { error: message, details: { identity: [message] } },
+        { status: 409 },
+      );
     }
   }
 
-  // 0) Teléfono (opcional): solo con `auth.phone_login_enabled` y si está libre.
-  //    Se comprueba ANTES de crear la cuenta; tras crearla, WordPress lo vuelve
-  //    a comprobar al guardarlo.
-  const phone = parsed.data.phone || "";
   if (phone !== "") {
     if (!config.auth.phone_login_enabled) {
       return NextResponse.json(
@@ -253,14 +261,13 @@ export async function POST(request: Request) {
         { status: 422 },
       );
     }
-    const available = await isPhoneAvailable(phone);
-    if (available === null) {
+    if (phoneAvailable === null) {
       return NextResponse.json(
         { error: "No se pudo comprobar el teléfono. Inténtalo de nuevo." },
         { status: 503 },
       );
     }
-    if (!available) {
+    if (!phoneAvailable) {
       return NextResponse.json(
         {
           error: "Ese teléfono ya está en uso.",
@@ -305,21 +312,9 @@ export async function POST(request: Request) {
 
   // 1b) Atribución del referido: tras crear la cuenta, con su id real y como
   //     best-effort. Un fallo no cambia la respuesta del registro; la cookie se
-  //     retira igualmente.
-  if (referralCode) {
-    if (typeof newUserId === "number" && newUserId > 0) {
-      await attributeRegistrationReferral(newUserId, referralCode);
-    } else {
-      logger.error(
-        {
-          event: "auth.register.referral_not_attributed",
-          reason: "missing_user_id",
-        },
-        "No se pudo atribuir el referido: WordPress no devolvió el id de la cuenta",
-      );
-      await forgetReferralCookie();
-    }
-  }
+  //     retira igualmente. No depende del auto-login (ni al revés): va a la vez y
+  //     se espera antes de responder, salga como salga el login.
+  const attribution = attributeAfterRegistration(referralCode, newUserId);
 
   // 2) Auto-login para dejar la sesión iniciada.
   try {
@@ -344,50 +339,40 @@ export async function POST(request: Request) {
       "Auto-login post-registro exitoso",
     );
 
-    // Teléfono de la cuenta: si no se pudo guardar (carrera con otro registro),
-    // la cuenta ya existe y sigue sirviendo con el email; se registra.
-    if (phone !== "") {
-      await attachPhoneToAccount(user.databaseId, phone);
-    }
-
-    // Documento + aceptación de términos. Entre la comprobación de arriba y aquí otra
-    // cuenta pudo quedarse el documento: es el único fallo que se registra como tal.
-    // Si WordPress no responde, la cuenta sigue siendo válida: el documento se pedirá
-    // en la cuenta o en el checkout, que lo aceptan mientras esté vacío.
-    if (policy.enabled) {
-      const saved = await attachIdentity(user.databaseId, {
-        documentType: identity?.documentType,
-        documentNumber: identity?.documentNumber,
-        termsAccepted: true,
-      });
-      if (!saved.ok) {
-        logger.error(
-          {
-            event: "auth.register.identity_incomplete",
-            userId: user.databaseId,
-            reason: saved.reason,
-          },
-          "Usuario creado pero no se pudo guardar el documento/aceptación",
-        );
-      }
-    }
-
-    // Inicia el flujo de verificación de email (opcional, no bloqueante).
+    // Inicia el flujo de verificación de email (opcional, no bloqueante): tras
+    // responder. El token se pasa ya resuelto; la petición no hace falta.
     if (authToken) {
-      await sendVerificationEmail(authToken, authEmailLocale(parsed.data.locale));
+      const emailLocale = authEmailLocale(parsed.data.locale);
+      after(() => sendVerificationEmail(authToken, emailLocale));
     }
 
-    // Ver `login`: carrito de la cuenta y pedido de invitado de este
-    // navegador, antes de responder. Una cuenta nueva suele tener el carrito
-    // vacío: lo que importa aquí es ligar el pedido que acaba de hacer.
-    await syncAuthenticatedCart(authToken);
-    await claimGuestOrder(user.databaseId);
+    // Lo que queda antes de responder son escrituras independientes entre sí
+    // (metadatos distintos de la cuenta, el carrito y el pedido de invitado):
+    // van a la vez. Ninguna lanza.
+    await Promise.all([
+      // Teléfono de la cuenta: si no se pudo guardar (carrera con otro registro),
+      // la cuenta ya existe y sigue sirviendo con el email; se registra.
+      phone !== "" ? attachPhoneToAccount(user.databaseId, phone) : null,
+      // Documento + aceptación de términos. Entre la comprobación de arriba y aquí
+      // otra cuenta pudo quedarse el documento: es el único fallo que se registra
+      // como tal. Si WordPress no responde, la cuenta sigue siendo válida: el
+      // documento se pedirá en la cuenta o en el checkout, que lo aceptan
+      // mientras esté vacío.
+      policy.enabled ? saveIdentity(user.databaseId, identity) : null,
+      // Ver `login`: carrito de la cuenta y pedido de invitado de este
+      // navegador, antes de responder. Una cuenta nueva suele tener el carrito
+      // vacío: lo que importa aquí es ligar el pedido que acaba de hacer.
+      syncAuthenticatedCart(authToken),
+      claimGuestOrder(user.databaseId),
+      attribution,
+    ]);
     // Liga el comprobante de consentimiento de este dispositivo a la cuenta
     // (módulo `consent-log`; en `after()`, no retrasa la respuesta).
     await linkConsentReceipt(request, user.databaseId);
 
     return NextResponse.json({ user }, { status: 201 });
   } catch {
+    await attribution;
     logger.warn(
       { event: "auth.register.auto_login_failed" },
       "Usuario creado pero auto-login falló",
@@ -395,6 +380,51 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { ok: true, message: "Usuario creado. Inicia sesión." },
       { status: 201 },
+    );
+  }
+}
+
+/**
+ * Atribución del referido tras el alta (ver 1b). Nunca lanza: sin código no hace
+ * nada, y sin id de la cuenta lo registra y retira la cookie.
+ */
+async function attributeAfterRegistration(
+  referralCode: string | null,
+  newUserId: number | undefined,
+): Promise<void> {
+  if (!referralCode) return;
+  if (typeof newUserId === "number" && newUserId > 0) {
+    await attributeRegistrationReferral(newUserId, referralCode);
+    return;
+  }
+  logger.error(
+    {
+      event: "auth.register.referral_not_attributed",
+      reason: "missing_user_id",
+    },
+    "No se pudo atribuir el referido: WordPress no devolvió el id de la cuenta",
+  );
+  await forgetReferralCookie();
+}
+
+/** Guarda documento y aceptación de términos en la cuenta recién creada (ver 2). */
+async function saveIdentity(
+  userId: number,
+  identity: { documentType?: string; documentNumber?: string } | undefined,
+): Promise<void> {
+  const saved = await attachIdentity(userId, {
+    documentType: identity?.documentType,
+    documentNumber: identity?.documentNumber,
+    termsAccepted: true,
+  });
+  if (!saved.ok) {
+    logger.error(
+      {
+        event: "auth.register.identity_incomplete",
+        userId,
+        reason: saved.reason,
+      },
+      "Usuario creado pero no se pudo guardar el documento/aceptación",
     );
   }
 }

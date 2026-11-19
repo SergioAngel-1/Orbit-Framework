@@ -3,6 +3,7 @@ import { fetchGraphQL } from "@/lib/graphql-client";
 import { getSiteConfig } from "@/lib/config";
 import { getGeoPack } from "@/lib/geo";
 import { attachIdentity, isDocumentAvailable } from "@/lib/customer/identity-api";
+import { attachPhoneToAccount, isPhoneAvailable } from "@/lib/auth/phone-account";
 import { CO_PACK, FALLBACK_ES_PACK } from "../../../../../tests/helpers/geo-pack";
 import { POST } from "./route";
 
@@ -11,6 +12,12 @@ import { POST } from "./route";
 //  entre cuentas, comprobado ANTES de crear la cuenta) y aceptación de términos.
 // ============================================================================
 
+// `after()` solo existe dentro de una petición de Next: aquí se descarta la tarea
+// (el correo de verificación, que se prueba en route.test.ts).
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: vi.fn(),
+}));
 vi.mock("@/lib/analytics/consent-ledger", () => ({
   linkConsentReceipt: vi.fn(async () => undefined),
 }));
@@ -23,6 +30,10 @@ vi.mock("@/lib/geo", () => ({ getGeoPack: vi.fn() }));
 vi.mock("@/lib/customer/identity-api", () => ({
   isDocumentAvailable: vi.fn(),
   attachIdentity: vi.fn(),
+}));
+vi.mock("@/lib/auth/phone-account", () => ({
+  isPhoneAvailable: vi.fn(async () => true),
+  attachPhoneToAccount: vi.fn(async () => true),
 }));
 vi.mock("@/lib/woocommerce/cart-session", () => ({
   syncAuthenticatedCart: vi.fn(async () => undefined),
@@ -174,5 +185,48 @@ describe("registro con documento y términos", () => {
       documentNumber: undefined,
       termsAccepted: true,
     });
+  });
+
+  it("documento y teléfono se comprueban a la vez, antes de crear la cuenta", async () => {
+    vi.mocked(getSiteConfig).mockResolvedValue({
+      auth: { phone_login_enabled: true, phone_default_dial_code: "57" },
+      modules: { "customer-identity": true },
+    } as never);
+    let releaseDocument!: (free: boolean) => void;
+    vi.mocked(isDocumentAvailable).mockImplementationOnce(
+      () => new Promise<boolean | null>((resolve) => (releaseDocument = resolve)),
+    );
+
+    const pending = register({
+      identity: DOC,
+      terms_accepted: true,
+      phone: "+573001234567",
+    });
+    // El documento no ha respondido y el teléfono ya se consultó.
+    await vi.waitFor(() => expect(isPhoneAvailable).toHaveBeenCalled());
+    expect(created()).toBe(false);
+    releaseDocument(true);
+
+    expect((await pending).status).toBe(201);
+    expect(attachPhoneToAccount).toHaveBeenCalledWith(21, "+573001234567");
+  });
+
+  it("si el documento está ocupado, gana su 409 aunque el teléfono también lo esté", async () => {
+    vi.mocked(getSiteConfig).mockResolvedValue({
+      auth: { phone_login_enabled: true, phone_default_dial_code: "57" },
+      modules: { "customer-identity": true },
+    } as never);
+    vi.mocked(isDocumentAvailable).mockResolvedValue(false);
+    vi.mocked(isPhoneAvailable).mockResolvedValue(false);
+
+    const res = await register({
+      identity: DOC,
+      terms_accepted: true,
+      phone: "+573001234567",
+    });
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).details.identity).toBeDefined();
+    expect(created()).toBe(false);
   });
 });
