@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
+import { useRouter } from "@/i18n/navigation";
 import { CityField, DivisionField } from "@/components/forms/geo-fields";
 import { findDivision, packCountry } from "@/lib/geo/address";
 import { GENERIC_PACK } from "@/lib/geo/generic";
@@ -56,6 +57,7 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
       : COUNTRY_OPTIONS;
   const t = useTranslations("addresses");
   const tForm = useTranslations("form");
+  const router = useRouter();
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   // `id` de la dirección en edición, nunca su posición: la lista puede cambiar mientras tanto.
   const [editing, setEditing] = useState<string | "new" | null>(null);
@@ -65,11 +67,14 @@ export function AddressManager({ geoPack = GENERIC_PACK }: { geoPack?: GeoPack }
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  // Tras cada escritura: la lista se relee aquí y el checkout parte de las direcciones
+  // que pinta el servidor, así que también se vacía la caché del router.
   const fetchAddresses = useCallback(async () => {
+    router.refresh();
     const next = await readAddresses();
     if (next) setAddresses(next);
     setLoading(false);
-  }, []);
+  }, [router]);
 
   // Carga inicial. Los `setState` van DESPUÉS del `await` (no en el cuerpo
   // síncrono del efecto) y `active` evita escribirlos si el componente se

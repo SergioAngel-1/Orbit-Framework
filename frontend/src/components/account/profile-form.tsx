@@ -3,6 +3,7 @@ import { HUBSPOT_DO_NOT_COLLECT } from "@/lib/analytics/hubspot";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { csrfFetch } from "@/lib/client/csrf";
+import { useRouter } from "@/i18n/navigation";
 import { DocumentField } from "@/components/forms/document-field";
 import {
   hasDocument,
@@ -26,6 +27,7 @@ export function ProfileForm({
   const tAccount = useTranslations("account");
   const tForm = useTranslations("form");
   const tCommon = useTranslations("common");
+  const router = useRouter();
   const [status, setStatus] = useState<"idle" | "saving" | "ok" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [stored, setStored] = useState<CustomerIdentity | null>(
@@ -71,6 +73,9 @@ export function ProfileForm({
       }
       setStatus("ok");
       setMessage(tAccount("saveSuccess"));
+      // La cuenta pinta el nombre desde el servidor: sin esto, volver a ella desde la
+      // caché del router (`NEXT_ROUTER_STALE_DYNAMIC`) enseñaría el anterior.
+      router.refresh();
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof Error ? err.message : tCommon("error"));

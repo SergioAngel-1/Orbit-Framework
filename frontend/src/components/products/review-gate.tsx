@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { reviewApi } from "@/lib/client/store-api";
 import type { ReviewEligibility } from "@/lib/account/review-eligibility";
 import { ReviewForm } from "./review-form";
@@ -16,6 +16,7 @@ import { ReviewForm } from "./review-form";
 export function ReviewGate({ productId }: { productId: number }) {
   const t = useTranslations("products");
   const [state, setState] = useState<ReviewEligibility | null>(null);
+  const router = useRouter();
   const [confirming, setConfirming] = useState(false);
 
   const load = useCallback(async () => {
@@ -69,7 +70,12 @@ export function ReviewGate({ productId }: { productId: number }) {
               onClick={async () => {
                 setConfirming(true);
                 const ok = await reviewApi.confirmReceived(state.order!.id);
-                if (ok) await load();
+                if (ok) {
+                  await load();
+                  // El estado del pedido se pinta en «Mis pedidos» desde el servidor
+                  // (como hace `order-actions` tras la misma confirmación).
+                  router.refresh();
+                }
                 setConfirming(false);
               }}
               className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50 dark:bg-accent dark:text-gray-950 dark:hover:bg-accent/85"

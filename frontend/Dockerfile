@@ -69,6 +69,9 @@ COPY --from=deps /app/node_modules ./node_modules
 #     cliente. `NEXT_PUBLIC_SENTRY_REPLAY=true` activa replay (opt-in).
 #   - Ritmo y paciencia del prerender (solo afectan al BUILD, no al artefacto):
 #     sin valor, Next y el cliente GraphQL usan sus defaults.
+#   - NEXT_ROUTER_STALE_DYNAMIC: opt-in, segundos que el router del cliente
+#     reutiliza una vista dinámica ya visitada (`scripts/router-stale-times.mjs`).
+#     Se hornea en el JS del cliente; sin ella, el defecto de Next (0).
 #
 #  ORDEN: este bloque va ANTES de `COPY . .` a propósito. El builder clásico
 #  (obligado si el build necesita `build.network`, ver docker-compose.prod.yml)
@@ -96,6 +99,7 @@ ARG CONFIG_TIMEOUT_MS
 ARG PRERENDER_LONG_TAIL
 ARG NEXT_IMAGE_FORMATS
 ARG NEXT_IMAGE_MIN_CACHE_TTL
+ARG NEXT_ROUTER_STALE_DYNAMIC
 ENV WORDPRESS_PUBLIC_URL=$WORDPRESS_PUBLIC_URL \
     WORDPRESS_INTERNAL_API_URL=$WORDPRESS_INTERNAL_API_URL \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
@@ -113,7 +117,8 @@ ENV WORDPRESS_PUBLIC_URL=$WORDPRESS_PUBLIC_URL \
     CONFIG_TIMEOUT_MS=$CONFIG_TIMEOUT_MS \
     PRERENDER_LONG_TAIL=$PRERENDER_LONG_TAIL \
     NEXT_IMAGE_FORMATS=$NEXT_IMAGE_FORMATS \
-    NEXT_IMAGE_MIN_CACHE_TTL=$NEXT_IMAGE_MIN_CACHE_TTL
+    NEXT_IMAGE_MIN_CACHE_TTL=$NEXT_IMAGE_MIN_CACHE_TTL \
+    NEXT_ROUTER_STALE_DYNAMIC=$NEXT_ROUTER_STALE_DYNAMIC
 
 # Falla PRONTO y con un mensaje claro en vez de hornear una imagen con la CSP y
 # los remotePatterns apuntando a localhost — el fallo silencioso que esto viene a

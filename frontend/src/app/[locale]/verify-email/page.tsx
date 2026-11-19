@@ -5,7 +5,7 @@
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Spinner } from "@/components/ui/spinner";
 import { csrfFetch } from "@/lib/client/csrf";
 import { useScrubQueryParams } from "@/hooks/use-scrub-query-params";
@@ -103,13 +103,18 @@ function VerifyEmailContent() {
   const [token] = useState(() => searchParams.get("token"));
   useScrubQueryParams(["token"]);
   const [status, setStatus] = useState<Status>(token ? "verifying" : "no-token");
+  const router = useRouter();
 
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
     csrfFetch("/api/auth/verify-email", { method: "POST", body: { token } })
       .then((res) => {
-        if (!cancelled) setStatus(res.ok ? "ok" : "error");
+        if (cancelled) return;
+        setStatus(res.ok ? "ok" : "error");
+        // La cuenta pinta el aviso de verificación desde el servidor: que la caché
+        // del router no la sirva con el aviso viejo.
+        if (res.ok) router.refresh();
       })
       .catch(() => {
         if (!cancelled) setStatus("error");
@@ -117,7 +122,7 @@ function VerifyEmailContent() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, router]);
 
   if (status === "verifying") return <VerifyingCard label={t("verifying")} />;
 

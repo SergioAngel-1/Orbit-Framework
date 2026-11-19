@@ -5,6 +5,7 @@ import { cspExtraHosts } from "./csp-extra-hosts.mjs";
 import { buildContentSecurityPolicy } from "./csp-policy.mjs";
 import createNextIntlPlugin from "next-intl/plugin";
 import { imageFormats } from "./scripts/image-formats.mjs";
+import { routerStaleTimes } from "./scripts/router-stale-times.mjs";
 import {
   staticGenerationOptions,
   staticPageGenerationTimeout,
@@ -174,7 +175,10 @@ const sentryAliases = publicSentryDsn
     };
 const turbopackAliases = {
   ...Object.fromEntries(
-    OPTIONAL_CATALOGS.map(({ specifier }) => [specifier, "./src/i18n/messages/es.json"]),
+    OPTIONAL_CATALOGS.map(({ specifier }) => [
+      specifier,
+      "./src/i18n/messages/es.json",
+    ]),
   ),
   ...sentryAliases,
 };
@@ -217,8 +221,13 @@ const nextConfig = withNextIntl({
   typescript: { tsconfigPath: "tsconfig.build.json" },
 
   // Ritmo del prerender por variable de entorno: sin ellas, la config queda
-  // como estaba (ver `scripts/static-generation-options.mjs`).
-  experimental: staticGenerationOptions(process.env),
+  // como estaba (ver `scripts/static-generation-options.mjs`). Y, opt-in, la caché
+  // del router del cliente para vistas dinámicas (`NEXT_ROUTER_STALE_DYNAMIC`, ver
+  // `scripts/router-stale-times.mjs`: exige `router.refresh()` tras cada escritura).
+  experimental: {
+    ...staticGenerationOptions(process.env),
+    ...routerStaleTimes(process.env),
+  },
   ...(staticPageGenerationTimeout(process.env) !== undefined
     ? { staticPageGenerationTimeout: staticPageGenerationTimeout(process.env) }
     : {}),

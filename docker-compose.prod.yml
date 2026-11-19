@@ -495,6 +495,9 @@ services:
         NEXT_IMAGE_FORMATS:          "${NEXT_IMAGE_FORMATS:-}"
         # Segundos que vive una imagen ya optimizada. Vacío = 2592000 (30 días).
         NEXT_IMAGE_MIN_CACHE_TTL:    "${NEXT_IMAGE_MIN_CACHE_TTL:-}"
+        # Opt-in: segundos que el router del cliente reutiliza una vista dinámica ya
+        # visitada (1–300). Vacío = 0, el defecto de Next. Ver docs/CONFIGURATION.md.
+        NEXT_ROUTER_STALE_DYNAMIC:   "${NEXT_ROUTER_STALE_DYNAMIC:-}"
     container_name: ${HWE_CONTAINER_PREFIX:-hwe}_frontend
     logging: *default-logging
     restart: unless-stopped

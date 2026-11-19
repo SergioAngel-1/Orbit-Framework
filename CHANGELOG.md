@@ -6,6 +6,18 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Added
+- **Router · caché del cliente para vistas dinámicas, opt-in (`NEXT_ROUTER_STALE_DYNAMIC`).** Con el defecto de
+  Next (`staleTimes.dynamic` = 0), volver con un enlace a la cuenta, al carrito o a cualquier vista dinámica ya
+  visitada rehace el render en el servidor, con todas sus lecturas a WordPress. La nueva variable de **build**
+  (segundos, 1–300; `scripts/router-stale-times.mjs`) deja que el navegador reutilice esa vista durante ese plazo.
+  Es opt-in porque solo es seguro si cada escritura del navegador contra `/api/*` que cambie datos pintados por el
+  servidor termina en `router.refresh()`: el starter ya cumple —se añadió en el perfil, las direcciones (el
+  checkout parte de ellas), el corazón de la lista de deseos, «Ya lo recibí» de la ficha y la verificación de
+  correo— y una instancia debe revisar sus propias vistas antes de activarla (`docs/CONFIGURATION.md`). Un valor
+  fuera de rango se ignora con aviso. Cableada en `frontend/Dockerfile`, `docker-compose.prod.yml` y
+  `.env.example`. Sin la variable, la config de Next no cambia.
+
 ### Changed
 - **Catálogo y membresías · `getProductBySlug` y `getMembershipLevels` memoizados por petición.** La ficha pide
   el producto desde `generateMetadata`, la página y sus secciones, y cada llamada era una consulta a WordPress:

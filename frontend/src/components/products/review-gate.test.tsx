@@ -11,10 +11,12 @@ import { ReviewGate } from "./review-gate";
 // Cada estado de la elegibilidad dice qué falta, en vez de un formulario que el
 // servidor rechazaría.
 
+const refreshRouter = vi.fn();
 vi.mock("@/i18n/navigation", () => ({
   Link: ({ href, children }: { href: string; children: ReactNode }) => (
     <a href={href}>{children}</a>
   ),
+  useRouter: () => ({ refresh: refreshRouter }),
 }));
 vi.mock("@/lib/client/store-api", () => ({
   reviewApi: { eligibility: vi.fn(), create: vi.fn(), confirmReceived: vi.fn() },
@@ -79,6 +81,8 @@ describe("ReviewGate", () => {
     await waitFor(() => expect(reviewApi.confirmReceived).toHaveBeenCalledWith(41));
     expect(await screen.findByText(/Ana Ruiz/)).toBeTruthy();
     expect(reviewApi.eligibility).toHaveBeenCalledTimes(2);
+    // «Mis pedidos» pinta el estado desde el servidor: se vacía la caché del router.
+    expect(refreshRouter).toHaveBeenCalled();
   });
 
   it("ya reseñado, lo dice y no ofrece el formulario", async () => {

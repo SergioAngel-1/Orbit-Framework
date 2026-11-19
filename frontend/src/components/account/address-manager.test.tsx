@@ -11,6 +11,8 @@ import { AddressManager } from "./address-manager";
 // guardado no puede caer sobre la que haya quedado en esa posición.
 
 vi.mock("@/lib/client/csrf", () => ({ csrfFetch: vi.fn() }));
+const refreshRouter = vi.fn();
+vi.mock("@/i18n/navigation", () => ({ useRouter: () => ({ refresh: refreshRouter }) }));
 
 const address = (id: string, street: string): SavedAddress => ({
   id,
@@ -68,6 +70,16 @@ describe("AddressManager", () => {
 
     await waitFor(() => expect(csrfFetch).toHaveBeenCalled());
     expect(lastCall()).toMatchObject({ method: "DELETE", body: { id: "b" } });
+  });
+
+  it("tras una escritura vacía la caché del router (el checkout parte de estas direcciones)", async () => {
+    refreshRouter.mockReset();
+    await renderManager();
+    expect(refreshRouter).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getAllByRole("button", { name: es.addresses.delete })[1]!);
+
+    await waitFor(() => expect(refreshRouter).toHaveBeenCalledOnce());
   });
 
   it("borrar otra dirección no cambia a cuál apunta la edición abierta", async () => {

@@ -731,6 +731,23 @@ describe("next.config.mjs: sus variables llegan al build de la imagen", () => {
 });
 
 // ============================================================================
+//  Variables de build que `next.config.mjs` lee a través de un módulo (reciben
+//  `process.env` entero), así que el barrido de arriba no las ve.
+// ============================================================================
+describe("variables de build leídas por módulos de la config", () => {
+  it.each(["NEXT_ROUTER_STALE_DYNAMIC"])(
+    "%s es un ARG del Dockerfile y un build arg del compose",
+    (name) => {
+      expect(dockerfile).toMatch(new RegExp(`^ARG ${name}$`, "m"));
+      expect(dockerfile).toContain(`${name}=$${name}`);
+      expect(service(prod, "frontend")).toMatch(
+        new RegExp(`^\\s+${name}:\\s+"\\$\\{${name}:-\\}"$`, "m"),
+      );
+    },
+  );
+});
+
+// ============================================================================
 //  La CSP se puede AMPLIAR por despliegue (`csp-extra-hosts.mjs`). Esas variables se
 //  leen fuera de `next.config.mjs` —el módulo recibe `process.env` entero—, así que el
 //  barrido automático de arriba no las ve: se fijan aquí, en las CUATRO piezas que

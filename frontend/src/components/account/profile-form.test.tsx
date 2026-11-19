@@ -12,6 +12,8 @@ import { ProfileForm } from "./profile-form";
 // bloqueado en cuanto se guarda (y WordPress lo impone).
 
 vi.mock("@/lib/client/csrf", () => ({ csrfFetch: vi.fn() }));
+const refreshRouter = vi.fn();
+vi.mock("@/i18n/navigation", () => ({ useRouter: () => ({ refresh: refreshRouter }) }));
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status });
@@ -33,6 +35,7 @@ const lastBody = () =>
     .body;
 
 beforeEach(() => {
+  refreshRouter.mockReset();
   vi.mocked(csrfFetch).mockReset();
   vi.mocked(csrfFetch).mockResolvedValue(json({ id: 7, meta_data: [] }));
 });
@@ -124,5 +127,25 @@ describe("ProfileForm — documento", () => {
     const { container } = renderForm({ documentTypes: [], stored: EMPTY_IDENTITY });
 
     expect(docInput(container)).toBeNull();
+  });
+});
+
+describe("ProfileForm — caché del router", () => {
+  it("al guardar vacía la caché del router (la cuenta pinta el nombre desde el servidor)", async () => {
+    const { container } = renderForm();
+
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() => expect(refreshRouter).toHaveBeenCalledOnce());
+  });
+
+  it("si no se guarda, no la toca", async () => {
+    vi.mocked(csrfFetch).mockResolvedValue(json({ error: "no" }, 500));
+    const { container } = renderForm();
+
+    fireEvent.submit(container.querySelector("form")!);
+
+    await waitFor(() => expect(csrfFetch).toHaveBeenCalled());
+    expect(refreshRouter).not.toHaveBeenCalled();
   });
 });

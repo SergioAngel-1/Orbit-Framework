@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { wishlistApi } from "@/lib/client/wishlist";
+import { useRouter } from "@/i18n/navigation";
 
 export function WishlistButton({ productId }: { productId: number }) {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     wishlistApi
@@ -25,13 +27,15 @@ export function WishlistButton({ productId }: { productId: number }) {
       try {
         await wishlistApi.toggle(productId, isWishlisted);
         setIsWishlisted(!isWishlisted);
+        // «Mi lista» se pinta desde el servidor: que la caché del router no la sirva vieja.
+        router.refresh();
       } catch {
         /* ignore */
       } finally {
         setLoading(false);
       }
     },
-    [productId, isWishlisted, loading],
+    [productId, isWishlisted, loading, router],
   );
 
   if (loading) {
