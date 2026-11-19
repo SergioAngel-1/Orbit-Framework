@@ -236,6 +236,14 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   cualquier dispositivo). Al abrir sesión **prevalece el de la cuenta** (el del navegador se
   descarta) y `GET /api/store/cart` reconcilia existencias: quita o reduce las líneas que ya no
   se pueden comprar. `logout-all` vacía el carrito de la cuenta.
+- **Visitante sin carrito ni sesión:** `GET /api/store/cart` responde 200 con la forma canónica
+  del carrito vacío y **sin `Set-Cookie`**, sin abrir una sesión de WooCommerce por visitante. Esa
+  forma (moneda `currency_*`, totales, medios de pago, direcciones) solo la conoce la Store API:
+  se lee una vez sin token y se guarda en memoria del proceso unos minutos, con una única lectura
+  en vuelo (single-flight). Si WordPress falla se sirve la última copia y, sin copia, el error de
+  siempre. El rate-limit de lectura se aplica antes de todo. La cookie `hwe_cart` la crea la
+  primera alta (`POST /api/store/cart/items`). Con cookie o con sesión, la lectura es la de
+  siempre.
 - **Qué completa el BFF en `StoreCart`** (`lib/woocommerce/complete-cart.ts`, en todas las rutas
   que lo devuelven): `coupons[].description` y `coupons[].freeShipping`, y `items[].name` como
   texto (sin entidades HTML). Los errores 4xx de WooCommerce llegan como texto plano.

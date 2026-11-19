@@ -4,6 +4,7 @@ import { readCartToken, writeCartToken } from "@/lib/woocommerce/cart-cookie";
 import { storeFetch } from "@/lib/woocommerce/store-client";
 import { getSession } from "@/lib/auth/session";
 import { ensureCartDestination } from "@/lib/woocommerce/cart-destination";
+import { resetAnonymousCartCache } from "@/lib/woocommerce/anonymous-cart";
 import { WooCommerceError } from "@/lib/woocommerce/client";
 import { DELETE, GET } from "./route";
 
@@ -28,11 +29,22 @@ vi.mock("@/lib/woocommerce/cart-destination", () => ({
 }));
 vi.mock("@/lib/api/guard", () => ({ guardMutation: vi.fn(async () => null) }));
 vi.mock("@/lib/observability/logger", () => ({
-  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+  logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
 const OK = { success: true, remaining: 10, retryAfter: 0, limit: 30 };
 const CART = { items: [], items_count: 0, totals: { total_price: "0" } };
+/** Forma canónica que la Store API da a un carrito vacío sin token. */
+const EMPTY_CART = {
+  items: [],
+  items_count: 0,
+  coupons: [],
+  shipping_rates: [],
+  needs_payment: false,
+  needs_shipping: false,
+  payment_methods: [],
+  totals: { total_price: "0", currency_code: "EUR", currency_minor_unit: 2 },
+};
 
 const request = (ip = "203.0.113.9") =>
   new Request("https://tienda.example/api/store/cart", {
@@ -44,6 +56,8 @@ beforeEach(() => {
   // `clearAllMocks` no descarta las respuestas `...Once` que un test dejó sin
   // consumir: sin este reset, un test en rojo contaminaría al siguiente.
   vi.mocked(storeFetch).mockReset();
+  // La copia del carrito vacío vive en memoria del proceso: cada test arranca limpio.
+  resetAnonymousCartCache();
   vi.mocked(rateLimit).mockResolvedValue(OK);
   vi.mocked(readCartToken).mockResolvedValue(undefined as never);
   vi.mocked(storeFetch).mockResolvedValue({ data: CART, cartToken: "nuevo" } as never);
@@ -52,11 +66,17 @@ beforeEach(() => {
 });
 
 describe("GET /api/store/cart", () => {
-  it("una lectura normal pasa y devuelve el carrito", async () => {
+  it("con cookie de carrito, lee la Store API y persiste el token devuelto", async () => {
+    vi.mocked(readCartToken).mockResolvedValue("cookie-del-carrito" as never);
+
     const res = await GET(request());
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(CART);
+    expect(storeFetch).toHaveBeenCalledWith(
+      "/cart",
+      expect.objectContaining({ cartToken: "cookie-del-carrito" }),
+    );
     expect(writeCartToken).toHaveBeenCalledWith("nuevo");
   });
 
@@ -118,13 +138,16 @@ describe("GET /api/store/cart — sesión y existencias", () => {
     );
   });
 
-  it("sin sesión no manda ningún JWT", async () => {
+  it("sin sesión pero con cookie de carrito, no manda ningún JWT", async () => {
+    vi.mocked(readCartToken).mockResolvedValue("cookie-del-carrito" as never);
+
     await GET(request());
 
     expect(vi.mocked(storeFetch).mock.calls[0]![1]).toMatchObject({ authToken: null });
   });
 
   it("una línea sin existencias se quita antes de devolver el carrito", async () => {
+    vi.mocked(readCartToken).mockResolvedValue("cookie-del-carrito" as never);
     const agotada = {
       key: "k1",
       id: 5,
@@ -147,6 +170,95 @@ describe("GET /api/store/cart — sesión y existencias", () => {
     );
     expect((await res.json()).items).toEqual([]);
     expect(writeCartToken).toHaveBeenCalledWith("t2");
+  });
+});
+
+// ============================================================================
+//  Visitante sin carrito ni sesión.
+//
+//  El `CartProvider` pide el carrito a todo el que abre la web, también a los
+//  robots. Antes cada lectura abría una sesión de WooCommerce (un worker de PHP
+//  por visitante); ahora se sirve la forma vacía cacheada en memoria y SIN
+//  `Set-Cookie`, hasta que el visitante añade su primer producto.
+// ============================================================================
+
+describe("GET /api/store/cart — visitante sin carrito ni sesión", () => {
+  it("devuelve el carrito vacío sin abrir sesión en Woo ni poner cookie", async () => {
+    vi.mocked(storeFetch).mockResolvedValue({
+      data: EMPTY_CART,
+      cartToken: "sesion-nueva",
+    } as never);
+
+    const res = await GET(request());
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(EMPTY_CART);
+    // Sin token: la lectura no abre sesión de WooCommerce.
+    expect(storeFetch).toHaveBeenCalledWith("/cart");
+    expect(writeCartToken).not.toHaveBeenCalled();
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("tras la primera lectura no vuelve a llamar a WordPress en cada visita", async () => {
+    vi.mocked(storeFetch).mockResolvedValue({
+      data: EMPTY_CART,
+      cartToken: "sesion-nueva",
+    } as never);
+
+    await GET(request("198.51.100.1"));
+    await GET(request("198.51.100.2"));
+    await GET(request("198.51.100.3"));
+
+    expect(storeFetch).toHaveBeenCalledTimes(1);
+    expect(writeCartToken).not.toHaveBeenCalled();
+  });
+
+  it("el rate-limit sigue corriendo antes de la copia en memoria", async () => {
+    vi.mocked(rateLimit).mockResolvedValue({ ...OK, success: false, retryAfter: 9 });
+
+    const res = await GET(request());
+
+    expect(res.status).toBe(429);
+    expect(storeFetch).not.toHaveBeenCalled();
+  });
+
+  it("si WordPress falla y no hay copia, responde el error de siempre", async () => {
+    vi.mocked(storeFetch).mockRejectedValueOnce(
+      new WooCommerceError("Store API caída", 503),
+    );
+
+    const res = await GET(request());
+
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({
+      error: "El servicio de tienda no está disponible.",
+    });
+    expect(writeCartToken).not.toHaveBeenCalled();
+  });
+
+  it("si WordPress falla y hay copia, sirve la copia sin romper la cabecera", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+      vi.mocked(storeFetch).mockResolvedValue({
+        data: EMPTY_CART,
+        cartToken: "sesion-nueva",
+      } as never);
+      await GET(request());
+
+      vi.setSystemTime(new Date("2026-01-01T00:06:00Z"));
+      vi.mocked(storeFetch).mockRejectedValueOnce(
+        new WooCommerceError("Store API caída", 503),
+      );
+
+      const res = await GET(request());
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual(EMPTY_CART);
+      expect(writeCartToken).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -243,6 +355,7 @@ describe("GET /api/store/cart — destino de envío (módulo shipping)", () => {
   });
 
   it("si recupera la ciudad de la libreta, devuelve ese carrito y su cookie", async () => {
+    vi.mocked(getSession).mockResolvedValue({ token: "jwt", userId: "7" } as never);
     vi.mocked(ensureCartDestination).mockResolvedValue({
       data: WITH_CITY,
       cartToken: "con-ciudad",
@@ -255,6 +368,7 @@ describe("GET /api/store/cart — destino de envío (módulo shipping)", () => {
   });
 
   it("si no hay nada que fijar, devuelve el carrito tal cual", async () => {
+    vi.mocked(getSession).mockResolvedValue({ token: "jwt", userId: "7" } as never);
     vi.mocked(ensureCartDestination).mockResolvedValue(null);
 
     const res = await GET(request());

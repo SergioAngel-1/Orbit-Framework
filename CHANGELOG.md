@@ -15,6 +15,20 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `buildUrl` arma `https://www.tiktok.com/@usuario`. Vacío por defecto: una tienda que no rellena el campo no
   publica ninguna cuenta. `contract/config.schema.json` regenerado.
 
+### Fixed
+- **Carrito · un visitante sin carrito ya no abre una sesión de WooCommerce en cada carga.**
+  `GET /api/store/cart` lo pide el `CartProvider` a todo el que abre la web, también a los
+  rastreadores, y cada lectura llamaba a la Store API sin caché y persistía el `Cart-Token`: cada
+  visitante anónimo —y cada robot— creaba una sesión de WooCommerce y gastaba ~1 s de CPU de
+  WordPress (con diez visitas simultáneas, medianas de 10 s y respuestas 502). Ahora, sin cookie
+  `hwe_cart` y sin sesión válida, la ruta responde 200 con la forma canónica del carrito vacío
+  (`currency_*`, totales, medios de pago, direcciones) y **sin `Set-Cookie`**: esa forma se lee una
+  sola vez de la Store API sin token y se guarda en memoria del proceso con TTL de cinco minutos y
+  single-flight; si WordPress falla se sirve la última copia y, sin copia, el error de siempre. Con
+  cookie o con sesión el comportamiento no cambia, el rate-limit de lectura sigue aplicándose antes
+  de todo y la primera alta (`POST /api/store/cart/items`) sigue creando el token. Documentado en
+  `docs/FRONTEND_CONNECT.md` (carrito).
+
 ## [2.9.1] — 2026-11-15
 
 Corrección de las imágenes del CMS que renderiza un componente de cliente (la URL que precargaba el navegador
