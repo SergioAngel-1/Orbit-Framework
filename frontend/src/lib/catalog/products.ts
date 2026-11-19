@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { routing } from "@/i18n/routing";
 import { fetchLocalizedGraphQL } from "@/lib/i18n/fetch-localized";
 import { isUnknownProductError } from "@/lib/catalog/unknown-product";
@@ -290,9 +291,24 @@ export async function getProductsBySlugs(
  * desconocido: lanza un `UserError` («No product ID was found…») que llega como
  * error de GraphQL (ver `isUnknownProductError`); cualquier otro error se propaga.
  */
-export async function getProductBySlug(
+export function getProductBySlug(
   slug: string,
   locale: string = routing.defaultLocale,
+): Promise<ProductDetail | null> {
+  return readProductBySlug(slug, locale);
+}
+
+/**
+ * Memoizado por petición (`cache` de React): la ficha lo pide en
+ * `generateMetadata`, en la página y en sus secciones, y sin esto cada llamada era
+ * una consulta a WordPress: GraphQL va por POST y la memoización de `fetch` de Next
+ * solo cubre GET (en un render dinámico o con la caché de datos fría, cada llamada
+ * llega a WordPress). Va aparte del export para que la clave sea siempre
+ * `(slug, locale)` aunque el llamador omita el idioma.
+ */
+const readProductBySlug = cache(async function readProductBySlug(
+  slug: string,
+  locale: string,
 ): Promise<ProductDetail | null> {
   let data: { product: Localizable<RawProductNode> | null };
   try {
@@ -357,7 +373,7 @@ export async function getProductBySlug(
     },
     related: node.related?.nodes.map((related) => normalize(related, locale)) ?? [],
   };
-}
+});
 
 /** Una ficha publicada tal como la necesitan el sitemap y el prerender. */
 export interface ProductUrlEntry {

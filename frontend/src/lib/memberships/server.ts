@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { z } from "zod";
 import { routing } from "@/i18n/routing";
 import { logReadFailure } from "@/lib/observability/read-failure";
@@ -255,8 +256,15 @@ const levelsSchema = z.object({ items: z.array(levelSchema) });
  * Niveles publicados con su nombre/descripción por idioma, rango, slug, icono,
  * beneficios (texto compuesto) y productos de compra. ISR con el tag
  * `memberships`: guardar un nivel en el panel lo invalida.
+ *
+ * Memoizado por petición (`cache` de React): una vista puede pedirlos desde
+ * varias piezas del mismo render (metadata, página, secciones) y así la lectura,
+ * el parseo y el mapeo se hacen una vez sin depender de que acierte la
+ * memoización de `fetch` de Next. Fuera de un render (Route Handlers) no memoiza.
  */
-export async function getMembershipLevels(locale: string): Promise<MembershipLevel[]> {
+export const getMembershipLevels = cache(async function getMembershipLevels(
+  locale: string,
+): Promise<MembershipLevel[]> {
   const body = await readJson(
     pathWithQuery(LEVELS_PATH, { locale }),
     "levels",
@@ -290,7 +298,7 @@ export async function getMembershipLevels(locale: string): Promise<MembershipLev
       duration: formatMembershipDuration(product.days, locale),
     })),
   }));
-}
+});
 
 const queueSchema = z.looseObject({
   level_id: z.number().int().optional().default(0),

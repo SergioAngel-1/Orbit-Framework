@@ -6,6 +6,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Changed
+- **Catálogo y membresías · `getProductBySlug` y `getMembershipLevels` memoizados por petición.** La ficha pide
+  el producto desde `generateMetadata`, la página y sus secciones, y cada llamada era una consulta a WordPress:
+  GraphQL va por POST y la memoización de `fetch` de Next solo cubre GET. Ahora los dos lectores van envueltos en
+  `cache` de React (en `getProductBySlug`, la clave es siempre `(slug, idioma)` aunque se omita el idioma). Fuera
+  de un render (Route Handlers) no cambia nada.
+
 ## [2.10.0] — 2026-11-19
 
 Menos carga en WordPress y menos superficie en el panel. Un visitante sin carrito ni sesión ya no abre una sesión de
