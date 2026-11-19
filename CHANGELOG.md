@@ -12,6 +12,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   GraphQL va por POST y la memoización de `fetch` de Next solo cubre GET. Ahora los dos lectores van envueltos en
   `cache` de React (en `getProductBySlug`, la clave es siempre `(slug, idioma)` aunque se omita el idioma). Fuera
   de un render (Route Handlers) no cambia nada.
+- **Pagos · `getPaymentSettings` con una sola lectura en vuelo y copia caducada mientras refresca.** Cada minuto,
+  la primera petición que necesitaba la pasarela (crear el cobro, verificar un webhook) esperaba a WordPress, y
+  las que llegaban a la vez lanzaban cada una su propia lectura de `/payments/credentials`. Ahora las lecturas
+  simultáneas comparten una sola petición y, pasado el TTL (60 s), se sirve la copia en memoria al instante y se
+  refresca detrás. Con WordPress caído se sigue con la última lectura buena, reintentando como mucho cada 10 s en
+  vez de en cada petición. De paso se cierra una carrera: una lectura que iba en vuelo cuando `/api/revalidate`
+  vaciaba la caché (al guardar el Control Center) volvía a llenarla con los datos de antes del guardado.
 
 ### Fixed
 - **Sesión · un refresh token que WordPress rechaza se borra del navegador.** El proxy solo retiraba la cookie de

@@ -18,9 +18,13 @@ import { logger } from "@/lib/observability/logger";
 //     entorno (`AVALPAY_*`, `WOMPI_*`).
 //
 //  Caché EN MEMORIA del proceso, nunca en la Data Cache de Next (vive en Redis:
-//  ahí acabarían los secretos). Dura `TTL_MS`; si WordPress no responde se usa
-//  la última lectura buena y, sin ninguna, solo el entorno. `/api/revalidate`
-//  la vacía al guardar el Control Center.
+//  ahí acabarían los secretos). Dura `TTL_MS`; pasado ese plazo se sirve la copia
+//  caducada al instante y se refresca en segundo plano (una sola lectura en vuelo
+//  por proceso, compartida por las peticiones simultáneas). Si WordPress no
+//  responde se sigue con la última lectura buena (reintento como mucho cada
+//  `RETRY_AFTER_FAILURE_MS`) y, sin ninguna, solo con el entorno.
+//  `/api/revalidate` la vacía al guardar el Control Center, y una lectura que ya
+//  iba en vuelo antes de vaciarla no la vuelve a llenar con datos viejos.
 // ============================================================================
 
 export interface PaymentSettings {
@@ -38,8 +42,16 @@ interface CmsPayload {
 
 const TTL_MS = 60_000;
 const FETCH_TIMEOUT_MS = 5_000;
+/** Con copia caducada y WordPress fallando, no se reintenta antes de esto. */
+const RETRY_AFTER_FAILURE_MS = 10_000;
 
 let cached: { payload: CmsPayload; at: number } | null = null;
+/** Lectura del panel en vuelo: la comparten todas las peticiones del proceso. */
+let inFlight: Promise<CmsPayload | null> | null = null;
+/** Sube al vaciar la caché: una lectura anterior no debe repoblarla. */
+let generation = 0;
+/** Último fallo de un refresco en segundo plano (para no reintentar en bucle). */
+let lastFailureAt = 0;
 
 function str(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -86,29 +98,70 @@ async function fetchCmsPayload(): Promise<CmsPayload | null> {
   return data && typeof data === "object" ? (data as CmsPayload) : null;
 }
 
+/**
+ * Lee el panel una sola vez aunque la pidan varias peticiones a la vez. El
+ * resultado solo entra en la caché si nadie la vació mientras tanto. Rechaza si
+ * WordPress falla (el llamador decide qué servir).
+ */
+function readCmsPayloadOnce(): Promise<CmsPayload | null> {
+  if (inFlight) return inFlight;
+  const startedAt = generation;
+  const read = fetchCmsPayload()
+    .then((payload) => {
+      if (payload && generation === startedAt) {
+        cached = { payload, at: Date.now() };
+      }
+      return payload;
+    })
+    .finally(() => {
+      if (inFlight === read) inFlight = null;
+    });
+  inFlight = read;
+  return read;
+}
+
+function logUnavailable(error: unknown): void {
+  logger.warn(
+    {
+      event: "payments.credentials.unavailable",
+      err: error instanceof Error ? error.message : String(error),
+      stale: cached !== null,
+    },
+    "No se pudo leer la pasarela del CMS; se usa la última lectura o el entorno",
+  );
+}
+
 /** Pasarela activa y credenciales vigentes (ver precedencia en la cabecera). */
 export async function getPaymentSettings(): Promise<PaymentSettings> {
-  if (cached && Date.now() - cached.at < TTL_MS) {
+  if (cached) {
+    const now = Date.now();
+    if (
+      now - cached.at >= TTL_MS &&
+      !inFlight &&
+      now - lastFailureAt >= RETRY_AFTER_FAILURE_MS
+    ) {
+      // Copia caducada: se sirve ya y se refresca detrás, sin hacer esperar el cobro.
+      readCmsPayloadOnce().catch((error: unknown) => {
+        lastFailureAt = Date.now();
+        logUnavailable(error);
+      });
+    }
     return resolvePaymentSettings(cached.payload);
   }
+  // Sin copia en memoria: hay que esperar a WordPress (compartiendo la lectura).
+  // Si falla, solo queda el entorno.
   try {
-    const payload = await fetchCmsPayload();
-    if (payload) cached = { payload, at: Date.now() };
-    return resolvePaymentSettings(payload ?? cached?.payload ?? null);
+    return resolvePaymentSettings(await readCmsPayloadOnce());
   } catch (error) {
-    logger.warn(
-      {
-        event: "payments.credentials.unavailable",
-        err: error instanceof Error ? error.message : String(error),
-        stale: cached !== null,
-      },
-      "No se pudo leer la pasarela del CMS; se usa la última lectura o el entorno",
-    );
-    return resolvePaymentSettings(cached?.payload ?? null);
+    logUnavailable(error);
+    return resolvePaymentSettings(null);
   }
 }
 
 /** Olvida la lectura en caché (al guardar el Control Center, y en tests). */
 export function clearPaymentSettingsCache(): void {
   cached = null;
+  inFlight = null;
+  lastFailureAt = 0;
+  generation += 1;
 }
