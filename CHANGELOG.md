@@ -50,6 +50,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   escritura y el paso a «En espera», que dispara los correos, sigue siendo lo último. El caso común (sesión, sin
   extras ni puntos) pasa de dos vueltas a una; con extras, de cuatro a dos. `StoreCheckoutResponse` declara
   `customer_id` (opcional; la respuesta ya lo traía).
+- **Catálogo · `getCategory` acepta cuántos productos traer.** La consulta de la categoría resolvía siempre 24
+  tarjetas de producto, también para una vista que pagina o filtra los productos por su cuenta y no las usa. Nuevo
+  tercer argumento opcional `{ products?: number }`: sin él, 24 como hasta ahora; con `0`, la consulta omite el
+  campo (`@include(if: $withProducts)`, comprobado contra WPGraphQL) y `products` vuelve vacío.
 
 ### Fixed
 - **Sesión · un refresh token que WordPress rechaza se borra del navegador.** El proxy solo retiraba la cookie de

@@ -505,14 +505,25 @@ export async function getProductUrls(
   }
 }
 
+/** Productos que `getCategory` trae por defecto con la categoría. */
+const CATEGORY_PRODUCTS_DEFAULT = 24;
+
 /**
  * Una categoría por su slug NATIVO, en `locale`. Como la ficha, pide las
  * traducciones de todos los idiomas: declara el hreflang de cada uno.
+ *
+ * `options.products` dice cuántos productos traer con ella (24 por defecto). Una
+ * vista que los lee por su cuenta (paginados, filtrados) pasa `0` y la consulta
+ * no los pide: resolver tarjetas que nadie pinta es la parte cara para WordPress.
+ * Con `0`, `products` vuelve vacío.
  */
 export async function getCategory(
   slug: string,
   locale: string = routing.defaultLocale,
+  options: { products?: number } = {},
 ): Promise<{ category: ProductCategory; products: CatalogProduct[] } | null> {
+  const requested = options.products ?? CATEGORY_PRODUCTS_DEFAULT;
+  const first = Number.isInteger(requested) && requested > 0 ? requested : 0;
   const document = (await membershipsCatalogEnabled())
     ? CATEGORY_BY_SLUG_QUERY_WITH_MEMBERSHIPS
     : CATEGORY_BY_SLUG_QUERY;
@@ -520,11 +531,11 @@ export async function getCategory(
     productCategory:
       | (Localizable<ProductCategory> & {
           hweMembership?: unknown;
-          products: { nodes: Localizable<RawProductNode>[] };
+          products?: { nodes: Localizable<RawProductNode>[] };
         })
       | null;
   }>(document, secondaryLocales(), {
-    variables: { slug, first: 24 },
+    variables: first > 0 ? { slug, first } : { slug, first: 1, withProducts: false },
     revalidate: CATALOG_REVALIDATE,
     tags: ["products"],
   });
@@ -547,7 +558,7 @@ export async function getCategory(
       locales: translatedLocales(cat, "name"),
       membership: normalizeMembershipRequirement(cat.hweMembership),
     },
-    products: cat.products.nodes.map((node) => normalize(node, locale)),
+    products: (cat.products?.nodes ?? []).map((node) => normalize(node, locale)),
   };
 }
 

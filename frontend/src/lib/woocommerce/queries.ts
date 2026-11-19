@@ -245,7 +245,7 @@ export const PRODUCT_SLUGS_QUERY = /* GraphQL */ `
 function categoryBySlugQuery(withMemberships: boolean): string {
   return /* GraphQL */ `
   ${productCardFragment(withMemberships)}
-  query CategoryBySlug($slug: ID!, $first: Int = 12) {
+  query CategoryBySlug($slug: ID!, $first: Int = 12, $withProducts: Boolean = true) {
     productCategory(id: $slug, idType: SLUG) {
       id
       databaseId
@@ -258,7 +258,9 @@ function categoryBySlugQuery(withMemberships: boolean): string {
       seoCanonical
       ${withMemberships ? CATEGORY_MEMBERSHIP_FIELDS : ""}
       # @translation ProductCategory
-      products(first: $first) {
+      # Una vista que no pinta los productos de la categoría no los pide (getCategory
+      # con products: 0): sin esto WordPress resolvía 24 tarjetas para nada.
+      products(first: $first) @include(if: $withProducts) {
         nodes {
           ...ProductCard
         }
