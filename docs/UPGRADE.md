@@ -143,8 +143,10 @@ CHANGELOG suba una imagen o un plugin (p. ej. los parches de seguridad de octubr
 servidor, tras desplegar:
 
 ```bash
-# El frontend ya lo trae el CD; aquí, el resto de imágenes.
-docker compose -f docker-compose.prod.yml --env-file .env.prod pull caddy db wordpress redis wp-cron backup
+# El frontend ya lo trae el CD; aquí, el resto de imágenes. Las de registro se bajan; las
+# propias (WordPress con PhpRedis y backup, `pull_policy: build`) se reconstruyen sobre su base.
+docker compose -f docker-compose.prod.yml --env-file .env.prod pull caddy db redis
+docker compose -f docker-compose.prod.yml --env-file .env.prod build --pull wordpress wpcli wp-cron backup
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 docker exec hwe_wp_cron wp --allow-root plugin update woocommerce --version=<fijada>
 docker exec hwe_wp_cron wp --allow-root plugin update wp-graphql --version=<fijada>
@@ -161,8 +163,8 @@ Redis son `DB_PORT` y `REDIS_PORT`.
 
 **El core de WordPress no se actualiza con `pull`.** Vive en el volumen `wordpress_core` y el
 entrypoint de la imagen solo copia el core si falta `/var/www/html/index.php`: subir la etiqueta
-de la imagen no cambia lo que sirve el sitio. Tras el `pull`, actualízalo a la versión de la
-imagen y reinicia (OPcache usa `validate_timestamps=0`):
+de la imagen no cambia lo que sirve el sitio. Tras reconstruir la imagen, actualízalo a la versión
+de la imagen y reinicia (OPcache usa `validate_timestamps=0`):
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod \
@@ -532,6 +534,35 @@ guardado quedan igual). Lo observable en el panel de cada instancia:
 - **Atributos de presentación para módulos e instancias** (solo admin, sin efecto en la API; ver el docblock de
   `Schema.php`): en un campo, `show_if`; en un grupo, `summary`, `master`, `blocks`, `switcher` y `slots.keys`.
   Son opcionales: un esquema sin ellos se pinta como antes (plegable y en el mismo orden).
+
+## 3.12 WordPress con PhpRedis, sin publicar (nota de actualización)
+
+Sin cambios de contrato. `wordpress`, `wpcli` y `wp-cron` dejan la imagen oficial por una propia con la
+extensión PhpRedis (`hwe-wordpress:<dev|prod>` y `hwe-wp-cli:<dev|prod>`, `pull_policy: build`), y Redis
+Object Cache la usa en vez de Predis (`docs/DEPLOYMENT.md`, «Cliente: PhpRedis»). Tras el merge, en cada
+entorno:
+
+```bash
+# 1. Construir las dos imágenes (necesita Internet: pecl.php.net y, la de CLI, Alpine).
+docker compose -f docker-compose.prod.yml --env-file .env.prod build --pull wordpress wpcli wp-cron
+# 2. Recrear los contenedores que cargan WordPress (`wpcli` es bajo demanda: no hay nada que recrear).
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d wordpress wp-cron
+# 3. Comprobar el cliente.
+docker exec <prefijo>_wp_cron wp --allow-root redis status | grep -i client   # → PhpRedis (v6.3.0)
+```
+
+- **La caché no hay que vaciarla.** Las claves (`hwe-wp:*`) y los valores son los mismos con los dos
+  clientes: el prefijo y la serialización los pone el plugin. Un `wp cache flush` es seguro (solo borra
+  `hwe-wp:*`) y opcional.
+- **Si la imagen no se reconstruye,** el sitio sigue funcionando con Predis: no se define `WP_REDIS_CLIENT`
+  a propósito (forzarlo sería un fatal sin la extensión).
+- **`docker compose pull` ya no actualiza WordPress.** Sus parches llegan con `build --pull` (arriba); el CD
+  del framework hace `up -d`, que reconstruye desde la caché de capas sin bajar una base nueva.
+- **Un override de la instancia** que fije `image: wordpress:…` en `wordpress`, `wpcli` o `wp-cron`, o un
+  servicio propio que cargue WordPress con `WORDPRESS_CONFIG_EXTRA`, debe pasar a estas imágenes (o a una
+  derivada con la misma extensión): si no, ese contenedor sigue con Predis.
+- **Modo híbrido** (WordPress nativo): sin la extensión en el PHP del sistema, sigue con Predis; con ella
+  (`pecl install redis` o el paquete de la distribución), con PhpRedis.
 
 ## 4. Reglas para el framework (para que esto siga funcionando)
 

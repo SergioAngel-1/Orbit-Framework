@@ -210,6 +210,35 @@ define( 'WP_CACHE', true );
 Estas constantes se inyectan via `WORDPRESS_CONFIG_EXTRA` en ambos composes. El panel de WP
 admin muestra el estado en **Ajustes → Redis**.
 
+### Cliente: PhpRedis (extensión nativa)
+
+Los tres contenedores que cargan WordPress (`wordpress`, `wpcli` y `wp-cron`) usan imágenes
+propias —la oficial más la extensión PhpRedis— que Compose construye en el servidor
+(`pull_policy: build`; `backend/docker/wordpress/` y `backend/docker/wp-cli/`). La imagen oficial
+no trae la extensión y Redis Object Cache caía a Predis, un cliente en PHP puro: medido en
+producción, unas 42 llamadas a Redis por arranque de WordPress costaban ~40 ms por petición.
+
+- **Sin `WP_REDIS_CLIENT`.** Redis Object Cache 2.8.0 elige PhpRedis solo si la extensión está
+  cargada (`class_exists('Redis')`) y, si no, Predis. Forzar `phpredis` con la constante convierte
+  la falta de la extensión (una imagen sin reconstruir, WordPress nativo en el modo híbrido) en un
+  error fatal en cada petición: el plugin hace `new Redis()` y su `catch (Exception)` no atrapa el
+  `Error` de clase inexistente.
+- **Mismas claves y valores.** El prefijo (`WP_REDIS_PREFIX`) y la serialización los pone el propio
+  plugin, no el cliente, así que lo escrito con Predis se lee con PhpRedis y al revés, y el *flush*
+  selectivo (`WP_REDIS_SELECTIVE_FLUSH`, un script Lua con `SCAN` sobre `hwe-wp:*`) se comporta
+  igual. No hace falta vaciar la caché al cambiar; si se hace, `wp cache flush` solo borra
+  `hwe-wp:*`.
+- **Versión fijada.** PhpRedis va fijado con su SHA-256 en los dos Dockerfile, con la misma versión
+  en ambos (lo comprueba `frontend/tests/unit/wordpress-images.test.ts`). El build descarga de
+  `pecl.php.net` (y la imagen de CLI, paquetes de Alpine): necesita Internet.
+
+Comprobación tras desplegar:
+
+```bash
+docker exec <prefijo>_wordpress php -r 'echo phpversion("redis"), PHP_EOL;'   # → 6.3.0
+docker exec <prefijo>_wp_cron wp --allow-root redis status | grep -i client   # → PhpRedis (v6.3.0)
+```
+
 ### Persistencia de Redis en producción
 
 El servicio `redis` de `docker-compose.prod.yml` corre como el usuario `redis` de la imagen

@@ -70,6 +70,11 @@ docker compose up -d db redis
 docker compose run --rm wpcli
 ```
 
+La primera vez, Compose construye las imágenes de WordPress y de WP-CLI (la oficial más la extensión
+PhpRedis, `backend/docker/`): tarda un par de minutos y necesita Internet (`pecl.php.net`). Las
+siguientes salen de la caché de capas. En el modo híbrido (WordPress nativo) la extensión es
+opcional: sin ella, Redis Object Cache usa Predis.
+
 ## 4. Generar las claves de WooCommerce (`ck`/`cs`)
 
 ```bash

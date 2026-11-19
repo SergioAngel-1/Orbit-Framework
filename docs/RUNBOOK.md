@@ -295,13 +295,16 @@ dependencias de pruebas de Composer). Requiere, en *Settings → Code security*,
 | Qué | Cómo |
 |---|---|
 | Plugins de WordPress de `setup.sh` | `sh backend/scripts/check-versions.sh` (compara con wp.org y GitHub; `--strict` falla si alguno está por detrás) |
-| Imágenes Docker (WordPress, MariaDB, Redis, Caddy, Alpine, Node) | `docs/COMPATIBILITY.md` (política de tags y digest) y las etiquetas de Docker Hub. Actualizar es explícito: `docker compose pull` — el compose de producción no baja imágenes nuevas a mitad de un despliegue (`pull_policy: if_not_present`). |
+| Imágenes Docker (WordPress, MariaDB, Redis, Caddy, Alpine, Node) | `docs/COMPATIBILITY.md` (política de tags y digest) y las etiquetas de Docker Hub. Actualizar es explícito: `docker compose pull caddy db redis` — el compose de producción no baja imágenes nuevas a mitad de un despliegue (`pull_policy: if_not_present`). Las imágenes propias (`wordpress`, `wpcli`, `wp-cron`, `backup`) tienen `pull_policy: build` y `pull` las salta: su base se refresca con `docker compose build --pull wordpress wpcli wp-cron backup` y después `up -d`. |
+| PhpRedis (extensión de las imágenes de WordPress) | `https://pecl.php.net/package/redis` y las *releases* de `phpredis/phpredis`. Se sube solo por un aviso de seguridad: versión y SHA-256 en `backend/docker/wordpress/Dockerfile` **y** `backend/docker/wp-cli/Dockerfile` (iguales), reconstruir y recrear `wordpress`, `wp-cron` (ver `docs/DEPLOYMENT.md`, «Cliente: PhpRedis»). |
 | Árbol npm | `npm audit` / `npm run audit:gate` (el gate de CI) y `npm outdated` en `frontend/` |
 
 **Cómo actualizar el CORE de WordPress.** El core no se actualiza con `docker compose pull`: vive en
 el volumen `wordpress_core` y el entrypoint de la imagen solo lo copia si falta
 `/var/www/html/index.php`, así que el sitio sigue con la versión vieja (y los CVE del core no se
-corrigen con el despliegue). Tras subir la etiqueta de la imagen:
+corrigen con el despliegue). Tras subir la etiqueta de la imagen (el `FROM` de
+`backend/docker/wordpress/Dockerfile` y `backend/docker/wp-cli/Dockerfile`) y reconstruirla
+(`docker compose build --pull wordpress wpcli wp-cron` y `up -d`):
 
 ```bash
 # 1. Estado: versión instalada + checksums (¿hay archivos modificados a mano?)

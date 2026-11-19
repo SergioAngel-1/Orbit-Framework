@@ -10,7 +10,8 @@
 
 | Componente | Versión | Notas |
 |------------|---------|-------|
-| WordPress  | `7.1` (PHP 8.4, Apache) | Imagen `wordpress:7.1-php8.4-apache`. WP-CLI: `wordpress:cli-php8.4`. |
+| WordPress  | `7.1` (PHP 8.4, Apache) | Imagen propia `hwe-wordpress` sobre `wordpress:7.1-php8.4-apache`. WP-CLI y cron: `hwe-wp-cli` sobre `wordpress:cli-php8.4`. Las dos añaden PhpRedis (`backend/docker/`). |
+| PhpRedis   | `6.3.0` | Extensión `redis` de PECL (publicada el 2025-11-06), compilada en las dos imágenes de WordPress con versión y SHA-256 fijadas. Redis Object Cache la usa en vez de Predis. |
 | PHP        | `8.4` (≥ 8.4.27) | Producción y CI (`config.platform.php` = `8.4.0`). El código propio declara `>=8.3`. Requerido por los mu-plugins (tipado, `aes-256-gcm`). |
 | MariaDB    | `11.8` LTS | Imagen `mariadb:11.8` (LTS, soporte hasta 2028). |
 | Redis      | `8.10` (dev y prod) | Imagen `redis:8.10-alpine` (minor fijado: `8-alpine` es un major flotante). Caché, rate-limit, idempotencia, locks, revocación, anti-replay, 2FA pendiente y estadísticas de consentimiento. **Compartido** con el BFF: WordPress usa el prefijo `hwe-wp:` y borra solo sus claves (ver `RUNBOOK.md`). |
@@ -23,7 +24,8 @@
 Los tags fijan al menos el **minor** (`node:24.22-alpine`, `redis:8.10-alpine`,
 `mariadb:11.8`, `caddy:2.11-alpine`, `wordpress:7.1-php8.4-apache`): dos builds del mismo
 commit no pueden usar versiones distintas, y los parches de seguridad dentro del minor siguen
-llegando con `docker compose pull`. `wordpress:cli-php8.4` no tiene etiqueta con versión de
+llegando con `docker compose pull` (las bases de las imágenes propias de WordPress, con
+`docker compose build --pull`). `wordpress:cli-php8.4` no tiene etiqueta con versión de
 WP-CLI para PHP 8.4 en Docker Hub, así que queda como está.
 
 Para una reproducibilidad total en producción se puede fijar el **digest**
@@ -36,7 +38,9 @@ docker buildx imagetools inspect redis:8.10-alpine   # Digest (manifest list)
 Con digest, `pull` ya no trae parches: el bump es un PR revisable (o se automatiza con un
 gestor de dependencias de imágenes). El compose de producción trae `pull_policy: if_not_present`
 para que un `up -d` no cambie la base a mitad de un despliegue; actualizar imágenes es un paso
-explícito (`docker compose pull`).
+explícito (`docker compose pull`). Las imágenes propias (`wordpress`, `wpcli`, `wp-cron` y `backup`)
+llevan `pull_policy: build`: `pull` las salta, `up -d` las reconstruye desde la caché de capas y su
+base se renueva con `docker compose build --pull`.
 
 ## Frontend (npm — ver `frontend/package.json`)
 
