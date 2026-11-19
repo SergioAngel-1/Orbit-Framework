@@ -15,6 +15,13 @@ export const dynamic = "force-dynamic";
 
 const WISHLIST_META_KEY = "hwe_wishlist";
 
+/**
+ * Lectura del cliente para la lista: solo hace falta su meta. `_fields` evita que
+ * WooCommerce serialice (y el BFF descargue) direcciones, avatar y el resto del
+ * cliente en cada carga de la lista y en cada alta o baja.
+ */
+const WISHLIST_READ = { query: { _fields: "id,meta_data" } } as const;
+
 function parseWishlist(customer: WooCustomer): number[] {
   const meta = customer.meta_data?.find((m) => m.key === WISHLIST_META_KEY);
   if (!meta?.value) return [];
@@ -31,7 +38,10 @@ export async function GET() {
   if (disabled) return disabled;
   try {
     const session = await requireSession();
-    const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+    const customer = await wcFetch<WooCustomer>(
+      `/customers/${Number(session.userId)}`,
+      WISHLIST_READ,
+    );
     const ids = parseWishlist(customer);
     return NextResponse.json(ids, { status: 200 });
   } catch (error) {
@@ -74,6 +84,7 @@ export async function POST(request: Request) {
     await withLock(`wishlist:${session.userId}`, async () => {
       const customer = await wcFetch<WooCustomer>(
         `/customers/${Number(session.userId)}`,
+        WISHLIST_READ,
       );
       const ids = parseWishlist(customer);
       if (!ids.includes(productId)) {
@@ -134,6 +145,7 @@ export async function DELETE(request: Request) {
     await withLock(`wishlist:${session.userId}`, async () => {
       const customer = await wcFetch<WooCustomer>(
         `/customers/${Number(session.userId)}`,
+        WISHLIST_READ,
       );
       const ids = parseWishlist(customer).filter((id) => id !== productId);
       await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`, {

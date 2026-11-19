@@ -54,6 +54,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   tarjetas de producto, también para una vista que pagina o filtra los productos por su cuenta y no las usa. Nuevo
   tercer argumento opcional `{ products?: number }`: sin él, 24 como hasta ahora; con `0`, la consulta omite el
   campo (`@include(if: $withProducts)`, comprobado contra WPGraphQL) y `products` vuelve vacío.
+- **Lista de deseos · las lecturas del cliente piden solo su meta.** `GET /api/store/wishlist`, la lectura previa
+  al alta o la baja y la vista `/account/wishlist` leían el cliente entero de wc/v3 (direcciones, avatar, rol…)
+  para quedarse con `hwe_wishlist`. Ahora piden `_fields=id,meta_data`: en una cuenta de prueba local, 1061 → 327
+  bytes. El trabajo de WordPress (arranque y carga del cliente) es el mismo; lo que se ahorra es serializar,
+  transferir y parsear el resto.
 
 ### Fixed
 - **Sesión · un refresh token que WordPress rechaza se borra del navegador.** El proxy solo retiraba la cookie de

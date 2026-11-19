@@ -22,7 +22,13 @@ export default async function WishlistPage() {
   let productIds: number[] = [];
   try {
     const session = await requireSession();
-    const customer = await wcFetch<WooCustomer>(`/customers/${Number(session.userId)}`);
+    // Solo la meta de la lista: `_fields` ahorra serializar el resto del cliente.
+    const customer = await wcFetch<WooCustomer>(
+      `/customers/${Number(session.userId)}`,
+      {
+        query: { _fields: "id,meta_data" },
+      },
+    );
     const meta = customer.meta_data?.find((m) => m.key === "hwe_wishlist");
     if (meta?.value) {
       const arr = typeof meta.value === "string" ? JSON.parse(meta.value) : meta.value;

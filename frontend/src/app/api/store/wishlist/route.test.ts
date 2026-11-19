@@ -155,3 +155,33 @@ describe("con la lista de deseos apagada en el Control Center", () => {
     expect(requireSession).not.toHaveBeenCalled();
   });
 });
+
+describe("lecturas del cliente", () => {
+  it("GET pide a WooCommerce solo el id y la meta del cliente", async () => {
+    vi.mocked(requireSession).mockResolvedValue({ userId: "7" } as never);
+    vi.mocked(wcFetch).mockResolvedValue(wishlistMeta([3, 5]) as never);
+
+    const res = await GET();
+
+    expect(await res.json()).toEqual([3, 5]);
+    expect(wcFetch).toHaveBeenCalledWith("/customers/7", {
+      query: { _fields: "id,meta_data" },
+    });
+  });
+
+  it("alta y baja leen igual de poco antes de escribir", async () => {
+    vi.mocked(requireSession).mockResolvedValue({ userId: "7" } as never);
+    vi.mocked(wcFetch).mockResolvedValue(wishlistMeta([3]) as never);
+
+    await POST(request("POST", { productId: 5 }));
+    await DELETE(request("DELETE", { productId: 3 }));
+
+    const reads = vi
+      .mocked(wcFetch)
+      .mock.calls.filter(([, init]) => init?.method !== "PUT");
+    expect(reads).toHaveLength(2);
+    for (const [, init] of reads) {
+      expect(init).toEqual({ query: { _fields: "id,meta_data" } });
+    }
+  });
+});
