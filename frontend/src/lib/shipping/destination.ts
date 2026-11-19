@@ -1,6 +1,6 @@
 import { checkAddress, packCountry } from "@/lib/geo/address";
 import type { GeoPack } from "@/lib/geo/types";
-import { locationSchema } from "@/lib/validation/address";
+import { parseGeoPoint } from "@/lib/validation/light";
 import type { StoreCart } from "@/types/woocommerce";
 import type { SavedAddress } from "@/types/address";
 
@@ -54,8 +54,8 @@ export function destinationFromAddress(
     postcode: address?.postcode?.trim() ?? "",
   };
   // Una ubicación malformada se descarta (no se propaga): sin pin no hay tarifa por distancia.
-  const location = locationSchema.safeParse(address?.location);
-  if (location.success) destination.location = location.data;
+  const location = parseGeoPoint(address?.location);
+  if (location) destination.location = location;
   return destination;
 }
 

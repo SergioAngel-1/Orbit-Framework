@@ -57,6 +57,17 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   tokens distintos siguen refrescando por separado, el timeout de 3 s se mantiene y el token no se registra en
   ningún log.
 
+### Performance
+- **El checkout ya no arrastra zod a su bundle.** `destinationFromAddress`
+  (`lib/shipping/destination.ts`) descartaba un pin mal formado con `locationSchema`
+  (`lib/validation/address.ts`), el único importador de zod alcanzable desde un componente cliente
+  del checkout: ~34 kB gz para validar dos números. Ahora usa `parseGeoPoint`
+  (`lib/validation/light.ts`), la **única fuente** de la regla (número finito, latitud ±90,
+  longitud ±180, nunca `(0, 0)`, objeto plano); `locationSchema` se construye sobre ese guard y
+  sigue disponible para el BFF, con tests que fijan que ambos aceptan y rechazan exactamente lo
+  mismo. Sirve a cualquier instancia: el ahorro es del JS inicial de todo checkout, no de una
+  tienda concreta.
+
 ### Fixed
 - **Carrito · un visitante sin carrito ya no abre una sesión de WooCommerce en cada carga.**
   `GET /api/store/cart` lo pide el `CartProvider` a todo el que abre la web, también a los
@@ -82,6 +93,11 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `wp-mail.php`, `wp-comments-post.php`) antes de Apache; en el host del panel eran el camino directo a WordPress.
   El mismo script comprueba ahora las cabeceras de seguridad y el login en la ruta real del slug, no en
   `/wp-login.php` (que con el slug activo responde 404 por diseño).
+- **Next.js 16.4.6.** `next` y `eslint-config-next` pasan de 16.4.1 a 16.4.6 (versión exacta), que
+  corrige GHSA-mfr8-8qww-v76h y GHSA-vc7v-qv4w-wrv8, los dos avisos moderados de `npm audit` que
+  afectaban a ≤16.4.4. El parche de cabeceras ISR se volvió a comprobar sobre 16.4.6: mismo
+  `ORIGINAL_LOOP` en `dist/` y `dist/esm` y `SUPPORTED_NEXT` actualizado, y `docs/COMPATIBILITY.md`
+  queda al día. Sin cambios de contrato ni de configuración.
 
 ## [2.9.1] — 2026-11-15
 

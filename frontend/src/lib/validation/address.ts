@@ -1,22 +1,27 @@
 import { z } from "zod";
 import { checkAddress, packCountry } from "@/lib/geo/address";
 import type { GeoPack } from "@/lib/geo/types";
+import { parseGeoPoint, type GeoPoint } from "./light";
 
 /**
  * Pin del cliente: coordenadas en grados decimales. Son números JSON, no cadenas: un valor
  * mal formado se rechaza (422 en el BFF) y nunca llega a WordPress. `(0, 0)` es el valor por
  * defecto de un mapa sin marcar, no una ubicación real, así que también se rechaza.
+ *
+ * La regla vive en `parseGeoPoint` (`./light.ts`), compartida con quien solo descarta un pin
+ * malformado sin arrastrar zod al bundle del cliente (el checkout, vía `destination.ts`). Aquí
+ * solo se envuelve para el BFF: el objeto de salida lleva `lat`/`lng` y nada más.
  */
-export const locationSchema = z
-  .object({
-    lat: z.number().finite().min(-90).max(90),
-    lng: z.number().finite().min(-180).max(180),
-  })
-  .refine((point) => point.lat !== 0 || point.lng !== 0, {
-    message: "Ubicación inválida.",
-  });
+export const locationSchema = z.unknown().transform((value, ctx) => {
+  const point = parseGeoPoint(value);
+  if (!point) {
+    ctx.addIssue({ code: "custom", message: "Ubicación inválida." });
+    return z.NEVER;
+  }
+  return point;
+});
 
-export type Location = z.infer<typeof locationSchema>;
+export type Location = GeoPoint;
 
 /**
  * Esquema de una dirección de la libreta, según el paquete de país de la tienda
