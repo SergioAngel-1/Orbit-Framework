@@ -6,6 +6,15 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.12.0] — 2026-11-19
+
+WordPress usa la extensión nativa PhpRedis 6.3.0 para Redis Object Cache en vez de Predis (PHP puro), que costaba
+del orden de decenas de milisegundos por petición en servidores modestos. `wordpress`, `wpcli` y `wp-cron` pasan a
+imágenes propias (`backend/docker/wordpress`, `backend/docker/wp-cli`) sobre las mismas bases oficiales, con la
+versión y la suma SHA-256 de phpredis fijadas. Sin `WP_REDIS_CLIENT`: el plugin la detecta solo y, sin la extensión,
+sigue con Predis. Para actualizar hay que construir las imágenes (`build --pull wordpress wpcli wp-cron`) y recrear
+los contenedores (UPGRADE §3.12); no hace falta vaciar la caché. Sin cambios de contrato.
+
 ### Changed
 - **WordPress · Redis Object Cache con la extensión nativa PhpRedis en vez de Predis.** La imagen oficial no trae la
   extensión `redis` y el plugin caía a Predis (PHP puro): medido en producción, unas 42 llamadas a Redis por arranque
