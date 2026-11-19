@@ -17,6 +17,11 @@
  *   powered   el frontend manda X-Powered-By
  *   wp-headers  las rutas de WordPress no llevan cabeceras de seguridad
  *   register  `?action=register` del login sirve el formulario de registro nativo
+ *   signup    `wp-signup.php`/`wp-activate.php` redirigen al login con el slug (como el
+ *             WordPress de sitio único sin el arreglo de `hwe-login-slug`), también por
+ *             PATH_INFO (`/wp-signup.php/x`)
+ *   login-path  Apache sirve el formulario en `/wp-login.php/x` con el slug activo
+ *             (PATH_INFO), como antes del arreglo de `hwe-login-slug`
  *
  * Otras variables: STACK_SECRET (secreto interno), STACK_WC_SECRET (webhooks de Woo),
  * STACK_BROKEN=1 (WordPress rechaza TODO, incluso con el secreto: una pila rota),
@@ -75,11 +80,34 @@ if ($path === '/wp-json/hwe/v1/config') {
     reply(['brand' => ['name' => 'Pila de pega']]);
 }
 $loginSlug = (string) getenv('STACK_LOGIN_SLUG');
-if ($loginSlug !== '' && $path === '/wp-login.php') {
+// `wp-signup.php` y `wp-activate.php` solo existen en multisite; en sitio único
+// redirigen a `wp_registration_url()`. Con `hwe-login-slug` activo, esa URL lleva el
+// slug: el mu-plugin responde 404 antes de que el core llegue a redirigir. Apache los
+// ejecuta también por PATH_INFO (`/wp-signup.php/x`), de ahí el patrón por segmento.
+if (preg_match('#^/wp-(signup|activate)\.php(/|$)#', $path) === 1) {
+    if ($leak('signup')) {
+        header('Location: /' . ($loginSlug !== '' ? $loginSlug : 'wp-login.php') . '?action=register', true, 302);
+        exit;
+    }
+    if ($loginSlug !== '') {
+        http_response_code(404);
+        exit;
+    }
+    header('Location: /wp-login.php?action=register', true, 302);
+    exit;
+}
+$isWpLogin = $path === '/wp-login.php' || str_starts_with($path, '/wp-login.php/');
+if ($loginSlug !== '' && $isWpLogin) {
+    // Fuga de PATH_INFO: el fichero exacto está cerrado, pero Apache sirve `/x`.
+    if ($leak('login-path') && $path !== '/wp-login.php') {
+        http_response_code(200);
+        echo '<html>login</html>';
+        exit;
+    }
     http_response_code(404);
     exit;
 }
-if ($path === '/wp-login.php' || ($loginSlug !== '' && $path === '/' . $loginSlug)) {
+if ($isWpLogin || ($loginSlug !== '' && $path === '/' . $loginSlug)) {
     if (($query['action'] ?? '') === 'register' && !$leak('register')) {
         header('Location: ' . $path . '?registration=disabled', true, 302);
         exit;

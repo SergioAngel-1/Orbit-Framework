@@ -60,6 +60,10 @@ COPY --from=deps /app/node_modules ./node_modules
 #   - NEXT_PUBLIC_SITE_URL: fallback de `brand.url` si el CMS no responde.
 #   - CSP_ANALYTICS_PROVIDERS: estrecha los hosts de analítica autorizados en la
 #     CSP. La CSP la evalúa `next.config.mjs` al construir.
+#   - CSP_EXTRA_SCRIPT_SRC / CSP_EXTRA_CONNECT_SRC / CSP_EXTRA_IMG_SRC: añaden
+#     orígenes https a esa misma CSP (audiencias de Google Ads, Conversions API,
+#     CDN propia…). Aditivas y validadas (`frontend/csp-extra-hosts.mjs`); sin
+#     ellas la cabecera es idéntica. También se leen al construir.
 #   - SENTRY_DSN: activa el wrap de `withSentryConfig` (túnel `/monitoring`) y,
 #     si no hay `NEXT_PUBLIC_SENTRY_DSN`, se reexpone como DSN público del
 #     cliente. `NEXT_PUBLIC_SENTRY_REPLAY=true` activa replay (opt-in).
@@ -78,6 +82,9 @@ ARG WORDPRESS_PUBLIC_URL
 ARG WORDPRESS_INTERNAL_API_URL
 ARG NEXT_PUBLIC_SITE_URL
 ARG CSP_ANALYTICS_PROVIDERS
+ARG CSP_EXTRA_SCRIPT_SRC
+ARG CSP_EXTRA_CONNECT_SRC
+ARG CSP_EXTRA_IMG_SRC
 ARG SENTRY_DSN
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_SENTRY_REPLAY
@@ -93,6 +100,9 @@ ENV WORDPRESS_PUBLIC_URL=$WORDPRESS_PUBLIC_URL \
     WORDPRESS_INTERNAL_API_URL=$WORDPRESS_INTERNAL_API_URL \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     CSP_ANALYTICS_PROVIDERS=$CSP_ANALYTICS_PROVIDERS \
+    CSP_EXTRA_SCRIPT_SRC=$CSP_EXTRA_SCRIPT_SRC \
+    CSP_EXTRA_CONNECT_SRC=$CSP_EXTRA_CONNECT_SRC \
+    CSP_EXTRA_IMG_SRC=$CSP_EXTRA_IMG_SRC \
     SENTRY_DSN=$SENTRY_DSN \
     NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
     NEXT_PUBLIC_SENTRY_REPLAY=$NEXT_PUBLIC_SENTRY_REPLAY \

@@ -7,6 +7,33 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 ## [Sin publicar]
 
 ### Added
+- **CSP ampliable por despliegue (`CSP_EXTRA_SCRIPT_SRC`, `CSP_EXTRA_CONNECT_SRC`,
+  `CSP_EXTRA_IMG_SRC`).** Los hosts autorizados por la CSP eran una lista fija del núcleo (o, con
+  `CSP_ANALYTICS_PROVIDERS`, solo estrechable): una instancia que necesitaba un origen que el
+  framework no conoce —audiencias de Google Ads, la pasarela de una Conversions API, una CDN
+  propia— tenía que editar `csp-analytics.mjs`/`next.config.mjs` y arrastrar ese cambio en cada
+  actualización. Ahora tres variables de **build** añaden orígenes a `script-src`, `connect-src`
+  e `img-src` con validación estricta (`frontend/csp-extra-hosts.mjs`): solo `https://`, con
+  comodín de subdominio (`https://*.ejemplo.com`) y puerto opcional; se descarta con aviso en el
+  build cualquier otro valor (`*`, `http:`, palabras clave entre comillas, espacios, `;` —que
+  colaría directivas enteras—, rutas o consultas) y el resto de la lista sí entra. **Sin las
+  variables la cabecera es idéntica byte a byte**: no se amplía ningún host por defecto. La CSP
+  pasa a construirse en una función pura (`frontend/csp-policy.mjs`) con pruebas de la cabecera
+  exacta. Cableadas en `frontend/Dockerfile` (ARG antes de `COPY . .`),
+  `docker-compose.prod.yml`, `.github/workflows/cd.yml` y `.env.prod.example`; documentadas en
+  `docs/CONFIGURATION.md` y `docs/SECURITY.md`. El comodín exige al menos tres etiquetas y
+  rechaza las segundas etiquetas conocidas bajo un ccTLD (`*.com.co`, `*.co.uk`), que
+  autorizarían a todos los registros de un sufijo público entero; la lista es corta y no es la
+  Public Suffix List, y `docs/SECURITY.md` avisa de que un sufijo público de más de dos
+  etiquetas seguiría pasando.
+- **Caché de un día para el arte de marca (`public/brand/*`).** `next.config.mjs` solo aplicaba
+  cabeceras de seguridad, así que el `logo.svg` (y cualquier otro fichero de `brand/`, que
+  versiona la instancia) se servía con el `max-age=0` de `public/` y cada visita lo revalidaba.
+  Una regla propia para `/brand/:path*` responde `Cache-Control: public, max-age=86400,
+  stale-while-revalidate=86400`, sin reglas por extensión (pisarían el `immutable` con el que
+  Next sirve `/_next/static`). Contrapartida documentada en `docs/CUSTOMIZATION.md`: un logo
+  reemplazado con el mismo nombre puede tardar hasta un día en verse.
+
 - **Redes · `social.tiktok` en el Control Center, de punta a punta.** El panel no tenía TikTok y una tienda que
   vende por vídeo corto no podía declararlo: ahora el campo `social.tiktok` (solo usuario, sin URL ni `@`; varias
   cuentas separadas con « | ») se declara en `Schema.php` y llega por `/wp-json/hwe/v1/config` al `sameAs` del
@@ -14,6 +41,78 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   acepta también la URL pegada por error (`https://www.tiktok.com/@usuario`, con o sin `/video/<id>` detrás) y
   `buildUrl` arma `https://www.tiktok.com/@usuario`. Vacío por defecto: una tienda que no rellena el campo no
   publica ninguna cuenta. `contract/config.schema.json` regenerado.
+
+### Changed
+- **Membresías · `GET /api/memberships/prices` deja de amplificar la carga de WordPress.** La ruta es anónima y
+  la llama cada listado o ficha con el módulo encendido: sin caché, cada petición era una lectura del catálogo
+  (`/products?include=…` de la Store API) y con WordPress como cuello de botella se convertía en un amplificador.
+  La rama sin sesión sirve ahora los precios por una caché corta **por id** (30 s) en dos niveles —memoria del
+  isolate y Redis compartido, ambas fail-open y con el fallo registrado—, pide a la Store API solo los ids que
+  faltan y comparte la lectura en vuelo entre peticiones simultáneas; la rama con sesión (la misma función que el
+  carrito) no cambia. Además la **rama anónima** va acotada por IP con un rate-limit **no estricto** (600/60 s vía
+  `rateLimit`, como el resto del módulo: sin Redis se sigue sirviendo) y responde 429 con `Retry-After`; la rama
+  con sesión no gasta ese presupuesto (un listado que pide un id por tarjeta, o varios compradores tras CGNAT,
+  agotaban un límite compartido y recibían 429 sin haber abusado). Se mantienen la forma de respuesta, el
+  `Cache-Control: no-store`, el 400 de más de 50 ids y el `{items:[]}`.
+  `contract/bff.openapi.json` regenerado con el límite de la ruta.
+- **Sesión · el refresco transparente del JWT en `proxy.ts` se deduplica por refresh token.** Una página con
+  varias peticiones simultáneas (documento, RSC, prefetch) enviaba N veces el mismo JWT caducado y cada una
+  canjeaba el refresh token contra WPGraphQL: N llamadas para el mismo resultado, en el edge y en el camino de
+  toda petición de página. Ahora el proxy comparte una promesa en vuelo por refresh token y la borra al
+  resolverse —también si falla o expira—, así que un fallo no envenena el siguiente intento; las peticiones con
+  tokens distintos siguen refrescando por separado, el timeout de 3 s se mantiene y el token no se registra en
+  ningún log.
+
+### Performance
+- **El checkout ya no arrastra zod a su bundle.** `destinationFromAddress`
+  (`lib/shipping/destination.ts`) descartaba un pin mal formado con `locationSchema`
+  (`lib/validation/address.ts`), el único importador de zod alcanzable desde un componente cliente
+  del checkout: ~34 kB gz para validar dos números. Ahora usa `parseGeoPoint`
+  (`lib/validation/light.ts`), la **única fuente** de la regla (número finito, latitud ±90,
+  longitud ±180, nunca `(0, 0)`, objeto plano); `locationSchema` se construye sobre ese guard y
+  sigue disponible para el BFF, con tests que fijan que ambos aceptan y rechazan exactamente lo
+  mismo. Un pin inválido devuelve ahora un único error en `location` («Ubicación inválida.») en
+  vez de errores por campo `lat`/`lng`. Sirve a cualquier instancia: el ahorro es del JS inicial
+  de todo checkout, no de una tienda concreta.
+
+### Fixed
+- **Carrito · un visitante sin carrito ya no abre una sesión de WooCommerce en cada carga.**
+  `GET /api/store/cart` lo pide el `CartProvider` a todo el que abre la web, también a los
+  rastreadores, y cada lectura llamaba a la Store API sin caché y persistía el `Cart-Token`: cada
+  visitante anónimo —y cada robot— creaba una sesión de WooCommerce y gastaba ~1 s de CPU de
+  WordPress (con diez visitas simultáneas, medianas de 10 s y respuestas 502). Ahora, sin cookie
+  `hwe_cart` y sin sesión válida, la ruta responde 200 con la forma canónica del carrito vacío
+  (`currency_*`, totales, medios de pago, direcciones) y **sin `Set-Cookie`**: esa forma se lee una
+  sola vez de la Store API sin token y se guarda en memoria del proceso con TTL de cinco minutos y
+  single-flight; con la copia caducada se sirve al instante y se refresca en segundo plano
+  (stale-while-revalidate), y un fallo con copia aplaza el siguiente intento 30 s (backoff), así
+  que con WordPress saturado o caído no se encola una lectura ni su timeout de 10 s por visitante;
+  sin copia, el error es el de siempre. Con cookie o con sesión el comportamiento no cambia, el
+  rate-limit de lectura sigue aplicándose antes de todo y la primera alta
+  (`POST /api/store/cart/items`) sigue creando el token. Documentado en
+  `docs/FRONTEND_CONNECT.md` (carrito).
+
+### Security
+- **Login oculto · `wp-signup.php` y `wp-activate.php` ya no delatan el slug.** En sitio único esos dos ficheros
+  raíz de multisite hacen `wp_redirect( wp_registration_url() )`, y esa URL pasa por el filtro `site_url` de
+  `hwe-login-slug`, así que el `Location` salía con `/<slug>?action=register`: un escáner podía descubrir el login
+  oculto con un simple GET, sin probar credenciales. El mu-plugin les responde ahora **404 sin `Location`** (en
+  multisite los deja intactos, que allí son el formulario de alta) y `verify-security.sh` lo comprueba (sección 5,
+  con `HWE_LOGIN_SLUG`). Apache ejecuta además esos ficheros por **PATH_INFO** (`/wp-login.php/x`,
+  `/wp-signup.php/x`): el 404 exacto no bastaba —el formulario de login salía en `/wp-login.php/x` y el registro
+  redirigía con el slug—, así que la comparación es por segmento de ruta y el script cubre las variantes con `/x`.
+  Además, `Caddyfile` y `caddy/admin.caddy.example` responden 404 a los siete ficheros raíz que el núcleo no usa
+  (`xmlrpc.php`, `wp-signup.php`, `wp-activate.php`, `wp-links-opml.php`, `wp-trackback.php`, `wp-mail.php`,
+  `wp-comments-post.php`), también con `/*` detrás, antes de Apache; en el host del panel eran el camino directo a
+  WordPress y, con slug, ese host corta también `/wp-login.php` y `/wp-login.php/*`. `wp-signup.php` y
+  `wp-activate.php` responden 404 **siempre**: el framework es de sitio único y un multisite detrás de este Caddy
+  perdería el alta. El mismo script comprueba ahora las cabeceras de seguridad y el login en la ruta real del slug,
+  no en `/wp-login.php` (que con el slug activo responde 404 por diseño).
+- **Next.js 16.4.6.** `next` y `eslint-config-next` pasan de 16.4.1 a 16.4.6 (versión exacta), que
+  corrige GHSA-mfr8-8qww-v76h y GHSA-vc7v-qv4w-wrv8, los dos avisos moderados de `npm audit` que
+  afectaban a ≤16.4.4. El parche de cabeceras ISR se volvió a comprobar sobre 16.4.6: mismo
+  `ORIGINAL_LOOP` en `dist/` y `dist/esm` y `SUPPORTED_NEXT` actualizado, y `docs/COMPATIBILITY.md`
+  queda al día. Sin cambios de contrato ni de configuración.
 
 ## [2.9.1] — 2026-11-15
 

@@ -26,6 +26,8 @@ name: CD
 #      WORDPRESS_PUBLIC_URL      origen público de los medios (obligatoria)
 #      NEXT_PUBLIC_SITE_URL      URL pública del sitio (fallback de la marca)
 #      CSP_ANALYTICS_PROVIDERS   estrecha la CSP de analítica (opcional)
+#      CSP_EXTRA_SCRIPT_SRC / CSP_EXTRA_CONNECT_SRC / CSP_EXTRA_IMG_SRC
+#                                añaden orígenes https a la CSP (opcional)
 #      SENTRY_DSN                opcional
 #    Por entorno:
 #      secretos   DEPLOY_SSH_HOST, DEPLOY_SSH_USER, DEPLOY_SSH_KEY, DEPLOY_PATH
@@ -173,6 +175,9 @@ jobs:
             WORDPRESS_PUBLIC_URL=${{ vars.WORDPRESS_PUBLIC_URL }}
             NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL }}
             CSP_ANALYTICS_PROVIDERS=${{ vars.CSP_ANALYTICS_PROVIDERS }}
+            CSP_EXTRA_SCRIPT_SRC=${{ vars.CSP_EXTRA_SCRIPT_SRC }}
+            CSP_EXTRA_CONNECT_SRC=${{ vars.CSP_EXTRA_CONNECT_SRC }}
+            CSP_EXTRA_IMG_SRC=${{ vars.CSP_EXTRA_IMG_SRC }}
             SENTRY_DSN=${{ vars.SENTRY_DSN }}
           tags: |
             ${{ steps.meta.outputs.image_ref }}

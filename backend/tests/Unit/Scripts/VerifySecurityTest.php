@@ -102,9 +102,11 @@ final class VerifySecurityTest extends ShellScriptTestCase
 
     public function testASecureStackPassesEveryCheck(): void
     {
-        $base = $this->startStack();
+        // Pila completamente configurada, con el login oculto: así también se ejecutan
+        // las comprobaciones que solo tienen sentido con `HWE_LOGIN_SLUG`.
+        $base = $this->startStack('', false, 'acceso-de-prueba');
 
-        $result = $this->verify($base, [], ['--strict']);
+        $result = $this->verify($base, ['HWE_LOGIN_SLUG' => 'acceso-de-prueba'], ['--strict']);
         $out = $result['stdout'] . $result['stderr'];
 
         $this->assertSame(0, $result['code'], $out);
@@ -165,6 +167,52 @@ final class VerifySecurityTest extends ShellScriptTestCase
 
         $with = $this->verify($base, ['HWE_LOGIN_SLUG' => 'acceso-de-prueba']);
         $this->assertStringContainsString('/acceso-de-prueba?action=register → 302 con registration=disabled', $with['stdout']);
+        foreach ([
+            '/wp-login.php → 404 sin Location',
+            '/wp-login.php/x → 404 sin Location',
+            '/wp-signup.php → 404 sin Location',
+            '/wp-signup.php/x → 404 sin Location',
+            '/wp-activate.php → 404 sin Location',
+            '/wp-activate.php/x → 404 sin Location',
+        ] as $check) {
+            $this->assertStringContainsString($check, $with['stdout']);
+        }
+    }
+
+    /**
+     * Rojo del arreglo del login oculto: en sitio único `wp-signup.php` y
+     * `wp-activate.php` hacen `wp_redirect( wp_registration_url() )`, y esa URL pasa
+     * por el filtro `site_url` de `hwe-login-slug`, así que el `Location` salía con
+     * `/<slug>?action=register`. Un escáner real descubrió así el slug.
+     */
+    public function testTheSignupFilesNeverRevealTheHiddenLogin(): void
+    {
+        $base = $this->startStack('signup', false, 'acceso-de-prueba');
+
+        $result = $this->verify($base, ['HWE_LOGIN_SLUG' => 'acceso-de-prueba']);
+        $out = $result['stdout'] . $result['stderr'];
+
+        $this->assertSame(1, $result['code'], $out);
+        $this->assertStringContainsString('/wp-signup.php → HTTP 302', $out);
+        $this->assertStringContainsString('/wp-signup.php/x → HTTP 302', $out);
+        $this->assertStringContainsString('/wp-activate.php → HTTP 302', $out);
+        $this->assertStringContainsString('/wp-activate.php/x → HTTP 302', $out);
+    }
+
+    /**
+     * Apache ejecuta `/wp-login.php/x` como el fichero por PATH_INFO: el 404 exacto
+     * no bastaba y el formulario de login seguía saliendo con el slug activo. La
+     * comprobación con `/x` tiene que detectarlo.
+     */
+    public function testTheLoginPathInfoVariantIsDetected(): void
+    {
+        $base = $this->startStack('login-path', false, 'acceso-de-prueba');
+
+        $result = $this->verify($base, ['HWE_LOGIN_SLUG' => 'acceso-de-prueba']);
+        $out = $result['stdout'] . $result['stderr'];
+
+        $this->assertSame(1, $result['code'], $out);
+        $this->assertStringContainsString('/wp-login.php/x → HTTP 200', $out);
     }
 
     // ── Un 404 de una pila rota no es un falso verde ──────────────────────────

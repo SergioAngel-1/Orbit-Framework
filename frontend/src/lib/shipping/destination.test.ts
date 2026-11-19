@@ -67,15 +67,36 @@ describe("destinationFromAddress", () => {
     });
   });
 
-  it("una ubicación inválida no pasa al destino (0,0 o fuera de rango)", () => {
+  it("acepta el pin en los límites del rango", () => {
     for (const location of [
+      { lat: 90, lng: 0.5 },
+      { lat: -90, lng: 0.5 },
+      { lat: 10, lng: 180 },
+      { lat: 10, lng: -180 },
+    ]) {
+      expect(
+        destinationFromAddress(CO_PACK, address({ city: "Bogotá", location })),
+      ).toHaveProperty("location", location);
+    }
+  });
+
+  it("descarta un pin mal formado: (0,0), no finito, fuera de rango o no plano", () => {
+    const invalid = [
       { lat: 0, lng: 0 },
       { lat: 95, lng: -74 },
+      { lat: -90.1, lng: -74 },
+      { lat: 4, lng: 181 },
       { lat: NaN, lng: -74 },
-    ]) {
+      { lat: 4, lng: Infinity },
+      { lat: "4.6533", lng: "-74.0836" }, // el cliente envía números, no cadenas
+      { lat: 4.6533 }, // sin longitud
+      null,
+      [4.6533, -74.0836], // lista, no objeto plano
+    ] as unknown[];
+    for (const location of invalid) {
       const destino = destinationFromAddress(
         CO_PACK,
-        address({ city: "Bogotá", location }),
+        address({ city: "Bogotá", location: location as SavedAddress["location"] }),
       );
       expect(destino).not.toBeNull();
       expect(destino).not.toHaveProperty("location");

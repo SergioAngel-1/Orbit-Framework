@@ -7,6 +7,7 @@ import {
   applyCartStockAdjustments,
 } from "@/lib/woocommerce/cart-session";
 import { ensureCartDestination } from "@/lib/woocommerce/cart-destination";
+import { getAnonymousEmptyCart } from "@/lib/woocommerce/anonymous-cart";
 import { completeStoreCart } from "@/lib/woocommerce/complete-cart";
 import { requestLocale } from "@/lib/i18n/request-locale";
 import { guardMutation } from "@/lib/api/guard";
@@ -72,6 +73,24 @@ export async function GET(request: Request) {
 
   try {
     const { cartToken: token, authToken, userId } = await getCartRequestAuth();
+    // Visitante sin carrito y sin sesión: no hay nada que WooCommerce tenga que
+    // decir. Se responde con la forma canónica del carrito vacío (una sola lectura
+    // sin token, cacheada en memoria) y SIN `Set-Cookie`: abrir una sesión de Woo
+    // por visitante era lo que dejaba a WordPress sin workers. La primera alta
+    // (`POST /cart/items`) sigue creando el token como siempre.
+    if (!token && !authToken) {
+      logger.debug(
+        { event: "cart.get.empty", authenticated: false },
+        "Carrito vacío de visitante servido sin abrir sesión en WooCommerce",
+      );
+      return NextResponse.json(
+        await completeStoreCart(
+          await getAnonymousEmptyCart(),
+          requestLocale(request.headers),
+        ),
+        { headers: PRIVATE_NO_STORE },
+      );
+    }
     const { data, cartToken } = await storeFetch<StoreCart>("/cart", {
       cartToken: token,
       authToken,

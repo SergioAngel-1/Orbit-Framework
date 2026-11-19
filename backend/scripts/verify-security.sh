@@ -21,8 +21,11 @@
 #    4. Cabeceras de seguridad del frontend (CSP sin generadores de QR externos, nosniff,
 #       X-Frame-Options, Referrer-Policy, Permissions-Policy, sin X-Powered-By) y, con
 #       PUBLIC_URL, las de las rutas que Caddy sirve directo desde WordPress.
-#    5. El registro nativo de WordPress está cerrado (`hwe-native-registration`):
-#       `?action=register` del login redirige con `registration=disabled`.
+#    5. Los ficheros raíz que WordPress usa en multisite (`wp-signup.php` y
+#       `wp-activate.php`) no delatan el login oculto: con HWE_LOGIN_SLUG responden 404
+#       y sin `Location`, también por PATH_INFO (`/wp-signup.php/x`); `/wp-login.php` y
+#       `/wp-login.php/x` responden 404; y el registro nativo sigue cerrado
+#       (`?action=register` del login redirige con `registration=disabled`).
 #
 #  Uso:
 #    WP_URL=http://localhost:8080 BFF_URL=http://localhost:3000 \
@@ -41,7 +44,8 @@
 #    VERIFY_2FA_USERNAME / VERIFY_2FA_PASSWORD   usuario CON 2FA activo (se crea con
 #                    /account/security: no se puede automatizar sin TOTP)
 #    HWE_LOGIN_SLUG  (opcional) slug del login del panel (`hwe-login-slug`); sin él se usa
-#                    /wp-login.php, que con el slug activo responde 404
+#                    /wp-login.php, que con el slug activo responde 404, y no se comprueba
+#                    que wp-signup.php/wp-activate.php dejen de delatar el login
 #
 #  Lo que falta un secreto/usuario se OMITE y se dice; con --strict, omitir cuenta como
 #  fallo (úsalo en la aceptación). Salida: 0 todo bien · 1 algún fallo · 2 la pila no
@@ -79,6 +83,9 @@ WC_SECRET="${WC_WEBHOOK_SECRET:-}"
 USER_2FA="${VERIFY_2FA_USERNAME:-}"
 PASS_2FA="${VERIFY_2FA_PASSWORD:-}"
 LOGIN_SLUG="${HWE_LOGIN_SLUG:-}"
+# La ruta real del login: con `hwe-login-slug` es `/<slug>`; /wp-login.php da 404.
+LOGIN_PATH="/wp-login.php"
+[ -n "$LOGIN_SLUG" ] && LOGIN_PATH="/$LOGIN_SLUG"
 
 umask 077
 TMP="$(mktemp -d)"
@@ -324,9 +331,9 @@ else
 fi
 
 if [ -n "$PUBLIC_URL" ]; then
-	http GET "$PUBLIC_URL/wp-login.php"
+	http GET "$PUBLIC_URL$LOGIN_PATH"
 	if [ "$HTTP_CODE" != "200" ]; then
-		bad "WordPress tras Caddy: /wp-login.php → HTTP $HTTP_CODE: no se comprueban sus cabeceras"
+		bad "WordPress tras Caddy: $LOGIN_PATH → HTTP $HTTP_CODE: no se comprueban sus cabeceras"
 	else
 		WPMISSING=""
 		[ "$(header_of X-Content-Type-Options | tr 'A-Z' 'a-z')" = "nosniff" ] || WPMISSING="$WPMISSING X-Content-Type-Options"
@@ -336,19 +343,42 @@ if [ -n "$PUBLIC_URL" ]; then
 			https://*) [ -n "$(header_of Strict-Transport-Security)" ] || WPMISSING="$WPMISSING Strict-Transport-Security" ;;
 		esac
 		if [ -n "$WPMISSING" ]; then
-			bad "Cabeceras de seguridad ausentes en las rutas de WordPress (/wp-login.php):$WPMISSING"
+			bad "Cabeceras de seguridad ausentes en las rutas de WordPress ($LOGIN_PATH):$WPMISSING"
 		else
-			ok "Cabeceras de seguridad presentes en las rutas que sirve WordPress (/wp-login.php)"
+			ok "Cabeceras de seguridad presentes en las rutas que sirve WordPress ($LOGIN_PATH)"
 		fi
 	fi
 else
 	skip "Cabeceras de las rutas de WordPress (sin PUBLIC_URL: dominio público tras Caddy)"
 fi
 
-# ── 5. Registro nativo ───────────────────────────────────────────────────────
-section "5. El registro nativo de WordPress está cerrado (hwe-native-registration)"
-LOGIN_PATH="/wp-login.php"
-[ -n "$LOGIN_SLUG" ] && LOGIN_PATH="/$LOGIN_SLUG"
+# ── 5. Registro nativo y ficheros raíz que delatan el login ──────────────────
+section "5. Registro nativo y ficheros raíz que delatan el login"
+
+# `wp-signup.php` y `wp-activate.php` solo tienen sentido en multisite. En sitio único
+# hacen `wp_redirect( wp_registration_url() )`, y esa URL pasa por el filtro `site_url`
+# de `hwe-login-slug`: el `Location` salía con `/<slug>?action=register` y un escáner
+# podía leer el login oculto con un GET, sin probar credenciales. Con el slug activo
+# deben cortar en 404 sin `Location` (el mu-plugin; en producción, antes aún, Caddy).
+# Apache ejecuta además estos ficheros por PATH_INFO (`/wp-login.php/x`), así que se
+# comprueban las dos formas: la exacta y la que sigue con `/…`.
+# Un `Location` que llevara el slug no se imprime: el slug no se publica ni en un log.
+if [ -n "$LOGIN_SLUG" ]; then
+	for file in wp-login.php wp-login.php/x wp-signup.php wp-signup.php/x wp-activate.php wp-activate.php/x; do
+		http GET "$WP_URL/$file"
+		LOCATION="$(header_of Location)"
+		if [ "$HTTP_CODE" != "404" ]; then
+			bad "/$file → HTTP $HTTP_CODE (debería ser 404): la ruta del login oculto queda expuesta"
+		elif [ -n "$LOCATION" ]; then
+			bad "/$file → 404 con Location: un 404 no debe redirigir"
+		else
+			ok "/$file → 404 sin Location"
+		fi
+	done
+else
+	ok "Sin HWE_LOGIN_SLUG no hay login oculto: wp-signup.php y wp-activate.php no pueden delatarlo"
+fi
+
 http GET "$WP_URL$LOGIN_PATH?action=register"
 LOCATION="$(header_of Location)"
 case "$HTTP_CODE" in

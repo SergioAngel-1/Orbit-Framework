@@ -42,7 +42,7 @@ explícito (`docker compose pull`).
 
 | Paquete | Versión | Rol |
 |---------|---------|-----|
-| next | `16.4.1` | App Router, RSC, ISR, route handlers (BFF). Turbopack por defecto. Versión exacta: el parche de cabeceras ISR (`scripts/patch-next-isr-headers.mjs`, `postinstall`) comprueba la versión y falla ruidosamente si cambia. |
+| next | `16.4.6` | App Router, RSC, ISR, route handlers (BFF). Turbopack por defecto. Versión exacta: el parche de cabeceras ISR (`scripts/patch-next-isr-headers.mjs`, `postinstall`) comprueba la versión y falla ruidosamente si cambia. 16.4.5 corrige dos avisos de `npm audit` (GHSA-mfr8-8qww-v76h y GHSA-vc7v-qv4w-wrv8) que afectaban a ≤16.4.4. |
 | react / react-dom | `19.3.0` | UI (ref como prop, sin `forwardRef`). |
 | typescript | `6.0.3` | Tipado estricto. |
 | tailwindcss / @tailwindcss/postcss | `^4.3.3` | CSS-first (`@theme` en `globals.css`, sin `tailwind.config`). |
@@ -65,7 +65,7 @@ explícito (`docker compose pull`).
 | @playwright/test | `^1.64.0` |
 | @axe-core/playwright | `^4.13.0` |
 | @testing-library/react / jsdom | `^16.3.3` / `^30.1.2` |
-| eslint / eslint-config-next | `^9.39.5` / `16.4.1` (flat config en `eslint.config.mjs`; eslint-config-next 16 aún no soporta ESLint 10) |
+| eslint / eslint-config-next | `^9.39.5` / `16.4.6` (flat config en `eslint.config.mjs`; eslint-config-next 16 aún no soporta ESLint 10) |
 | @vitejs/plugin-react | `^6.1.2` |
 | prettier | `^3.9.10` |
 

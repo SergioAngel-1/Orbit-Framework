@@ -236,6 +236,15 @@ activos y mandar al BFF el *gateway* de WooCommerce del elegido:
   cualquier dispositivo). Al abrir sesión **prevalece el de la cuenta** (el del navegador se
   descarta) y `GET /api/store/cart` reconcilia existencias: quita o reduce las líneas que ya no
   se pueden comprar. `logout-all` vacía el carrito de la cuenta.
+- **Visitante sin carrito ni sesión:** `GET /api/store/cart` responde 200 con la forma canónica
+  del carrito vacío y **sin `Set-Cookie`**, sin abrir una sesión de WooCommerce por visitante. Esa
+  forma (moneda `currency_*`, totales, medios de pago, direcciones) solo la conoce la Store API:
+  se lee una vez sin token y se guarda en memoria del proceso unos minutos, con una única lectura
+  en vuelo (single-flight). Con la copia caducada se sirve al instante y se refresca en segundo
+  plano (stale-while-revalidate); si WordPress falla, la copia sigue y el siguiente intento se
+  aplaza 30 s (backoff), y sin copia el error es el de siempre. El rate-limit de lectura se
+  aplica antes de todo. La cookie `hwe_cart` la crea la primera alta
+  (`POST /api/store/cart/items`). Con cookie o con sesión, la lectura es la de siempre.
 - **Qué completa el BFF en `StoreCart`** (`lib/woocommerce/complete-cart.ts`, en todas las rutas
   que lo devuelven): `coupons[].description` y `coupons[].freeShipping`, y `items[].name` como
   texto (sin entidades HTML). Los errores 4xx de WooCommerce llegan como texto plano.
@@ -390,7 +399,9 @@ frontend nunca calcula ni firma un importe; solo muestra lo que devuelve la Stor
     o volver a marcar.
   - **Teselas, librería y clave de navegador a elección de la instancia.** El framework no fija proveedor de
     teselas ni librería. La CSP de `next.config.mjs` limita `img-src` (y `connect-src`/`script-src` según la
-    librería): la instancia debe autorizar los hosts que use, igual que hace `csp-analytics.mjs` con la analítica.
+    librería): la instancia autoriza los hosts que use con `CSP_EXTRA_IMG_SRC`/`CSP_EXTRA_CONNECT_SRC`/
+    `CSP_EXTRA_SCRIPT_SRC` (variables de build, ver `docs/CONFIGURATION.md`), igual que `csp-analytics.mjs`
+    fija los de la analítica.
     Si el mapa usa un servicio de Google en el navegador, necesita **su propia clave de navegador**: la de
     Integraciones → Mapas es de servidor y nunca se envía al cliente.
   - El mapa debe ser operable con teclado: el buscador y los campos de latitud y longitud son la alternativa al puntero.
@@ -731,7 +742,7 @@ interno. El `user_id` sale **siempre** de la sesión verificada, nunca de la que
 | `GET /api/memberships/levels` | pública | `{items: MembershipLevel[]}`. `Cache-Control: public, s-maxage=60, stale-while-revalidate=300` y `Vary` por idioma. Cada nivel lleva nombre/descripción/slug traducidos, `slugs` por idioma, `rank`, `icon`, `color`, `purchasable`, `min_account_age_days`, `benefits` (clave + datos + texto ya compuesto) y `products` de compra (`id`, `price`, `days`, `duration`). |
 | `GET /api/memberships/me` | sesión (401) | `MembershipState`: `status` (`none`/`active`/`frozen`), `level` (`{id,rank}` o `null`), `ends_at`, `member_since`, `member_number`, `queue`, `benefits`, `gifts` (`max`/`used`/`remaining`) y `purchasable` (`MembershipPurchaseEligibility[]`). Sin caché. |
 | `GET /api/memberships/history?page&per_page` | sesión (401) | `{items, total, pages}`. `per_page` se recorta a 1..100 (defecto 20). Cada evento lleva `type`, niveles, datos de lista blanca y `description` ya compuesta en el idioma de la petición. |
-| `GET /api/memberships/prices?ids=1,2` | sesión **opcional** | `{items:[{id, regular, price, member_price, percent}]}` con decimales de WooCommerce. Sin sesión devuelve los precios públicos, sin inventar descuento. Tope de 50 ids: más es 400 `invalid_request`; ninguno es `{items:[]}`. |
+| `GET /api/memberships/prices?ids=1,2` | sesión **opcional** | `{items:[{id, regular, price, member_price, percent}]}` con decimales de WooCommerce. Sin sesión devuelve los precios públicos, sin inventar descuento, leídos por una caché corta **por id** (30 s; memoria del isolate + Redis, fail-open sin Redis) para que N listados no sean N lecturas del catálogo. Tope de 50 ids: más es 400 `invalid_request`; ninguno es `{items:[]}`. Rate-limit no estricto por IP de 600/60 s **solo en la rama anónima** (429 con `Retry-After`): con sesión no se gasta ese presupuesto. |
 | `GET /api/memberships/products/[slug]` | sesión (401) | Ficha completa si el socio cumple el requisito; la misma ficha de escaparate si no (la decide WordPress). Incluye `locked` y `hwe_membership`. Sin caché compartida: la misma URL devuelve dos formas. |
 | `GET /api/memberships/card` | sesión + carné (404/401) | `{token, expires_at, verify_url}`; `verify_url` se compone con `config.brand.url` y `card_verify_path`, nunca con `home_url()`. Sin nivel: 403 `membership_card_unavailable`. Sin `brand.url` válido: 500 `invalid_config` (no se publica un QR a un dominio inventado). |
 | `GET /api/memberships/verify/[token]` | pública + carné (404) | Rate-limit 30/60 s por IP. Token con formato hexadecimal de 64: `{valid:false}` o `{valid:true, level:{name,slug}, member_since, member_number, member_name, document?}`. Un token inexistente, caducado o revocado da exactamente `{valid:false}`. Nunca se cachea. |

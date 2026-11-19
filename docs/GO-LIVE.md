@@ -73,7 +73,7 @@
 
 ## 6. Analítica y legal
 
-- [ ] Servicios de analítica y publicidad configurados en Control Center → Analítica y marketing (solo se cargan **tras consentimiento**); `CSP_ANALYTICS_PROVIDERS` estrecha la CSP a los que uses.
+- [ ] Servicios de analítica y publicidad configurados en Control Center → Analítica y marketing (solo se cargan **tras consentimiento**); `CSP_ANALYTICS_PROVIDERS` estrecha la CSP a los que uses y `CSP_EXTRA_*_SRC` añade los orígenes que el framework no conoce (solo `https://`; hay que reconstruir la imagen).
 - [ ] Revisar textos legales (`/[locale]/legal/*`) con tu información real.
 
 ## 6 bis. SEO y visibilidad

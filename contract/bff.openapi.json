@@ -657,6 +657,13 @@
         "x-hwe-module": [
           "memberships"
         ],
+        "x-hwe-rate-limit": [
+          {
+            "name": "memberships-prices",
+            "limit": 600,
+            "windowSeconds": 60
+          }
+        ],
         "x-hwe-session": "read",
         "responses": {
           "default": {

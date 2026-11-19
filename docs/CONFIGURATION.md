@@ -69,7 +69,7 @@ plantillas; nunca subas claves reales.**
 | `HEADLESS_FRONTEND_INTERNAL_URL` | (opc.) URL del frontend para llamadas **servidor a servidor** de WordPress: revalidación ISR (`/api/revalidate`), medición de consentimiento y los webhooks que crea `setup.sh`. En Docker vale por defecto `http://frontend:3000`, porque dentro de un contenedor `localhost` es el propio contenedor y la pública no alcanza al servicio. Vacía o sin definir = se usa `HEADLESS_FRONTEND_URL`. |
 | `HEADLESS_ALLOWED_ORIGINS` | Allowlist CORS de WPGraphQL (coma-separada). También acota los `frontend_url` que aceptan `forgot-password` y `send-verification`. |
 | `WP_TITLE`, `WP_ADMIN_USER`, `WP_ADMIN_PASSWORD`, `WP_ADMIN_EMAIL` | Datos del administrador que crea `setup.sh`. **`WP_ADMIN_PASSWORD` es obligatoria** (el instalador aborta sin ella; el compose de producción se niega a arrancar). |
-| `HWE_LOGIN_SLUG` | Mueve el login a `/<slug>`; `/wp-login.php` pasa a responder 404. 6–63 caracteres `[a-z0-9-]`. Vacío = sin mover (el compose pasa `wp-login.php` a Caddy cuando está vacía). No lo publiques. |
+| `HWE_LOGIN_SLUG` | Mueve el login a `/<slug>`; `/wp-login.php` pasa a responder 404 y `wp-signup.php`/`wp-activate.php` también (en sitio único redirigían al registro, es decir, al login). 6–63 caracteres `[a-z0-9-]`. Vacío = sin mover (el compose pasa `wp-login.php` a Caddy cuando está vacía). No lo publiques. |
 | `HWE_TRUSTED_PROXY_COUNT` | (constante PHP; el compose la deriva de `TRUSTED_PROXY_COUNT`) Proxies de confianza delante de WordPress, para la IP real en `rate-limit.php`. |
 | `HWE_BFF_TRUST_PRIVATE_NETWORK` | (constante PHP) **Desactivada por defecto.** Con `define('HWE_BFF_TRUST_PRIVATE_NETWORK', true)` `hwe-bff-only` vuelve a aceptar como BFF una petición sin `X-Forwarded-For` desde una IP privada. Es una suposición sobre la red, no una credencial: solo en redes cerradas. |
 | `HWE_INTEGRATION_ALLOWED_IPS` | IPs exactas (sin CIDR; espacios o comas) que pueden llegar a GraphQL como **integración externa** (módulo `external-integration`: ERP, logística). Vacío = nadie. Solo GraphQL y solo con la contraseña de aplicación del usuario de servicio: la Store API y `hwe/v1/auth\|consent` siguen cerradas. Ver el `MANUAL.md` del plugin. |
@@ -135,6 +135,32 @@ configuran en el panel (*Integraciones*); aquí solo quedan dos variables de **d
 |----------|-------------|
 | `PLAUSIBLE_HOST` | Host de Plausible si es autoalojado (por defecto, el servicio alojado). |
 | `CSP_ANALYTICS_PROVIDERS` | La CSP autoriza por defecto los hosts de todos los proveedores. Si solo usas algunos, estréchala (`ga4,gtm,plausible,meta,tiktok,hubspot`; `none` = ninguno): un script de un proveedor no listado se bloquea. |
+
+#### Ampliar la CSP de un despliegue (`CSP_EXTRA_*_SRC`)
+
+Los hosts del framework son un **techo**, no una lista cerrada: un despliegue que necesite
+orígenes que el framework no conoce —audiencias de Google Ads, la pasarela de una Conversions
+API, una CDN propia de fuentes o imágenes— los **añade** sin editar el núcleo.
+
+| Variable | Directiva | Descripción |
+|----------|-----------|-------------|
+| `CSP_EXTRA_SCRIPT_SRC` | `script-src` | Orígenes de scripts adicionales. |
+| `CSP_EXTRA_CONNECT_SRC` | `connect-src` | Orígenes de `fetch`/XHR/beacon adicionales. |
+| `CSP_EXTRA_IMG_SRC` | `img-src` | Orígenes de imágenes adicionales. |
+
+- Lista separada por **comas**; cada valor es un **origen**: `https://host` o
+  `https://*.host` (comodín de subdominio, con al menos tres etiquetas y nunca justo sobre un
+  sufijo público como `*.com.co`; ver `docs/SECURITY.md`), con puerto opcional. Sin ruta, sin
+  consulta, sin credenciales.
+- Solo `https://`. Se descarta —con un aviso en el build— `*`, `http:`, una palabra clave entre
+  comillas (`'unsafe-inline'`), espacios, `;`, rutas y cualquier cosa que no sea un origen: los
+  valores se concatenan en una cabecera, y un `;` colaría directivas enteras.
+- Un valor inválido se ignora y el resto de la lista sí entra. **Sin variables la CSP es
+  idéntica byte a byte** a la de siempre (no se amplía ningún host por defecto).
+- **Variables de build**, como `CSP_ANALYTICS_PROVIDERS`: `next.config.mjs` arma la CSP al
+  construir y la imagen `standalone` la congela. Van como `build.args` en el compose (ya
+  cableadas) y como variables del repositorio en el workflow de CD; ponerlas solo en
+  `environment` del contenedor no tiene efecto. Cambiarlas exige **reconstruir** la imagen.
 
 ### Rendimiento y resistencia del frontend (todas opcionales)
 
