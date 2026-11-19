@@ -29,7 +29,8 @@ seguridad se toma ahí, **fallando cerrado** cuando falta una pieza.
 | Webhook falso | HMAC-SHA256 con secreto compartido, un único verificador, falla cerrado con secreto vacío | `lib/security/webhook.ts` |
 | IDOR (otro usuario ve mis datos) | Autorización por propietario en handlers; el pedido de invitado solo con su cookie `order_key` | `lib/woocommerce/client.ts`, `lib/checkout/` |
 | Redirecciones abiertas | `returnUrl` de pagos solo del propio sitio; `?return=` con `safeInternalPath` | `lib/navigation/safe-return.ts` |
-| Altas que se saltan el BFF | `users_can_register` sigue activo (lo exige `registerUser` de WPGraphQL), pero el formulario nativo de `wp-login.php` (enlace y `?action=register`) vuelve al login y `register_new_user()` solo prospera dentro de una petición GraphQL (sin WPGraphQL, nunca). Una instancia lo reabre con el filtro `hwe_native_registration`. **No cubre:** `wp-signup.php` de multisite (el framework es de sitio único); `POST /wp/v2/users`, que ya exige `create_users` y además se oculta sin sesión; ni las cuentas que crea WooCommerce con `wc_create_new_customer()` (alta en el checkout o en «Mi cuenta»), que usa `wp_insert_user()` y no pasa por `registration_errors`: esas las gobiernan sus propios ajustes. `verify-security.sh` (sección 5) lo comprueba en vivo | `mu-plugins/hwe-native-registration.php` |
+| Altas que se saltan el BFF | `users_can_register` sigue activo (lo exige `registerUser` de WPGraphQL), pero el formulario nativo de `wp-login.php` (enlace y `?action=register`) vuelve al login y `register_new_user()` solo prospera dentro de una petición GraphQL (sin WPGraphQL, nunca). Una instancia lo reabre con el filtro `hwe_native_registration`. **No cubre:** `POST /wp/v2/users`, que ya exige `create_users` y además se oculta sin sesión; ni las cuentas que crea WooCommerce con `wc_create_new_customer()` (alta en el checkout o en «Mi cuenta»), que usa `wp_insert_user()` y no pasa por `registration_errors`: esas las gobiernan sus propios ajustes. `verify-security.sh` (sección 5) lo comprueba en vivo | `mu-plugins/hwe-native-registration.php` |
+| Descubrimiento del login oculto | Con `HWE_LOGIN_SLUG` el login vive en `/<slug>` y `/wp-login.php` da 404. Los ficheros raíz que redirigían al login lo delataban: en sitio único `wp-signup.php` y `wp-activate.php` hacen `wp_redirect( wp_registration_url() )`, y esa URL pasa por el filtro `site_url` que la reescribe, así que el `Location` salía con `/<slug>?action=register`. Ahora responden **404 sin `Location`** desde el mu-plugin (en multisite se dejan como están), y los siete ficheros raíz que el núcleo no usa (`xmlrpc.php`, `wp-signup.php`, `wp-activate.php`, `wp-links-opml.php`, `wp-trackback.php`, `wp-mail.php`, `wp-comments-post.php`) responden 404 en Caddy antes de Apache, también en el host del panel. `verify-security.sh` (sección 5) lo comprueba en vivo | `mu-plugins/hwe-login-slug.php`, `Caddyfile`, `caddy/admin.caddy.example` |
 | Enumeración de usuarios WP | `/wp-json/wp/v2/users` bloqueado + `?author=N`, errores de login genéricos | `mu-plugins/security.php` |
 | Integrador externo con demasiado poder | Módulo `external-integration`: IP exacta de una lista, contraseña de aplicación solo en GraphQL, rol mínimo, política **cerrada** de operaciones y campos (suelos que ningún filtro rebaja) | `plugins/hwe-external-integration/` |
 | Consentimiento no demostrable (RGPD) | Registro del consentimiento con comprobante (módulo `consent-log`), IP truncada, retención configurable | `plugins/hwe-consent-log/` |
@@ -88,6 +89,7 @@ Los tests unitarios simulan `fetch` y `$_SERVER`: no pueden decir si la pila **r
 WP_URL=http://localhost:8080 BFF_URL=http://localhost:3000 \
 HWE_REVALIDATION_SECRET=… WC_WEBHOOK_SECRET=… \
 VERIFY_2FA_USERNAME=… VERIFY_2FA_PASSWORD=… \
+HWE_LOGIN_SLUG=… \                     # solo si el login está movido: activa el 404 de wp-signup/wp-activate
 PUBLIC_URL=https://tu-dominio.com \    # solo en producción, tras Caddy
   sh backend/scripts/verify-security.sh --strict
 ```
@@ -104,7 +106,10 @@ Qué comprueba:
    usuario con 2FA activo (se activa desde la cuenta; no se puede automatizar sin TOTP).
 4. **Cabeceras**: CSP (sin `api.qrserver.com`), `nosniff`, `X-Frame-Options`, `Referrer-Policy`,
    `Permissions-Policy`, sin `X-Powered-By`; con `PUBLIC_URL`, las de las rutas que Caddy sirve directo desde
-   WordPress.
+   WordPress (en la ruta real del login: `/<slug>` con `HWE_LOGIN_SLUG`).
+5. **Registro nativo y ficheros raíz que delatan el login**: con `HWE_LOGIN_SLUG`, `wp-signup.php` y
+   `wp-activate.php` responden **404 sin `Location`** (en sitio único redirigían a `wp_registration_url()`, que
+   ya lleva el slug); y `?action=register` del login sigue volviendo al login con `registration=disabled`.
 
 Lo que falta un secreto o un usuario se **omite y se dice** (`(omitida)`); con `--strict` omitir cuenta como
 fallo (úsalo en la aceptación de una release). Salida: `0` todo bien · `1` algún fallo · `2` la pila no

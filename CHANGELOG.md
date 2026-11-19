@@ -29,6 +29,18 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   de todo y la primera alta (`POST /api/store/cart/items`) sigue creando el token. Documentado en
   `docs/FRONTEND_CONNECT.md` (carrito).
 
+### Security
+- **Login oculto · `wp-signup.php` y `wp-activate.php` ya no delatan el slug.** En sitio único esos dos ficheros
+  raíz de multisite hacen `wp_redirect( wp_registration_url() )`, y esa URL pasa por el filtro `site_url` de
+  `hwe-login-slug`, así que el `Location` salía con `/<slug>?action=register`: un escáner podía descubrir el login
+  oculto con un simple GET, sin probar credenciales. El mu-plugin les responde ahora **404 sin `Location`** (en
+  multisite los deja intactos, que allí son el formulario de alta) y `verify-security.sh` lo comprueba (sección 5,
+  con `HWE_LOGIN_SLUG`). Además, `Caddyfile` y `caddy/admin.caddy.example` responden 404 a los siete ficheros raíz
+  que el núcleo no usa (`xmlrpc.php`, `wp-signup.php`, `wp-activate.php`, `wp-links-opml.php`, `wp-trackback.php`,
+  `wp-mail.php`, `wp-comments-post.php`) antes de Apache; en el host del panel eran el camino directo a WordPress.
+  El mismo script comprueba ahora las cabeceras de seguridad y el login en la ruta real del slug, no en
+  `/wp-login.php` (que con el slug activo responde 404 por diseño).
+
 ## [2.9.1] — 2026-11-15
 
 Corrección de las imágenes del CMS que renderiza un componente de cliente (la URL que precargaba el navegador

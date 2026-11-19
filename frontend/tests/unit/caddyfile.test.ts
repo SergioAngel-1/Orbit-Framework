@@ -257,6 +257,64 @@ describe("Caddyfile: tope de cuerpo estricto para /api/*", () => {
   });
 });
 
+// ============================================================================
+//  Ficheros raíz de WordPress que el núcleo no usa.
+//
+//  `wp-signup.php` y `wp-activate.php` solo existen en multisite y, en sitio
+//  único, redirigen a `wp_registration_url()`: con `hwe-login-slug` esa URL ya
+//  lleva el slug, así que el `Location` descubría el login oculto. La copia del
+//  host del panel (`caddy/admin.caddy.example`) sí manda todo a WordPress, de ahí
+//  que el bloque viva en los dos. Los demás no los usa ni el panel ni el BFF.
+// ============================================================================
+
+const unusedRootFiles = [
+  "/xmlrpc.php",
+  "/wp-signup.php",
+  "/wp-activate.php",
+  "/wp-links-opml.php",
+  "/wp-trackback.php",
+  "/wp-mail.php",
+  "/wp-comments-post.php",
+];
+
+const adminCaddy = readFileSync(
+  fileURLToPath(new URL("../../../caddy/admin.caddy.example", import.meta.url)),
+  "utf8",
+);
+
+/** Código sin comentarios: los comentarios nombran estas rutas y no cuentan. */
+function withoutComments(source: string): string {
+  return source
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("#"))
+    .join("\n");
+}
+
+describe.each([
+  ["Caddyfile", caddyfile, "handle /wp-content/uploads/* {"],
+  ["caddy/admin.caddy.example", adminCaddy, "handle @static {"],
+] as const)("%s: ficheros raíz que el núcleo no usa", (_name, source, before) => {
+  const body = withoutComments(source);
+  const start = body.indexOf("handle @unused_root_files {");
+  const block =
+    start === -1 ? undefined : body.slice(start, body.indexOf("}", start) + 1);
+
+  it("responde 404 y no proxya ninguno de los siete", () => {
+    expect(block, "falta el bloque handle @unused_root_files").toBeDefined();
+    expect(block).toContain('respond "Not Found" 404');
+    expect(block).not.toContain("reverse_proxy");
+
+    const matcher = body.slice(body.indexOf("@unused_root_files {"), start);
+    for (const file of unusedRootFiles) expect(matcher).toContain(file);
+    expect(matcher).not.toContain("/wp-cron.php");
+  });
+
+  it("va antes de los estáticos y del catch-all (en Caddy gana el primero)", () => {
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(start).toBeLessThan(body.indexOf(before));
+  });
+});
+
 // La compresión es de Caddy: con la de Next activa, Next gzipea antes de llegar al proxy y
 // Caddy no recomprime una respuesta ya codificada (ningún navegador recibía zstd).
 describe("Caddyfile: compresión", () => {

@@ -62,6 +62,22 @@
         max_size 130MB
     }
 
+    # ── Ficheros raíz de WordPress que el núcleo no usa ──────────────────────
+    # `xmlrpc.php` (fuerza bruta por XML-RPC), `wp-signup.php` y `wp-activate.php`
+    # (multisite; en sitio único redirigen al registro, es decir, al login),
+    # `wp-links-opml.php` (publica el blogroll), `wp-trackback.php`,
+    # `wp-comments-post.php` (comentarios nativos: el frontend no los usa) y
+    # `wp-mail.php` (publicación por correo). Ninguno lo necesita el panel ni el
+    # BFF, así que responden 404 sin llegar a Apache. La copia del host del panel
+    # (caddy/admin.caddy.example) lleva el mismo bloque: el dominio público manda
+    # esto al frontend, y sin este bloque la petición acabaría en Next.
+    @unused_root_files {
+        path /xmlrpc.php /wp-signup.php /wp-activate.php /wp-links-opml.php /wp-trackback.php /wp-mail.php /wp-comments-post.php
+    }
+    handle @unused_root_files {
+        respond "Not Found" 404
+    }
+
     # ── WordPress: admin, login y webhooks REST ──────────────────────────────
     # Estos paths van directamente a WordPress. El BFF Next.js llama a
     # WordPress por la red interna Docker; aquí solo exponemos lo necesario.

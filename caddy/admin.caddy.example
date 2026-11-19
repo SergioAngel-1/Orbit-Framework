@@ -29,6 +29,20 @@
         respond "Not Found" 404
     }
 
+    # Ficheros raíz de WordPress que el núcleo no usa. En este host SÍ llegarían a
+    # WordPress (aquí el catch-all proxya a `wordpress:80`) y `wp-signup.php` /
+    # `wp-activate.php` responden en sitio único con una redirección a
+    # `wp_registration_url()`, que es el login —con el slug oculto— en el
+    # `Location`. `hwe-login-slug.php` ya da 404 a los dos primeros; este bloque lo
+    # cierra antes de Apache para todos (XML-RPC, blogroll, trackbacks, comentarios
+    # nativos y publicación por correo). Mismo bloque que en el Caddyfile público.
+    @unused_root_files {
+        path /xmlrpc.php /wp-signup.php /wp-activate.php /wp-links-opml.php /wp-trackback.php /wp-mail.php /wp-comments-post.php
+    }
+    handle @unused_root_files {
+        respond "Not Found" 404
+    }
+
     # Estáticos del panel servidos por CADDY, no por Apache: un wp-admin con la
     # medioteca abierta lanza decenas de peticiones de .js/.css/imágenes, y cada
     # una ocupaba un worker de Apache mientras PHP —el polling del propio panel—

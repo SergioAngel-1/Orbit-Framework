@@ -2,9 +2,10 @@
 /**
  * Plugin Name: HWE Login Slug
  * Description: Mueve el login del panel de /wp-login.php a /<HWE_LOGIN_SLUG>.
- *              /wp-login.php y /wp-admin sin sesión responden 404.
+ *              /wp-login.php, /wp-admin sin sesión y los ficheros raíz de
+ *              multisite (que redirigen al login) responden 404.
  * Author:      Sergio Jauregui
- * Version:     1.0.0
+ * Version:     1.1.0
  *
  * Práctica de seguridad, no una barrera: quita del camino a los bots que
  * prueban credenciales contra /wp-login.php a ciegas —la inmensa mayoría del
@@ -20,6 +21,11 @@
  *   - `/wp-admin` sin sesión → 404 en vez de la redirección al login, que
  *     delataría el slug. `admin-ajax.php` y `admin-post.php` quedan fuera:
  *     tienen sus propias comprobaciones y algún plugin los usa sin sesión.
+ *   - `wp-signup.php` y `wp-activate.php` en sitio único → 404. Solo existen
+ *     para multisite y, fuera de él, hacen `wp_redirect( wp_registration_url() )`:
+ *     esa URL pasa por el filtro `site_url` de abajo, así que el `Location`
+ *     salía con `/<slug>?action=register` y un escáner podía leer el login
+ *     oculto sin probar credenciales. Ninguno de los dos lo usa el núcleo.
  *   - Todo enlace que WordPress construye a wp-login.php (formulario de
  *     acceso, cerrar sesión, recuperar contraseña, `interim-login` del panel,
  *     correos de confirmación de privacidad…) sale por `site_url` /
@@ -44,6 +50,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * slug ella misma y, sin uno válido, no reconoce ninguna petición ni registra nada.
  */
 final class HWE_Login_Slug {
+	/**
+	 * Ficheros raíz de WordPress que solo tienen sentido en multisite. En sitio
+	 * único redirigen al registro (`wp_registration_url()`), que ya lleva el slug.
+	 */
+	private const MULTISITE_ONLY_FILES = array( 'wp-signup.php', 'wp-activate.php' );
+
 	private static bool $serveLogin = false;
 
 	/** El slug configurado, o null si falta o no tiene un formato válido. */
@@ -94,12 +106,28 @@ final class HWE_Login_Slug {
 			self::notFound();
 		}
 
+		// Solo con el login oculto activo se llega aquí, y solo en sitio único: en
+		// multisite `wp-signup.php` es el formulario de alta y debe seguir vivo.
+		if ( self::isMultisiteOnlyFile( $path ) && ! is_multisite() ) {
+			self::notFound();
+		}
+
 		if ( is_admin()
 			&& ! ( defined( 'DOING_AJAX' ) && DOING_AJAX )
 			&& ! str_ends_with( $path, '/admin-post.php' )
 			&& ! is_user_logged_in() ) {
 			self::notFound();
 		}
+	}
+
+	/** ¿La petición es de un fichero raíz que solo existe en multisite? */
+	public static function isMultisiteOnlyFile( string $path ): bool {
+		foreach ( self::MULTISITE_ONLY_FILES as $file ) {
+			if ( str_ends_with( $path, '/' . $file ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public static function serve(): void {
@@ -131,8 +159,16 @@ final class HWE_Login_Slug {
 		nocache_headers();
 		header( 'Content-Type: text/plain; charset=utf-8' );
 		echo 'Not Found';
-		exit;
+		hwe_login_slug_terminate();
 	}
+}
+
+/**
+ * Termina la petición. Aislado para que los tests puedan sustituirlo: `exit`
+ * mataría PHPUnit (mismo patrón que `hwe_bff_only_terminate`).
+ */
+function hwe_login_slug_terminate(): void {
+	exit;
 }
 
 if ( null !== HWE_Login_Slug::slug() ) {
