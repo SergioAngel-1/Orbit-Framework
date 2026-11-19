@@ -484,7 +484,9 @@ invitado → carrito → checkout → pago por webhook → pedido en cuenta) est
   `cart-context`, `begin_checkout` en el checkout, `purchase` en `checkout/return`). La compra
   también sale desde el servidor (`sendPurchaseToMeta`, tras el webhook verificado) con el
   contexto que el checkout guardó en el pedido. Hosts de la CSP: `csp-analytics.mjs`
-  (`CSP_ANALYTICS_PROVIDERS` los estrecha). La decisión vive en `localStorage["cookie-consent"]`
+  (`CSP_ANALYTICS_PROVIDERS` los estrecha) y `csp-extra-hosts.mjs` (un despliegue AÑADE
+  orígenes con `CSP_EXTRA_SCRIPT_SRC`/`CSP_EXTRA_CONNECT_SRC`/`CSP_EXTRA_IMG_SRC`; la cabecera
+  la arma `csp-policy.mjs`). La decisión vive en `localStorage["cookie-consent"]`
   (JSON: generación + alcance de servicios + comprobante + cola, `consent-storage.ts`). Con el
   módulo `consent-log`, cada decisión se registra como prueba (`/api/consent` →
   `consent-ledger.ts` → plugin `hwe-consent-log`, cookie `hwe_consent`) y la respuesta al banner

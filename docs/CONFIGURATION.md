@@ -136,6 +136,31 @@ configuran en el panel (*Integraciones*); aquí solo quedan dos variables de **d
 | `PLAUSIBLE_HOST` | Host de Plausible si es autoalojado (por defecto, el servicio alojado). |
 | `CSP_ANALYTICS_PROVIDERS` | La CSP autoriza por defecto los hosts de todos los proveedores. Si solo usas algunos, estréchala (`ga4,gtm,plausible,meta,tiktok,hubspot`; `none` = ninguno): un script de un proveedor no listado se bloquea. |
 
+#### Ampliar la CSP de un despliegue (`CSP_EXTRA_*_SRC`)
+
+Los hosts del framework son un **techo**, no una lista cerrada: un despliegue que necesite
+orígenes que el framework no conoce —audiencias de Google Ads, la pasarela de una Conversions
+API, una CDN propia de fuentes o imágenes— los **añade** sin editar el núcleo.
+
+| Variable | Directiva | Descripción |
+|----------|-----------|-------------|
+| `CSP_EXTRA_SCRIPT_SRC` | `script-src` | Orígenes de scripts adicionales. |
+| `CSP_EXTRA_CONNECT_SRC` | `connect-src` | Orígenes de `fetch`/XHR/beacon adicionales. |
+| `CSP_EXTRA_IMG_SRC` | `img-src` | Orígenes de imágenes adicionales. |
+
+- Lista separada por **comas**; cada valor es un **origen**: `https://host` o
+  `https://*.host` (comodín de subdominio), con puerto opcional. Sin ruta, sin consulta, sin
+  credenciales.
+- Solo `https://`. Se descarta —con un aviso en el build— `*`, `http:`, una palabra clave entre
+  comillas (`'unsafe-inline'`), espacios, `;`, rutas y cualquier cosa que no sea un origen: los
+  valores se concatenan en una cabecera, y un `;` colaría directivas enteras.
+- Un valor inválido se ignora y el resto de la lista sí entra. **Sin variables la CSP es
+  idéntica byte a byte** a la de siempre (no se amplía ningún host por defecto).
+- **Variables de build**, como `CSP_ANALYTICS_PROVIDERS`: `next.config.mjs` arma la CSP al
+  construir y la imagen `standalone` la congela. Van como `build.args` en el compose (ya
+  cableadas) y como variables del repositorio en el workflow de CD; ponerlas solo en
+  `environment` del contenedor no tiene efecto. Cambiarlas exige **reconstruir** la imagen.
+
 ### Rendimiento y resistencia del frontend (todas opcionales)
 
 | Variable | Defecto | Descripción |

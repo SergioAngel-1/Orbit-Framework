@@ -729,3 +729,37 @@ describe("next.config.mjs: sus variables llegan al build de la imagen", () => {
     },
   );
 });
+
+// ============================================================================
+//  La CSP se puede AMPLIAR por despliegue (`csp-extra-hosts.mjs`). Esas variables se
+//  leen fuera de `next.config.mjs` —el módulo recibe `process.env` entero—, así que el
+//  barrido automático de arriba no las ve: se fijan aquí, en las CUATRO piezas que
+//  tienen que ir a la vez o la variable no llega al build de la imagen.
+// ============================================================================
+describe("CSP ampliable por despliegue: las variables llegan al build", () => {
+  const extra = ["CSP_EXTRA_SCRIPT_SRC", "CSP_EXTRA_CONNECT_SRC", "CSP_EXTRA_IMG_SRC"];
+  const envProd = root(".env.prod.example");
+  const copy = dockerfile.indexOf("COPY . .\n\nRUN npm run build");
+
+  it.each(extra)("%s es un ARG del Dockerfile, antes de `COPY . .`", (name) => {
+    const arg = dockerfile.search(new RegExp(`^ARG ${name}$`, "m"));
+
+    expect(arg).toBeGreaterThan(-1);
+    expect(arg).toBeLessThan(copy);
+    expect(dockerfile).toContain(`${name}=$${name}`);
+  });
+
+  it.each(extra)("%s es un build arg de docker-compose.prod.yml", (name) => {
+    expect(service(prod, "frontend")).toMatch(
+      new RegExp(`^\\s+${name}:\\s+"\\$\\{${name}:-\\}"$`, "m"),
+    );
+  });
+
+  it.each(extra)("%s se pasa en el build del workflow de CD", (name) => {
+    expect(cd).toContain(`${name}=\${{ vars.${name} }}`);
+  });
+
+  it.each(extra)("%s está documentada en .env.prod.example", (name) => {
+    expect(envProd).toContain(`# ${name}=`);
+  });
+});
