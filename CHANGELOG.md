@@ -26,6 +26,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   mismo. Sirve a cualquier instancia: el ahorro es del JS inicial de todo checkout, no de una
   tienda concreta.
 
+### Security
+- **Next.js 16.4.6.** `next` y `eslint-config-next` pasan de 16.4.1 a 16.4.6 (versión exacta), que
+  corrige GHSA-mfr8-8qww-v76h y GHSA-vc7v-qv4w-wrv8, los dos avisos moderados de `npm audit` que
+  afectaban a ≤16.4.4. El parche de cabeceras ISR se volvió a comprobar sobre 16.4.6: mismo
+  `ORIGINAL_LOOP` en `dist/` y `dist/esm` y `SUPPORTED_NEXT` actualizado, y `docs/COMPATIBILITY.md`
+  queda al día. Sin cambios de contrato ni de configuración.
+
 ## [2.9.1] — 2026-11-15
 
 Corrección de las imágenes del CMS que renderiza un componente de cliente (la URL que precargaba el navegador
