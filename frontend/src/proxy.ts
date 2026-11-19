@@ -4,6 +4,8 @@ import { decodeJwt } from "jose";
 import { routing } from "@/i18n/routing";
 import {
   AUTH_COOKIE,
+  REFRESH_BACKOFF_COOKIE,
+  REFRESH_BACKOFF_SECONDS,
   REFRESH_COOKIE,
   TOKEN_EXPIRY_SKEW_SECONDS,
   DEFAULT_AUTH_TOKEN_MAX_AGE,
@@ -52,6 +54,35 @@ function isExpired(token: string): boolean {
   }
 }
 
+/**
+ * ¿El refresh token ya caducó por su propio `exp`? Se lee sin verificar la firma:
+ * solo decide BORRAR la cookie, y quien falsifique un `exp` pasado solo se cierra
+ * su propia sesión. Un token sin `exp` legible no se da por caducado (decide
+ * WordPress).
+ */
+function refreshTokenExpired(token: string): boolean {
+  try {
+    const { exp } = decodeJwt(token);
+    return typeof exp === "number" && exp <= Math.floor(Date.now() / 1000);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Huella del refresh token para la cookie de espera: SHA-256 truncado, en base64url.
+ * Liga la espera a ESE token (una sesión nueva trae otro y no espera) sin guardar
+ * el token en otra cookie.
+ */
+async function refreshFingerprint(token: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  let binary = "";
+  for (const byte of new Uint8Array(digest).slice(0, 16)) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 function maxAgeFromToken(token: string): number {
   try {
     const { exp } = decodeJwt(token);
@@ -80,8 +111,8 @@ function maxAgeFromToken(token: string): number {
  * degradado limpio. Si no responde a tiempo se sigue sin token renovado —el
  * visitante se ve como anónimo en esa respuesta y la siguiente lo reintenta,
  * porque la cookie de refresco sobrevive—, que es infinitamente preferible a
- * una página que no carga. Solo un rechazo DEFINITIVO del token la borra (ver
- * `isDefinitiveRejection`).
+ * una página que no carga. Un rechazo de WordPress (ver `isDefinitiveRejection`)
+ * tampoco la borra: deja una espera corta (ver `resolveSession`).
  */
 const REFRESH_TIMEOUT_MS = 3_000;
 
@@ -96,10 +127,10 @@ const REFRESH_TIMEOUT_MS = 3_000;
 const refreshInFlight = new Map<string, Promise<RefreshOutcome>>();
 
 /**
- * Resultado del refresh. `token: null` con `rejected: true` es un rechazo
- * DEFINITIVO de WordPress (el refresh token no vale y no valdrá): el proxy borra
- * también su cookie. Con `rejected: false` (timeout, red, 5xx…) no se sabe nada
- * del token y la cookie se queda para reintentar.
+ * Resultado del refresh. `token: null` con `rejected: true` es un rechazo de
+ * WordPress con forma de rechazo: el proxy deja de preguntar durante un rato
+ * (cookie de espera). Con `rejected: false` (timeout, red, 5xx…) no se sabe nada
+ * del token y el siguiente request reintenta.
  */
 type RefreshOutcome =
   { token: string; rejected: false } | { token: null; rejected: boolean };
@@ -131,7 +162,7 @@ function logEdgeWarning(event: string, fields: Record<string, unknown>): void {
 }
 
 /**
- * ¿WordPress rechazó el refresh token de forma definitiva?
+ * ¿WordPress rechazó el refresh token?
  *
  * Solo si el resolver de `refreshJwtAuthToken` corrió y dijo que no: cuerpo
  * GraphQL con `data.refreshJwtAuthToken` a null y algún error. Así responde
@@ -140,6 +171,11 @@ function logEdgeWarning(event: string, fields: Record<string, unknown>): void {
  * 429, un cuerpo sin `data` (p. ej. el 404 de `hwe-bff-only` cuando falta el
  * secreto interno: es configuración, no el token) ni el «Internal server error»
  * con el que graphql-php enmascara un fallo interno del resolver.
+ *
+ * OJO: no es una prueba de que el token esté muerto. La MISMA respuesta sale si a
+ * WordPress le falta `GRAPHQL_JWT_AUTH_SECRET_KEY` (403) o si no puede leer el
+ * secreto del usuario (`hwe-auth/Session.php`, también por un fallo de BD). Por
+ * eso un rechazo no borra el refresh token: solo frena los reintentos.
  */
 function isDefinitiveRejection(status: number, body: unknown): boolean {
   if (status !== 200 && status !== 401 && status !== 403) return false;
@@ -198,6 +234,89 @@ async function refreshAuthToken(refreshToken: string): Promise<RefreshOutcome> {
       reason: error instanceof Error ? `${error.name}: ${error.message}` : "error",
     });
     return NOT_REFRESHED;
+  }
+}
+
+/** Lo que la respuesta tiene que hacer con las cookies de sesión. */
+interface SessionCookieOps {
+  /** Token de acceso nuevo. */
+  setAuth?: string;
+  /** Retirar el acceso: `delete` (como siempre) o `expire` (con la política del BFF). */
+  clearAuth?: "delete" | "expire";
+  /** Borrar el refresh token (solo si caducó por su propio `exp`). */
+  expireRefresh?: boolean;
+  /** Dejar la espera con esta huella. */
+  setBackoff?: string;
+  /** Retirar una espera que ya no aplica. */
+  expireBackoff?: boolean;
+}
+
+/**
+ * Decide el refresh de esta petición. Sin refresh token o con el acceso vigente no
+ * hace nada. Si no:
+ *  - refresh token caducado por su `exp`: se borran las dos cookies, sin WordPress;
+ *  - espera vigente de ESE refresh token: no se pregunta (visitante anónimo);
+ *  - si no, se pide a WordPress. Bien: acceso nuevo y fuera la espera. Rechazo:
+ *    espera de `REFRESH_BACKOFF_SECONDS` y el refresh token SE QUEDA (el rechazo
+ *    puede ser de configuración o de BD, ver `isDefinitiveRejection`). Fallo
+ *    transitorio: el siguiente request reintenta, como siempre.
+ */
+async function resolveSession(
+  request: NextRequest,
+): Promise<{ newToken: string | null; ops: SessionCookieOps }> {
+  const authToken = request.cookies.get(AUTH_COOKIE)?.value;
+  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
+  if (!refreshToken || (authToken && !isExpired(authToken))) {
+    return { newToken: null, ops: {} };
+  }
+  const backoff = request.cookies.get(REFRESH_BACKOFF_COOKIE)?.value;
+
+  if (refreshTokenExpired(refreshToken)) {
+    logEdgeWarning("proxy.refresh_expired", {});
+    return {
+      newToken: null,
+      ops: { clearAuth: "expire", expireRefresh: true, expireBackoff: !!backoff },
+    };
+  }
+
+  // La huella solo se calcula si hay espera: sin ella, el camino hasta el refresh
+  // compartido (`refreshAuthTokenOnce`) sigue siendo síncrono y las peticiones
+  // simultáneas se deduplican.
+  if (backoff && backoff === (await refreshFingerprint(refreshToken))) {
+    return { newToken: null, ops: {} };
+  }
+
+  const outcome = await refreshAuthTokenOnce(refreshToken);
+  if (outcome.token) {
+    return {
+      newToken: outcome.token,
+      ops: { setAuth: outcome.token, expireBackoff: !!backoff },
+    };
+  }
+  if (outcome.rejected) {
+    return {
+      newToken: null,
+      ops: {
+        clearAuth: authToken ? "expire" : undefined,
+        setBackoff: await refreshFingerprint(refreshToken),
+      },
+    };
+  }
+  return { newToken: null, ops: { clearAuth: authToken ? "delete" : undefined } };
+}
+
+function applySessionCookies(response: NextResponse, ops: SessionCookieOps): void {
+  if (ops.setAuth) response.cookies.set(authCookie(ops.setAuth));
+  if (ops.clearAuth === "delete") response.cookies.delete(AUTH_COOKIE);
+  if (ops.clearAuth === "expire") expireSessionCookie(response, AUTH_COOKIE);
+  if (ops.expireRefresh) expireSessionCookie(response, REFRESH_COOKIE);
+  if (ops.setBackoff) {
+    response.cookies.set(REFRESH_BACKOFF_COOKIE, ops.setBackoff, {
+      ...baseCookieOptions(),
+      maxAge: REFRESH_BACKOFF_SECONDS,
+    });
+  } else if (ops.expireBackoff) {
+    expireSessionCookie(response, REFRESH_BACKOFF_COOKIE);
   }
 }
 
@@ -319,36 +438,24 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
-  const authToken = request.cookies.get(AUTH_COOKIE)?.value;
-  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
-  const needsRefresh = !!refreshToken && (!authToken || isExpired(authToken));
-
   // 2) Rutas /api: sin locale. Refresh JWT salvo en /api/auth/*.
   if (pathname.startsWith("/api")) {
-    if (pathname.startsWith("/api/auth/") || !needsRefresh) {
+    if (pathname.startsWith("/api/auth/")) {
       const res = NextResponse.next({ request: { headers: fwd } });
       res.headers.set(REQUEST_ID_HEADER, requestId);
       return res;
     }
-    const { token: newToken, rejected } = await refreshAuthTokenOnce(refreshToken!);
-    if (!newToken) {
-      const res = NextResponse.next({ request: { headers: fwd } });
-      if (rejected) {
-        // Refresh token rechazado: fuera las dos cookies, o cada petición
-        // siguiente volvería a preguntar a WordPress por el mismo token muerto.
-        expireSessionCookie(res, AUTH_COOKIE);
-        expireSessionCookie(res, REFRESH_COOKIE);
-      } else if (authToken) {
-        res.cookies.delete(AUTH_COOKIE);
-      }
-      res.headers.set(REQUEST_ID_HEADER, requestId);
-      return res;
+    const { newToken, ops } = await resolveSession(request);
+    let res: NextResponse;
+    if (newToken) {
+      const headers = new Headers(request.headers);
+      headers.set("cookie", cookieHeaderWithAuth(request, newToken));
+      headers.set(REQUEST_ID_HEADER, requestId);
+      res = NextResponse.next({ request: { headers } });
+    } else {
+      res = NextResponse.next({ request: { headers: fwd } });
     }
-    const headers = new Headers(request.headers);
-    headers.set("cookie", cookieHeaderWithAuth(request, newToken));
-    headers.set(REQUEST_ID_HEADER, requestId);
-    const res = NextResponse.next({ request: { headers } });
-    res.cookies.set(authCookie(newToken));
+    applySessionCookies(res, ops);
     res.headers.set(REQUEST_ID_HEADER, requestId);
     return res;
   }
@@ -376,23 +483,12 @@ export async function proxy(request: NextRequest) {
   const referralCode = normalizeReferralCode(request.nextUrl.searchParams.get("ref"));
 
   let workingRequest = new NextRequest(request.url, { headers: fwd });
-  let newToken: string | null = null;
-  let clearAuth = false;
-  let clearSession = false;
-
-  if (needsRefresh) {
-    const outcome = await refreshAuthTokenOnce(refreshToken!);
-    newToken = outcome.token;
-    if (newToken) {
-      const headers = new Headers(request.headers);
-      headers.set("cookie", cookieHeaderWithAuth(request, newToken));
-      headers.set(REQUEST_ID_HEADER, requestId);
-      workingRequest = new NextRequest(request.url, { headers });
-    } else if (outcome.rejected) {
-      clearSession = true;
-    } else if (authToken) {
-      clearAuth = true;
-    }
+  const session = await resolveSession(request);
+  if (session.newToken) {
+    const headers = new Headers(request.headers);
+    headers.set("cookie", cookieHeaderWithAuth(request, session.newToken));
+    headers.set(REQUEST_ID_HEADER, requestId);
+    workingRequest = new NextRequest(request.url, { headers });
   }
 
   // Rutas públicas de la instancia (`InstanceRegistry.publicPaths`): la URL pública sirve
@@ -433,13 +529,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (newToken) response.cookies.set(authCookie(newToken));
-  if (clearAuth) response.cookies.delete(AUTH_COOKIE);
-  if (clearSession) {
-    // Refresh token rechazado: fuera las dos cookies (ver la rama de /api).
-    expireSessionCookie(response, AUTH_COOKIE);
-    expireSessionCookie(response, REFRESH_COOKIE);
-  }
+  applySessionCookies(response, session.ops);
   // El último código que llega reemplaza al anterior; si no hay, la cookie que
   // ya tuviera el navegador se queda intacta.
   if (referralCode) response.cookies.set(REF_COOKIE, referralCode, refCookieOptions());

@@ -61,15 +61,20 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   transferir y parsear el resto.
 
 ### Fixed
-- **Sesión · un refresh token que WordPress rechaza se borra del navegador.** El proxy solo retiraba la cookie de
-  acceso: la del refresh token sobrevivía y cada petición siguiente (documento, RSC, prefetch, `/api/*`) volvía a
-  pedir `refreshJwtAuthToken` a WordPress con un token que ya sabía inválido, hasta que la cookie caducaba (30 días
-  por defecto). Ahora, ante un rechazo **definitivo** —el resolver de la mutación corrió y devolvió
-  `refreshJwtAuthToken: null` con errores: 200 para un token mal formado o caducado, 401/403 para uno de otro emisor
-  o con el secreto revocado—, el proxy expira las dos cookies con la misma política con la que las deja el BFF
-  (también `COOKIE_DOMAIN`) y deja el evento `proxy.refresh_rejected`. Un timeout, un fallo de red, un 5xx, un 429,
-  un cuerpo sin `data` (el 404 de `hwe-bff-only` sin secreto interno) o el «Internal server error» de un resolver
-  no dicen nada del token: la cookie se queda y el siguiente request reintenta, como antes.
+- **Sesión · un refresh token que WordPress rechaza ya no se reintenta en cada petición.** El proxy solo retiraba
+  la cookie de acceso: cada petición siguiente (documento, RSC, prefetch, `/api/*`) volvía a pedir
+  `refreshJwtAuthToken` a WordPress con el mismo token, hasta que la cookie caducaba (30 días por defecto). Ahora,
+  ante un rechazo —el resolver de la mutación corrió y devolvió `refreshJwtAuthToken: null` con errores, con 200,
+  401 o 403— el proxy deja una cookie httpOnly corta de espera (`hwe_rt_wait`, 60 s, con la política de cookies
+  del BFF y `COOKIE_DOMAIN`) ligada a ESE refresh token por una huella SHA-256 truncada, y mientras exista no
+  pregunta (el visitante se ve anónimo). El refresh token **no se borra** por un rechazo: WordPress responde
+  exactamente igual si le falta `GRAPHQL_JWT_AUTH_SECRET_KEY` o si no puede leer el secreto del usuario (un fallo
+  de BD), y borrarlo cerraría la sesión de todos para siempre por un `.env` mal restaurado. Solo se borra, sin
+  preguntar a WordPress, cuando el propio token dice que caducó (`exp`). Un login nuevo trae otro refresh token y
+  la espera anterior deja de aplicar; el primer refresh correcto la retira. Un timeout, un fallo de red, un 5xx,
+  un 429, un cuerpo sin `data` (el 404 de `hwe-bff-only` sin secreto interno) o el «Internal server error» de un
+  resolver no dejan espera: el siguiente request reintenta, como antes. Evento `proxy.refresh_rejected` /
+  `proxy.refresh_expired`.
 
 ## [2.10.0] — 2026-11-19
 

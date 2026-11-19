@@ -23,5 +23,15 @@ export const DEFAULT_AUTH_TOKEN_MAX_AGE = 60 * 5;
 export const REFRESH_TOKEN_MAX_AGE =
   Number(process.env.REFRESH_TOKEN_MAX_AGE_DAYS || 30) * 24 * 60 * 60;
 
+/**
+ * Cookie httpOnly de espera tras un rechazo del refresh token: mientras exista
+ * (y corresponda a ESE refresh token, por su huella), el proxy no vuelve a pedir
+ * el refresh a WordPress. Ver `proxy.ts` (por qué no se borra el refresh token).
+ */
+export const REFRESH_BACKOFF_COOKIE = "hwe_rt_wait";
+
+/** Vida de la cookie de espera, en segundos. */
+export const REFRESH_BACKOFF_SECONDS = 60;
+
 /** Margen de seguridad (segundos) al evaluar la expiración del token. */
 export const TOKEN_EXPIRY_SKEW_SECONDS = 10;

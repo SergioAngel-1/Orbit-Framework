@@ -1,24 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SignJWT } from "jose";
 import { NextRequest } from "next/server";
-import { AUTH_COOKIE, REFRESH_COOKIE } from "@/lib/auth/constants";
+import {
+  AUTH_COOKIE,
+  REFRESH_BACKOFF_COOKIE,
+  REFRESH_COOKIE,
+} from "@/lib/auth/constants";
 
 // ============================================================================
-//  Un refresh token que WordPress RECHAZA se borra del navegador.
+//  Un refresh token que WordPress RECHAZA no se vuelve a probar en cada petición.
 //
-//  Antes el proxy solo retiraba la cookie de acceso: la del refresh token
-//  sobrevivía y CADA petición posterior (documento, RSC, prefetch, /api/*)
-//  volvía a pedir `refreshJwtAuthToken` a WordPress con un token que ya sabía
-//  inválido, hasta que la cookie caducaba (30 días por defecto).
+//  Antes el proxy solo retiraba la cookie de acceso y CADA petición posterior
+//  (documento, RSC, prefetch, /api/*) volvía a pedir `refreshJwtAuthToken` a
+//  WordPress con el mismo token.
 //
-//  Solo cuenta como rechazo DEFINITIVO la respuesta en la que el resolver de la
-//  mutación corrió y dijo que no: cuerpo GraphQL con `data.refreshJwtAuthToken`
-//  a null y errores (200 para un token mal formado o caducado, 401/403 para uno
-//  de otro emisor o con el secreto revocado; así responde WPGraphQL JWT Auth). Un
-//  timeout, un fallo de red, un 5xx, un 429, un cuerpo que no es GraphQL (p. ej.
+//  Pero un «rechazo» con forma de rechazo (cuerpo GraphQL con
+//  `data.refreshJwtAuthToken` a null y errores; 200/401/403) no prueba que el
+//  token esté muerto: lo mismo responde WordPress si le falta
+//  `GRAPHQL_JWT_AUTH_SECRET_KEY` (un `.env` mal restaurado) o si la lectura del
+//  secreto del usuario falla en la BD. Borrar el refresh token ahí cerraría la
+//  sesión de todo el mundo para siempre. Así que el rechazo deja una cookie corta
+//  de espera, ligada a ESE refresh token, durante la que el proxy no pregunta; el
+//  refresh token se queda. Solo se borra cuando él mismo dice que caducó (`exp`).
+//
+//  Un timeout, un fallo de red, un 5xx, un 429, un cuerpo que no es GraphQL (p. ej.
 //  el 404 de `hwe-bff-only` sin secreto interno) o el «Internal server error» de
-//  un resolver que falló NO dicen nada del token: la cookie se queda y el
-//  siguiente request reintenta, como hasta ahora.
+//  un resolver no dejan ni siquiera la espera: el siguiente request reintenta.
 // ============================================================================
 
 const ORIGIN = "https://tienda.example";
@@ -85,21 +92,60 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("refresh token rechazado por WordPress", () => {
-  it.each([200, 401, 403])(
-    "con rechazo definitivo (HTTP %i) una página borra también la cookie del refresh token",
-    async (status) => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => rejection(status)) as unknown as typeof fetch,
-      );
+/** Refresh token con forma de JWT y `exp` (en segundos desde ahora). */
+function refreshJwt(expInSeconds: number): string {
+  const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const exp = Math.floor(Date.now() / 1000) + expInSeconds;
+  return `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ exp, data: { user: { id: "7", user_secret: "s" } } })}.firma`;
+}
+
+/** Cuerpo de WordPress cuando le falta `GRAPHQL_JWT_AUTH_SECRET_KEY` (403, mismo mensaje). */
+const missingSecretKey = () => rejection(403);
+/** Cuerpo cuando `enforceRefreshTokenSecret` no puede leer el secreto del usuario (BD). */
+const userSecretUnreadable = () => rejection(403);
+
+/** La respuesta deja la cookie de espera (con valor y vida corta). */
+function setsBackoff(res: Response): boolean {
+  return res.headers
+    .getSetCookie()
+    .some(
+      (line) =>
+        line.startsWith(`${REFRESH_BACKOFF_COOKIE}=`) &&
+        !line.startsWith(`${REFRESH_BACKOFF_COOKIE}=;`) &&
+        /max-age=60\b/i.test(line) &&
+        /httponly/i.test(line),
+    );
+}
+
+/** Valor de la cookie de espera que dejó la respuesta. */
+function backoffValue(res: Response): string {
+  const line = res.headers
+    .getSetCookie()
+    .find((l) => l.startsWith(`${REFRESH_BACKOFF_COOKIE}=`))!;
+  return line.slice(REFRESH_BACKOFF_COOKIE.length + 1).split(";")[0]!;
+}
+
+const touchesRefresh = (res: Response) =>
+  res.headers.getSetCookie().some((l) => l.startsWith(`${REFRESH_COOKIE}=`));
+
+describe("rechazo de WordPress: espera, no borrado", () => {
+  it.each([
+    ["sin GRAPHQL_JWT_AUTH_SECRET_KEY en WordPress", missingSecretKey],
+    ["con la lectura del secreto del usuario fallando", userSecretUnreadable],
+    ["con un 200 de token inválido", () => rejection(200)],
+    ["con un 401", () => rejection(401)],
+  ])(
+    "%s, el refresh token se queda y se deja la cookie de espera",
+    async (_l, impl) => {
+      vi.stubGlobal("fetch", vi.fn(async () => impl()) as unknown as typeof fetch);
 
       const res = await request("/tienda", await sessionCookies());
 
-      expect(
-        expires(res, REFRESH_COOKIE),
-        "la cookie del refresh token sigue viva",
-      ).toBe(true);
+      expect(touchesRefresh(res), "no se debe tocar la cookie del refresh token").toBe(
+        false,
+      );
+      expect(setsBackoff(res)).toBe(true);
+      // El acceso caducado sí se retira, como antes.
       expect(expires(res, AUTH_COOKIE)).toBe(true);
     },
   );
@@ -112,22 +158,55 @@ describe("refresh token rechazado por WordPress", () => {
 
     const res = await request("/api/store/cart", await sessionCookies());
 
-    expect(expires(res, REFRESH_COOKIE)).toBe(true);
-    expect(expires(res, AUTH_COOKIE)).toBe(true);
+    expect(touchesRefresh(res)).toBe(false);
+    expect(setsBackoff(res)).toBe(true);
   });
 
-  it("sin cookie de acceso (solo el refresh token) también se borra", async () => {
+  it("con la cookie de espera de ESE refresh token, no se llama a WordPress", async () => {
+    const fetchMock = vi.fn(async () => rejection(403));
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
+    const cookies = await sessionCookies();
+
+    const first = await request("/tienda", cookies);
+    const wait = backoffValue(first);
+    await request("/tienda", `${cookies}; ${REFRESH_BACKOFF_COOKIE}=${wait}`);
+    await request("/api/store/cart", `${cookies}; ${REFRESH_BACKOFF_COOKIE}=${wait}`);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("la espera no delata el refresh token (no es su valor)", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => rejection(200)) as unknown as typeof fetch,
+      vi.fn(async () => rejection(403)) as unknown as typeof fetch,
     );
 
-    const res = await request("/tienda", `${REFRESH_COOKIE}=refresco-revocado`);
+    const res = await request("/tienda", await sessionCookies());
 
-    expect(expires(res, REFRESH_COOKIE)).toBe(true);
+    expect(backoffValue(res)).not.toContain("refresco-revocado");
   });
 
-  it("con COOKIE_DOMAIN, el borrado lleva el mismo dominio con el que se dejó la cookie", async () => {
+  it("una espera de OTRO refresh token (sesión nueva) no impide refrescar, y se limpia al lograrlo", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ data: { refreshJwtAuthToken: { authToken: "nuevo" } } }),
+          { status: 200 },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
+
+    const res = await request(
+      "/tienda",
+      `${await sessionCookies()}; ${REFRESH_BACKOFF_COOKIE}=de-otra-sesion`,
+    );
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(res.cookies.get(AUTH_COOKIE)?.value).toBe("nuevo");
+    expect(expires(res, REFRESH_BACKOFF_COOKIE)).toBe(true);
+  });
+
+  it("con COOKIE_DOMAIN, la espera lleva el dominio de la política de cookies", async () => {
     vi.stubEnv("COOKIE_DOMAIN", ".tienda.example");
     vi.stubGlobal(
       "fetch",
@@ -138,10 +217,44 @@ describe("refresh token rechazado por WordPress", () => {
 
     const line = res.headers
       .getSetCookie()
-      .find((l) => l.startsWith(`${REFRESH_COOKIE}=`));
+      .find((l) => l.startsWith(`${REFRESH_BACKOFF_COOKIE}=`));
     expect(line).toMatch(/domain=\.?tienda\.example/i);
   });
+});
 
+describe("refresh token caducado por su propio exp", () => {
+  it("se borra sin preguntar a WordPress (página y /api)", async () => {
+    const fetchMock = vi.fn(async () => rejection(200));
+    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
+    const cookies = `${AUTH_COOKIE}=${await expiredToken()}; ${REFRESH_COOKIE}=${refreshJwt(-60)}`;
+
+    const page = await request("/tienda", cookies);
+    const api = await request("/api/store/cart", cookies);
+
+    for (const res of [page, api]) {
+      expect(expires(res, REFRESH_COOKIE)).toBe(true);
+      expect(expires(res, AUTH_COOKIE)).toBe(true);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uno vigente por su exp y rechazado NO se borra", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => rejection(403)) as unknown as typeof fetch,
+    );
+
+    const res = await request(
+      "/tienda",
+      `${AUTH_COOKIE}=${await expiredToken()}; ${REFRESH_COOKIE}=${refreshJwt(3600)}`,
+    );
+
+    expect(touchesRefresh(res)).toBe(false);
+    expect(setsBackoff(res)).toBe(true);
+  });
+});
+
+describe("fallos que no dicen nada del token", () => {
   it.each([
     ["un timeout", () => Promise.reject(new DOMException("aborted", "TimeoutError"))],
     ["un fallo de red", () => Promise.reject(new TypeError("fetch failed"))],
@@ -176,20 +289,8 @@ describe("refresh token rechazado por WordPress", () => {
 
       const res = await request("/tienda", await sessionCookies());
 
-      expect(
-        res.headers.getSetCookie().some((l) => l.startsWith(`${REFRESH_COOKIE}=`)),
-      ).toBe(false);
+      expect(touchesRefresh(res)).toBe(false);
+      expect(setsBackoff(res)).toBe(false);
     },
   );
-
-  it("tras el rechazo, la siguiente petición sin la cookie ya no llama a WordPress", async () => {
-    const fetchMock = vi.fn(async () => rejection(200));
-    vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
-
-    await request("/tienda", await sessionCookies());
-    // El navegador aplica los Set-Cookie: sin refresh token ni acceso, es anónimo.
-    await request("/tienda", "");
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
 });
