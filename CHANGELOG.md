@@ -15,6 +15,17 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `buildUrl` arma `https://www.tiktok.com/@usuario`. Vacío por defecto: una tienda que no rellena el campo no
   publica ninguna cuenta. `contract/config.schema.json` regenerado.
 
+### Performance
+- **El checkout ya no arrastra zod a su bundle.** `destinationFromAddress`
+  (`lib/shipping/destination.ts`) descartaba un pin mal formado con `locationSchema`
+  (`lib/validation/address.ts`), el único importador de zod alcanzable desde un componente cliente
+  del checkout: ~34 kB gz para validar dos números. Ahora usa `parseGeoPoint`
+  (`lib/validation/light.ts`), la **única fuente** de la regla (número finito, latitud ±90,
+  longitud ±180, nunca `(0, 0)`, objeto plano); `locationSchema` se construye sobre ese guard y
+  sigue disponible para el BFF, con tests que fijan que ambos aceptan y rechazan exactamente lo
+  mismo. Sirve a cualquier instancia: el ahorro es del JS inicial de todo checkout, no de una
+  tienda concreta.
+
 ## [2.9.1] — 2026-11-15
 
 Corrección de las imágenes del CMS que renderiza un componente de cliente (la URL que precargaba el navegador
