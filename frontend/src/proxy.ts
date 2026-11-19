@@ -20,6 +20,7 @@ import { compileRedirects, matchRedirect } from "@/lib/instance/redirects";
 import { ENV_NOINDEX_HEADER, indexingBlockedByEnv } from "@/lib/seo/indexing";
 import { normalizeReferralCode } from "@/lib/loyalty/referral-code";
 import { REF_COOKIE, refCookieOptions } from "@/lib/loyalty/ref-cookie";
+import { baseCookieOptions } from "@/lib/security/cookie-policy";
 
 // ============================================================================
 //  Proxy compuesto (antes "middleware"; Next 16 renombró el convenio a `proxy`,
@@ -79,7 +80,8 @@ function maxAgeFromToken(token: string): number {
  * degradado limpio. Si no responde a tiempo se sigue sin token renovado —el
  * visitante se ve como anónimo en esa respuesta y la siguiente lo reintenta,
  * porque la cookie de refresco sobrevive—, que es infinitamente preferible a
- * una página que no carga.
+ * una página que no carga. Solo un rechazo DEFINITIVO del token la borra (ver
+ * `isDefinitiveRejection`).
  */
 const REFRESH_TIMEOUT_MS = 3_000;
 
@@ -91,9 +93,18 @@ const REFRESH_TIMEOUT_MS = 3_000;
  * ni en logs ni en eventos; el mapa se borra al resolverse la promesa, también
  * cuando falla o expira.
  */
-const refreshInFlight = new Map<string, Promise<string | null>>();
+const refreshInFlight = new Map<string, Promise<RefreshOutcome>>();
 
-function refreshAuthTokenOnce(refreshToken: string): Promise<string | null> {
+/**
+ * Resultado del refresh. `token: null` con `rejected: true` es un rechazo
+ * DEFINITIVO de WordPress (el refresh token no vale y no valdrá): el proxy borra
+ * también su cookie. Con `rejected: false` (timeout, red, 5xx…) no se sabe nada
+ * del token y la cookie se queda para reintentar.
+ */
+type RefreshOutcome =
+  { token: string; rejected: false } | { token: null; rejected: boolean };
+
+function refreshAuthTokenOnce(refreshToken: string): Promise<RefreshOutcome> {
   const pending = refreshInFlight.get(refreshToken);
   if (pending) return pending;
 
@@ -119,7 +130,37 @@ function logEdgeWarning(event: string, fields: Record<string, unknown>): void {
   );
 }
 
-async function refreshAuthToken(refreshToken: string): Promise<string | null> {
+/**
+ * ¿WordPress rechazó el refresh token de forma definitiva?
+ *
+ * Solo si el resolver de `refreshJwtAuthToken` corrió y dijo que no: cuerpo
+ * GraphQL con `data.refreshJwtAuthToken` a null y algún error. Así responde
+ * WPGraphQL JWT Auth a un token mal formado o caducado (HTTP 200) y a uno de otro
+ * emisor o con el secreto del usuario revocado (401/403). No cuenta un 5xx, un
+ * 429, un cuerpo sin `data` (p. ej. el 404 de `hwe-bff-only` cuando falta el
+ * secreto interno: es configuración, no el token) ni el «Internal server error»
+ * con el que graphql-php enmascara un fallo interno del resolver.
+ */
+function isDefinitiveRejection(status: number, body: unknown): boolean {
+  if (status !== 200 && status !== 401 && status !== 403) return false;
+  if (typeof body !== "object" || body === null) return false;
+  const { data, errors } = body as { data?: unknown; errors?: unknown };
+  if (typeof data !== "object" || data === null) return false;
+  if (!("refreshJwtAuthToken" in data)) return false;
+  if ((data as { refreshJwtAuthToken: unknown }).refreshJwtAuthToken !== null)
+    return false;
+  if (!Array.isArray(errors) || errors.length === 0) return false;
+  return !errors.some(
+    (error) =>
+      typeof error === "object" &&
+      error !== null &&
+      (error as { message?: unknown }).message === "Internal server error",
+  );
+}
+
+const NOT_REFRESHED: RefreshOutcome = { token: null, rejected: false };
+
+async function refreshAuthToken(refreshToken: string): Promise<RefreshOutcome> {
   const endpoint =
     process.env.WORDPRESS_INTERNAL_API_URL ?? "http://localhost:8080/graphql";
   try {
@@ -133,23 +174,40 @@ async function refreshAuthToken(refreshToken: string): Promise<string | null> {
       }),
       signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
     });
-    if (!res.ok) {
-      logEdgeWarning("proxy.refresh_failed", { reason: `HTTP ${res.status}` });
-      return null;
+    // El cuerpo se lee también con 401/403: es ahí donde WordPress dice que el
+    // token está revocado. Un cuerpo ilegible no prueba nada sobre el token.
+    const json = (await res.json().catch(() => null)) as {
+      data?: { refreshJwtAuthToken?: { authToken?: string } | null };
+    } | null;
+    if (res.ok) {
+      const token = json?.data?.refreshJwtAuthToken?.authToken;
+      if (typeof token === "string" && token.length > 0) {
+        return { token, rejected: false };
+      }
     }
-    const json = (await res.json()) as {
-      data?: { refreshJwtAuthToken?: { authToken?: string } };
-    };
-    const token = json.data?.refreshJwtAuthToken?.authToken;
-    if (typeof token === "string" && token.length > 0) return token;
-    logEdgeWarning("proxy.refresh_failed", { reason: "respuesta sin authToken" });
-    return null;
+    if (isDefinitiveRejection(res.status, json)) {
+      logEdgeWarning("proxy.refresh_rejected", { status: res.status });
+      return { token: null, rejected: true };
+    }
+    logEdgeWarning("proxy.refresh_failed", {
+      reason: res.ok ? "respuesta sin authToken" : `HTTP ${res.status}`,
+    });
+    return NOT_REFRESHED;
   } catch (error) {
     logEdgeWarning("proxy.refresh_failed", {
       reason: error instanceof Error ? `${error.name}: ${error.message}` : "error",
     });
-    return null;
+    return NOT_REFRESHED;
   }
+}
+
+/**
+ * Borra una cookie de sesión con la MISMA política con la que la deja el BFF
+ * (`lib/security/cookies.ts`): con `COOKIE_DOMAIN` el borrado necesita ese
+ * dominio, o el navegador conserva la cookie original.
+ */
+function expireSessionCookie(response: NextResponse, name: string): void {
+  response.cookies.set(name, "", { ...baseCookieOptions(), maxAge: 0 });
 }
 
 function originBlocked(request: NextRequest): boolean {
@@ -272,10 +330,17 @@ export async function proxy(request: NextRequest) {
       res.headers.set(REQUEST_ID_HEADER, requestId);
       return res;
     }
-    const newToken = await refreshAuthTokenOnce(refreshToken!);
+    const { token: newToken, rejected } = await refreshAuthTokenOnce(refreshToken!);
     if (!newToken) {
       const res = NextResponse.next({ request: { headers: fwd } });
-      if (authToken) res.cookies.delete(AUTH_COOKIE);
+      if (rejected) {
+        // Refresh token rechazado: fuera las dos cookies, o cada petición
+        // siguiente volvería a preguntar a WordPress por el mismo token muerto.
+        expireSessionCookie(res, AUTH_COOKIE);
+        expireSessionCookie(res, REFRESH_COOKIE);
+      } else if (authToken) {
+        res.cookies.delete(AUTH_COOKIE);
+      }
       res.headers.set(REQUEST_ID_HEADER, requestId);
       return res;
     }
@@ -313,14 +378,18 @@ export async function proxy(request: NextRequest) {
   let workingRequest = new NextRequest(request.url, { headers: fwd });
   let newToken: string | null = null;
   let clearAuth = false;
+  let clearSession = false;
 
   if (needsRefresh) {
-    newToken = await refreshAuthTokenOnce(refreshToken!);
+    const outcome = await refreshAuthTokenOnce(refreshToken!);
+    newToken = outcome.token;
     if (newToken) {
       const headers = new Headers(request.headers);
       headers.set("cookie", cookieHeaderWithAuth(request, newToken));
       headers.set(REQUEST_ID_HEADER, requestId);
       workingRequest = new NextRequest(request.url, { headers });
+    } else if (outcome.rejected) {
+      clearSession = true;
     } else if (authToken) {
       clearAuth = true;
     }
@@ -366,6 +435,11 @@ export async function proxy(request: NextRequest) {
 
   if (newToken) response.cookies.set(authCookie(newToken));
   if (clearAuth) response.cookies.delete(AUTH_COOKIE);
+  if (clearSession) {
+    // Refresh token rechazado: fuera las dos cookies (ver la rama de /api).
+    expireSessionCookie(response, AUTH_COOKIE);
+    expireSessionCookie(response, REFRESH_COOKIE);
+  }
   // El último código que llega reemplaza al anterior; si no hay, la cookie que
   // ya tuviera el navegador se queda intacta.
   if (referralCode) response.cookies.set(REF_COOKIE, referralCode, refCookieOptions());

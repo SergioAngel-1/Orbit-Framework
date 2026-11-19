@@ -13,6 +13,17 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   `cache` de React (en `getProductBySlug`, la clave es siempre `(slug, idioma)` aunque se omita el idioma). Fuera
   de un render (Route Handlers) no cambia nada.
 
+### Fixed
+- **Sesión · un refresh token que WordPress rechaza se borra del navegador.** El proxy solo retiraba la cookie de
+  acceso: la del refresh token sobrevivía y cada petición siguiente (documento, RSC, prefetch, `/api/*`) volvía a
+  pedir `refreshJwtAuthToken` a WordPress con un token que ya sabía inválido, hasta que la cookie caducaba (30 días
+  por defecto). Ahora, ante un rechazo **definitivo** —el resolver de la mutación corrió y devolvió
+  `refreshJwtAuthToken: null` con errores: 200 para un token mal formado o caducado, 401/403 para uno de otro emisor
+  o con el secreto revocado—, el proxy expira las dos cookies con la misma política con la que las deja el BFF
+  (también `COOKIE_DOMAIN`) y deja el evento `proxy.refresh_rejected`. Un timeout, un fallo de red, un 5xx, un 429,
+  un cuerpo sin `data` (el 404 de `hwe-bff-only` sin secreto interno) o el «Internal server error» de un resolver
+  no dicen nada del token: la cookie se queda y el siguiente request reintenta, como antes.
+
 ## [2.10.0] — 2026-11-19
 
 Menos carga en WordPress y menos superficie en el panel. Un visitante sin carrito ni sesión ya no abre una sesión de
