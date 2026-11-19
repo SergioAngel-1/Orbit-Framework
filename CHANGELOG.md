@@ -22,7 +22,13 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   exacta. Cableadas en `frontend/Dockerfile` (ARG antes de `COPY . .`),
   `docker-compose.prod.yml`, `.github/workflows/cd.yml` y `.env.prod.example`; documentadas en
   `docs/CONFIGURATION.md` y `docs/SECURITY.md`.
-
+- **Caché de un día para el arte de marca (`public/brand/*`).** `next.config.mjs` solo aplicaba
+  cabeceras de seguridad, así que el `logo.svg` (y cualquier otro fichero de `brand/`, que
+  versiona la instancia) se servía con el `max-age=0` de `public/` y cada visita lo revalidaba.
+  Una regla propia para `/brand/:path*` responde `Cache-Control: public, max-age=86400,
+  stale-while-revalidate=86400`, sin reglas por extensión (pisarían el `immutable` con el que
+  Next sirve `/_next/static`). Contrapartida documentada en `docs/CUSTOMIZATION.md`: un logo
+  reemplazado con el mismo nombre puede tardar hasta un día en verse.
 
 - **Redes · `social.tiktok` en el Control Center, de punta a punta.** El panel no tenía TikTok y una tienda que
   vende por vídeo corto no podía declararlo: ahora el campo `social.tiktok` (solo usuario, sin URL ni `@`; varias

@@ -38,6 +38,12 @@ instancia, no algo que reconfigures desde `wp-admin`.
   Identidad de marca → Logo (URL)` (`brand.logo`). El header heredado lo renderiza
   automáticamente; vacío = nombre del sitio como texto. `brand.og_image` sigue siendo la
   imagen Open Graph y `seo.organization_logo` alimenta el JSON-LD `Organization`.
+  El arte que vive en `frontend/public/brand/` (el `logo.svg` que usan las tarjetas sociales,
+  el logotipo para fondos oscuros…) se sirve con **un día de caché** (`Cache-Control: public,
+  max-age=86400, stale-while-revalidate=86400`). Contrapartida: si reemplazas uno de esos
+  ficheros **conservando el nombre**, los navegadores que ya lo tenían pueden seguir pintando
+  el viejo hasta un día. Para que el cambio sea inmediato, publica el archivo con otro nombre
+  (o añade una versión al enlace) y actualiza la referencia.
 - **Menús**: se gestionan en `wp-admin → Apariencia → Menús` asignando un menú a las
   locations `primary`/`footer` (+ variantes `_en`). Contrato y reglas de contenido en
   `docs/FRONTEND_CONNECT.md §A.7`. Sin menú asignado, el frontend heredado usa su

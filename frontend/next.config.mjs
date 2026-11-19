@@ -229,6 +229,21 @@ const nextConfig = withNextIntl({
         source: "/:path*",
         headers: securityHeaders,
       },
+      {
+        // Arte de marca (`public/brand/…`: logo, logotipo oscuro, iconos) que la
+        // instancia versiona junto a su UI. Tiene su propia regla porque el
+        // `public/` de Next se sirve con `max-age=0`: sin ella, cada visita
+        // revalidaba el logo. Contrapartida documentada en `docs/CUSTOMIZATION.md`
+        // (un logo reemplazado tarda hasta un día en verse). Nada de reglas por
+        // extensión: pisarían el `immutable` con el que Next sirve `/_next/static`.
+        source: "/brand/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=86400",
+          },
+        ],
+      },
     ];
   },
 
