@@ -6,6 +6,19 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+### Changed
+- **WordPress · Redis Object Cache con la extensión nativa PhpRedis en vez de Predis.** La imagen oficial no trae la
+  extensión `redis` y el plugin caía a Predis (PHP puro): medido en producción, unas 42 llamadas a Redis por arranque
+  de WordPress costaban ~40 ms por petición, y el BFF hace muchas. `wordpress`, `wpcli` y `wp-cron` pasan a imágenes
+  propias construidas en el servidor (`hwe-wordpress:<dev|prod>` sobre `wordpress:7.1-php8.4-apache` y
+  `hwe-wp-cli:<dev|prod>` sobre `wordpress:cli-php8.4`, `pull_policy: build`, Dockerfiles en `backend/docker/`), las
+  dos con PhpRedis 6.3.0 fijado por versión y SHA-256 del archivo de PECL. No se define `WP_REDIS_CLIENT`: el plugin
+  detecta la extensión solo y, si faltara, sigue con Predis (forzarla sería un error fatal sin ella). Claves, valores,
+  `WP_REDIS_PREFIX` y el *flush* selectivo no cambian. **Al actualizar:** `docker compose build --pull wordpress wpcli
+  wp-cron` y recrear `wordpress` y `wp-cron`; no hace falta vaciar la caché. `docker compose pull` ya no renueva la
+  base de WordPress: lo hace `build --pull` (`docs/UPGRADE.md` §3.12). Fijado por
+  `frontend/tests/unit/wordpress-images.test.ts`.
+
 ## [2.11.0] — 2026-11-19
 
 Menos vueltas a WordPress por vista. La ficha pide el producto y los niveles de membresía una sola vez por render;

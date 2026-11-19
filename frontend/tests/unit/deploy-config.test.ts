@@ -508,12 +508,15 @@ describe("imágenes: tags reproducibles", () => {
   });
 
   it("producción no baja imágenes nuevas a mitad de un despliegue", () => {
-    for (const name of ["caddy", "db", "wordpress", "redis"]) {
+    for (const name of ["caddy", "db", "redis"]) {
       expect(service(prod, name), name).toContain("pull_policy: if_not_present");
     }
-    // `backup` se construye en el servidor (imagen local con mariadb-client y jq):
+    // `backup` (mariadb-client y jq) y los tres de WordPress (la oficial con PhpRedis,
+    // ver wordpress-images.test.ts) se construyen en el servidor sobre una base fija:
     // su política es `build`, no una descarga de un registro.
-    expect(service(prod, "backup")).toContain("pull_policy: build");
+    for (const name of ["backup", "wordpress", "wpcli", "wp-cron"]) {
+      expect(service(prod, name), name).toContain("pull_policy: build");
+    }
   });
 });
 

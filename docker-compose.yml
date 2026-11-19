@@ -96,7 +96,13 @@ services:
   # WordPress (Headless CMS)
   # --------------------------------------------------------------------------
   wordpress:
-    image: wordpress:7.1-php8.4-apache
+    # Imagen propia: la oficial con la extensión PhpRedis (backend/docker/wordpress/
+    # Dockerfile), para que Redis Object Cache no caiga a Predis. La etiqueta es local:
+    # `pull_policy: build` la construye en vez de buscarla en un registro.
+    image: hwe-wordpress:dev
+    build:
+      context: ./backend/docker/wordpress
+    pull_policy: build
     container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wordpress
     logging: *default-logging
     restart: unless-stopped
@@ -160,7 +166,12 @@ services:
   # WP-CLI (automatización: instala WP + plugins + configuración headless)
   # --------------------------------------------------------------------------
   wpcli:
-    image: wordpress:cli-php8.4
+    # Misma extensión PhpRedis que `wordpress` (backend/docker/wp-cli/Dockerfile): carga
+    # el mismo WordPress con las mismas `WP_REDIS_*`. Etiqueta local, `pull_policy: build`.
+    image: hwe-wp-cli:dev
+    build:
+      context: ./backend/docker/wp-cli
+    pull_policy: build
     container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wpcli
     logging: *default-logging
     profiles: ["cli"]
@@ -228,7 +239,12 @@ services:
   # minuto. Lee wp-config.php del volumen `wordpress_core`.
   # --------------------------------------------------------------------------
   wp-cron:
-    image: wordpress:cli-php8.4
+    # Misma extensión PhpRedis que `wordpress` (backend/docker/wp-cli/Dockerfile): carga
+    # el mismo WordPress con las mismas `WP_REDIS_*`. Etiqueta local, `pull_policy: build`.
+    image: hwe-wp-cli:dev
+    build:
+      context: ./backend/docker/wp-cli
+    pull_policy: build
     container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wp_cron
     logging: *default-logging
     restart: unless-stopped

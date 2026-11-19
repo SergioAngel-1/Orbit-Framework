@@ -38,6 +38,12 @@
 #    mkdir -p backups
 #    docker volume create hwe_db_data   # (o el nombre de HWE_DB_VOLUME): ver «Volúmenes»
 #
+#    #    Las imágenes de WordPress (`wordpress`, `wpcli`, `wp-cron`: la oficial con
+#    #    PhpRedis) y la de `backup` se construyen solas en el servidor
+#    #    (`pull_policy: build`); para traer los parches de su base:
+#    docker compose -f docker-compose.prod.yml --env-file .env.prod \
+#        build --pull wordpress wpcli wp-cron
+#
 #    # 3. Primer arranque (instala WordPress + plugins):
 #    docker compose -f docker-compose.prod.yml --env-file .env.prod \
 #        run --rm wpcli
@@ -255,8 +261,13 @@ services:
   # ── WordPress headless ──────────────────────────────────────────────────────
   # Puerto 8080 NO expuesto al host: solo accesible via Caddy en la red interna.
   wordpress:
-    image: wordpress:7.1-php8.4-apache
-    pull_policy: if_not_present
+    # Imagen propia: la oficial con la extensión PhpRedis (backend/docker/wordpress/
+    # Dockerfile), para que Redis Object Cache no caiga a Predis. La etiqueta es local:
+    # `pull_policy: build` la construye en vez de buscarla en un registro.
+    image: hwe-wordpress:prod
+    build:
+      context: ./backend/docker/wordpress
+    pull_policy: build
     container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wordpress
     logging: *default-logging
     restart: unless-stopped
@@ -284,7 +295,8 @@ services:
       # installation»).
       #
       # ⚠ Consecuencia: el core NO se actualiza al subir la etiqueta de la imagen
-      # (el entrypoint solo copia si falta index.php). Tras un `pull`, ejecuta
+      # (el entrypoint solo copia si falta index.php). Tras reconstruir la imagen
+      # (`build --pull wordpress wpcli wp-cron`), ejecuta
       # `wpcli /scripts/update-core.sh --apply <versión>` y reinicia este servicio;
       # procedimiento en docs/RUNBOOK.md §10.
       - wordpress_core:/var/www/html
@@ -333,8 +345,12 @@ services:
 
   # ── WP-CLI (primer arranque, bajo demanda) ─────────────────────────────────
   wpcli:
-    image: wordpress:cli-php8.4
-    pull_policy: if_not_present
+    # Misma extensión PhpRedis que `wordpress` (backend/docker/wp-cli/Dockerfile): carga
+    # el mismo WordPress con las mismas `WP_REDIS_*`. Etiqueta local, `pull_policy: build`.
+    image: hwe-wp-cli:prod
+    build:
+      context: ./backend/docker/wp-cli
+    pull_policy: build
     container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wpcli
     profiles: ["cli"]
     depends_on:
@@ -598,8 +614,12 @@ services:
   # los eventos vencidos cada minuto. Sin él nada programado correría (avisos de
   # copia de seguridad, cancelaciones automáticas, Action Scheduler de WooCommerce).
   wp-cron:
-    image: wordpress:cli-php8.4
-    pull_policy: if_not_present
+    # Misma extensión PhpRedis que `wordpress` (backend/docker/wp-cli/Dockerfile): carga
+    # el mismo WordPress con las mismas `WP_REDIS_*`. Etiqueta local, `pull_policy: build`.
+    image: hwe-wp-cli:prod
+    build:
+      context: ./backend/docker/wp-cli
+    pull_policy: build
     container_name: ${HWE_CONTAINER_PREFIX:-hwe}_wp_cron
     logging: *default-logging
     restart: unless-stopped
