@@ -178,4 +178,79 @@ describe("getPaymentSettings", () => {
     await vi.waitFor(() => expect(failing).toHaveBeenCalledTimes(2));
     vi.useRealTimers();
   });
+
+  it("una copia de más de 10 min ya no se sirve sin esperar a WordPress", async () => {
+    vi.stubEnv("HWE_REVALIDATION_SECRET", "secreto-interno-de-pruebas-0123456789");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ provider: "wompi" })),
+    );
+    vi.useFakeTimers();
+    await getPaymentSettings();
+    vi.advanceTimersByTime(11 * 60_000);
+
+    let release!: (res: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            release = resolve;
+          }),
+      ),
+    );
+    let settled = false;
+    const pending = getPaymentSettings().then((s) => {
+      settled = true;
+      return s;
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toBe(false);
+
+    release(Response.json({ provider: "avalpay" }));
+    expect((await pending).provider).toBe("avalpay");
+    vi.useRealTimers();
+  });
+
+  it("pasado el tope y con WordPress caído, sirve la última buena y espacia la espera", async () => {
+    vi.stubEnv("HWE_REVALIDATION_SECRET", "secreto-interno-de-pruebas-0123456789");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ provider: "wompi" })),
+    );
+    vi.useFakeTimers();
+    await getPaymentSettings();
+    vi.advanceTimersByTime(11 * 60_000);
+
+    const failing = vi.fn(async () => new Response("x", { status: 500 }));
+    vi.stubGlobal("fetch", failing);
+
+    expect((await getPaymentSettings()).provider).toBe("wompi");
+    expect(failing).toHaveBeenCalledTimes(1);
+    // Dentro de la ventana tras el fallo no se vuelve a esperar a WordPress.
+    expect((await getPaymentSettings()).provider).toBe("wompi");
+    expect(failing).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("una respuesta que no es la config cuenta como fallo para espaciar el reintento", async () => {
+    vi.stubEnv("HWE_REVALIDATION_SECRET", "secreto-interno-de-pruebas-0123456789");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ provider: "wompi" })),
+    );
+    vi.useFakeTimers();
+    await getPaymentSettings();
+    vi.advanceTimersByTime(61_000);
+
+    const empty = vi.fn(async () => Response.json(null));
+    vi.stubGlobal("fetch", empty);
+
+    expect((await getPaymentSettings()).provider).toBe("wompi");
+    await vi.waitFor(() => expect(empty).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(1_000);
+    for (let i = 0; i < 5; i += 1) await getPaymentSettings();
+    expect(empty).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
 });

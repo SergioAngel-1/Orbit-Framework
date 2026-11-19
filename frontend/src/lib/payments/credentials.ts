@@ -20,9 +20,11 @@ import { logger } from "@/lib/observability/logger";
 //  Caché EN MEMORIA del proceso, nunca en la Data Cache de Next (vive en Redis:
 //  ahí acabarían los secretos). Dura `TTL_MS`; pasado ese plazo se sirve la copia
 //  caducada al instante y se refresca en segundo plano (una sola lectura en vuelo
-//  por proceso, compartida por las peticiones simultáneas). Si WordPress no
-//  responde se sigue con la última lectura buena (reintento como mucho cada
-//  `RETRY_AFTER_FAILURE_MS`) y, sin ninguna, solo con el entorno.
+//  por proceso, compartida por las peticiones simultáneas), pero solo hasta
+//  `STALE_MAX_MS`: una copia más vieja ya no se sirve sin antes esperar a
+//  WordPress. Si WordPress no responde (o responde algo que no es la config) se
+//  sigue con la última lectura buena, reintentando como mucho cada
+//  `RETRY_AFTER_FAILURE_MS`, y, sin ninguna, solo con el entorno.
 //  `/api/revalidate` la vacía al guardar el Control Center, y una lectura que ya
 //  iba en vuelo antes de vaciarla no la vuelve a llenar con datos viejos.
 // ============================================================================
@@ -44,6 +46,12 @@ const TTL_MS = 60_000;
 const FETCH_TIMEOUT_MS = 5_000;
 /** Con copia caducada y WordPress fallando, no se reintenta antes de esto. */
 const RETRY_AFTER_FAILURE_MS = 10_000;
+/**
+ * Antigüedad máxima de la copia que se sirve sin esperar: pasado esto, una
+ * pasarela o unas llaves cambiadas sin pasar por `/api/revalidate` no pueden
+ * seguir cobrando con las de antes; se espera a WordPress.
+ */
+const STALE_MAX_MS = 10 * 60_000;
 
 let cached: { payload: CmsPayload; at: number } | null = null;
 /** Lectura del panel en vuelo: la comparten todas las peticiones del proceso. */
@@ -131,22 +139,39 @@ function logUnavailable(error: unknown): void {
   );
 }
 
+/**
+ * Refresca la copia. Un fallo —lanzar, o devolver algo que no es la config— se
+ * anota para espaciar el siguiente intento. Nunca rechaza.
+ */
+async function refreshCopy(): Promise<void> {
+  try {
+    const payload = await readCmsPayloadOnce();
+    if (!payload) {
+      lastFailureAt = Date.now();
+      logUnavailable(new Error("respuesta sin config de pagos"));
+    }
+  } catch (error) {
+    lastFailureAt = Date.now();
+    logUnavailable(error);
+  }
+}
+
 /** Pasarela activa y credenciales vigentes (ver precedencia en la cabecera). */
 export async function getPaymentSettings(): Promise<PaymentSettings> {
   if (cached) {
+    const copy = cached;
     const now = Date.now();
-    if (
-      now - cached.at >= TTL_MS &&
-      !inFlight &&
-      now - lastFailureAt >= RETRY_AFTER_FAILURE_MS
-    ) {
+    const age = now - cached.at;
+    const mayRetry = now - lastFailureAt >= RETRY_AFTER_FAILURE_MS;
+    if (age >= STALE_MAX_MS && (inFlight || mayRetry)) {
+      // Demasiado vieja para servirla sin preguntar: se espera a WordPress. Si falla,
+      // la última lectura buena sigue valiendo (y el reintento se espacia).
+      await refreshCopy();
+    } else if (age >= TTL_MS && !inFlight && mayRetry) {
       // Copia caducada: se sirve ya y se refresca detrás, sin hacer esperar el cobro.
-      readCmsPayloadOnce().catch((error: unknown) => {
-        lastFailureAt = Date.now();
-        logUnavailable(error);
-      });
+      void refreshCopy();
     }
-    return resolvePaymentSettings(cached.payload);
+    return resolvePaymentSettings((cached ?? copy).payload);
   }
   // Sin copia en memoria: hay que esperar a WordPress (compartiendo la lectura).
   // Si falla, solo queda el entorno.

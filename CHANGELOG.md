@@ -28,8 +28,10 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   la primera petición que necesitaba la pasarela (crear el cobro, verificar un webhook) esperaba a WordPress, y
   las que llegaban a la vez lanzaban cada una su propia lectura de `/payments/credentials`. Ahora las lecturas
   simultáneas comparten una sola petición y, pasado el TTL (60 s), se sirve la copia en memoria al instante y se
-  refresca detrás. Con WordPress caído se sigue con la última lectura buena, reintentando como mucho cada 10 s en
-  vez de en cada petición. De paso se cierra una carrera: una lectura que iba en vuelo cuando `/api/revalidate`
+  refresca detrás, pero solo hasta 10 minutos: una copia más vieja ya no se sirve sin antes esperar a WordPress
+  (unas llaves cambiadas sin pasar por `/api/revalidate` no siguen cobrando con las de antes). Con WordPress caído,
+  o respondiendo algo que no es la config, se sigue con la última lectura buena, reintentando como mucho cada 10 s
+  en vez de en cada petición. De paso se cierra una carrera: una lectura que iba en vuelo cuando `/api/revalidate`
   vaciaba la caché (al guardar el Control Center) volvía a llenarla con los datos de antes del guardado.
 - **Login, 2FA y registro · menos vueltas a WordPress en serie.** Tras abrir sesión, el carrito de la cuenta y el
   pedido de invitado (`syncAuthenticatedCart`, `claimGuestOrder`) se esperaban uno detrás de otro; ahora van a la
