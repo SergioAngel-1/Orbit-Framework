@@ -136,6 +136,25 @@ function cartIs(cart: Record<string, unknown>) {
 const orderPosts = () =>
   vi.mocked(storeFetch).mock.calls.filter(([path]) => path === "/checkout");
 
+/** El pedido que devuelve la Store API nace con este cliente (0 = invitado). */
+function orderCreatedFor(customerId: number) {
+  vi.mocked(storeFetch).mockImplementation((async (path: string) =>
+    path === "/cart"
+      ? { data: { needs_shipping: false, shipping_rates: [] }, cartToken: "cart-token" }
+      : {
+          data: { ...ORDER_RESPONSE, customer_id: customerId },
+          cartToken: "next-token",
+        }) as never);
+}
+
+/** Lecturas (GET) del pedido por wc/v3. */
+const orderReads = () =>
+  vi
+    .mocked(wcFetch)
+    .mock.calls.filter(
+      ([path, init]) => String(path).startsWith("/orders/") && !init?.method,
+    );
+
 beforeEach(() => {
   vi.clearAllMocks();
   cookieJar.clear();
@@ -198,6 +217,19 @@ describe("link de pago por WhatsApp", () => {
     });
   });
 
+  it("«En espera» (lo que dispara los correos) es la última escritura del pedido", async () => {
+    payments({ whatsapp_enabled: true });
+
+    await POST(checkout("hwe_whatsapp_link"));
+
+    const puts = vi
+      .mocked(wcFetch)
+      .mock.calls.filter(([, init]) => init?.method === "PUT")
+      .map(([, init]) => init?.body);
+    expect(puts.at(-1)).toEqual({ status: "on-hold" });
+    expect(puts[0]).toHaveProperty("meta_data");
+  });
+
   it("el pago en línea y el efectivo no tocan el estado del pedido", async () => {
     payments({ cash_enabled: true });
 
@@ -245,15 +277,71 @@ describe("quién puede comprar", () => {
   });
 
   it("con sesión no deja credencial de invitado y fija el cliente del pedido", async () => {
-    vi.mocked(wcFetch).mockResolvedValue({ customer_id: 0 } as never);
+    // La Store API no lo ligó (pedido nacido de invitado): se fija en la escritura
+    // de metas, sin leer antes el pedido.
+    orderCreatedFor(0);
 
     await POST(checkout("hwe_offline"));
 
     expect(rememberGuestOrder).not.toHaveBeenCalled();
     expect(wcFetch).toHaveBeenCalledWith("/orders/42", {
       method: "PUT",
+      body: expect.objectContaining({ customer_id: 7, meta_data: expect.any(Array) }),
+    });
+    expect(orderReads()).toHaveLength(0);
+  });
+
+  it("si la Store API ya lo ligó a la cuenta, una sola escritura y ninguna lectura del pedido", async () => {
+    orderCreatedFor(7);
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(201);
+    expect(vi.mocked(wcFetch).mock.calls).toHaveLength(1);
+    const [, init] = vi.mocked(wcFetch).mock.calls[0]!;
+    expect(init?.method).toBe("PUT");
+    expect(init?.body).not.toHaveProperty("customer_id");
+  });
+
+  it("si la respuesta no trae el cliente, se fija igualmente (no se da por ligado)", async () => {
+    // ORDER_RESPONSE sin `customer_id`: el de antes de esta versión de la Store API.
+    await POST(checkout("hwe_offline"));
+
+    expect(wcFetch).toHaveBeenCalledWith("/orders/42", {
+      method: "PUT",
+      body: expect.objectContaining({ customer_id: 7 }),
+    });
+  });
+
+  it("si la escritura de metas falla, el propietario se fija por su cuenta", async () => {
+    orderCreatedFor(0);
+    vi.mocked(wcFetch).mockImplementation((async (
+      _path: string,
+      opts?: { method?: string; body?: { meta_data?: unknown } },
+    ) => {
+      if (opts?.method === "PUT" && opts.body?.meta_data) throw new Error("woo caído");
+      return { customer_id: 0 };
+    }) as never);
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect(res.status).toBe(201);
+    expect(wcFetch).toHaveBeenCalledWith("/orders/42", {
+      method: "PUT",
       body: { customer_id: 7 },
     });
+  });
+
+  it("un invitado no fija ningún propietario", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    payments({}, { checkout_login_required: false });
+    orderCreatedFor(0);
+
+    await POST(checkout("hwe_offline"));
+
+    for (const [, init] of vi.mocked(wcFetch).mock.calls) {
+      expect(init?.body).not.toHaveProperty("customer_id");
+    }
   });
 });
 
@@ -813,6 +901,43 @@ describe("extras de envío (módulo shipping)", () => {
     ).toContain("checkout.shipping_fees_failed");
   });
 
+  it("los importes se leen mientras se crea el pedido, no después", async () => {
+    shippingOn(true);
+    let releaseOrder!: () => void;
+    vi.mocked(storeFetch).mockImplementation((async (path: string) =>
+      path === "/cart"
+        ? {
+            data: { needs_shipping: false, shipping_rates: [] },
+            cartToken: "cart-token",
+          }
+        : new Promise((resolve) => {
+            releaseOrder = () =>
+              resolve({ data: ORDER_RESPONSE, cartToken: "next-token" });
+          })) as never);
+
+    const pending = POST(checkout("hwe_offline", { shipping_method_ids: [3] }));
+    // El pedido no ha respondido y los métodos ya se pidieron.
+    await vi.waitFor(() => expect(orderPosts()).toHaveLength(1));
+    expect(getShippingMethods).toHaveBeenCalledWith({ fresh: true });
+    releaseOrder();
+
+    expect((await pending).status).toBe(201);
+    expect(feePut()).toBeDefined();
+  });
+
+  it("los cargos van en su propia escritura, antes que la de metas", async () => {
+    shippingOn(true);
+
+    await POST(checkout("hwe_offline", { shipping_method_ids: [3] }));
+
+    const puts = vi
+      .mocked(wcFetch)
+      .mock.calls.filter(([, init]) => init?.method === "PUT")
+      .map(([, init]) => Object.keys((init?.body as object) ?? {}));
+    expect(puts[0]).toEqual(["fee_lines"]);
+    expect(puts[1]).toContain("meta_data");
+  });
+
   it("rechaza una lista de ids mal formada", async () => {
     shippingOn(true);
 
@@ -907,7 +1032,8 @@ describe("pago completo con puntos (módulo loyalty)", () => {
       path: string,
       opts?: { method?: string },
     ) => {
-      if (path === "/orders/42" && !opts?.method) {
+      // wc/v3 devuelve el pedido completo también al escribirlo (PUT).
+      if (path === "/orders/42" && (!opts?.method || opts.method === "PUT")) {
         return {
           customer_id: 7,
           meta_data: Object.entries(meta).map(([key, value]) => ({ key, value })),
@@ -938,6 +1064,44 @@ describe("pago completo con puntos (módulo loyalty)", () => {
       "/cart",
       "/checkout",
     ]);
+  });
+
+  it("la marca sale de la respuesta de la escritura de metas: sin leer el pedido", async () => {
+    loyaltyOn();
+    cartIs(cartPaidWithPoints());
+    orderWithMeta({ _hwe_loyalty_paid_with_points: "yes" });
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect((await res.json()).paid_with_points).toBe(true);
+    expect(orderReads()).toHaveLength(0);
+  });
+
+  it("si la escritura de metas falla, la marca se lee del pedido", async () => {
+    loyaltyOn();
+    // Pedido ya ligado a la cuenta por la Store API: la única lectura es la de la marca.
+    vi.mocked(storeFetch).mockImplementation((async (path: string) =>
+      path === "/cart"
+        ? { data: cartPaidWithPoints(), cartToken: "cart-token" }
+        : {
+            data: { ...ORDER_RESPONSE, customer_id: 7 },
+            cartToken: "next-token",
+          }) as never);
+    vi.mocked(wcFetch).mockImplementation((async (
+      _path: string,
+      opts?: { method?: string },
+    ) => {
+      if (opts?.method === "PUT") throw new Error("woo caído");
+      return {
+        customer_id: 7,
+        meta_data: [{ key: "_hwe_loyalty_paid_with_points", value: "yes" }],
+      };
+    }) as never);
+
+    const res = await POST(checkout("hwe_offline"));
+
+    expect((await res.json()).paid_with_points).toBe(true);
+    expect(orderReads()).toHaveLength(1);
   });
 
   it("no pasa a «En espera» aunque el medio pedido sea el link por WhatsApp", async () => {

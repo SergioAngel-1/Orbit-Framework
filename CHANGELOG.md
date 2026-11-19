@@ -28,6 +28,16 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
   evalúan en el mismo orden: el 409 del documento sigue ganando), la atribución del referido corre en paralelo
   con el auto-login, teléfono e identidad se guardan a la vez, y el correo de verificación sale en `after()`, ya
   respondida el alta. Ningún cambio de contrato ni de respuestas.
+- **Checkout · menos vueltas a WordPress tras crear el pedido.** Con sesión, el BFF leía el pedido recién creado
+  solo para comprobar su `customer_id` y luego hacía otra escritura con las metas (documento, medición). La
+  respuesta de la Store API ya trae el `customer_id` con el que nació el pedido: si es el de la sesión no se lee
+  nada, y si no lo es (o no viene) se fija en la MISMA escritura que las metas; si esa escritura falla, el
+  propietario se fija aparte como antes. La marca de «pagado con puntos» sale de la respuesta de esa escritura
+  (wc/v3 devuelve el pedido completo) y solo se lee el pedido si falló. Los importes de los extras de envío se
+  leen a la vez que se crea el pedido. Los cargos (`fee_lines`, que no son idempotentes) siguen en su propia
+  escritura y el paso a «En espera», que dispara los correos, sigue siendo lo último. El caso común (sesión, sin
+  extras ni puntos) pasa de dos vueltas a una; con extras, de cuatro a dos. `StoreCheckoutResponse` declara
+  `customer_id` (opcional; la respuesta ya lo traía).
 
 ### Fixed
 - **Sesión · un refresh token que WordPress rechaza se borra del navegador.** El proxy solo retiraba la cookie de

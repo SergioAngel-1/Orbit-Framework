@@ -112,7 +112,15 @@ type CheckoutResponse = StoreCheckoutResponse & { paid_with_points: true };
  * en profundidad):
  *   1. Se reenvía el JWT a la Store API (Woo liga el `customer_id` de forma
  *      nativa cuando la petición está autenticada), y
- *   2. tras crear el pedido se confirma/fija el `customer_id` vía wc/v3.
+ *   2. tras crear el pedido se confirma/fija el `customer_id` vía wc/v3: la
+ *      respuesta de la Store API ya trae el `customer_id` del pedido; si no es el
+ *      de la sesión, se fija en la misma escritura que las metas del pedido.
+ *
+ * Tras crear el pedido, el número de vueltas a WordPress es lo que tarda la
+ * compra en responder: los extras de envío se leen a la vez que se crea el
+ * pedido, y propietario, documento y medición van en UNA escritura cuya
+ * respuesta ya dice si el pedido quedó pagado con puntos. El paso a «En espera»
+ * (el que dispara los correos) sigue siendo lo último.
  * Sin sesión, el pedido queda de invitado (`customer_id = 0`) y su `order_key`
  * se guarda en una cookie httpOnly: es la prueba de propiedad que luego autoriza
  * a pagarlo y ver su confirmación (`lib/checkout/order-access.ts`).
@@ -421,6 +429,13 @@ export async function POST(request: Request) {
       );
     }
 
+    // Importes vigentes de los extras de envío: se leen a la vez que se crea el
+    // pedido (no dependen de él) en vez de después. `getShippingMethods` no lanza;
+    // aun así la promesa se marca atendida por si el pedido falla antes de usarla.
+    const methodsRead =
+      methodIds.length > 0 ? getShippingMethods({ fresh: true }) : null;
+    methodsRead?.catch(() => undefined);
+
     // Campos explícitos: `identity`, `terms_accepted` y `tracking` son del BFF y no viajan
     // a la Store API tal cual; lo que el BFF resolvió va en `extensions` para que el
     // pedido NAZCA con su documento (ver `storeApiIdentityExtension`).
@@ -457,50 +472,15 @@ export async function POST(request: Request) {
       // Invitado: sin cuenta a la que ligarlo, la order_key es la prueba de
       // propiedad para pagar y ver la confirmación desde este navegador.
       await rememberGuestOrder({ orderId: data.order_id, orderKey: data.order_key });
-    } else if (session && data.order_id) {
-      // Vía 2 (salvaguarda): garantizamos que el pedido quede ligado al usuario.
-      // Si la Store API ya lo asoció (vía 1), este PUT es idempotente; si no lo
-      // hizo, lo corrige aquí. Un fallo aquí NO invalida el pedido ya creado:
-      // se registra para conciliación manual en vez de romper la compra.
-      try {
-        await ensureOrderOwner(data.order_id, Number(session.userId));
-      } catch (linkError) {
-        logger.error(
-          {
-            event: "checkout.link_owner_failed",
-            order_id: data.order_id,
-            userId: session.userId,
-            err: linkError instanceof Error ? linkError.message : linkError,
-          },
-          "No se pudo ligar el pedido al cliente; requiere conciliación",
-        );
-      }
-    }
-
-    // La prueba de «pagado con puntos» es la meta del pedido, no la extensión del
-    // carrito ni el navegador. Si WordPress no la escribió, se sigue el flujo
-    // normal (pasarela) y se registra la incoherencia.
-    let paidWithPointsConfirmed = false;
-    if (paidWithPoints && data.order_id) {
-      const flag = await readOrderPaidWithPoints(data.order_id);
-      paidWithPointsConfirmed = flag === true;
-      if (flag === false) {
-        logger.error(
-          {
-            event: "checkout.paid_with_points_missing",
-            order_id: data.order_id,
-            userId: session?.userId ?? null,
-          },
-          "El carrito venía pagado con fidelización pero el pedido no tiene la marca",
-        );
-      }
     }
 
     // Extras de envío (módulo `shipping`): cargos aditivos del pedido. Van ANTES del paso a
-    // «En espera», que es el que dispara los correos, y un fallo no pierde el pedido.
-    if (data.order_id && methodIds.length > 0) {
+    // «En espera», que es el que dispara los correos, y un fallo no pierde el pedido. Van
+    // en su propia escritura: añadir `fee_lines` no es idempotente y no se mezcla con nada
+    // que se pueda reintentar.
+    if (data.order_id && methodsRead) {
       try {
-        await applyShippingMethodFees(data.order_id, methodIds);
+        await applyShippingMethodFees(data.order_id, methodIds, methodsRead);
       } catch (feeError) {
         logger.error(
           {
@@ -513,11 +493,23 @@ export async function POST(request: Request) {
       }
     }
 
+    // Vía 2 (salvaguarda del propietario): la Store API devuelve el `customer_id` con el
+    // que nació el pedido. Si ya es el de la sesión (vía 1), no hace falta leer el pedido
+    // ni reescribirlo; si no (o la respuesta no lo trae), se fija en la escritura de abajo.
+    const ownerId = session ? Number(session.userId) : null;
+    const fixOwner =
+      ownerId !== null &&
+      Number.isInteger(ownerId) &&
+      ownerId > 0 &&
+      data.customer_id !== ownerId;
+
     // Documento y aceptación en el pedido (salvaguarda: ya llegaron en `extensions`
-    // al crearlo) y contexto de medición, en una sola escritura. Lo que hace falta para mandar la compra desde el
-    // servidor cuando la pasarela confirme (consentimiento, cookies del píxel,
-    // IP y navegador del comprador). Va ANTES del paso a «En espera», que es el
-    // que dispara los correos. Un fallo aquí no pierde el pedido.
+    // al crearlo), contexto de medición y, si hace falta, el propietario: UNA sola
+    // escritura, idempotente. Lo de medición es lo que hace falta para mandar la compra
+    // desde el servidor cuando la pasarela confirme (consentimiento, cookies del píxel,
+    // IP y navegador del comprador). Va ANTES del paso a «En espera», que es el que
+    // dispara los correos. Un fallo aquí no pierde el pedido.
+    let savedOrder: { meta_data?: WooMetaData[] } | null = null;
     if (data.order_id) {
       try {
         const context = await trackingContext(
@@ -525,15 +517,25 @@ export async function POST(request: Request) {
           parsed.data.tracking,
           data.order_id,
         );
-        await wcFetch(`/orders/${data.order_id}`, {
-          method: "PUT",
-          body: {
-            meta_data: [
-              ...(orderIdentity ? orderIdentityMetaData(orderIdentity) : []),
-              ...orderTrackingMetaData(context),
-            ],
+        savedOrder = await wcFetch<{ meta_data?: WooMetaData[] }>(
+          `/orders/${data.order_id}`,
+          {
+            method: "PUT",
+            body: {
+              ...(fixOwner ? { customer_id: ownerId } : {}),
+              meta_data: [
+                ...(orderIdentity ? orderIdentityMetaData(orderIdentity) : []),
+                ...orderTrackingMetaData(context),
+              ],
+            },
           },
-        });
+        );
+        if (fixOwner) {
+          logger.info(
+            { event: "checkout.link_owner", order_id: data.order_id, userId: ownerId },
+            "Pedido ligado al cliente autenticado",
+          );
+        }
       } catch (trackingError) {
         logger.error(
           {
@@ -542,6 +544,45 @@ export async function POST(request: Request) {
             err: trackingError instanceof Error ? trackingError.message : trackingError,
           },
           "No se pudo guardar el contexto de medición en el pedido",
+        );
+        // El propietario no se puede quedar sin fijar por un fallo de las metas: se
+        // reintenta solo (lectura y, si hace falta, escritura idempotente).
+        if (fixOwner) {
+          try {
+            await ensureOrderOwner(data.order_id, ownerId);
+          } catch (linkError) {
+            logger.error(
+              {
+                event: "checkout.link_owner_failed",
+                order_id: data.order_id,
+                userId: session?.userId,
+                err: linkError instanceof Error ? linkError.message : linkError,
+              },
+              "No se pudo ligar el pedido al cliente; requiere conciliación",
+            );
+          }
+        }
+      }
+    }
+
+    // La prueba de «pagado con puntos» es la meta del pedido, no la extensión del
+    // carrito ni el navegador. La trae la respuesta de la escritura de arriba; solo si
+    // esa escritura falló (o no trajo metas) se lee el pedido. Si WordPress no la
+    // escribió, se sigue el flujo normal (pasarela) y se registra la incoherencia.
+    let paidWithPointsConfirmed = false;
+    if (paidWithPoints && data.order_id) {
+      const flag = Array.isArray(savedOrder?.meta_data)
+        ? orderPaidWithPoints(savedOrder.meta_data)
+        : await readOrderPaidWithPoints(data.order_id);
+      paidWithPointsConfirmed = flag === true;
+      if (flag === false) {
+        logger.error(
+          {
+            event: "checkout.paid_with_points_missing",
+            order_id: data.order_id,
+            userId: session?.userId ?? null,
+          },
+          "El carrito venía pagado con fidelización pero el pedido no tiene la marca",
         );
       }
     }
@@ -686,7 +727,8 @@ async function readOrderPaidWithPoints(orderId: number): Promise<boolean | null>
 /**
  * Garantiza que el pedido pertenezca al usuario indicado. Solo escribe si el
  * pedido sigue como invitado (`customer_id = 0`) o pertenece a otro id, de modo
- * que sea idempotente cuando la Store API ya lo asoció correctamente.
+ * que sea idempotente cuando la Store API ya lo asoció correctamente. Es el camino
+ * de reserva: lo normal es fijarlo en la escritura de metas del checkout.
  */
 async function ensureOrderOwner(orderId: number, userId: number): Promise<void> {
   if (!Number.isInteger(userId) || userId <= 0) return;
@@ -708,14 +750,16 @@ async function ensureOrderOwner(orderId: number, userId: number): Promise<void> 
 
 /**
  * Suma al pedido los métodos de envío extra elegidos como líneas de cargo (`fee_lines`).
- * Los importes se leen frescos de WordPress en este instante (`fresh`), no de la caché ISR:
- * lo cobrado es lo vigente, y un id que ya no existe o está inactivo simplemente no cuenta.
+ * Los importes llegan frescos de WordPress (`fresh`, leídos mientras se creaba el pedido),
+ * no de la caché ISR: lo cobrado es lo vigente, y un id que ya no existe o está inactivo
+ * simplemente no cuenta.
  */
 async function applyShippingMethodFees(
   orderId: number,
   methodIds: number[],
+  methodsRead: Promise<Awaited<ReturnType<typeof getShippingMethods>>>,
 ): Promise<void> {
-  const methods = await getShippingMethods({ fresh: true });
+  const methods = await methodsRead;
   const selected = new Set(methodIds);
   const feeLines = methods
     .filter((m) => selected.has(m.id))

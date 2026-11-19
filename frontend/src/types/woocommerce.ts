@@ -151,6 +151,8 @@ export interface StoreCheckoutResponse {
   order_id: number;
   status: string;
   order_key: string;
+  /** Cliente con el que nació el pedido (0 = invitado). Lo trae la Store API. */
+  customer_id?: number;
   payment_result: {
     payment_status: string;
     redirect_url: string;
