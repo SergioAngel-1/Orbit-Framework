@@ -6,6 +6,17 @@ versionado sigue [SemVer](https://semver.org/lang/es/).
 
 ## [Sin publicar]
 
+## [2.11.0] — 2026-11-19
+
+Menos vueltas a WordPress por vista. La ficha pide el producto y los niveles de membresía una sola vez por render;
+login, 2FA, registro y checkout lanzan a la vez las llamadas independientes (el correo de verificación sale tras
+responder) y el checkout fija propietario y metas del pedido en una sola escritura. `getPaymentSettings` comparte
+la lectura en vuelo y sirve la copia caducada (con tope de 10 min) mientras refresca. El proxy deja de llamar a
+WordPress en cada petición cuando el refresh token es rechazado (espera corta ligada al token; solo lo borra si
+caducó). Nueva variable de build opcional `NEXT_ROUTER_STALE_DYNAMIC` (caché del router del cliente, opt-in);
+`getCategory` acepta cuántos productos traer y las lecturas de la lista de deseos piden solo `id` y `meta_data`.
+Se actualiza con un merge del tag y reconstruyendo la imagen del frontend. Sin cambios de contrato.
+
 ### Added
 - **Router · caché del cliente para vistas dinámicas, opt-in (`NEXT_ROUTER_STALE_DYNAMIC`).** Con el defecto de
   Next (`staleTimes.dynamic` = 0), volver con un enlace a la cuenta, al carrito o a cualquier vista dinámica ya
